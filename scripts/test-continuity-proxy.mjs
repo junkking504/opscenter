@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test from 'node:test';
-import {createContinuityProxy, standbyRequest} from '../deploy/vps/continuity-proxy.mjs';
+import {createContinuityProxy, PRIMARY_PROBE_TIMEOUT_MS, standbyRequest} from '../deploy/vps/continuity-proxy.mjs';
 
 const recoveryHealth={runtime:'VPS',platformKernel:{healthy:true,databaseName:'opscenter_recovery_20260914'},assignmentStoreWritable:false,operatorStateWritable:false};
 
@@ -12,6 +12,7 @@ async function listen(server) {
 function close(server) {server.closeAllConnections(); return new Promise(resolve => server.close(resolve));}
 
 test('recovery denies writes, hooks, actions, GET verification and unknown routes', () => {
+  assert.equal(PRIMARY_PROBE_TIMEOUT_MS, 8000, 'relay contention must not trigger the old 2.5-second false failover');
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) assert.equal(standbyRequest(method, '/api/desktop/schedule/operations'), null);
   for (const url of ['/api/desktop/schedule/creation/check', '/api/integrations/linxup/push', '/api/desktop/control', '/api/new-read-or-write-route', '/crew/pay', '/api/%2564esktop/finance']) assert.equal(standbyRequest('GET', url), null);
   assert.equal(standbyRequest('GET','/api/desktop/schedule?date=2026-09-14&load=1&refresh=1'),'/api/desktop/schedule?date=2026-09-14');
@@ -82,6 +83,15 @@ test('an open but stalled primary connection falls back within the probe deadlin
   const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),timeout:40,probeCacheMs:0});
   const base=await listen(gateway);
   try{const start=Date.now();assert.equal(await(await fetch(base)).text(),'recovery');assert.ok(Date.now()-start<1000);}
+  finally{await close(gateway);await close(primary);await close(standby);}
+});
+
+test('relay contention beyond the old deadline does not trigger recovery',async()=>{
+  const primary=http.createServer((_req,res)=>setTimeout(()=>res.end('primary'),2700));
+  const standby=http.createServer((req,res)=>res.end(req.url==='/api/health'?JSON.stringify(recoveryHealth):'recovery'));
+  const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),probeCacheMs:0});
+  const base=await listen(gateway);
+  try{const response=await fetch(base);assert.equal(await response.text(),'primary');assert.equal(response.headers.get('x-opscenter-continuity'),'primary');}
   finally{await close(gateway);await close(primary);await close(standby);}
 });
 

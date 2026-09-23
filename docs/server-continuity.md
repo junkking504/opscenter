@@ -26,6 +26,9 @@ replayed to either origin. New writes are refused while recovery is active.
 Only operator sign-in and sign-out may write authentication state on the standby.
 Several GET routes can trigger work, so the recovery API list is explicit and
 collection/verification parameters are stripped. Unknown endpoints fail closed.
+The primary readiness probe allows eight seconds for the existing SSH relay to
+answer. This prevents ordinary snapshot or relay contention from presenting a
+false recovery page while still bounding detection of an unavailable primary.
 
 Returning traffic to a healthy Mission Control requires no business-record
 merge because the standby never accepts operational writes. Its separate

@@ -14,6 +14,7 @@ const READ_APIS = new Set([
 ]);
 const AUTH_APIS = new Set(['/api/auth/login', '/api/auth/logout']);
 const READER_PARAMS = new Set(['date', 'view', 'employee', 'periodDate', 'page', 'truck', 'job', 'jobId', 'appointmentId', 'appointment', 'month', 'year', 'from', 'to', 'q']);
+export const PRIMARY_PROBE_TIMEOUT_MS = 8000;
 export function standbyRequest(method, rawUrl) {
   let url;
   try { url = new URL(rawUrl, 'http://127.0.0.1'); } catch { return null; }
@@ -64,7 +65,7 @@ const banner = `<div id="ops-continuity-notice" role="status" style="position:fi
 export function createContinuityProxy(options = {}) {
   const primary = options.primary || 'http://127.0.0.1:3000';
   const standby = options.standby || 'http://127.0.0.1:3001';
-  const timeout = options.timeout || 2500;
+  const timeout = options.timeout || PRIMARY_PROBE_TIMEOUT_MS;
   const snapshotFile = options.snapshotFile;
   let currentCheck, currentStandbyCheck;
   let standbyObservedAt = 0, standbyReady = false;

@@ -3,11 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {trackedGeofenceVisits} from '../lib/linxup-geofence-alerts';
-import {runUnloadCostAgent} from '../lib/unload-cost-agent';
+import {projectVerifiedExpenseUnloadEvents,runUnloadCostAgent} from '../lib/unload-cost-agent';
 import {defaultDumpFeePolicy,readDumpExpenses} from '../lib/dump-expenses';
 import {readTruckExpenses,readOperationalTruckExpenses,truckExpenseTimelineAlerts,mergeTruckExpenseAlerts,type TruckExpense} from '../lib/truck-expense-notifications';
 import {readExpenseUnloadLinks,withoutDuplicateExpenseUnloads} from '../lib/expense-unload-links';
 import {deriveTruckLoadStatus,type TruckLoadEvent} from '../lib/truck-load-status';
+import {canonicalDumpLocation} from '../lib/dump-expense-identity';
 const date='2026-09-15',at=(clock:string)=>`${date}T${clock}:00-05:00`,now=Date.parse(at('23:59'));
 const position=(clock:string,name:string)=>({truck_number:'4',occurred_at:at(clock),geofence_name:name});
 const visits=trackedGeofenceVisits(date,[position('13:49','Gentilly'),position('14:03','Gentilly'),position('14:15','Warehouse')],[],now);
@@ -18,6 +19,21 @@ const after=runUnloadCostAgent(date,[...visits,...visits],[actual],defaultDumpFe
 assert.equal(after.records.length,1);assert.equal(after.records[0].status,'actual');assert.equal(after.records[0].location,'Gentilly');
 assert.deepEqual(after.unloads,before.unloads,'Actual receipt cannot move/repeat physical unload');
 assert.equal(after.records[0].id,before.records[0].id);
+assert.equal(projectVerifiedExpenseUnloadEvents(date,[actual],after.records,[]).length,0,'A matched actual cannot create a second unload');
+const unmatched=runUnloadCostAgent(date,[],[actual],defaultDumpFeePolicy,now);
+const expenseUnloads=projectVerifiedExpenseUnloadEvents(date,[actual],unmatched.records,[
+  {appointmentId:'before',truck:'Truck# 4',completedAt:at('13:30')},
+  {appointmentId:'after',truck:'Truck# 4',completedAt:at('14:30')},
+]);
+assert.equal(expenseUnloads.length,1,'A verified unmatched dump expense establishes one unload');
+assert.equal(expenseUnloads[0].occurredAt,new Date(actual.transactionAt).toISOString());
+assert.deepEqual(expenseUnloads[0].coveredAppointmentIds,['before'],'Only jobs completed before the expense are covered');
+const prePickup:TruckLoadEvent={...expenseUnloads[0],eventId:'pre-pickup',kind:'job_closeout',loadFraction:.5,occurredAt:new Date(at('13:30')).toISOString(),appointmentId:'before'};
+const postPickup:TruckLoadEvent={...expenseUnloads[0],eventId:'post-pickup',kind:'job_closeout',loadFraction:.25,occurredAt:new Date(at('14:30')).toISOString(),appointmentId:'after'};
+assert.equal(deriveTruckLoadStatus(date,'Truck# 4',[prePickup,...expenseUnloads,postPickup]).currentLoadFraction,.25,'The verified expense clears earlier work without erasing later pickups');
+assert.equal(projectVerifiedExpenseUnloadEvents(date,[{...actual,reconciliationNote:'review'}],unmatched.records,[]).length,0,'An unresolved expense cannot reset load');
+assert.equal(projectVerifiedExpenseUnloadEvents(date,[actual],unmatched.records,[],new Set([actual.id])).length,0,'An explicitly linked saved reset is not duplicated');
+assert.equal(canonicalDumpLocation('Gentility'),'Gentilly');
 const pickup:TruckLoadEvent={...after.unloads[0],eventId:'later-pickup',kind:'job_closeout',loadFraction:.25,occurredAt:new Date(at('15:00')).toISOString(),appointmentId:'123'};
 assert.equal(deriveTruckLoadStatus(date,'Truck# 4',[...after.unloads,pickup]).currentLoadFraction,.25,'Late cost reconciliation preserves later pickup');
 const competing=runUnloadCostAgent(date,visits,[actual,{...actual,id:'b'.repeat(32),transactionAt:at('17:00')}],defaultDumpFeePolicy,now);

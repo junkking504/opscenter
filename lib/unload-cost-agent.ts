@@ -37,6 +37,26 @@ export function projectUnloadEvents(date:string,visits:TrackedVisit[],now=Date.n
     appointmentId:'',jobNumber:'',loadSize:'',loadQuantity:'',contents:'',resetLocation:visit.resetLocation!,
   }));
 }
+export function projectVerifiedExpenseUnloadEvents(
+  date:string,
+  expenses:TruckExpense[],
+  records:DumpExpenseRecord[],
+  completedJobs:Array<{appointmentId:string;truck:string;completedAt:string}>,
+  linkedExpenseIds:ReadonlySet<string>=new Set(),
+  now=Date.now(),
+):TruckLoadEvent[] {
+  const matched=new Set(records.filter(record=>record.enteredAt && record.status==='actual' && record.actualExpenseId).map(record=>record.actualExpenseId!));
+  return expenses.filter(expense=>expense.kind==='dump' && expense.date===date && !!truckKey(expense.truck) && !expense.reconciliationNote && !matched.has(expense.id)
+    && !linkedExpenseIds.has(expense.id) && Number.isFinite(Date.parse(expense.transactionAt)) && Date.parse(expense.transactionAt)<=now)
+    .map(expense=>({
+      eventId:`unload:expense:${expense.id}`,date,truck:`Truck# ${truckKey(expense.truck)}`,kind:'yard_reset' as const,loadFraction:0,
+      occurredAt:new Date(expense.transactionAt).toISOString(),recordedAt:expense.sourceObservedAt || new Date(expense.transactionAt).toISOString(),
+      recordedBy:`Verified JunkWare dump expense: ${canonicalDumpLocation(expense.location)}`,
+      appointmentId:'',jobNumber:'',loadSize:'',loadQuantity:'',contents:'',resetLocation:'dump',
+      coveredAppointmentIds:[...new Set(completedJobs.filter(job=>truckKey(job.truck)===truckKey(expense.truck)
+        && Number.isFinite(Date.parse(job.completedAt)) && Date.parse(job.completedAt)<=Date.parse(expense.transactionAt)).map(job=>job.appointmentId))].sort(),
+    }));
+}
 export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputExpenses:TruckExpense[],policy:DumpFeePolicy|null,now=Date.now()) {
   const visits=uniqueTrackedVisits(inputVisits);
   const records:DumpExpenseRecord[]=visits.filter(visit=>visit.kind==='geofence' && visit.resetLocation==='dump' && visit.entryIds.length && visit.firstObservedAt

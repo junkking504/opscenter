@@ -39,6 +39,11 @@ weight, receipt number, provider payment or fee is fabricated.
   OpsBot expense unload is suppressed in the load read projection only when its
   completed message transaction explicitly matches the actual and that actual
   matches this visit. Unrelated manual unloads remain untouched.
+- A verified, unambiguous JunkWare dump expense with no matching facility visit
+  still resets that truck's projected load once at the expense transaction time.
+  Existing same-truck completion receipts before that time are covered; later
+  pickups remain onboard. Duplicate or ownership-conflicted expenses require
+  review and cannot reset load.
 
 ## Two trucks at the same facility
 
@@ -67,7 +72,7 @@ so duplicate rows cannot inflate a headline total.
 Original expense IDs, market IDs and raw location spelling are retained as
 provenance. Command merges the original event fingerprints into one operational
 card. Raw expense collection and Slack notification identities remain unchanged.
-The observed exact spelling `Gentillt` displays as **Gentilly** and matches the
+The observed exact spellings `Gentillt` and `Gentility` display as **Gentilly** and match the
 Gentilly visit; there is no general fuzzy facility matching or source edit.
 
 ## Presentation and authority

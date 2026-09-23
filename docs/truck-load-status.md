@@ -87,7 +87,11 @@ arrival and replaces it with an actual whenever the actual uniquely matches the
 visit. The unload stays at original arrival; cost replacement never creates a
 second reset. A verified OpsBot expense transaction that explicitly links an
 existing saved expense reset to that same matched visit is collapsed in the read
-projection. Manual unloads and uncertain source links remain intact.
+projection. A verified JunkWare dump expense without a matching facility visit
+still establishes one unload at its recorded transaction time. It covers only
+same-truck jobs whose existing completion receipt predates that transaction;
+later pickups start the next load. Duplicate or otherwise unresolved expense
+rows do not reset a truck. Manual unloads and uncertain source links remain intact.
 
 ## Runtime data and API
 

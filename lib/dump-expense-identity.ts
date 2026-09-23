@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import type {TruckExpense} from './truck-expense-notifications';
 
-export const canonicalDumpLocation = (name: string) => /^(?:gentill[yt]|gentilly landfill|gl)$/i.test(name.trim()) ? 'Gentilly' : name;
+export const canonicalDumpLocation = (name: string) => /^(?:gentil(?:l[yt]|ity)|gentilly landfill|gl)$/i.test(name.trim()) ? 'Gentilly' : name;
 export type DumpAllocation = {marketTotal: number | null; table: string; tableTotal: number; unique: boolean};
 const cents = (amount: number) => Math.round(amount * 100);
 const identity = (row: TruckExpense) => JSON.stringify([row.date,row.truck,Date.parse(row.transactionAt),row.kind,row.receipt.trim(),(row.kind==='dump'?canonicalDumpLocation(row.location):row.location).trim().toLowerCase()]);

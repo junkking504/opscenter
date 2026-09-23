@@ -10,7 +10,10 @@ service, daemon, or Slack messages.
 2. **Unload/cost** consumes that exact visit result. Disposal and metal-yard
    arrivals create one projected unload at original arrival. Dump visits also
    create the configured assumed minimum, replaced by a uniquely matching actual
-   whenever recorded. See [dump expenses](dump-expenses.md).
+   whenever recorded. A verified, unambiguous JunkWare dump expense that has no
+   matching facility visit still establishes one unload at its transaction time;
+   existing same-truck completion receipts determine which prior jobs it covers.
+   See [dump expenses](dump-expenses.md).
 
 ## Autonomous local execution
 

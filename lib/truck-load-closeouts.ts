@@ -11,7 +11,7 @@ import { readGeofenceEntries } from './linxup-geofence-alerts';
 import {readDumpFeePolicy} from './dump-expenses';
 import {readOperationalTruckExpenses} from './truck-expense-notifications';
 import {readExpenseUnloadLinks,withoutDuplicateExpenseUnloads} from './expense-unload-links';
-import {runUnloadCostAgent} from './unload-cost-agent';
+import {projectVerifiedExpenseUnloadEvents,runUnloadCostAgent} from './unload-cost-agent';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, junkwareBedloadFraction, formatLoadAmount, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
 type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string; appointmentStartMinutes?:number | null};
@@ -170,9 +170,19 @@ function readLoadDay(date: string, trucks: string[], stored: TruckLoadEvent[], p
   const visits=readGeofenceEntries(date).trackedVisits;
   const expenses=readOperationalTruckExpenses(date);
   const result=runUnloadCostAgent(date,visits,expenses,readDumpFeePolicy());
-  const events = [...withoutDuplicateExpenseUnloads(stored,result.records,readExpenseUnloadLinks(date,expenses)),...result.unloads,...inspectionLoadEvents(listTruckInspections(date))];
   const completions = readTruckCompletionEvidence(date,jobs);
-  return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0,previous);
+  const scheduleVisits=readScheduleVisits(date).visits;
+  const links=readExpenseUnloadLinks(date,expenses);
+  const linkedExpenseIds=new Set(stored.filter(event=>links.has(event.eventId)).map(event=>links.get(event.eventId)!));
+  const completedJobs=jobs.flatMap(job=>{
+    const completedAt=completions.get(job.appointmentId);
+    if(!completedAt || !/^job$/i.test(job.appointmentType) || !/^(?:completed|closed)\b/i.test(job.status))return [];
+    const carrier=physicalCloseoutTruck(date,{...job,completionObservedAt:completedAt},scheduleVisits)?.truck || normalizeTruckLoadLabel(job.truck);
+    return [{appointmentId:job.appointmentId,truck:carrier,completedAt}];
+  });
+  const events = [...withoutDuplicateExpenseUnloads(stored,result.records,links),...result.unloads,
+    ...projectVerifiedExpenseUnloadEvents(date,expenses,result.records,completedJobs,linkedExpenseIds),...inspectionLoadEvents(listTruckInspections(date))];
+  return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),scheduleVisits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0,previous);
 }
 
 const historyCache = new Map<string,{at:number;loads:OperationalTruckLoad[]}>();

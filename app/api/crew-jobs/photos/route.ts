@@ -18,7 +18,13 @@ export async function GET(request:Request) {
 
     requireCrewPhone(request);
     const params=new URL(request.url).searchParams;
-    if([...params.keys()].some(key=>!['assignmentId','requestId'].includes(key)))throw new CrewPhoneError('Use the current assignment screen.');
+    if([...params.keys()].some(key=>!['assignmentId','requestId','receiptOnly'].includes(key)) || (params.has('receiptOnly')&&params.get('receiptOnly')!=='1'))throw new CrewPhoneError('Use the current assignment screen.');
+    if(params.get('receiptOnly')==='1'){
+      const phone=requireCrewPhone(request),receipt=readCrewPhoto(params.get('requestId') || '');
+      if(!receipt || receipt.deviceId!==phone.deviceId || receipt.assignmentId!==params.get('assignmentId'))throw new CrewPhoneError('Photo receipt not found.',404);
+      // Durable intake acknowledgment is a local read, not a provider refresh.
+      return crewPhoneResponse({receipt:crewPhotoProjection(receipt)});
+    }
     if(!params.has('requestId')){
       const {phone,current}=readCrewJobScope(request,params.get('assignmentId') || '');
       return crewPhoneResponse({photos:crewPhotos(phone.deviceId,current.assignmentId).map(crewPhotoProjection)});

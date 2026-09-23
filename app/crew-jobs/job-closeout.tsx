@@ -8,6 +8,7 @@ import { crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../de
 import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
+import {createHandoff,resumeHandoff} from './checkout-handoff';
 
 export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext,onHandoffStarted,onHandoffFailed,onQueued}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void;onHandoffStarted?:()=>void;onHandoffFailed?:(message:string)=>void;onQueued?:(requestId:string)=>void}) {
   const [completed,setCompleted]=useState(false);
@@ -15,7 +16,6 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   const [dryRun,setDryRun]=useState(false);
   const dryRunMode=useRef(false);
   const photoSubmit=useRef<PhotoCheckoutHandle>(null);
-  const stagedPhotoIds=useRef<string[]>([]);
   const [submissionMessage,setSubmissionMessage]=useState('');
   const [photoBusy,setPhotoBusy]=useState(false),[formBusy,setFormBusy]=useState(false);
   const busy=photoBusy || formBusy;
@@ -34,10 +34,8 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       async prepare(){
         if(dryRunMode.current){setSubmissionMessage('Checking the dry run. No live results will be posted.');return;}
         if(!photoSubmit.current)throw new Error('Photo selection is unavailable. Return to photos before submitting.');
-        onHandoffStarted?.();
-        setSubmissionMessage('Transferring checkout to OpsCenter…');
-        try {stagedPhotoIds.current=await photoSubmit.current.submit(setSubmissionMessage);setSubmissionMessage('Checkout accepted. Waypoint will finish it in the background.');return {background:true};}
-        catch(error){const message=error instanceof Error?error.message:'Submission paused. Check the saved photos before trying again.';setSubmissionMessage('Submission paused. Photos already transferred will not be uploaded again. Your payment has not been submitted.');onHandoffFailed?.(message);throw error;}
+        if(!photoSubmit.current.ready())throw new Error('Photos are still being saved on this phone. Wait a moment before submitting.');
+        return {background:true};
       },
       async load(refresh=false){
         setCompleted(false);
@@ -54,16 +52,20 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
         return body;
       },
       async send(values,requestId){
-        // Retain the request identity BEFORE the only POST, including across page reload.
-        if(!dryRunMode.current)keep({requestId,action:'closeout',status:'pending',message:'Checking the saved closeout. Do not record another payment.'});
-        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})},photoRequestIds:stagedPhotoIds.current,...(dryRunMode.current?{dryRun:true}:{})},{endpoint,waitForCompletion:false});
-        const saved=keep(receipt);
-        if(!dryRunMode.current)queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message} Reopen this assignment to review the retained draft.`):onQueued?.(saved.requestId));
-        return saved;
+        if(!dryRunMode.current){
+          const handoff=await createHandoff(deviceId,job.assignmentId,{assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})}});
+          onHandoffStarted?.();
+          const receipt=await resumeHandoff(handoff);
+          if(!receipt)throw new Error('Transfer paused. Resume the saved submission from Assignments.');
+          const saved=keep(receipt);
+          queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message}`):onQueued?.(saved.requestId));
+          return saved;
+        }
+        return submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})},photoRequestIds:[],dryRun:true},{endpoint,waitForCompletion:false});
       },
       check,
     };
-  },[endpoint,key,job.assignmentId,onHandoffStarted,onHandoffFailed,onQueued]);
+  },[endpoint,key,deviceId,job.assignmentId,onHandoffStarted,onHandoffFailed,onQueued]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
     <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once, then return to Assignments while Waypoint finishes in the background."}</p>

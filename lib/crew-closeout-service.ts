@@ -80,7 +80,7 @@ export async function warmCrewCloseout(request:Request,assignmentId:string) {
   try{await loadCrewCloseout(request,assignmentId);warmRetry.delete(assignmentId);}
   catch{warmRetry.set(assignmentId,Date.now()+5*60_000);}
 }
-async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps=crewCloseoutDependencies) {
+async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps=crewCloseoutDependencies,deferProviderRead=false) {
   const phone=requireCrewPhone(request),assignmentId=String(body.assignmentId || '');
   const current=readCrewDispatch(phone.truck).current;
   if(!current || current.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
@@ -98,7 +98,9 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
   // A repeated request ID must return its durable receipt without waiting on
   // the provider or competing with the already-running background worker.
   const existingReceipt=await readScheduleReceipt(operation.requestId);
-  const baseline=!existingReceipt && photoRequestIds.length?await deps.read(current.appointmentId):null;
+  // Queue acceptance must not wait for JunkWare. Its worker checks the reviewed
+  // source-field fingerprint after photos verify and before any provider write.
+  const baseline=!deferProviderRead && !existingReceipt && photoRequestIds.length?await deps.read(current.appointmentId):null;
   if(baseline && (baseline.appointmentId!==current.appointmentId || !sameTruck(baseline.closeout?.truck,phone.truck) || baseline.closeout?.status?.value!=='1' || !reviewedSourceMatches(baseline.closeout)))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
   const load=()=>{
     requireCrewPhone(request);
@@ -166,7 +168,7 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
 }
 
 export async function queueCrewCloseout(request:Request,body:Record<string,unknown>,deps=crewCloseoutDependencies) {
-  const task=await crewCloseoutTask(request,body,deps);
+  const task=await crewCloseoutTask(request,body,deps,true);
   const queued=await queueScheduleOperation(task.operation,task.actor,task.load);
   return {receipt:queued.receipt,run:queued.created?()=>finishQueuedScheduleOperation(queued,task.run):null};
 }

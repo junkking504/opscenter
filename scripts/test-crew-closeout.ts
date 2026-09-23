@@ -18,6 +18,8 @@ async function main(){
   const {loadCrewCloseout,submitCrewCloseout,queueCrewCloseout,checkCrewCloseout,crewReceiptProjection,validateCrewCloseout}=await import('../lib/crew-closeout-service');
   const {closeoutSourceVersion}=await import('../lib/desktop-closeout-contract');
   const {JunkwareCloseoutError}=await import('../lib/junkware-job-closeout');
+  const {uploadCrewPhoto}=await import('../lib/crew-job-photos');
+  process.env.OPS_CREW_PHOTO_DIR=path.join(dir,'photos');
   const token=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 6','Test phone','manager').code,token);
   const date=chicagoDateKey(),id='900001',version='a'.repeat(64),current=releaseCrewJob({truck:phone.truck,date,appointmentId:id,expectedVersion:0,requestId:randomUUID()},'manager').current!;
   saveCrewDay(phone,{date,requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:['Test Navigator']});
@@ -70,6 +72,16 @@ async function main(){
   assert.equal(manualReceipt.status,'verified');assert.equal(manualWrites,1);assert.equal((manualReceipt.sourceResult?.jobTiming as {startSource:string}).startSource,'unknown','Other-truck GPS and phone input never invent an arrival');
   job.truckVisits=savedVisits;
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).arrival,arrival);
+  const stagedPhoto=await uploadCrewPhoto({requestId:randomUUID(),assignmentId:current.assignmentId,category:'after',extension:'jpg',bytes:Buffer.from([255,216,255,1,2])},{deviceId:phone.deviceId,appointmentId:id},async file=>({mediaUrls:[`https://junkware.junk-king.com/system/aspnet/local/media/photo-${id}-${path.parse(file).name}-After.jpg`]}));
+  let queuedReads=0;
+  const photoQueueBody={...body(),photoRequestIds:[stagedPhoto.requestId]};
+  const photoQueue=await queueCrewCloseout(request,photoQueueBody,{...deps,read:async(...args)=>{queuedReads++;return deps.read(...args);}});
+  assert.equal(queuedReads,0,'Durable acceptance never waits on a provider read, including with photos');
+  const sameQueue=await queueCrewCloseout(request,photoQueueBody,{...deps,read:async()=>{throw new Error('Repeated intake must not read the provider');}});
+  assert.equal(sameQueue.receipt.requestId,photoQueue.receipt.requestId);assert.equal(sameQueue.run,null);
+  source={...source,loadPrice:'999'};
+  assert.equal((await photoQueue.run!()).status,'failed','Background preflight still rejects changed source fields');
+  assert.equal(queuedReads,1);assert.equal(writes,0,'Fast acceptance never weakens payment guards');source=structuredClone(baseline);
   const queued=await queueCrewCloseout(request,body(),deps);assert.equal(queued.receipt.status,'pending');assert.equal(writes,0,'Queue response precedes the provider write');assert.ok(queued.run);
   const backgroundReceipt=await queued.run!();assert.equal(backgroundReceipt.status,'verified');assert.equal(writes,1,'Background worker owns the one closeout write');source=structuredClone(baseline);writes=0;
   const tampered=await submitCrewCloseout(request,{...body(),values:{...values,jobCategoryId:'changed'}},deps);assert.equal(tampered.status,'failed');assert.equal(writes,0);

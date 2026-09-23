@@ -17,27 +17,31 @@ const fixture = {
 async function main(){
  const browser=await chromium.launch({headless:true});
  try {for(const width of [320,390,430]){
-  const context=await browser.newContext({viewport:{width,height:844},ignoreHTTPSErrors:true}),page=await context.newPage();
+  const context=await browser.newContext({viewport:{width,height:844},ignoreHTTPSErrors:true});let page=await context.newPage();
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   let posts=0,receipt:any=null,sourceVersion='a'.repeat(64),photos=true,receiptReads=0,completed=false,managerChanged=false,closeoutResponded=false;
+  const photoReceipts=new Map<string,unknown>();let photoPosts=0;
   const closeout=()=>({...fixture,actualStartMinute:managerChanged?field('05','05',minutes):fixture.actualStartMinute,photoEvidence:closeoutPhotoEvidence('900001',photos?['https://junkware.junk-king.com/system/aspnet/local/media/sample-900001-before.jpg']:[])});
-  await page.route('**/api/**',async route=>{
-   const r=route.request(),u=new URL(r.url());const send=(body:unknown)=>route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+  await context.route('**/api/**',async route=>{
+   const r=route.request(),u=new URL(r.url());const send=(body:unknown,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
    if(u.pathname==='/api/crew-jobs/session')return send({phone:{deviceId:'sample-phone',truck:'Truck 6',label:'Sample phone'}});
    if(u.pathname==='/api/crew-jobs/day')return send({date:'2026-09-18',phone:{deviceId:'sample-phone',truck:'Truck 6',label:'Sample phone'},day:{date:'2026-09-18',version:1,responsible:'Sample Driver',driver:'Sample Driver',navigators:['Sample Navigator'],truck:'Truck 6'},inspection:{status:'ready'},trucks:['Truck 6'],roster:['Sample Driver','Sample Navigator','Extra Crew']});
    if(u.pathname==='/api/crew-jobs/current'){
     const job=completed?{assignmentId:'next-assignment',appointmentId:'900002',date:'2026-09-18',jkNumber:'SAMPLE-02',customerName:'Next Sample Customer',address:'200 Sample Street',appointmentTime:'12–2 PM',junkItems:['Second job'],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator'}:{assignmentId:'sample-assignment',appointmentId:'900001',date:'2026-09-18',jkNumber:'SAMPLE-01',customerName:'Sample Customer',address:'100 Sample Street',appointmentTime:'10 AM–12 PM',junkItems:[],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator'};
     return send({state:'assigned',truck:'Truck 6',job,jobs:[{...job,status:'Confirmed'},{...job,assignmentId:undefined,appointmentId:'900003',jkNumber:'SAMPLE-03',customerName:'Later Sample Customer',address:'300 Sample Street',appointmentNotes:['Use the side gate'],status:'Confirmed'},...(completed?[{...job,assignmentId:undefined,appointmentId:'900001',jkNumber:'SAMPLE-01',customerName:'Closed Sample Estimate',status:'Completed',appointmentType:'Estimate',closedTotal:568,estimateOutcomes:['Other: Training only, no discount: internal test']}]:[])]});
    }
-   if(u.pathname==='/api/crew-jobs/photos')return send({photos:[]});
+   if(u.pathname==='/api/crew-jobs/photos'){
+    if(r.method()==='POST'){photoPosts++;const b=r.postDataJSON();photoReceipts.set(b.requestId,{requestId:b.requestId,category:b.category,status:'pending'});if(photoPosts===1)return route.abort();return send({receipt:photoReceipts.get(b.requestId)},202);}
+    const id=u.searchParams.get('requestId');return id?(photoReceipts.has(id)?send({receipt:photoReceipts.get(id)}):send({error:'Photo receipt not found'},404)):send({photos:[...photoReceipts.values()]});
+   }
    if(u.pathname==='/api/crew-jobs/closeout'){
     if(r.method()==='POST'){
      posts++;const b=r.postDataJSON();assert.equal(b.assignmentId,'sample-assignment');assert.equal(b.values.truck,'Truck 6');assert.equal(b.values.targetStatus,'8');assert.equal(b.crewVersion,1);assert.equal(b.values.driverId,'driver');assert.deepEqual(b.values.navigatorIds,['navigator','extra']);assert.deepEqual(b.values.addPayment,{methodId:'3',amount:'400',reference:'1234'});
-     assert.deepEqual(b.photoRequestIds,[]);receipt={requestId:b.requestId,action:'closeout',status:'pending',message:'Source verification in progress.'};
+     assert.equal(b.photoRequestIds.length,width===390?2:0);receipt={requestId:b.requestId,action:'closeout',status:'pending',message:'Source verification in progress.'};
      await new Promise(resolve=>setTimeout(resolve,600));closeoutResponded=true;
      return send({receipt});
     }
-    if(u.searchParams.has('requestId')){receiptReads++;if(receiptReads>=2){completed=true;receipt={requestId:receipt.requestId,action:'closeout',status:'verified',message:'Saved and verified in JunkWare.',sourceResult:{appointmentId:'900001',closeout:{...closeout(),status:{value:'8',label:'Completed'}}}};}return send({receipt});}
+    if(u.searchParams.has('requestId')){if(!receipt)return send({error:'Closeout receipt not found'},404);receiptReads++;if(receiptReads>=2){completed=true;receipt={requestId:receipt.requestId,action:'closeout',status:'verified',message:'Saved and verified in JunkWare.',sourceResult:{appointmentId:'900001',closeout:{...closeout(),status:{value:'8',label:'Completed'}}}};}return send({receipt});}
     return send({crewVersion:1,crewDefaults:{version:1,driver:fixture.driver,navigators:fixture.navigators},closeout:closeout(),sourceVersion,jobVersion:'sample-version',canWrite:true});
    }
    throw new Error(`Unexpected API ${r.method()} ${u.pathname}`);
@@ -50,12 +54,34 @@ async function main(){
   await page.getByLabel('Payment amount',{exact:true}).fill('400');await page.getByLabel('Card last four',{exact:false}).fill('1234');
   await page.reload();await open();await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('400');await expect(page.getByText('Draft restored against the current JunkWare record. Review before saving.')).toBeVisible();
   sourceVersion='b'.repeat(64);managerChanged=true;await page.reload();await open();await page.getByRole('button',{name:'Continue to charges',exact:true}).click();await page.getByRole('button',{name:'+ Add additional crew',exact:true}).click();await page.getByRole('combobox',{name:'Additional crew 1',exact:true}).selectOption('extra');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Continue to payment',exact:true}).click();await expect(page.getByLabel('Record a collected payment',{exact:true})).not.toBeChecked();
+  if(width===390){
+   await page.getByRole('button',{name:'Previous step',exact:true}).click();
+   const image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=8;canvas.height=8;return canvas.toDataURL('image/png').split(',')[1];});
+   await page.getByLabel('Add after photos',{exact:true}).setInputFiles([1,2].map(n=>({name:`sample-${n}.png`,mimeType:'image/png',buffer:Buffer.from(image,'base64')})));
+   await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(2);
+   await page.getByRole('button',{name:'Continue to payment',exact:true}).click();
+  }
   await page.getByLabel('Record a collected payment',{exact:true}).check();await page.getByRole('radio',{name:'Credit Card',exact:true}).check();await page.getByLabel('Payment amount',{exact:true}).fill('400');await page.getByLabel('Card last four',{exact:false}).fill('1234');
   await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
   await page.screenshot({path:`/tmp/crew-closeout-${width}.png`,fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No overflow ${width}`);
   if(width===390)await page.screenshot({path:'/tmp/crew-closeout-review.png',fullPage:true});
-  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(closeoutResponded,false,'Assignments returns before the closeout request finishes');assert.ok(Date.now()-started<2000,'Submit returns to Assignments without waiting for JunkWare');await expect(page.getByText('Checkout is finishing in the background.',{exact:false})).toBeVisible();assert.equal(closeoutResponded,true);assert.equal(posts,1);
+  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(closeoutResponded,false,'Assignments returns before the closeout request finishes');assert.ok(Date.now()-started<2000,'Submit returns to Assignments without waiting for JunkWare');
+  if(width===390){
+   await expect(page.getByText('Transfer paused · not yet safe to close.',{exact:false})).toBeVisible();assert.equal(posts,0);
+   await page.getByText('Truck & phone',{exact:true}).click();
+   await expect(page.getByRole('button',{name:'Disconnect company phone',exact:true})).toBeDisabled();
+   await expect(page.getByRole('button',{name:'Switch truck',exact:true})).toBeDisabled();
+   await page.evaluate(async()=>{
+    const intent=JSON.parse(localStorage.getItem('ops-crew-closeout:sample-phone:sample-assignment:handoff')!);
+    if(intent.photoIds.length!==2 || intent.phase!=='transferring')throw new Error('Confirmed intent must be durable before page close');
+    await new Promise<void>((resolve,reject)=>{const open=indexedDB.open('ops-crew-photo-drafts-v1',1);open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,tx=db.transaction('drafts','readwrite'),store=tx.objectStore('drafts'),read=store.get('sample-phone:sample-assignment');read.onsuccess=()=>store.put({...read.result,at:Date.now()-48*60*60_000},'sample-phone:sample-assignment');tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};});
+   });
+   await page.close();page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(`${process.argv[2] || 'http://127.0.0.1:3189'}/crew-jobs`);
+  }
+  await expect(page.getByText('Safe to close Waypoint.',{exact:false})).toBeVisible();assert.equal(closeoutResponded,true);assert.equal(posts,1);
+  if(width===390)assert.equal(photoPosts,2,'Browser close/reopen resumes remaining bytes without repeating acknowledged uploads');
   await page.getByRole('button',{name:'View assignment',exact:true}).last().click();await expect(page.getByText('Use the side gate',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Next Sample Customer',exact:true})).toBeVisible({timeout:10_000});assert.equal(posts,1);assert.deepEqual(errors,[]);
   await expect(page.getByText('Closed as estimate · $568.00',{exact:true})).toBeVisible();

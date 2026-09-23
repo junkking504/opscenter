@@ -383,7 +383,7 @@ closeout state separately.
 Completed cards identify **Closed as estimate** or **Closed as job**, the saved
 source total when available, and saved estimate-outcome notes. Missing amount
 details remain explicitly pending; an entered draft never proves completion.
-Previously verified photo history is excluded from the ten new-transfer limit.
+Previously verified photo history is excluded from the 25 new-transfer limit.
 Duplicate photo content uses the server's canonical receipt once. A separate
 server-provided fields version allows only photo-evidence changes while the
 reviewed price, crew, payment and all other source fields remain protected.
@@ -393,18 +393,37 @@ phone-local draft; those draft values are not a server-side receipt.
 The company-phone workflow is **Before photos → Charges → After photos →
 Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
 storage. Moving between steps does not upload photos or require upload
-verification. Required job details, crew and actual times are in Charges.
+verification. Job details and crew are in Charges; missing GPS times do not
+require manual arrival/departure entry by the crew.
 
 Only **Submit checkout**, after final review, starts the handoff. Waypoint
-immediately returns the crew to Assignments while the same page transfers all
-selected photos to durable server storage and queues one assignment-scoped
-closeout receipt. The phone must stay on Waypoint until that short transfer
-becomes the server-owned queue; a failed transfer re-enables the assignment with
-an explicit saved-state warning. The server then finishes the exact JunkWare
+first saves the reviewed payload, original request UUID and selected photo IDs
+in an assignment-scoped phone outbox. If browser storage fails, submission is
+blocked before any write. It immediately returns the crew to Assignments while
+transferring photos to durable server storage and queuing one assignment-scoped
+closeout receipt. Queue acceptance performs no JunkWare read: the worker checks
+the original reviewed source-field fingerprint, phone authority and crew after
+photo verification and before any payment/closeout write. The page explicitly distinguishes **Sending / saved on this
+phone**, **Safe to close / server saved, verification pending**, **Verified**, and
+**Needs attention**. Only the server receipt permits the Safe to close message.
+The server then finishes the exact JunkWare
 photo uploads, closeout, payment and source verification in the background. The
 next queued assignment can be viewed immediately, but closeout remains locked
 until the receipt verifies Completed with the required photos; the phone polls
-that receipt read-only and releases the next closeout automatically.
+that receipt read-only and releases the next closeout automatically. Phone
+disconnect, truck switching and crew edits are unavailable during a pending
+checkout; browsing assignments remains available.
+
+iOS can suspend a closed/backgrounded browser: the web app does not promise to
+transfer bytes while suspended. Reopening Waypoint, returning to the foreground,
+regaining connectivity or tapping **Resume transfer** resumes the saved outbox.
+It first reads local server receipts (`photos?receiptOnly=1` is phone/assignment
+scoped and does not refresh JunkWare), then transfers only missing photos and
+reuses the exact original closeout UUID and immutable body. Lost acknowledgments
+do not authorize new payment/upload identities. Confirmed untransferred images
+are exempt from ordinary 24-hour draft cleanup. Never clear browser data to
+recover a pending transfer. Explicit provider uncertainty requires review, not
+automatic replay. No new provider service or polling was added.
 
 Every photo and the closeout retain their original durable request IDs. A
 pending result is never submitted a second time. An interrupted worker checks

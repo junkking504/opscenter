@@ -5,20 +5,10 @@ import { readPhotoResponse } from './photo-response';
 import {MAX_CHECKOUT_PHOTOS} from '@/lib/crew-photo-limits';
 
 import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
+import {storedPhotos as stored} from './photo-storage';
+export {clearCrewPhotoDrafts} from './photo-storage';
 export type PhotoProgress = {ready:boolean;count:number;verified:number};
-export type PhotoCheckoutHandle = {submit:(progress:(message:string)=>void)=>Promise<string[]>};
-const database='ops-crew-photo-drafts-v1';
-function db():Promise<IDBDatabase> {return new Promise((resolve,reject)=>{const request=indexedDB.open(database,1);request.onupgradeneeded=()=>request.result.createObjectStore('drafts');request.onsuccess=()=>{const database=request.result;const transaction=database.transaction('drafts','readwrite');const cursor=transaction.objectStore('drafts').openCursor();cursor.onsuccess=()=>{const row=cursor.result;if(row){if(!row.value?.at || Date.now()-row.value.at>=24*60*60_000)row.delete();row.continue();}};transaction.oncomplete=()=>resolve(database);transaction.onerror=()=>{database.close();reject(transaction.error);};};request.onerror=()=>reject(request.error);});}
-export async function clearCrewPhotoDrafts() {const database=await db();try{await new Promise<void>((resolve,reject)=>{const transaction=database.transaction('drafts','readwrite');transaction.objectStore('drafts').clear();transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error);});}finally{database.close();}}
-async function stored(key:string,value?:Photo[]) {
-  const database=await db();
-  try{return await new Promise<Photo[]>((resolve,reject)=>{
-    const transaction=database.transaction('drafts',value?'readwrite':'readonly'),store=transaction.objectStore('drafts');
-    const request=value?store.put({at:Date.now(),photos:value},key):store.get(key);
-    transaction.oncomplete=()=>resolve(value || (request.result && Date.now()-request.result.at<24*60*60_000 ? request.result.photos : []));
-    transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error);
-  });}finally{database.close();}
-}
+export type PhotoCheckoutHandle = {ready:()=>boolean;submit:(progress:(message:string)=>void)=>Promise<string[]>};
 async function photoImage(file:File):Promise<string> {
   if(!file.type.startsWith('image/') || file.size>25*1024*1024)throw new Error('Choose an image smaller than 25 MB.');
   const url=URL.createObjectURL(file);
@@ -51,7 +41,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         const body=await readPhotoResponse(response);if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
         if(!Array.isArray(body.photos))throw new Error('Photo history could not be checked. Try again.');
         const remote=body.photos as Photo[];
-        const merged=local.map(row=>{const saved=remote.find(item=>item.requestId===row.requestId);return saved?{...row,...saved,...(saved.status==='verified'?{image:undefined}:{})}:row;});
+        const merged=local.map(row=>{const saved=remote.find(item=>item.requestId===row.requestId);return saved?{...row,...saved,...(saved.status==='verified'?{image:undefined}:{})}:row.status==='pending'?{...row,status:'uncertain' as const}:row;});
         for(const row of remote)if(!merged.some(item=>item.requestId===row.requestId))merged.push(row);
         if(canceled)return;await save(merged);setReady(true);
       }catch(error){if(!canceled)setError(error instanceof Error?error.message:'Photo history unavailable.');}
@@ -87,7 +77,9 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
   }
   async function upload(row:Photo) {
     if(!row.image || row.status!=='selected')throw new Error('This photo is unavailable. Return to photos and choose it again.');
-    const pending={...row,status:'pending' as const};
+    // Until the server acknowledges durable storage, this is NOT pending
+    // provider work. A killed browser must check/resend the original intake.
+    const pending={...row,status:'uncertain' as const};
     await save(rows.current.map(item=>item.requestId===row.requestId?pending:item));
     try {
       const response=await fetch('/api/crew-jobs/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:row.requestId,assignmentId,category:row.category,image:row.image}),signal:AbortSignal.timeout(210_000)});
@@ -109,7 +101,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     const result={...row,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})};
     await save(rows.current.map(item=>item.requestId===row.requestId?result:item));return result;
   }
-  useImperativeHandle(ref,()=>({submit:async(progress)=>{
+  useImperativeHandle(ref,()=>({ready:()=>ready&&!inFlight.current,submit:async(progress)=>{
     if(!ready || inFlight.current)throw new Error('Photos are still loading. Wait a moment, then submit checkout.');
     inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try {return await stageCheckoutPhotos([...rows.current],{upload,check,progress});}
@@ -138,6 +130,6 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>Selected photos stay on this phone for 24 hours. {dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint will transfer the photos, return to Assignments, and finish JunkWare verification in the background.':'Uploads start only when you tap Upload photo.'}</p>
+    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once and continue viewing assignments. Keep Waypoint open until “Safe to close” appears. If interrupted, reopen Waypoint to resume the saved transfer. Unsubmitted photo drafts expire after 24 hours.':'Selected photos stay on this phone for 24 hours. Uploads start only when you tap Upload photo.'}</p>
   </section>;
 }

@@ -5,6 +5,7 @@ import { readOperationalTruckExpenses } from './truck-expense-notifications';
 import { parseDumpFeePolicy, type DumpFeePolicy } from './dump-expense-policy';
 import {runUnloadCostAgent} from './unload-cost-agent';
 import type { OperationalAlert } from './operational-alert-presentation';
+import {readDumpExpenseConfirmations} from './dump-expense-confirmations';
 
 // User-supplied minimums, effective from the date this operating rule was requested.
 export const defaultDumpFeePolicy: DumpFeePolicy = {
@@ -12,7 +13,7 @@ export const defaultDumpFeePolicy: DumpFeePolicy = {
   facilities: [
     { name: 'Gentilly', aliases: ['Gentilly Landfill', 'GL', 'Gentillt'], minimumFee: 44 },
     { name: 'Stranco', aliases: ['Stranco Transfer Station', 'STS'], minimumFee: 85 },
-    { name: 'Baton Rouge Landfill', aliases: ['BRL', 'EBR', 'EBR Landfill', 'BR Landfill', 'BR Landfilll'], minimumFee: 44 },
+    { name: 'Baton Rouge Landfill', aliases: ['BRL', 'EBR', 'EBR Landfill', 'BR Landfill', 'BR Landfilll'], minimumFee: 47 },
     { name: 'River Birch', aliases: ['River Birch Landfill', 'RBL'], minimumFee: 47 },
   ],
 };
@@ -25,7 +26,7 @@ export function readDumpExpenses(date: string, now = Date.now()) {
   const policy = readDumpFeePolicy();
   const days = /^\d{4}-\d{2}-\d{2}$/.test(date) ? [-1, 0, 1].map(offset => new Date(Date.parse(`${date}T12:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10)) : [];
   const snapshots = days.map(day => readGeofenceEntries(day));
-  const result = runUnloadCostAgent(date, snapshots.flatMap(snapshot => snapshot.trackedVisits), days.flatMap(readOperationalTruckExpenses), policy, now);
+  const result = runUnloadCostAgent(date, snapshots.flatMap(snapshot => snapshot.trackedVisits), days.flatMap(readOperationalTruckExpenses), policy, now, readDumpExpenseConfirmations(date));
   return {...result, policyAvailable: Boolean(policy), geofencesAvailable: Boolean(snapshots[1]?.available || snapshots[1]?.sourceHealth.positionsObservedAt),
     observedAt: snapshots[1]?.sourceHealth.positionsObservedAt || snapshots[1]?.observedAt || null};
 }

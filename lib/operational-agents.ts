@@ -6,6 +6,7 @@ import {readOperationalTruckExpenses,type TruckExpense} from './truck-expense-no
 import {readDumpFeePolicy} from './dump-expenses';
 import {runUnloadCostAgent,uniqueTrackedVisits} from './unload-cost-agent';
 import type {TrackedVisit} from './visit-tracking-agent';
+import {readDumpExpenseConfirmations} from './dump-expense-confirmations';
 
 type Watermarks=Record<string,number>;
 type TrackingResult={agentId:'visit-tracking';date:string;visits:TrackedVisit[];sourceHealth:Record<string,unknown>;complete:boolean};
@@ -62,7 +63,7 @@ export function runOperationalAgents(date:string,options:{now?:number;readTracki
     if(regressed(prior?.agents['unload-cost'].watermarks||{},input.watermarks))cost=failed(prior?.agents['unload-cost'],stamp,'Expense evidence is older than the retained result.','stale_inputs');
     else {
       const dependency=!tracking.result?'unavailable':['ok','degraded'].includes(tracking.status)?'current':'retained';
-      const result=runUnloadCostAgent(date,tracking.result?.visits||[],input.expenses,readDumpFeePolicy(),now);
+      const result=runUnloadCostAgent(date,tracking.result?.visits||[],input.expenses,readDumpFeePolicy(),now,readDumpExpenseConfirmations(date));
       cost={status:dependency==='current' && !result.needsReviewCount && !result.missingMinimumCount?'ok':'degraded',heartbeatAt:stamp,lastSuccessAt:stamp,watermarks:input.watermarks,result,dependency};
     }
   }catch(error){cost=failed(prior?.agents['unload-cost'],stamp,error instanceof Error?error.message:'Unload/cost processing failed.');}

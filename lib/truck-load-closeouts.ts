@@ -12,6 +12,7 @@ import {readDumpFeePolicy} from './dump-expenses';
 import {readOperationalTruckExpenses} from './truck-expense-notifications';
 import {readExpenseUnloadLinks,withoutDuplicateExpenseUnloads} from './expense-unload-links';
 import {projectVerifiedExpenseUnloadEvents,runUnloadCostAgent} from './unload-cost-agent';
+import {readDumpExpenseConfirmations} from './dump-expense-confirmations';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, junkwareBedloadFraction, formatLoadAmount, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
 type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string; appointmentStartMinutes?:number | null};
@@ -169,7 +170,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
 function readLoadDay(date: string, trucks: string[], stored: TruckLoadEvent[], previous: OperationalTruckLoad[], jobs = readJobRows(date)) {
   const visits=readGeofenceEntries(date).trackedVisits;
   const expenses=readOperationalTruckExpenses(date);
-  const result=runUnloadCostAgent(date,visits,expenses,readDumpFeePolicy());
+  const result=runUnloadCostAgent(date,visits,expenses,readDumpFeePolicy(),Date.now(),readDumpExpenseConfirmations(date));
   const completions = readTruckCompletionEvidence(date,jobs);
   const scheduleVisits=readScheduleVisits(date).visits;
   const links=readExpenseUnloadLinks(date,expenses);

@@ -54,7 +54,7 @@ assert.equal(project([], [transition('exited', '10:30')]).length, 0, 'Exit alone
 assert.equal(project([], [transition('entered', '10:00', 'Warehouse')]).length, 0);
 assert.equal(project([], [transition('entered', '10:00', 'EMR')]).length, 0);
 assert.equal(project([], [transition('entered', '10:00', 'Test Dump')])[0].status, 'minimum_missing');
-for (const [name, fee] of [['STS', 85], ['BRL', 44], ['BR Landfilll', 44], ['RBL', 47]] as const) assert.equal(project([], [transition('entered', '10:00', name)])[0].amount, fee);
+for (const [name, fee] of [['STS', 85], ['BRL', 47], ['BR Landfilll', 47], ['RBL', 47]] as const) assert.equal(project([], [transition('entered', '10:00', name)])[0].amount, fee);
 assert.equal(project([actual('11:00', { location: 'EBR' })], [transition('entered', '10:00', 'BR Landfilll'), transition('exited', '10:30', 'BR Landfilll')])[0].status, 'actual', 'Observed LinxUp spelling matches the Baton Rouge expense alias');
 const overnight = [transition('entered', '23:30'), transition('exited', '00:10', 'GL', '9', '2026-09-16')];
 assert.equal(project([actual('00:59', { date: '2026-09-16', transactionAt: at('00:59', '2026-09-16') })], overnight)[0].status, 'actual');

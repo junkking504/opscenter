@@ -15,8 +15,10 @@ const visits=trackedGeofenceVisits(date,[],[
 ],now);
 const expense={id:'a'.repeat(32),date,market:'477',truck:'Truck# 6',kind:'dump' as const,transactionAt:at('09:28:00'),location:'Ebr',receipt:'',amount:80,notify:false};
 const early=runUnloadCostAgent(date,visits,[expense],defaultDumpFeePolicy,now);
-assert.equal(early.actualTotal,80);assert.equal(early.assumedTotal,44);assert.equal(early.total,null);assert.equal(early.needsReviewCount,2);
+assert.equal(early.actualTotal,80);assert.equal(early.assumedTotal,47);assert.equal(early.total,null);assert.equal(early.needsReviewCount,2);
 assert.equal(early.records.length,2,'Ambiguous near-arrival receipt is not automatically merged');
+const confirmed=runUnloadCostAgent(date,visits,[expense],defaultDumpFeePolicy,now,[{date,expenseId:expense.id,visitId:visits[0].id,confirmedAt:at('10:00:00'),confirmedBy:'manager@example.com',note:'Crew confirmed the receipt belongs to this visit.'}]);
+assert.equal(confirmed.records.length,1);assert.equal(confirmed.records[0].status,'actual');assert.equal(confirmed.total,80);
 assert.deepEqual(early.unloads,runUnloadCostAgent(date,visits,[],defaultDumpFeePolicy,now).unloads,'Receipt never changes physical unload timing');
 for(const other of [{...expense,truck:'Truck# 8'},{...expense,location:'Stranco'},{...expense,transactionAt:at('09:24:24')},{...expense,location:''}])assert.equal(runUnloadCostAgent(date,visits,[other],defaultDumpFeePolicy,now).needsReviewCount,0,'Only bounded named-site/same-truck ambiguity is flagged');
 assert.equal(runUnloadCostAgent(date,visits,[{...expense,transactionAt:at('09:29:25')}],defaultDumpFeePolicy,now).records.length,1,'Exact onsite receipt still reconciles');

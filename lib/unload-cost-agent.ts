@@ -5,6 +5,7 @@ import type {TruckExpense} from './truck-expense-notifications';
 import type {TruckLoadEvent} from './truck-load-status';
 import type {DumpExpenseRecord} from '../desktop-ui/lib/dump-expense-contract';
 import {canonicalDumpLocation} from './dump-expense-identity';
+import type {DumpExpenseConfirmation} from './dump-expense-confirmations';
 
 export const UNLOAD_COST_AGENT='unload-cost' as const;
 const normalized=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -57,7 +58,7 @@ export function projectVerifiedExpenseUnloadEvents(
         && Number.isFinite(Date.parse(job.completedAt)) && Date.parse(job.completedAt)<=Date.parse(expense.transactionAt)).map(job=>job.appointmentId))].sort(),
     }));
 }
-export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputExpenses:TruckExpense[],policy:DumpFeePolicy|null,now=Date.now()) {
+export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputExpenses:TruckExpense[],policy:DumpFeePolicy|null,now=Date.now(),confirmations:DumpExpenseConfirmation[]=[]){
   const visits=uniqueTrackedVisits(inputVisits);
   const records:DumpExpenseRecord[]=visits.filter(visit=>visit.kind==='geofence' && visit.resetLocation==='dump' && visit.entryIds.length && visit.firstObservedAt
     && Date.parse(visit.firstObservedAt)<=now && (!policy || chicagoDateKey(new Date(visit.firstObservedAt))>=policy.effectiveFrom)).map(visit=>{
@@ -87,6 +88,9 @@ export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputE
     // Precise onsite timing can distinguish repeated named-site visits. A late
     // record without that evidence must have one possible visit for its day.
     const onsite=candidates.filter(record=>record.departedAt && time<=Date.parse(record.departureBounds?.after || record.departedAt));
+    const confirmation=confirmations.find(row=>row.date===expense.date && row.expenseId===expense.id);
+    const confirmed=confirmation && [...candidates,...nearby].find(record=>record.id===`dump-visit:${confirmation.visitId}`);
+    if(confirmed && !expense.reconciliationNote)return [confirmed];
     if(nearby.length) {
       expense.reconciliationNote ||= 'Receipt precedes the first recorded arrival by five minutes or less. Confirm the visit using receipt or crew evidence before combining costs; no assumption has been replaced.';
       return [...new Set([...candidates,...nearby])];

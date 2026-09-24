@@ -8,7 +8,7 @@ The user supplied these minimums:
 | --- | ---: |
 | Gentilly Landfill (GL) | $44.00 |
 | Stranco Transfer Station (STS) | $85.00 |
-| Baton Rouge Landfill (BRL / EBR) | $44.00 |
+| Baton Rouge Landfill (BRL / EBR) | $47.00 |
 | River Birch Landfill (RBL) | $47.00 |
 
 The observed LinxUp spelling `BR Landfilll` and `BR Landfill` also resolve to
@@ -31,6 +31,10 @@ weight, receipt number, provider payment or fee is fabricated.
   repeated named-facility visits. A blank location requires one eligible visit.
 - Matching must be mutually unique: two competing actuals or ambiguous repeat
   visits require review. No first-wins or closest-amount guess is made.
+- When a named receipt precedes the first GPS sample by five minutes or less,
+  an explicit manager confirmation may bind that exact expense ID to that exact
+  LinxUp visit ID. The reviewed pair must still agree on truck, facility and
+  operating day; confirmations never act as a general time-window override.
 - A visit genuinely spanning midnight can match an actual on its departure day
   (within a maximum 36-hour visit). Other-day expenses do not silently attach to
   an old open visit. They need an explicit source association.
@@ -97,6 +101,12 @@ The source defaults can be overridden with protected runtime configuration at
 `minimumFee`. Amounts must be nonnegative dollar values with at most two decimal
 places; aliases must be unique. An invalid override shows settings unavailable
 instead of silently using a different fee. Keep private runtime data out of Git.
+
+Reviewed near-arrival pairs are stored separately in protected runtime
+configuration at `data/config/dump-expense-confirmations.json`. Each record
+contains the operating `date`, exact `expenseId`, exact `visitId`, `confirmedAt`,
+`confirmedBy`, and a nonblank evidence `note`. Malformed or duplicate-expense
+records fail closed and do not change the automatic matching policy.
 
 Validation: `npm run verify:dump-expenses`, `npm run verify:geofence-alerts`,
 truck expense notification checks, TypeScript, desktop build and production build.

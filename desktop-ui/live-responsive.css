@@ -18,6 +18,7 @@
   .ops-live .topbar { height: auto; min-height: 56px; flex-wrap: wrap; padding-block: 8px; }
   .ops-live .topbar-actions { margin-left: auto; }
   .ops-live .global-search-shell { flex-basis: 100%; }
+  .ops-live .live-search-below-day { padding: 8px; }
   .ops-live .workspace-heading [role="tablist"] { width: 100%; }
   .ops-live .schedule-heading-actions { width: 100%; }
   .ops-live .workspace.schedule-mode { padding: 16px; }

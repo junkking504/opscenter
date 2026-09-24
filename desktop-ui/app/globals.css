@@ -47,6 +47,15 @@ button { cursor: pointer; }
 .nav-item em { min-width: 22px; padding: 2px 6px; border-radius: 12px; color: #b9c0bf; background: #30363c; font-size: 10px; font-style: normal; text-align: center; }
 .nav-item.active em { color: #fff; background: var(--ops-brand-red); }
 .sidebar-footer { margin-top: auto; padding: 14px 7px 0; border-top: 1px solid #282d32; }
+.sidebar-opsbot-card { margin: 16px 0 0; padding: 12px 10px 10px; border: 1px solid #5d447d; border-radius: 10px; color: #f2edfb; background: linear-gradient(145deg, #322544, #1c2028); box-shadow: inset 0 1px rgb(255 255 255 / 6%); }
+.sidebar-opsbot-heading { display: flex; align-items: center; gap: 8px; }
+.sidebar-opsbot-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #f3ddff; background: #68458e; }
+.sidebar-opsbot-heading strong, .sidebar-opsbot-heading small { display: block; }
+.sidebar-opsbot-heading strong { font-size: 12px; }
+.sidebar-opsbot-heading small { margin-top: 2px; color: #c4b5d3; font-size: 9px; }
+.sidebar-opsbot-card p { margin: 9px 0 10px; color: #cfc3dc; font-size: 10px; line-height: 1.45; }
+.sidebar-opsbot-card > button { width: 100%; min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; border: 1px solid #8c68af; border-radius: 6px; color: #fff; background: #65408f; font-size: 10px; font-weight: 750; text-align: left; }
+.sidebar-opsbot-card > button:hover, .sidebar-opsbot-card > button:focus-visible { border-color: #c5a9df; background: #76509f; outline: 2px solid rgb(197 169 223 / 35%); outline-offset: 2px; }
 .health-pulse { display: flex; align-items: center; gap: 7px; padding: 0; border: 0; color: #82908b; background: transparent; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; text-align: left; }
 .health-pulse span, .live-chip span { width: 7px; height: 7px; border-radius: 50%; background: #44c486; box-shadow: 0 0 0 4px rgb(68 196 134 / 12%); }
 .health-pulse.attention { color: #c4942d; }
@@ -57,8 +66,11 @@ button { cursor: pointer; }
 .user-row strong { font-size: 11px; }.user-row small { margin-top: 2px; color: #75807d; font-size: 9px; }
 
 .ops-content { min-width: 0; }
+.ops-live .ops-content { padding-top: 8px; }
 .topbar { height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 24px; border-bottom: 1px solid var(--border); background: rgb(247 248 246 / 92%); backdrop-filter: blur(16px); }
 .global-search-shell { position: relative; z-index: 60; width: min(680px, 58vw); }
+.live-search-below-day { display: flex; align-items: center; min-height: 58px; padding: 10px 24px; border-bottom: 1px solid var(--border); background: #f7f8f6; }
+.live-search-below-day .global-search-shell { width: min(760px, 100%); }
 .global-search { position: relative; z-index: 62; width: 100%; display: flex; align-items: center; gap: 9px; padding: 0 10px; border: 1px solid #cfd4cf; border-radius: 8px; color: #858d89; background: #fff; box-shadow: 0 1px 0 rgb(0 0 0 / 2%); }
 .global-search.active { border-color: #8ca2b5; box-shadow: 0 0 0 3px rgb(71 122 166 / 12%), 0 8px 24px rgb(31 39 34 / 8%); }
 .global-search input { height: 32px; padding: 0; border: 0; box-shadow: none; font-size: 13px; }
@@ -123,6 +135,7 @@ button { cursor: pointer; }
 .global-search-panel > footer kbd { min-width: 23px; padding: 3px 5px; border: 1px solid #d5dad5; border-radius: 4px; color: #5f6964; background: #fff; font-size: 9px; text-align: center; }
 .global-search-panel > footer strong { margin-left: auto; color: #5f6964; font-size: 9px; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
+.ops-live .topbar-actions { margin-left: auto; }
 .topbar-actions > button, .notification-trigger, .operating-day-trigger { position: relative; min-height: 32px; height: 32px; padding-inline: 10px; background: #fff; border-color: #d4d8d4; }
 .notification-center { position: relative; z-index: 70; }
 .notification-trigger b { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border: 2px solid #f7f8f6; border-radius: 10px; color: #fff; background: var(--ops-brand-red); font-size: 9px; line-height: 1; }

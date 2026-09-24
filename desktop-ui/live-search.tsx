@@ -13,7 +13,7 @@ type OpsBotAnswer = { answer: string; sources: OpsBotSource[]; model: string; re
 type OpsBotStatus = { available: boolean; reason: string | null; remaining: number; limit: number };
 type Scope='all'|'upcoming'|'past';
 type Coverage={dateCount:number;from:string|null;to:string|null};
-export default function LiveSearch({ date, navigate, disabled, finance }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean }) {
+export default function LiveSearch({ date, navigate, disabled, finance, openRequest = 0 }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean; openRequest?: number }) {
   const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [results, setResults] = useState<Result[]>([]); const [error, setError] = useState('');
   const [scope,setScope]=useState<Scope>('all');const [limit,setLimit]=useState(10);const [loading,setLoading]=useState(false);
   const [coverage,setCoverage]=useState<Coverage|null>(null);const [total,setTotal]=useState(0);const [hasMore,setHasMore]=useState(false);
@@ -51,6 +51,12 @@ export default function LiveSearch({ date, navigate, disabled, finance }: { date
     return()=>abort.abort();
   },[open,finance]);
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  useEffect(() => {
+    if (openRequest > 0 && !disabled) {
+      setOpen(true);
+      input.current?.focus();
+    }
+  }, [openRequest, disabled]);
   const openResult = (href: string) => { if (!disabled) window.location.assign(desktopHref(href)); };
   const openKnowledge = (id: string) => { if (disabled) return; const url=new URL(window.location.href);url.searchParams.set('knowledge',id);window.location.assign(url); };
   const go = (workspace: string) => { if (disabled) return; navigate(workspace); setOpen(false); setQuery(''); };

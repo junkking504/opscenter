@@ -179,3 +179,13 @@ origins remain available for existing sessions and drafts. No paid service,
 provider permissions, budget, quota, checker or other policy changes are included.
 The installed inventory backup and unchanged checker hash are recorded in the
 external deployment-control installation record.
+
+## East Baton Rouge Parish GIS hostname — September 24, 2026
+
+The user explicitly approved adding only `maps.brla.gov` to the protected
+hostname inventory for exact service-premises preflight. The public parish GIS
+requires no key, subscription or metered API and authorizes $0 in new charges.
+The existing shared $10/500-attempt paid address limits, Google API retirement,
+providers, dependencies and checker remain unchanged. Back up the installed
+pair and record the new inventory hash plus the unchanged checker hash in the
+external installation record before production deployment.

@@ -821,14 +821,8 @@ textarea {
 }
 
 .ops-login-designation,
-.ops-login-kicker,
 .ops-login-system-line {
   font-family: inherit;
-}
-
-.ops-login-hero h1 {
-  max-width: 780px;
-  color: #fff;
 }
 
 .ops-login-access-panel {
@@ -843,7 +837,7 @@ textarea {
   box-shadow: 0 20px 50px rgba(25, 28, 35, 0.1);
 }
 
-.ops-login-access-card h2 {
+.ops-login-access-card h1 {
   color: #20242b;
 }
 

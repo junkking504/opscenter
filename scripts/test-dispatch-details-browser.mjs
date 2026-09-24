@@ -14,8 +14,8 @@ try {
     assert.equal(await page.getByRole('heading',{name:'Route Planner',exact:true}).count(),0,'Truck board replaces the separate route planner');
     assert.equal(await page.getByRole('button',{name:'Plan Routes',exact:true}).count(),0);
     const addBox=await add.boundingBox();
-    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=32&&addBox.height<=34,'compact primary action fits');
-    assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(164, 59, 53)');
+    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=34&&addBox.height<=38,'primary action uses the shared action height and fits');
+    assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(181, 25, 53)','primary action uses the shared OpsCenter brand color');
     assert.equal(await page.locator('.schedule-search-actions .schedule-add-appointment').count(),1,'one action beside appointment search');
     assert.equal(await page.locator('.schedule-workspace-heading .schedule-add-appointment').count(),0,'no duplicate header action');
     const searchBox=await page.getByRole('textbox',{name:'Filter source appointments',exact:true}).boundingBox();

@@ -7,6 +7,25 @@ workspace plus general guidance; operators can select all workspaces and search
 titles, summaries, steps, sources and owners. Existing workspace names and keys
 remain unchanged. `knowledge=<entry-id>` deep links open the relevant entry.
 
+## Fast answers
+
+The desktop top-bar prompt and the Second Brain library accept plain-language
+questions. A local deterministic index ranks the already-loaded documented and
+private knowledge, returns the strongest answer inline, and links the exact
+supporting record. It favors title, topic and summary matches, can select labeled
+cause, action, evidence, remaining-work or prevention text, and identifies a
+lower-confidence match instead of presenting it as certain. No provider call,
+agent run, collector refresh or repair is started, so this path should respond
+without a deep system investigation. Managers and administrators can receive
+private-history answers; operators receive only curated guides.
+
+The answer is recorded operational knowledge, not a live source lookup. Current
+appointment, payment, payroll, GPS and provider-state questions remain separate
+source-record searches and must retain their timestamps and availability. When
+no knowledge record matches, the UI says so implicitly by showing only source
+records; it does not invent an answer. Opening the supporting record exposes its
+source, review state, date, historical outcome and remaining work.
+
 ## Knowledge and source authority
 
 Six starter guides are curated from the canonical documents. Each includes a
@@ -62,9 +81,9 @@ before reopening it. Never delete a damaged revision to make a read pass or
 replay external business actions. The regression test round-trips a backup
 through an isolated directory and checks complete read-back.
 
-The library uses local text search and source-backed historical imports. It does not
-continuously watch chats, ingest customer records, generate AI answers, or
-infer that an incident is resolved. Reviewer verification is a recorded human
+The library uses local text search, deterministic extractive answers, and
+source-backed historical imports. It does not continuously watch chats, ingest
+customer records, call a generative-AI provider, or infer that an incident is resolved. Reviewer verification is a recorded human
 attestation, not an automatic source-system query. Review dates are shown when
 the library is opened; no reminder service is enabled.
 

@@ -1448,52 +1448,6 @@ a.ops-action-item:hover strong {
   letter-spacing: 0.09em;
 }
 
-.ops-login-hero {
-  max-width: 690px;
-  padding: 9vh 0;
-}
-
-.ops-login-kicker {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: #8d96a3;
-  font-family: var(--ops-font-mono);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
-.ops-login-kicker span {
-  width: 28px;
-  height: 2px;
-  background: var(--ops-red);
-}
-
-.ops-login-hero h1 {
-  margin: 24px 0 0;
-  font-family: var(--ops-font-display);
-  font-size: clamp(3.6rem, 7.4vw, 8rem);
-  font-weight: 900;
-  letter-spacing: -0.025em;
-  text-transform: uppercase;
-}
-
-.ops-login-hero h1 em {
-  color: var(--ops-gold);
-  font-style: normal;
-  text-shadow: 0 0 44px rgba(255, 196, 0, 0.10);
-}
-
-.ops-login-hero p {
-  max-width: 520px;
-  margin: 27px 0 0;
-  color: #8b94a0;
-  font-size: 0.86rem;
-  line-height: 1.65;
-}
-
 .ops-login-system-line {
   display: flex;
   flex-wrap: wrap;
@@ -1551,7 +1505,7 @@ a.ops-action-item:hover strong {
   letter-spacing: 0.13em;
 }
 
-.ops-login-access-card h2 {
+.ops-login-access-card h1 {
   margin: 18px 0 0;
   font-family: var(--ops-font-display);
   font-size: 2.6rem;
@@ -1728,14 +1682,6 @@ a.ops-action-item:hover strong {
     padding: 28px 24px 36px;
   }
 
-  .ops-login-hero {
-    padding: 12vh 0 10vh;
-  }
-
-  .ops-login-hero h1 {
-    font-size: clamp(3.4rem, 16vw, 6.5rem);
-  }
-
   .ops-login-access-panel {
     min-height: auto;
     padding: 56px 24px 70px;
@@ -1811,9 +1757,6 @@ a.ops-action-item:hover strong {
     display: grid;
   }
 
-  .ops-login-hero p {
-    font-size: 0.78rem;
-  }
 }
 
 /* --------------------------------------------------------------------------
@@ -2228,15 +2171,10 @@ body {
   filter: none;
 }
 
-.ops-login-hero h1,
-.ops-login-access-card h2 {
+.ops-login-access-card h1 {
   font-weight: 730;
   letter-spacing: -0.055em;
   text-transform: none;
-}
-
-.ops-login-hero h1 {
-  line-height: 0.88;
 }
 
 @media (max-width: 1050px) {

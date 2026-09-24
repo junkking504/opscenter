@@ -81,8 +81,7 @@ body {
   overflow-x: auto;
 }
 
-.ops-login-access-card > p,
-.ops-login-hero > p {
+.ops-login-access-card > p {
   font-size: 0.9375rem;
   line-height: 1.55;
 }

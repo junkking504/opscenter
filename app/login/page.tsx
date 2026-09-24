@@ -33,11 +33,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <OpsCenterLogo />
           <div className="ops-login-designation" style={{ marginTop: 12 }}>JUNK KING LOUISIANA</div>
         </div>
-        <div className="ops-login-hero">
-          <div className="ops-login-kicker"><span /> Louisiana Operations</div>
-          <h1>Run the Day.<br />Know the Numbers.<br /><em>Keep Moving.</em></h1>
-          <p>One clear workspace for jobs, Krewes, trucks, marketing, and financial performance.</p>
-        </div>
         <div className="ops-login-system-line">
           <span><i /> System Operational</span>
           <span>Central Time</span>
@@ -48,7 +43,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">
           <div className="ops-login-access-index">Secure Sign In</div>
-          <h2>Enter OpsCenter</h2>
+          <h1>Enter OpsCenter</h1>
           <p>Enter the shared OpsCenter credentials to continue.</p>
 
           <form action="/api/auth/login" method="post" className="ops-login-form">

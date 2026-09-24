@@ -12,6 +12,18 @@ assert.equal(operationalCategoryLabel("Jobs"), "Schedule");
 assert.equal(operationalCategoryLabel("Crew"), "Krewe");
 assert.equal(operationalCategoryLabel("Fleet"), "Fleet");
 
+const loginPageSource = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "utf8");
+assert.ok(loginPageSource.includes("<h1>Enter OpsCenter</h1>"), "Login must use the sign-in action as its page heading.");
+for (const retiredLoginCopy of [
+  "Run the Day",
+  "Know the Numbers",
+  "Keep Moving",
+  "One clear workspace",
+  "Louisiana Operations",
+]) {
+  assert.ok(!loginPageSource.includes(retiredLoginCopy), `Login still includes retired marketing copy: ${retiredLoginCopy}.`);
+}
+
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 for (const label of [">GPS</span>", ">Visited</span>", ">On Site"]) {
   assert.ok(jobsMapSource.includes(label), `Schedule legend is missing ${label}`);

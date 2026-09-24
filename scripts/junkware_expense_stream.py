@@ -32,9 +32,13 @@ DETAIL_JS = r'''() => {
 }'''
 
 
-def normalize_entries(detail, date, market, truck):
+def normalize_entries(detail, date, market, truck, allow_missing_table=False):
     if (detail.get('url', '').split('?')[0] != URL or detail.get('date') != datetime.fromisoformat(date).strftime('%m/%d/%Y')
-            or str(detail.get('market')) != str(market) or detail.get('truck') != truck or not detail.get('found')):
+            or str(detail.get('market')) != str(market) or detail.get('truck') != truck):
+        raise ValueError(f"Expense identity did not verify: date={detail.get('date')!r}, market={detail.get('market')!r}, truck={detail.get('truck')!r}, table={detail.get('found')!r}")
+    if not detail.get('found'):
+        if allow_missing_table:
+            return []
         raise ValueError(f"Expense identity did not verify: date={detail.get('date')!r}, market={detail.get('market')!r}, truck={detail.get('truck')!r}, table={detail.get('found')!r}")
     result, occurrences = [], {}
     for row in detail.get('rows', []):
@@ -113,7 +117,13 @@ def collect_expense_entries(collector, data_dir, date, market):
             raise ValueError('Expense truck row is ambiguous')
         cell.click()
         page.get_by_role('heading', name=truck, exact=True).wait_for(state='visible', timeout=8000)
-        entries = normalize_entries(collector.evaluate(DETAIL_JS), date, market, truck)
+        entries = normalize_entries(
+            collector.evaluate(DETAIL_JS),
+            date,
+            market,
+            truck,
+            allow_missing_table=not any(re.search(r'[1-9]', value) for value in signature),
+        )
         try:
             prior = json.loads(target.read_text())
         except (OSError, ValueError):

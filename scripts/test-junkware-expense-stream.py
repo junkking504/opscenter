@@ -13,6 +13,7 @@ assert rows[0]['transactionAt']=='2026-09-13T08:50:00-05:00'
 for patch in [dict(date='09/12/2026'),dict(market='352'),dict(truck='Truck# 6'),dict(found=False),dict(url='https://junkware.junk-king.com/account/login.aspx')]:
  try:m.normalize_entries({**detail,**patch},date,'477','Truck# 9');raise AssertionError('Wrong identity accepted')
  except ValueError:pass
+assert m.normalize_entries({**detail,'found':False,'rows':[]},date,'477','Truck# 9',allow_missing_table=True)==[]
 changed=m.normalize_entries({**detail,'rows':[['Dumps','08:50 AM','','Test dump','$200.00']]},date,'477','Truck# 9')
 assert changed[0]['id']==rows[0]['id']
 duplicates=m.normalize_entries({**detail,'rows':[detail['rows'][0],detail['rows'][0]]},date,'477','Truck# 9')
@@ -51,4 +52,10 @@ with tempfile.TemporaryDirectory() as tmp:
  try:m.collect_expense_entries(c,Path(tmp),date,'477')
  except ValueError:pass
  assert c.page is original and original.child.closed and file.read_text()==preserved
+with tempfile.TemporaryDirectory() as tmp:
+ c=Collector();c.evaluate=lambda js: (dict(url=m.URL,date='09/13/2026',group='477',trucks=[dict(truck='Truck# 9',dumps='',gas='')]) if js=='summary' else dict(url=m.URL,date='09/13/2026',market='477',truck='Truck# 9',found=False,rows=[]))
+ file=Path(tmp)/'history/junkware/expenses'/date/'477/9.json';file.parent.mkdir(parents=True)
+ file.write_text(json.dumps(dict(date=date,market='477',truck='Truck# 9',observedAt='2026-01-01T00:00:00-06:00',verified=True,signature=['$187.85',''],entries=rows[:1])))
+ m.LAST_ATTEMPT.clear();m.collect_expense_entries(c,Path(tmp),date,'477')
+ cleared=json.loads(file.read_text());assert cleared['signature']==['',''] and cleared['entries']==[]
 print('Expense stream passed: source identity, entries, edits, duplicate rows, baseline, throttle, and failure preservation.')

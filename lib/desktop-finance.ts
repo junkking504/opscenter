@@ -61,7 +61,8 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   const markets = [...new Set(monthly.entries.flatMap(entry => [...Object.keys(entry.metrics.revenue_by_market || {}), ...Object.keys(entry.metrics.jobs_by_market || {})]))];
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
   const wexFuel = readWexFuelFinance(date);
-  const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel);
+  const dumpExpenses = readDumpExpenses(date);
+  const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel, dumpExpenses.assumedTotal);
   const fuelReconciliation = readFuelReconciliation(date, wexFuel);
   const dailyFreshness = dailyFinanceEvidence(metrics, dailyBreakdown, date, wexFuel);
   const display = presentDailyFinance(dailyBreakdown, dailyFreshness, date);
@@ -72,7 +73,7 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   });
   const dailySummary = { revenue: display.revenue.value, costs: display.totalCosts.value, profit: display.net.value, recyclingIncome: finite(metrics?.recycling_income ?? metrics?.truck_record_financial_summary?.recycling_income) };
 
-  return { fuelReconciliation, dumpExpenses: readDumpExpenses(date), dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  return { fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses') : null, profit: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'net_profit') : null, source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), key) : null, source: monthCostsUsable ? 'Published daily metrics' : 'Cost inputs incomplete or stale' })),

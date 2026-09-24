@@ -90,8 +90,10 @@ Actual source expense notifications keep their existing behavior; assumptions
 send no new messages.
 
 The projection lives in `lib/unload-cost-agent.ts` and `lib/dump-expenses.ts`,
-derived on read from retained LinxUp and verified JunkWare history. It does not
-write assumptions into JunkWare or QBO or alter published accounting totals.
+derived on read from retained LinxUp and verified JunkWare history. OpsCenter
+includes the still-assumed amount in the selected day's disposal expense, total
+costs and Net. A matching manual actual replaces that assumption, so the amount
+never stacks. The projection does not write assumptions into JunkWare or QBO.
 The stable entry identity survives reloads and actual replacement. There is no
 timer or stored estimate that can duplicate during a process restart.
 

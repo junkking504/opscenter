@@ -1,6 +1,6 @@
 import { ageFinanceKpi, dailyFinanceEvidence, combineFinanceEvidence } from './daily-finance-freshness';
 import { withSavedCloseoutTruck } from './command-closeout-truck';
-import { assumedDumpExpenseAlerts } from './dump-expenses';
+import { assumedDumpExpenseAlerts, readDumpExpenses } from './dump-expenses';
 import { truckExpenseTimelineAlerts, mergeTruckExpenseAlerts } from './truck-expense-notifications';
 import { readEstimateSummary } from './estimate-follow-up';
 import { streamlineOperationalAlerts } from './streamlined-operational-alerts';
@@ -35,8 +35,8 @@ const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now()): DesktopKpi[] {
-  const finance = buildDailyFinanceSummary(metrics, wex);
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0): DesktopKpi[] {
+  const finance = buildDailyFinanceSummary(metrics, wex, assumedDumpExpense);
   const evidence = dailyFinanceEvidence(metrics, finance, date, wex);
   const plan = dailyRevenueTarget();
   const payrollPercent = finance.labor != null && finance.revenue != null && finance.revenue > 0 ? finance.labor / finance.revenue * 100 : null;
@@ -49,8 +49,8 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     ] : undefined },
     { label: 'Revenue', value: amount(finance.revenue), detail: finance.revenue == null ? 'Revenue source unavailable' : `${Math.round(finance.revenue / plan * 100)}% of ${money(plan)}`, progress: progress(finance.revenue, plan), tone: tone(finance.revenue, plan) },
     { label: 'Labor', value: amount(finance.labor), secondaryValue: payrollPercent == null ? undefined : `${payrollPercent.toFixed(1)}% of revenue`, detail: payrollPercent == null ? 'Labor source unavailable' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
-    { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? 'Fuel from posted WEX transactions' : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : 'Published daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
-    { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
+    { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? `Fuel from posted WEX transactions${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : assumedDumpExpense > 0 ? `Includes ${money(assumedDumpExpense)} assumed dump cost` : 'Recorded daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
+    { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : assumedDumpExpense > 0 ? 'After recorded and assumed daily costs' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
   return cards.map((card, index) => {
     if (index === 0) return card;
@@ -66,6 +66,7 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
 export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
   const metrics = readMetrics(date);
   const wexFuel = readWexFuelFinance(date);
+  const dumpExpenses = readDumpExpenses(date);
   const map = metrics ? buildCommandMapData(date) : null;
   const [digest, workflow] = await Promise.all([
     readSlackDailyDigest(date),
@@ -129,7 +130,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   }
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date),
+    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal),
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},

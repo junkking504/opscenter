@@ -67,6 +67,7 @@ export function LiveFinance({ date, view, report, onViewChange, onBusyChange }: 
   const wex = data.wexFuel || emptyWex;
   const dailyBreakdown = data.dailyBreakdown || { revenue: data.daily.revenue, labor: null, dumps: null, fuel: wex.available && wex.selectedDate.count ? wex.selectedDate.netCost : null, totalCosts: data.daily.costs, net: data.daily.profit, fuelSource: wex.available && wex.selectedDate.count ? 'wex' as const : 'unavailable' as const, wexIncludedSeparately: false };
   const dailyDisplay = presentDailyFinance(dailyBreakdown, data.dailyFreshness, date, freshness.now);
+  const assumedDumpExpense = data.dumpExpenses?.assumedTotal || 0;
   const expenseReading = financeReading(dailyBreakdown.dumps == null || dailyBreakdown.fuel == null ? null : dailyBreakdown.dumps + dailyBreakdown.fuel,
     data.dailyFreshness ? combineFinanceEvidence(data.dailyFreshness.dumps, data.dailyFreshness.fuel) : undefined, date, freshness.now);
   const displayAmount = (reading: typeof dailyDisplay.revenue) => reading.state === 'current' ? money(reading.value) : reading.state === 'stale' ? 'Stale' : 'Unavailable';
@@ -77,8 +78,8 @@ export function LiveFinance({ date, view, report, onViewChange, onBusyChange }: 
   const dailySummary = (<section className="metric-strip finance-capital-metrics" aria-label="Selected day financial breakdown">
       <button type="button" className="kpi-card" onClick={() => setFinanceView('payments')}><span>Revenue</span><strong>{displayAmount(dailyDisplay.revenue)}</strong><small>{dailyDisplay.revenue.detail}</small></button>
       <button type="button" className="kpi-card" onClick={() => setFinanceView('trends')}><span>Labor</span><strong>{displayAmount(dailyDisplay.labor)}</strong><small>{dailyDisplay.labor.detail}</small></button>
-      <button type="button" className="kpi-card" onClick={() => setFinanceView('expenses')}><span>Dump + Fuel</span><strong>{displayAmount(expenseReading)}</strong><small>{expenseReading.state === 'current' ? `Dumps ${money(dailyDisplay.dumps.value)} · Fuel ${money(dailyDisplay.fuel.value)} · ${expenseReading.detail}` : expenseReading.detail}</small></button>
-      <button type="button" className={`kpi-card ${dailyDisplay.net.state !== 'current' ? 'warning' : dailyDisplay.net.value! < 0 ? 'critical' : 'healthy'}`} onClick={() => setFinanceView('trends')}><span>Net</span><strong>{displayAmount(dailyDisplay.net)}</strong><small>{dailyDisplay.net.detail}</small></button>
+      <button type="button" className="kpi-card" onClick={() => setFinanceView('expenses')}><span>Dump + Fuel</span><strong>{displayAmount(expenseReading)}</strong><small>{expenseReading.state === 'current' ? `Dumps ${money(dailyDisplay.dumps.value)}${assumedDumpExpense > 0 ? ` incl. ${money(assumedDumpExpense)} assumed` : ''} · Fuel ${money(dailyDisplay.fuel.value)} · ${expenseReading.detail}` : expenseReading.detail}</small></button>
+      <button type="button" className={`kpi-card ${dailyDisplay.net.state !== 'current' ? 'warning' : dailyDisplay.net.value! < 0 ? 'critical' : 'healthy'}`} onClick={() => setFinanceView('trends')}><span>Net</span><strong>{displayAmount(dailyDisplay.net)}</strong><small>{dailyDisplay.net.detail}{assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}</small></button>
     </section>);
   return <section className={`finance-workspace capital-workspace finance-view-${financeView}`}>
     <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Source age shown on each financial card"/>
@@ -87,11 +88,11 @@ export function LiveFinance({ date, view, report, onViewChange, onBusyChange }: 
     {financeView === 'overview' && <CapitalOverview data={data} date={date} dailySummary={dailySummary} onViewChange={setFinanceView} />}
     {financeView === 'accounting' && <FinancialStatements data={data.statements} date={date} onRefresh={() => setRevision(value => value + 1)} />}
     {financeView === 'expenses' && <div className="capital-page capital-expenses">
-      <CapitalPageHeader eyebrow={`OPERATING EXPENSES · ${commercialDate(date)}`} title="Know the cost of the day" description="Published operating costs, disposal visits and fuel purchases with their source evidence." />
+      <CapitalPageHeader eyebrow={`OPERATING EXPENSES · ${commercialDate(date)}`} title="Know the cost of the day" description="Recorded and assumed operating costs, disposal visits and fuel purchases with their source evidence." />
       <section className="capital-stat-grid" aria-label="Selected day operating expenses">
-        <CapitalStat primary icon={ReceiptText} label="Published costs" value={displayAmount(dailyDisplay.totalCosts)} detail={dailyDisplay.totalCosts.detail}/>
+        <CapitalStat primary icon={ReceiptText} label="Daily expenses" value={displayAmount(dailyDisplay.totalCosts)} detail={`${dailyDisplay.totalCosts.detail}${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}`}/>
         <CapitalStat icon={Users} label="Labor" value={displayAmount(dailyDisplay.labor)} detail={dailyDisplay.labor.detail}/>
-        <CapitalStat icon={Truck} label="Published disposal" value={displayAmount(dailyDisplay.dumps)} detail={dailyDisplay.dumps.detail}/>
+        <CapitalStat icon={Truck} label="Disposal expense" value={displayAmount(dailyDisplay.dumps)} detail={`${dailyDisplay.dumps.detail}${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed` : ''}`}/>
         <CapitalStat icon={Fuel} label="Published fuel" value={displayAmount(dailyDisplay.fuel)} detail={dailyDisplay.fuel.detail}/>
       </section>
       <nav className="capital-section-links" aria-label="Expense sections"><a href="#capital-disposal">Disposal records</a><a href="#fuel-reconciliation">Fuel matching</a><a href="#capital-fuel-purchases">Fuel card purchases</a></nav>

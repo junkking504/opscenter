@@ -6,6 +6,7 @@ import { geofenceEntries, trackedGeofenceVisits } from '../lib/linxup-geofence-a
 import { parseDumpFeePolicy } from '../lib/dump-expense-policy';
 import { defaultDumpFeePolicy, readDumpExpenses, assumedDumpExpenseAlerts } from '../lib/dump-expenses';
 import {runUnloadCostAgent} from '../lib/unload-cost-agent';
+import {buildDailyFinanceSummary} from '../lib/daily-finance-summary';
 import type { TruckExpense } from '../lib/truck-expense-notifications';
 
 const date = '2026-09-15';
@@ -72,6 +73,9 @@ try {
   const rows = [transition('entered', '10:00', 'GL', '9', testDate), transition('exited', '10:30', 'GL', '9', testDate)];
   write(`history/linxup/alerts/linxup_alerts_${testDate}.json`, { date: testDate, alerts: rows, pagination_completed: true, validation_status: 'passed' });
   assert.equal(readDumpExpenses(testDate).assumedTotal, 44);
+  assert.deepEqual(buildDailyFinanceSummary({dump_expense:47,total_expenses:550.85,net_profit:881.63},undefined,readDumpExpenses(testDate).assumedTotal), {
+    revenue:null,labor:null,dumps:91,fuel:null,totalCosts:594.85,net:837.63,fuelSource:'unavailable',wexIncludedSeparately:false,
+  }, 'Assumed dump cost is included in daily expenses and Net');
   assert.equal(assumedDumpExpenseAlerts(testDate).length, 1);
   write(`history/junkware/expenses/${testDate}/477/9.json`, { date: testDate, market: '477', truck: 'Truck# 9', verified: true, entries: [actual('11:00', { date: testDate, transactionAt: at('11:00', testDate) })] });
   const replaced = readDumpExpenses(testDate);
@@ -79,6 +83,9 @@ try {
   assert.equal(replaced.actualTotal, 70);
   assert.equal(replaced.total, 70);
   assert.equal(replaced.records.length, 1);
+  assert.deepEqual(buildDailyFinanceSummary({dump_expense:70,total_expenses:620,net_profit:812.48},undefined,replaced.assumedTotal), {
+    revenue:null,labor:null,dumps:70,fuel:null,totalCosts:620,net:812.48,fuelSource:'unavailable',wexIncludedSeparately:false,
+  }, 'A matching manual actual replaces the assumption without stacking');
   assert.equal(assumedDumpExpenseAlerts(testDate).length, 0);
   write('config/dump-minimum-fees.json', { broken: true });
   assert.equal(readDumpExpenses(testDate).policyAvailable, false);

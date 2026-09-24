@@ -21,6 +21,6 @@ export function DumpExpenses({ data }: { data?: DumpExpenseSummary }) {
       </div><strong>{record.amount === null ? 'Fee needed' : money(record.amount)}</strong><span>{record.reconciliationNote ? 'Review match' : record.status === 'actual' ? 'Actual' : 'Assumed'}</span>
     </article>)}</div>
     {!data.records.length && <p>No dump expenses or qualifying entries in the available history.</p>}
-    <footer>Operational expenses include assumptions. Published accounting totals use source records.</footer>
+    <footer>Daily operating expenses include assumptions until a matching manual expense replaces them. JunkWare and QBO retain their source records.</footer>
   </section>;
 }

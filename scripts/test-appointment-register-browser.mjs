@@ -15,7 +15,11 @@ try {
     assert.match(await page.getByRole('cell',{name:'Payment for JK10001',exact:true}).innerText(),/\$100.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10002',exact:true}).innerText(),/Balance due \$50.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10003',exact:true}).innerText(),/Estimate quoted/);
-    assert.match(await page.getByRole('cell',{name:'Payment for JK10005',exact:true}).innerText(),/Billed · not confirmed paid/);
+    assert.match(await page.getByRole('cell',{name:'Payment for JK10005',exact:true}).innerText(),/Billed · daily revenue/);
+    const openEstimate=page.locator('.readable-appointment').filter({has:page.getByRole('button',{name:'JK10009',exact:true})});
+    assert.match(await openEstimate.locator('.register-assignment').innerText(),/^(?:Assignment\n)?Unassigned$/);
+    assert.doesNotMatch(await openEstimate.locator('.register-assignment').innerText(),/Crew not recorded/);
+    assert.match(await page.getByRole('cell',{name:'Payment for JK10009',exact:true}).innerText(),/^(?:Payment\n)?Estimate open$/);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1),`${width}: no page overflow`);
     if (width > 1150) assert.ok(await page.locator('.readable-appointment').nth(5).evaluate(row=>row.getBoundingClientRect().bottom <= 720), `${width}: six appointment rows fit in a 720px desktop view`);
     const geometry=await page.locator('.readable-appointment').nth(1).evaluate(row=>({cells:[...row.children].map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom};}),amountSize:parseFloat(getComputedStyle(row.querySelector('.register-payment-amount')).fontSize)}));

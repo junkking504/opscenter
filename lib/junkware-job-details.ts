@@ -75,6 +75,7 @@ const JUNK_ITEM_PATTERNS: Array<[string, RegExp]> = [
   ["Bins / containers", /\b(?:storage\s*)?(?:bins?|containers?|totes?)\b/i],
   ["Tires", /\btires?\b/i],
   ["Scrap metal", /\b(?:scrap\s*metal|metal\s*scrap)\b/i],
+  ["Solar panels", /\bsolar\s*panels?\b/i],
   ["Toilet / bathroom fixture", /\b(?:toilet|commode|bathroom\s*fixture)s?\b/i],
   ["Aquarium / tank", /\b(?:aquarium|fish\s*tank)s?\b/i],
   ["Boxes / loose junk", /\b(?:boxes?\s+of\s+junk|loose\s+junk)\b/i],

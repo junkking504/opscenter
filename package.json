@@ -58,6 +58,7 @@
     "verify:streamlined-alerts": "node --import tsx scripts/test-streamlined-alerts.ts && node --import tsx scripts/test-command-cancellations.ts",
     "verify:crew-progress": "node --import tsx scripts/test-crew-progress-alerts.ts && node --import tsx scripts/test-crew-clock-out-alerts.ts",
     "verify:crew-progress:browser": "node scripts/test-crew-progress-browser.mjs",
+    "verify:schedule-cleanup:browser": "node scripts/test-schedule-cleanup-browser.mjs",
     "verify:slack-digest": "node --import tsx scripts/test-slack-digest.ts",
     "verify:qbo": "node --import tsx scripts/test-qbo-integration.ts && node --import tsx scripts/test-data-health.ts",
     "verify:data-health": "node --import tsx scripts/test-data-health.ts",

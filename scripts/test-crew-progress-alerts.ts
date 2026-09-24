@@ -8,7 +8,7 @@ import { fetchSlackDailyDigest, type SlackDigestMessage } from '../lib/slack-dig
 import { fixtureSnapshot, job, alert, now } from './fixtures/crew-progress';
 import { commandAlertWorkItemForSource } from '../lib/command-alert-workflow';
 import { crewPaymentFacts, crewCloseoutFacts, crewAppointmentFacts } from '../lib/crew-progress-details';
-import { appointmentPickupItems } from '../lib/junkware-job-details';
+import { appointmentPickupItems, junkItemKeywords } from '../lib/junkware-job-details';
 import { crewAlertCardPresentation } from '../desktop-ui/lib/crew-alert-presentation';
 import { closeoutCompactSummary } from '../lib/closeout-compact-summary';
 import type { WorkItem } from '../lib/platform/contracts';
@@ -119,6 +119,11 @@ assert.equal(crewPaymentFacts(job()).some(fact=>fact.label === 'Tips'),false,'Ze
 assert.deepEqual(crewCloseoutFacts(job({closeout:{...job().closeout!,otherCharges:[{name:'Mattress fee',quantity:2,unitPrice:20,total:40}]}})),[{label:'Load',value:'Half truck · $450.00'},{label:'2 × Mattress fee',value:'$40.00'}]);
 const description = '2 king bed frames, one ceramic fountain and 14 bags';
 assert.deepEqual(appointmentPickupItems({job_description:description}),[description],'Original item descriptions retain quantities and unrecognized items');
+assert.deepEqual(
+  junkItemKeywords({appointment_notes:['a few solar panels 350 (9/24/2026 8:12:30 AM , Hector Alvarado)']}),
+  ['Solar panels'],
+  'Item-bearing appointment notes populate Work when structured pickup items are empty',
+);
 const customer = crewAppointmentFacts(job({customerEmail:'customer@example.test',phone:'555-010-0200',pickupItems:[description],appointmentNotes:['Use side gate.','Call before arrival.']}));
 assert.equal(customer.find(fact=>fact.label === 'Pickup items')?.value,description);
 assert.equal(customer.find(fact=>fact.label === 'Key notes')?.value,'Use side gate. · Call before arrival.');

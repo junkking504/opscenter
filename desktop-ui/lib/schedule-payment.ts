@@ -3,7 +3,11 @@ import { appointmentCategory, isClosed, type ScheduleAppointment } from './sched
 const dollars = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 export function schedulePayment(job: ScheduleAppointment) {
   const source = job.closeout;
-  if (appointmentCategory(job) === 'Estimate') return { tone: 'quote', label: 'Estimate quoted', amount: dollars(source?.total ?? job.paymentAmount), details: ['Quote only · not a payment'], balance: null };
+  if (appointmentCategory(job) === 'Estimate') {
+    if (/cancel/i.test(job.status)) return { tone: 'unknown', label: 'Estimate canceled', amount: null, details: [], balance: null };
+    if (!/complete|closed/i.test(job.status)) return { tone: 'unknown', label: 'Estimate open', amount: null, details: [], balance: null };
+    return { tone: 'quote', label: 'Estimate quoted', amount: dollars(source?.total ?? job.paymentAmount), details: ['Quote only · not a payment'], balance: null };
+  }
   if (job.chargeDetailsPending || !source) return { tone: 'unknown', label: job.chargeDetailsPending ? 'Payment updating' : 'Payment details unavailable', amount: null, details: job.paymentAmount > 0 ? [`Listed amount ${dollars(job.paymentAmount)} · not verified paid`] : ['No payment detail in this snapshot'], balance: null };
   const billed = source.payments.filter(row => /\bbill(?:ed|ing)?\b|invoice|accounts? receivable/i.test(row.method));
   const payments = source.payments.filter(row => !billed.includes(row));

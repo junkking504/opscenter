@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyFinding} from '../desktop-ui/lib/agent-hierarchy-contract';
+import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyFinding,type HierarchySnapshot} from '../desktop-ui/lib/agent-hierarchy-contract';
 import {projectHierarchy,saveHierarchy,readHierarchy} from '../lib/agent-hierarchy';
 import {requiredOpsPermission} from '../lib/ops-roles';
 const now=Date.parse('2026-09-17T15:00:00Z'),date='2026-09-17',at=new Date(now).toISOString();
@@ -33,6 +33,15 @@ try {
   assert.equal(readHierarchy(now),null);assert.throws(()=>saveHierarchy(accepted),/lock/);
   process.env.OPSCENTER_AGENT_LOCK_HELD='1';saveHierarchy(accepted);
   assert.equal(readHierarchy(now+1000)!.issues[0].owner,'expenses');assert.equal(fs.statSync(path.join(root,'fleet/agent-hierarchy/state.json')).mode&0o777,0o600);
+  const clearedFixture:HierarchySnapshot={...accepted,issues:Array.from({length:251},(_,index)=>({...structuredClone(accepted.issues[0]),id:`cleared:${index}`,status:'source_cleared' as const,lastSeenAt:new Date(now-index).toISOString(),history:[...accepted.issues[0].history,{at:new Date(now-index).toISOString(),from:'expenses',to:'expenses',event:'source_cleared' as const}]}))};
+  clearedFixture.issues.push({...structuredClone(accepted.issues[0]),id:'still-open'});
+  const compacted=saveHierarchy(clearedFixture);
+  assert.equal(compacted.issues.filter(issue=>issue.status==='source_cleared').length,200);
+  assert.equal(compacted.issues.filter(issue=>issue.status==='open').length,1,'Active findings are never pruned');
+  const archive=path.join(root,'fleet/agent-hierarchy/archive','2026-09');
+  assert.equal(fs.readdirSync(archive).length,51);
+  saveHierarchy(clearedFixture);
+  assert.equal(fs.readdirSync(archive).length,51,'Archive retries are immutable and idempotent');
   assert(readHierarchy(now+5*60_000)!.agents.every(a=>a.status==='unavailable'));
   fs.writeFileSync(path.join(root,'fleet/agent-hierarchy/state.json'),'{');assert.throws(()=>readHierarchy(now),/preserved/);
 }finally{fs.rmSync(root,{recursive:true,force:true});}

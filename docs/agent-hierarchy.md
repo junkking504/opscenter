@@ -84,6 +84,14 @@ Repeated assessments do not repeat an accepted transfer. Human ownership and
 source actions remain in the supporting Control, truck or maintenance record.
 This is an oversight index, not a second executor or source-write queue.
 
+The live state retains every open or unconfirmed finding and the 200 most recent
+source-cleared findings. Older cleared findings move, under the same worker
+lock, to immutable per-record files in
+`data/fleet/agent-hierarchy/archive/YYYY-MM/`. Archive writes are fsynced before
+the compact live snapshot is published and exact retries are idempotent. A
+failed archive write leaves the prior live state untouched; compaction never
+deletes active ownership or supporting source records.
+
 Urgent findings have a 15-minute review deadline; next actions one hour; watch
 items 24 hours. Overdue and unconfirmed findings escalate to the owner's parent,
 and ancestor counts include all descendant work. A higher priority shortens the

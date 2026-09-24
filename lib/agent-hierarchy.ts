@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyIssue,type HierarchySnapshot,type HierarchyAssessment} from '../desktop-ui/lib/agent-hierarchy-contract';
 import {truckAgentRoot} from './truck-agent-inputs';
 const stamp=(now:number)=>new Date(now).toISOString();
@@ -48,6 +48,26 @@ export function projectHierarchy(date:string,feeds:HierarchyFeed[],now:number,pr
   return {version:1,date,checkedAt:stamp(now),agents,tabs:hierarchyTabs,feeds:feeds.map(({findings:_,...f})=>f),issues:result,warnings:[]};
 }
 const file=()=>path.join(truckAgentRoot(),'fleet','agent-hierarchy','state.json');
+const CLEARED_LIVE_LIMIT=200;
+function compactForStorage(state:HierarchySnapshot):{state:HierarchySnapshot;archived:HierarchyIssue[]} {
+  const cleared=state.issues.filter(issue=>issue.status==='source_cleared').sort((a,b)=>b.lastSeenAt.localeCompare(a.lastSeenAt)||a.id.localeCompare(b.id));
+  const keep=new Set(cleared.slice(0,CLEARED_LIVE_LIMIT).map(issue=>issue.id));
+  const archived=cleared.filter(issue=>!keep.has(issue.id));
+  if(!archived.length)return {state,archived};
+  return {state:{...state,issues:state.issues.filter(issue=>issue.status!=='source_cleared'||keep.has(issue.id)),warnings:[...state.warnings,`${archived.length} older source-cleared findings were moved to the immutable hierarchy archive.`]},archived};
+}
+function archiveIssue(issue:HierarchyIssue,checkedAt:string):void {
+  const cleared=issue.history.filter(row=>row.event==='source_cleared').at(-1)?.at||issue.lastSeenAt;
+  const month=/^\d{4}-\d{2}/.test(cleared)?cleared.slice(0,7):'unknown';
+  const directory=path.join(truckAgentRoot(),'fleet','agent-hierarchy','archive',month);
+  fs.mkdirSync(directory,{recursive:true,mode:0o700});
+  const name=createHash('sha256').update(JSON.stringify([issue.id,cleared])).digest('hex')+'.json';
+  const target=path.join(directory,name),payload=JSON.stringify({version:1,archivedAt:checkedAt,issue});
+  try {const fd=fs.openSync(target,'wx',0o600);try{fs.writeFileSync(fd,payload);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
+  catch(error){
+    if((error as NodeJS.ErrnoException).code!=='EEXIST'||fs.readFileSync(target,'utf8')!==payload)throw new Error('Hierarchy archive could not preserve a cleared finding.');
+  }
+}
 export function readHierarchy(now=Date.now()):HierarchySnapshot|null {
   let state:HierarchySnapshot;
   try{state=JSON.parse(fs.readFileSync(file(),'utf8'));}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw new Error('Hierarchy history is unreadable; retained records were preserved.');}
@@ -60,10 +80,14 @@ export function readHierarchy(now=Date.now()):HierarchySnapshot|null {
   if(!hierarchyFresh(state.checkedAt,now))return {...state,agents:state.agents.map(a=>({...a,status:'unavailable',detail:'Background assessment is stale. Retained findings require a fresh check.'})),warnings:['Hierarchy background assessment is unavailable or older than three minutes.']};
   return state;
 }
-export function saveHierarchy(state:HierarchySnapshot) {
+export function saveHierarchy(state:HierarchySnapshot):HierarchySnapshot {
   if(process.env.OPSCENTER_AGENT_LOCK_HELD!=='1')throw new Error('Hierarchy requires the operational worker lock.');
+  const compacted=compactForStorage(state);
+  for(const issue of compacted.archived)archiveIssue(issue,state.checkedAt);
+  state=compacted.state;
   const target=file();fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o700});
   const temp=`${target}.${randomUUID()}.tmp`,fd=fs.openSync(temp,'wx',0o600);
   try{fs.writeFileSync(fd,JSON.stringify(state));fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
   try{fs.renameSync(temp,target);const parent=fs.openSync(path.dirname(target),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+  return state;
 }

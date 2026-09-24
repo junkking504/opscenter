@@ -88,5 +88,5 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
 }
 export async function runHierarchy(date:string,now=Date.now()) {
   const feeds=await readHierarchyFeeds(date,now), prior=readHierarchy(now);
-  const result=projectHierarchy(date,feeds,now,prior);saveHierarchy(result);return result;
+  const result=projectHierarchy(date,feeds,now,prior);return saveHierarchy(result);
 }

@@ -4320,7 +4320,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
             {activeNav === 'Command' ? (
               <div className="view-switcher workspace-tabs" role="tablist" aria-label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span className={live ? 'crew-update-count' : undefined}>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
                 <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
               </div>

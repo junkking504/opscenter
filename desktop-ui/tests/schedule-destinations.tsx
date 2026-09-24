@@ -17,6 +17,7 @@ const stalePresence=new URLSearchParams(location.search).get('presence')==='stal
 const result=new URLSearchParams(location.search).get('result') || 'verified';
 const longDetails=new URLSearchParams(location.search).get('details')==='long';
 const routeMode=new URLSearchParams(location.search).get('routes') || 'available';
+const sourceLink=new URLSearchParams(location.search).has('source');
 const areaCases=new URLSearchParams(location.search).has('areas') ? [
   ['New Orleans, LA 70114','Jefferson Parish'], ['Westwego, LA 70094','New Orleans'],
   ['New Orleans, LA 70128','New Orleans'], ['Chalmette, LA 70043','Jefferson Parish'],
@@ -32,7 +33,7 @@ const writes:Array<{date:string;recordId:string;action:string;values:{truck:stri
 function appointments(date:string):ScheduleAppointment[] {
   return Array.from({length:areaCases?.length ?? (scenario==='empty'?0:scenario==='crowded'?14:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:1)},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
-    return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
+    return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:sourceLink?`https://example.test/appointment/${1001+index}`:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map((job,index)=>areaCases?{...job,address:`100 Example Rd ${areaCases[index][0]}`,territory:areaCases[index][1],location:{latitude:29.9+index*.035,longitude:-90.1},status:index===6?'Canceled':index===7?'Completed':'Confirmed'}:job)
     .map(job=>scenario==='auto-recovery'?{...job,truck:Date.now()-recoveryStartedAt<20000?'Truck 9':'Truck 8',appointmentTime:Date.now()-recoveryStartedAt<20000?'3:00 PM–4:00 PM':'11:00 AM–12:00 PM',appointmentStartMinutes:Date.now()-recoveryStartedAt<20000?900:660,appointmentEndMinutes:Date.now()-recoveryStartedAt<20000?960:720,junkwareSyncStatus:Date.now()-recoveryStartedAt<20000?'manual_correction':'verified'}:job)
     .map(job=>scenario==='completed'?{...job,status:'Completed',truck:'Truck 8'}:job)

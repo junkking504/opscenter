@@ -16,7 +16,7 @@ async function main() {
       assert.match(String(input), /maps\.brla\.gov/, 'No paid request or browser needed even at the shared 500-call cap');
       calls++;
       return new Response(JSON.stringify({ spatialReference: { wkid: 4326 }, features: [{
-        attributes: { ID: 1, ADDRESS_ID: 1, FULL_ADDRESS: '100 EXAMPLE HWY', CITY: 'BATON ROUGE', STATE: 'LA', ZIP: 70816, ADDRESS_AUTHORITY: 'PARISH' },
+        attributes: { ID: 1, ADDRESS_ID: 1, FULL_ADDRESS: '100 EXAMPLE HWY', CITY: 'BATON ROUGE', STATE: 'LA', ZIP: 70816, ADDRESS_AUTHORITY: 'SAINT GEORGE' },
         geometry: { x: -91.1, y: 30.4 },
       }] }));
     };
@@ -31,13 +31,13 @@ async function main() {
     // The target day has no rows: tomorrow must be discovered from collected
     // source files, not from a browser selecting that date.
     fs.writeFileSync(path.join(history, 'junkware_live_2026-09-22_summary.csv'),
-      'appt_id,jk_number,address,status\n123456,JK_TEST,100 Example Hwy Apt 4 Baton Rouge LA 70816,Confirmed\n');
-    const address = '100 Example Hwy Apt 4 Baton Rouge LA 70816';
+      'appt_id,jk_number,address,status\n123456,JK_TEST,100 Example Hwy Apt 4 Baton Rouge 70816,Confirmed\n');
+    const address = '100 Example Hwy Apt 4 Baton Rouge 70816';
     const cache = path.join(root, 'cache/service-address-verifications'); fs.mkdirSync(cache, { recursive: true });
     const hash = (value: string) => createHash('sha256').update(value).digest('hex');
-    fs.writeFileSync(path.join(cache, hash(address) + '.json'), JSON.stringify({ schema: 9, address,
+    fs.writeFileSync(path.join(cache, hash(address) + '.json'), JSON.stringify({ schema: 10, address,
       expires: 1_800_000_300_000, verified: { location: null, reason: 'No Exact Building Match' } }));
-    fs.writeFileSync(path.join(root, 'cache/schedule-address-refresh.json'), JSON.stringify({ policyVersion: 9,
+    fs.writeFileSync(path.join(root, 'cache/schedule-address-refresh.json'), JSON.stringify({ policyVersion: 10,
       attempts: { [hash(address.toUpperCase())]: 1_800_000_000_000 } }));
     const maintenance = path.join(root, 'integrations/opscenter-maintenance'); fs.mkdirSync(maintenance, { recursive: true });
     const ledger = JSON.stringify({ months: { '2026-09': { calls: 500, committedMicros: 10_000_000 } }, addressResearch: { status: 'Shared budget or address allowance reached' } });

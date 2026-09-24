@@ -61,6 +61,7 @@ without mixing live runtime data or secrets into Git.
 - [Truck phone inspections](truck-inspections.md)
 - [Operational readiness](operational-readiness.md)
 - [Background maintenance pilot](background-maintenance.md)
+- [Geocodio free address fallback](geocodio-free-fallback.md)
 - [Server continuity recovery](server-continuity.md)
 
 ## Canonical topology

@@ -17,6 +17,11 @@ assert.equal(verifyParishAddress(address, payload(feature('100 EXAMPLE HWY, BLDG
 assert.ok(verifyParishAddress(address.replace('Apt 4', 'Bldg 4'), payload(feature('100 EXAMPLE HWY, BLDG 4'))).location);
 assert.equal(verifyParishAddress(address.replace('Apt 4', 'Bldg 4'), payload(feature())).location, null);
 assert.ok(verifyParishAddress(address, payload(feature(), feature())).location, 'Identical rows share one authoritative address point');
+assert.ok(verifyParishAddress(address.replace('LA ', ''), payload(feature())).location, 'JunkWare may omit the separate Louisiana state field');
+for (const authority of ['PARISH', 'BATON ROUGE', 'SAINT GEORGE', 'BAKER', 'CENTRAL', 'ZACHARY']) {
+  const row = feature(); row.attributes.ADDRESS_AUTHORITY = authority;
+  assert.ok(verifyParishAddress(address, payload(row)).location, 'Official municipal address points are valid parish dataset evidence');
+}
 assert.equal(verifyParishAddress(address, payload(feature(), feature('100 EXAMPLE HWY', 2))).location, null);
 assert.equal(verifyParishAddress(address, payload(feature(), feature('100 EXAMPLE HWY', 1, -91.11))).location, null);
 for (const source of [address.replace('100 ', '100 1/2 '), address.replace('100 ', '98-100 '), address.replace('100 ', '100AB '),
@@ -55,7 +60,7 @@ async function main() {
     assert.ok(competing[0].location); assert.ok(competing[1].retryAfterMs);
     assert.ok((await verifyParishAddressFallback(address.replace('Apt 4', 'Apt 8'))).location, 'Unit variants reuse base query cache');
     assert.equal(calls, 1);
-    const recovered = await verifyDesktopAddress(address);
+    const recovered = await verifyDesktopAddress(address.replace('LA ', ''));
     assert.ok(recovered.location); assert.equal(recovered.source, 'East Baton Rouge Parish GIS'); assert.equal(calls, 1);
     now += 60_000;
     globalThis.fetch = async () => { calls++; return new Response('down', { status: 503 }); };

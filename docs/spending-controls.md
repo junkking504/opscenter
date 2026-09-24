@@ -91,6 +91,29 @@ not permission to enable paid operations on those hosts.
 
 ## Limits of the controls
 
+### Geocodio free fallback — approved September 24, 2026; activation pending
+
+The user approved trying Geocodio for unresolved service-address geocoding on
+the free tier only: **$0 maximum spend**, no subscription, payment method,
+paid credits, data appends, routing or overages. Geocodio advertises 2,500 free
+lookups per day and provider cutoff on free accounts. Before activation, verify
+the actual account has no payment method and remains free; credentials alone
+are insufficient. See [Geocodio setup](geocodio-free-fallback.md).
+
+The new endpoint is only `api.geocod.io`, single-address `/v2/geocode` with
+`q` and `country=USA`; authorization is a server-only header. The branch
+inventory pins both new Geocodio modules. Installing that reviewed inventory
+is an explicit part of this approved integration, not a routine deployment
+refresh. Preserve every other installed approval/hash and the unchanged checker.
+The installed inventory and live account have **not** yet been updated.
+
+Requests share a durable, process-locked ledger: at most 2,500 attempts in any
+rolling 25 hours, at least ten seconds between starts, and at most eight seconds
+per request within the existing address lookup deadline. Failures count; missing
+or corrupt history and stale locks block calls. No automatic account upgrades
+or paid retries exist. Approval expires after at most 31 days for account review.
+This does not increase or draw on the existing OpenAI $10/500-attempt budget.
+
 These checks prevent accidental reintroduction through the documented workflow;
 they are not a network firewall or a provider-enforced account-wide dollar cap.
 An administrator can change code, credentials, account settings or these files.

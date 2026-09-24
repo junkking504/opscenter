@@ -14,7 +14,7 @@ export function parishAddressQuery(address: string) {
   address = cleanJunkwareAddressText(address);
   if (serviceStreetCandidates(address).length !== 1) return null;
   const full = fullFieldStreetAddress(address);
-  const match = withoutServiceUnit(full).match(/^(\d{1,7})\s+(.+?)[,\s]+(BATON ROUGE|ZACHARY|BAKER|CENTRAL),?\s+(?:LA|LOUISIANA)[,\s]+(\d{5})(?:-\d{4})?$/i);
+  const match = withoutServiceUnit(full).match(/^(\d{1,7})\s+(.+?)[,\s]+(BATON ROUGE|ZACHARY|BAKER|CENTRAL),?\s+(?:(?:LA|LOUISIANA)[,\s]+)?(\d{5})(?:-\d{4})?$/i);
   if (!match || !/^[A-Z][A-Z0-9 .'-]*$/i.test(match[2])) return null;
   const buildings = [...full.matchAll(/\b(?:BLDG|BUILDING)\.?\s*#?\s*([A-Z0-9-]+)\b/gi)];
   if (buildings.length > 1) return null;
@@ -39,7 +39,11 @@ export function verifyParishAddress(address: string, payload: unknown): AddressV
   const points = new Set<string>();
   for (const row of candidates) {
     const a = row.attributes!, g = row.geometry;
-    if (a.CITY !== query.city || a.STATE !== 'LA' || String(a.ZIP) !== query.zip || a.ADDRESS_AUTHORITY !== 'PARISH'
+    // ADDRESS_AUTHORITY identifies the assigning jurisdiction, not whether
+    // this official parish dataset is authoritative. Municipal records are
+    // published alongside unincorporated PARISH records in the same layer.
+    if (a.CITY !== query.city || a.STATE !== 'LA' || String(a.ZIP) !== query.zip
+      || !['PARISH', 'BATON ROUGE', 'SAINT GEORGE', 'BAKER', 'CENTRAL', 'ZACHARY'].includes(String(a.ADDRESS_AUTHORITY))
       || !Number.isInteger(a.ADDRESS_ID) || !g || !Number.isFinite(g.x) || !Number.isFinite(g.y)
       || g.y! < 30 || g.y! > 31 || g.x! < -91.5 || g.x! > -90.5) return unavailable();
     points.add(JSON.stringify([a.ADDRESS_ID, g.x, g.y]));

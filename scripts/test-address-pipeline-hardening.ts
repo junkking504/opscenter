@@ -8,6 +8,8 @@ import { appointmentServiceAddress, cleanServiceQuery } from '../lib/service-add
 import { serviceStreetCandidates, fullFieldStreetAddress } from '../lib/appointment-partner';
 import { verifyOsmServiceAddress } from '../lib/osm-service-address';
 import { planningLocation } from '../lib/planning-geocodes';
+import { researchAddressIdentity } from '../lib/address-research-evidence';
+import { cleanJunkwareAddressText } from '../lib/junkware-address-text';
 
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'address-hardening-'));
 process.env.OPSBOT_DATA_DIR=root;
@@ -43,6 +45,24 @@ for(const [written,numeric] of [['One Hundred First','101ST'],['One Hundred And 
 }
 assert.ok(verify('Example Apartments 100 Example New Orleans LA 70125').location, 'Business prefix with omitted road type still matches whole street and locality');
 assert.equal(verify('Business 84 Location 2 100 Example New Orleans LA 70125').location,null, 'Do not skip ambiguous numeric business labels without a full street candidate');
+for (const suffix of ['Loop','Lp']) {
+  const address = `100 Example ${suffix}, New Orleans, LA 70125`;
+  assert.equal(serviceStreetCandidates(address).length, 1, 'Loop is a complete street address');
+  assert.ok(researchAddressIdentity(address), 'Loop can enter address research');
+  assert.ok(verify(address, '100 EXAMPLE LOOP').location, 'Loop and Lp name the same road type');
+  assert.equal(verify(address, '100 EXAMPLE LN').location, null, 'Loop is never Lane');
+  assert.equal(serviceStreetCandidates(`${address} or 200 Other Loop New Orleans LA 70125`).length, 2);
+}
+const repeated = 'Example Company, 100 Example St 100 Example St., New Orleans, 70125';
+assert.equal(cleanJunkwareAddressText(repeated), 'Example Company, 100 Example St, New Orleans, 70125');
+assert.ok(verifyCensusAddress(repeated, fixture()).location, 'A repeated identical source street can recover automatically');
+assert.equal(researchAddressIdentity(cleanJunkwareAddressText(repeated)), researchAddressIdentity('100 Example St New Orleans LA 70125'));
+assert.equal(researchAddressIdentity('100 Example Lp New Orleans LA 70125'), researchAddressIdentity('100 Example Loop New Orleans LA 70125'));
+for (const address of [
+  '100 Example St 101 Example St New Orleans LA 70125',
+  '100 Example St or 100 Example St New Orleans LA 70125',
+  '100 Example St Apt 2 100 Example St New Orleans LA 70125',
+]) assert.equal(verify(address).location, null, 'Conflicting or qualified source expressions remain unresolved');
 assert.ok(verify('100 Northeast Example St New Orleans LA 70125','100 NE EXAMPLE ST').location);
 assert.equal(verify('100 Northwest Example St New Orleans LA 70125','100 NE EXAMPLE ST').location,null);
 for(const unit of ['Apt #2','Apt 2','Unit #B','Suite #A-2','#3','Bldg 1']) {

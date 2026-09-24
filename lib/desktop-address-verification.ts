@@ -4,6 +4,7 @@ import { cleanJunkwareAddressText } from './junkware-address-text';
 import { cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { verifyParishAddressFallback } from './parish-service-address';
+import { verifyGeocodioAddressFallback } from './geocodio-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
@@ -15,7 +16,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 10;
+export const ADDRESS_VERIFICATION_POLICY = 11;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -172,6 +173,12 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
     // calls this for all collected future dates without an open browser.
     if(!verified.location && !ambiguous)verified=await verifyOsmAddressFallback(address,Math.max(0,27000-(Date.now()-started)-8000));
     if(!verified.location && ambiguous)verified={location:null,reason:'Multiple Address Matches'};
+    if (!verified.location) {
+      // An independent exact premises point can resolve Census ambiguity.
+      // No new wall-clock budget, AI call, or paid-provider allowance.
+      const geocodio = await verifyGeocodioAddressFallback(address, Math.max(0, 27_000 - (Date.now() - started)));
+      if (geocodio) verified = geocodio;
+    }
     if (!verified.location && parish?.retryAfterMs) verified = {...verified,retryAfterMs:Math.max(60_000,parish.retryAfterMs)};
     if (!verified.location && transientFailure) verified = {...verified, reason:'Address Provider Temporarily Unavailable', retryAfterMs:Math.max(60_000, verified.retryAfterMs || 0)};
     entry.verified=verified;entry.expires=Date.now()+(verified.retryAfterMs || (verified.location?7*86_400_000:300_000));

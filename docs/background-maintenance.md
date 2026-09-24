@@ -118,6 +118,22 @@ contain fixed categories, timestamps and bounded counts only.
 
 ## Automatic address investigation
 
+Policy 11 recognizes Loop/Lp streets, removes only adjacent literal repetitions
+of the same complete street in flattened source cells, and accepts Louisiana
+addresses without a separate state field in the supported parish localities.
+The parish dataset's `ADDRESS_AUTHORITY` is the assigning jurisdiction: records
+from Parish, Baton Rouge, Saint George, Baker, Central and Zachary pass the same
+exact house/street/locality/ZIP and unique-point checks. A municipal authority is
+not a failed provider response. Old negative caches and sweep backoff are retried
+when the verification policy changes.
+
+Address links open Google Maps searches; they do not send Google's result back
+to OpsCenter. A browser-reviewed exact building result can be recorded in
+the existing durable review cache with its source URL and reviewing actor.
+That record is reused by Schedule and the background visit cache. Automated
+Google geocoding remains retired; these parser/provider fixes use existing free
+lookups and do not change paid research limits.
+
 Schedule normalizes flattened JunkWare address cells before territory matching,
 verified-cache lookup and research discovery. An action-only suffix (`Followup`,
 `SMS`, `More Details` and labeled follow-up variants) after a complete ZIP is

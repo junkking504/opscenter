@@ -115,6 +115,14 @@ WHATSAPP_MINIMUM_JOB_MARGIN_MILES='0.15'
 WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS='3'
 ```
 
+The private OpsCenter company-phone directory is the baseline sender-to-truck
+source. `WHATSAPP_TRUCK_PHONE_MAP_BASE64` is optional and only overrides or adds
+entries when a WhatsApp sender is not a company phone. Each worker cycle safely
+revisits up to 100 old `sender_not_mapped_to_truck` holds only when that source
+mapping now exists and the checksum-verified original remains in local storage.
+It never replays an uncertain upload, a missing original, or an appointment
+ambiguity.
+
 Example decoded truck map shape (use real values only in the private environment, never Git):
 
 ```json

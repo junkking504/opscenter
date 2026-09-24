@@ -444,6 +444,58 @@ export function requeueWhatsAppImage(processingFile: string, errorMessage: strin
   return true;
 }
 
+function validCachedOriginal(message: WhatsAppImageMessage): boolean {
+  if (!message.sha256 || !["image/jpeg", "image/png"].includes(message.mimeType)) return false;
+  const file = whatsappMediaFile(message.messageId, message.mimeType);
+  try {
+    const stat = fs.lstatSync(file);
+    if (!stat.isFile() || stat.size <= 0 || stat.size > 5 * 1024 * 1024) return false;
+    const bytes = fs.readFileSync(file);
+    const signature = message.mimeType === "image/png"
+      ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+    const hex = crypto.createHash("sha256").update(bytes).digest("hex");
+    const base64 = Buffer.from(hex, "hex").toString("base64");
+    return signature && (message.sha256 === hex || message.sha256 === base64);
+  } catch { return false; }
+}
+
+/** Revisit only pre-upload holds whose sender is now source-mapped and whose
+ * checksum-verified original is still local. Uncertain uploads, missing media,
+ * and appointment holds remain untouched for source verification. */
+export function recoverMappedWhatsAppPhotoHolds(senderTruckMap: Record<string, string>, limit = 100): number {
+  ensureDirectories();
+  let recovered = 0;
+  const cap = Math.max(0, Math.min(100, Math.floor(limit)));
+  const files = fs.readdirSync(directory("review")).filter(name => /^[a-f0-9]{64}\.json$/.test(name)).sort();
+  for (const name of files) {
+    if (recovered >= cap) break;
+    const source = path.join(directory("review"), name);
+    let message: WhatsAppImageMessage & Record<string, unknown>;
+    try { message = JSON.parse(fs.readFileSync(source, "utf8")); } catch { continue; }
+    const review = message.review && typeof message.review === "object" ? message.review as Record<string, unknown> : {};
+    const sender = normalizePhone(message.senderPhone);
+    if (review.reason !== "sender_not_mapped_to_truck" || !senderTruckMap[sender] || !validCachedOriginal(message)) continue;
+    const target = path.join(directory("incoming"), name);
+    if (["incoming", "processing", "completed", "failed"].some(state => fs.existsSync(path.join(whatsappPhotoStateDirectory(), state, name)))) continue;
+    fs.renameSync(source, target);
+    const restored = { ...message };
+    delete restored.review;
+    delete restored.outcome;
+    delete restored.outcomeAt;
+    writeJsonAtomic(target, {
+      ...restored,
+      recovery: {
+        reason: "source_phone_mapping_available",
+        recoveredAt: new Date().toISOString(),
+        priorReview: review,
+      },
+    });
+    recovered += 1;
+  }
+  return recovered;
+}
+
 export function whatsappMediaFile(messageId: string, mimeType: string): string {
   ensureDirectories();
   const extension = mimeType === "image/png" ? "png" : "jpg";

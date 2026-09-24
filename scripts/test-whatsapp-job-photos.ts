@@ -17,6 +17,7 @@ import {
   parseWhatsAppWebhook,
   queuedWhatsAppImages,
   recentWhatsAppText,
+  recoverMappedWhatsAppPhotoHolds,
   recordWhatsAppTextContext,
   verifyMetaSignature,
   whatsappMediaFile,
@@ -165,6 +166,33 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, false);
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
+
+  const recoveryBytes = Buffer.from([255, 216, 255, 0]);
+  const recoverable = {
+    ...parsed.images[0],
+    messageId: "mapped-held-photo",
+    senderPhone: "5045550101",
+    receivedAt: "2026-08-10T15:00:00Z",
+    sha256: crypto.createHash("sha256").update(recoveryBytes).digest("hex"),
+  };
+  enqueueWhatsAppImage(recoverable);
+  const held = claimWhatsAppImage(queuedWhatsAppImages().find(file => file.includes(crypto.createHash("sha256").update(recoverable.messageId).digest("hex")))!);
+  assert.ok(held);
+  const heldFile = finishWhatsAppImage(held.file, "review", { review: { reason: "sender_not_mapped_to_truck" } });
+  fs.writeFileSync(whatsappMediaFile(recoverable.messageId, recoverable.mimeType), recoveryBytes, { mode: 0o600 });
+  assert.equal(recoverMappedWhatsAppPhotoHolds({ "5045550101": "Truck# 8" }), 1);
+  assert.equal(fs.existsSync(heldFile), false);
+  const recovered = claimWhatsAppImage(queuedWhatsAppImages().find(file => file.includes(path.basename(heldFile, ".json")))!);
+  assert.equal((recovered?.message as unknown as { recovery?: { reason?: string } }).recovery?.reason, "source_phone_mapping_available");
+  finishWhatsAppImage(recovered!.file, "completed", { test: true });
+
+  const missingOriginal = { ...recoverable, messageId: "mapped-held-without-original" };
+  enqueueWhatsAppImage(missingOriginal);
+  const missingClaim = claimWhatsAppImage(queuedWhatsAppImages().find(file => file.includes(crypto.createHash("sha256").update(missingOriginal.messageId).digest("hex")))!);
+  assert.ok(missingClaim);
+  const missingHeldFile = finishWhatsAppImage(missingClaim.file, "review", { review: { reason: "sender_not_mapped_to_truck" } });
+  assert.equal(recoverMappedWhatsAppPhotoHolds({ "5045550101": "Truck# 8" }), 0, "Missing source media is never replayed");
+  assert.equal(fs.existsSync(missingHeldFile), true);
 
   process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR = temporaryState;
   process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS = "60";

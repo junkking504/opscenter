@@ -24,9 +24,11 @@ import {
   claimWhatsAppImage,
   finishWhatsAppImage,
   recentWhatsAppPhotoContext,
+  recoverMappedWhatsAppPhotoHolds,
   requeueWhatsAppImage,
   whatsappQueueCounts,
 } from "@/lib/whatsapp-job-photo-queue";
+import { whatsappSenderTruckMap } from "@/lib/whatsapp-sender-truck-map";
 import {
   claimCrewExpenseTransaction,
   claimCrewExpenseReply,
@@ -80,17 +82,7 @@ function loadSlackBotToken(): void {
 }
 
 export function senderTruckMap(raw = process.env.WHATSAPP_TRUCK_PHONE_MAP): Record<string, string> {
-  if (!raw && process.env.WHATSAPP_TRUCK_PHONE_MAP_BASE64) {
-    try { raw = Buffer.from(process.env.WHATSAPP_TRUCK_PHONE_MAP_BASE64, "base64").toString("utf8"); } catch { raw = ""; }
-  }
-  if (!raw) return {};
-  const parsed = JSON.parse(raw);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("WHATSAPP_TRUCK_PHONE_MAP must be a JSON object.");
-  return Object.fromEntries(Object.entries(parsed).flatMap(([phone, truck]) => {
-    const normalized = normalizePhone(phone);
-    const label = clean(truck);
-    return normalized && label ? [[normalized, label]] : [];
-  }));
+  return whatsappSenderTruckMap(raw);
 }
 
 async function deliverCrewExpenseReplies(attempted: Set<string>): Promise<{ sent: number; retried: number; failed: number }> {
@@ -360,6 +352,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
 
 async function main(): Promise<void> {
   const map = senderTruckMap();
+  const recoveredHolds = recoverMappedWhatsAppPhotoHolds(map);
   const results = { completed: 0, review: 0, retried: 0, failed: 0, skipped: 0 };
   const attemptedReplies = new Set<string>();
   const photoConfirmations = { pending: 0, queued: 0 };
@@ -415,9 +408,9 @@ async function main(): Promise<void> {
     const photoQueue = whatsappQueueCounts();
     await replies.flush();
     const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-    if (processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    if (recoveredHolds || processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
       const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
-      process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+      process.stdout.write(`${JSON.stringify({ ok: true, recoveredHolds, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
     }
   } finally {
     await media.close();

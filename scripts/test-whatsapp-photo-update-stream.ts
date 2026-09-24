@@ -17,6 +17,10 @@ async function main() {
     const changed = new Promise<void>(resolve => { resolveChange = resolve; });
     unsubscribers.push(subscribeWhatsAppPhotoUpdates(root, () => { first++; }));
     unsubscribers.push(subscribeWhatsAppPhotoUpdates(root, () => { second++; resolveChange(); }));
+    // Darwin can acknowledge fs.watch creation before its kernel stream is
+    // ready. Let that one-time subscription handshake settle before testing
+    // the receipt event; production also performs an initial gallery read.
+    await new Promise(resolve => setTimeout(resolve, 20));
     const target = path.join(directory, `${'a'.repeat(64)}.json`);
     fs.writeFileSync(`${target}.tmp`, '{}');
     fs.renameSync(`${target}.tmp`, target);

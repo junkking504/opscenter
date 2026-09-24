@@ -20,6 +20,7 @@ export type WexFuelTransaction = {
   product: string;
   productDescription: string;
   merchant: string;
+  merchantAddress: string;
   city: string;
   state: string;
   postalCode: string;
@@ -29,7 +30,7 @@ export type WexFuelTransaction = {
 };
 
 export type WexFuelSnapshot = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   source: 'WEXOnline posted transaction CSV';
   importedAt: string;
   sourceFile: string;
@@ -57,7 +58,7 @@ const requiredHeaders = [
   'Transaction Date', 'Transaction Time', 'Post Date', 'Card Number', 'Trans ID',
   'Emboss Line 2', 'Custom Vehicle/Asset ID', 'Units', 'Unit of Measure', 'Unit Cost',
   'Total Fuel Cost', 'Total Non-Fuel Cost', 'Net Cost', 'Product', 'Product Description',
-  'Merchant Name', 'Merchant City', 'Merchant State / Province', 'Merchant Postal Code',
+  'Merchant Name', 'Merchant Address', 'Merchant City', 'Merchant State / Province', 'Merchant Postal Code',
   'Current Odometer', 'Driver Last Name', 'Driver First Name', 'Transaction Ticket Number',
   'Driver Prompt ID',
 ] as const;
@@ -150,6 +151,7 @@ export function parseWexPostedCsv(input: string): WexFuelTransaction[] {
       product: value(row, 'Product'),
       productDescription: value(row, 'Product Description'),
       merchant: value(row, 'Merchant Name') || value(row, 'Merchant (Brand)'),
+      merchantAddress: value(row, 'Merchant Address'),
       city: value(row, 'Merchant City'),
       state: value(row, 'Merchant State / Province'),
       postalCode: value(row, 'Merchant Postal Code'),
@@ -179,20 +181,25 @@ export function importWexPostedCsv(sourceFile: string, outputFile = wexFuelSnaps
   try {
     const saved = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
     if (!validSnapshot(saved)) throw new Error('Existing WEX snapshot is invalid; recover it before importing.');
-    prior = saved.transactions;
+    prior = saved.transactions.map(normalizeSavedTransaction);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
   const merged = new Map<string, WexFuelTransaction>();
   for (const transaction of [...prior, ...incoming]) {
     const existing = merged.get(transaction.transactionId);
-    if (existing && JSON.stringify(existing) !== JSON.stringify(transaction)) throw new Error(`WEX transaction ${transaction.transactionId} conflicts with saved evidence; review both exports.`);
-    merged.set(transaction.transactionId, transaction);
+    if (existing) {
+      const merchantAddress = transaction.merchantAddress || existing.merchantAddress;
+      const enriched = { ...existing, merchantAddress };
+      const comparableIncoming = { ...transaction, merchantAddress };
+      if (JSON.stringify(enriched) !== JSON.stringify(comparableIncoming)) throw new Error(`WEX transaction ${transaction.transactionId} conflicts with saved evidence; review both exports.`);
+      merged.set(transaction.transactionId, enriched);
+    } else merged.set(transaction.transactionId, transaction);
   }
   const transactions = [...merged.values()].sort((left, right) => `${right.transactionDate} ${right.transactionTime}`.localeCompare(`${left.transactionDate} ${left.transactionTime}`));
   const dates = transactions.map(transaction => transaction.transactionDate).sort();
   const snapshot: WexFuelSnapshot = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     source: 'WEXOnline posted transaction CSV',
     importedAt: now.toISOString(),
     sourceFile: path.basename(sourceFile),
@@ -216,9 +223,13 @@ export function importWexPostedCsv(sourceFile: string, outputFile = wexFuelSnaps
 
 function validSnapshot(value: unknown): value is WexFuelSnapshot {
   const snapshot = value as WexFuelSnapshot;
-  return snapshot?.schemaVersion === 1 && snapshot.source === 'WEXOnline posted transaction CSV'
+  return [1, 2].includes(Number(snapshot?.schemaVersion)) && snapshot.source === 'WEXOnline posted transaction CSV'
     && typeof snapshot.importedAt === 'string' && Array.isArray(snapshot.transactions)
     && snapshot.transactions.every(transaction => transaction?.status === 'posted' && typeof transaction.transactionId === 'string' && Number.isFinite(transaction.netCost));
+}
+
+function normalizeSavedTransaction(transaction: WexFuelTransaction | (Omit<WexFuelTransaction, 'merchantAddress'> & { merchantAddress?: string })): WexFuelTransaction {
+  return { ...transaction, merchantAddress: String(transaction.merchantAddress || '') };
 }
 
 const totals = (transactions: WexFuelTransaction[]) => ({
@@ -235,8 +246,9 @@ export function readWexFuelFinance(date: string, snapshotFile = wexFuelSnapshotF
   try {
     const snapshot = JSON.parse(fs.readFileSync(snapshotFile, 'utf8'));
     if (!validSnapshot(snapshot)) return unavailable('invalid');
-    const selected = snapshot.transactions.filter(transaction => transaction.transactionDate === date);
-    const month = snapshot.transactions.filter(transaction => transaction.transactionDate.startsWith(date.slice(0, 7)));
+    const transactions = snapshot.transactions.map(normalizeSavedTransaction);
+    const selected = transactions.filter(transaction => transaction.transactionDate === date);
+    const month = transactions.filter(transaction => transaction.transactionDate.startsWith(date.slice(0, 7)));
     return {
       available: true,
       status: 'available',

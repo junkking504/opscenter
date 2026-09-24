@@ -53,7 +53,26 @@ Reported fuel entries keep the existing JunkWare/OpsBot alert path to the truck'
 Slack channel and Command timeline. Entry alerts do not wait for a WEX match.
 The publisher records delivery identity to avoid repeated alerts; OpsBot-owned
 deliveries suppress a duplicate source alert. Initial historical snapshots are
-silently baselined. Reconciliation adds no external polling or message publisher.
+silently baselined. Reconciliation itself adds no external polling or message publisher.
+The automation publisher below runs only from a newly imported posted export;
+it does not turn a retained snapshot into a live portal read.
+
+After an existing snapshot has established the baseline, each newly posted WEX
+transaction is queued for expense automation. OpsCenter compares the merchant
+street address and transaction time with retained LinxUp stops, trip endpoints,
+and nearby GPS points at a previously observed station coordinate. A truck is
+assigned only when exactly one truck matches. Ambiguous or unavailable matches
+are held for review and do not create a JunkWare expense.
+
+For an attributed transaction, OpsCenter first checks verified JunkWare fuel
+expenses for the same truck, date, amount, location and time. A unique match is
+reused; otherwise one idempotent Gas record is created in JunkWare. The truck's
+Slack channel then receives the posted amount, merchant, location, transaction
+time, LinxUp attribution evidence, and whether a new record was created or an
+existing manual record was reused. The worker rechecks JunkWare before writing,
+and later WhatsApp manual submissions are checked against pending and completed
+WEX automation records so only one expense remains. The first-ever import is a
+baseline and does not backfill historical Slack or JunkWare records.
 
 Validation: `npm run verify:wex-fuel`, truck expense notification checks,
 TypeScript, desktop build and production build.

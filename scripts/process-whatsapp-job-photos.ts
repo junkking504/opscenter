@@ -43,6 +43,16 @@ import {
   updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
 import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
+import {
+  claimWexExpenseAutomation,
+  finishWexExpenseAutomation,
+  queuedWexExpenseAutomations,
+  refreshWexManualMatch,
+  requeueWexExpenseAutomation,
+  updateWexExpenseAutomation,
+  wexExpenseQueueCounts,
+} from "@/lib/wex-expense-automation";
+import { sendWexExpenseSlackNotification } from "@/lib/wex-expense-slack";
 import { METERED_USAGE_BLOCKED } from "@/lib/metered-usage-policy";
 import { analyzeTruckLoadPhoto } from "@/lib/truck-load-photo-analysis";
 import {
@@ -163,6 +173,37 @@ async function processCrewExpenseTransactions(): Promise<{ completed: number; re
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (requeueCrewExpenseTransaction(claim.file, message)) results.retried += 1;
+      else results.failed += 1;
+    }
+  }
+  return results;
+}
+
+async function processWexExpenseAutomations(): Promise<{ completed: number; matched: number; retried: number; failed: number }> {
+  const results = { completed: 0, matched: 0, retried: 0, failed: 0 };
+  for (const incomingFile of queuedWexExpenseAutomations(10)) {
+    const claim = claimWexExpenseAutomation(incomingFile);
+    if (!claim) continue;
+    try {
+      let automation = refreshWexManualMatch(claim.automation);
+      if (automation !== claim.automation) {
+        automation = updateWexExpenseAutomation(claim.file, automation);
+        results.matched += 1;
+      }
+      if (automation.stage === "pending_junkware") {
+        const verification = await uploadJunkwareTruckRecord(automation.record);
+        automation = updateWexExpenseAutomation(claim.file, { stage: "junkware_verified", junkware: { ...verification, verifiedAt: new Date().toISOString() } });
+      }
+      if (automation.stage === "junkware_verified") {
+        const delivery = await sendWexExpenseSlackNotification(automation);
+        automation = updateWexExpenseAutomation(claim.file, { stage: "slack_sent", slack: { ...delivery, sentAt: new Date().toISOString() } });
+      }
+      if (automation.stage !== "slack_sent") throw new Error("The WEX expense automation did not reach its final stage.");
+      finishWexExpenseAutomation(claim.file);
+      results.completed += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (requeueWexExpenseAutomation(claim.file, message)) results.retried += 1;
       else results.failed += 1;
     }
   }
@@ -406,13 +447,14 @@ async function main(): Promise<void> {
       posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
     }));
     const crewExpenseTransactions = await processCrewExpenseTransactions();
+    const wexExpenseAutomations = await processWexExpenseAutomations();
     const slack = await deliverWhatsAppPhotoSlackNotifications();
     const photoQueue = whatsappQueueCounts();
     await replies.flush();
     const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-    if (interruptedClaims || recoveredHolds || processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    if (interruptedClaims || recoveredHolds || processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(wexExpenseAutomations).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
       const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
-      process.stdout.write(`${JSON.stringify({ ok: true, interruptedClaims, recoveredHolds, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+      process.stdout.write(`${JSON.stringify({ ok: true, interruptedClaims, recoveredHolds, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, wexExpenseAutomations, expenseReplies, crewExpenses: crewExpenseQueueCounts(), wexExpenses: wexExpenseQueueCounts() })}\n`);
     }
   } finally {
     await media.close();

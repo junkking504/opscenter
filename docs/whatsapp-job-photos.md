@@ -182,6 +182,10 @@ The expense worker enforces this order:
 Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
+On worker startup, any record left in `processing` belongs to an interrupted
+prior process. Because the durable claim alone cannot prove whether JunkWare
+accepted an upload, the new worker moves it to review as
+`processing_interrupted_outcome_unknown`; it never replays that write.
 
 WhatsApp confirmation waits for unfinished photos from the same normalized sender, receiving WhatsApp number, and Chicago job date. Captionless images remain a blocker because they may belong to that sender's batch. Photos from other senders or dates cannot hold up a verified batch. This check reads both `incoming` and `processing` inside the confirmation function; it does not replay or discard orphaned uploads, whose JunkWare outcome may be uncertain.
 

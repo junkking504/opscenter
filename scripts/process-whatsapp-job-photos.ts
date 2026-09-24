@@ -24,6 +24,7 @@ import {
   claimWhatsAppImage,
   finishWhatsAppImage,
   recentWhatsAppPhotoContext,
+  recoverInterruptedWhatsAppPhotoClaims,
   recoverMappedWhatsAppPhotoHolds,
   requeueWhatsAppImage,
   whatsappQueueCounts,
@@ -351,6 +352,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
 }
 
 async function main(): Promise<void> {
+  const interruptedClaims = recoverInterruptedWhatsAppPhotoClaims();
   const map = senderTruckMap();
   const recoveredHolds = recoverMappedWhatsAppPhotoHolds(map);
   const results = { completed: 0, review: 0, retried: 0, failed: 0, skipped: 0 };
@@ -408,9 +410,9 @@ async function main(): Promise<void> {
     const photoQueue = whatsappQueueCounts();
     await replies.flush();
     const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-    if (recoveredHolds || processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    if (interruptedClaims || recoveredHolds || processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
       const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
-      process.stdout.write(`${JSON.stringify({ ok: true, recoveredHolds, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+      process.stdout.write(`${JSON.stringify({ ok: true, interruptedClaims, recoveredHolds, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
     }
   } finally {
     await media.close();

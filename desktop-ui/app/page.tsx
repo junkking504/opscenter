@@ -4233,6 +4233,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
       <section className="ops-content">
         {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
+        <div className={live ? 'live-header-shell' : undefined}>
+        {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
         <header className="topbar">
           {!live && <div className="global-search-shell">
             {searchOpen && <button className="global-search-backdrop" aria-label="Close search" onClick={closeGlobalSearch} />}
@@ -4293,8 +4295,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           }
           </div>
         </header>
-        {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
         {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} openRequest={opsBotOpenRequest} /></div>}
+        </div>
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : 'workspace'}>
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>

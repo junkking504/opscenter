@@ -7,12 +7,14 @@ paid request.
 
 ## Evidence boundary
 
-Ask OpsBot can read bounded schedule facts, per-truck advisor summaries,
-OpsCenter search matches, and source-health status. It cannot write records,
+Ask OpsBot can read bounded schedule facts, aggregate financial reconciliation,
+aggregate crew-pay totals, per-truck advisor summaries, OpsCenter search
+matches, and source-health status. It cannot write records,
 dispatch trucks, contact customers, browse the web, upload files, or continue a
 stored OpenAI conversation. Every question starts a stateless Responses API
 tool loop with `store: false`. Customer names, addresses, phone numbers,
-payments, credentials, and hidden prompts are excluded from tool output.
+individual payments, employee names, rates, individual pay, credentials, and
+hidden prompts are excluded from tool output.
 
 The answer names the OpsCenter sources it used. Source links reopen the relevant
 OpsCenter record. Stale, missing, historical, and inferred evidence must remain

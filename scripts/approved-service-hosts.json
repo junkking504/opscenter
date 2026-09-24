@@ -60,8 +60,8 @@
   "protectedFiles": {
     "lib/geocodio-free-transport.ts": "dff2848be93dec16b00ee6efbffd73d1db7cf950d6b3f5d6c4d40c8f44365f77",
     "lib/geocodio-service-address.ts": "373b0f096e0ef67f7ca26c51618738f15adfdf9e2f9b2be52b03eef7855facce",
-    "lib/metered-usage-policy.ts": "a4e9d6350bc9235777577174cc93e8442bb2277e20cf3bf1cfcafb049573b8f5",
-    "lib/ask-opsbot-agent.ts": "b2c9a3e4895226ce8c857fca9e0298d4184d3dd9a45b455278a2a64e89356173",
+    "lib/metered-usage-policy.ts": "50f7df34a4bf7bc7dd840137eb37bc0024b36690833380a385ca84e5861ef774",
+    "lib/ask-opsbot-agent.ts": "1dfe467202838a12ce652316b627d33283f9b13ab9c06cad874f8cdbdd07ebce",
     "lib/ask-opsbot-ledger.ts": "0f47e89575834c834319dc81cfd965872edde7fe081d53db9ffd9dbbc2ca3a85",
     "app/api/desktop/ask-opsbot/route.ts": "6d22993ad68501fc9928cd6aeb44b121995522cc4b0eeddb1ec4bc8d59a8c6e9",
     "lib/maintenance-diagnosis.ts": "0266494acbd61718a0ca8e898df2319f89f664d833da1b38a01775ad599c43a5",

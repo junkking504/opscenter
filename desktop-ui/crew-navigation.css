@@ -56,6 +56,8 @@
 .crew-record-pay > div:last-child { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid #cbd8d0; color: #215536; }
 .crew-period-content { min-width: 0; max-width: 100%; }
 .live-krewe .record-drawer { grid-template-rows: auto auto minmax(0,1fr); }
+.live-krewe .krewe-record-issue { display: grid; gap: 3px; margin: 0 0 12px; border-left: 3px solid #a27324; padding: 9px 10px; border-radius: 0 6px 6px 0; background: #fff6e6; color: #78521b; font-size: 12px; line-height: 1.45; }
+.live-krewe .krewe-record-issue strong { font-size: inherit; }
 .live-krewe .krewe-drawer-overview { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 12px; border: 1px solid #d5dfd8; border-radius: 8px; background: #fff; }
 .live-krewe .krewe-drawer-overview > div { display: grid; gap: 5px; font-size: 13px; }
 .live-krewe .krewe-drawer-overview :is(span,small) { color: #5c7063; font-size: 11px; }

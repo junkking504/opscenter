@@ -27,7 +27,8 @@ const dayMember=(date:string):DesktopCrewMember=>{
 const toMinutes=(time:string)=>{const match=time.match(/(\d+):(\d+)\s*(AM|PM)/i);return match?(Number(match[1])%12+(match[3].toUpperCase()==='PM'?12:0))*60+Number(match[2]):0;};
 function snapshot(date:string,view:string):DesktopKreweSnapshot {
   const member={...base,days:dates.filter(day=>day!==missingDate).map(day=>({...amounts,date:day,clockIn:base.clockIn,clockOut:base.clockOut}))};
-  const members=view==='today'?(mode==='holiday'?[]:[{...dayMember(date),days:[{...amounts,date,clockIn:base.clockIn,clockOut:base.clockOut}]}, {...base,id:'open crew',name:'Open Crew',clockOut:'',status:'Clocked in'}]):[member];
+  const attention = mode==='attention' ? { labor:null,totalPay:null,issue:'Pay pending: the correction on 2026-09-04 affects this week; earlier weekly hours are unavailable.' } : {};
+  const members=view==='today'?(mode==='holiday'?[]:[{...dayMember(date),...attention,days:[{...amounts,...attention,date,clockIn:base.clockIn,clockOut:base.clockOut}]}, {...base,id:'open crew',name:'Open Crew',clockOut:'',status:'Clocked in'}]):[member];
   return {date,view:view as DesktopKreweSnapshot['view'],start:view==='today'?date:dates[0],end:view==='today'?date:dates[13],sourceUpdatedAt:new Date().toISOString(),missingDates:[],payrollVisible:true,canWrite:mode!=='readonly',members,totals:members.length?amounts:empty,callIn:null};
 }
 window.fetch=async(input,init)=>{

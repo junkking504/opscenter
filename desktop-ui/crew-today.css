@@ -25,7 +25,11 @@
 .crew-today-actions button, .crew-today-empty button { min-height: 36px; border: 1px solid #b4c8bb; border-radius: 6px; padding: 8px 11px; background: #fff; color: #285e3c; cursor: pointer; white-space: nowrap; font-size: 12px; font-weight: 650; }
 .crew-today-actions .crew-today-edit { background: #285e3c; color: #fff; border-color: #285e3c; }
 .crew-today-driving { display: grid; gap: 5px; min-width: 0; }
-.crew-today-issue { grid-column: 1 / -1; margin: 0; border-left: 3px solid #a27324; padding: 8px 10px; background: #fff6e6; color: #78521b; font-size: 12px; }
+.crew-today-issue { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0; border: 0; border-left: 3px solid #a27324; padding: 8px 10px; background: #fff6e6; color: #78521b; font: inherit; font-size: 12px; line-height: 1.45; text-align: left; cursor: pointer; }
+.crew-today-issue:hover { background: #ffefcf; }
+.crew-today-issue-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.crew-today-issue-copy > strong { font-size: inherit; font-weight: 700; }
+.crew-today-issue-action { flex-shrink: 0; color: #68450f; font-size: 11px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 .crew-today-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 30px 16px; color: #586e60; font-size: 13px; }
 .crew-today :is(button,input,select):focus-visible { outline: 2px solid #285e3c; outline-offset: 2px; }
 @media (max-width: 1150px) {
@@ -42,6 +46,8 @@
   .crew-today-person { grid-column: 1 / -1; }
   .crew-today-actions { justify-content: stretch; }
   .crew-today-actions button { flex: 1; min-height: 40px; }
+  .crew-today-issue { align-items: flex-start; }
+  .crew-today-issue-copy { display: grid; }
   .crew-today-fact strong { font-size: 15px; }
   .crew-today-pay strong { font-size: 19px; }
 }

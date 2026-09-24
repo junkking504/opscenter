@@ -8,6 +8,7 @@ import './crew-today.css';
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const metric = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 type RecordPanel = 'pay' | 'hours' | 'driving';
+const issuePanel = (issue: string, canWrite: boolean): RecordPanel => canWrite && /missing (?:clock|shift)|shift hours|hourly rate require review/i.test(issue) ? 'hours' : 'pay';
 
 export default function CrewToday({ snapshot, date, now, onOpen }: {
   snapshot: DesktopKreweSnapshot; date: string; now: number;
@@ -59,7 +60,10 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
             <div className="crew-today-fact"><span>Revenue / hour</span><strong>{money(member.hours && member.revenue !== null ? member.revenue / member.hours : null)}</strong></div>
             <div className="crew-today-driving"><span>Driving</span><DrivingScoreBadge rows={member.drivingScores || []} onClick={() => onOpen(member, 'driving')} /></div>
           </>}
-          {member.issue && <p className="crew-today-issue"><strong>Needs attention:</strong> {member.issue}</p>}
+          {member.issue && <button type="button" className="crew-today-issue" aria-label={`Review issue for ${member.name}`} onClick={() => onOpen(member, issuePanel(member.issue, snapshot.canWrite))}>
+            <span className="crew-today-issue-copy"><strong>Needs attention</strong><span>{member.issue}</span></span>
+            <span className="crew-today-issue-action">Review issue <span aria-hidden="true">→</span></span>
+          </button>}
         </article>)}
         {!visible.length && <div className="crew-today-empty" role="status">{members.length ? 'No crew match these filters.' : 'No crew have a recorded clock-in for this day.'}{members.length > 0 && <button type="button" onClick={() => { setSearch(''); setFilter('all'); }}>Show all crew</button>}</div>}
       </div>

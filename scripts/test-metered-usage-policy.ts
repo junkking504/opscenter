@@ -45,7 +45,7 @@ assert(askOpsBotApproved(() => JSON.stringify(opsBotPolicy)));
 for (const change of [{model:'gpt-6-astra'},{monthlyBudgetMicros:20_000_000},{maxQuestions:51},{reserveMicros:100_000},{webSearch:true},{store:true},{enabled:false}]) {
   assert.equal(askOpsBotApproved(() => JSON.stringify({...opsBotPolicy,approvals:{...opsBotPolicy.approvals,'ask-opsbot':{...opsBotApproval,...change}}})),false);
 }
-const opsBotTools = ['read_daily_operations','read_truck_advisors','search_opscenter','read_source_health'].map(name=>({type:'function',name,description:name,strict:true,parameters:{type:'object',properties:{},required:[],additionalProperties:false}}));
+const opsBotTools = ['read_daily_operations','read_truck_advisors','search_opscenter','read_source_health','read_financial_reconciliation','read_crew_pay'].map(name=>({type:'function',name,description:name,strict:true,parameters:{type:'object',properties:{},required:[],additionalProperties:false}}));
 const opsBotRequest = {model:'gpt-6-luna',store:false,service_tier:'default',instructions:'Use evidence.',input:[{role:'user',content:'question'}],max_output_tokens:1200,tools:opsBotTools,tool_choice:'required',parallel_tool_calls:false,reasoning:{effort:'low'}};
 validateAskOpsBotRequest(opsBotRequest);
 for (const delta of [{model:'gpt-6-astra'},{store:true},{service_tier:'priority'},{max_output_tokens:5000},{tools:[...opsBotTools,{type:'web_search'}]},{tool_choice:'none'},{parallel_tool_calls:true},{previous_response_id:'saved'}]) {

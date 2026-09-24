@@ -14,6 +14,47 @@
 .ops-live .ops-content #schedule-all-appointments,
 .ops-live .ops-content .schedule-map-panel,
 .ops-live .ops-content .schedule-selected-job-pane { scroll-margin-top: calc(var(--viewing-day-height, 0px) + 12px); }
+
+/* Keep the shared live header consistent across every workspace. The viewing
+ * context and command check occupy the first row; search, knowledge, alerts,
+ * and day controls share the second row. */
+.live-header-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "day day day checked" "search wiki alerts controls";
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: #f7f8f6;
+}
+.live-header-shell .viewing-day-bar,
+.live-header-shell .topbar { display: contents; }
+.live-header-shell .viewing-day-context { grid-area: day; min-width: 0; padding: 8px 24px; }
+.live-header-shell .viewing-day-context strong { white-space: nowrap; }
+.live-header-shell .viewing-day-controls { grid-area: controls; padding: 8px 24px 8px 0; }
+.live-header-shell .topbar-actions { display: contents; }
+.live-header-shell .brain-launch { grid-area: wiki; margin: 8px 0; }
+.live-header-shell .notification-center { grid-area: alerts; margin: 8px 0; }
+.live-header-shell .live-chip { grid-area: checked; margin: 8px 24px 8px 0; }
+.live-header-shell .live-search-below-day { grid-area: search; min-width: 0; min-height: 56px; padding: 10px 0 10px 24px; border-bottom: 0; background: transparent; }
+.live-header-shell .live-search-below-day .global-search-shell { width: 100%; }
+
+@media (max-width: 900px) {
+  .live-header-shell { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "day day checked" "search wiki alerts" "search controls controls"; }
+  .live-header-shell .viewing-day-controls { padding: 0 16px 8px 24px; justify-content: flex-end; }
+  .live-header-shell .live-chip { margin-right: 16px; }
+  .live-header-shell .live-search-below-day { padding-left: 16px; }
+}
+
+@media (max-width: 600px) {
+  .live-header-shell { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "day checked" "search alerts" "wiki controls"; }
+  .live-header-shell .viewing-day-context { padding: 8px 12px; }
+  .live-header-shell .viewing-day-context strong { font-size: 14px; }
+  .live-header-shell .live-chip { margin-right: 12px; }
+  .live-header-shell .live-search-below-day { padding: 8px 0 8px 12px; }
+  .live-header-shell .brain-launch { margin: 0 0 8px 12px; }
+  .live-header-shell .notification-center { margin: 0 12px 8px 0; }
+  .live-header-shell .viewing-day-controls { padding: 0 12px 8px 0; }
+}
 @media (max-width: 700px) {
   .viewing-day-bar { padding: 8px; gap: 6px; }
   .viewing-day-context strong { font-size: 14px; }

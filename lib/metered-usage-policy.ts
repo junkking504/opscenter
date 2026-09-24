@@ -63,7 +63,7 @@ export function askOpsBotApproved(readPolicy = () => fs.readFileSync(spendingPol
 export function validateAskOpsBotRequest(body: Record<string, unknown>): void {
   const fields = ['model', 'store', 'service_tier', 'instructions', 'input', 'max_output_tokens', 'tools', 'tool_choice', 'parallel_tool_calls', 'reasoning'];
   const tools = Array.isArray(body.tools) ? body.tools as Array<Record<string, unknown>> : [];
-  const expectedTools = new Set(['read_daily_operations', 'read_truck_advisors', 'search_opscenter', 'read_source_health']);
+  const expectedTools = new Set(['read_daily_operations', 'read_truck_advisors', 'search_opscenter', 'read_source_health', 'read_financial_reconciliation', 'read_crew_pay']);
   const toolNames = tools.map(tool => String(tool.name || ''));
   const validTools = tools.length === expectedTools.size
     && new Set(toolNames).size === expectedTools.size

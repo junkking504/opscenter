@@ -50,6 +50,8 @@ async function main() {
   assert.equal(requests[0].store, false);
   assert.equal(requests[0].service_tier, 'default');
   assert.equal(requests[0].tool_choice, 'required');
+  assert.match(JSON.stringify(requests[0].tools), /read_financial_reconciliation/);
+  assert.match(JSON.stringify(requests[0].tools), /read_crew_pay/);
   assert.equal(requests[1].tool_choice, 'auto');
   assert.match(JSON.stringify(requests[1].input), /function_call_output/);
   assert(!JSON.stringify(requests).includes('web_search'));

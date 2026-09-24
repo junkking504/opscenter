@@ -29,6 +29,6 @@ createRoot(document.getElementById('root')!).render(
         </div>
       </div>
     </header>
-    <section className="synthetic-schedule-board" aria-label="Synthetic Schedule Board" style={{position: 'relative', zIndex: 10, height: 650, background: '#fff'}}>Synthetic Schedule Board</section>
+    <section className="synthetic-schedule-board" aria-label="Synthetic Schedule Board" style={{position: 'relative', zIndex: 1100, height: 650, background: '#fff'}}>Synthetic Schedule Board</section>
   </main>,
 );

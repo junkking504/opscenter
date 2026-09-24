@@ -24,7 +24,7 @@ const row = (id: string, date: string, cost: string, merchant = 'Fuel, Market') 
   'Trans ID': id, 'Emboss Line 2': 'Truck 7', 'Custom Vehicle/Asset ID': 'Truck 7', Units: '19.260',
   'Unit of Measure': 'GA', 'Unit Cost': '3.899', 'Total Fuel Cost': cost, 'Total Non-Fuel Cost': '0', 'Net Cost': cost,
   Product: '001', 'Product Description': 'Unleaded Regular', 'Merchant (Brand)': 'Shell', 'Merchant Name': merchant,
-  'Merchant City': 'Mandeville', 'Merchant State / Province': 'LA', 'Merchant Postal Code': '70471', 'Current Odometer': '20345',
+  'Merchant Address': '123 Fuel Avenue', 'Merchant City': 'Mandeville', 'Merchant State / Province': 'LA', 'Merchant Postal Code': '70471', 'Current Odometer': '20345',
   'Driver Last Name': 'McLaughlin', 'Driver First Name': 'Robert', 'Transaction Ticket Number': 'T-1', 'Driver Prompt ID': '2772',
 }[header] || ''));
 
@@ -33,6 +33,7 @@ assert.equal(parsed.length, 1, 'identical WEX transaction IDs are idempotent');
 assert.equal(parsed[0].driver, 'Robert McLaughlin');
 assert.equal(parsed[0].gallons, 19.26);
 assert.equal(parsed[0].merchant, 'Fuel, Market');
+assert.equal(parsed[0].merchantAddress, '123 Fuel Avenue');
 assert.equal(parsed[0].status, 'posted');
 
 assert.throws(() => parseWexPostedCsv(csv([row('same', '09/13/2026', '75.12'), row('same', '09/13/2026', '80.00')])), /conflicting values/);

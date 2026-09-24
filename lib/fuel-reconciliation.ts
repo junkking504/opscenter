@@ -1,6 +1,7 @@
 import type { FuelReconciliation, FuelReconciliationRow } from '../desktop-ui/lib/fuel-reconciliation-contract';
 import { readOperationalTruckExpenses, type TruckExpense } from './truck-expense-notifications';
 import { readWexFuelFinance, type WexFuelFinanceData, type WexFuelTransaction } from './wex-fuel';
+import { wexAttributedTruck } from './wex-expense-automation';
 
 const truckKey = (value: string) => value.trim().match(/^(?:Truck\s*#?\s*)?0*(\d+)$/i)?.[1] || null;
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -18,8 +19,9 @@ function reportMinutes(value: string): number | null {
   if (!Number.isFinite(Date.parse(value))) return null;
   return minutes(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)));
 }
-function related(wex: WexFuelTransaction, reported: TruckExpense) {
-  if (!truckKey(wex.truck) || truckKey(wex.truck) !== truckKey(reported.truck) || wex.transactionDate !== reported.date) return false;
+function related(wex: WexFuelTransaction, reported: TruckExpense, attributedTruck: string | null = null) {
+  const effectiveTruck = attributedTruck || wex.truck;
+  if (!truckKey(effectiveTruck) || truckKey(effectiveTruck) !== truckKey(reported.truck) || wex.transactionDate !== reported.date) return false;
   const receipt = normalized(reported.receipt), ticket = normalized(wex.ticketNumber);
   // A source receipt identifies a purchase; totals alone never do.
   if (receipt && ticket && receipt === ticket) return true;
@@ -34,7 +36,8 @@ export function reconcileFuel(date: string, wex: WexFuelFinanceData, entries: Tr
   const reportIdentity = (row: TruckExpense) => JSON.stringify([truckKey(row.truck), row.date, row.transactionAt, normalized(row.location), normalized(row.receipt), cents(row.amount)]);
   const repeated = new Set(reports.filter(row => reports.some(other => other.id !== row.id && reportIdentity(other) === reportIdentity(row))).map(row => row.id));
   const purchases = wex.available ? wex.transactions.filter(row => row.transactionDate === date) : [];
-  const candidates = purchases.map(purchase => reports.flatMap((report, index) => related(purchase, report) ? [index] : []));
+  const attributedTrucks = purchases.map(purchase => wexAttributedTruck(purchase.transactionId));
+  const candidates = purchases.map((purchase, purchaseIndex) => reports.flatMap((report, index) => related(purchase, report, attributedTrucks[purchaseIndex]) ? [index] : []));
   const reportCandidates = reports.map((_, index) => candidates.flatMap((matches, wexIndex) => matches.includes(index) ? [wexIndex] : []));
   const consumed = new Set<number>();
   const rows: FuelReconciliationRow[] = purchases.map((purchase, index) => {
@@ -47,7 +50,7 @@ export function reconcileFuel(date: string, wex: WexFuelFinanceData, entries: Tr
     const ambiguous = options.length > 0;
     const status = report ? amount === null ? 'ambiguous' : difference === 0 ? 'matched' : 'amount_difference' : ambiguous ? 'ambiguous' : 'wex_only';
     return {
-      id: `wex:${purchase.transactionId}`, truck: purchase.truck, date, location: purchase.merchant,
+      id: `wex:${purchase.transactionId}`, truck: attributedTrucks[index] || purchase.truck, date, location: purchase.merchant,
       status, reportedId: report?.id || null, wexId: purchase.transactionId,
       reportedAmount: report?.amount ?? null, wexFuelAmount: amount, wexNetAmount: purchase.netCost, difference,
       reason: report ? amount === null ? 'WEX fuel portion is unavailable; review the purchase.' : difference === 0 ? 'One reported expense matches this WEX purchase.' : 'Matched purchase has different fuel amounts; review both sources.'

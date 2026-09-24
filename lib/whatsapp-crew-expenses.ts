@@ -5,6 +5,7 @@ import { chicagoDateKey } from "@/lib/report-dates";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 import type { WhatsAppInboundMessage, WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
 import { resetTruckLoad } from "@/lib/truck-load-status";
+import { findMatchingWexAutomation } from "@/lib/wex-expense-automation";
 
 export type CrewExpenseKind = "dump" | "fuel";
 
@@ -21,7 +22,7 @@ export type CrewExpenseRecord = {
   time: string;
   reportedAt: string;
   senderHash: string;
-  source: "whatsapp_opsbot";
+  source: "whatsapp_opsbot" | "wex_posted";
   sourceMessageIds?: string[];
 };
 
@@ -586,6 +587,13 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     source: "whatsapp_opsbot",
     sourceMessageIds: currentSession?.messageIds,
   };
+  const wexMatch = kind === "fuel" ? findMatchingWexAutomation(record) : null;
+  if (wexMatch) {
+    enqueueReply(message, `Matched posted WEX transaction ${wexMatch.transaction.transactionId} for ${record.truck} · $${record.cost.toFixed(2)}. The expense is already tracked, so no duplicate JunkWare record was created.`, "expense-wex-duplicate");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "duplicate", kind, wexTransactionId: wexMatch.transaction.transactionId, processedAt: new Date().toISOString() });
+    closeSession(message.senderPhone);
+    return { status: "duplicate", kind, record };
+  }
   const transaction: CrewExpenseTransaction = {
     version: 1,
     record,

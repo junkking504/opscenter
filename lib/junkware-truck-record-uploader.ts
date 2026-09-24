@@ -69,6 +69,7 @@ async function persistStorageState(context: BrowserContext): Promise<void> {
 }
 
 function receiptNumber(messageId: string): string {
+  if (messageId.startsWith("wex:")) return `WEX-${messageId.slice(4).replace(/[^A-Za-z0-9-]/g, "").slice(0, 32)}`;
   return `OB-${crypto.createHash("sha256").update(messageId).digest("hex").slice(0, 12).toUpperCase()}`;
 }
 
@@ -143,7 +144,7 @@ async function saveEntry(page: Page, record: CrewExpenseRecord, receipt: string)
   await page.locator('[id$="ReceiptNoTB"]').fill(receipt);
   await page.locator('[id$="LocationTB"]').fill(record.location.slice(0, 120));
   const description = record.kind === "fuel"
-    ? `OpsBot fuel${record.gallons === null ? "" : ` · ${record.gallons} gal`}`
+    ? `${record.source === "wex_posted" ? "WEX posted fuel" : "OpsBot fuel"}${record.gallons === null ? "" : ` · ${record.gallons} gal`}`
     : `OpsBot dump${record.weight ? ` · ${record.weight}` : ""}`;
   await page.locator('[id$="DescriptionTB"]').fill(description.slice(0, 120));
   await page.locator('[id$="AmountTB"]').fill(record.cost.toFixed(2));

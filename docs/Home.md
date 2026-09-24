@@ -19,7 +19,7 @@ without mixing live runtime data or secrets into Git.
 
 ## Product and architecture
 
-- [Second Brain operational knowledge](second-brain.md)
+- [OpsWiki operational knowledge](second-brain.md)
 
 - [Approved Desktop Source Release](prototype-source-release.md)
 - [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md)

@@ -11,8 +11,8 @@ export default function KnowledgeTroubleshootingPanel({ snapshot, stale = false,
   const age = Math.max(clock, Date.parse(snapshot.evaluatedAt)) - Date.parse(snapshot.observedAt || '');
   const evidenceStale = stale || !snapshot.current || !Number.isFinite(age) || age < 0 || age >= 180000;
   const rows = snapshot.cases.filter(row => showCleared ? row.resolvedAt !== null : row.resolvedAt === null);
-  return <section className="knowledge-triage" aria-label="Second Brain troubleshooting">
-    <header><div><p>SECOND BRAIN</p><h3>Automatic troubleshooting</h3><span>Current evidence connected to past experience.</span></div><strong>{evidenceStale ? 'Evidence needs refresh' : 'Observation current'}</strong></header>
+  return <section className="knowledge-triage" aria-label="OpsWiki troubleshooting">
+    <header><div><p>OPSWIKI</p><h3>Automatic troubleshooting</h3><span>Current evidence connected to past experience.</span></div><strong>{evidenceStale ? 'Evidence needs refresh' : 'Observation current'}</strong></header>
     <p role="status">{evidenceStale ? 'Current observer evidence is unavailable or stale. Recheck the observer before relying on these observations.' : snapshot.message}</p>
     <small>Observed {date(snapshot.observedAt)} · Matched {date(snapshot.evaluatedAt)} · Local matching, no additional AI calls</small>
     <div className="knowledge-triage-tabs"><button type="button" aria-pressed={!showCleared} onClick={() => setShowCleared(false)}>Current checks</button><button type="button" aria-pressed={showCleared} onClick={() => setShowCleared(true)}>Cleared conditions</button></div>

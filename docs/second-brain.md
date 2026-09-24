@@ -1,6 +1,6 @@
-# Second Brain
+# OpsWiki
 
-Second Brain is OpsCenter's searchable operational knowledge library. Open it
+OpsWiki is OpsCenter's searchable operational knowledge library. Open it
 from the top bar in any desktop workspace. The initial scope is procedures,
 decisions and resolved incidents. Opening the library starts with the current
 workspace plus general guidance; operators can select all workspaces and search
@@ -9,7 +9,7 @@ remain unchanged. `knowledge=<entry-id>` deep links open the relevant entry.
 
 ## Fast answers
 
-The desktop top-bar prompt and the Second Brain library accept plain-language
+The desktop top-bar prompt and OpsWiki accept plain-language
 questions. A local deterministic index ranks the already-loaded documented and
 private knowledge, returns the strongest answer inline, and links the exact
 supporting record. It favors title, topic and summary matches, can select labeled
@@ -57,7 +57,9 @@ and restore. Each requires a request ID and expected entry revision; the actor
 comes from the session, not the request. There are no external writers, AI
 requests, subscriptions or background polling.
 
-Runtime records live in `data/second-brain/<UUID>/<revision>.json`. The normal
+Runtime records continue to live in `data/second-brain/<UUID>/<revision>.json`.
+That path is a stable internal compatibility identifier; the product and user-facing
+system are named OpsWiki. The normal
 immutable release's `data` symlink keeps these in the external OpsBot data
 directory. An isolated test/preview can use `OPSCENTER_KNOWLEDGE_DIR`; never point
 a test at the production directory. No runtime entry belongs in Git, a release
@@ -135,7 +137,7 @@ Back up the complete store before a large update and retain its import report.
 
 ### Capture new lessons as part of task completion
 
-Before changing OpsCenter, search Second Brain and canonical docs for the relevant
+Before changing OpsCenter, search OpsWiki and canonical docs for the relevant
 symptom and earlier fixes. After a meaningful decision, recurring failure, or
 completed fix, add/update a private source-backed record using this workflow.
 Record exact historical outcome and evidence, separate implementation from live
@@ -155,7 +157,7 @@ checks. This feature adds no repair executor or paid-provider call.
 
 ## Automatic troubleshooting from current observations
 
-Command → Monitor and Second Brain → Troubleshoot current issues automatically
+Command → Monitor and OpsWiki → Troubleshoot current issues automatically
 match the existing maintenance observer's signals to the local knowledge library.
 The manager-only `troubleshooting` field on `/api/desktop/maintenance` contains
 observed evidence, a conservative assessment, recurrence count, next checks,
@@ -171,7 +173,7 @@ explicitly have no mapped guide. Archived records are excluded. Damaged history
 suppresses matches while preserving source checks.
 
 The existing minute observer provides the observations. Monitor's existing
-30-second refresh includes the matches; the open Second Brain troubleshooting
+30-second refresh includes the matches; the open OpsWiki troubleshooting
 view refreshes the same local endpoint every 30 seconds. Closing the view stops
 its refresh. These are local reads; no new provider call, metered feature,
 budget change, external notification, or repair executor is added. The existing

@@ -7,7 +7,7 @@
     "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts && node --import tsx scripts/test-crew-assigned-day.ts",
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-agent-hierarchy.ts && node --import tsx scripts/test-address-agent-coverage.ts && python3 scripts/test-agent-runner.py && npm run verify:waypoint-agent",
-    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts && node --import tsx scripts/test-knowledge-answer.ts",
+    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts && node --import tsx scripts/test-knowledge-answer.ts && node --import tsx scripts/test-opswiki-name.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",

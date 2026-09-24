@@ -56,9 +56,9 @@ Do not copy credentials, cookies, tokens, customer records, employee payroll,
 financial exports, raw telemetry, logs, or live runtime data into this
 repository or a Business share bundle.
 
-## Second Brain continuity
+## OpsWiki continuity
 
-For OpsCenter work, consult relevant records in the private Second Brain alongside
+For OpsCenter work, consult relevant records in the private OpsWiki alongside
 canonical docs before diagnosing a recurring issue. After a meaningful fix or
 operating decision, capture the dated source, symptom, cause, action, evidence,
 remaining work and prevention lesson through [the history workflow](docs/second-brain.md).

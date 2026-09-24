@@ -44,7 +44,7 @@ export function diagnoseFromKnowledge(snapshot: MaintenanceSnapshot, knowledge: 
       matches: knowledge.available ? matchHistory(knowledge.entries, profile, now) : [] };
   }) : [];
   return { available: snapshot.available, current, observedAt: snapshot.checkedAt, evaluatedAt: new Date(now).toISOString(), knowledgeAvailable: knowledge.available,
-    message: !snapshot.available ? 'Observer evidence is unavailable. No current diagnosis can be established.' : !current ? 'Observer evidence is stale. Past matches are research leads only.' : !knowledge.available ? 'Historical knowledge is unavailable. Source checks remain available; historical matches are paused.' : 'Automatically matched from the existing observer and local Second Brain records. Possible explanations require source verification; no repair is executed.', cases };
+    message: !snapshot.available ? 'Observer evidence is unavailable. No current diagnosis can be established.' : !current ? 'Observer evidence is stale. Past matches are research leads only.' : !knowledge.available ? 'Historical knowledge is unavailable. Source checks remain available; historical matches are paused.' : 'Automatically matched from the existing observer and local OpsWiki records. Possible explanations require source verification; no repair is executed.', cases };
 }
 export function knowledgeTroubleshooting(snapshot: MaintenanceSnapshot, now = Date.now()) {
   return diagnoseFromKnowledge(snapshot, knowledgeSnapshot(true), now);

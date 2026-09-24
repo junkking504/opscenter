@@ -39,7 +39,7 @@ const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(()
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch from '../live-search';
-import SecondBrain from '../second-brain';
+import OpsWiki from '../second-brain';
 import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
@@ -4243,7 +4243,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </div>
           }
           <div className="topbar-actions">
-            {live && <SecondBrain workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
+            {live && <OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>

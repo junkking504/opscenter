@@ -33,8 +33,8 @@ export default function LiveSearch({ date, navigate, disabled, finance }: { date
     if(query.trim().length<2||!open){setKnowledgeLoading(false);return;}
     setKnowledgeLoading(true);
     const timer=window.setTimeout(()=>{void fetch(`/api/desktop/knowledge/answer?q=${encodeURIComponent(query)}`,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(4000)])})
-      .then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'Second Brain answer is unavailable.');if(!abort.signal.aborted)setKnowledgeAnswer(body.answer||null);})
-      .catch(()=>{if(!abort.signal.aborted)setKnowledgeError('Second Brain answer is unavailable. Source-record search is still available.');})
+      .then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'OpsWiki answer is unavailable.');if(!abort.signal.aborted)setKnowledgeAnswer(body.answer||null);})
+      .catch(()=>{if(!abort.signal.aborted)setKnowledgeError('OpsWiki answer is unavailable. Source-record search is still available.');})
       .finally(()=>{if(!abort.signal.aborted)setKnowledgeLoading(false);});},80);
     return()=>{abort.abort();window.clearTimeout(timer);};
   },[query,open]);
@@ -46,11 +46,11 @@ export default function LiveSearch({ date, navigate, disabled, finance }: { date
     {open&&<button className="global-search-backdrop" aria-label="Close search" onClick={()=>setOpen(false)}/>}
     <div className={`global-search${open?' active':''}`}><Search size={17}/><Input ref={input} value={query} disabled={disabled} onFocus={()=>setOpen(true)} onChange={event=>{setQuery(event.target.value);setLimit(10);setOpen(true);}} placeholder="Ask OpsCenter or search records" aria-label="Ask OpsCenter or search records" aria-expanded={open} onKeyDown={event=>{if(event.key==='Enter'){if(knowledgeAnswer)openKnowledge(knowledgeAnswer.entryId);else if(commands[0])go(commands[0]);else if(!loading&&results[0])openResult(results[0].href);}}}/>{query?<button aria-label="Clear search" onClick={()=>{setQuery('');setLimit(10);}}><X size={14}/></button>:<kbd>/</kbd>}</div>
     {open&&<section className="global-search-panel cross-date-search" role="dialog" aria-label="OpsCenter launcher">
-      <header><div><span>OpsCenter Answer</span><strong>Second Brain and Source Records</strong></div></header>
+      <header><div><span>OpsCenter Answer</span><strong>OpsWiki and Source Records</strong></div></header>
       <div className="search-date-toolbar"><span>Appointments</span><div role="group" aria-label="Appointment Search Dates">{(['all','upcoming','past'] as Scope[]).map(value=><button key={value} aria-pressed={scope===value} disabled={disabled} onClick={()=>{setScope(value);setLimit(10);}}>{value==='all'?'All':value==='upcoming'?'Upcoming':'Past'}</button>)}</div><small>{scope==='upcoming'?'Today onward':scope==='past'?'Before today':'Past and upcoming'} · Crew and Convoy use the selected operating day.</small></div>
       <div className="global-search-results-body">
-        {knowledgeLoading&&<p className="knowledge-answer-loading" role="status">Checking Second Brain…</p>}
-        {knowledgeAnswer&&<section className={`knowledge-answer-card knowledge-answer-${knowledgeAnswer.confidence}`} aria-label="Second Brain answer"><header><strong>Second Brain answer</strong><span>{knowledgeAnswer.status}</span></header><h3>{knowledgeAnswer.title}</h3><p>{knowledgeAnswer.answer}</p>{knowledgeAnswer.detail&&<p className="knowledge-answer-detail">{knowledgeAnswer.detail}</p>}<footer><small>{knowledgeAnswer.sourceLabel} · {knowledgeAnswer.workspace}</small><button disabled={disabled} onClick={()=>openKnowledge(knowledgeAnswer.entryId)}>Open supporting record <ArrowRight size={13}/></button></footer></section>}
+        {knowledgeLoading&&<p className="knowledge-answer-loading" role="status">Checking OpsWiki…</p>}
+        {knowledgeAnswer&&<section className={`knowledge-answer-card knowledge-answer-${knowledgeAnswer.confidence}`} aria-label="OpsWiki answer"><header><strong>OpsWiki answer</strong><span>{knowledgeAnswer.status}</span></header><h3>{knowledgeAnswer.title}</h3><p>{knowledgeAnswer.answer}</p>{knowledgeAnswer.detail&&<p className="knowledge-answer-detail">{knowledgeAnswer.detail}</p>}<footer><small>{knowledgeAnswer.sourceLabel} · {knowledgeAnswer.workspace}</small><button disabled={disabled} onClick={()=>openKnowledge(knowledgeAnswer.entryId)}>Open supporting record <ArrowRight size={13}/></button></footer></section>}
         {knowledgeError&&<p className="knowledge-answer-error" role="status">{knowledgeError}</p>}
         {commands.length>0&&<section className="launcher-command-group"><div className="launcher-command-grid">{commands.map(name=><button key={name} disabled={disabled} onClick={()=>go(name)}><strong>Open {workspaceLabel(name)}</strong><ArrowRight size={14}/></button>)}</div></section>}
         {loading&&<p role="status">Searching Collected Records…</p>}

@@ -8,12 +8,12 @@ source evidence as described below. A separate
 fixed Python policy can start a confirmed stopped OpsCenter process. There is no
 shell execution by AI, source-system repair, automatic deployment, or outbound message.
 
-## Second Brain troubleshooting
+## OpsWiki troubleshooting
 
 Managers and administrators see automatic local troubleshooting in Command >
 Monitor. The latest observer evidence is matched with relevant past incidents,
 fixes and prevention lessons, with dated source links, recurrence counts, next
-checks and recovery requirements. See [Second Brain](second-brain.md). Matching
+checks and recovery requirements. See [OpsWiki](second-brain.md). Matching
 adds no AI requests and does not execute repairs or close incidents. Missing or
 stale evidence remains explicit. This is separate from the existing AI pilot
 and bounded process recovery controls.

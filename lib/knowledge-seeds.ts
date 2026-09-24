@@ -32,6 +32,6 @@ export const knowledgeSeeds: KnowledgeEntry[] = [
     'docs/OPSCENTER_OS_CONSTITUTION.md', 'If verification is delayed, OpsCenter reports `verifying` (displayed as “Verification pending”), not success.'),
   guide('spending', { title: 'Approve a cost before enabling a metered feature', kind: 'decision', workspace: 'All',
     summary: 'Credentials and deployment permission do not authorize new usage charges.', sourceLabel: 'Spending controls · Current policy',
-    body: 'Before enabling a new provider, feature, request volume or spending limit, obtain explicit approval for the provider, purpose and maximum spend.\n\nKeep the existing spending gate intact. Use mocked providers for tests. Free credits and budget alerts are not enforceable caps.\n\nRecord the approval and limit in the governing policy before enabling requests. The Second Brain itself uses local search and storage and makes no paid AI requests.' },
+    body: 'Before enabling a new provider, feature, request volume or spending limit, obtain explicit approval for the provider, purpose and maximum spend.\n\nKeep the existing spending gate intact. Use mocked providers for tests. Free credits and budget alerts are not enforceable caps.\n\nRecord the approval and limit in the governing policy before enabling requests. OpsWiki itself uses local search and storage and makes no paid AI requests.' },
     'docs/spending-controls.md', 'Credentials authenticate requests; they do not authorize spending.'),
 ];

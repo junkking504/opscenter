@@ -68,6 +68,7 @@ async function main() {
     let censusCalls=0,osmCalls=0;
     globalThis.fetch=async(input)=>{
       if(String(input).includes('census.gov')){censusCalls++;return new Response(JSON.stringify({result:{addressMatches:[]}}));}
+      if(String(input).includes('maps.brla.gov'))return new Response(JSON.stringify({spatialReference:{wkid:4326},features:[]}));
       osmCalls++;return new Response(JSON.stringify([building]));
     };
     const result=await verifyDesktopAddress(original);

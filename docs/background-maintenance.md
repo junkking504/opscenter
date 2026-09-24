@@ -218,3 +218,38 @@ Command > Monitor also shows the independent VPS observer described in
 It has its own durable evidence and incident history and never enters this
 pilot's AI queue or spending ledger. Its read-only checks continue on the VPS
 when Mission Control is unavailable.
+
+## Parish address preflight — prepared September 21, 2026
+
+The existing minute map-input sweep checks today and every future collected
+schedule date, including unassigned appointments. Policy 10 first checks East
+Baton Rouge Parish's official street-address points for Baton Rouge, Zachary,
+Baker and Central. This free lookup runs independently of the paid maintenance
+ledger, research queue and browser. Census and OpenStreetMap remain fallbacks.
+
+The parish result must match the complete house, street, city, state and ZIP.
+An apartment uses only the explicitly published unsuffixed base-address point;
+an explicit building requires that building. Apartment 4 never selects building
+4. Distinct address IDs/coordinates, incomplete results, wrong projections and
+conflicting identity remain unresolved. Pins locate service premises; they do
+not establish an apartment entrance. Original unit instructions stay visible.
+
+One shared disk reservation permits at most one parish request per minute across
+processes, with an eight-second timeout and no redirects. Successful query
+evidence lasts seven days; a definitive miss lasts six hours; outages retry
+after one minute. Apartment variants share the base query cache. The existing
+sweep still admits only four unresolved address checks per tick. The initial
+policy change retries old failures while old successful evidence must pass the
+current identity validation. No paid provider, budget or attempt limit changes.
+
+Activation requires separately approving only `maps.brla.gov` in the installed
+host inventory; the branch manifest is a proposal and cannot authorize itself.
+Cost: $0, public parish GIS reads with no key, subscription or metered API. The
+installed checker and protected paid-control hashes remain unchanged. Until
+that explicit hostname approval, the production deployment gate must reject
+this source. Never bypass it or construct an obscured hostname to evade review.
+
+Validation includes synthetic identity/conflict/precision tests and the real
+background sweep in isolated storage: tomorrow's address resolves before its
+service date with the shared paid allowance exhausted, no open browser and no
+paid request; another process reuses the persisted location.

@@ -7,8 +7,9 @@ import {crewPhoneDeliveryHealth} from './crew-phone-delivery';
 const owner = 'waypoint';
 const monitor = '/desktop?data=live&workspace=Command&commandView=monitor';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type Probe = {status: number; body: string};
+type Probe = {status: number; body: string; durationMs?: number};
 type Check = {id: string; route: string; accepts: (value: Probe) => boolean};
+type ProbeHistory = {version:1; routes:Record<string,{consecutiveFailures:number;lastErrorClass:string|null;lastDurationMs:number;observedAt:string}>};
 export const waypointChecks: Check[] = [
   {id:'page', route:'/crew-jobs', accepts:r=>r.status===200 && r.body.includes('Waypoint') && r.body.includes('waypoint-favicon')},
   {id:'manifest', route:'/crew-jobs/manifest.webmanifest', accepts:r=>{
@@ -23,13 +24,15 @@ export const waypointChecks: Check[] = [
 export function probeWaypoint(route:string):Promise<Probe> {
   if(!waypointChecks.some(c=>c.route===route))return Promise.reject(new Error('Unknown check'));
   return new Promise((resolve,reject)=>{
+    const started=Date.now();
     const request=http.get({hostname:'127.0.0.1',port:3000,path:route,headers:{Host:'waypoint.junk-king.app','X-Forwarded-Proto':'https','X-Forwarded-Host':'waypoint.junk-king.app','Cache-Control':'no-cache'}},response=>{
       const parts:Buffer[]=[];let size=0;
       response.on('data',(chunk:Buffer)=>{size+=chunk.length;if(size>1024*1024)request.destroy(new Error('Response too large'));else parts.push(chunk);});
-      response.on('end',()=>resolve({status:response.statusCode||0,body:Buffer.concat(parts).toString('utf8')}));
+      response.on('end',()=>resolve({status:response.statusCode||0,body:Buffer.concat(parts).toString('utf8'),durationMs:Date.now()-started}));
       response.on('error',reject);
     });
-    const timer=setTimeout(()=>request.destroy(new Error('Check timed out')),3000);
+    const timeout=/^(?:\/crew-jobs|\/crew-jobs\/manifest\.webmanifest)$/.test(route)?6000:3000;
+    const timer=setTimeout(()=>request.destroy(new Error(`Check timed out after ${timeout}ms`)),timeout);
     request.on('error',reject);request.on('close',()=>clearTimeout(timer));
   });
 }
@@ -40,16 +43,54 @@ function finding(feed:string,id:string,title:string,detail:string,href=monitor):
 function unavailable(id:string,detail:string):HierarchyFeed {
   return {id,available:false,observedAt:null,detail,findings:[finding(id,`coverage:${id}`,'Waypoint monitoring evidence unavailable',detail)]};
 }
-export async function waypointRouteFeeds(now:number,probe:(route:string)=>Promise<Probe>=probeWaypoint):Promise<HierarchyFeed[]> {
-  return Promise.all(waypointChecks.map(async check=>{
-    const id=`waypoint-${check.id}`;
-    try {
-      const result=await probe(check.route),ok=check.accepts(result);
-      return {id,available:true,observedAt:new Date(now).toISOString(),detail:`Local Waypoint host ${check.route}: HTTP ${result.status}. ${ok?'Expected response confirmed.':'Unexpected response; engineering review required.'} Public DNS/tunnel and authenticated crew interactions are separate checks.`,
-        findings:ok?[]:[finding(id,`route:${check.id}`,`Waypoint ${check.id} check failed`,`Local ${check.route} returned HTTP ${result.status} with an unexpected response. Check the active release, service and route; verify the actual crew interaction before closing the engineering repair.`)]};
-    }catch{return unavailable(id,`Local Waypoint ${check.route} could not be checked within its bounded request. Check the service and active release; prior findings remain unconfirmed.`);}
-  }));
+function errorClass(error:unknown):string {
+  const value=error as NodeJS.ErrnoException;
+  if(/timed out/i.test(String(value?.message||'')))return 'timeout';
+  if(value?.code==='ECONNREFUSED')return 'connection_refused';
+  if(value?.code==='ECONNRESET')return 'connection_reset';
+  if(/too large/i.test(String(value?.message||'')))return 'response_too_large';
+  return 'request_error';
 }
+function readProbeHistory(file:string|undefined):ProbeHistory {
+  if(!file)return {version:1,routes:{}};
+  try {const value=JSON.parse(fs.readFileSync(file,'utf8')) as ProbeHistory;return value?.version===1&&value.routes&&typeof value.routes==='object'?value:{version:1,routes:{}};}catch{return {version:1,routes:{}};}
+}
+function writeProbeHistory(file:string|undefined,value:ProbeHistory):void {
+  if(!file)return;
+  fs.mkdirSync(path.dirname(file),{recursive:true});
+  const temporary=`${file}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temporary,JSON.stringify(value,null,2),{mode:0o660});
+  fs.renameSync(temporary,file);
+}
+async function mapLimit<T,R>(items:T[],limit:number,worker:(item:T)=>Promise<R>):Promise<R[]> {
+  const results=new Array<R>(items.length);let next=0;
+  await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(true){const index=next++;if(index>=items.length)return;results[index]=await worker(items[index]);}}));
+  return results;
+}
+export async function waypointRouteFeeds(now:number,probe:(route:string)=>Promise<Probe>=probeWaypoint,stateFile?:string):Promise<HierarchyFeed[]> {
+  const previous=readProbeHistory(stateFile),next:ProbeHistory={version:1,routes:{}};
+  const feeds=await mapLimit(waypointChecks,4,async check=>{
+    const id=`waypoint-${check.id}`;
+    const started=Date.now();
+    try {
+      const result=await probe(check.route),duration=resultDuration(result,started),ok=check.accepts(result);
+      const failures=ok?0:(previous.routes[check.id]?.consecutiveFailures||(!stateFile?1:0))+1;
+      next.routes[check.id]={consecutiveFailures:failures,lastErrorClass:ok?null:'unexpected_response',lastDurationMs:duration,observedAt:new Date(now).toISOString()};
+      if(!ok&&failures<2)return {id,available:true,observedAt:new Date(now).toISOString(),detail:`Local Waypoint host ${check.route}: HTTP ${result.status} in ${duration}ms. Transient unexpected response recorded (1/2); no outage declared. Public DNS/tunnel and authenticated crew interactions are separate checks.`,findings:[]};
+      return {id,available:true,observedAt:new Date(now).toISOString(),detail:`Local Waypoint host ${check.route}: HTTP ${result.status} in ${duration}ms. ${ok?'Expected response confirmed.':'Unexpected response; engineering review required.'} Public DNS/tunnel and authenticated crew interactions are separate checks.`,
+        findings:ok?[]:[finding(id,`route:${check.id}`,`Waypoint ${check.id} check failed`,`Local ${check.route} returned HTTP ${result.status} with an unexpected response. Check the active release, service and route; verify the actual crew interaction before closing the engineering repair.`)]};
+    }catch(error){
+      const duration=Date.now()-started,classification=errorClass(error),failures=(previous.routes[check.id]?.consecutiveFailures||(!stateFile?1:0))+1;
+      next.routes[check.id]={consecutiveFailures:failures,lastErrorClass:classification,lastDurationMs:duration,observedAt:new Date(now).toISOString()};
+      if(failures<2)return {id,available:true,observedAt:new Date(now).toISOString(),detail:`Local Waypoint ${check.route} ${classification} after ${duration}ms. Transient failure recorded (1/2); no outage declared.`,findings:[]};
+      return unavailable(id,`Local Waypoint ${check.route} failed twice consecutively (${classification}; latest ${duration}ms). Check the service and active release; prior findings remain unconfirmed.`);
+    }
+  });
+  writeProbeHistory(stateFile,next);
+  return feeds;
+}
+
+function resultDuration(result:Probe,started:number):number {return Number.isFinite(result.durationMs)?Math.max(0,Math.floor(result.durationMs!)):Date.now()-started;}
 
 type RecordRow = Record<string,unknown>;
 function records(directory:string,root:string):RecordRow[] {
@@ -93,7 +134,7 @@ export function waypointLedgerFeeds(root:string,now:number,phoneRoot=path.join(r
   return feeds;
 }
 export async function readWaypointFeeds(root:string,now:number):Promise<HierarchyFeed[]> {
-  const routes=process.env.OPSCENTER_RUNTIME==='MISSION_CONTROL' ? await waypointRouteFeeds(now) : waypointChecks.map(c=>unavailable(`waypoint-${c.id}`,'Production loopback checks are disabled outside the Mission Control runtime.'));
+  const routes=process.env.OPSCENTER_RUNTIME==='MISSION_CONTROL' ? await waypointRouteFeeds(now,probeWaypoint,path.join(root,'agent-hierarchy','waypoint-probes.json')) : waypointChecks.map(c=>unavailable(`waypoint-${c.id}`,'Production loopback checks are disabled outside the Mission Control runtime.'));
   return [...routes,...waypointLedgerFeeds(root,now,process.env.OPS_CREW_PHONE_DIR,process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR),waypointDeliveryFeed(now)];
 }
 

@@ -20,7 +20,11 @@ async function main(){
     assert.equal(hierarchyTabs.filter(t=>t.page==='Waypoint' && t.owner==='waypoint').length,5);
     const healthy=await waypointRouteFeeds(now,good);
     assert(healthy.every(f=>f.available && !f.findings.length));
+    assert(healthy.every(f=>/in \d+ms/.test(f.detail)),'Route timing is retained in every probe result');
     assert.equal(healthy.length,8);
+    let active=0,maximum=0;
+    await waypointRouteFeeds(now,async route=>{active++;maximum=Math.max(maximum,active);await new Promise(resolve=>setTimeout(resolve,5));active--;return good(route);});
+    assert.equal(maximum,4,'Loopback probes use four bounded lanes');
     for(const check of waypointChecks){
       const bad=await waypointRouteFeeds(now,async route=>route===check.route?{status:200,body:'Sign in'}:good(route));
       assert.equal(bad.flatMap(f=>f.findings).length,1,'Login/wrong-page response cannot pass');
@@ -30,6 +34,14 @@ async function main(){
     assert(denied.every(f=>f.findings.length===1),'Redirects do not certify an API boundary');
     const offline=await waypointRouteFeeds(now,async()=>{throw new Error('fixture outage');});
     assert(offline.every(f=>!f.available && f.findings[0].origin==='waypoint'));
+    const stateFile=path.join(root,'agent-hierarchy','waypoint-probes.json');
+    const transient=await waypointRouteFeeds(now,async()=>{throw new Error('Check timed out after 3000ms');},stateFile);
+    assert(transient.every(f=>f.available&&!f.findings.length&&f.detail.includes('(1/2)')),'One transient route failure does not declare an outage');
+    const repeated=await waypointRouteFeeds(now+60_000,async()=>{const error=new Error('connect refused') as NodeJS.ErrnoException;error.code='ECONNREFUSED';throw error;},stateFile);
+    assert(repeated.every(f=>!f.available&&f.detail.includes('connection_refused')),'Two consecutive failures declare a classified outage');
+    await waypointRouteFeeds(now+120_000,good,stateFile);
+    const afterRecovery=await waypointRouteFeeds(now+180_000,async()=>{throw new Error('fixture outage');},stateFile);
+    assert(afterRecovery.every(f=>f.available&&!f.findings.length),'A verified success resets the consecutive-failure counter');
     assert(waypointLedgerFeeds(root,now).every(f=>f.available && !f.findings.length),'Unused ledgers are allowed');
     put('crew-phones/truck-switches',switchId,{schema:1,requestId:switchId,status:'moving',updatedAt:at});
     put('desktop-operations',receiptId,{requestId:receiptId,action:'closeout',actor:'crew-phone:fixture',status:'pending',updatedAt:at});

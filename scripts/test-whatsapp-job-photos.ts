@@ -17,6 +17,7 @@ import {
   parseWhatsAppWebhook,
   queuedWhatsAppImages,
   recentWhatsAppText,
+  recoverInterruptedWhatsAppPhotoClaims,
   recoverMappedWhatsAppPhotoHolds,
   recordWhatsAppTextContext,
   verifyMetaSignature,
@@ -225,6 +226,9 @@ try {
   assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000)).queued, 1);
   assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 70_000)).queued, 0);
   assert.ok(fs.existsSync(orphan.file), "confirmation must not replay or discard uncertain uploads");
+  assert.equal(recoverInterruptedWhatsAppPhotoClaims(), 1, "A new worker quarantines an interrupted claim instead of replaying it");
+  const interrupted = JSON.parse(fs.readFileSync(path.join(temporaryState, "review", path.basename(orphan.file)), "utf8"));
+  assert.equal(interrupted.review.reason, "processing_interrupted_outcome_unknown");
   const confirmationOutbox = path.join(temporaryState, "outbox-incoming");
   const confirmationFiles = fs.readdirSync(confirmationOutbox);
   assert.equal(confirmationFiles.length, 1);

@@ -496,6 +496,30 @@ export function recoverMappedWhatsAppPhotoHolds(senderTruckMap: Record<string, s
   return recovered;
 }
 
+/** A worker owns the queue single-flight lock for its whole lifetime, so any
+ * processing record found at startup belongs to an interrupted prior process.
+ * Its upload outcome cannot be proven from the queue record; hold it for source
+ * read-back instead of replaying a possibly completed customer-media write. */
+export function recoverInterruptedWhatsAppPhotoClaims(limit = 100): number {
+  ensureDirectories();
+  let recovered = 0;
+  const cap = Math.max(0, Math.min(100, Math.floor(limit)));
+  for (const name of fs.readdirSync(directory("processing")).filter(entry => /^[a-f0-9]{64}\.json$/.test(entry)).sort()) {
+    if (recovered >= cap) break;
+    const source = path.join(directory("processing"), name);
+    try {
+      const message = JSON.parse(fs.readFileSync(source, "utf8")) as WhatsAppImageMessage;
+      if (!message?.messageId || recordKey(message.messageId) !== name.slice(0, -5)) continue;
+      finishWhatsAppImage(source, "review", { review: {
+        reason: "processing_interrupted_outcome_unknown",
+        detail: "The prior worker stopped after claiming this photo. Verify the intended JunkWare appointment and existing media before any retry.",
+      } });
+      recovered += 1;
+    } catch { /* Keep malformed evidence in place for explicit recovery. */ }
+  }
+  return recovered;
+}
+
 export function whatsappMediaFile(messageId: string, mimeType: string): string {
   ensureDirectories();
   const extension = mimeType === "image/png" ? "png" : "jpg";

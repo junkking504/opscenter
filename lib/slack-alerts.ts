@@ -68,6 +68,7 @@ export type SlackOpsAlert = {
   href: string;
   fields?: SlackMessageField[];
   plainText?: string;
+  verbatimPlainText?: boolean;
 };
 
 type ActiveSlackAlert = {
@@ -1181,6 +1182,13 @@ function geofenceOpsHref(date: string, truck: string): string {
   return absoluteOpsHref(`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(truck.replace("Truck ", "Truck# "))}`);
 }
 
+function nohoWarehouseEntryMessage(entry: GeofenceEntry): string | null {
+  const name = entry.name.trim().replace(/\s+/g, " ").toLowerCase();
+  if (!/^warehouse$|new orleans.*(?:warehouse|hq)|\bno\s*hq\b/.test(name)) return null;
+  const truckNumber = normalizeSlackTruckNumber(entry.truck);
+  return truckNumber ? `Truck #${truckNumber} at NOHQ` : null;
+}
+
 export function buildGeofenceSlackNotifications(
   date: string,
   entries: GeofenceEntry[],
@@ -1189,7 +1197,8 @@ export function buildGeofenceSlackNotifications(
   const notifications: SlackOpsAlert[] = [];
   for (const entry of entries) {
     const href = geofenceOpsHref(date, entry.truck);
-    const plainText = formatSlackMessage({
+    const compactMessage = nohoWarehouseEntryMessage(entry);
+    const plainText = compactMessage || formatSlackMessage({
       icon: ":round_pushpin:",
       title: `${entry.truck} Geofence Entry`,
       fields: [
@@ -1211,6 +1220,7 @@ export function buildGeofenceSlackNotifications(
       nextAction: "",
       href: "",
       plainText,
+      verbatimPlainText: Boolean(compactMessage),
     });
   }
   for (const visit of visits) {
@@ -1343,7 +1353,7 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return truckDisplayText(alert.plainText);
+  if (alert.plainText) return alert.verbatimPlainText ? alert.plainText : truckDisplayText(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return formatSlackMessage({
     icon,

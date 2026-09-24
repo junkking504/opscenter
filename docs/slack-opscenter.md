@@ -183,8 +183,9 @@ Entry and completed-visit alerts support the same review/Control actions, with s
 lookup and LinxUp provenance. Each new native entry and matching native exit also
 posts once to that truck's Slack channel after the alert refresh. First enablement
 silently baselines existing same-day events so deployment cannot replay the day's
-history. The entry message includes location, facility, time and load effect; the
-exit includes departure and confirmed time on site. Inferred GPS-bounded visits do
+history. New Orleans warehouse entry messages are the single-line truck status
+`Truck #N at NOHQ`; other entry messages include location, facility, time and
+load effect. Exit messages include departure and confirmed time on site. Inferred GPS-bounded visits do
 not produce geofence Slack notifications. No source record mutation is made.
 Unavailable or partial LinxUp alert collections remain explicit in Source Health;
 stop rows and starting inside a geofence do not invent entry events.
@@ -198,7 +199,7 @@ stop rows and starting inside a geofence do not invent entry events.
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
-- Native LinxUp geofence entry or matching exit -> that truck's `#truck-N` channel, with facility, event time, load effect or time on site
+- Native LinxUp geofence entry or matching exit -> that truck's `#truck-N` channel; NOHQ entries are a compact truck-at-yard status, while other entries and exits include operational details
 - Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel

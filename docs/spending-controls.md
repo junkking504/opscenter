@@ -91,7 +91,7 @@ not permission to enable paid operations on those hosts.
 
 ## Limits of the controls
 
-### Geocodio free fallback — approved September 24, 2026; activation pending
+### Geocodio free fallback — approved September 24, 2026
 
 The user approved trying Geocodio for unresolved service-address geocoding on
 the free tier only: **$0 maximum spend**, no subscription, payment method,
@@ -105,7 +105,10 @@ The new endpoint is only `api.geocod.io`, single-address `/v2/geocode` with
 inventory pins both new Geocodio modules. Installing that reviewed inventory
 is an explicit part of this approved integration, not a routine deployment
 refresh. Preserve every other installed approval/hash and the unchanged checker.
-The installed inventory and live account have **not** yet been updated.
+The account was browser-verified with no payment method, zero purchased credits
+and a persisted 2,500/day provider cutoff. A single-geocoding-only key is stored
+privately. The installed inventory adds only this host and the two module pins;
+its prior pair is retained under `geocodio-free-approval-20260924T141300Z`.
 
 Requests share a durable, process-locked ledger: at most 2,500 attempts in any
 rolling 25 hours, at least ten seconds between starts, and at most eight seconds

@@ -1,7 +1,10 @@
 # Geocodio free address fallback
 
-Status: implemented and mock-tested; not activated or live-verified. Account,
-credential installation, installed spending inventory and deployment are pending.
+Status: configured September 24, 2026 after browser verification of no payment
+method, zero purchased credits and a saved provider-side 2,500/day cutoff.
+The dedicated key permits single geocoding only. Three initial free lookups
+accepted two exact premises and rejected one city-only result. Production
+deployment and authenticated Schedule acceptance remain separate checks.
 
 The September 24, 2026 user request approves Geocodio only as a free fallback,
 with $0 in new charges. Retain parish GIS, Census and existing OSM precedence.

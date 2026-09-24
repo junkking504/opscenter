@@ -96,6 +96,22 @@ async function main() {
     assert.equal(gpsCoverageSignal(date).reportingTrackers, 0, "Same date/mtime from another root cannot reuse GPS contents");
     fs.writeFileSync(fileB, JSON.stringify({ points: [{ truck_number: "Truck# 7" }] }));
     assert.equal(gpsCoverageSignal(date).reportingTrackers, 1, "File change invalidates GPS cache");
+    for (const day of ["2026-09-07", "2026-09-06"]) {
+      fs.writeFileSync(path.join(dataB, "history", "linxup", `linxup_location_${day}.json`), JSON.stringify({ points: [] }));
+    }
+    fs.writeFileSync(fileB, JSON.stringify({ points: [] }));
+    fs.mkdirSync(path.join(dataB, "fleet"), { recursive: true });
+    fs.writeFileSync(path.join(dataB, "fleet", "repair_issues.json"), JSON.stringify({ issues: [
+      { truck: "Truck 7", severity: "out_of_service", status: "open" },
+    ] }));
+    const suppressedTracker = gpsCoverageSignal(date);
+    assert.equal(suppressedTracker.status, "ok", "An already out-of-service truck does not create a duplicate critical signal");
+    assert.equal(suppressedTracker.actionableSilentTrackers, 0);
+    assert.equal(suppressedTracker.silentTrackers[0]?.suppressedReason, "out_of_service", "Expected tracker silence remains visible as evidence");
+    fs.writeFileSync(path.join(dataB, "fleet", "repair_issues.json"), JSON.stringify({ issues: [] }));
+    const actionableTracker = gpsCoverageSignal(date);
+    assert.equal(actionableTracker.status, "critical", "A chronic silent tracker without an out-of-service record remains critical");
+    assert.equal(actionableTracker.actionableSilentTrackers, 1);
     delete process.env.OPSCENTER_SIGNAL_CACHE_MS;
     const signals = collectSystemSignals(date);
     assert.equal(collectSystemSignals(date), signals, "Default aggregate cache reuses computed signals");

@@ -31,12 +31,14 @@ export type SilentTracker = {
   truck: string;
   trackerId: string;
   daysSilent: number | null;
+  suppressedReason?: "out_of_service";
 };
 
 export type GpsCoverageSignal = SignalDetail & {
   mappedTrackers: number;
   reportingTrackers: number;
   silentTrackers: SilentTracker[];
+  actionableSilentTrackers: number;
 };
 
 export type ExceptionSignal = SignalDetail & {
@@ -259,6 +261,19 @@ function daysSilentFor(truck: string, date: string): number | null {
   return days;
 }
 
+function normalizedTruckNumber(value: unknown): string {
+  return String(value || "").match(/(\d+)/)?.[1] || String(value || "").trim().toLowerCase();
+}
+
+function outOfServiceTrucks(): Set<string> {
+  const payload = readJson<AnyRecord>(path.join("data", "fleet", "repair_issues.json"), "fleet repair issues");
+  const issues = Array.isArray(payload?.issues) ? payload.issues as AnyRecord[] : [];
+  return new Set(issues
+    .filter((issue) => !issue.deletedAt && issue.status !== "resolved" && issue.severity === "out_of_service")
+    .map((issue) => normalizedTruckNumber(issue.truck))
+    .filter(Boolean));
+}
+
 export function gpsCoverageSignal(date: string): GpsCoverageSignal {
   const mappings = activeMappings(date);
   if (!mappings.length) {
@@ -268,6 +283,7 @@ export function gpsCoverageSignal(date: string): GpsCoverageSignal {
       mappedTrackers: 0,
       reportingTrackers: 0,
       silentTrackers: [],
+      actionableSilentTrackers: 0,
     };
   }
 
@@ -279,32 +295,45 @@ export function gpsCoverageSignal(date: string): GpsCoverageSignal {
       mappedTrackers: mappings.length,
       reportingTrackers: 0,
       silentTrackers: [],
+      actionableSilentTrackers: 0,
     };
   }
 
+  const unavailableTrucks = outOfServiceTrucks();
   const silentTrackers: SilentTracker[] = mappings
     .filter((mapping) => !reporting.has(String(mapping.junkware_truck_number || "")))
-    .map((mapping) => ({
-      truck: String(mapping.junkware_truck_number || "unknown"),
-      trackerId: String(mapping.linxup_tracker_id || ""),
-      daysSilent: daysSilentFor(String(mapping.junkware_truck_number || ""), date),
-    }));
+    .map((mapping) => {
+      const truck = String(mapping.junkware_truck_number || "unknown");
+      return {
+        truck,
+        trackerId: String(mapping.linxup_tracker_id || ""),
+        daysSilent: daysSilentFor(truck, date),
+        ...(unavailableTrucks.has(normalizedTruckNumber(truck)) ? { suppressedReason: "out_of_service" as const } : {}),
+      };
+    });
 
   // A tracker that has been silent for more than a day is a broken device or a
-  // stale mapping, not a parked truck. Either way somebody has to look at it.
-  const chronic = silentTrackers.filter((tracker) => (tracker.daysSilent ?? 0) >= 2);
-  const status: SignalStatus = chronic.length ? "critical" : silentTrackers.length ? "warn" : "ok";
+  // stale mapping, not a parked truck. Keep an out-of-service truck visible in
+  // the evidence, but do not let its expected silence hide a separate tracker
+  // incident that operations can act on.
+  const actionable = silentTrackers.filter((tracker) => !tracker.suppressedReason);
+  const chronic = actionable.filter((tracker) => (tracker.daysSilent ?? 0) >= 2);
+  const status: SignalStatus = chronic.length ? "critical" : actionable.length ? "warn" : "ok";
+  const suppressedCount = silentTrackers.length - actionable.length;
 
   return {
     status,
     summary: chronic.length
       ? `${chronic.length} mapped tracker${chronic.length === 1 ? "" : "s"} silent for 2+ days: ${chronic.map((tracker) => tracker.truck).join(", ")}`
-      : silentTrackers.length
-        ? `${silentTrackers.length} mapped tracker${silentTrackers.length === 1 ? "" : "s"} have not reported today`
-        : `All ${mappings.length} mapped trackers reporting`,
+      : actionable.length
+        ? `${actionable.length} mapped tracker${actionable.length === 1 ? "" : "s"} have not reported today`
+        : suppressedCount
+          ? `${suppressedCount} out-of-service mapped tracker${suppressedCount === 1 ? " is" : "s are"} silent; no actionable GPS coverage gap`
+          : `All ${mappings.length} mapped trackers reporting`,
     mappedTrackers: mappings.length,
     reportingTrackers: mappings.length - silentTrackers.length,
     silentTrackers,
+    actionableSilentTrackers: actionable.length,
   };
 }
 

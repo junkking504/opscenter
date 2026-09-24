@@ -15,14 +15,15 @@ import {readVerifiedJunkwareScheduleSnapshot, readVerifiedJunkwareReconciliation
 import {planningLocation} from './planning-geocodes';
 import {readWaypointFeeds} from './waypoint-agent';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
-type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number};
+type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number;diagnostics?:{cpuUserMs?:number;cpuSystemMs?:number;maxResidentKb?:number}};
 export function runnerFindings(state:{stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>},now:number):HierarchyFinding[] {
   return ['shared','trucks','hierarchy'].flatMap(id=>{
     const stage=state.stages[id];
     const failure=state.failures?.filter(f=>f.stage===id&&hierarchyFresh(f.finishedAt||null,now,3600_000)).at(-1);
     const failed=!!stage&&['failed','timed_out'].includes(stage.status);
     if(!failed&&!failure)return [];
-    const detail=failed?`Last stage duration: ${stage.durationMs??'unknown'} ms. Prior successful evidence is retained.`:`A ${failure!.status} run ended at ${failure!.finishedAt}. Later stages have continued. Confirm stable recovery; this recent failure remains visible for one hour.`;
+    const diagnostic=stage?.diagnostics?` Child CPU ${stage.diagnostics.cpuUserMs??'unknown'} ms user / ${stage.diagnostics.cpuSystemMs??'unknown'} ms system; peak resident ${stage.diagnostics.maxResidentKb??'unknown'} KiB.`:'';
+    const detail=failed?`Last stage duration: ${stage.durationMs??'unknown'} ms.${diagnostic} Prior successful evidence is retained.`:`A ${failure!.status} run ended at ${failure!.finishedAt}. Later stages have continued. Confirm stable recovery; this recent failure remains visible for one hour.`;
     return [{id:`runner:${id}`,feed:'runner',title:failed?`Agent runner ${id}: ${stage.status}`:`Recent agent runner failure: ${id}`,detail,href:monitor,origin:'engineering',target:'release',priority:failed?'urgent' as const:'watch' as const}];
   });
 }

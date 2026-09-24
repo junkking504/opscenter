@@ -115,6 +115,10 @@ remain assigned to Release for one hour after recovery; an intervening success
 does not immediately hide them. A killed parent
 leaves a visible running/stale stage rather than a fabricated success. The
 hierarchy and existing truck views identify heartbeats over three minutes old.
+The same file retains the latest 1,440 cycle samples for 24-hour percentile
+checks. A stage taking at least ten seconds adds local-only child CPU, peak
+resident memory and bounded input-record counts. Diagnostics never invoke a
+collector or provider and do not extend the existing 20-second deadline.
 
 An audit observed a transient timeout; a subsequent fresh-process input read
 completed in under one second. Its original root cause was not established.

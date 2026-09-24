@@ -19,11 +19,22 @@ with tempfile.TemporaryDirectory() as temp:
         if stage == 'trucks':
             return SimpleNamespace(returncode=1)
         return SimpleNamespace(returncode=0)
-    assert runner.execute_stages(root, root, '2026-09-17', {}, 1, run) == 124
+    original_clock = runner.time.monotonic
+    ticks = iter([0, 12, 20, 21, 30, 31])
+    runner.time.monotonic = lambda: next(ticks)
+    try:
+        assert runner.execute_stages(root, root, '2026-09-17', {}, 1, run) == 124
+    finally:
+        runner.time.monotonic = original_clock
     assert called == ['shared', 'trucks', 'hierarchy']
     state = json.loads((root/'worker-status.json').read_text())
     assert [s['status'] for s in state['stages'].values()] == ['timed_out', 'failed', 'ok']
     assert state['finishedAt'] and all('durationMs' in s for s in state['stages'].values())
+    assert state['stages']['shared']['durationMs'] == 12000
+    assert state['stages']['shared']['diagnostics']['stage'] == 'shared'
+    assert 'cpuUserMs' in state['stages']['shared']['diagnostics']
+    assert 'diagnostics' not in state['stages']['trucks']
+    assert len(state['samples']) == 1 and state['samples'][0]['stages']['shared']['durationMs'] == 12000
     assert (root/'worker-status.json').stat().st_mode & 0o777 == 0o600
     assert not list(root.glob('*.tmp'))
 print('Runner passed: isolated timeout/failure, independent later stages and durable private execution evidence.')

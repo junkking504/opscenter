@@ -46,6 +46,12 @@ timestamp; a failed attempt never advances that timestamp. Valid recovery clears
 the error. Existing error-bearing daily raw snapshots are not treated as verified
 success merely because they contain a recent `retrieved_at`.
 
+A successful, validated zero-row response is complete when there is no prior
+non-empty snapshot to protect. The collector records `pagination_completed: true`
+for that empty result so Visit Tracking does not report a false incomplete day.
+An empty response that would replace prior records still fails closed and retains
+the prior snapshot.
+
 Status locations under OpsBot's existing LinxUp history directory:
 
 - `linxup_DATE_status.json`

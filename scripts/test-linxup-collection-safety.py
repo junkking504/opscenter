@@ -172,6 +172,16 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(snapshot.read_bytes(), old)
         self.assertEqual(json.loads(status.read_text())['status'], 'stale')
 
+    def test_empty_alert_success_is_complete_without_prior_records(self):
+        snapshot, status = safety.source_paths('alerts', '2026-09-15')
+        with patch.object(alerts, 'request_json', return_value={'data': []}):
+            self.assertEqual(safety.run_collector('alerts', alerts.main), 0)
+        result = json.loads(snapshot.read_text())
+        self.assertEqual(result['record_count'], 0)
+        self.assertTrue(result['pagination_completed'])
+        self.assertEqual(result['validation_status'], 'passed')
+        self.assertTrue(json.loads(status.read_text())['pagination_completed'])
+
     def test_old_error_snapshot_is_not_claimed_as_last_success(self):
         snapshot, status = safety.source_paths('daily', '2026-09-15')
         write_json(snapshot, {'retrieved_at': '2026-09-15T18:10:00Z', 'responses': {'locations': {'error': 'URLError'}}})
@@ -205,14 +215,19 @@ class SafetyTests(unittest.TestCase):
         installer.install(self.root, True)
         self.assertEqual(len(list((self.root / 'backups').iterdir())), 1)
 
-    def test_installer_upgrades_previous_reviewed_host_without_changing_behavior(self):
+    def test_installer_upgrades_previous_reviewed_sources_without_changing_behavior(self):
         runtime = self.root / 'scripts'
         runtime.mkdir()
         previous = json.loads((SOURCE / 'previous-installed-sha256.json').read_text())
         for name, expected in previous.items():
             current = (Path(collector_sources.name) / name).read_bytes()
-            old = current.replace(b'https://app03.linxup.com/ibis/rest/api/v2',
-                                  b'https://www.awaregps.com/ibis/rest/api/v2')
+            old = current.replace(
+                b'pagination_completed = len(raw_alerts) == len(normalized_alerts)',
+                b'pagination_completed = bool(raw_alerts) and len(raw_alerts) == len(normalized_alerts)',
+            ) if name == 'collect_linxup_alerts.py' else current.replace(
+                b'https://app03.linxup.com/ibis/rest/api/v2',
+                b'https://www.awaregps.com/ibis/rest/api/v2',
+            )
             self.assertEqual(installer.digest(old), expected)
             (runtime / name).write_bytes(old)
         (runtime / 'linxup_collection_safety.py').write_bytes((SOURCE / 'linxup_collection_safety.py').read_bytes())

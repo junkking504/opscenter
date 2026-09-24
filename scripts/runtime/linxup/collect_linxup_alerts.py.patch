@@ -32,6 +32,9 @@
 +
 +    if collection_errors:
 +        raise LinxupError("Alert validation failed; previous snapshot retained")
+@@ -296 +281 @@
+-    pagination_completed = bool(raw_alerts) and len(raw_alerts) == len(normalized_alerts)
++    pagination_completed = len(raw_alerts) == len(normalized_alerts)
 @@ -311,0 +297,3 @@
 +
 +    if preserve_existing:

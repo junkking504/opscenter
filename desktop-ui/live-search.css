@@ -29,3 +29,23 @@
 .knowledge-answer-possible > header { border-color: #ebe2bc; color: #695b20; background: #f7f0d2; }
 .cross-date-search .global-search-results-body > p.knowledge-answer-loading { margin: 0 0 8px; padding: 9px 11px; border-radius: 7px; color: #486153; background: #edf5f0; }
 .cross-date-search .global-search-results-body > p.knowledge-answer-error { margin: 0 0 8px; color: #7b6125; }
+.opsbot-prompt-card { margin: 0 0 9px; padding: 10px 11px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px 12px; border: 1px solid #c7b5e8; border-radius: 9px; background: linear-gradient(135deg,#faf8ff,#f1ecfb); }
+.opsbot-prompt-card > div { min-width: 0; display: flex; align-items: center; gap: 9px; color: #5d3a88; }
+.opsbot-prompt-card > div > span { min-width: 0; display: grid; gap: 2px; }
+.opsbot-prompt-card strong { font-size: 12px; }
+.opsbot-prompt-card small { color: #746881; font-size: 10px; }
+.opsbot-prompt-card > button { min-height: 34px; padding: 7px 12px; border: 1px solid #634093; border-radius: 7px; color: #fff; background: #65408f; font-size: 12px; font-weight: 750; }
+.opsbot-prompt-card > button:disabled { cursor: not-allowed; border-color: #c4bdcb; color: #756f79; background: #e5e1e8; }
+.opsbot-prompt-card > p { grid-column: 1/-1; margin: 0; color: #765e31; font-size: 11px; }
+.opsbot-answer-card { margin: 0 0 9px; overflow: hidden; border: 1px solid #b9a4df; border-radius: 9px; background: #fff; box-shadow: 0 5px 18px rgb(78 49 119 / 9%); }
+.opsbot-answer-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px; border-bottom: 1px solid #ded4ef; color: #5b3788; background: #f3eefb; }
+.opsbot-answer-card > header strong { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.opsbot-answer-card > header span { font-size: 10px; font-weight: 700; }
+.opsbot-answer-card > p { margin: 12px; white-space: pre-wrap; color: #302a35; font-size: 13px; line-height: 1.55; }
+.opsbot-answer-card > footer { padding: 9px 11px; border-top: 1px solid #e6e0ef; background: #faf9fc; }
+.opsbot-answer-card > footer > small { display: block; margin-bottom: 6px; color: #71677a; font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+.opsbot-answer-card > footer > div { display: flex; gap: 5px; flex-wrap: wrap; }
+.opsbot-answer-card > footer button, .opsbot-answer-card > footer div > span { max-width: 100%; display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid #ddd5e8; border-radius: 6px; color: #554361; background: #fff; font-size: 10px; }
+.opsbot-answer-card > footer button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cross-date-search .global-search-results-body > p.opsbot-answer-error { margin: 0 0 8px; padding: 9px 11px; border-radius: 7px; color: #7b3b32; background: #fff1ef; }
+@media (max-width: 640px) { .opsbot-prompt-card { grid-template-columns: 1fr; } .opsbot-prompt-card > button { width: 100%; } }

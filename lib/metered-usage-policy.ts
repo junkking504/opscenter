@@ -8,6 +8,12 @@ export const APPROVED_MODEL = 'gpt-5.6-luna';
 export const APPROVED_MONTHLY_MICROS = 10_000_000;
 export const ADDRESS_RESEARCH_APPROVAL = 'address-investigation-20260913';
 export const ADDRESS_RESEARCH_LIMIT_MICROS = 100_000;
+export const ASK_OPSBOT_APPROVAL = 'ask-opsbot-pilot-20260924';
+export const ASK_OPSBOT_MODEL = 'gpt-6-luna';
+export const ASK_OPSBOT_MONTHLY_MICROS = 10_000_000;
+export const ASK_OPSBOT_QUESTION_LIMIT = 50;
+export const ASK_OPSBOT_RESERVE_MICROS = 200_000;
+export const ASK_OPSBOT_MAX_OUTPUT_TOKENS = 1_200;
 export const METERED_USAGE_BLOCKED = 'Metered usage is blocked: explicit spending approval is required.';
 export const spendingPolicyPath = () => path.join(process.env.HOME || '', 'Library/Application Support/OpsCenter/spending-policy.json');
 
@@ -36,6 +42,45 @@ export function addressResearchApproved(readPolicy = () => fs.readFileSync(spend
       && a.sharedBudget === 'maintenance-diagnosis' && a.perAddressBudgetMicros === ADDRESS_RESEARCH_LIMIT_MICROS
       && a.maxAttemptsPerAddress === 1 && a.maxSearchCalls === 1 && a.maxOutputTokens === 2048;
   } catch { return false; }
+}
+
+export function askOpsBotApproved(readPolicy = () => fs.readFileSync(spendingPolicyPath(), 'utf8')): boolean {
+  try {
+    const policy = JSON.parse(readPolicy());
+    const approval = policy.approvals?.['ask-opsbot'];
+    return policy.version === 1 && policy.default === 'deny' && policy.paused === false
+      && approval?.id === ASK_OPSBOT_APPROVAL && approval.enabled === true
+      && approval.provider === 'openai' && approval.model === ASK_OPSBOT_MODEL
+      && approval.monthlyBudgetMicros === ASK_OPSBOT_MONTHLY_MICROS
+      && approval.maxQuestions === ASK_OPSBOT_QUESTION_LIMIT
+      && approval.reserveMicros === ASK_OPSBOT_RESERVE_MICROS
+      && approval.maxOutputTokens === ASK_OPSBOT_MAX_OUTPUT_TOKENS
+      && approval.serviceTier === 'default' && approval.store === false
+      && approval.webSearch === false && approval.fileUploads === false;
+  } catch { return false; }
+}
+
+export function validateAskOpsBotRequest(body: Record<string, unknown>): void {
+  const fields = ['model', 'store', 'service_tier', 'instructions', 'input', 'max_output_tokens', 'tools', 'tool_choice', 'parallel_tool_calls', 'reasoning'];
+  const tools = Array.isArray(body.tools) ? body.tools as Array<Record<string, unknown>> : [];
+  const expectedTools = new Set(['read_daily_operations', 'read_truck_advisors', 'search_opscenter', 'read_source_health']);
+  const toolNames = tools.map(tool => String(tool.name || ''));
+  const validTools = tools.length === expectedTools.size
+    && new Set(toolNames).size === expectedTools.size
+    && toolNames.every(name => expectedTools.has(name))
+    && tools.every(tool => tool.type === 'function' && tool.strict === true
+      && typeof tool.description === 'string'
+      && Boolean(tool.parameters) && (tool.parameters as Record<string, unknown>).additionalProperties === false);
+  const inputSize = Buffer.byteLength(JSON.stringify(body.input));
+  if (Object.keys(body).some(key => !fields.includes(key)) || body.model !== ASK_OPSBOT_MODEL
+    || body.store !== false || body.service_tier !== 'default'
+    || body.max_output_tokens !== ASK_OPSBOT_MAX_OUTPUT_TOKENS
+    || !['required', 'auto'].includes(String(body.tool_choice))
+    || body.parallel_tool_calls !== false
+    || JSON.stringify(body.reasoning) !== JSON.stringify({ effort: 'low' })
+    || typeof body.instructions !== 'string' || !validTools || inputSize > 50_000) {
+    throw new Error(METERED_USAGE_BLOCKED);
+  }
 }
 
 export function validateAddressResearchRequest(body: Record<string, unknown>): void {

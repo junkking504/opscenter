@@ -1,6 +1,6 @@
 {
-  "reviewedAt": "2026-09-13",
-  "note": "Existing endpoint inventory; no blanket billing authorization. Approved maintenance diagnosis and address investigation share one $10 monthly ledger. Address research is limited to one search attempt and $0.10 reserved per canonical address for its lifetime. Explicit user approval September 13, 2026.",
+  "reviewedAt": "2026-09-24",
+  "note": "Existing endpoint inventory; no blanket billing authorization. Maintenance diagnosis and address investigation retain their shared $10 monthly ledger. Ask OpsBot is separately approved for GPT-6 Luna, 50 total questions, $0.20 reserved per question, and a $10 calendar-month cap, with no web search or file uploads. Explicit user approval September 24, 2026.",
   "hosts": [
     "127.0.0.1",
     "api.openai.com",
@@ -56,7 +56,10 @@
     "typescript"
   ],
   "protectedFiles": {
-    "lib/metered-usage-policy.ts": "4eeeeb6a9f8db5f62d460b11af6baa5ddb664f63aed27698171281c61901e972",
+    "lib/metered-usage-policy.ts": "a4e9d6350bc9235777577174cc93e8442bb2277e20cf3bf1cfcafb049573b8f5",
+    "lib/ask-opsbot-agent.ts": "b2c9a3e4895226ce8c857fca9e0298d4184d3dd9a45b455278a2a64e89356173",
+    "lib/ask-opsbot-ledger.ts": "0f47e89575834c834319dc81cfd965872edde7fe081d53db9ffd9dbbc2ca3a85",
+    "app/api/desktop/ask-opsbot/route.ts": "6d22993ad68501fc9928cd6aeb44b121995522cc4b0eeddb1ec4bc8d59a8c6e9",
     "lib/maintenance-diagnosis.ts": "0266494acbd61718a0ca8e898df2319f89f664d833da1b38a01775ad599c43a5",
     "lib/maintenance-monitor.ts": "60caec672ed0b4281e928fc0f1cf4c0f2e21613067404bde015b8b75d8be90b4",
     "lib/truck-load-photo-analysis.ts": "7ccecba856fb8ee6e54e0a4c0e65c20f17c6ec268421cf18b566fe924013e3b1",
@@ -68,6 +71,6 @@
     "lib/address-research.ts": "876d06164a934187f28408fae205ae4fdde9ab5a599b156f3ee1b808f21b3924",
     "lib/address-research-provider.ts": "8e2c57afbfbcb6038eb9256686d6003d64c5ff5803f952a0bd2119a02d7d4559",
     "lib/address-research-source.ts": "9f57dcc68b3c109d6575a087e0c769d5e4d4e962db260836012ff947179222cf",
-    "scripts/verify-spending-boundary.mjs": "7d5b78d88c581e558aee21ea80a640f101ffd840bac88097e13d572a99c0801b"
+    "scripts/verify-spending-boundary.mjs": "11a6722dac806f9219afc4eac18f43fe4b975e041ee1102e686da33ef3a69636"
   }
 }

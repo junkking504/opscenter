@@ -23,7 +23,7 @@ export function spendingViolations(root, manifest) {
       if (entry.isDirectory()) { scan(full); continue; }
       if (!/\.(?:ts|tsx|js|mjs|cjs|py|sh)$/.test(entry.name) || /^test[-.]/.test(entry.name) || excluded.has(entry.name)) continue;
       const source = fs.readFileSync(full, 'utf8');
-      if (metered.test(source) && !['lib/maintenance-diagnosis.ts', 'lib/address-research-provider.ts'].includes(relative)) failures.push(`${relative}: unapproved metered provider`);
+      if (metered.test(source) && !['lib/maintenance-diagnosis.ts', 'lib/address-research-provider.ts', 'lib/ask-opsbot-agent.ts'].includes(relative)) failures.push(`${relative}: unapproved metered provider`);
       for (const match of source.matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)) {
         if (!manifest.hosts.includes(match[1])) failures.push(`${relative}: new external host ${match[1]} needs spending review`);
       }
@@ -40,10 +40,18 @@ export function spendingViolations(root, manifest) {
   }
   const photo = fs.readFileSync(path.join(root, 'lib/truck-load-photo-analysis.ts'), 'utf8');
   const research = fs.readFileSync(path.join(root, 'lib/address-research-provider.ts'), 'utf8');
+  const opsBot = fs.readFileSync(path.join(root, 'lib/ask-opsbot-agent.ts'), 'utf8');
+  const opsBotRoute = fs.readFileSync(path.join(root, 'app/api/desktop/ask-opsbot/route.ts'), 'utf8');
   for (const required of ['validateAddressResearchRequest(body)', "service_tier: 'default'", 'max_tool_calls: 1']) {
     if (!research.includes(required)) failures.push(`Address research spending control missing: ${required}`);
   }
   if (!photo.includes('throw new Error(METERED_USAGE_BLOCKED)')) failures.push('Unapproved photo analysis must remain blocked');
+  for (const required of ['validateAskOpsBotRequest(body)', "service_tier: 'default'", 'store: false', "tool_choice: call === 0 ? 'required' : 'auto'", 'parallel_tool_calls: false']) {
+    if (!opsBot.includes(required)) failures.push(`Ask OpsBot spending control missing: ${required}`);
+  }
+  for (const required of ["opsRoleCan(session.role, 'sensitive.write')", 'askOpsBotApproved()', 'reserveAskOpsBotQuestion(actorHash)', 'settleAskOpsBotQuestion(reservation, result.usage)', 'settleAskOpsBotQuestion(reservation, null)']) {
+    if (!opsBotRoute.includes(required)) failures.push(`Ask OpsBot route control missing: ${required}`);
+  }
   return [...new Set(failures)];
 }
 

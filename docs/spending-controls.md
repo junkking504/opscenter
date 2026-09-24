@@ -18,6 +18,13 @@ do not grant spending approval. Free credits and budget alerts are not caps.
   The worker serializes execution, durably reserves $0.02 before each attempt,
   keeps uncertain reservations, and pauses on unexpected usage. Missing or
   damaged history and missing or mismatched approval stop requests.
+- The Ask OpsBot pilot is approved for OpenAI `gpt-6-luna`, standard service
+  tier, local read-only OpsCenter function tools, no web search, no files or
+  images, and at most 1,200 output tokens per model call. The pilot has 50 total
+  questions across all managers and a $10 Central calendar-month cap. Each
+  question durably reserves $0.20 before the provider request; failed or
+  uncertain requests remain counted. Missing or damaged approval or ledger
+  state stops requests.
 
 The approval file is outside releases at
 `~/Library/Application Support/OpsCenter/spending-policy.json`. Version 1 uses
@@ -26,6 +33,15 @@ The approval file is outside releases at
 provider `openai`, model `gpt-5.6-luna`, and `monthlyBudgetMicros: 10000000`.
 Setting `paused: true` stops new maintenance AI requests while observation
 continues. No environment flag or API key can create an approval.
+
+The Ask OpsBot approval is named `ask-opsbot`, id
+`ask-opsbot-pilot-20260924`, enabled, provider `openai`, model `gpt-6-luna`,
+`monthlyBudgetMicros: 10000000`, `maxQuestions: 50`, `reserveMicros: 200000`,
+`maxOutputTokens: 1200`, `serviceTier: "default"`, `store: false`,
+`webSearch: false`, and `fileUploads: false`. The 50 slots are a lifetime pilot
+limit and do not reset monthly; therefore they cannot reserve more than $10 in
+any month. The user approved this feature, model, limit, cap, and reuse of the
+existing OpenAI credential on September 24, 2026.
 
 ## Address investigation approval — September 13, 2026
 

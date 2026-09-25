@@ -70,7 +70,9 @@ Sundays, without holiday, weather or staffing adjustments. Prior-only rolling
 backtests report WAPE; no calibrated prediction interval is claimed.
 
 The current month's revenue bar stacks predicted **additional** revenue above
-published monthly actuals. Today's published partial revenue is deducted from
+published monthly actuals. Each monthly group places the prior year on the left
+and current year on the right; the legend follows that same order.
+Today's published partial revenue is deducted from
 today's estimate, bounded at zero, to prevent double counting. Missing historical
 actuals are disclosed and never filled as recorded revenue. A stale/historical
 selection or insufficient training data suppresses the projection. The projection

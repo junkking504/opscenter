@@ -29,7 +29,7 @@
     "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts && node --import tsx scripts/test-fuel-reconciliation.ts && node --import tsx scripts/test-wex-expense-automation.ts",
     "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts",
     "build:prediction-data": "node --import tsx scripts/build-prediction-data.ts",
-    "verify:prediction-data": "node --import tsx scripts/test-prediction-data.ts && node --import tsx scripts/test-operating-planning.ts && node --import tsx scripts/test-disposal-cost-marker.ts",
+    "verify:prediction-data": "node --import tsx scripts/test-prediction-data.ts && node --import tsx scripts/test-operating-planning.ts && node --import tsx scripts/test-disposal-cost-marker.ts && node scripts/test-finance-trends-order.mjs",
     "reconcile:payments": "python3 scripts/collect-payment-reconciliation.py",
     "collect:qbo": "tsx scripts/collect-qbo-transactions.ts",
     "collect:searchkings": "tsx scripts/collect-searchkings.ts",

@@ -1182,11 +1182,24 @@ function geofenceOpsHref(date: string, truck: string): string {
   return absoluteOpsHref(`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(truck.replace("Truck ", "Truck# "))}`);
 }
 
-function nohoWarehouseEntryMessage(entry: GeofenceEntry): string | null {
-  const name = entry.name.trim().replace(/\s+/g, " ").toLowerCase();
-  if (!/^warehouse$|new orleans.*(?:warehouse|hq)|\bno\s*hq\b/.test(name)) return null;
+function geofenceAlertLocation(name: string): string {
+  const location = name.trim().replace(/\s+/g, " ");
+  const normalized = location.toLowerCase();
+  if (/^warehouse$|new orleans.*(?:warehouse|hq)|\bno\s*hq\b/.test(normalized)) return "NOHQ";
+  if (/baton rouge.*(?:warehouse|hq)|\bbr\s*hq\b/.test(normalized)) return "BRHQ";
+  if (/gentilly|^gl$/.test(normalized)) return "Gentilly";
+  if (/stranco|^sts$/.test(normalized)) return "Stranco";
+  if (/\bemr\b/.test(normalized)) return "EMR";
+  if (/river\s*birch|riverbirch|^rbl$/.test(normalized)) return "River Birch";
+  if (/^(?:brl|ebr)$|(?:baton rouge|ebr|br).*landfill/.test(normalized)) return "Baton Rouge Landfill";
+  if (/green meadow|mengel|^gmts$/.test(normalized)) return "Green Meadow";
+  return location;
+}
+
+function compactGeofenceEntryMessage(entry: GeofenceEntry): string {
   const truckNumber = normalizeSlackTruckNumber(entry.truck);
-  return truckNumber ? `Truck #${truckNumber} at NOHQ` : null;
+  const truck = truckNumber ? `Truck ${truckNumber}` : entry.truck.trim().replace(/\s+/g, " ");
+  return `${truck} at ${geofenceAlertLocation(entry.name)}`;
 }
 
 export function buildGeofenceSlackNotifications(
@@ -1196,19 +1209,7 @@ export function buildGeofenceSlackNotifications(
 ): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   for (const entry of entries) {
-    const href = geofenceOpsHref(date, entry.truck);
-    const compactMessage = nohoWarehouseEntryMessage(entry);
-    const plainText = compactMessage || formatSlackMessage({
-      icon: ":round_pushpin:",
-      title: `${entry.truck} Geofence Entry`,
-      fields: [
-        { label: "Location", value: entry.name },
-        { label: "Facility", value: entry.facility },
-        { label: "Entered", value: formatTruckArrivalTime(entry.timestamp) },
-        { label: "Truck load", value: entry.resetLocation ? "Reset to empty" : "Unchanged" },
-      ],
-      href,
-    });
+    const plainText = compactGeofenceEntryMessage(entry);
     notifications.push({
       fingerprint: `geofence_entry:${date}:${entry.id}`,
       kind: "geofence_entry",
@@ -1220,7 +1221,7 @@ export function buildGeofenceSlackNotifications(
       nextAction: "",
       href: "",
       plainText,
-      verbatimPlainText: Boolean(compactMessage),
+      verbatimPlainText: true,
     });
   }
   for (const visit of visits) {

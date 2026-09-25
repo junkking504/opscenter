@@ -5,10 +5,12 @@ const clock = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'A
 
 export function DumpExpenses({ data }: { data?: DumpExpenseSummary }) {
   if (!data) return null;
+  const includesAssumptions = data.assumedTotal > 0;
   return <section className="finance-cost-shell" aria-label="Dump expenses" id="capital-disposal">
     <div className="section-title"><div><span className="section-kicker">{data.date} · Truck disposal costs</span><h2>Disposal costs</h2>
       <p>Minimum fee assumed on entry. A matching actual expense replaces it whenever recorded.</p></div></div>
-    <div className="capital-inline-totals"><div><span>Actual</span><strong>{money(data.actualTotal)}</strong></div><div><span>Assumed</span><strong>{money(data.assumedTotal)}</strong></div><div><span>Combined</span><strong>{money(data.total)}</strong></div></div>
+    <div className="capital-inline-totals"><div><span>Actual</span><strong>{money(data.actualTotal)}</strong></div><div><span>Assumed</span><strong>{money(data.assumedTotal)}</strong></div><div aria-describedby={includesAssumptions ? 'disposal-assumed-note' : undefined}><span>Combined{includesAssumptions && <sup>*</sup>}</span><strong>{money(data.total)}</strong></div></div>
+    {includesAssumptions && <p id="disposal-assumed-note">* Combined includes assumed costs alongside recorded actual costs.</p>}
     {!data.geofencesAvailable && <p role="status">Geofence history unavailable; visit coverage is incomplete.</p>}
     {!data.policyAvailable && <p role="status">Minimum-fee settings need attention.</p>}
     {!!data.needsReviewCount && <p role="status">Some expenses need a visit or duplicate check. Combined cost is unavailable until those matches are resolved.</p>}

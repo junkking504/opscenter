@@ -1,4 +1,7 @@
 .ops-live .operating-trends { --operating-actual: #397ca8; --operating-secondary: #7b8493; --operating-forecast: #bc7c14; margin-top: 24px; }
+.ops-live .operating-planning { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.ops-live .operating-upcoming { margin-top: 24px; }
+.ops-live .operating-history > div { flex-wrap: wrap; }
 .ops-live .analytics-page { margin: 18px 0; }
 .ops-live .analytics-refresh { min-height: 38px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); color: var(--foreground); cursor: pointer; }
 .ops-live .operating-truck-filter { max-width: 240px; margin: 12px 0; }

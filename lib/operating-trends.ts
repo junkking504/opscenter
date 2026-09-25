@@ -8,6 +8,8 @@ export type OperatingDay = {
   adCost?: number | null; calls?: number | null; conversions?: number | null; costPerCall?: number | null;
   reviews?: number | null; averageRating?: number | null; miles?: number | null;
   scheduledAppointments?: number | null; labor?: number | null; dumpAndFuel?: number | null;
+  /** Explicit source observation, not inferred from Sunday or a missing daily row. */
+  jobDay?: 'operating' | 'zero' | null;
 };
 export type AnalyticsScope = 'expenses' | 'business' | 'forecast' | 'marketing' | 'reviews' | 'fleet' | 'jobs' | 'labor';
 export const scopeMetrics: Record<AnalyticsScope, OperatingMetric[]> = {
@@ -48,6 +50,7 @@ export function operatingTrendsSnapshot(dataset: PredictionDataset | null, selec
       const supplementalWex = wexCost !== null && (publishedFuel === null || Math.abs(publishedFuel) < .005);
       const selectedFuel = supplementalWex ? wexCost : publishedFuel;
       return { date: row.date, revenue: finite(row.junkware.revenue), completedJobs: finite(row.junkware.completedJobs),
+        jobDay: row.junkware.completedJobs === 0 ? 'zero' : (row.junkware.completedJobs ?? 0) > 0 ? 'operating' : null,
         recordedFuel: finite(row.junkware.recordedFuelCost), wexCost, gallons,
         netPerGallon: gallons !== null && gallons > 0 && wexCost !== null ? wexCost / gallons : null,
         dumpCost: finite(row.actuals.dumpCost), operatingProfit: row.junkware.netProfit === null ? null : row.junkware.netProfit - (supplementalWex ? wexCost! : 0),
@@ -66,6 +69,7 @@ export function operatingTrendsSnapshot(dataset: PredictionDataset | null, selec
     trucks: [...new Set(dataset.truckDaily.map(row => row.truck))].sort().map(truck => ({ truck,
       daily: dataset.truckDaily.filter(row => row.truck === truck && row.date >= start && row.date <= historyThrough).map(row => ({
         date: row.date, revenue: null, completedJobs: null, dumpCost: null, recordedFuel: finite(row.recordedFuelCost),
+        jobDay: dataset.daily.find(day => day.date === row.date)?.junkware.completedJobs === 0 ? 'zero' : (dataset.daily.find(day => day.date === row.date)?.junkware.completedJobs ?? 0) > 0 ? 'operating' : null,
         wexCost: finite(row.wexFuelCost), gallons: finite(row.wexGallons), miles: finite(row.miles),
         netPerGallon: row.wexGallons !== null && row.wexGallons > 0 && row.wexFuelCost !== null ? row.wexFuelCost / row.wexGallons : null,
       })) })),
@@ -91,13 +95,48 @@ export function operatingChartRows(data: OperatingTrendsData, metric: OperatingM
   return rows;
 }
 
+export type SmoothedOperatingRow = OperatingChartRow & { observedDays: number; secondaryObservedDays: number };
+/** Historical presentation only: keep raw values unchanged, never average model bounds. */
+export function smoothOperatingChartRows(data: OperatingTrendsData, metric: OperatingMetric, rows: OperatingChartRow[], operatingDays: boolean): SmoothedOperatingRow[] {
+  const source = [...data.daily].sort((a, b) => a.date.localeCompare(b.date));
+  const byDate = new Map(source.map(row => [row.date, row]));
+  const eligible = (row: OperatingDay) => !operatingDays || row.jobDay === 'operating';
+  const value = (row: OperatingDay, secondary: boolean) => finite(secondary ? row.recordedFuel : metric === 'fuelCost' ? row.wexCost : metric === 'fuelGallons' ? row.gallons : row[metric]);
+  const ratio = (row: OperatingDay): [number | null, number | null] | null => {
+    if (metric === 'averageJob') return [row.revenue, row.completedJobs];
+    if (metric === 'costPerCall') return [row.adCost ?? null, row.calls ?? null];
+    if (metric === 'netPerGallon') return [row.wexCost, row.gallons];
+    if (metric === 'averageRating') return [row.reviews === 0 ? 0 : row.averageRating != null && row.reviews != null ? row.averageRating * row.reviews : null, row.reviews ?? null];
+    return null;
+  };
+  return rows.filter(row => !operatingDays || byDate.get(row.date)?.jobDay !== 'zero').map(row => {
+    const current = byDate.get(row.date);
+    const history = source.filter(day => day.date <= row.date && eligible(day) && (operatingDays || day.date >= shiftDay(row.date, -6))).slice(-7);
+    const average = (secondary: boolean): [number | null, number] => {
+      if (!current || !eligible(current) || row.date > data.historyThrough) return [null, 0];
+      const pair = !secondary ? ratio(current) : null;
+      if (pair) {
+        if (pair.some(item => item === null)) return [null, 0];
+        const pairs = history.map(ratio).filter((item): item is [number, number] => item !== null && item[0] !== null && item[1] !== null && item[1] >= 0);
+        const denominator = pairs.reduce((sum, item) => sum + item[1], 0);
+        return [denominator > 0 ? pairs.reduce((sum, item) => sum + item[0], 0) / denominator : null, pairs.length];
+      }
+      if (value(current, secondary) === null) return [null, 0];
+      const values = history.map(day => value(day, secondary)).filter((item): item is number => item !== null);
+      return [values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : null, values.length];
+    };
+    const [actual, observedDays] = average(false), [secondary, secondaryObservedDays] = average(true);
+    return { ...row, actual, secondary, observedDays, secondaryObservedDays };
+  });
+}
+
 /** Explicit allowlist prevents finance data from leaking through operations-only views. */
 export function scopeOperatingTrends(data: OperatingTrendsData | null, scope: AnalyticsScope): OperatingTrendsData | null {
   if (!data) return null;
   const allowed = scopeMetrics[scope];
   const sources = scope === 'marketing' ? ['searchKings'] : scope === 'reviews' ? ['podium'] : scope === 'fleet' ? ['wex', 'linxup', 'junkware'] : ['wex', 'junkware'];
   const select = (row: OperatingDay): OperatingDay => {
-    const projected: OperatingDay = { date: row.date, revenue: null, completedJobs: null, recordedFuel: null, wexCost: null, gallons: null, netPerGallon: null, dumpCost: null };
+    const projected: OperatingDay = { date: row.date, jobDay: row.jobDay, revenue: null, completedJobs: null, recordedFuel: null, wexCost: null, gallons: null, netPerGallon: null, dumpCost: null };
     for (const metric of allowed) {
       if (metric === 'fuelCost') { projected.wexCost = row.wexCost; projected.recordedFuel = row.recordedFuel; }
       else if (metric === 'fuelGallons') projected.gallons = row.gallons;

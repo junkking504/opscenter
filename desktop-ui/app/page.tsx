@@ -33,6 +33,7 @@ import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
 import type { LiveAnalyticsProps } from '../live-analytics';
 import { commandKpiDestination } from '../lib/command-kpi-navigation';
+import { ActionHints } from '../action-hints';
 import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
@@ -4205,6 +4206,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
   return (
     <main className={live ? 'ops-app ops-live' : 'ops-app'}>
+      {live && <ActionHints />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>
           <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />
@@ -4393,7 +4395,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </section>}
           {activeNav === 'Command' && view !== 'forecast' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
             {commandKpiRows.map((kpi) => (
-              <button type="button" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
+              <button type="button" data-action-hint="Open graph & see data" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}

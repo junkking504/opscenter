@@ -47,6 +47,40 @@ historical evidence it already collects. The first version is deliberately a
 transparent baseline: it exposes source coverage, missing values, backtest
 error, and the exact source used for each actual cost.
 
+### Operating-day presentation and demand planning
+
+Historical operating graphs default to a trailing seven recorded operating-day
+average. A source-confirmed zero completed-job day is excluded, per the operator's
+closure rule; missing jobs or missing metrics stay gaps. Calendar spacing stays
+accurate. Daily mode and source tables preserve originals, including zero days.
+Ad/review averages use seven calendar days because their activity can continue
+while closed. Rates are recomputed from summed numerators and denominators.
+
+Capital Trends, Command Forecast and Control job drill-downs include weekday and
+day-of-month average completed jobs (90/180/365 days), sample counts, and 14-day
+demand predictions. Month-date patterns are descriptive, not a fitted seasonality
+effect; ranked peaks require at least three observed operating days.
+
+The planning model in `lib/operating-planning.ts` uses up to eight matching
+operating weekdays in the prior 84 days, recency-weighted. Two matching days are
+required, otherwise seven to 28 recent operating days provide a disclosed
+low-confidence fallback. This allows recently opened Sundays without historic
+closure zeros depressing demand. It assumes every future day is open, including
+Sundays, without holiday, weather or staffing adjustments. Prior-only rolling
+backtests report WAPE; no calibrated prediction interval is claimed.
+
+The current month's revenue bar stacks predicted **additional** revenue above
+published monthly actuals. Today's published partial revenue is deducted from
+today's estimate, bounded at zero, to prevent double counting. Missing historical
+actuals are disclosed and never filled as recorded revenue. A stale/historical
+selection or insufficient training data suppresses the projection. The projection
+does not change accounting totals or source records.
+
+Command metric cards advertise `Open graph & see data`. A delegated hover/focus
+hint layer covers standard buttons, links, tabs, summaries and selectors across
+live workspaces, preserving existing authored tooltips. Hints dismiss on Escape,
+click, scroll or blur and never intercept the underlying action.
+
 ## Data grains
 
 - **Daily business:** JunkWare revenue, jobs, estimates, payroll and recorded

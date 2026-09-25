@@ -1,0 +1,1 @@
+.ops-action-hint { position: fixed; z-index: 100000; max-width: min(260px, calc(100vw - 24px)); padding: 7px 10px; border: 1px solid #46515a; border-radius: 6px; background: #202932; color: #fff; font: 500 12px/1.4 system-ui, sans-serif; pointer-events: none; box-shadow: 0 3px 12px #0002; }

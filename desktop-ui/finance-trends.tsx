@@ -9,6 +9,8 @@ import { fromFinanceMonth, type TrendValues } from '../lib/finance-trend-compari
 import { financeChange, financePerformance, performanceExplanation, type PerformanceComparison, type PerformanceScope } from './lib/finance-performance';
 import './finance-trends.css';
 import { OperatingTrends } from './operating-trends';
+import { monthRevenueProjection } from '../lib/operating-planning';
+import { currentOperatingDay } from './lib/operating-day';
 
 const metrics = [{ key: 'revenue', label: 'Revenue' }, { key: 'jobs', label: 'Completed jobs' }, { key: 'averageJob', label: 'Average job value' }] as const;
 const format = (key: keyof TrendValues, value: number | null | undefined) => value == null ? '—' : key === 'jobs' ? value.toLocaleString('en-US') : key === 'margin' ? `${value.toFixed(1)}%` : money(value);
@@ -34,19 +36,22 @@ export default function FinanceTrends({ data, hideCharts = false }: { data: Fina
   const ordered = [...data.trends].sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   const noComparison = metrics.some(({ key: metric }) => current[metric] != null && prior[metric] == null && !(metric === 'averageJob' && prior.jobs === 0));
   const year = Number(key.slice(0, 4));
+  const liveMonth = data.trends.find(month => month.monthKey === data.date.slice(0, 7));
+  const projection = monthRevenueProjection(data.operatingTrends, { today: currentOperatingDay(), month: data.date.slice(0, 7), actual: liveMonth?.grossRevenue ?? null, through: liveMonth?.dataThroughDate ?? '', partialDayRevenue: data.daily.revenue, missingDates: liveMonth?.revenueSource === 'junkware-monthly-dashboard' ? [] : liveMonth?.missingDates });
   const chart = Array.from({ length: Number(key.slice(5)) }, (_, i) => {
     const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
     const month = data.trends.find(m => m.monthKey === monthKey);
     const complete = month && (month.reportingComplete ?? month.complete);
     const previous = data.trendComparisons?.[monthKey]?.yearPrior;
-    return { month: new Date(`${monthKey}-01T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short' }), current: complete ? fromFinanceMonth(month)[chartMetric] : null, prior: complete ? previous?.[chartMetric] ?? null : null };
+    const projected = chartMetric === 'revenue' && monthKey === data.date.slice(0, 7) ? projection : null;
+    const partialActual = chartMetric === 'revenue' && monthKey === data.date.slice(0, 7) && month ? month.grossRevenue : null;
+    return { month: new Date(`${monthKey}-01T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short' }), current: partialActual ?? (complete ? fromFinanceMonth(month)[chartMetric] : null), remaining: projected?.remaining ?? null, prior: complete ? previous?.[chartMetric] ?? null : null };
   });
   const currentMonth = key === data.date.slice(0, 7);
   const monthTitle = view.month?.reportingComplete || view.month?.complete ? 'Full month' : currentMonth ? 'Month to date' : 'Available history';
   const selectMonth = (month: string) => setSelection({ date: data.date, month });
   return <section ref={section} className="finance-performance capital-page" aria-label="Finance Trends">
     <CapitalPageHeader eyebrow="PERFORMANCE & TRENDS" title="Understand what drives growth" description="Compare revenue, job volume and profitability across reporting periods."/>
-    {!hideCharts && <OperatingTrends data={data.operatingTrends} scope="business" />}
     <h3 className="finance-performance-section">Monthly performance</h3>
     <div className="finance-performance-controls">
       <label>Period<select value={scope} onChange={event => setScope(event.target.value as PerformanceScope)}><option value="month">{monthTitle}</option><option value="ytd">Year to date</option></select></label>
@@ -64,14 +69,15 @@ export default function FinanceTrends({ data, hideCharts = false }: { data: Fina
     <div className="finance-performance-kpis" aria-live="polite">{metrics.map(({ key: metric, label }) => <article key={metric}><span>{label}</span><strong>{format(metric, current[metric])}</strong><Delta field={metric} current={current[metric]} prior={prior[metric]} />{prior[metric] != null && <small>Previous: {format(metric, prior[metric])}</small>}</article>)}</div>
     <section className="finance-performance-section"><h3>What changed</h3><p className="finance-performance-explanation">{performanceExplanation(current, prior)}</p></section>
     <section className="finance-performance-section">
-      <div className="finance-performance-chart-heading"><div><h3>Performance over time</h3><p>Full months only · gaps mean missing history.</p></div><label>Chart metric<select value={chartMetric} onChange={event => setChartMetric(event.target.value as typeof chartMetric)}>{metrics.map(metric => <option key={metric.key} value={metric.key}>{metric.label}</option>)}</select></label></div>
-      <div className="finance-performance-legend"><span><i />{year}</span><span><i />{year - 1}</span></div>
-      <div className="finance-performance-chart" role="img" aria-label={`${metrics.find(m => m.key === chartMetric)?.label} by full calendar month, ${year} and ${year - 1}. Exact amounts are in monthly history.`}>
+      <div className="finance-performance-chart-heading"><div><h3>Performance over time</h3><p>{chartMetric === 'revenue' ? 'Completed months plus current-month revenue actuals and prediction.' : 'Full months only.'} Gaps mean unavailable data.</p></div><label>Chart metric<select value={chartMetric} onChange={event => setChartMetric(event.target.value as typeof chartMetric)}>{metrics.map(metric => <option key={metric.key} value={metric.key}>{metric.label}</option>)}</select></label></div>
+      <div className="finance-performance-legend"><span><i style={{ background: 'var(--capital-gold, #e3aa32)' }} />{year} actual</span><span><i style={{ background: 'var(--capital-gold-soft, #fff1cf)' }} />{year - 1}</span>{chartMetric === 'revenue' && projection && key === data.date.slice(0, 7) && <span><i style={{ background: '#bc7c1440', border: '1px dashed #bc7c14' }} />Predicted remaining revenue</span>}</div>
+      <div className="finance-performance-chart" role="img" aria-label={`${metrics.find(m => m.key === chartMetric)?.label} by month, ${year} and ${year - 1}${chartMetric === 'revenue' && projection && key === data.date.slice(0, 7) ? '; shaded segment above current actual revenue is predicted remaining revenue' : ''}.`}>
         <ResponsiveContainer width="100%" height="100%"><BarChart data={chart} margin={{ top: 12, right: 4, bottom: 0, left: 0 }} accessibilityLayer>
-          <CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={15} /><YAxis width={62} tickLine={false} axisLine={false} tickFormatter={value => chartMetric === 'jobs' ? String(value) : Math.abs(value) >= 1000 ? `$${value / 1000}k` : `$${value}`} /><Tooltip formatter={value => format(chartMetric, typeof value === 'number' ? value : null)} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 8 }} />
-          <Bar name={String(year)} dataKey="current" fill="var(--capital-gold, #e3aa32)" radius={[3, 3, 0, 0]} isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="var(--capital-gold-soft, #fff1cf)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={15} /><YAxis width={62} tickLine={false} axisLine={false} tickFormatter={value => chartMetric === 'jobs' ? String(value) : Math.abs(value) >= 1000 ? `$${value / 1000}k` : `$${value}`} /><Tooltip cursor={false} formatter={value => format(chartMetric, typeof value === 'number' ? value : null)} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 8 }} />
+          <Bar name={`${year} actual`} dataKey="current" stackId="current" fill="var(--capital-gold, #e3aa32)" isAnimationActive={false} /><Bar name="Predicted remaining revenue" dataKey="remaining" stackId="current" fill="#bc7c14" fillOpacity={.25} stroke="#bc7c14" strokeDasharray="4 3" isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="var(--capital-gold-soft, #fff1cf)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart></ResponsiveContainer>
       </div>
+      {chartMetric === 'revenue' && key === data.date.slice(0, 7) && (projection ? <div className="finance-performance-notice"><strong>Projected month-end revenue: {money(projection.total)}</strong><p>{money(projection.actual)} recorded through {dateLabel(projection.through)} + {money(projection.remaining)} predicted remaining. The shaded segment is additional revenue, not the total prediction.</p><p>Low-confidence estimate assuming daily operation including Sundays. Backtest error: {projection.backtest.wape == null ? 'unavailable' : `${(projection.backtest.wape * 100).toFixed(1)}% WAPE`} ({projection.backtest.samples} tests). No calibrated prediction interval.{projection.lowSampleDays ? ` ${projection.lowSampleDays} forecast day(s) use sparse or fallback history.` : ''}{projection.missingDates.length ? ` Actuals have ${projection.missingDates.length} missing historical day(s); the total may understate revenue. Missing days are not filled as actuals.` : ''}</p><details><summary>See revenue prediction data</summary><p>Same recency-weighted operating-weekday method as Demand planning. Today's already-recorded revenue is subtracted from today's estimate; actuals are never reduced.</p><div className="operating-data-table"><table><thead><tr><th>Date</th><th>Additional revenue</th><th>Training days</th><th>Method</th></tr></thead><tbody>{projection.estimates.map(row => <tr key={row.date}><td>{row.date}</td><td>{money(row.value)}</td><td>{row.samples}</td><td>{row.method}</td></tr>)}</tbody></table></div></details></div> : <p>Month-end revenue prediction needs current, dated actuals and enough operating history.</p>)}
     </section>
     <section className="finance-performance-section"><h3>Costs & profitability <small>Operating estimates</small></h3><p>Published daily records. Margin uses daily sales, the revenue basis behind the operating profit estimate. These are not QuickBooks financial statements.</p>
       <div className="finance-performance-kpis finance-performance-operating">{([{ key: 'costs', label: 'Recorded operating costs' }, { key: 'profit', label: 'Estimated operating profit' }, { key: 'margin', label: 'Margin on daily sales' }] as const).map(({ key: metric, label }) => <article key={metric}><span>{label}</span><strong>{format(metric, current[metric])}</strong><Delta field={metric} current={current[metric]} prior={prior[metric]} /></article>)}</div>
@@ -84,5 +90,6 @@ export default function FinanceTrends({ data, hideCharts = false }: { data: Fina
       <p>Comparison coverage: {metrics.map(metric => `${metric.label}: ${prior[metric.key] == null ? 'unavailable' : 'available'}`).join(' · ')}</p>
     </details>
     {!data.trends.length && <p>No published monthly history is available.</p>}
+    {!hideCharts && <OperatingTrends data={data.operatingTrends} scope="business" />}
   </section>;
 }

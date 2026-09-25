@@ -89,6 +89,11 @@ This adds no provider polling or external requests.
 Actual source expense notifications keep their existing behavior; assumptions
 send no new messages.
 
+When assumed costs remain, Disposal costs displays `Combined*` with the note
+`* Combined includes assumed costs alongside recorded actual costs.` Actual-only
+totals have no asterisk. Unresolved totals remain unavailable; the marker never
+overrides reconciliation or implies a verified final total.
+
 The projection lives in `lib/unload-cost-agent.ts` and `lib/dump-expenses.ts`,
 derived on read from retained LinxUp and verified JunkWare history. OpsCenter
 includes the still-assumed amount in the selected day's disposal expense, total

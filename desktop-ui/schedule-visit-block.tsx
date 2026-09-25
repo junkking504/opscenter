@@ -29,7 +29,8 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
     style={{left:`${segment.left*100}%`,width:`max(${position.actual?(partner?54:48):(partner?34:22)}px, ${segment.width*100}%)`,top,height:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
-    data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end}
+    data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}
+    data-visit-left={position.actual?segment.left:undefined} data-visit-right={position.actual?segment.left+segment.width:undefined}
     onPointerDown={movable?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
     {partner && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}
     {movable && <GripVertical className="schedule-grip" size={9} aria-hidden="true"/>}

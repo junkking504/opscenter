@@ -876,6 +876,12 @@ elapsed visit time. This presence evidence does not change the JunkWare
 assignment, appointment window, closeout, or GPS history, and multi-truck visit
 blocks cannot be dragged into an assignment correction.
 
+If parked heartbeat cadence leaves a short blank between two unresolved visit
+blocks, the connector may bridge that time gap only while both trucks still
+have non-stale GPS inside the appointment's 200-meter boundary. A stale GPS
+report, confirmed departure, different premises, or historical planning day
+suppresses that current-location bridge.
+
 Confirmed visits by the operational GPS truck size that lane's block using
 arrival and departure. Return visits remain separate segments, leaving time
 away blank. Overlapping duplicate observations for that truck are merged.

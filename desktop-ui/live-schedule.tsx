@@ -517,7 +517,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
             </div></div></div>;
           })}
-          <ScheduleColocatedVisitConnectors refreshKey={`${snapshot.observedAt || ''}:${now.getTime()}:${truckNames.join(',')}`} />
+          <ScheduleColocatedVisitConnectors refreshKey={`${snapshot.observedAt || ''}:${now.getTime()}:${truckNames.join(',')}`} appointments={jobs} trucks={snapshot.fleet.isToday?snapshot.fleet.trucks:[]} now={now.getTime()} />
         </div></div>
       </div>}
       {dragNotice && <div className="schedule-drag-notice" role="status"><span>{dragNotice}</span><button type="button" aria-label="Dismiss drag notice" onClick={() => setDragNotice('')}>×</button></div>}

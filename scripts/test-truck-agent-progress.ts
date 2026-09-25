@@ -4,7 +4,7 @@ import { projectTruckAgents } from '../lib/truck-agents';
 const now = Date.parse('2026-09-17T16:30:00Z'), date = '2026-09-17', at = new Date(now).toISOString();
 const source = <T>(data: T): AgentSource<T> => ({ data, available: true, observedAt: at, note: '' });
 const location = { latitude: 30, longitude: -90 };
-const truckLocation = { latitude: 30 + 136 / 111195, longitude: -90 };
+const truckLocation = { latitude: 30 + 210 / 111195, longitude: -90 };
 function fixture(n = 3): TruckAgentInputs {
   const truck = `Truck ${n}`;
   return {
@@ -17,9 +17,9 @@ const assess = (x: TruckAgentInputs, clock = now) => assessTruck(3, date, x, clo
 for (let n = 1; n <= 9; n++) {
   const x = fixture(n), before = JSON.stringify(x), a = assessTruck(n, date, x, now);
   assert.equal(a.summary.progress?.kind, 'nearby');
-  assert.equal(a.summary.progress?.distanceMeters, 136);
+  assert.equal(a.summary.progress?.distanceMeters, 210);
   assert.equal(a.summary.progress?.stoppedSince, '2026-09-17T16:27:00.000Z');
-  assert.match(a.summary.progress!.detail, /125-metre/);
+  assert.match(a.summary.progress!.detail, /200-metre/);
   assert(a.recommendations.some(r => r.rule === 'appointment-progress'));
   assert(!a.recommendations.some(r => r.rule === 'window'), 'Progress context replaces generic overdue recommendation for that appointment');
   assert.equal(JSON.stringify(x), before, 'No source, coordinate or visit mutation');
@@ -49,6 +49,10 @@ assert.equal(assess(shutdown).summary.progress?.kind, 'nearby');
 const onsite = fixture(); onsite.gps.data[0] = { ...onsite.gps.data[0], ...location, points: onsite.gps.data[0].points!.map(p => ({ ...p, ...location })) };
 assert.equal(assess(onsite).summary.progress?.kind, 'on_site');
 assert.equal(assess(onsite).summary.nextJob, null);
+const withinExpandedRadius = fixture();
+const withinLocation = { latitude: 30 + 136 / 111195, longitude: -90 };
+withinExpandedRadius.gps.data[0] = { ...withinExpandedRadius.gps.data[0], ...withinLocation, points: withinExpandedRadius.gps.data[0].points!.map(p => ({ ...p, ...withinLocation })) };
+assert.equal(assess(withinExpandedRadius).summary.progress?.kind, 'on_site', 'A 136-metre stop is inside the 200-metre job boundary');
 const departed = fixture(); departed.gps.data[0] = { ...departed.gps.data[0], latitude: 30.1, speed: 25 };
 departed.visits.data.push({ truck: 'Truck 3', name: 'Example visit', appointmentId: 'synthetic-appointment', entered: '2026-09-17T16:00:00Z', departed: '2026-09-17T16:20:00Z' });
 assert.equal(assess(departed).summary.progress?.kind, 'visited');
@@ -71,4 +75,4 @@ assert.equal(parkedReport.summary.progress, null, 'Stale schedule still prevents
 parked.schedule.observedAt = new Date(now + 76 * 60_000).toISOString();
 assert.equal(assess(parked, now + 76 * 60_000).summary.progress, null, 'Expired parked evidence cannot support nearby reporting');
 const closed = fixture(); closed.schedule.data[0].status = 'Completed'; assert.equal(assess(closed).summary.progress, null);
-console.log('Truck agent progress: all nine trucks, 136m boundary, stop evidence, ambiguous jobs, freshness, identity, arrival/departure and deduplication passed.');
+console.log('Truck agent progress: all nine trucks, 200m boundary, stop evidence, ambiguous jobs, freshness, identity, arrival/departure and deduplication passed.');

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { currentGpsJobLocation, currentGpsPresence } from '../lib/schedule-gps-presence';
+import { GPS_SITE_RADIUS_METERS } from '../lib/gps-presence-policy';
 const now = Date.parse('2026-09-10T16:02:00Z');
 const job = { appointmentId: 'one', location: { latitude: 29.97, longitude: -90.07 }, appointmentStartMinutes: 660, appointmentEndMinutes: 720, status: 'Confirmed' };
 const points = [0,1,2,3].map(i => ({ ...job.location, timestamp: new Date(now - (3-i)*60_000).toISOString(), continuousUntil: null }));
@@ -36,6 +37,12 @@ assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: [{ ...points[0], 
 assert.equal(currentGpsPresence({ ...job, location: null }, [truck], [job], now), undefined);
 assert.equal(currentGpsPresence(job, [{ ...truck, latitude: NaN }], [job], now), undefined, 'Invalid coordinates cannot indicate presence');
 assert.equal(currentGpsPresence(job, [{ ...truck, lastGpsUpdate: new Date(now + 120_000).toISOString() }], [job], now), undefined, 'Future reports cannot indicate presence');
+assert.equal(GPS_SITE_RADIUS_METERS, 200);
+const latitudeAtMeters = (meters: number) => job.location.latitude + meters / 111_195;
+const insideBoundaryPoints = points.map(point => ({ ...point, latitude: latitudeAtMeters(199) }));
+const outsideBoundaryPoints = points.map(point => ({ ...point, latitude: latitudeAtMeters(201) }));
+assert.equal(currentGpsPresence(job, [{ ...truck, latitude: latitudeAtMeters(199), routePoints: insideBoundaryPoints }], [job], now)?.truck, 'Truck 3', 'A source-backed stop 199 metres from the pin is at the job');
+assert.equal(currentGpsPresence(job, [{ ...truck, latitude: latitudeAtMeters(201), routePoints: outsideBoundaryPoints }], [job], now), undefined, 'A stop 201 metres from the pin remains outside the job boundary');
 console.log('GPS presence: continuous dwell, missing history, parked/stale GPS, ambiguity and closed jobs passed.');
 const early = { ...job, truck: 'Truck# 3', appointmentStartMinutes: 780, appointmentEndMinutes: 840 };
 assert.equal(currentGpsPresence(early, [truck], [early], now)?.truck, 'Truck 3', 'An assigned crew physically onsite may arrive more than ninety minutes early');

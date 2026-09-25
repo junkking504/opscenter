@@ -597,7 +597,7 @@ for address confirmation, while incomplete or mismatched source fields still ask
 for correction.
 
 Schedule also reconciles recent continuous GPS dwell against current verified
-pins: two distinct reports spanning at least two minutes inside 125 meters,
+pins: two distinct reports spanning at least two minutes inside 200 meters,
 no uncovered gap over five minutes, and latest GPS at most ten minutes old.
 A matching assigned truck can arrive early. If the latest parked report ages
 beyond ten minutes, the same dwell remains last-reported-on-site (up to twelve
@@ -773,7 +773,7 @@ Unlinked alerts do not infer an appointment match.
 ## Current presence and route refreshes
 
 Current on-site badges follow the shared [GPS presence contract](linxup-push.md):
-125 meters, two minutes of continuous source-backed dwell and a latest observation
+200 meters, two minutes of continuous source-backed dwell and a latest observation
 no older than three minutes, including parked trucks. A single report, missing
 route evidence or an older open visit cannot establish current presence. An away
 point or recorded departure breaks dwell. Last-known parked markers retain their

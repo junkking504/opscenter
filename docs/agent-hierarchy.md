@@ -84,6 +84,13 @@ Repeated assessments do not repeat an accepted transfer. Human ownership and
 source actions remain in the supporting Control, truck or maintenance record.
 This is an oversight index, not a second executor or source-write queue.
 
+The maintenance observer's `photo-review` finding routes to Control and opens
+the Command photo-review queue. Held/failed photo records require source review;
+they are not, by themselves, implementation defects. Existing assignments move
+through the same dependency-gated handoff, preserving identity, history and
+deadline without closing any photo record. Technical photo-processing delays
+remain Engineering work.
+
 The live state retains every open or unconfirmed finding and the 200 most recent
 source-cleared findings. Older cleared findings move, under the same worker
 lock, to immutable per-record files in

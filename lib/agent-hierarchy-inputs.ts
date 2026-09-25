@@ -7,6 +7,7 @@ import {getKernelPool} from './platform/persistence/pool';
 import {truckAgentRoot} from './truck-agent-inputs';
 import {hierarchyFresh,projectHierarchy,readHierarchy,saveHierarchy} from './agent-hierarchy';
 import type {HierarchyFeed,HierarchyFinding} from '../desktop-ui/lib/agent-hierarchy-contract';
+import type {MaintenanceIncident} from '../desktop-ui/lib/maintenance-contract';
 import type {TruckAgent} from '../desktop-ui/lib/truck-agent-contract';
 import type {OperationalAgentState} from './operational-agents';
 import {scheduleAddressFeed, addressResearchFeed} from './address-agent-findings';
@@ -15,6 +16,17 @@ import {readVerifiedJunkwareScheduleSnapshot, readVerifiedJunkwareReconciliation
 import {planningLocation} from './planning-geocodes';
 import {readWaypointFeeds} from './waypoint-agent';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
+export function maintenanceFindings(incidents:MaintenanceIncident[]):HierarchyFinding[] {
+  return incidents.filter(i=>i.status!=='resolved').map(i=>({
+    id:`maintenance:${i.key}`,feed:'maintenance-observer',title:i.title,
+    detail:`${i.evidence} ${i.nextStep}`,
+    href:i.key==='photo-review'?'/desktop?data=live&workspace=Command&commandView=today&photoReview=1':monitor,
+    origin:'engineering',
+    // A held photo is operational review, not evidence of a software outage.
+    target:i.key==='photo-review'?'control':i.key.startsWith('client-')?'verification':/source|sync|gps|queue|collector/i.test(i.key)?'integrations':'implementation',
+    priority:i.kind==='technical'?'next':'watch',
+  }));
+}
 type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number;diagnostics?:{cpuUserMs?:number;cpuSystemMs?:number;maxResidentKb?:number}};
 export function runnerFindings(state:{stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>},now:number):HierarchyFinding[] {
   return ['shared','trucks','hierarchy'].flatMap(id=>{
@@ -61,7 +73,7 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
   }catch {unavailable('visit-tracking','Shared visit evidence unavailable.');unavailable('unload-cost','Shared cost evidence unavailable.');}
   try {
     const state=readMaintenanceState(path.join(truckAgentRoot(),'integrations/opscenter-maintenance'));
-    feeds.push({id:'maintenance-observer',available:hierarchyFresh(state.checkedAt,now),observedAt:state.checkedAt,detail:'Existing maintenance observations; engineering execution requires a scoped task.',findings:state.incidents.filter(i=>i.status!=='resolved').map(i=>({id:`maintenance:${i.key}`,feed:'maintenance-observer',title:i.title,detail:`${i.evidence} ${i.nextStep}`,href:monitor,origin:'engineering',target:i.key.startsWith('client-')?'verification':/source|sync|gps|queue|collector/i.test(i.key)?'integrations':'implementation',priority:i.kind==='technical'?'next':'watch'}))});
+    feeds.push({id:'maintenance-observer',available:hierarchyFresh(state.checkedAt,now),observedAt:state.checkedAt,detail:'Existing maintenance observations; engineering execution requires a scoped task.',findings:maintenanceFindings(state.incidents)});
     try {feeds.push(addressResearchFeed(state,now));}catch {unavailable('address-research','Address research queue could not be read; prior findings are retained.');}
   }catch {unavailable('maintenance-observer','Maintenance observations could not be read.');unavailable('address-research','Address research queue could not be read; prior findings are retained.');}
   try {

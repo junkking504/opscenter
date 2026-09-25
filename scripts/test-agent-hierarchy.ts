@@ -5,6 +5,7 @@ import path from 'node:path';
 import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyFinding,type HierarchySnapshot} from '../desktop-ui/lib/agent-hierarchy-contract';
 import {projectHierarchy,saveHierarchy,readHierarchy} from '../lib/agent-hierarchy';
 import {requiredOpsPermission} from '../lib/ops-roles';
+import type {MaintenanceIncident} from '../desktop-ui/lib/maintenance-contract';
 const now=Date.parse('2026-09-17T15:00:00Z'),date='2026-09-17',at=new Date(now).toISOString();
 assert.equal(hierarchyTabs.length,32);assert.equal(new Set(hierarchyTabs.map(t=>`${t.page}:${t.tab}`)).size,32);
 assert.equal(new Set(hierarchyAgents.map(a=>a.id)).size,hierarchyAgents.length);
@@ -47,7 +48,47 @@ try {
 }finally{fs.rmSync(root,{recursive:true,force:true});}
 console.log('Hierarchy passed: 32 tabs and crew flows, valid reporting tree, accepted handoffs, single owner, source failure retention, overdue escalation, reopening, monotonic state, private persistence and manager boundary.');
 async function checkRunnerHistory() {
-  const {runnerFindings}=await import('../lib/agent-hierarchy-inputs');
+  const {runnerFindings,maintenanceFindings}=await import('../lib/agent-hierarchy-inputs');
+  const review:MaintenanceIncident={key:'photo-review',title:'Photos need human review',area:'Command',kind:'review',unhealthy:true,evidence:'2 review records; 1 failed record.',nextStep:'Confirm exact appointment identity.',status:'open',firstSeenAt:at,lastSeenAt:at,resolvedAt:null,badChecks:2,goodChecks:0,occurrences:1,attempts:0};
+  const originalReview=structuredClone(review);
+  const [photo]=maintenanceFindings([review]);
+  assert.equal(photo.target,'control','Human photo review belongs to Operations, not software implementation');
+  assert.equal(photo.href,'/desktop?data=live&workspace=Command&commandView=today&photoReview=1','Open the actionable photo queue, not the same Monitor page');
+  assert.equal(photo.priority,'watch');
+  assert.equal(photo.detail,`${review.evidence} ${review.nextStep}`);
+  assert.deepEqual(review,originalReview,'Routing cannot mutate source records');
+  assert.equal(maintenanceFindings([{...review,status:'resolved'}]).length,0);
+  assert.equal(maintenanceFindings([{...review,status:'confirming'}])[0].target,'control');
+  for(const [key,target] of [['photo-processing','implementation'],['client-command','verification'],['crew-sync','integrations']]) {
+    const [technical]=maintenanceFindings([{...review,key,kind:'technical'}]);
+    assert.equal(technical.target,target,'Technical fault routing remains unchanged');
+    assert.equal(technical.priority,'next');
+  }
+  const photoFeeds=structuredClone(feeds);
+  photoFeeds.forEach(feed=>{feed.findings=[];});
+  const maintenance=photoFeeds.find(feed=>feed.id==='maintenance-observer')!;
+  maintenance.findings=[{...photo,target:'implementation'}];
+  const oldRouting=projectHierarchy(date,photoFeeds,now);
+  const oldIssue=oldRouting.issues[0];
+  assert.equal(oldIssue.owner,'implementation');
+  maintenance.findings=[photo];
+  const blockedFeeds=structuredClone(photoFeeds);
+  blockedFeeds.find(feed=>feed.id==='JunkWare')!.available=false;
+  const awaiting=projectHierarchy(date,blockedFeeds,now+1000,oldRouting);
+  assert.equal(awaiting.issues[0].owner,'implementation','Original owner remains until Control has source evidence');
+  assert.equal(awaiting.issues[0].proposedOwner,'control');
+  const migrated=projectHierarchy(date,photoFeeds,now+2000,awaiting);
+  const migratedIssue=migrated.issues[0];
+  assert.equal(migratedIssue.owner,'control');
+  assert.equal(migratedIssue.proposedOwner,null);
+  assert.equal(migratedIssue.status,'open','Rerouting is not backlog resolution');
+  assert.equal(migratedIssue.id,oldIssue.id);
+  assert.equal(migratedIssue.firstSeenAt,oldIssue.firstSeenAt);
+  assert.equal(migratedIssue.dueAt,oldIssue.dueAt,'Do not reset overdue review deadlines');
+  assert.deepEqual(migratedIssue.history.slice(0,oldIssue.history.length),oldIssue.history);
+  assert.equal(migratedIssue.history.filter(row=>row.event==='accepted'&&row.to==='control').length,1);
+  assert.deepEqual(projectHierarchy(date,photoFeeds,now+3000,migrated).issues[0].history,migratedIssue.history);
+  console.log('Photo review routing passed: correct owner and queue link, technical faults unchanged, source-gated transfer, preserved identity/history/deadline, no false closure.');
   const stages={shared:{status:'ok'},trucks:{status:'ok'},hierarchy:{status:'running'}};
   const failures=[{stage:'trucks',status:'timed_out',finishedAt:at,durationMs:20_000}];
   const recovered=runnerFindings({stages,failures},now+1000);

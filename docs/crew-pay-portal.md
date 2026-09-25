@@ -71,6 +71,22 @@ this attendance filter; payroll edits are accessible from the weekly breakdown.
 The employee-facing **My Pay** portal remains read-only. Managers make payroll
 corrections in Krewe, where the source value and correction audit are visible.
 
+The Crew Portal publication handoff applies the same eligible OpsCenter time
+corrections used by desktop Krewe before it writes the monthly KV payload. A
+correction replaces stale collected clocks, hours, and the shift rate; a saved
+missed shift also creates a payroll-only row when that day's collected metrics
+have no employee row. The portal recalculates regular and overtime hours from
+the corrected daily shifts across each Monday-through-Sunday workweek. Failed
+pre-submission edits remain audit history and are not published as overrides.
+When the current correction has a matching verified JunkWare receipt, its
+source-rounded hours and hourly labor take precedence over clock arithmetic and
+the day can be final. Pending, uncertain, and legacy corrections without that
+read-back remain visible as needing review and cannot claim finality.
+Correction reasons, manager identity, audit IDs, and JunkWare synchronization
+receipts remain private operational data and are not included in the portal
+payload. Existing job, revenue, tip, bonus, and other performance fields are
+preserved.
+
 Corrections are durable operational state at
 `OPSBOT_DATA_DIR/payroll_corrections/payroll_corrections.json`. The Mac/VPS
 state sync treats this directory like the other operator-managed state, so a

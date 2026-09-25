@@ -536,7 +536,9 @@ function rawDay(date: string, employee: string, metrics: AnyRecord, todayKey: st
 
   const sourceFinal = row.pay_is_final;
   const isFinal = sourceFinal === true || (sourceFinal !== false && date < todayKey && Boolean(clockOut || !clockIn));
-  const needsReview = Boolean(clockIn && !clockOut && date < todayKey) || (!isSalary && hours > 0 && !hourlyRate);
+  const needsReview = row.crew_pay_needs_review === true
+    || Boolean(clockIn && !clockOut && date < todayKey)
+    || (!isSalary && hours > 0 && !hourlyRate);
 
   return {
     date,
@@ -628,7 +630,7 @@ function applyWeeklyOvertime(days: CrewPayDay[]): CrewPayDay[] {
   });
 }
 
-function periodFromMetrics(
+export function periodFromMetrics(
   employee: string,
   periodStart: string,
   metricsByDate: Map<string, AnyRecord>,

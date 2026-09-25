@@ -71,6 +71,7 @@
     "verify:crew-attendance": "node --import tsx scripts/test-crew-attendance.ts",
     "verify:crew-job-values": "node --import tsx scripts/test-crew-job-values.ts",
     "verify:crew-portal-monthly-summary": "node --import tsx scripts/test-crew-portal-monthly-summary.ts",
+    "verify:crew-portal-corrections": "node --import tsx scripts/test-crew-portal-corrections.ts",
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "verify:inbox-theme": "node --import tsx scripts/test-inbox-preview-theme.ts",
     "verify:global-search": "node --import tsx scripts/test-global-search.ts",

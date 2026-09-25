@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { publishCrewValue, runCrewWrangler, writeCrewSyncStatus } from "@/lib/crew-portal-sync";
+import { applyPayrollCorrectionsToCrewMetrics } from "@/lib/crew-portal-publication";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 
 const DATA_KEY = "crew-portal-data-v1";
@@ -20,7 +21,8 @@ function metricDates(): string[] {
 function crewMetricsForDate(date: string): AnyRecord {
   const filename = path.join(metricsDirectory, `daily_metrics_${date}.json`);
   const parsed = JSON.parse(fs.readFileSync(filename, "utf8")) as AnyRecord;
-  const source = applyManualBonusesToMetrics(parsed, date) || parsed;
+  const corrected = applyPayrollCorrectionsToCrewMetrics(parsed, date);
+  const source = applyManualBonusesToMetrics(corrected, date) || corrected;
   return {
     date,
     generated_at: source.generated_at || null,

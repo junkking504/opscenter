@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { browseLeads, defaultLeadFilters, leadPhoneHref } from '../desktop-ui/lib/lead-browser';
+import { callDurationLabel } from '../desktop-ui/lib/call-duration';
 import type { Lead } from '../desktop-ui/lib/commercial-contract';
 
-const lead = (id: string, extra: Partial<Lead> = {}): Lead => ({ id, version: '1', customer: `Customer ${id}`, phone: '(225) 555-0123', territory: 'Baton Rouge', intent: 'Sofa removal', quotedValue: null, status: 'lost', reason: '', note: '', contacted: false, calledAt: '2026-09-01T12:00:00Z', updatedAt: '', source: 'SearchKings', sourceUrl: '', appointmentId: null, jk: null, completed: false, revenue: null, ...extra });
+const lead = (id: string, extra: Partial<Lead> = {}): Lead => ({ id, version: '1', customer: `Customer ${id}`, phone: '(225) 555-0123', duration: '', recordingUrl: '', territory: 'Baton Rouge', intent: 'Sofa removal', quotedValue: null, status: 'lost', reason: '', note: '', contacted: false, calledAt: '2026-09-01T12:00:00Z', updatedAt: '', source: 'SearchKings', sourceUrl: '', appointmentId: null, jk: null, completed: false, revenue: null, ...extra });
 const rows = [lead('lost'), lead('recent', { status: 'needs_follow_up', calledAt: '2026-09-15T12:00:00Z', quotedValue: 200, contacted: true, note: 'Call after lunch', territory: 'Northshore' }), lead('booked', { status: 'booked', appointmentId: '123', jk: 'JK123' }), lead('recovered', { status: 'recovered' }), lead('unqualified', { status: 'unqualified' })];
 assert.deepEqual(browseLeads(rows, defaultLeadFilters).rows.map(row => row.id), ['recent', 'lost']);
 assert.equal(browseLeads(rows, { ...defaultLeadFilters, query: '2255550123' }).total, 2, 'Unformatted phone matches formatted calls');
@@ -27,4 +28,7 @@ assert.deepEqual([browseLeads([], defaultLeadFilters).start, browseLeads([], def
 assert.equal(leadPhoneHref('+1 (225) 555-0123'), 'tel:+12255550123');
 assert.equal(leadPhoneHref('(225) 555-0123'), 'tel:+12255550123');
 assert.equal(leadPhoneHref(''), undefined);
+assert.equal(callDurationLabel('3:36'), '3 min 36 sec');
+assert.equal(callDurationLabel('1:00:05'), '1 hr 5 sec');
+assert.equal(callDurationLabel(''), 'Not recorded');
 console.log('Lead browsing: queues, combined search, phones, sorting, pagination and live shrink passed.');

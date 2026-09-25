@@ -42,6 +42,9 @@
 .campaign-detail > header h2 { font-size: 30px; line-height: 1.2; margin: 5px 0; overflow-wrap: anywhere; }
 .campaign-next-action { padding: 20px; background: #f6f7f3; border-radius: 9px; display: grid; gap: 10px; }
 .campaign-next-action p { color: #4e5b55; }
+.campaign-recording { display: grid; gap: 7px; margin-top: 4px; max-width: 520px; }
+.campaign-recording strong { font-size: 12px; font-weight: 600; }
+.campaign-recording audio { display: block; width: 100%; height: 40px; }
 .campaign-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
 .campaign-primary-link, .campaign-primary { background: var(--ops-brand-red) !important; color: white !important; border: 1px solid var(--ops-brand-red) !important; border-radius: 7px; font-size: 12px !important; min-height: 40px; padding: 10px 16px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; }
 .campaign-primary-link:hover, .campaign-primary:hover { background: var(--ops-brand-red-hover) !important; }

@@ -10,7 +10,7 @@ OpsCenter treats SearchKings as the paid-marketing source and JunkWare as the bo
 - A qualified call starts in **Needs follow-up** and becomes **Lost** after 72 hours without a match. Both thresholds are configurable.
 - If a lost call later matches a JunkWare appointment, it is shown as **Recovered**.
 
-Call recordings are not copied into OpsCenter. The snapshot contains call metadata, score, tags, and the SearchKings-generated summary, plus a secure link back to SearchKings.
+Call recordings are not copied into OpsCenter. When SearchKings supplies its HTTPS recording URL, Campaign shows a native player in the selected conversation and streams the recording directly from `calls.searchkings.com`; otherwise it reports that the recording is unavailable. The conversation also shows the source-reported call length. The protected Campaign response accepts recording URLs only from that SearchKings host.
 
 ## Desktop lead navigation
 

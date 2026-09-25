@@ -39,6 +39,9 @@ uses the newest valid observation across V2 and V3. A polled observation reports
 trucks remain visible. Invalid/future observations are excluded. The observation's
 own timestamp still controls stale labels, nearest-truck eligibility, and on-site
 evidence; keeping a last-known marker does not restore live GPS authority.
+Nearest-truck eligibility follows the displayed truck GPS state: moving, idle and
+incomplete reports use the three-minute live window, while a zero-speed,
+ignition-off report remains current through the 75-minute parked heartbeat window.
 
 `/api/health` exposes `linxupDeliveryMode`, `linxupV3UpdatedAt`,
 `linxupV3AgeSeconds`, and `linxupFallbackActive`. A healthy V2 snapshot with a

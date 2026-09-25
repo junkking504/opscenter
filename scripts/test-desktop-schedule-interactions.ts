@@ -71,7 +71,11 @@ assert.equal(scheduleStatusTone({ status: 'Completed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Estimate Closed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Cancelled' }), 'canceled');
 assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');
-assert.equal(addressResolutionCopy('No Exact Geocodio Premises Match').title, 'Address needs correction');
+assert.deepEqual(addressResolutionCopy('No Exact Geocodio Premises Match'), {
+  title: 'Precise pin required',
+  detail: 'The address may be real but is not mapped to an exact premises point. Get a customer or crew location pin before dispatch.',
+});
+assert.equal(addressResolutionCopy('Precise Service Location Unavailable').title, 'Precise pin required');
 assert.equal(addressResolutionCopy('Multiple Address Matches').title, 'Address needs confirmation');
 assert.equal(addressResolutionCopy('Address Provider Temporarily Unavailable').title, 'Location check delayed');
 assert.equal(addressResolutionCopy().title, 'Address needs correction');

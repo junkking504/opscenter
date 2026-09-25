@@ -590,6 +590,11 @@ Source-backed corrections are stored outside Git in
 entire original field, verified address, coordinates, precision and source URLs.
 They take precedence over older geocodes in maps and propagate into the visit
 cache. Unknown or conflicting addresses remain unverified, never city centroids.
+A provider's failure to return an exact premises point does not prove that the
+customer's address is invalid: Schedule labels that case `Precise pin required`
+and asks for a customer or crew location pin. True identity conflicts still ask
+for address confirmation, while incomplete or mismatched source fields still ask
+for correction.
 
 Schedule also reconciles recent continuous GPS dwell against current verified
 pins: two distinct reports spanning at least two minutes inside 125 meters,

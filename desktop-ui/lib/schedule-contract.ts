@@ -151,6 +151,7 @@ export function addressResolutionCopy(reason?: string) {
   if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };
   if (/provider|temporarily unavailable|usage guard/i.test(reason || '')) return { title: 'Location check delayed', detail: 'The verified-address sources are unavailable; OpsCenter will retry automatically.' };
   if (/multiple|conflicting/i.test(reason || '')) return { title: 'Address needs confirmation', detail: 'More than one premises matches. Confirm the complete service address before dispatch.' };
+  if (/no exact .*premises match|precise service location unavailable/i.test(reason || '')) return { title: 'Precise pin required', detail: 'The address may be real but is not mapped to an exact premises point. Get a customer or crew location pin before dispatch.' };
   return { title: 'Address needs correction', detail: 'The house number and street could not be verified. Confirm the service address before dispatch.' };
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }

@@ -1,7 +1,7 @@
 // Shared by legacy map beacons and the desktop Schedule read model. Parked
 // heartbeat tolerance describes last-known location, never current presence.
 export const GPS_PRESENCE_MAX_AGE_MS = 3 * 60_000;
-export const GPS_SITE_RADIUS_METERS = 125;
+export const GPS_SITE_RADIUS_METERS = 200;
 export const GPS_MINIMUM_DWELL_MS = 2 * 60_000;
 export const GPS_MAX_POINT_GAP_MS = 5 * 60_000;
 type Position = { latitude?: number | null; longitude?: number | null };

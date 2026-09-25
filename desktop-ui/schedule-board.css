@@ -185,6 +185,56 @@
 .ops-live .schedule-dispatch .schedule-time-basis { display: block; color: #607069; font-size: 10px; line-height: 1.2; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { padding-inline: 0; border-left-width: 1px; }
 
+/* A confirmed leave-and-return stays visually one appointment. The striped
+ * span is evidence of time away; only a positive dump geofence earns Dump. */
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap {
+  position: absolute;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  min-width: 1px;
+  border-block: 1px solid #8c9891;
+  background: repeating-linear-gradient(135deg, rgb(110 123 115 / 22%) 0 4px, rgb(255 255 255 / 78%) 4px 8px);
+  color: #46534c;
+  overflow: visible;
+  pointer-events: none;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap::before,
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap::after {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: #8c9891;
+  content: '';
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap::before { left: 0; }
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap::after { right: 0; }
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap > span {
+  position: relative;
+  z-index: 1;
+  max-width: calc(100% - 4px);
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 86%);
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump {
+  border-block-color: #9b6a13;
+  background: repeating-linear-gradient(135deg, rgb(203 145 35 / 30%) 0 4px, rgb(255 248 226 / 88%) 4px 8px);
+  color: #764d06;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::before,
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::after { background: #9b6a13; }
+.ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
+
 /* Planned windows remain distinct from measured truck visits. */
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="booked"] { border-style: dashed; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { margin-inline: 0; }

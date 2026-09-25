@@ -1,5 +1,13 @@
 import {appointmentServiceAddress} from '../../lib/service-address-format';
 export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
+export type ScheduleTruckVisitGap = {
+  truck: string;
+  departedAt: string;
+  returnedAt: string;
+  kind: 'dump' | 'off_site';
+  facilityName?: string;
+  facilityEnteredAt?: string;
+};
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
@@ -55,6 +63,7 @@ export type ScheduleAppointment = {
   onsiteTime?: AppointmentOnsiteTime;
   recordedOnsiteTime?: AppointmentOnsiteTime;
   truckVisits?: ScheduleTruckVisit[];
+  truckVisitGaps?: ScheduleTruckVisitGap[];
   truck: string;
   driver: string;
   navigator: string;
@@ -209,7 +218,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
   if (/cancel/i.test(job.status || '')) {
     if (truckLabel(truck) !== 'Unassigned' || !job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
     return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
-      intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
+      intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], gaps: [], label: 'Planned · booked window' };
   }
   if (job.truckVisits?.length) {
     const day = job.recordId.slice(0,10);
@@ -231,10 +240,14 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       // different truck happened to visit the same premises.
       if (truckLabel(job.truck || '') !== truckLabel(truck) || !job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
       return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
-        intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
+        intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], gaps: [], label: 'Planned · booked window' };
     }
+    const gaps = (job.truckVisitGaps || []).filter(gap=>truckLabel(gap.truck)===truckLabel(truck)).flatMap(gap=>{
+      const start=local(gap.departedAt), end=local(gap.returnedAt);
+      return Number.isFinite(start) && Number.isFinite(end) && end>start ? [{start,end,kind:gap.kind,facilityName:gap.facilityName}] : [];
+    }).sort((a,b)=>a.start-b.start);
     const minutes = intervals.reduce((sum,v)=>sum+v.end-v.start,0);
-    return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,
+    return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,gaps,
       label:`${minutes<1?'<1':Math.round(minutes)} min on site${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
   }
   if (truckLabel(job.truck || '')!==truckLabel(truck)) return null;
@@ -260,14 +273,15 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ordered = intervals.sort((a,b) => a.start - b.start);
       const minutes = ordered.reduce((sum,row) => sum + row.end - row.start, 0);
       if (Math.abs(minutes - time.minutes) <= 0.11 && ordered.every((row,i) => !i || row.start >= ordered[i-1].end)) {
-        return { actual: true, start: ordered[0].start, end: ordered.at(-1)!.end, intervals: ordered.map(row=>({...row,ongoing:false,complete:true})),
+        const gaps=ordered.slice(0,-1).flatMap((row,index)=>ordered[index+1].start>row.end ? [{start:row.end,end:ordered[index+1].start,kind:'off_site' as const,facilityName:undefined}] : []);
+        return { actual: true, start: ordered[0].start, end: ordered.at(-1)!.end, intervals: ordered.map(row=>({...row,ongoing:false,complete:true})), gaps,
           label: `${time.minutes < 1 ? '<1' : Math.round(time.minutes)} min on site${ordered.length > 1 ? ` · ${ordered.length} visits` : ''}` };
       }
     }
   }
   if (!job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
   return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
-    intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
+    intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], gaps: [], label: 'Planned · booked window' };
 }
 export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const windows = jobs.flatMap(job => {
@@ -293,7 +307,7 @@ export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<ty
   const window = timelineWindow(job, truck, now);
   if (!window) return null;
   const place = (row: {start:number;end:number}) => ({ left: (row.start - range.start) / range.duration, width: Math.max(0,row.end-row.start) / range.duration });
-  return { ...window, ...place(window), segments: window.intervals.map(place) };
+  return { ...window, ...place(window), segments: window.intervals.map(place), gapSegments: window.gaps.map(place) };
 }
 
 export type ScheduleFollowupFlags = { estimates: boolean; closed: boolean; unclosed: boolean; photos: boolean; linkedBooking: ScheduleAppointment | null };

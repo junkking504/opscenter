@@ -70,7 +70,7 @@ and unverified locations cannot create a current progress claim.
 
 A stationary stop within 300 metres of an assigned open appointment can produce
 **Stopped nearby — arrival unconfirmed**. The advisory radius does not change
-the shared 125-metre arrival boundary. A stop requires zero speed and two minutes
+the shared 200-metre arrival boundary. A stop requires zero speed and two minutes
 of observed stationary points within 30 metres, with no gap over five minutes;
 a stationary ON-to-OFF transition also establishes a stop. A passing truck or a
 single zero-speed report does not. Stop duration ends at the actual GPS report,

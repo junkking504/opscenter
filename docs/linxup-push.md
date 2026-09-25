@@ -58,7 +58,7 @@ OpsCenter must never acknowledge a position that it silently discards.
 The authoritative push path removes OpsCenter's polling delay. The timestamp
 remains the tracker's reported `date`. Initial on-site dwell qualification in Schedule and the
 Command map shares `lib/gps-presence-policy.ts`: valid coordinates within
-125 meters, at least two minutes of continuous source-backed dwell, and an
+200 meters, at least two minutes of continuous source-backed dwell, and an
 observation no older than three minutes. A first point cannot prove dwell.
 Uncovered gaps over five minutes, a newer away point or a recorded departure
 break the interval; an explicit source `continuousUntil` can cover a gap.
@@ -75,7 +75,7 @@ the former two-point/two-minute qualification so this change does not replay
 earlier drive-bys as new notifications. Departure evidence remains separate.
 
 Schedule also presents a narrower **At job** location fact when the latest
-report is zero-speed with ignition OFF, lies within 125 meters of exactly one
+report is zero-speed with ignition OFF, lies within 200 meters of exactly one
 non-canceled appointment assigned to that truck, and remains inside the
 75-minute parked heartbeat window. This timestamped fact may remain visible
 after JunkWare marks the appointment complete because completion is not GPS

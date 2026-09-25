@@ -14,12 +14,17 @@ policy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 qualify = policy.instant_qualifier(matcher.qualifying_visits)
 point = {'timestamp':'2026-09-10T21:00:00Z','latitude':30.0,'longitude':-90.0}
-visits, _, _, pass_by = qualify([point],30,-90,125,0,1,5)
+assert matcher.DEFAULT_RADIUS_METERS == 200
+visits, _, _, pass_by = qualify([point],30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)
 assert len(visits) == 1 and not pass_by
 assert visits[0]['arrival'] == point['timestamp']
 assert visits[0]['departure'] is None and visits[0]['onsite_minutes'] == 0
-assert not qualify([{**point,'latitude':31}],30,-90,125,0,1,5)[0]
-assert not qualify([{**point,'timestamp':'2026-09-10T20:00:00Z'}],30,-90,125,0,1,5)[0], 'Do not replay old drive-bys'
+assert not qualify([{**point,'latitude':31}],30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)[0]
+assert not qualify([{**point,'timestamp':'2026-09-10T20:00:00Z'}],30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)[0], 'Do not replay old drive-bys'
 old = [{**point,'timestamp':'2026-09-10T20:00:00Z'},{**point,'timestamp':'2026-09-10T20:02:00Z'}]
-assert len(qualify(old,30,-90,125,0,1,5)[0]) == 1, 'Preserve earlier qualified history'
+assert len(qualify(old,30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)[0]) == 1, 'Preserve earlier qualified history'
+inside = [{**point,'latitude':30 + 199/111_195}]
+outside = [{**point,'latitude':30 + 201/111_195}]
+assert len(qualify(inside,30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)[0]) == 1, '199 meters is inside the job boundary'
+assert not qualify(outside,30,-90,matcher.DEFAULT_RADIUS_METERS,0,1,5)[0], '201 meters remains outside the job boundary'
 print('Installed matcher passed: immediate single-point arrival, zero fabricated duration, outside exclusion, and pre-policy history preservation. Synthetic only.')

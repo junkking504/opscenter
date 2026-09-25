@@ -8,6 +8,7 @@ import { commercialMoney as money } from './lib/commercial-contract';
 import { fromFinanceMonth, type TrendValues } from '../lib/finance-trend-comparison';
 import { financeChange, financePerformance, performanceExplanation, type PerformanceComparison, type PerformanceScope } from './lib/finance-performance';
 import './finance-trends.css';
+import { OperatingTrends } from './operating-trends';
 
 const metrics = [{ key: 'revenue', label: 'Revenue' }, { key: 'jobs', label: 'Completed jobs' }, { key: 'averageJob', label: 'Average job value' }] as const;
 const format = (key: keyof TrendValues, value: number | null | undefined) => value == null ? '—' : key === 'jobs' ? value.toLocaleString('en-US') : key === 'margin' ? `${value.toFixed(1)}%` : money(value);
@@ -21,7 +22,7 @@ function Delta({ field, current, prior }: { field: keyof TrendValues; current: n
   const percent = change.percent == null ? 'No prior baseline' : `${change.percent > 0 ? '+' : ''}${change.percent.toFixed(1)}%`;
   return <span className="finance-performance-delta">{absolute}{field === 'margin' ? '' : ` · ${percent}`}</span>;
 }
-export default function FinanceTrends({ data }: { data: FinanceData }) {
+export default function FinanceTrends({ data, hideCharts = false }: { data: FinanceData; hideCharts?: boolean }) {
   const section = useRef<HTMLElement>(null);
   const [selection, setSelection] = useState({ date: data.date, month: data.date.slice(0, 7) });
   const key = selection.date === data.date ? selection.month : data.date.slice(0, 7);
@@ -45,6 +46,8 @@ export default function FinanceTrends({ data }: { data: FinanceData }) {
   const selectMonth = (month: string) => setSelection({ date: data.date, month });
   return <section ref={section} className="finance-performance capital-page" aria-label="Finance Trends">
     <CapitalPageHeader eyebrow="PERFORMANCE & TRENDS" title="Understand what drives growth" description="Compare revenue, job volume and profitability across reporting periods."/>
+    {!hideCharts && <OperatingTrends data={data.operatingTrends} scope="business" />}
+    <h3 className="finance-performance-section">Monthly performance</h3>
     <div className="finance-performance-controls">
       <label>Period<select value={scope} onChange={event => setScope(event.target.value as PerformanceScope)}><option value="month">{monthTitle}</option><option value="ytd">Year to date</option></select></label>
       <label>{scope === 'ytd' ? 'Through month' : 'Month'}<select value={key} onChange={event => selectMonth(event.target.value)}>{!view.month && <option value={key}>{monthLabel(key)} · no history</option>}{ordered.map(month => <option key={month.monthKey} value={month.monthKey}>{month.monthDisplay}</option>)}</select></label>

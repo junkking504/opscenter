@@ -552,6 +552,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               <div className="ops-muted">
                 Seven-day planning baselines with source coverage and rolling backtest error shown beside every forecast.
               </div>
+              <a className="ops-link" href={`/desktop?workspace=Command&commandView=forecast&date=${date}`}>Open interactive forecasts in Command → Forecast</a>
             </div>
           </div>
 

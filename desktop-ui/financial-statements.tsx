@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { commercialMoney } from './lib/commercial-contract';
 import { preferredStatements, statementMetrics, statementYearCoverage, type StatementData } from './lib/financial-statements';
 import './financial-statements.css';
+import { AccountingHistory } from './accounting-history';
 
 const money = (cents: number | null | undefined) => commercialMoney(cents == null ? null : cents / 100);
 const label = (month: string) => new Date(`${month}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -56,6 +57,7 @@ export function FinancialStatements({ data, date, onRefresh }: { data?: Statemen
     {refreshMessage && <p role="status" className="capital-notice">{refreshMessage}</p>}
     {statement.periodEnd && <p className="capital-report-cutoff">Reporting through {statement.periodEnd} · Retrieved {new Date(statement.observedAt!).toLocaleString("en-US")} · {statement.periodEnd === lastDay(activeMonth) ? "Full calendar month" : "Partial month"}</p>}
     <div className="statement-kpis">{[['Income', total.income], ['Cost of goods sold', total.cogs], ['Operating expenses', total.expenses], ['Net income', total.netIncome]].map(([name, amount]) => <article key={String(name)}><span>{name}</span><strong>{money(Number(amount))}</strong><small>{statement.status} · {label(activeMonth)}</small></article>)}</div>
+    <AccountingHistory records={preferred} selected={statement} />
     <section className="capital-panel capital-accounting-evidence"><header><div><span className="capital-eyebrow">REPORTING CONTEXT</span><h3>Sources & coverage</h3></div></header><div className="capital-accounting-context"><p className="statement-source">{statement.sourceName} · {statement.sheet} · Sources imported {new Date(data.importedAt!).toLocaleDateString('en-US')}<br/>Net margin {total.income ? `${(total.netIncome / total.income * 100).toFixed(1)}%` : 'unavailable'}{change != null && basisComparable ? ` · Net income change ${money(change)} vs ${label(previous!.month)}` : ' · Comparable full-month change unavailable.'}</p>
     {statement.warnings.length > 0 && <div className="statement-review" role="note"><strong>Statement needs review</strong>{statement.warnings.map(w => <p key={w}>{w}</p>)}</div>}
     <p className="statement-coverage">{coverage.totals ? `Year to date through ${statement.periodEnd || label(activeMonth)}: income ${money(coverage.totals.income)}, total expenses ${money(coverage.totals.cogs + coverage.totals.expenses + coverage.totals.otherExpenses)}, net income ${money(coverage.totals.netIncome)}.` : `Full year-to-date figures unavailable.${coverage.missing.length ? ` Missing statements: ${coverage.missing.map(label).join(', ')}.` : ' Accounting bases need confirmation.'}`} {activeKind === "workbook" ? "Historical drafts do not establish the current ledger balance." : "Bookkeeping completeness is separate from report coverage."}</p>

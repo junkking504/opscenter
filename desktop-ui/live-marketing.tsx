@@ -1,4 +1,5 @@
 import { CampaignLeads, CampaignResults, CampaignReviews, campaignOutcomes } from './campaign-workspace';
+import { LiveAnalytics } from './live-analytics';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
@@ -78,6 +79,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange }:
     {actionFeedback && <div className="campaign-save-status" role="status"><span>{actionFeedback}</span>{lastRequest && <Button disabled={busy} variant="outline" size="sm" onClick={() => void checkReceipt()}>Check saved result</Button>}</div>}
     {Object.keys(selections).length > 0 && !confirmation && <div className="campaign-save-status"><span>Job match not saved yet.</span><Button variant="outline" size="sm" disabled={locked} onClick={() => setSelections({})}>Discard match changes</Button></div>}
     {['overview', 'leads'].includes(view) && (data.available ? <CampaignLeads key={date} leads={data.leads} draft={draft} locked={locked} onDraft={setDraft} onReview={() => { setActionFeedback(''); setConfirmation('lead'); }}/> : <div className="campaign-panel campaign-empty"><h2>Lead source unavailable</h2><p>{data.error || 'SearchKings leads are unavailable for this period.'}</p></div>)}
+    {(view === 'reviews' || view === 'performance') && <LiveAnalytics date={date} scope={view === 'reviews' ? 'reviews' : 'marketing'} />}
     {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
     {view === 'performance' && (data.available ? <CampaignResults data={data}/> : <div className="campaign-panel campaign-empty"><h2>Results unavailable</h2><p>{data.error || 'SearchKings metrics are unavailable for this period. No sample metrics are substituted.'}</p></div>)}
     <footer className="campaign-source-footer"><span>{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings unavailable'}</span><span>{data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable'}</span></footer>

@@ -20,6 +20,7 @@ export type DailyPredictionFeatures = {
     completedJobs: number | null;
     estimates: number | null;
     appointments: number | null;
+    scheduledAppointments?: number | null;
     payroll: number | null;
     recordedFuelCost: number | null;
     recordedDumpCost: number | null;
@@ -461,10 +462,12 @@ export function buildPredictionDataset(dataRoot: string, now = new Date()): Pred
       date,
       calendar: calendar(date),
       junkware: {
-        revenue: finite(metrics.total_revenue ?? metrics.sales),
+        revenue: finite(metrics.sales ?? metrics.truck_record_financial_summary?.sales ?? metrics.total_revenue ?? metrics.gross_revenue),
         completedJobs: jobs,
         estimates,
         appointments: appointments.length,
+        // Same active schedule definition as Command: includes estimates, excludes cancellations.
+        scheduledAppointments: Array.isArray(metrics.appointments) ? appointments.filter(appointment => !String(appointment.job_status || appointment.status || '').toLowerCase().includes('cancel')).length : null,
         payroll: finite(metrics.total_payroll ?? metrics.payroll),
         recordedFuelCost: junkwareFuel,
         recordedDumpCost: recordedDump,

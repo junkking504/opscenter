@@ -1,4 +1,6 @@
 import { readFuelReconciliation } from './fuel-reconciliation';
+import { readPredictionDataset } from './prediction-data';
+import { operatingTrendsSnapshot } from './operating-trends';
 import { dailyFinanceEvidence, presentDailyFinance, type DailyFinanceEvidence } from './daily-finance-freshness';
 import { readRecyclingData } from './recycling-receipt-store';
 import { readDumpExpenses } from './dump-expenses';
@@ -24,6 +26,12 @@ const sumField = (entries: AnyRecord[], field: string): number | null => !entrie
 function recyclingFile() { return path.join(commercialDirectory(), 'recycling-store'); }
 function readRecyclingStore(): { schemaVersion: number; records: RecyclingRecord[]; [key: string]: unknown } { try { const store = JSON.parse(fs.readFileSync(recyclingFile(), 'utf8')); if (store.schemaVersion !== 1 || !Array.isArray(store.records)) throw new CommercialActionError('Recycling store requires recovery.'); return store; } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion: 1, records: [] }; throw error; } }
 function readRecycling(): RecyclingRecord[] { return readRecyclingStore().records; }
+function readOperatingTrends(date: string) {
+  // Optional analytics must not take the financial workspace offline if a
+  // collector snapshot is incomplete or damaged.
+  try { return operatingTrendsSnapshot(readPredictionDataset(), date); }
+  catch { return null; }
+}
 export function readDesktopFinance(date: string): FinanceData & { fuelReconciliation: ReturnType<typeof readFuelReconciliation>; dailyBreakdown: DailyFinanceSummary; dailyFreshness: DailyFinanceEvidence; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
   // Request-local reuse keeps headlines and trends on the same source read,
   // without retaining financial data or write versions across refreshes.
@@ -75,6 +83,7 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
 
   return { fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
+    operatingTrends: readOperatingTrends(date),
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses') : null, profit: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'net_profit') : null, source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), key) : null, source: monthCostsUsable ? 'Published daily metrics' : 'Cost inputs incomplete or stale' })),
     trends, trendComparisons: financeTrendComparisons(trends, readDaily, key => {

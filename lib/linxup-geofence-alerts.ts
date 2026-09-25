@@ -26,6 +26,50 @@ export function geofenceFacility(name: string): Pick<GeofenceEntry, 'facility' |
   return {facility:'Geofenced area',resetLocation:null};
 }
 
+export function geofenceAlertLocation(name: string): string {
+  const location=name.trim().replace(/\s+/g,' '),normalized=location.toLowerCase();
+  if (/^warehouse$|new orleans.*(?:warehouse|hq)|\bno\s*hq\b/.test(normalized)) return 'NOHQ';
+  if (/baton rouge.*(?:warehouse|hq)|\bbr\s*hq\b/.test(normalized)) return 'BRHQ';
+  if (/gentilly|^gl$/.test(normalized)) return 'Gentilly';
+  if (/stranco|^sts$/.test(normalized)) return 'Stranco';
+  if (/\bemr\b/.test(normalized)) return 'EMR';
+  if (/river\s*birch|riverbirch|^rbl$/.test(normalized)) return 'River Birch';
+  if (/^(?:brl|ebr)$|(?:baton rouge|ebr|br).*landfill/.test(normalized)) return 'Baton Rouge Landfill';
+  if (/green meadow|mengel|^gmts$/.test(normalized)) return 'Green Meadow';
+  return location;
+}
+
+export function geofenceTransitionAlertText(truck: string, name: string, transition: 'at'|'departed'|'visited'): string {
+  const number=truck.match(/(?:truck\s*#?\s*|^#?\s*)(\d+)/i)?.[1];
+  const label=number?`Truck ${Number(number)}`:truck.trim().replace(/\s+/g,' ');
+  return `${label} ${transition} ${geofenceAlertLocation(name)}`;
+}
+
+export function geofenceSlackTransition(text: string): {truck:string;name:string;transition:'entry'|'exit'}|null {
+  const lines=String(text || '').split('\n').map(line=>line
+    .replace(/<((?:https?:\/\/|tel:)[^>|]+)\|([^>]+)>/g,'$2')
+    .replace(/[*_~`]/g,'').replace(/:([a-z][a-z0-9_+-]*):/gi,'').trim()).filter(Boolean);
+  const heading=lines[0] || '';
+  const compact=heading.match(/^Truck\s*#?\s*(\d+)\s+(at|departed)\s+(.+)$/i);
+  if (compact) return {truck:`Truck ${Number(compact[1])}`,name:geofenceAlertLocation(compact[3]),transition:/departed/i.test(compact[2])?'exit':'entry'};
+  const detailed=heading.match(/^Truck\s*#?\s*(\d+)\s+Geofence\s+(Entry|Exit)$/i);
+  const location=lines.find(line=>/^Location:\s*.+/i.test(line))?.replace(/^Location:\s*/i,'');
+  return detailed && location ? {truck:`Truck ${Number(detailed[1])}`,name:geofenceAlertLocation(location),transition:/exit/i.test(detailed[2])?'exit':'entry'} : null;
+}
+
+export function withoutNativeGeofenceDuplicates<T extends {rawText:string;timestamp:string}>(messages:T[],entries:GeofenceEntry[],visits:GeofenceVisit[]):T[]{
+  const native=[
+    ...entries.map(entry=>({truck:entry.truck,name:geofenceAlertLocation(entry.name),transition:'entry' as const,timestamp:entry.timestamp})),
+    ...visits.map(visit=>({truck:visit.truck,name:geofenceAlertLocation(visit.name),transition:'exit' as const,timestamp:visit.departedAt})),
+  ];
+  return messages.filter(message=>{
+    const transition=geofenceSlackTransition(message.rawText),posted=Date.parse(message.timestamp);
+    if(!transition || !Number.isFinite(posted))return true;
+    return !native.some(event=>event.truck===transition.truck && event.name===transition.name && event.transition===transition.transition
+      && Math.abs(Date.parse(event.timestamp)-posted)<=15*60*1000);
+  });
+}
+
 export function geofenceEntries(date: string, rows: SourceRow[], now = Date.now()): GeofenceEntry[] {
   const entries = new Map<string,GeofenceEntry>();
   for (const row of rows) {
@@ -125,7 +169,7 @@ export function readGeofenceEntries(date: string) {
 export function geofenceOperationalAlert(entry: GeofenceEntry, date: string): OperationalAlert {
   const detected = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(entry.timestamp));
   return {id:entry.id,timestamp:entry.timestamp,label:'Geofence',source:'LinxUp',domain:'Fleet',truck:entry.truck,
-    detected,title:`${entry.truck} - ${entry.name}`,owner:'Fleet',needsAction:false,
+    detected,title:geofenceTransitionAlertText(entry.truck,entry.name,'at'),owner:'Fleet',needsAction:false,
     facts:[{label:'Onsite',value:geofenceOnsiteSummary('Pending',entry.timestamp,null)},
       {label:'Location',value:entry.name},{label:'Facility',value:entry.facility},{label:'Entered',value:detected},
       ...(entry.positionObserved ? [{label:'Arrival source',value:'Live GPS facility report'}] : []),
@@ -193,7 +237,7 @@ export function geofenceVisitAlert(visit:GeofenceVisit,date:string):OperationalA
   const duration=bounds ? 'Departure time bounded by GPS' : visit.durationSeconds===null?'Unavailable · entry not confirmed':`${visit.arrivalSource === 'live_position' ? 'At least ' : ''}${siteDuration(visit.durationSeconds)}`;
   return {id:visit.id,timestamp:visit.departedAt,label:'Geofence',source:'LinxUp',domain:'Fleet',truck:visit.truck,
     detected:new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(visit.departedAt)),
-    title:`${visit.truck} - ${visit.name}`,owner:'Fleet',needsAction:false,
+    title:geofenceTransitionAlertText(visit.truck,visit.name,'visited'),owner:'Fleet',needsAction:false,
     facts:[{label:'Onsite',value:bounds ? `${duration} | after ${time(bounds.after)} · by ${time(bounds.by)}` : geofenceOnsiteSummary(duration,visit.enteredAt,visit.departedAt)},
       {label:'Time on site',value:duration},
       {label:'Arrived',value:visit.enteredAt?time(visit.enteredAt):'Entry not confirmed'},

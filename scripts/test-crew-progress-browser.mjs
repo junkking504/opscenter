@@ -76,9 +76,9 @@ try {
   assert.deepEqual(await labels(),['Arrival','New Appointment','Truck Unloaded','Krewe Summary','Job Completed','Inspection'],'Source updates missing from appointment indexes are retained; timezone offsets sort by instant and unknown times sort last');
   await page.getByRole('button',{name:'Reset preview'}).click();
   await page.getByRole('button',{name:'Simulate warehouse entry'}).click();
-  assert.deepEqual(await labels(),['Arrival','New Appointment','Geofence Entry','Krewe Summary','Job Completed'],'Native geofence entries interleave by occurrence time');
-  const warehouse = timeline.locator('.crew-update').filter({hasText:'Geofence Entry'});
-  assert.match(await warehouse.innerText(),/Junk King warehouse[\s\S]*Unchanged/,'Warehouse entry does not claim an unload');
+  assert.deepEqual(await labels(),['Arrival','New Appointment','Truck 2 at NOHQ','Krewe Summary','Job Completed'],'Native geofence entries interleave by occurrence time without a second Fleet Update');
+  const warehouse = timeline.locator('.crew-update').filter({hasText:'Truck 2 at NOHQ'});
+  assert.match(await warehouse.innerText(),/Truck 2 at NOHQ[\s\S]*Pending/,'Warehouse entry is one compact source-backed alert');
   assert.equal(await warehouse.getByRole('button',{name:'Mark reviewed',exact:true}).count(),0,'Routine facility entry needs no review');
   await warehouse.getByRole('button',{name:'Open record',exact:true}).click();
   assert.match(await page.getByRole('status').last().textContent(),/workspace=Fleet/);

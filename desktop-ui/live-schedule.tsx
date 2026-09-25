@@ -1,6 +1,7 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import ScheduleVisitBlock from './schedule-visit-block';
+import ScheduleVisitGap from './schedule-visit-gap';
 import { workspaceReady } from './navigation-performance';
 import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
 import { subscribeArrivalUpdates } from './lib/arrival-updates';
@@ -83,9 +84,22 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const mapPanelRef = useRef<HTMLElement>(null);
   const selectedSummaryRef = useRef<HTMLDivElement>(null);
   const dispatchSurfaceRef = useRef<HTMLDivElement>(null);
+  const scrollPositionBeforeTruckSelection = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: mapOnly ? 'nearest' : 'start', inline: 'nearest' });
+    // The full Schedule keeps the truck grid and map side by side. Selecting a
+    // truck should update that surface in place, not move the page to the map.
+    if (mapOnly && selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view, mapOnly]);
+  useLayoutEffect(() => {
+    const position = scrollPositionBeforeTruckSelection.current;
+    if (mapOnly || !position) return;
+    window.scrollTo(position.x, position.y);
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(position.x, position.y);
+      scrollPositionBeforeTruckSelection.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedTruck, mapResetKey, mapOnly]);
   useEffect(() => {
     if (!selectedId || view !== 'board') return;
     const target = !mapOnly && window.innerWidth >= 1000 ? dispatchSurfaceRef.current : selectedSummaryRef.current;
@@ -259,7 +273,11 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const job = jobs.find(job => job.recordId === id);
     if (job && !match(job)) { setScope('ALL'); setFilter('all'); setSearchQuery(''); }
   };
-  const selectTruck = (truck: string, view: 'location' | 'overview' = 'overview') => { if (operationBusyRef.current) return; setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
+  const selectTruck = (truck: string, view: 'location' | 'overview' = 'overview') => {
+    if (operationBusyRef.current) return;
+    if (!mapOnly) scrollPositionBeforeTruckSelection.current = { x: window.scrollX, y: window.scrollY };
+    setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true);
+  };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;
@@ -488,7 +506,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
             return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={rowHeight} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${rowHeight}px)`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
-              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, lane }) => position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={lane*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />))}
+              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, lane }) => [
+                ...position.gapSegments.map((segment,gapIndex)=><ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={lane*laneStep+2} />),
+                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={lane*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
+              ])}
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}

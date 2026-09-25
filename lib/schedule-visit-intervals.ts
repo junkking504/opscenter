@@ -1,12 +1,13 @@
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import { currentGpsPresence, type PresenceTruck } from './schedule-gps-presence';
 import { onsiteGpsMaxAge } from './parked-onsite-presence';
-import { truckLabel, type ScheduleTruckVisit } from '../desktop-ui/lib/schedule-contract';
+import { truckLabel, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from '../desktop-ui/lib/schedule-contract';
 
-export type { ScheduleTruckVisit } from '../desktop-ui/lib/schedule-contract';
+export type { ScheduleTruckVisit, ScheduleTruckVisitGap } from '../desktop-ui/lib/schedule-contract';
 type Job = Parameters<typeof currentGpsPresence>[0];
 type Interval = { arrival?: string; departure?: string | null; departure_confirmed?: boolean; source_timestamps?: string[] };
 type Visit = { appointment_id?: string; appt_id?: string; truck_number?: string; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; final_departure?: string; source_timestamps?: string[]; visit_intervals?: Interval[] };
+type FacilityVisit = { kind?: string; truck: string; name: string; enteredAt: string | null; resetLocation?: 'dump' | 'metal_yard' | null; conflict?: boolean };
 
 /** Display evidence only. Never alter booked assignments or visit accounting. */
 export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceTruck[], appointments: Job[], now = Date.now()): ScheduleTruckVisit[] {
@@ -50,4 +51,31 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
     } else merged.push({...visit});
   }
   return merged.filter(v => v.currentUntil || Date.parse(v.observedThrough) > Date.parse(v.arrival));
+}
+
+/** Connect separate visits to the same appointment without guessing why the
+ * truck left. A dump label requires a positive dump-facility arrival inside
+ * the gap; every other leave-and-return interval remains simply off site. */
+export function scheduleTruckVisitGaps(visits: ScheduleTruckVisit[], facilityVisits: FacilityVisit[]): ScheduleTruckVisitGap[] {
+  const byTruck = new Map<string, ScheduleTruckVisit[]>();
+  for (const visit of visits) {
+    const truck = truckLabel(visit.truck);
+    const rows = byTruck.get(truck) || [];
+    rows.push(visit);
+    byTruck.set(truck, rows);
+  }
+  return [...byTruck.entries()].flatMap(([truck, rows]) => rows
+    .sort((a,b)=>Date.parse(a.arrival)-Date.parse(b.arrival))
+    .slice(0,-1)
+    .flatMap((visit,index) => {
+      const departedAt=visit.departure, returnedAt=rows[index+1].arrival;
+      const departed=Date.parse(departedAt || ''), returned=Date.parse(returnedAt);
+      if (!departedAt || !Number.isFinite(departed) || !Number.isFinite(returned) || returned<=departed) return [];
+      const dump=facilityVisits
+        .filter(candidate=>candidate.kind==='geofence' && candidate.resetLocation==='dump' && !candidate.conflict && truckLabel(candidate.truck)===truck && Number.isFinite(Date.parse(candidate.enteredAt || '')))
+        .sort((a,b)=>Date.parse(a.enteredAt!)-Date.parse(b.enteredAt!))
+        .find(candidate=>Date.parse(candidate.enteredAt!)>=departed && Date.parse(candidate.enteredAt!)<=returned);
+      return [{truck,departedAt,returnedAt,kind:dump?'dump' as const:'off_site' as const,
+        ...(dump ? {facilityName:dump.name,facilityEnteredAt:dump.enteredAt!} : {})}];
+    }));
 }

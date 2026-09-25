@@ -49,7 +49,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
       <header>
-        <div>{alert.label === 'Geofence' ? <strong className="crew-update-label">Geofence - {alert.title}</strong> : presentation ?
+        <div>{alert.label === 'Geofence' ? <strong className="crew-update-label">{alert.title}</strong> : presentation ?
           <div className="crew-event-header">
             <div className="crew-event-title"><strong className="crew-update-label">{presentation.label}</strong><a className="crew-event-job" href={presentation.href}>{presentation.jobNumber}</a></div>
             <div className="crew-event-meta"><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span className="crew-event-window">{presentation.timeSlot}</span>{presentation.truck && <span className="crew-event-truck">{truckDisplayText(presentation.truck)}</span>}</div>

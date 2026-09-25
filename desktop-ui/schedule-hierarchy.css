@@ -55,7 +55,12 @@
 }
 
 /* Selection adds a side pane instead of pushing dispatch below the viewport. */
-.ops-live .schedule-dispatch-surface { min-width: 0; }
+.ops-live .schedule-dispatch-surface {
+  min-width: 0;
+  /* Truck details change height above the focused schedule row. Do not let the
+     browser compensate by moving the page while the selection updates. */
+  overflow-anchor: none;
+}
 @media (min-width: 1000px) {
   .ops-live .schedule-dispatch > .schedule-dispatch-surface.has-selected-job { display: grid; grid-template-columns: minmax(0,1fr) 250px; gap: 10px; align-items: start; }
   .ops-live .schedule-dispatch .schedule-selected-job-pane { grid-column: 2; grid-row: 1; min-width: 0; }

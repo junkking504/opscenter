@@ -84,11 +84,22 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const mapPanelRef = useRef<HTMLElement>(null);
   const selectedSummaryRef = useRef<HTMLDivElement>(null);
   const dispatchSurfaceRef = useRef<HTMLDivElement>(null);
+  const scrollPositionBeforeTruckSelection = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     // The full Schedule keeps the truck grid and map side by side. Selecting a
     // truck should update that surface in place, not move the page to the map.
     if (mapOnly && selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view, mapOnly]);
+  useLayoutEffect(() => {
+    const position = scrollPositionBeforeTruckSelection.current;
+    if (mapOnly || !position) return;
+    window.scrollTo(position.x, position.y);
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(position.x, position.y);
+      scrollPositionBeforeTruckSelection.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedTruck, mapResetKey, mapOnly]);
   useEffect(() => {
     if (!selectedId || view !== 'board') return;
     const target = !mapOnly && window.innerWidth >= 1000 ? dispatchSurfaceRef.current : selectedSummaryRef.current;
@@ -262,7 +273,11 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const job = jobs.find(job => job.recordId === id);
     if (job && !match(job)) { setScope('ALL'); setFilter('all'); setSearchQuery(''); }
   };
-  const selectTruck = (truck: string, view: 'location' | 'overview' = 'overview') => { if (operationBusyRef.current) return; setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
+  const selectTruck = (truck: string, view: 'location' | 'overview' = 'overview') => {
+    if (operationBusyRef.current) return;
+    if (!mapOnly) scrollPositionBeforeTruckSelection.current = { x: window.scrollX, y: window.scrollY };
+    setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true);
+  };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;

@@ -207,11 +207,14 @@ export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'app
     .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
 }
 
-/** Schedule lanes show one operational truck per appointment. Completed work
- * follows unique confirmed GPS evidence; other work follows JunkWare. */
+/** Planned blocks stay in one operational lane. Confirmed physical visits are
+ * also projected into every truck lane that actually visited the appointment. */
 export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
   const lane = truckLabel(truck);
-  return jobs.filter(job => scheduleDisplayTruck(job) === lane && timelineWindow(job, lane, now) !== null);
+  return jobs.filter(job => {
+    const window = timelineWindow(job, lane, now);
+    return window !== null && (window.actual || scheduleDisplayTruck(job) === lane);
+  });
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
 export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {

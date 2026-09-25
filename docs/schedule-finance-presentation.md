@@ -864,11 +864,17 @@ from the unchanged booked appointment window.
 
 ## Truck assignment blocks and visit evidence
 
-Truck Schedule shows every appointment once. Open work follows its current
-JunkWare assignment. Completed work with one unique confirmed visit follows the
-physical GPS truck; the stale JunkWare value remains visible until corrected
-through the verified move workflow. This prevents a mismatch from hiding the
-actual visit without duplicating the appointment across lanes.
+Truck Schedule keeps every planned appointment in one operational lane. Open
+work follows its current JunkWare assignment. Completed work with one unique
+confirmed visit follows the physical GPS truck; the stale JunkWare value remains
+visible until corrected through the verified move workflow.
+
+When multiple trucks have confirmed visits at the same appointment, each truck
+gets its own measured visit block. If those visit intervals overlap, a vertical
+line connects the blocks at their shared time. Each block shows that truck's
+elapsed visit time. This presence evidence does not change the JunkWare
+assignment, appointment window, closeout, or GPS history, and multi-truck visit
+blocks cannot be dragged into an assignment correction.
 
 Confirmed visits by the operational GPS truck size that lane's block using
 arrival and departure. Return visits remain separate segments, leaving time
@@ -882,9 +888,9 @@ cannot be dragged. Appointments with no usable assigned-truck visit times retain
 a dashed planned window. Booked assignment, time, closeout, visit accounting and
 source records remain unchanged.
 
-Short visit blocks have a 22px minimum display width so the status check mark fits;
-blocks with an Amazon marker reserve 34px to keep both symbols separate.
-Their left edge stays at arrival; the tooltip retains the measured duration.
+Short measured visit blocks reserve 48px so the status symbol and visible
+duration fit; blocks with an Amazon marker reserve 54px. Their left edge stays
+at arrival, and the tooltip retains the measured clock interval and duration.
 
 Saint Gabriel (including St. Gabriel and ZIP 70776) belongs to the Baton Rouge
 dispatch territory, Iberville area, based on the city and parish geography.

@@ -234,6 +234,11 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::before,
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::after { background: #9b6a13; }
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #24483a; font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: -.02em; }
+.ops-live .live-schedule.schedule-dispatch .schedule-colocated-visit-connectors { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.ops-live .live-schedule.schedule-dispatch .schedule-colocated-connector-halo { stroke: #fff; stroke-width: 6; stroke-linecap: round; }
+.ops-live .live-schedule.schedule-dispatch .schedule-colocated-connector-line { stroke: #087450; stroke-width: 2; stroke-linecap: round; }
+.ops-live .live-schedule.schedule-dispatch .schedule-colocated-connector-dot { fill: #fff; stroke: #087450; stroke-width: 2; }
 
 /* Planned windows remain distinct from measured truck visits. */
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="booked"] { border-style: dashed; }

@@ -64,7 +64,7 @@
     "verify:schedule-cleanup:browser": "node scripts/test-schedule-cleanup-browser.mjs",
     "verify:schedule-truck-scroll:browser": "node scripts/test-schedule-truck-selection-scroll.mjs",
     "verify:schedule-visit-gaps": "node --import tsx scripts/test-schedule-truck-visits.ts",
-    "verify:schedule-visit-gaps:browser": "node scripts/test-schedule-visit-gap-browser.mjs",
+    "verify:schedule-visit-gaps:browser": "node scripts/test-schedule-visit-gap-browser.mjs && node scripts/test-schedule-colocated-visits-browser.mjs",
     "verify:slack-digest": "node --import tsx scripts/test-slack-digest.ts",
     "verify:qbo": "node --import tsx scripts/test-qbo-integration.ts && node --import tsx scripts/test-data-health.ts",
     "verify:data-health": "node --import tsx scripts/test-data-health.ts",

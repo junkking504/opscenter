@@ -10,4 +10,5 @@ assert.ok(bars[1].includes('stackId="current"') && bars[2].includes('stackId="cu
 const legend = source.slice(source.indexOf('className="finance-performance-legend"'), source.indexOf('className="finance-performance-chart"'));
 assert.ok(legend.indexOf('{year - 1}') < legend.indexOf('{year} actual'), 'legend follows bar order');
 assert.ok(source.includes('${year - 1} on the left and ${year} on the right'), 'accessible chart description follows bar order');
+assert.ok(source.includes('financeMonthlyChart(data, key, chartMetric, projection)'), 'render the tested monthly series without a current-month completion gate');
 console.log('PASS: prior year left, current year right, forecast stack and legend order preserved');

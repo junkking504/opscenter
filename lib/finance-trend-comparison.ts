@@ -1,6 +1,6 @@
 import type { FinanceData } from '../desktop-ui/lib/commercial-contract';
 export type TrendValues = { revenue: number | null; jobs: number | null; averageJob: number | null; costs: number | null; profit: number | null; margin: number | null };
-export type TrendComparison = { currentStart: string; currentEnd: string; priorStart: string; priorEnd: string; current: TrendValues; prior: TrendValues; yearCurrentStart: string; yearCurrentEnd: string; yearPriorStart: string; yearPriorEnd: string; yearCurrent: TrendValues; yearPrior: TrendValues };
+export type TrendComparison = { currentStart: string; currentEnd: string; priorStart: string; priorEnd: string; current: TrendValues; prior: TrendValues; yearCurrentStart: string; yearCurrentEnd: string; yearPriorStart: string; yearPriorEnd: string; yearCurrent: TrendValues; yearPrior: TrendValues; yearPriorFullMonth?: TrendValues };
 type Month = FinanceData['trends'][number];
 const finite = (v: unknown) => v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v);
 const values = (revenue: number | null, jobs: number | null, costs: number | null, profit: number | null): TrendValues => ({ revenue, jobs, costs, profit, averageJob: revenue != null && jobs != null && jobs > 0 ? revenue / jobs : null, margin: profit != null && revenue != null && revenue !== 0 ? profit / revenue * 100 : null });
@@ -48,14 +48,17 @@ export function financeTrendComparisons(months: Month[], read: (date: string) =>
     const yearPriorMonth = months.find(m => m.monthKey === yearPriorKey && fullMonth(m));
     const yearCurrentEnd = fullMonth(month) ? new Date(Date.UTC(year, number, 0, 12)).toISOString().slice(0, 10) : `${month.monthKey}-${String(yearDays).padStart(2, '0')}`;
     const yearCurrent = fullMonth(month) ? fromFinanceMonth(month) : daily(month.monthKey, yearDays);
-    const yearPrior = fullMonth(month) ? (readYearMonth?.(yearPriorKey) ?? (yearPriorMonth ? fromFinanceMonth(yearPriorMonth) : daily(yearPriorKey, yearDays))) : daily(yearPriorKey, yearDays);
+    // The monthly chart needs the completed prior-year month even while this
+    // year's month is open. Keep matched-period KPI comparisons independent.
+    const yearPriorFullMonth = readYearMonth?.(yearPriorKey) ?? (yearPriorMonth ? fromFinanceMonth(yearPriorMonth) : daily(yearPriorKey, yearPriorLastDay));
+    const yearPrior = fullMonth(month) ? yearPriorFullMonth : daily(yearPriorKey, yearDays);
     return [month.monthKey, {
       currentStart: `${month.monthKey}-01`, currentEnd,
       priorStart: `${priorKey}-01`, priorEnd: `${priorKey}-${String(days).padStart(2,'0')}`,
       current, prior: priorValues,
       yearCurrentStart: `${month.monthKey}-01`, yearCurrentEnd,
       yearPriorStart: `${yearPriorKey}-01`, yearPriorEnd: `${yearPriorKey}-${String(yearDays).padStart(2, '0')}`,
-      yearCurrent, yearPrior,
+      yearCurrent, yearPrior, yearPriorFullMonth,
     }];
   }));
 }

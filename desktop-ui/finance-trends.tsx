@@ -11,6 +11,7 @@ import './finance-trends.css';
 import { OperatingTrends } from './operating-trends';
 import { monthRevenueProjection } from '../lib/operating-planning';
 import { currentOperatingDay } from './lib/operating-day';
+import { financeMonthlyChart } from './lib/finance-monthly-chart';
 
 const metrics = [{ key: 'revenue', label: 'Revenue' }, { key: 'jobs', label: 'Completed jobs' }, { key: 'averageJob', label: 'Average job value' }] as const;
 const format = (key: keyof TrendValues, value: number | null | undefined) => value == null ? '—' : key === 'jobs' ? value.toLocaleString('en-US') : key === 'margin' ? `${value.toFixed(1)}%` : money(value);
@@ -38,15 +39,7 @@ export default function FinanceTrends({ data, hideCharts = false }: { data: Fina
   const year = Number(key.slice(0, 4));
   const liveMonth = data.trends.find(month => month.monthKey === data.date.slice(0, 7));
   const projection = monthRevenueProjection(data.operatingTrends, { today: currentOperatingDay(), month: data.date.slice(0, 7), actual: liveMonth?.grossRevenue ?? null, through: liveMonth?.dataThroughDate ?? '', partialDayRevenue: data.daily.revenue, missingDates: liveMonth?.revenueSource === 'junkware-monthly-dashboard' ? [] : liveMonth?.missingDates });
-  const chart = Array.from({ length: Number(key.slice(5)) }, (_, i) => {
-    const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
-    const month = data.trends.find(m => m.monthKey === monthKey);
-    const complete = month && (month.reportingComplete ?? month.complete);
-    const previous = data.trendComparisons?.[monthKey]?.yearPrior;
-    const projected = chartMetric === 'revenue' && monthKey === data.date.slice(0, 7) ? projection : null;
-    const partialActual = chartMetric === 'revenue' && monthKey === data.date.slice(0, 7) && month ? month.grossRevenue : null;
-    return { month: new Date(`${monthKey}-01T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short' }), current: partialActual ?? (complete ? fromFinanceMonth(month)[chartMetric] : null), remaining: projected?.remaining ?? null, prior: complete ? previous?.[chartMetric] ?? null : null };
-  });
+  const chart = financeMonthlyChart(data, key, chartMetric, projection);
   const currentMonth = key === data.date.slice(0, 7);
   const monthTitle = view.month?.reportingComplete || view.month?.complete ? 'Full month' : currentMonth ? 'Month to date' : 'Available history';
   const selectMonth = (month: string) => setSelection({ date: data.date, month });
@@ -69,7 +62,7 @@ export default function FinanceTrends({ data, hideCharts = false }: { data: Fina
     <div className="finance-performance-kpis" aria-live="polite">{metrics.map(({ key: metric, label }) => <article key={metric}><span>{label}</span><strong>{format(metric, current[metric])}</strong><Delta field={metric} current={current[metric]} prior={prior[metric]} />{prior[metric] != null && <small>Previous: {format(metric, prior[metric])}</small>}</article>)}</div>
     <section className="finance-performance-section"><h3>What changed</h3><p className="finance-performance-explanation">{performanceExplanation(current, prior)}</p></section>
     <section className="finance-performance-section">
-      <div className="finance-performance-chart-heading"><div><h3>Performance over time</h3><p>{chartMetric === 'revenue' ? 'Completed months plus current-month revenue actuals and prediction.' : 'Full months only.'} Gaps mean unavailable data.</p></div><label>Chart metric<select value={chartMetric} onChange={event => setChartMetric(event.target.value as typeof chartMetric)}>{metrics.map(metric => <option key={metric.key} value={metric.key}>{metric.label}</option>)}</select></label></div>
+      <div className="finance-performance-chart-heading"><div><h3>Performance over time</h3><p>{chartMetric === 'revenue' ? 'Prior-year full months alongside current-year actuals and current-month prediction.' : 'Full months only, including the prior-year total for the current month.'} Gaps mean unavailable data.</p></div><label>Chart metric<select value={chartMetric} onChange={event => setChartMetric(event.target.value as typeof chartMetric)}>{metrics.map(metric => <option key={metric.key} value={metric.key}>{metric.label}</option>)}</select></label></div>
       <div className="finance-performance-legend"><span><i style={{ background: 'var(--capital-gold-soft, #fff1cf)' }} />{year - 1}</span><span><i style={{ background: 'var(--capital-gold, #e3aa32)' }} />{year} actual</span>{chartMetric === 'revenue' && projection && key === data.date.slice(0, 7) && <span><i style={{ background: '#bc7c1440', border: '1px dashed #bc7c14' }} />Predicted remaining revenue</span>}</div>
       <div className="finance-performance-chart" role="img" aria-label={`${metrics.find(m => m.key === chartMetric)?.label} by month, ${year - 1} on the left and ${year} on the right${chartMetric === 'revenue' && projection && key === data.date.slice(0, 7) ? '; shaded segment above current actual revenue is predicted remaining revenue' : ''}.`}>
         <ResponsiveContainer width="100%" height="100%"><BarChart data={chart} margin={{ top: 12, right: 4, bottom: 0, left: 0 }} accessibilityLayer>

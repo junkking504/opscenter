@@ -71,7 +71,12 @@ backtests report WAPE; no calibrated prediction interval is claimed.
 
 The current month's revenue bar stacks predicted **additional** revenue above
 published monthly actuals. Each monthly group places the prior year on the left
-and current year on the right; the legend follows that same order.
+and current year on the right; the legend follows that same order. Prior-year
+bars use full-month totals independently of the current month's completion,
+automatically including each new month and year rollover. The API's separate
+`yearPriorFullMonth` values prefer verified monthly authority, then complete
+monthly/daily history; unavailable totals remain gaps. Matched-period KPI
+comparisons still use `yearPrior` and never substitute a full month for MTD.
 Today's published partial revenue is deducted from
 today's estimate, bounded at zero, to prevent double counting. Missing historical
 actuals are disclosed and never filled as recorded revenue. A stale/historical

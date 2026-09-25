@@ -1,5 +1,16 @@
 # Schedule and Finance presentation
 
+## Command historical refresh isolation
+
+Command consumes live GPS/photo source-change hints only for the current Central
+operating day. Historical and future views retain their initial load, 30-second
+poll, focus/online refresh and post-action source read-back for late corrections.
+The date is checked when each hint arrives so pinned dates transition correctly
+at midnight. Schedule's live stream is unchanged. This removes unrelated live
+rebuilds; it does not cache historical business data or promise faster cold loads.
+Validate with `npm run verify:command-arrivals` and authenticated historical and
+current-day request observations.
+
 Cancellation remains a first-class appointment action: open an appointment and
 use the persistent `Cancel Appointment` footer shortcut. It focuses a dedicated,
 visible cancellation section outside the assignment disclosure. A reason and

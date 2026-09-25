@@ -1,3 +1,5 @@
+import { currentOperatingDay } from './operating-day';
+
 const listeners = new Set<() => void>();
 let events: EventSource | undefined;
 
@@ -11,4 +13,10 @@ export function subscribeArrivalUpdates(listener: () => void) {
     events.addEventListener('open', notify);
   }
   return () => { listeners.delete(listener); if (!listeners.size) { events?.close(); events = undefined; } };
+}
+
+/** Command retains its normal polling for historical corrections. */
+export function subscribeCommandArrivalUpdates(date: string, listener: () => void, today = currentOperatingDay) {
+  // Check on delivery, not subscription: pinned dates can cross Central midnight.
+  return subscribeArrivalUpdates(() => { if (date === today()) listener(); });
 }

@@ -1,6 +1,6 @@
 import './daily-finance-freshness.css';
 import { ageFinanceKpi } from '../lib/daily-finance-freshness';
-import { subscribeArrivalUpdates } from './lib/arrival-updates';
+import { subscribeCommandArrivalUpdates } from './lib/arrival-updates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './app/page';
 import { currentOperatingDay, isOperatingDay, normalizeOperatingDayUrl, operatingDayUrl } from './lib/operating-day';
@@ -46,7 +46,7 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
     let disposed = false, queued = false;
     const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; commandReceived.current = false; setSnapshot(bootstrap ? workspaceShell({...bootstrap,date:currentDay()}) : null); setDate(currentDay()); return; } void refresh().catch(() => setError(commandReceived.current ? 'Live data could not refresh. The last verified snapshot remains visible.' : 'Command sources could not load. Other workspaces remain available.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
     load();
-    const unsubscribe = subscribeArrivalUpdates(load);
+    const unsubscribe = subscribeCommandArrivalUpdates(date, load);
     const timer = window.setInterval(() => { setClock(Date.now()); load(); }, 30_000);
     window.addEventListener('focus',load); window.addEventListener('online',load);
     document.addEventListener('visibilitychange',load);

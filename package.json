@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
     "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts && node --import tsx scripts/test-crew-assigned-day.ts",
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",

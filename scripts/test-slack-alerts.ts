@@ -77,7 +77,8 @@ assert.deepEqual(geofenceNotifications.map((alert) => alert.kind), ["geofence_en
 assert.ok(geofenceNotifications.every((alert) => alert.channelId === "C_TEST_TRUCK_8"));
 assert.equal(geofenceNotifications[0].plainText, "Truck 8 at NOHQ");
 assert.equal(formatSlackAlert(geofenceNotifications[0]), "Truck 8 at NOHQ");
-assert.match(geofenceNotifications[1].plainText || "", /Truck# 8 Geofence Exit[\s\S]*\*Time on site:\* 31m 16s/);
+assert.equal(geofenceNotifications[1].plainText, "Truck 8 departed NOHQ");
+assert.equal(formatSlackAlert(geofenceNotifications[1]), "Truck 8 departed NOHQ");
 const compactGeofenceEntries = buildGeofenceSlackNotifications("2026-08-12", [
   { ...geofenceEntry, id: "stranco", truck: "Truck 9", name: "Stranco", facility: "Transfer station", resetLocation: "dump" },
   { ...geofenceEntry, id: "emr", truck: "Truck 4", name: "EMR ", facility: "Metal recycling yard", resetLocation: "metal_yard" },

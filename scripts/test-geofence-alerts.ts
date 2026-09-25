@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {geofenceVisits,geofenceVisitAlert,geofenceTimelineAlerts,geofenceEntries,geofenceFacility,geofenceLoadResets,geofenceOperationalAlert,readGeofenceEntries} from '../lib/linxup-geofence-alerts';
+import {geofenceSlackTransition,geofenceTransitionAlertText,geofenceVisits,geofenceVisitAlert,geofenceTimelineAlerts,geofenceEntries,geofenceFacility,geofenceLoadResets,geofenceOperationalAlert,readGeofenceEntries,withoutNativeGeofenceDuplicates} from '../lib/linxup-geofence-alerts';
 import {deriveTruckLoadStatus,type TruckLoadEvent} from '../lib/truck-load-status';
 import {commandAlertWorkItemForSource} from '../lib/command-alert-workflow';
 import type {WorkItem} from '../lib/platform/contracts';
@@ -33,6 +33,7 @@ for(const facility of ['Gentilly Landfill','Stranco Transfer Station','EMR Metal
 }
 const alert=geofenceOperationalAlert(warehouse[0],date);
 assert.equal(alert.source,'LinxUp');
+assert.equal(alert.title,'Truck 4 at NOHQ');
 assert.equal(alert.facts.find(f=>f.label==='Truck load')?.value,'Unchanged');
 assert.match(alert.href,/workspace=Fleet/);
 const reviewed={entity:{id:alert.id},status:'acknowledged',version:1} as WorkItem;
@@ -43,11 +44,22 @@ const visits=geofenceVisits(date,[exited,entered,exited,entered]);
 assert.equal(visits.length,1,'Reordered reports and exact retries make one visit');
 assert.equal(visits[0].durationSeconds,916);
 const completedAlert=geofenceVisitAlert(visits[0],date);
+assert.equal(completedAlert.title,'Truck 4 visited Gentilly');
 assert.equal(completedAlert.facts.find(f=>f.label==='Time on site')?.value,'15m 16s');
 assert.equal(completedAlert.timestamp,new Date(exited.occurred_at).toISOString());
 assert.equal(completedAlert.id,geofenceEntries(date,[entered])[0].id,'Departure keeps the entry review identity');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits).length,1,'Departure upgrades entry to one overall visit card');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits)[0].title,'Truck 4 visited Gentilly');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[])[0].label,'Geofence','Open visits still alert on entry');
+assert.equal(geofenceTransitionAlertText('Truck# 9','Stranco Transfer Station','departed'),'Truck 9 departed Stranco');
+assert.deepEqual(geofenceSlackTransition(':round_pushpin: *Truck 4 Geofence Entry*\n*Location:* Gentilly'),{truck:'Truck 4',name:'Gentilly',transition:'entry'});
+assert.deepEqual(geofenceSlackTransition('Truck #4 departed Warehouse'),{truck:'Truck 4',name:'NOHQ',transition:'exit'});
+const digestMessages=[
+  {rawText:':round_pushpin: *Truck 4 Geofence Entry*\n*Location:* Gentilly',timestamp:'2026-09-06T18:01:00Z'},
+  {rawText:'Truck 4 departed Gentilly',timestamp:'2026-09-06T18:16:00Z'},
+  {rawText:'Unrelated fleet update',timestamp:'2026-09-06T18:16:00Z'},
+];
+assert.deepEqual(withoutNativeGeofenceDuplicates(digestMessages,geofenceEntries(date,[entered]),visits).map(message=>message.rawText),['Unrelated fleet update'],'Command retains one native visit card instead of its Slack entry and exit copies');
 const review={entity:{id:completedAlert.id},status:'acknowledged',version:1} as WorkItem;
 assert.equal(commandAlertWorkItemForSource([review],completedAlert),review);
 const laterVisit=geofenceVisits(date,[entered,exited,row('Gentilly','2026-09-06T19:00:00Z'),row('Gentilly','2026-09-06T19:30:00Z',{alert_type:'GEOFENCE_EXITED'})]);

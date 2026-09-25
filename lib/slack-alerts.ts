@@ -29,7 +29,7 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
-import { geofenceFacility, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
+import { geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -1168,40 +1168,6 @@ function allTruckVisitNotifications(date: string, state: SlackAlertState): Slack
   return [...buildTruckArrivalSlackNotifications(date, rows), ...departures];
 }
 
-function formatGeofenceDuration(seconds: number | null): string {
-  if (seconds === null) return "Unavailable - matching entry not confirmed";
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remaining = Math.floor(seconds % 60);
-  return [hours ? `${hours}h` : "", minutes ? `${minutes}m` : "", remaining || (!hours && !minutes) ? `${remaining}s` : ""]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function geofenceOpsHref(date: string, truck: string): string {
-  return absoluteOpsHref(`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(truck.replace("Truck ", "Truck# "))}`);
-}
-
-function geofenceAlertLocation(name: string): string {
-  const location = name.trim().replace(/\s+/g, " ");
-  const normalized = location.toLowerCase();
-  if (/^warehouse$|new orleans.*(?:warehouse|hq)|\bno\s*hq\b/.test(normalized)) return "NOHQ";
-  if (/baton rouge.*(?:warehouse|hq)|\bbr\s*hq\b/.test(normalized)) return "BRHQ";
-  if (/gentilly|^gl$/.test(normalized)) return "Gentilly";
-  if (/stranco|^sts$/.test(normalized)) return "Stranco";
-  if (/\bemr\b/.test(normalized)) return "EMR";
-  if (/river\s*birch|riverbirch|^rbl$/.test(normalized)) return "River Birch";
-  if (/^(?:brl|ebr)$|(?:baton rouge|ebr|br).*landfill/.test(normalized)) return "Baton Rouge Landfill";
-  if (/green meadow|mengel|^gmts$/.test(normalized)) return "Green Meadow";
-  return location;
-}
-
-function compactGeofenceEntryMessage(entry: GeofenceEntry): string {
-  const truckNumber = normalizeSlackTruckNumber(entry.truck);
-  const truck = truckNumber ? `Truck ${truckNumber}` : entry.truck.trim().replace(/\s+/g, " ");
-  return `${truck} at ${geofenceAlertLocation(entry.name)}`;
-}
-
 export function buildGeofenceSlackNotifications(
   date: string,
   entries: GeofenceEntry[],
@@ -1209,7 +1175,7 @@ export function buildGeofenceSlackNotifications(
 ): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   for (const entry of entries) {
-    const plainText = compactGeofenceEntryMessage(entry);
+    const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at");
     notifications.push({
       fingerprint: `geofence_entry:${date}:${entry.id}`,
       kind: "geofence_entry",
@@ -1225,18 +1191,7 @@ export function buildGeofenceSlackNotifications(
     });
   }
   for (const visit of visits) {
-    const href = geofenceOpsHref(date, visit.truck);
-    const plainText = formatSlackMessage({
-      icon: ":checkered_flag:",
-      title: `${visit.truck} Geofence Exit`,
-      fields: [
-        { label: "Location", value: visit.name },
-        { label: "Facility", value: geofenceFacility(visit.name).facility },
-        { label: "Departed", value: formatTruckArrivalTime(visit.departedAt) },
-        { label: "Time on site", value: formatGeofenceDuration(visit.durationSeconds) },
-      ],
-      href,
-    });
+    const plainText = geofenceTransitionAlertText(visit.truck, visit.name, "departed");
     notifications.push({
       fingerprint: `geofence_exit:${date}:${visit.id}`,
       kind: "geofence_exit",
@@ -1248,6 +1203,7 @@ export function buildGeofenceSlackNotifications(
       nextAction: "",
       href: "",
       plainText,
+      verbatimPlainText: true,
     });
   }
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));

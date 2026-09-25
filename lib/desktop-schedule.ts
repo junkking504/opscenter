@@ -21,7 +21,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -75,6 +75,7 @@ export function readDesktopSchedule(date: string) {
     location,
     mapAddress: addressCheck && 'matchedAddress' in addressCheck ? addressCheck.matchedAddress : undefined,
     addressCheckPending: addressCheck?.reason === 'Automatic Address Check Pending',
+    addressCheckReason: addressCheck?.reason,
   }; });
   // Reconcile against the current effective address/time, including a pending
   // dispatch move, without modifying JunkWare or inventing a ledger event.

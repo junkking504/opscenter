@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckNames, timelineWindow, truckLabel, assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { addressResolutionCopy, scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckNames, timelineWindow, truckLabel, assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleMoveProposal, scheduleDragScrollStep } from '../desktop-ui/schedule-drag';
 
 const job = { recordId: '2026-09-03:appointment:1234', appointmentId: '1234', jkNumber: 'JK1234567', truck: 'Truck 4', appointmentStartMinutes: 840, appointmentEndMinutes: 960, appointmentTime: '2:00 PM–4:00 PM', appointmentType: 'Estimate', status: 'Confirmed' } as ScheduleAppointment;
@@ -71,3 +71,7 @@ assert.equal(scheduleStatusTone({ status: 'Completed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Estimate Closed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Cancelled' }), 'canceled');
 assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');
+assert.equal(addressResolutionCopy('No Exact Geocodio Premises Match').title, 'Address needs correction');
+assert.equal(addressResolutionCopy('Multiple Address Matches').title, 'Address needs confirmation');
+assert.equal(addressResolutionCopy('Address Provider Temporarily Unavailable').title, 'Location check delayed');
+assert.equal(addressResolutionCopy().title, 'Address needs correction');

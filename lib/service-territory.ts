@@ -9,6 +9,8 @@ type Area = { code: string; areaCode: string; area: string };
 const rules: Array<[string, string, string, string]> = [
   ['greenwell springs', 'BR', 'GWS', 'Greenwell Springs'],
   ['denham springs|port vincent|walker', 'BR', 'LIV', 'Livingston'],
+  ['addis|brusly|port allen', 'BR', 'WBR', 'West Baton Rouge'],
+  ['jackson', 'BR', 'EF', 'East Feliciana'],
   ['prairieville|gonzales', 'BR', 'ASC', 'Ascension'],
   ['baton rouge|baker|central|zachary', 'BR', 'BR', 'Baton Rouge'],
   ['saint gabriel|st\\.? gabriel', 'BR', 'IBV', 'Iberville'],
@@ -35,6 +37,8 @@ const zipAreas: Record<string, Area> = {
   '70739': { code: 'BR', areaCode: 'GWS', area: 'Greenwell Springs' },
   '70726': { code: 'BR', areaCode: 'LIV', area: 'Livingston' },
   '70791': { code: 'BR', areaCode: 'BR', area: 'Baton Rouge' },
+  '70710': { code: 'BR', areaCode: 'WBR', area: 'West Baton Rouge' },
+  '70748': { code: 'BR', areaCode: 'EF', area: 'East Feliciana' },
   '70508': { code: 'LF', areaCode: 'LAF', area: 'Lafayette' },
   '70121': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },
   '70123': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },

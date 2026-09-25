@@ -85,7 +85,9 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const selectedSummaryRef = useRef<HTMLDivElement>(null);
   const dispatchSurfaceRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: mapOnly ? 'nearest' : 'start', inline: 'nearest' });
+    // The full Schedule keeps the truck grid and map side by side. Selecting a
+    // truck should update that surface in place, not move the page to the map.
+    if (mapOnly && selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view, mapOnly]);
   useEffect(() => {
     if (!selectedId || view !== 'board') return;

@@ -1,6 +1,7 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import ScheduleVisitBlock from './schedule-visit-block';
+import ScheduleVisitGap from './schedule-visit-gap';
 import { workspaceReady } from './navigation-performance';
 import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
 import { subscribeArrivalUpdates } from './lib/arrival-updates';
@@ -488,7 +489,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
             return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={rowHeight} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${rowHeight}px)`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
-              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, lane }) => position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={lane*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />))}
+              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, lane }) => [
+                ...position.gapSegments.map((segment,gapIndex)=><ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={lane*laneStep+2} />),
+                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={lane*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
+              ])}
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}

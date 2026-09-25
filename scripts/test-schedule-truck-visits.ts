@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { scheduleTruckVisits } from '../lib/schedule-visit-intervals';
+import { scheduleTruckVisitGaps, scheduleTruckVisits } from '../lib/schedule-visit-intervals';
 import { scheduleBoardJobs, scheduleDisplayTruck, scheduleTimelineBlockMovable, scheduleTruckMismatch, timelinePlacement, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
 const now=Date.parse('2026-09-14T18:00:00Z');
@@ -12,13 +12,19 @@ const ledger=[
 const truck={truck:'Truck 3',...location,lastGpsUpdate:'2026-09-14T18:00:00Z',speed:0,ignition:'ON',routePoints:[0,1,2,3].map(i=>({...location,timestamp:new Date(now-(3-i)*60_000).toISOString()}))};
 const original=JSON.stringify({job,ledger,truck});
 const visits=scheduleTruckVisits(job,ledger,[truck],[job],now);
-const shown={...job,truckVisits:visits};
+const truckVisitGaps=scheduleTruckVisitGaps(visits,[{kind:'geofence',truck:'Truck 8',name:'Gentilly',enteredAt:'2026-09-14T15:20:00Z',resetLocation:'dump'}]);
+const shown={...job,truckVisits:visits,truckVisitGaps};
 const range=timelineRange([shown],now);
 assert.equal(visits.length,3);
+assert.deepEqual(truckVisitGaps,[{truck:'Truck 8',departedAt:'2026-09-14T15:00:00.000Z',returnedAt:'2026-09-14T16:00:00.000Z',kind:'dump',facilityName:'Gentilly',facilityEnteredAt:'2026-09-14T15:20:00Z'}]);
 const old=timelinePlacement(shown,range,'Truck 8',now)!;
 assert.equal(old.start,540,'Recorded arrival replaces the 8 AM booking');
 assert.equal(old.segments.length,2,'Separate trips retain the time-away gap');
+assert.deepEqual(old.gaps,[{start:600,end:660,kind:'dump',facilityName:'Gentilly'}],'Confirmed dump evidence labels the exact time-away gap');
+assert.equal(old.gapSegments[0].width*range.duration,60,'The connector spans departure through return');
 assert.equal(old.segments.reduce((sum,p)=>sum+p.width*range.duration,0),75);
+const offSite=scheduleTruckVisitGaps(visits,[]);
+assert.equal(offSite[0].kind,'off_site','Leave and return without dump evidence stays neutral');
 const active=timelinePlacement(shown,range,'Truck 3',now)!;
 assert.equal(active.start,720,'Other truck uses its own arrival');
 assert.equal(active.end,780,'Active visit grows to now');

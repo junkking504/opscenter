@@ -1,5 +1,5 @@
 import {readVisitTrackingAgent} from './visit-tracking-reader';
-import { scheduleTruckVisits, type ScheduleTruckVisit } from './schedule-visit-intervals';
+import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
 import { compareStops } from './schedule-stop-order';
@@ -21,7 +21,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -86,7 +86,10 @@ export function readDesktopSchedule(date: string) {
     else if (location) Object.assign(job, { truckOnSite: false, onsiteTruck: undefined, truckAtJob: true, atJobTruck: location.truck, atJobGpsAt: location.observedAt, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
     else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
-  for (const job of appointments) job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
+  for (const job of appointments) {
+    job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
+    job.truckVisitGaps = scheduleTruckVisitGaps(job.truckVisits, tracked.visits);
+  }
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),

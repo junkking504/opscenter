@@ -260,6 +260,8 @@ do
       cd "$OPSCENTER_DIR" || exit 1
       ./node_modules/.bin/tsx scripts/collect-searchkings.ts --data-dir "$OPSBOT_DIR/data"
     ) || echo "WARNING: SearchKings refresh failed; retaining the last verified marketing snapshot."
+    OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" npm --prefix "$OPSCENTER_DIR" run build:prediction-data \
+      || echo "WARNING: prediction dataset refresh failed; retaining the last verified dataset."
     # Mission Control owns app state. The one-way mode publishes to the retired
     # VPS without importing stale copies over new Mission Control writes.
     # A backup failure must not back off successful local source collection.

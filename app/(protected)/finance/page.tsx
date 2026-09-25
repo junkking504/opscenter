@@ -24,6 +24,7 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { type InteractiveOpsRole } from "@/lib/ops-roles";
 import { financeUnauthorizedState } from "@/components/FinanceAccessGuard";
+import { readPredictionDataset, type PredictionForecast } from "@/lib/prediction-data";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,20 @@ function changePercent(current: number, previous: number): string {
   if (previous === 0) return "—";
   const value = ((current - previous) / Math.abs(previous)) * 100;
   return `${value > 0 ? "+" : ""}${percent(value)}`;
+}
+
+function forecastLabel(target: PredictionForecast["target"]): string {
+  if (target === "revenue") return "Revenue";
+  if (target === "completedJobs") return "Completed jobs";
+  if (target === "fuelCost") return "Fuel cost";
+  if (target === "fuelGallons") return "Fuel gallons";
+  return "Recorded dump cost";
+}
+
+function forecastValue(unit: PredictionForecast["unit"], value: number): string {
+  if (unit === "usd") return money(value);
+  if (unit === "gallons") return `${value.toFixed(1)} gal`;
+  return value.toFixed(1);
 }
 
 function previousMonthKey(value: string): string {
@@ -155,7 +170,7 @@ function appointmentPaymentTotals(entries: AnyRecord[]): {
 }
 
 function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, requestedSection: string) {
-  const section = ["overview", "reconciliation", "expenses", "territory", "trend", "resale", "recycling"].includes(requestedSection)
+  const section = ["overview", "reconciliation", "expenses", "territory", "trend", "predict", "resale", "recycling"].includes(requestedSection)
     ? requestedSection
     : "overview";
   const monthlySummary = buildMonthlySummary(date);
@@ -188,6 +203,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
     ? (financeTrend.yearToDate.estimatedOperatingProfit / financeTrend.yearToDate.grossRevenue) * 100
     : 0;
   const showTrend = section === "trend";
+  const prediction = readPredictionDataset();
 
   const revenueByTerritory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
@@ -236,6 +252,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           { label: "Costs", href: financeHref(date, "monthly", "expenses"), active: section === "expenses" },
           { label: "Territory", href: financeHref(date, "monthly", "territory"), active: section === "territory" },
           { label: "Trend", href: financeHref(date, "monthly", "trend"), active: section === "trend" },
+          { label: "Forecast", href: financeHref(date, "monthly", "predict"), active: section === "predict" },
           { label: "Resale", href: financeHref(date, "monthly", "resale"), active: section === "resale" },
           { label: "Recycling", href: financeHref(date, "monthly", "recycling"), active: section === "recycling" },
         ]}
@@ -526,6 +543,86 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               </table>
             </div>
           </div>
+        </div>
+
+        <div className={section === "predict" ? "ops-card ops-finance-trend-card" : "ops-section-hidden"} id="finance-prediction-map">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Prediction Map</div>
+              <div className="ops-muted">
+                Seven-day planning baselines with source coverage and rolling backtest error shown beside every forecast.
+              </div>
+            </div>
+          </div>
+
+          {!prediction ? (
+            <div className="ops-empty-state">The prediction dataset has not been built yet.</div>
+          ) : (
+            <>
+              <div className="ops-finance-table-scroll">
+                <table className="ops-table">
+                  <thead>
+                    <tr><th>Forecast</th><th>Next 7 days</th><th>Expected range</th><th>Backtest error</th><th>Confidence</th></tr>
+                  </thead>
+                  <tbody>
+                    {prediction.forecasts.map((forecast) => {
+                      const total = forecast.points.reduce((sum, point) => sum + point.value, 0);
+                      const low = forecast.points.reduce((sum, point) => sum + point.expectedLow, 0);
+                      const high = forecast.points.reduce((sum, point) => sum + point.expectedHigh, 0);
+                      const confidence = forecast.points.some((point) => point.confidence === "low") ? "Low" : "Medium";
+                      return (
+                        <tr key={forecast.target}>
+                          <td><strong>{forecastLabel(forecast.target)}</strong><div className="ops-table-subline">Observed through {forecast.dataThrough || "unavailable"}</div></td>
+                          <td>{forecastValue(forecast.unit, total)}</td>
+                          <td>{forecastValue(forecast.unit, low)}–{forecastValue(forecast.unit, high)}</td>
+                          <td>{forecast.backtest.weightedAbsolutePercentError === null ? "Unavailable" : percent(forecast.backtest.weightedAbsolutePercentError * 100)} WAPE<div className="ops-table-subline">{forecast.backtest.observations} rolling tests</div></td>
+                          <td>{confidence}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="ops-section-spacer" />
+              <div className="ops-card-header compact"><div><div className="ops-section-title">Source Coverage</div><div className="ops-muted">Missing and partial sources stay visible and never become zero.</div></div></div>
+              <div className="ops-finance-table-scroll">
+                <table className="ops-table">
+                  <thead><tr><th>Source</th><th>Status</th><th>Records</th><th>Coverage</th><th>Boundary</th></tr></thead>
+                  <tbody>
+                    {Object.entries(prediction.sourceCoverage).map(([source, coverage]) => (
+                      <tr key={source}>
+                        <td><strong>{source === "qbo" ? "QBO" : source === "wex" ? "WEX" : source === "searchKings" ? "SearchKings" : source === "podium" ? "Podium" : source === "linxup" ? "LinxUp" : "JunkWare"}</strong></td>
+                        <td>{coverage.status}</td>
+                        <td>{coverage.records.toLocaleString("en-US")}</td>
+                        <td>{coverage.coverageFrom || "—"}–{coverage.coverageThrough || "—"}</td>
+                        <td>{coverage.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="ops-section-spacer" />
+              <div className="ops-card-header compact"><div><div className="ops-section-title">Signal Relationships</div><div className="ops-muted">Correlation is an investigation lead, not proof that one signal caused revenue.</div></div></div>
+              <div className="ops-finance-table-scroll">
+                <table className="ops-table">
+                  <thead><tr><th>Signal</th><th>Revenue timing</th><th>Observed days</th><th>Correlation</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {prediction.relationships.map((relationship) => (
+                      <tr key={`${relationship.feature}-${relationship.lagDays}`}>
+                        <td><strong>{relationship.feature}</strong></td>
+                        <td>{relationship.lagDays ? `${relationship.lagDays} day later` : "Same day"}</td>
+                        <td>{relationship.observations}</td>
+                        <td>{relationship.correlation === null ? "—" : relationship.correlation.toFixed(3)}</td>
+                        <td>{relationship.status === "eligible" ? "Ready to investigate" : "Needs more history"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

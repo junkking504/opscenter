@@ -10,7 +10,13 @@
 
 The Crew Portal sync writes its durable status to `OPSBOT_DATA_DIR/integrations/crew-portal-sync/status.json` through the active release data path. A failure retains the last successful publication time alongside the current error category and attempt time. Network and rate-limit upload failures retry the identical payload up to three times. Successful uploads receive up to five bounded read-back attempts to allow KV propagation; authentication failures stop immediately. Raw payloads, credentials, and CLI output are never included in the status record.
 
-Command Source Health and Monitor include JunkWare, LinxUp, QuickBooks (authorized roles), SearchKings, Podium, Crew Portal, and WhatsApp photos. Command also reports Slack and its action service. Photo status includes reason counts and the number of unresolved queue records last modified over 24 hours ago. These are operational decisions, not permission to assign photos to guessed senders or jobs.
+Command Source Health and Monitor include JunkWare, LinxUp, QuickBooks and WEX
+(authorized roles), SearchKings, Podium, Crew Portal, and WhatsApp photos. WEX
+reports retained posted-export coverage and never implies a live portal read.
+Command also reports Slack and its action service. Photo status includes reason
+counts and the number of unresolved queue records last modified over 24 hours
+ago. These are operational decisions, not permission to assign photos to
+guessed senders or jobs.
 
 Session rejection diagnostics are structured application-log entries. They include only the rejection reason, request kind, host, method, trusted-device state, and Cloudflare request ID. Cookies, session values, identity, customer data, and query strings are never logged.
 

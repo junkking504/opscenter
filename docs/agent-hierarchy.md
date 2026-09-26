@@ -20,6 +20,27 @@ engineering work; a monitoring heartbeat does not mean implementation occurred.
 Tab coverage declares accountability and dependencies, not proof that every
 possible business error or UI interaction has been checked.
 
+## Core source ownership
+
+The Engineering branch includes a **Data manager** with four source specialists:
+**JunkWare data**, **QuickBooks data**, **WEX data**, and **LinxUp data**. These
+roles reuse the existing collectors, imports, source-health readers, timestamps,
+and protected snapshots. They do not start a second collector, copy credentials,
+open new provider sessions, or create another operational database.
+
+Each source specialist owns the health and coverage finding for its source. The
+Data manager aggregates those findings, preserves source-specific timestamps and
+precedence, and owns coordination when sources disagree. It does not merge an
+uncertain record into a fabricated fact. JunkWare appointment evidence,
+QuickBooks accounting status, WEX posted-export coverage, and LinxUp telemetry
+remain distinct even when a downstream workspace combines them.
+
+WEX is explicitly a retained posted-transaction export, not a live portal read.
+Its agent reports the last import and transaction coverage without polling WEX.
+Other integrations, address recovery, and unclassified source failures remain
+with **Other integrations and recovery** so the four core roles do not duplicate
+existing responsibilities.
+
 ## Waypoint ownership
 
 The **Waypoint reliability agent** reports to the Engineering lead and owns
@@ -28,8 +49,8 @@ It runs inside the existing minute hierarchy assessment, even while no manager
 has Command open. The operational hierarchy keeps its durable findings and
 escalates urgent items to Engineering after 15 minutes. Missing evidence
 escalates immediately as unconfirmed; stale worker assessments remain visible.
-The existing Integrations specialist still owns JunkWare source freshness,
-which is also a declared dependency of Waypoint.
+The JunkWare data agent owns JunkWare source freshness, which is also a declared
+dependency of Waypoint.
 
 Eight concurrent, read-only loopback checks use the Waypoint hostname and HTTPS
 proxy headers: the crew page, manifest and unauthenticated session, day, inspection,

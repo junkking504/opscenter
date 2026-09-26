@@ -15,7 +15,13 @@ import {readJobRows} from './desktop-schedule-source';
 import {readVerifiedJunkwareScheduleSnapshot, readVerifiedJunkwareReconciliationSnapshot} from './junkware-fast-schedule';
 import {planningLocation} from './planning-geocodes';
 import {readWaypointFeeds} from './waypoint-agent';
+import type {DesktopSourceHealth} from '../desktop-ui/lib/live-contract';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
+export const sourceAgentForFeed:Readonly<Record<string,string>>={JunkWare:'junkware-source',QuickBooks:'qbo-source',WEX:'wex-source',LinxUp:'linxup-source'};
+export function sourceHealthFeed(source:DesktopSourceHealth,now=Date.now()):HierarchyFeed {
+  const available=hierarchyFresh(source.observedAt,now,source.maxAgeSeconds*1000),owner=sourceAgentForFeed[source.name]||'integrations';
+  return {id:source.name,available,observedAt:source.observedAt,detail:source.state,findings:source.tone==='healthy'&&available?[]:[{id:`source:${source.name}`,feed:source.name,title:`${source.name}: ${source.state}`,detail:source.area,href:source.href||monitor,origin:owner,target:owner,priority:'next'}]};
+}
 export function maintenanceFindings(incidents:MaintenanceIncident[]):HierarchyFinding[] {
   return incidents.filter(i=>i.status!=='resolved').map(i=>({
     id:`maintenance:${i.key}`,feed:'maintenance-observer',title:i.title,
@@ -53,10 +59,8 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
     if(!cache.addresses || typeof cache.addresses!=='object' || Array.isArray(cache.addresses))throw new Error('Address cache unavailable');
     feeds.push(scheduleAddressFeed(date,readJobRows(date).map(j=>({...j,located:Boolean(planningLocation(j.address,cache.addresses))})),new Date(snapshot.freshnessAtMs).toISOString(),now));
   }catch {unavailable('schedule-addresses','Complete schedule and address evidence could not be read; prior findings are retained.');}
-  try {for(const source of readDesktopSourceHealth(true)) {
-    const available=hierarchyFresh(source.observedAt,now,source.maxAgeSeconds*1000);
-    feeds.push({id:source.name,available,observedAt:source.observedAt,detail:source.state,findings:source.tone==='healthy'&&available?[]:[{id:`source:${source.name}`,feed:source.name,title:`${source.name}: ${source.state}`,detail:source.area,href:source.href||monitor,origin:'operations',target:'integrations',priority:'next'}]});
-  }}catch {for(const id of ['JunkWare','LinxUp','QuickBooks','SearchKings','Podium','Crew Portal','WhatsApp photos'])unavailable(id,'Source health could not be read.');}
+  try {for(const source of readDesktopSourceHealth(true))feeds.push(sourceHealthFeed(source,now));}
+  catch {for(const id of ['JunkWare','LinxUp','QuickBooks','WEX','SearchKings','Podium','Crew Portal','WhatsApp photos'])unavailable(id,'Source health could not be read.');}
   try {
     const saved=read(`fleet/truck-agents/${date}.json`) as {version:number;heartbeatAt:string;agents:TruckAgent[]};
     if(saved.version!==1||saved.agents.length!==9)throw new Error('Incomplete truck assessment');
@@ -96,7 +100,10 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
     }catch {unavailable('operating-queue','Existing operating queue could not be read; prior assignments remain.');}
   }else unavailable('operating-queue','Existing operating queue is not configured for this runtime.');
   // Every unavailable dependency becomes owned work, even without prior findings.
-  for(const feed of feeds)if(!feed.available && !feed.id.startsWith('waypoint-'))feed.findings.push({id:`coverage:${feed.id}`,feed:feed.id,title:`Evidence unavailable: ${feed.id}`,detail:feed.detail,href:monitor,origin:'engineering',target:'integrations',priority:'next'});
+  for(const feed of feeds)if(!feed.available && !feed.id.startsWith('waypoint-')&&!feed.findings.length) {
+    const owner=sourceAgentForFeed[feed.id]||'integrations';
+    feed.findings.push({id:`coverage:${feed.id}`,feed:feed.id,title:`Evidence unavailable: ${feed.id}`,detail:feed.detail,href:monitor,origin:owner,target:owner,priority:'next'});
+  }
   return feeds;
 }
 export async function runHierarchy(date:string,now=Date.now()) {

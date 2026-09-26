@@ -6,11 +6,19 @@ import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyFinding,t
 import {projectHierarchy,saveHierarchy,readHierarchy} from '../lib/agent-hierarchy';
 import {requiredOpsPermission} from '../lib/ops-roles';
 import type {MaintenanceIncident} from '../desktop-ui/lib/maintenance-contract';
+import {sourceAgentForFeed,sourceHealthFeed} from '../lib/agent-hierarchy-inputs';
 const now=Date.parse('2026-09-17T15:00:00Z'),date='2026-09-17',at=new Date(now).toISOString();
 assert.equal(hierarchyTabs.length,32);assert.equal(new Set(hierarchyTabs.map(t=>`${t.page}:${t.tab}`)).size,32);
 assert.equal(new Set(hierarchyAgents.map(a=>a.id)).size,hierarchyAgents.length);
 for(const a of hierarchyAgents){const visited=new Set<string>();let id:string|null=a.id;while(id){assert(!visited.has(id),'No hierarchy cycles');visited.add(id);const row=hierarchyAgents.find(x=>x.id===id);assert(row,'Parent exists');id=row.parent;}}
 for(const tab of hierarchyTabs)assert(hierarchyAgents.some(a=>a.id===tab.owner));
+assert.equal(hierarchyAgents.find(a=>a.id==='data-manager')?.parent,'engineering');
+for(const [feed,owner] of Object.entries(sourceAgentForFeed)) {
+  const agent=hierarchyAgents.find(a=>a.id===owner);
+  assert(agent,`${feed} source agent exists`);assert.equal(agent.parent,'data-manager');assert.deepEqual(agent.dependencies,[feed]);
+}
+const unhealthySource=sourceHealthFeed({name:'WEX',area:'Posted export retained.',workspace:'Finance',action:'Review source',state:'Coverage through 2026-09-14',tone:'warning',observedAt:'2026-09-14T12:00:00Z',maxAgeSeconds:3600},now);
+assert.equal(unhealthySource.findings[0].origin,'wex-source');assert.equal(unhealthySource.findings[0].target,'wex-source');
 const dependencies=[...new Set(hierarchyAgents.flatMap(a=>a.dependencies))];
 const feeds:HierarchyFeed[]=dependencies.map(id=>({id,available:true,observedAt:at,detail:'Fixture',findings:[]}));
 const finding:HierarchyFinding={id:'truck-6:fixture:receipt:1',feed:'truck-assessments',title:'Receipt ambiguity',detail:'Fixture',href:'/desktop',origin:'truck-6',target:'expenses',priority:'urgent'};

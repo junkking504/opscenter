@@ -37,11 +37,12 @@ if no V3 point has arrived within the configured authority window, OpsCenter
 uses the newest valid observation across V2 and V3. A polled observation reports
 `v2_poll_fallback`; a newer stale V3 observation reports `last_known`. Push-only
 trucks remain visible. Invalid/future observations are excluded. The observation's
-own timestamp still controls stale labels, nearest-truck eligibility, and on-site
-evidence; keeping a last-known marker does not restore live GPS authority.
-Nearest-truck eligibility follows the displayed truck GPS state: moving, idle and
-incomplete reports use the three-minute live window, while a zero-speed,
-ignition-off report remains current through the 75-minute parked heartbeat window.
+own timestamp still controls stale labels and on-site evidence; keeping a
+last-known marker does not restore live GPS authority. Closest-truck ranking is a
+separate location comparison: every truck's latest valid coordinate remains
+eligible until a newer valid coordinate replaces it, including when the V2
+fallback cannot express ignition state. The real observation time remains in the
+result as confidence evidence, but age alone does not erase the truck's location.
 
 `/api/health` exposes `linxupDeliveryMode`, `linxupV3UpdatedAt`,
 `linxupV3AgeSeconds`, and `linxupFallbackActive`. A healthy V2 snapshot with a
@@ -256,6 +257,8 @@ old remain Offline. Moving or engine-on observations retain the three-minute
 freshness limit. Missing speed or ignition cannot establish parked/idling, and
 positive speed takes priority over a conflicting ignition flag or old yard stop.
 Parked heartbeat tolerance does not extend live ETA or on-site eligibility.
+Closest-truck road comparison is not a live ETA and continues to use each truck's
+latest valid coordinate after that heartbeat expires.
 Mapped trucks without observations remain listed as GPS unavailable, including
 when they have no assignments. GPS inventory does not depend on daily metrics.
 

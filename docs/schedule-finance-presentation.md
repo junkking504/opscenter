@@ -99,11 +99,12 @@ call-ahead prompts.
 The summary displays only the first eligible result from the existing closest
 truck ranking. It does not render the full candidate list or assign a truck.
 Current-day, verified-coordinate, valid-estimate and source-identity checks remain
-in force. Eligibility uses the shared GPS-currentness contract: moving, idle and
-incomplete observations require a report within three minutes, while a zero-speed,
-ignition-off parked report remains a current location for its 75-minute heartbeat
-window. Failed routing settles to Unavailable; future days do not suggest a truck
-from today's GPS. No new provider calls or polling intervals are introduced.
+in force. Each truck's latest valid coordinate remains eligible even after the
+tracker powers down or the fallback feed omits a usable ignition field. The source
+timestamp remains attached as confidence evidence; age alone does not erase a
+known location. Trucks without valid coordinates remain unavailable. Failed
+routing settles to Unavailable; future days do not suggest a truck from today's
+GPS. No new provider calls or polling intervals are introduced.
 
 Validation: `scripts/test-dispatch-details-browser.mjs` with the synthetic
 `desktop-ui/tests/dispatch-details.vite.config.ts` server checks 320–1440px,

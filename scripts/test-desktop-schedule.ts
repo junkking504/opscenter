@@ -14,28 +14,35 @@ async function main() {
     assert.equal(needsScheduleAddressVerification(canceled),false,'Canceled records do not request geocoding or count as address attention');
     assert.deepEqual(scheduleRoutePairs([jobs[0],canceled,jobs[1]]).map(leg=>[leg.fromAppointmentId,leg.toAppointmentId]),[['estimate-1','job-2']],'A canceled unverified stop cannot interrupt the truck route');
   }
-  const now = Date.parse('2026-09-25T22:00:00Z');
   const closest = await calculateClosestTrucks(jobs[0], [
     { truck:'Truck# 3', latitude:30.4, longitude:-91.16, lastGpsUpdate:'2026-09-25T21:35:00Z', speed:0, ignition:'OFF' },
     { truck:'Truck# 6', latitude:30.41, longitude:-91.15, lastGpsUpdate:'2026-09-25T20:44:59Z', speed:0, ignition:'OFF' },
     { truck:'Truck# 8', latitude:30.01, longitude:-90.11, lastGpsUpdate:'2026-09-25T21:59:00Z', speed:20, ignition:'ON' },
-    { truck:'Truck# 9', latitude:29.99, longitude:-90.06, lastGpsUpdate:'2026-09-25T21:50:00Z', speed:0, ignition:'ON' },
+    { truck:'Truck# 9', latitude:29.99, longitude:-90.06, lastGpsUpdate:'2026-09-25T21:50:00Z', speed:0, ignition:'Unavailable' },
+    { truck:'Truck# 1', latitude:null, longitude:null, lastGpsUpdate:null, speed:null, ignition:null },
+    { truck:'Truck# 5', latitude:0, longitude:0, lastGpsUpdate:'2026-09-25T21:59:00Z', speed:0, ignition:'Unavailable' },
   ] as ScheduleTruck[], true, async origins => {
     assert.deepEqual(origins, [
       {latitude:30.4,longitude:-91.16},
+      {latitude:30.41,longitude:-91.15},
       {latitude:30.01,longitude:-90.11},
-    ], 'A parked report inside its reporting window and live moving GPS are eligible; expired parked and stale non-parked reports are not');
+      {latitude:29.99,longitude:-90.06},
+    ], 'Every valid last-known truck coordinate is eligible even when GPS age or missing fallback ignition metadata makes live motion unavailable');
     return [
       {originIndex:0,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'3600s',distanceMeters:69201.8},
-      {originIndex:1,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'8400s',distanceMeters:185074.56},
+      {originIndex:1,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'3300s',distanceMeters:65982.4},
+      {originIndex:2,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'8400s',distanceMeters:185074.56},
+      {originIndex:3,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'7200s',distanceMeters:160934.4},
     ];
-  }, now);
+  });
   assert.deepEqual(closest.map(row=>[row.truck,row.status,row.minutes,row.miles]),[
+    ['Truck# 6','available',55,41],
     ['Truck# 3','available',60,43],
+    ['Truck# 9','available',120,100],
     ['Truck# 8','available',140,115],
-    ['Truck# 6','stale_gps',null,null],
-    ['Truck# 9','stale_gps',null,null],
-  ], 'Closest truck ranking includes a valid parked observation and keeps stale reports ineligible');
+    ['Truck# 1','gps_unavailable',null,null],
+    ['Truck# 5','gps_unavailable',null,null],
+  ], 'Closest truck ranking uses last-known locations and excludes only trucks without valid coordinates');
   assert.equal(needsScheduleAddressVerification({...jobs[1],location:null}),true,'Active unverified work remains visible for address review');
   const pairs = scheduleRoutePairs(jobs);
   assert.equal(pairs.length, 2);
@@ -71,6 +78,6 @@ async function main() {
   assert.equal(tiedLegs[2].gapMinutes,null);
   assert.equal(tiedLegs[2].bufferMinutes,null);
   assert.deepEqual(scheduleRoutePairs([...tied].reverse()),scheduleRoutePairs(tied),'Same-time order must not change when source rows reorder');
-  console.log('Schedule contracts passed: separate appointment identity, route ordering, overlaps, verified coordinates, parked and live closest-truck GPS, provider distance/time, and no fabricated fallback.');
+  console.log('Schedule contracts passed: separate appointment identity, route ordering, overlaps, verified coordinates, last-known closest-truck locations, provider distance/time, and no fabricated fallback.');
 }
 void main();

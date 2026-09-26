@@ -20,6 +20,7 @@ import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
+import { dedupeLinkedAppointmentVisitState } from './linked-appointment-visit-dedup';
 
 export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
@@ -77,6 +78,7 @@ export function readDesktopSchedule(date: string) {
     addressCheckPending: addressCheck?.reason === 'Automatic Address Check Pending',
     addressCheckReason: addressCheck?.reason,
   }; });
+  dedupeLinkedAppointmentVisitState(appointments);
   // Reconcile against the current effective address/time, including a pending
   // dispatch move, without modifying JunkWare or inventing a ledger event.
   if (fleet.isToday) for (const job of appointments) {

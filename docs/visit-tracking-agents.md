@@ -32,6 +32,12 @@ an earlier native arrival later supplements a V3 episode.
 
 Appointment visits require the existing collector's confirmed appointment/truck
 attribution and reject pass-bys. Separate return intervals remain separate visits.
+A source-linked estimate and job may describe one customer stop. When both
+appointment IDs receive the exact same truck/arrival/departure episode, the
+linked job owns the physical visit and the estimate remains a separate source
+record without a second truck-board block. Distinct GPS episodes remain distinct.
+A cross-appointment collision invariant prevents one physical episode from being
+silently counted twice.
 A completed interval replaces a stale open revision of the same arrival, in either
 input order. Different confirmed departures for one arrival remain conflicts.
 Operational confirmation remains distinct from exact GPS timing. Tracking does

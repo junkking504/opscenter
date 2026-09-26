@@ -2,6 +2,7 @@ import { separateCancellationContact } from '../lib/desktop-schedule-source';
 import assert from 'node:assert/strict';
 import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { appointmentStatus, scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
+import { dedupeLinkedAppointmentVisitState } from '../lib/linked-appointment-visit-dedup';
 
 const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, recordedOnsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
@@ -106,3 +107,17 @@ const retained = fullScheduleVisitState(job,[shortVisit],new Date(now+25*60_000)
 assert.equal(retained.truckOnSite,true,'A 1 mph arrival followed by nearby engine shutdown remains on site between hourly reports');
 assert.equal(retained.hasDepartedVisit,false);
 assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...retained}),'On Site');
+
+const duplicatedVisit = {minutes:27.5,arrival:'2026-09-26T14:36:45Z',departure:'2026-09-26T15:04:14Z',label:'27.5 min',truck:'Truck 2'};
+const linked = dedupeLinkedAppointmentVisitState([
+  {appointmentId:'estimate-1',appointmentType:'Estimate',hasVisit:true,hasDepartedVisit:true,onsiteTime:{...duplicatedVisit},recordedOnsiteTime:{...duplicatedVisit}},
+  {appointmentId:'job-1',sourceEstimateAppointmentId:'estimate-1',appointmentType:'Job',hasVisit:true,hasDepartedVisit:true,onsiteTime:{...duplicatedVisit},recordedOnsiteTime:{...duplicatedVisit}},
+]);
+assert.equal(linked[0].hasVisit,false,'A linked estimate cannot claim the same physical visit as its job');
+assert.equal(linked[0].recordedOnsiteTime?.label,'Physical visit shown on linked job');
+assert.equal(linked[1].hasVisit,true,'The linked job retains the physical visit');
+const distinct = dedupeLinkedAppointmentVisitState([
+  {appointmentId:'estimate-2',appointmentType:'Estimate',hasVisit:true,onsiteTime:{...duplicatedVisit,arrival:'2026-09-26T13:00:00Z',departure:'2026-09-26T13:20:00Z'}},
+  {appointmentId:'job-2',sourceEstimateAppointmentId:'estimate-2',appointmentType:'Job',hasVisit:true,onsiteTime:{...duplicatedVisit}},
+]);
+assert.equal(distinct[0].hasVisit,true,'Distinct estimate and job visits remain separate');

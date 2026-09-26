@@ -40,5 +40,27 @@ export async function publishCrewValue(key: string, payloadPath: string, expecte
   throw new Error('Crew Portal publication read-back unconfirmed after bounded retries.');
 }
 export function runCrewWrangler(args: string[]) {
-  return spawnSync(path.join(process.cwd(),'node_modules','.bin','wrangler'),args,{cwd:process.cwd(),encoding:'utf8',timeout:45000,maxBuffer:64*1024*1024,env:{...process.env,WRANGLER_SEND_METRICS:'false'}});
+  // Resolve only this publisher's credential. Never refresh or fall back to the
+  // shared interactive OAuth login used by unrelated Wrangler/deployment jobs.
+  let token = process.env.OPSCENTER_CREW_PORTAL_CLOUDFLARE_API_TOKEN;
+  if (token === undefined && process.platform === 'darwin') {
+    const stored = spawnSync('/usr/bin/security', [
+      'find-generic-password', '-a', 'opscenter', '-s',
+      'com.opscenter.crew-portal-cloudflare-api-token', '-w',
+    ], { encoding: 'utf8', timeout: 5000, maxBuffer: 16 * 1024 });
+    if (stored.status === 0 && !stored.error) token = stored.stdout.trim();
+  }
+  if (!token || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    // Never include Keychain output, provider credentials or exception contents.
+    throw new Error('Crew Portal dedicated credential unavailable; authentication required.');
+  }
+  const env = { ...process.env };
+  for (const name of ['CF_API_TOKEN', 'CLOUDFLARE_API_KEY', 'CF_API_KEY',
+    'CLOUDFLARE_EMAIL', 'CF_EMAIL', 'CF_ACCOUNT_ID',
+    'OPSCENTER_CREW_PORTAL_CLOUDFLARE_API_TOKEN']) delete env[name];
+  env.CLOUDFLARE_API_TOKEN = token;
+  // Account owning the existing CREW_METRICS namespace in wrangler.toml.
+  env.CLOUDFLARE_ACCOUNT_ID = 'ea8cff934d688ef194de52a1ae819717';
+  env.WRANGLER_SEND_METRICS = 'false';
+  return spawnSync(path.join(process.cwd(),'node_modules','.bin','wrangler'),args,{cwd:process.cwd(),encoding:'utf8',timeout:45000,maxBuffer:64*1024*1024,env});
 }

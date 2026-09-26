@@ -97,6 +97,39 @@ submission marker, and verification time without rewriting collected exports.
 
 ## Activation sequence
 
+### Unattended publication credential
+
+The Mac Crew Portal publisher uses its dedicated account-owned Cloudflare token,
+not a shared interactive Wrangler OAuth login. Store it in the local Keychain
+as service `com.opscenter.crew-portal-cloudflare-api-token`, account `opscenter`.
+Non-macOS publishers must supply the server-only
+`OPSCENTER_CREW_PORTAL_CLOUDFLARE_API_TOKEN` environment variable explicitly.
+An explicitly supplied empty/invalid value or an unavailable Keychain item stops
+publication; it never silently falls back to a broader credential.
+
+Only the publisher's Wrangler child receives `CLOUDFLARE_API_TOKEN` and the
+account owning the existing `CREW_METRICS` binding. Shared process credentials,
+OAuth files and deployment credentials remain unchanged. Never put the value in
+Git, browser bundles, logs, command arguments or sync-status records.
+
+The September 26, 2026 approval covers Workers KV Storage Write for the existing
+Cloudflare account, valid through September 26, 2027, securely stored locally.
+Cloudflare's account token screen does not offer a KV-namespace restriction:
+this permission can read, write and delete KV data across the account. It does
+not grant DNS, billing or Worker deployment permissions. Renewal requires an
+explicit credential review before expiry; do not remove the expiry silently.
+No new service, request cadence, spending allowance or business mutation is
+authorized by this credential change.
+
+Keep the existing bounded retries and exact publication read-back checks.
+Authentication recovery does not prove network errors are resolved or that a
+private employee handset view is correct. Validate normal scheduled publication,
+independent KV read-back and source health; do not impersonate an employee.
+Regression coverage: `npm run verify:crew-sync` and
+`npm run verify:crew-portal-corrections`, with isolated/mock credentials only.
+
+### Initial portal activation
+
 1. Create and bind the dedicated `CREW_CREDENTIALS` KV namespace.
 2. Add the JunkWare username-to-employee roster and authentication secrets.
 3. Set the Krewe Access application to bypass identity-provider verification.

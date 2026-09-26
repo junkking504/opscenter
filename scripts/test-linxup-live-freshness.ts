@@ -22,6 +22,8 @@ expect(health.includes("stale-linxup-data"), "Health endpoint must report stale 
 expect(health.includes("degraded-linxup-v3-fallback"), "Health endpoint must identify a current V2 fallback as degraded");
 expect(health.includes("linxupDeliveryMode"), "Health endpoint must expose the authoritative LinxUp delivery mode");
 expect(health.includes("linxupV3UpdatedAt"), "Health endpoint must expose the newest V3 position timestamp");
+expect(health.includes("linxupV3ExpectedSilent"), "Health endpoint must distinguish ignition-off V3 silence from delivery failure");
+expect(health.includes("linxupV3Fresh || linxupV3ExpectedSilent"), "Ignition-off V3 positions must remain authoritative");
 expect(health.includes("dataUpdatedAt"), "Health endpoint must expose combined data freshness");
 expect(sync.includes("health?.dataUpdatedAt || health?.updatedAt"), "Current pages must react to LinxUp-only refreshes");
 for (const command of [

@@ -13,7 +13,7 @@ import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
 import { collectSystemSignals } from "@/lib/system-signals";
 import {
   LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS,
-  isLinxupV3Position,
+  summarizeLinxupV3Stream,
   type LinxupDeliveryMode,
   type LinxupPointLike,
 } from "@/lib/linxup-authority";
@@ -54,17 +54,16 @@ function writableStateTarget(directory: string): string {
   return target;
 }
 
-function latestV3PositionAt(file: string): string | null {
+function linxupV3StreamState(file: string, maxV3AgeSeconds: number) {
   try {
     const payload = JSON.parse(fs.readFileSync(file, "utf8")) as { points?: LinxupPointLike[] };
-    const positions = Array.isArray(payload.points) ? payload.points.filter(isLinxupV3Position) : [];
-    return positions.reduce<string | null>((latest, point) => {
-      const timestamp = String(point.timestamp || "");
-      if (!Number.isFinite(Date.parse(timestamp))) return latest;
-      return !latest || timestamp > latest ? timestamp : latest;
-    }, null);
+    return summarizeLinxupV3Stream(
+      Array.isArray(payload.points) ? payload.points : [],
+      Date.now(),
+      maxV3AgeSeconds,
+    );
   } catch {
-    return null;
+    return { latestPositionAt: null, fresh: false, expectedSilent: false };
   }
 }
 
@@ -149,19 +148,21 @@ export async function GET(request: Request) {
     );
     const linxupStale = monitorsCurrentDate
       && (linxupAgeSeconds === null || linxupAgeSeconds > linxupMaxAgeSeconds);
-    const linxupV3UpdatedAt = fs.existsSync(linxupFile) ? latestV3PositionAt(linxupFile) : null;
-    const linxupV3AgeSeconds = linxupV3UpdatedAt
-      ? Math.max(0, Math.floor((Date.now() - Date.parse(linxupV3UpdatedAt)) / 1000))
-      : null;
     const linxupV3MaxAgeSeconds = Math.max(
       60,
       Number(process.env.OPSCENTER_LINXUP_V3_MAX_AGE_SECONDS || LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS),
     );
-    const linxupV3Fresh = monitorsCurrentDate
-      && linxupV3AgeSeconds !== null
-      && Date.parse(linxupV3UpdatedAt || "") <= Date.now()
-      && linxupV3AgeSeconds <= linxupV3MaxAgeSeconds;
-    const linxupDeliveryMode: LinxupDeliveryMode = linxupV3Fresh
+    const linxupV3State = fs.existsSync(linxupFile)
+      ? linxupV3StreamState(linxupFile, linxupV3MaxAgeSeconds)
+      : { latestPositionAt: null, fresh: false, expectedSilent: false };
+    const linxupV3UpdatedAt = linxupV3State.latestPositionAt;
+    const linxupV3AgeSeconds = linxupV3UpdatedAt
+      ? Math.max(0, Math.floor((Date.now() - Date.parse(linxupV3UpdatedAt)) / 1000))
+      : null;
+    const linxupV3Fresh = monitorsCurrentDate && linxupV3State.fresh;
+    const linxupV3ExpectedSilent = monitorsCurrentDate && linxupV3State.expectedSilent;
+    const linxupV3Authoritative = linxupV3Fresh || linxupV3ExpectedSilent;
+    const linxupDeliveryMode: LinxupDeliveryMode = linxupV3Authoritative
       ? "v3_position_push"
       : !linxupStale
         ? "v2_poll_fallback"
@@ -225,6 +226,7 @@ export async function GET(request: Request) {
         linxupV3UpdatedAt,
         linxupV3AgeSeconds,
         linxupV3Fresh,
+        linxupV3ExpectedSilent,
         linxupV3MaxAgeSeconds,
         linxupDeliveryMode,
         linxupFallbackActive,

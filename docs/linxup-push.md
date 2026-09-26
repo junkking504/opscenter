@@ -30,24 +30,27 @@ token in LinxUp and the Mission Control Keychain item
 `com.opscenter.linxup-push-bearer-token`. Do not put either token in Git, Slack,
 or a Business bundle.
 
-V3 Position Push is the authoritative live source whenever a current push is
-present. The V2 minute collector remains enabled as a verification, backfill,
-and automatic fallback path. A current V3 point wins over a newer polled point;
-if no V3 point has arrived within the configured authority window, OpsCenter
-uses the newest valid observation across V2 and V3. A polled observation reports
-`v2_poll_fallback`; a newer stale V3 observation reports `last_known`. Push-only
+V3 Position Push is the authoritative source whenever a current push is present.
+An explicit ignition-off V3 position also remains authoritative while push silence
+is expected; a newer V2 collection timestamp alone cannot demote it. The V2 minute
+collector remains enabled as a verification, backfill, and automatic fallback
+path. A current V3 point wins over a newer polled point; otherwise OpsCenter uses
+the newest valid position observation across V2 and V3. A polled observation
+reports `v2_poll_fallback`; a stale V3 observation reports `last_known`. Push-only
 trucks remain visible. Invalid/future observations are excluded. The observation's
-own timestamp still controls stale labels and on-site evidence; keeping a
-last-known marker does not restore live GPS authority. Closest-truck ranking is a
+own timestamp still controls stale labels and on-site evidence; retaining V3 as
+the primary delivery source does not make an ignition-off position live. Closest-truck ranking is a
 separate location comparison: every truck's latest valid coordinate remains
 eligible until a newer valid coordinate replaces it, including when the V2
 fallback cannot express ignition state. The real observation time remains in the
 result as confidence evidence, but age alone does not erase the truck's location.
 
 `/api/health` exposes `linxupDeliveryMode`, `linxupV3UpdatedAt`,
-`linxupV3AgeSeconds`, and `linxupFallbackActive`. A healthy V2 snapshot with a
-silent V3 receiver returns HTTP 200 as `degraded-linxup-v3-fallback`; stale V2
-and V3 data remains a hard `stale-linxup-data` failure. Provider configuration
+`linxupV3AgeSeconds`, `linxupV3ExpectedSilent`, and `linxupFallbackActive`. A
+healthy V2 snapshot with no current V3 and no explicit final ignition-off V3
+state returns HTTP 200 as `degraded-linxup-v3-fallback`. Expected ignition-off
+silence keeps V3 primary without changing the real position age. Stale V2 and
+V3 data remains a hard `stale-linxup-data` failure. Provider configuration
 is not complete until a real (non-synthetic) LinxUp event is stored below
 `data/history/linxup/push/<date>/`, appears in the normalized snapshot with
 `delivery_source: v3_position_push`, and makes health report

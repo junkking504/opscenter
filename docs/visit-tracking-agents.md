@@ -127,4 +127,11 @@ process restarts and later manual unassignment do not replay it. An uncertain
 write requires source reconciliation. The source appointment and dispatch lane
 are checked again before submission to avoid overwriting a newer assignment.
 The worker has its own process lock and does not inherit the GPS ingestion lock.
+Verified write receipts bridge collection lag only. A later observation of that
+appointment in JunkWare supersedes the saved truck and booking window. The board
+still shows the physical GPS visit on its visiting truck, with the current
+JunkWare assignment shown separately when it differs. A later unassignment does
+not replay the original automatic write. Pending changes retain their explicit
+reconciliation state; unknown, future or older source observations cannot erase
+a verified move.
 Validate with `npm run verify:gps-visit-assignment`.

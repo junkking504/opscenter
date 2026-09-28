@@ -13,6 +13,7 @@ async function main() {
  const {visitedAssignmentTruck,reconcileVisitedAssignments}=await import('../lib/gps-visit-assignment');
  const {readJobRouteAssignmentOverrides}=await import('../lib/job-route-assignments');
  const {scheduleDisplayTruck}=await import('../desktop-ui/lib/schedule-contract');
+ const {applyScheduleAssignment}=await import('../lib/schedule-assignment-projection');
  const now=Date.parse('2026-09-28T17:00:00Z'),date='2026-09-28',arrival='2026-09-28T15:23:42Z';
  const job=(id:string)=>({appointmentId:id,recordId:`${date}:appointment:${id}`,version:'a'.repeat(64),truck:'Unassigned',status:'Confirmed',
   location:{latitude:30,longitude:-90},appointmentStartMinutes:900,appointmentEndMinutes:960,
@@ -40,6 +41,17 @@ async function main() {
   assert.ok(results.flat().some(r=>r.status==='verified'));
   const saved=readJobRouteAssignmentOverrides(date).get('appt:1234')!;
   assert.equal(saved.truck,'Truck 3');assert.equal(saved.junkwareSyncStatus,'verified');assert.equal(saved.appointmentStartMinutes,900);
+  const laterSource={...base,statusObservedAt:new Date(now+60_000).toISOString(),appointmentStartMinutes:840,appointmentEndMinutes:900};
+  const refreshed=applyScheduleAssignment(laterSource,saved,now+120_000);
+  assert.equal(refreshed.truck,'Unassigned','A newer source unassignment supersedes the saved receipt');
+  assert.equal(refreshed.appointmentStartMinutes,840,'A newer source booking also supersedes the receipt');
+  assert.equal(scheduleDisplayTruck(refreshed),'Truck 3','The actual GPS visit still belongs to the visiting truck');
+  assert.equal(applyScheduleAssignment({...laterSource,truck:'Truck 8'},saved,now+120_000).truck,'Truck 8','A newer source reassignment is preserved');
+  for(const stamp of [undefined,'invalid',new Date(now-60_000).toISOString(),new Date(now+600_000).toISOString()]) {
+    assert.equal(applyScheduleAssignment({...base,statusObservedAt:stamp},saved,now+120_000).truck,'Truck 3','Older, unavailable or future observations cannot undo a verified move');
+  }
+  assert.equal(applyScheduleAssignment(laterSource,{...saved,junkwareSyncStatus:'pending'},now+120_000).junkwareSyncStatus,'pending','Pending writes still require reconciliation');
+  assert.equal(applyScheduleAssignment({...laterSource,truck:'Unknown'},saved,now+120_000).truck,'Truck 3','Unknown assignment is not evidence of unassignment');
   await reconcileVisitedAssignments(date,{load:()=>[base],sync,now});
   assert.equal(calls,1,'Restart and later manual unassignment cannot replay the visit');
   const unknown=job('5678');let uncertain=0;

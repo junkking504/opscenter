@@ -16,6 +16,7 @@ import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proxim
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
 import { needsScheduleAddressVerification, type ClosestTruck, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
+import { applyScheduleAssignment } from './schedule-assignment-projection';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
@@ -56,14 +57,7 @@ export function readDesktopSchedule(date: string) {
   const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
     const source = separateCancellationContact(rawSource);
     const override = overrides.get(`appt:${source.appointmentId}`);
-    const job = override ? {
-      ...source, truck: override.truck || 'Unassigned', assignedTruck: override.truck || 'Unassigned',
-      appointmentTime: override.appointmentTime || source.appointmentTime,
-      appointmentStartMinutes: override.appointmentStartMinutes ?? source.appointmentStartMinutes,
-      appointmentEndMinutes: override.appointmentEndMinutes ?? source.appointmentEndMinutes,
-      hasScheduledTime: override.appointmentStartMinutes !== undefined || source.hasScheduledTime,
-      junkwareSyncStatus: override.junkwareSyncStatus, junkwareSyncError: override.junkwareSyncError,
-    } : source;
+    const job = applyScheduleAssignment(source, override);
     const addressCheck = cachedAddressVerification(job.address);
     const location = planningLocation(job.address, pins) || addressCheck?.location || null;
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';

@@ -438,6 +438,19 @@ suggestion is bounded to 12 stops and is not a global route optimization.
 
 ## Shared full-field address verification
 
+The shared verification cleanup collapses a repeated, identical city/Louisiana-state
+tail before both lookup and returned-address verification. For example,
+`100 Example Ave, Baton Rouge, La Baton Rouge, LA 70817` becomes
+`100 Example Ave, Baton Rouge, LA 70817`. A first ZIP may be omitted; when
+repeated, the ZIP must agree exactly. Street and unit instructions are retained.
+Different cities, conflicting states/ZIPs, partial city suffixes and additional
+addresses remain subject to the existing strict checks. Source text, saved
+review identities and lifetime research keys remain unchanged. JunkWare is not
+edited. Policy 12 retries older failed checks/backoff and revalidates older
+successful evidence, with no new provider or change to request limits.
+The isolated background-sweep regression verifies recovery and cache reuse
+after restart, including a failed result under the previous production policy.
+
 `lib/desktop-address-verification.ts` processes the entire source field for every
 lookup. It tries the unit-free routing query first and retains the full source
 field for validation and subsequent query variants. Every

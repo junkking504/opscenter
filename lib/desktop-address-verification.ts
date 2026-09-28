@@ -1,6 +1,6 @@
 import { serviceHouseAndStreet, normalizeHouseNumber, firstHouseAndStreet } from './service-house-number';
 import { reviewedServiceAddress } from './reviewed-service-address';
-import { cleanJunkwareAddressText } from './junkware-address-text';
+import { cleanJunkwareAddressText, cleanServiceAddressForVerification } from './junkware-address-text';
 import { cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { verifyParishAddressFallback } from './parish-service-address';
@@ -16,7 +16,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 11;
+export const ADDRESS_VERIFICATION_POLICY = 12;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -48,7 +48,7 @@ function matchesStreet(requested: string, house: string, street: string, city: s
 
 // Match returned components, never a city centroid or a nearby street/house.
 export function verifyAddressResult(address: string, payload: Payload): AddressVerification {
-  address = cleanJunkwareAddressText(address);
+  address = cleanServiceAddressForVerification(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   if(payload.status!=='OK') return {location:null,reason:`Geocoding ${payload.status || 'Unavailable'}`};
   if(payload.results?.length!==1) return {location:null,reason:'Multiple Address Matches'};
@@ -70,7 +70,7 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
 }
 
 export function verifyCensusAddress(address:string,payload:unknown):AddressVerification {
-  address = cleanJunkwareAddressText(address);
+  address = cleanServiceAddressForVerification(address);
   const matches=(payload as {result?:{addressMatches?:CensusAddressMatch[]}}|null)?.result?.addressMatches;
   if(!Array.isArray(matches) || !matches.length)return {location:null,reason:'Precise Service Location Unavailable'};
   if(matches.length > 1) {

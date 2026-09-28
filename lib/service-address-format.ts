@@ -1,4 +1,5 @@
 import { normalizeStreetOrdinal } from './street-ordinal';
+import { cleanServiceAddressForVerification } from './junkware-address-text';
 // Formatting aliases do not change the house, road number, direction or locality.
 const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',AV:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',PKY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W',SAINT:'ST',NORTHEAST:'NE',NORTHWEST:'NW',SOUTHEAST:'SE',SOUTHWEST:'SW' };
 export const normalizeServiceAddress = (text: string) => normalizeStreetOrdinal(text.toUpperCase().replace(/\bLP\b/g,'LOOP').replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ')
@@ -11,9 +12,7 @@ const explicitServiceUnits = (address: string) => address.replace(bareUnit,(matc
   /\b(?:county|parish|state|farm)\s*$/i.test(address.slice(0,offset)) ? match : `${suffix} Unit ${unit}`);
 export const withoutServiceUnit = (address: string) => explicitServiceUnits(address).replace(units,' ').replace(/\s+/g,' ').trim();
 export function cleanServiceQuery(address: string) {
-  let value = withoutServiceUnit(address).replace(/\bPky\b/ig,'Pkwy').replace(/\bLA\s*-\s*(\d+)\b/ig,'LA Highway $1').replace(/\s*,\s*/g,', ');
-  // A separate JunkWare city/ZIP can repeat an already complete address.
-  value = value.replace(/,\s*([A-Za-z .'-]+),?\s+(LA|Louisiana)\s+(\d{5})\s+\1,?\s+\2\s+\3$/i,', $1, $2 $3');
+  const value = withoutServiceUnit(cleanServiceAddressForVerification(address)).replace(/\bPky\b/ig,'Pkwy').replace(/\bLA\s*-\s*(\d+)\b/ig,'LA Highway $1').replace(/\s*,\s*/g,', ');
   return value.trim();
 }
 export function appointmentServiceAddress(job: {address:string;mapAddress?:string}) {

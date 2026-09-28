@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
-import { cleanJunkwareAddressText } from './junkware-address-text';
+import { cleanServiceAddressForVerification } from './junkware-address-text';
 import { normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import type { AddressVerification } from './desktop-address-verification';
 
@@ -11,7 +11,7 @@ const unavailable = (): AddressVerification => ({ location: null, reason: 'No Ex
 const normalize = normalizeServiceAddress;
 
 export function parishAddressQuery(address: string) {
-  address = cleanJunkwareAddressText(address);
+  address = cleanServiceAddressForVerification(address);
   if (serviceStreetCandidates(address).length !== 1) return null;
   const full = fullFieldStreetAddress(address);
   const match = withoutServiceUnit(full).match(/^(\d{1,7})\s+(.+?)[,\s]+(BATON ROUGE|ZACHARY|BAKER|CENTRAL),?\s+(?:(?:LA|LOUISIANA)[,\s]+)?(\d{5})(?:-\d{4})?$/i);

@@ -138,7 +138,7 @@ assert.equal(serviceStreetCandidates('100 LA-16 Denham Springs LA 70726 or 200 E
 assert.equal(serviceStreetCandidates('100 S Example Pky Apt 156 New Orleans 70123').length,1);
 assert.equal(addressQueries('100 Example Rd Bldg 1, Greenwell Springs, 70739')[0],'100 Example Rd Greenwell Springs, LA 70739');
 assert.equal(addressQueries('100 S Example Pky, Apt 156, New Orleans, 70123')[0],'100 S Example Pkwy, New Orleans, LA 70123');
-assert.equal(addressQueries('100 Example Dr, Kenner, La 70065 Kenner, LA 70065')[0],'100 Example Dr, Kenner, La 70065');
+assert.equal(addressQueries('100 Example Dr, Kenner, La 70065 Kenner, LA 70065')[0],'100 Example Dr, Kenner, LA 70065');
 assert.equal(normalizeServiceAddress('LA-16'),normalizeServiceAddress('Louisiana Highway 16'));
 const saint={...censusMatch,matchedAddress:'100 SAINT EXAMPLE ST, NEW ORLEANS, LA, 70125'};
 assert.ok(verifyCensusAddress('100 St Example St New Orleans LA 70125',{result:{addressMatches:[saint]}}).location);

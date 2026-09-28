@@ -5,6 +5,7 @@ import ScheduleVisitGap from './schedule-visit-gap';
 import ScheduleColocatedVisitConnectors from './schedule-colocated-visit-connectors';
 import { workspaceReady } from './navigation-performance';
 import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
+import { useTransientNotice } from './lib/use-transient-notice';
 import { subscribeArrivalUpdates } from './lib/arrival-updates';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import ScheduleTruckProgress from './schedule-truck-progress';
@@ -71,7 +72,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [linkNotice, setLinkNotice] = useState('');
-  const [dragNotice, setDragNotice] = useState('');
+  const [dragNotice, setDragNotice] = useTransientNotice();
   const deepLinkApplied = useRef(false);
   const [scope, setScope] = useState('ALL');
   const [priority, setPriority] = useState<string | null>(null);

@@ -6,6 +6,7 @@ import { appointmentCategory, appointmentColorClass, appointmentStatus, isClosed
 
 const clock = (minute:number) => new Date(Date.UTC(2000,0,1,0,Math.floor(minute))).toLocaleTimeString('en-US',{timeZone:'UTC',hour:'numeric',minute:'2-digit'});
 const duration = (minutes:number) => {
+  if (minutes===0) return 'GPS';
   if (minutes<1) return '<1m';
   const rounded=Math.round(minutes),hours=Math.floor(rounded/60),remainder=rounded%60;
   return hours ? `${hours}h${remainder?`${remainder}m`:''}` : `${rounded}m`;
@@ -22,7 +23,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const movable=scheduleTimelineBlockMovable(job,position.actual,busy) && (!position.actual || visitTruckCount<=1);
   const description=position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
   const minutes=interval.end-interval.start;
-  const time=position.actual ? `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
+  const time=position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
   const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time} · ${state}${assignment}${partner?` · ${partner.name}`:''}`;
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
@@ -30,6 +31,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}
+    data-visit-point={position.actual && minutes===0?true:undefined}
     data-visit-left={position.actual?segment.left:undefined} data-visit-right={position.actual?segment.left+segment.width:undefined}
     onPointerDown={movable?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
     {partner && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}

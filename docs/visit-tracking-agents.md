@@ -30,8 +30,10 @@ entries without an exit retain `firstObservedAt` for the episode while exact
 arrival/duration remain unavailable. Source aliases preserve reconciliation when
 an earlier native arrival later supplements a V3 episode.
 
-Appointment visits require the existing collector's confirmed appointment/truck
-attribution and reject pass-bys. Separate return intervals remain separate visits.
+Appointment visits require the collector's confirmed appointment/truck
+attribution. Any recorded position inside verified premises counts under the
+policy below; legacy unconfirmed pass-by rows are not promoted without replay.
+Separate return intervals remain separate visits.
 A source-linked estimate and job may describe one customer stop. When both
 appointment IDs receive the exact same truck/arrival/departure episode, the
 linked job owns the physical visit and the estimate remains a separate source
@@ -86,23 +88,43 @@ Source-confirmed zero-duration visits remain closed observations.
 
 Additional validation: `node --import tsx scripts/test-appointment-position-tracking.ts`.
 
-## Completed work before the booked window
+## Visits independent of booking time
 
-The existing visit runner retains its live arrival window and adds a conservative
-second pass for completed appointments with no detected visit. It reads the
-already-collected operating day's GPS from midnight, so an afternoon booking
-completed in the morning is not excluded by the four-hour pre-booking cutoff.
-Recovery requires an explicit appointment ID, verified premises, at least five
-minutes and three GPS points, confirmed departure, no boundary coverage gap,
-and one uniquely qualifying physical truck. Nearby competing bookings, overlapping
-visits already owned by another appointment, missing coordinates, unresolved
-visit evidence and canceled/open records are left unchanged. Source booking,
-assignment and closeout stay intact; the recovered measured visit feeds the same
-ledger and existing actual-time board. No new provider polling is added.
+The visit runner matches every recorded GPS point on the selected Central
+operating day, regardless of the appointment window or source completion status.
+One point inside the existing 200-meter verified premises boundary establishes a
+visit. There is no minimum dwell, minimum visit duration, maximum visit duration,
+or before/after-booking cutoff. Exact source appointment and truck identities,
+verified coordinates, linked-record reconciliation and duplicate checks remain.
 
-The policy is versioned with `scripts/match-linxup-instant-arrivals.py` and
-`scripts/runtime/early_completed_visits.py`; the next existing collector run
-uses it after an approved application release. No manual ledger correction or
-separate edit to the installed collector is needed. Validate with
-`python3 -B scripts/test-early-completed-visits.py`, the existing actual-block
-tests, and a read-only replay of the affected operating day before release.
+The application-owned wrapper applies this policy to the installed collector
+in memory; incompatible collector source changes fail its checked anchors.
+The source collector file, provider polling and original bookings remain intact.
+The next existing collector run uses the policy after an approved release.
+Schedule's immediate presence projection follows the same rule. Its freshness
+limits describe whether a report is current, not whether the visit occurred.
+A single-point visit remains visible as **GPS** with duration unavailable;
+recorded arrival/departure and gaps determine available duration separately.
+
+Validate with `scripts/test-linxup-instant-arrivals.py` against the installed
+matcher, the Schedule presence/visit/block tests, and a read-only daily replay
+with output writers disabled before release.
+
+## Assign unassigned appointments from GPS visits
+
+For today's unassigned appointments, one uniquely identified visiting truck is
+the operational truck immediately, including a single recorded GPS point.
+The existing GPS refresh and push runners launch a separate, nonblocking worker
+to save that truck in JunkWare. The worker preserves the source booking window,
+status, payments and closeout, and publishes the saved assignment only after
+JunkWare read-back. Completed appointments remain eligible; canceled records,
+multiple visiting trucks, missing verified locations and pending changes require
+review. Existing physical assignments are never automatically overwritten.
+
+The worker uses existing appointment/source locks and durable Schedule receipts.
+One appointment/day receives one automatic decision; repeat GPS reports,
+process restarts and later manual unassignment do not replay it. An uncertain
+write requires source reconciliation. The source appointment and dispatch lane
+are checked again before submission to avoid overwriting a newer assignment.
+The worker has its own process lock and does not inherit the GPS ingestion lock.
+Validate with `npm run verify:gps-visit-assignment`.

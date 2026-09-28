@@ -34,6 +34,7 @@ cd "$OPSBOT_DIR"
 python3 scripts/seed_local_appointment_geocodes.py --date "$target_date"
 python3 "$OPSCENTER_DIR/scripts/match-linxup-instant-arrivals.py" --date "$target_date"
 python3 scripts/validate_linxup_appointment_visits.py --date "$target_date"
+python3 "$OPSCENTER_DIR/scripts/launch-gps-visit-assignments.py" "$target_date" || echo "GPS assignment reconciliation pending." >&2
 
 if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then
   set -a

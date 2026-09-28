@@ -50,7 +50,7 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
       if (visit.currentUntil) previous.currentUntil = visit.currentUntil;
     } else merged.push({...visit});
   }
-  return merged.filter(v => v.currentUntil || Date.parse(v.observedThrough) > Date.parse(v.arrival));
+  return merged;
 }
 
 /** Connect separate visits to the same appointment without guessing why the

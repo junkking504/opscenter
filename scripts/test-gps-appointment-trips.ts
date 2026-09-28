@@ -25,4 +25,6 @@ assert.deepEqual(gpsAppointmentTrips(route,[job('3','14:00','14:40'),job('4','14
 assert.deepEqual(gpsAppointmentTrips(route,[{...jobs[0],recordId:'2026-09-07:appointment:1'}]).trips,route.trips,'Other operating days are excluded');
 assert.deepEqual(gpsAppointmentTrips(route,[{...jobs[0],location:null}]).trips,route.trips,'Missing verified premises cannot create a stop');
 assert.equal(gpsAppointmentTrips({...route,gaps:2},jobs).gaps,2,'Coverage gaps remain disclosed');
+assert.deepEqual(gpsAppointmentTrips(route,[job('3','14:00','14:00')]).trips?.map(t=>[t.departure,t.arrival]),[[stamp('13:00'),stamp('14:00')],[stamp('14:00'),stamp('17:00')]],'A single-point visit with confirmed departure splits travel without inventing onsite duration');
+assert.deepEqual(gpsAppointmentTrips(route,[job('3','14:00','14:00'),job('4','14:00','14:00')]).trips,route.trips,'Simultaneous point observations cannot invent a travel leg between ambiguous appointments');
 console.log('Appointment trips passed: yard/customer/customer/yard, exact timestamps, selection, truck/day/identity guards and source preservation.');

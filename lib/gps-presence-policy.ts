@@ -15,7 +15,7 @@ export function gpsDistanceMeters(a: Position, b: Position): number {
   const rad = Math.PI / 180, lat = (a.latitude - b.latitude) * rad, lon = (a.longitude - b.longitude) * rad;
   return 12_742_000 * Math.asin(Math.sqrt(Math.min(1, Math.sin(lat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(lon / 2) ** 2)));
 }
-export function gpsDwellAtPosition(location: Position, observation: Position & { lastGpsUpdate: string | null }, points: DwellPoint[], since = -Infinity) {
+export function gpsObservedPresence(location: Position, observation: Position & { lastGpsUpdate: string | null }, points: DwellPoint[], since = -Infinity) {
   const stamp = Date.parse(observation.lastGpsUpdate || '');
   if (!Number.isFinite(stamp) || stamp < since || gpsDistanceMeters(location, observation) > GPS_SITE_RADIUS_METERS) return;
   // The authoritative latest fix wins over older route snapshots. Never extend
@@ -30,5 +30,9 @@ export function gpsDwellAtPosition(location: Position, observation: Position & {
     if (arrival - point.time > GPS_MAX_POINT_GAP_MS && !(Number.isFinite(until) && until >= arrival)) break;
     arrival = point.time;
   }
-  return stamp - arrival >= GPS_MINIMUM_DWELL_MS ? { arrival, stamp } : undefined;
+  return { arrival, stamp };
+}
+export function gpsDwellAtPosition(location: Position, observation: Position & { lastGpsUpdate: string | null }, points: DwellPoint[], since = -Infinity) {
+  const observed = gpsObservedPresence(location, observation, points, since);
+  return observed && observed.stamp - observed.arrival >= GPS_MINIMUM_DWELL_MS ? observed : undefined;
 }

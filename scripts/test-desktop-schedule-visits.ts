@@ -88,13 +88,13 @@ const returned = { ...ledger, visit_intervals: [
   { arrival: visit.first_arrival, departure: '2026-09-06T15:55:00Z' },
   { arrival: '2026-09-06T15:59:00Z', departure: null },
 ] };
-assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, false, 'A return visit needs new dwell after its arrival');
+assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, true, 'A fresh return position counts without new dwell');
 assert.equal(fullScheduleVisitState(job, [returned], recent, [{ ...trucks[0], lastGpsUpdate: '2026-09-06T15:58:00Z' }], now).truckOnSite, false, 'An older fix cannot validate a later return arrival');
 console.log('GPS versus ledger passed: away, stale, missing/invalid, parked, return visits, and immutable history.');
 
 assert.equal(fullScheduleVisitState(job,[ledger],new Date(now+42*60_000).toISOString(),[{...parked,latitude:30.4}],now+42*60_000).truckOnSite,false,'Parked at another location cannot preserve an old on-site ledger');
 
-assert.equal(fullScheduleVisitState(job,[ledger],recent,[{...trucks[0],routePoints:[]}],now).truckOnSite,false,'An open ledger and one fix cannot manufacture continuous dwell');
+assert.equal(fullScheduleVisitState(job,[ledger],recent,[{...trucks[0],routePoints:[]}],now).truckOnSite,true,'One fresh point confirms presence without claiming continuous dwell');
 
 assert.equal(lastSeen.hasDepartedVisit,false,'Aging GPS is not a departure');
 assert.equal(away.hasDepartedVisit,true,'Later GPS elsewhere proves departure');

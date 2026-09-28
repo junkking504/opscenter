@@ -85,6 +85,7 @@ drain_push_queue
 python3 scripts/seed_local_appointment_geocodes.py --date "$TARGET_DATE"
 python3 "$OPSCENTER_DIR/scripts/match-linxup-instant-arrivals.py" --date "$TARGET_DATE"
 python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE"
+OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" python3 "$OPSCENTER_DIR/scripts/launch-gps-visit-assignments.py" "$TARGET_DATE" || echo "GPS assignment reconciliation pending." >&2
 
 if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then
   set -a

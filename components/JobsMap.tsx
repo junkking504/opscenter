@@ -1,7 +1,7 @@
 "use client";
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { watchTruckAddress } from "@/lib/truck-address-client";
-import { gpsDwellAtPosition, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, GPS_MINIMUM_DWELL_MS } from '@/lib/gps-presence-policy';
+import { gpsObservedPresence, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS } from '@/lib/gps-presence-policy';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -105,7 +105,6 @@ const STREET_MAX_NATIVE_ZOOM = Number(process.env.NEXT_PUBLIC_MAP_TILE_MAX_NATIV
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const LINXUP_POLL_INTERVAL_MS = 30_000;
 const LINXUP_SITE_RADIUS_METERS = GPS_SITE_RADIUS_METERS;
-const LINXUP_MINIMUM_DWELL_MS = GPS_MINIMUM_DWELL_MS;
 
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
@@ -158,14 +157,14 @@ function distanceMeters(
   return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function truckHasConfirmedDwellAtJob(
+function truckHasObservedPresenceAtJob(
   job: JobsMapPoint & { latitude: number; longitude: number },
   truck: JobsMapTruck,
   now: number,
 ): boolean {
   const stamp = Date.parse(truck.lastGpsUpdate || '');
   if (!Number.isFinite(stamp) || stamp > now || now - stamp > GPS_PRESENCE_MAX_AGE_MS) return false;
-  return Boolean(gpsDwellAtPosition(job, truck, truck.recentPoints));
+  return Boolean(gpsObservedPresence(job, truck, truck.recentPoints));
 }
 
 export function anyTruckIsCurrentlyAtJob(job: JobsMapPoint, trucks: JobsMapTruck[], now = Date.now()): boolean {
@@ -178,10 +177,8 @@ function truckIsCurrentlyAtJob(
   truck: JobsMapTruck,
   now: number,
 ): boolean {
-  // A marker earns the on-site state only from fresh, continuous GPS dwell.
-  // A historical visit or a single late point at the address is not proof that
-  // the truck has remained there.
-  return truckHasConfirmedDwellAtJob(job, truck, now);
+  // A fresh position inside the appointment boundary establishes presence.
+  return truckHasObservedPresenceAtJob(job, truck, now);
 }
 
 function truckIsCurrentlyAtAnyJob(truck: JobsMapTruck, jobs: JobsMapPoint[], now: number): boolean {
@@ -193,7 +190,7 @@ function truckHasConfirmedVisitAtJob(
   truck: JobsMapTruck,
   now: number,
 ): boolean {
-  if (truckHasConfirmedDwellAtJob(job, truck, now)) return true;
+  if (truckHasObservedPresenceAtJob(job, truck, now)) return true;
   return truck.recentStops.some((stop) => {
     if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return false;
     if (distanceMeters(stop, job) > LINXUP_SITE_RADIUS_METERS) return false;
@@ -202,7 +199,7 @@ function truckHasConfirmedVisitAtJob(
     return Number.isFinite(begin)
       && Number.isFinite(end)
       && end >= begin
-      && end - begin >= LINXUP_MINIMUM_DWELL_MS;
+      && end <= now;
   });
 }
 

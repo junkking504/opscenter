@@ -191,12 +191,14 @@ export function truckLabel(value: string) { const raw=value.trim(); const match 
 /** For completed work, a unique confirmed GPS visit is the operational truck
  * of record. Keep the current JunkWare value available so the UI can expose
  * and correct a source mismatch through the verified move workflow. */
-export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'>) {
+export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'|'truckVisits'>) {
   if (/cancel/i.test(job.status || '')) return 'Unassigned';
+  const observedTrucks = [...new Set((job.truckVisits || []).map(visit=>truckLabel(visit.truck)).filter(truck=>/^Truck [1-9]\d*$/.test(truck)))];
+  if (truckLabel(job.truck || '') === 'Unassigned' && observedTrucks.length === 1) return observedTrucks[0];
   const gpsTruck = truckLabel(job.recordedOnsiteTime?.truck || '');
   return /complete|closed/i.test(job.status || '') && gpsTruck !== 'Unassigned' ? gpsTruck : truckLabel(job.truck || '');
 }
-export function scheduleTruckMismatch(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'>) {
+export function scheduleTruckMismatch(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'|'truckVisits'>) {
   const displayed = scheduleDisplayTruck(job), source = truckLabel(job.truck || '');
   return displayed !== source ? {gpsTruck:displayed,junkwareTruck:source} : null;
 }
@@ -235,7 +237,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
       const start = Math.max(0,local(visit.arrival));
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
-      return Number.isFinite(start) && Number.isFinite(end) && end>start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+      return Number.isFinite(start) && Number.isFinite(end) && end>=start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
     if (!intervals.length) {
       // GPS history belongs to the truck that physically visited the address. It
@@ -251,7 +253,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
     }).sort((a,b)=>a.start-b.start);
     const minutes = intervals.reduce((sum,v)=>sum+v.end-v.start,0);
     return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,gaps,
-      label:`${minutes<1?'<1':Math.round(minutes)} min on site${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
+      label:`${minutes===0?'GPS visit · duration unavailable':`${minutes<1?'<1':Math.round(minutes)} min on site`}${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
   }
   if (truckLabel(job.truck || '')!==truckLabel(truck)) return null;
   const time = job.onsiteTime;

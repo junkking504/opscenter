@@ -58,21 +58,23 @@ export async function openAppointmentDispatch(page:Page,appointmentId:string,dat
 }
 /** Use the same move endpoint as JunkWare's draggable daily schedule blocks.
  * Never stage Completed/Confirmed or click the appointment/payment Save form. */
-export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;truck:string;start?:number;duration?:number;expectedDate?:string},read:()=>Promise<DispatchSource>,openSchedule:(date:string)=>Promise<void>,reopen:()=>Promise<void>) {
+export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;truck:string;start?:number;duration?:number;expectedDate?:string;onlyIfUnassigned?:boolean},read:()=>Promise<DispatchSource>,openSchedule:(date:string)=>Promise<void>,reopen:()=>Promise<void>) {
   const before=await read();
   if(before.appointmentId!==input.appointmentId || /cancel/i.test(before.status)) throw new Error('Canceled appointments must be restored before dispatching.');
   if(input.expectedDate && input.expectedDate!==before.date) throw new Error('The source appointment date changed. Refresh before dispatching.');
+  if(input.onlyIfUnassigned && before.truck && before.truck!==input.truck) throw new Error('The appointment already has a saved truck. No automatic move was submitted.');
   const start=input.start ?? before.start;
   if(input.duration!==undefined && input.duration!==before.duration) throw new Error('Dispatch moves preserve appointment duration. Reload the source window.');
   if(!Number.isInteger(start) || start<0 || start%60!==0 || start+before.duration*60>1440) throw new Error('A valid hourly dispatch window is required.');
   if(before.truck===input.truck && before.start===start) return {before,after:before,changed:false};
   await openAppointmentDispatch(page,input.appointmentId,before.date,openSchedule,input.truck);
-  const target=await page.evaluate(({appointmentId,truck,keepVirtualLane})=>{
+  const target=await page.evaluate(({appointmentId,truck,keepVirtualLane,onlyIfUnassigned})=>{
     const appointment=document.getElementById(`aid-${appointmentId}`);
     if(!appointment?.classList.contains('draggable')) throw new Error('This appointment is not draggable in the source daily schedule.');
     const label=truck ? 'Truck# '+truck.match(/\d+/)?.[0] : 'Virtual Truck';
     const headers=Array.from(appointment.closest('table.schedule-table')?.querySelectorAll<HTMLTableCellElement>('th') || []);
     const currentHeader=headers[appointment.closest('td')?.cellIndex ?? -1];
+    if(onlyIfUnassigned && !/virtual truck/i.test(currentHeader?.textContent || '')) throw new Error('The appointment is no longer in the unassigned lane. No automatic move was submitted.');
     const matches=headers.filter(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);
     if(truck && new Set(matches.map(h=>h.querySelector<HTMLInputElement>('.truck-id')?.value)).size>1) throw new Error('JunkWare dispatch preflight: the requested truck lane is ambiguous. No move was submitted.');
     const header=keepVirtualLane && /virtual truck/i.test(currentHeader?.textContent || '') ? currentHeader : headers.find(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);

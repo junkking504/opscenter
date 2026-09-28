@@ -13,12 +13,13 @@ export function gpsAppointmentTrips(route: TruckGpsRoute, jobs: ScheduleAppointm
     })) || [];
     return intervals.flatMap(visit => {
       const start = Date.parse(visit.arrival), end = Date.parse(visit.departure || '');
-      return truckLabel(visit.truck) === truckLabel(route.truck) && Number.isFinite(start) && Number.isFinite(end) && end > start
+      return truckLabel(visit.truck) === truckLabel(route.truck) && Number.isFinite(start) && Number.isFinite(end) && end >= start
         ? [{job,start,end,point:{...location,address:`${job.jkNumber} · ${scheduleCustomerLabel(job)}`}}] : [];
     });
   }).sort((a,b)=>a.start-b.start);
   // A truck cannot be attributed to competing appointments at the same time.
-  const unambiguous = visits.filter((visit,index)=>!visits.some((other,j)=>j!==index && other.job.recordId!==visit.job.recordId && other.start<visit.end && other.end>visit.start));
+  const unambiguous = visits.filter((visit,index)=>!visits.some((other,j)=>j!==index && other.job.recordId!==visit.job.recordId
+    && ((other.start<visit.end && other.end>visit.start) || (other.start===visit.start && (other.end===other.start || visit.end===visit.start)))));
   const trips = (route.trips || []).flatMap(trip => {
     const start = Date.parse(trip.departure), end = Date.parse(trip.arrival);
     const stops = unambiguous.filter(visit=>visit.start<=end && visit.end>=start);

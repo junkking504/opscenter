@@ -1,5 +1,4 @@
 import type {TrackedVisit} from './visit-tracking-agent';
-import { onsiteGpsDwell } from './parked-onsite-presence';
 import { parkedTruckObservation } from './truck-gps-status';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
@@ -48,8 +47,7 @@ export function scheduleVisitState(
     const latest = intervals[0];
     const arrival = latest?.arrival || row.first_arrival || row.arrival_at;
     const departure = latest ? latest.departure : row.final_departure || row.departure_at;
-    return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure
-      && Boolean(onsiteGpsDwell(job.location!, truck!, truck!.routePoints || [], Date.parse(arrival)));
+    return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure;
   }) : undefined;
   const openVisit = confirmed.find(row => {
     if (bounded(row)) return false;

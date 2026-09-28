@@ -22,6 +22,8 @@ export type JunkwareTruckAssignmentResult = {
   previousAppointmentStartMinutes?: number;
   appointmentStartMinutes?: number;
   verifiedAt: string;
+  date?: string;
+  appointmentEndMinutes?: number;
 };
 
 export async function syncJunkwareTruckAssignment(input: {
@@ -30,6 +32,7 @@ export async function syncJunkwareTruckAssignment(input: {
   appointmentStartMinutes?: number;
   durationHours?: number;
   expectedDate?: string;
+  onlyIfUnassigned?: boolean;
 }): Promise<JunkwareTruckAssignmentResult> {
   const appointmentId = String(input.appointmentId || "").trim();
   const truck = String(input.truck || "").trim();
@@ -69,6 +72,7 @@ export async function syncJunkwareTruckAssignment(input: {
       truck || "unassigned",
     ];
     if (input.expectedDate) args.push('--expected-date', input.expectedDate);
+    if (input.onlyIfUnassigned) args.push('--only-if-unassigned');
     if (appointmentStartMinutes !== undefined) {
       args.push("--start-minutes", String(appointmentStartMinutes), "--duration-hours", String(durationHours));
     }
@@ -83,8 +87,11 @@ export async function syncJunkwareTruckAssignment(input: {
     if (
       !payload?.ok
       || payload?.mode !== "assign"
+      || String(payload.appointmentId || '') !== appointmentId
       || String(payload?.truck || "") !== truck
       || (appointmentStartMinutes !== undefined && Number(payload?.appointmentStartMinutes) !== appointmentStartMinutes)
+      || (input.onlyIfUnassigned && (payload.date !== input.expectedDate || !Number.isInteger(payload.appointmentStartMinutes)
+        || !Number.isInteger(payload.appointmentEndMinutes) || !Number.isFinite(Date.parse(payload.verifiedAt || ''))))
     ) {
       throw new Error("JunkWare did not verify the requested appointment change.");
     }
@@ -98,6 +105,9 @@ export async function syncJunkwareTruckAssignment(input: {
         : {}),
       ...(appointmentStartMinutes !== undefined ? { appointmentStartMinutes } : {}),
       verifiedAt: String(payload.verifiedAt || new Date().toISOString()),
+      date: payload.date,
+      appointmentEndMinutes: payload.appointmentEndMinutes,
+      ...(Number.isInteger(payload.appointmentStartMinutes) ? {appointmentStartMinutes:payload.appointmentStartMinutes} : {}),
     };
   } catch (error) {
     const detail = error && typeof error === "object" && "stderr" in error

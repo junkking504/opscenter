@@ -49,5 +49,11 @@ export function gpsTripDisplay(route:TruckGpsRoute,selectedTripId?:string|null) 
   }
   const selected=route.trips?.find(trip=>trip.id===selectedTripId);
   const isolated=route.points.filter((point,index)=>!connected.has(index) && (!selectedTripId || selected && Date.parse(point.timestamp)>=Date.parse(selected.departure) && Date.parse(point.timestamp)<=Date.parse(selected.arrival)));
-  return {paths,isolated};
+  // Completed trip summaries can lag behind the position stream. Frame every
+  // recorded fix (including disconnected ones) and the displayed road geometry,
+  // rather than allowing the last completed trip to truncate the daily view.
+  const positions=selectedTripId
+    ? selected?[selected.from,...route.points.filter(point=>Date.parse(point.timestamp)>=Date.parse(selected.departure) && Date.parse(point.timestamp)<=Date.parse(selected.arrival)),selected.to]:[]
+    : [...route.points,...(route.trips || []).flatMap(trip=>[trip.from,trip.to])];
+  return {paths,isolated,bounds:[...positions,...paths.flatMap(path=>path.points)]};
 }

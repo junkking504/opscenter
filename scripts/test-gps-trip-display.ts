@@ -21,4 +21,24 @@ assert.equal(gpsTripDisplay({...route,streets:{...streets,sourceVersion:'old'}})
 assert.equal(gpsTripDisplay(route).paths.length,0,'Missing alignment cannot draw cross-country lines');
 assert.equal(gpsTripDisplay({...route,paths:[],gapLinks:[]}).paths.length,0,'Trip endpoints alone never invent a route');
 assert.equal(gpsTripDisplay({...route,paths:[],gapLinks:[]}).isolated.length,6);
+// Completed trips cover only the beginning of the day. Later travel and a
+// disconnected fix must remain in the daily viewport without drawing new links.
+const later={timestamp:'2026-09-11T15:00:00.000Z',latitude:30.6,longitude:-90.5};
+const detour={latitude:30.7,longitude:-90.6};
+const incompleteTrips={...aligned,points:[...points,later],streets:{...aligned.streets,paths:[
+  {...aligned.streets.paths[0],points:[points[0],detour,points[1]]},...aligned.streets.paths.slice(1),
+]}};
+const fullDay=gpsTripDisplay(incompleteTrips);
+assert(fullDay.bounds.includes(later),'Daily bounds include GPS beyond the final completed trip');
+assert(fullDay.bounds.includes(detour),'Daily bounds include road geometry beyond GPS and trip endpoints');
+assert(fullDay.isolated.includes(later),'Disconnected later fixes remain visible without invented routes');
+assert.equal(fullDay.paths.length,display.paths.length,'Fitting the day must not bridge observation gaps');
+const firstTrip=gpsTripDisplay(incompleteTrips,'trip-0');
+assert(firstTrip.bounds.includes(detour),'A selected trip fits its entire displayed road geometry');
+assert(!firstTrip.bounds.includes(later),'A selected trip does not fit unrelated later positions');
+assert(!firstTrip.bounds.includes(points[4]),'A selected trip does not fit other trips');
+assert.equal(gpsTripDisplay(incompleteTrips,'unknown-trip').bounds.length,0,'An unavailable selection cannot silently show other trips');
+assert(gpsTripDisplay({...incompleteTrips,trips:[]}).bounds.includes(later),'Days without completed trips still fit all positions');
+assert.deepEqual(gpsTripDisplay({...route,points:[],paths:[],gapLinks:[]}).bounds,trips.flatMap(trip=>[trip.from,trip.to]),'Trip-only evidence still fits its endpoints');
+assert.deepEqual(gpsTripDisplay({...route,points:[],paths:[],gapLinks:[],trips:[]}).bounds,[],'Empty history has no fabricated bounds');
 console.log('Trip display checks passed: source-time colors, selection, repeated streets, sparse links, disconnected outages, partial and stale alignment, no straight-line fallback.');

@@ -233,7 +233,7 @@ export default function ScheduleMap(props: Props) {
     if(!view || !layer) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
-    const {paths,isolated}=gpsTripDisplay(route,props.selectedTripId);
+    const {paths,isolated,bounds}=gpsTripDisplay(route,props.selectedTripId);
     // Paint all casings first, then continuous trip colors. Sparse GPS links
     // remain explicitly estimated in the tooltip and summary.
     const continuous=continuousGpsDisplayPaths(paths);
@@ -263,9 +263,7 @@ export default function ScheduleMap(props: Props) {
         if(latest && !manualViewport.current) view.setView([latest.latitude,latest.longitude],15,{animate:false});
       }
       else if(props.truckMapView==='route') {
-        const trip=route.trips?.find(trip=>trip.id===props.selectedTripId);
-        const points=trip?[trip.from,...route.points.filter(p=>p.timestamp>=trip.departure && p.timestamp<=trip.arrival),trip.to]:route.trips?.length?route.trips.flatMap(trip=>[trip.from,trip.to]):route.points;
-        if(points.length) view.fitBounds(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
+        if(bounds.length) view.fitBounds(bounds.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
       }
       else if(!props.trucks.some(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null)) {
         // Historical days have no current truck marker. Focus the last recorded

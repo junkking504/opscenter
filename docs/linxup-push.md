@@ -121,13 +121,17 @@ JunkWare status, assignment, notification or ETA freshness is rewritten.
 ## Recorded daily GPS routes
 
 Schedule and the Command map offer a **Truck GPS route** selector. Selecting a
-truck row or current truck pin uses the same selection. Clicking a truck centers its latest GPS fix and fits all of the selected day's
-recorded routes around that location. Repeated single clicks restore this overview.
+truck row or current truck pin uses the same selection. Clicking a truck centers its latest GPS fix.
+Repeated single clicks restore this overview.
 Double-clicking the map truck keeps the same fix centered and zooms to street
 level (19); arriving route data does not undo the precise-location view.
 For a historical date with no current marker, selection focuses the day's last
-recorded position. **Fit route** explicitly frames the full trail and its first and
-last positions after manual zooming or panning;
+recorded position. **View Routes** and **Show all trips** explicitly frame every
+recorded position, completed-trip endpoint, and displayed road segment for the
+selected day. Completed trip summaries can lag behind GPS reports; they never
+limit the daily view to completed travel. Disconnected fixes stay visible without
+inventing connecting lines. Selecting one trip frames only its own observations,
+endpoints, and displayed road segments. These controls restore framing after manual zooming or panning;
 background refresh does not reset the viewport. Dates, truck changes, and clearing
 selection remove the previous overlay. Unassigned has no physical GPS history.
 

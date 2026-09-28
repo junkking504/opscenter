@@ -39,6 +39,12 @@ async function main() {
     fs.unlinkSync(path.join(temporaryRoot, "integrations", "whatsapp-job-photos", "review", "queued.json"));
     readiness = getOperationalReadiness(temporaryRoot, now);
     assert.equal(readiness.ok, true);
+    const assigned = path.join(temporaryRoot, "integrations", "whatsapp-job-photos", "assigned", "reviewed.json");
+    writeJson(assigned, { manualAssignment: { requestId: "synthetic" } });
+    const queuedAssignment = getOperationalReadiness(temporaryRoot, now);
+    assert.equal(queuedAssignment.photoQueue.ok, false, 'Reviewed assignment is unfinished work');
+    assert.equal(queuedAssignment.photoQueue.counts.incoming, 1);
+    fs.unlinkSync(assigned);
     assert.equal(getOperationalReadiness(temporaryRoot, now + 86400000).crewPortalSync.ok, false);
     assert.equal(getOperationalReadiness(temporaryRoot, now - 86400000).crewPortalSync.ok, false);
     fs.rmdirSync(path.join(temporaryRoot,'integrations','whatsapp-job-photos','incoming'));

@@ -29,7 +29,7 @@ function missingContext(message: RecordValue): boolean {
   const context = message.matchingContext;
   const review = message.review as { reason?: string } | undefined;
   return message.version === 1 && message.timestampSource === 'provider' && Boolean(message.messageId) && Number.isFinite(Date.parse(message.receivedAt))
-    && !message.match && !message.upload && !message.recycling && !message.resale && !message.truckLoadPhoto && !message.truckLoadStatus
+    && !message.manualAssignment && !message.match && !message.upload && !message.recycling && !message.resale && !message.truckLoadPhoto && !message.truckLoadStatus
     && modifier(message.caption) && (!context || (context.version === 1 && modifier(context.text) && !context.reviewReason && !context.recycling && !context.resale))
     && (!review || ['sender_not_mapped_to_truck', 'truck_gps_unavailable', 'truck_gps_stale', 'job_coordinates_unavailable', 'truck_not_near_active_job', 'nearest_job_ambiguous'].includes(review.reason || ''));
 }
@@ -81,7 +81,7 @@ export function bindTrailingPhotoJobText(root: string, text: WhatsAppTextMessage
   const at = Date.parse(text.receivedAt), job = explicitJob(text.text);
   if (!job || text.timestampSource !== 'provider' || text.sourceType === 'image-caption' || !Number.isFinite(at) || at > now + 5_000 || now - at > 60_000) return 0;
   const rows: { state: string; file: string; message: RecordValue; at: number }[] = [];
-  for (const state of ['incoming', 'review', 'processing', 'completed', 'failed']) {
+  for (const state of ['assigned', 'incoming', 'review', 'processing', 'completed', 'failed']) {
     const folder = path.join(root, state);
     let names: string[]; try { names = fs.readdirSync(folder); } catch { continue; }
     for (const name of names) {

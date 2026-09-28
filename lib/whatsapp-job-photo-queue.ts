@@ -5,6 +5,14 @@ import path from "node:path";
 import { chicagoDateKey } from "@/lib/chicago-date";
 import { extractJkNumbers, normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 
+export type ReviewPhotoAssignment = {
+  version: 1; requestId: string; fingerprint: string; actor: string; assignedAt: string;
+  appointment: import('../desktop-ui/lib/photo-review-contract').PhotoAppointment;
+  category: import('./whatsapp-job-photo-matching').WhatsAppPhotoCategory;
+  sourceRevision: string;
+  prior: { state: string; review: unknown; error: unknown; outcomeAt: string | null; attempts: number };
+};
+
 export type WhatsAppImageMessage = {
   version: 1;
   messageId: string;
@@ -18,6 +26,7 @@ export type WhatsAppImageMessage = {
   caption: string;
   enqueuedAt: string;
   trailingJobBinding?: unknown;
+  manualAssignment?: ReviewPhotoAssignment;
   matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; recycling?: { text: string; messageId: string }; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" };
 };
 
@@ -48,7 +57,7 @@ type MetaMessage = {
   image?: { id?: unknown; mime_type?: unknown; sha256?: unknown; caption?: unknown };
 };
 
-const QUEUE_DIRECTORIES = ["incoming", "processing", "completed", "review", "failed"] as const;
+const QUEUE_DIRECTORIES = ["assigned", "incoming", "processing", "completed", "review", "failed"] as const;
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -286,9 +295,9 @@ export function enqueueWhatsAppImage(message: WhatsAppImageMessage): { duplicate
 
 export function queuedWhatsAppImages(limit = 10, excluded: ReadonlySet<string> = new Set()): string[] {
   ensureDirectories();
-  return fs.readdirSync(directory("incoming"))
+  return (["incoming", "assigned"] as const).flatMap(state => fs.readdirSync(directory(state))
     .filter((name) => /^[a-f0-9]{64}\.json$/.test(name))
-    .map(name => path.join(directory("incoming"), name))
+    .map(name => path.join(directory(state), name)))
     .filter(file => !excluded.has(file))
     .map(file => {
       let timestamp = Number.POSITIVE_INFINITY;
@@ -332,7 +341,7 @@ export function hasUnfinishedWhatsAppPhotosForSender(batch: {
   jobDate: string;
 }): boolean {
   ensureDirectories();
-  for (const queue of ["incoming", "processing"] as const) {
+  for (const queue of ["assigned", "incoming", "processing"] as const) {
     for (const name of fs.readdirSync(directory(queue))) {
       if (!/^[a-f0-9]{64}\.json$/.test(name)) continue;
       let message: WhatsAppImageMessage;
@@ -433,7 +442,7 @@ export function requeueWhatsAppImage(processingFile: string, errorMessage: strin
     });
     return false;
   }
-  const target = path.join(directory("incoming"), path.basename(processingFile));
+  const target = path.join(directory(current.manualAssignment ? "assigned" : "incoming"), path.basename(processingFile));
   writeJsonAtomic(target, {
     ...current,
     attempts,
@@ -470,28 +479,30 @@ export function recoverMappedWhatsAppPhotoHolds(senderTruckMap: Record<string, s
   const files = fs.readdirSync(directory("review")).filter(name => /^[a-f0-9]{64}\.json$/.test(name)).sort();
   for (const name of files) {
     if (recovered >= cap) break;
-    const source = path.join(directory("review"), name);
-    let message: WhatsAppImageMessage & Record<string, unknown>;
-    try { message = JSON.parse(fs.readFileSync(source, "utf8")); } catch { continue; }
-    const review = message.review && typeof message.review === "object" ? message.review as Record<string, unknown> : {};
-    const sender = normalizePhone(message.senderPhone);
-    if (review.reason !== "sender_not_mapped_to_truck" || !senderTruckMap[sender] || !validCachedOriginal(message)) continue;
-    const target = path.join(directory("incoming"), name);
-    if (["incoming", "processing", "completed", "failed"].some(state => fs.existsSync(path.join(whatsappPhotoStateDirectory(), state, name)))) continue;
-    fs.renameSync(source, target);
-    const restored = { ...message };
-    delete restored.review;
-    delete restored.outcome;
-    delete restored.outcomeAt;
-    writeJsonAtomic(target, {
-      ...restored,
-      recovery: {
-        reason: "source_phone_mapping_available",
-        recoveredAt: new Date().toISOString(),
-        priorReview: review,
-      },
+    withPhotoContextClaimLock(whatsappPhotoStateDirectory(), name, () => {
+      const source = path.join(directory("review"), name);
+      let message: WhatsAppImageMessage & Record<string, unknown>;
+      try { message = JSON.parse(fs.readFileSync(source, "utf8")); } catch { return; }
+      const review = message.review && typeof message.review === "object" ? message.review as Record<string, unknown> : {};
+      const sender = normalizePhone(message.senderPhone);
+      if (message.manualAssignment || review.reason !== "sender_not_mapped_to_truck" || !senderTruckMap[sender] || !validCachedOriginal(message)) return;
+      const target = path.join(directory("incoming"), name);
+      if (["assigned", "incoming", "processing", "completed", "failed"].some(state => fs.existsSync(path.join(whatsappPhotoStateDirectory(), state, name)))) return;
+      fs.renameSync(source, target);
+      const restored = { ...message };
+      delete restored.review;
+      delete restored.outcome;
+      delete restored.outcomeAt;
+      writeJsonAtomic(target, {
+        ...restored,
+        recovery: {
+          reason: "source_phone_mapping_available",
+          recoveredAt: new Date().toISOString(),
+          priorReview: review,
+        },
     });
     recovered += 1;
+    });
   }
   return recovered;
 }

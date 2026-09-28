@@ -29,7 +29,7 @@ async function main(){
   add('synthetic-failed','failed',{receivedAt:'2026-09-04T12:00:00Z',senderPhone:'+15550002222',review:null,error:'fetch failed https://private.invalid/media?token=PRIVATE_TEST_VALUE',caption:'After JK7654321'});
   const before=contents();
   const all=read();
-  assert.deepEqual(all.counts,{review:27,failed:1,processing:0,incoming:0});
+  assert.deepEqual(all.counts,{review:27,failed:1,processing:0,incoming:0,assigned:0});
   assert.equal(all.complete,true);assert.equal(all.total,28);assert.equal(all.records.length,25);assert.equal(all.pages,2);
   assert.equal(all.records[0].id,first);assert.equal(all.records[0].jobDate,'2026-09-01','Received date uses Central time, not UTC.');
   const href=new URL(all.records[0].sourceHref!,'http://localhost');

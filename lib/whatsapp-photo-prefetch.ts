@@ -10,7 +10,7 @@ export function jobPhotoPrefetchEligible(message: WhatsAppImageMessage): boolean
   const context = message.matchingContext;
   const simple = (text: string) => !text.replace(/\bJK\s*[-#:]*\s*\d{4,12}\b/gi, '')
     .replace(/\b(?:before|after|donation|receipt|photos?)\b/gi, '').replace(/[\s#:,.-]/g, '');
-  if (message.version !== 1 || !message.messageId || !/^\d+$/.test(message.mediaId)
+  if (message.manualAssignment || message.version !== 1 || !message.messageId || !/^\d+$/.test(message.mediaId)
     || !/^\d+$/.test(message.phoneNumberId)
     || (process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_PHONE_NUMBER_ID.trim() !== message.phoneNumberId)
     || !Number.isFinite(Date.parse(message.receivedAt))

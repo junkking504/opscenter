@@ -2,28 +2,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ImageIcon } from 'lucide-react';
 import { Button } from './components/ui/button';
-import { PHOTO_STATES, type PhotoReviewRecord, type PhotoReviewSnapshot } from './lib/photo-review-contract';
+import { PHOTO_STATES, type PhotoAssignmentStatus, type PhotoReviewRecord, type PhotoReviewSnapshot } from './lib/photo-review-contract';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import './live-photo-review.css';
+import PhotoAssignment from './photo-assignment';
 
-const labels = { review: 'Needs review', failed: 'Failed', processing: 'Processing', incoming: 'Incoming' };
+const labels = { review: 'Needs review', failed: 'Failed', processing: 'Processing', incoming: 'Incoming', assigned: 'Assigned for upload' };
 const timestamp = (value: string | null) => value ? new Date(value).toLocaleString('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not recorded';
 
 function PhotoDetail({ record, close }: { record: PhotoReviewRecord; close: () => void }) {
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [assignment, setAssignment] = useState<PhotoAssignmentStatus | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); heading.current?.scrollIntoView({ block: 'nearest' }); }, []);
   return <section className="photo-review-detail" aria-labelledby="photo-detail-heading" onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); close(); } }}>
-    <header><h3 id="photo-detail-heading" ref={heading} tabIndex={-1}>{record.jk || 'Appointment not identified'} · {record.reasonLabel}</h3><Button variant="outline" size="sm" onClick={close}>Close photo details</Button></header>
+    <header><h3 id="photo-detail-heading" ref={heading} tabIndex={-1}>{assignment?.appointment?.jk || record.jk || 'Appointment not identified'} · {assignment?.requestId ? assignment.verified ? 'Upload verified' : 'Assignment recorded' : record.reasonLabel}</h3><Button variant="outline" size="sm" onClick={close}>Close photo details</Button></header>
     <div className="photo-review-detail-grid">
       <div className="photo-review-preview">
         {record.previewAvailable && !previewFailed ? <img src={`/api/desktop/photos?${new URLSearchParams({ preview: record.id, state: record.state })}`} alt={`Cached WhatsApp photo received ${timestamp(record.receivedAt)}`} onError={() => setPreviewFailed(true)} /> : <p><ImageIcon aria-hidden="true" size={24} /><strong>{previewFailed ? 'Cached preview is no longer available' : 'No cached preview'}</strong><span>The original media may not have been retrieved before this record was held. Reviewing this record does not download or upload a photo.</span></p>}
       </div>
       <div>
-        <p className="photo-review-next"><strong>Next step</strong>{record.nextStep}</p>
-        <dl><div><dt>Queue state</dt><dd>{labels[record.state]}</dd></div><div><dt>Received · Central time</dt><dd>{timestamp(record.receivedAt)}</dd></div><div><dt>Last outcome · Central time</dt><dd>{timestamp(record.outcomeAt)}</dd></div><div><dt>Sender</dt><dd>{record.sender}</dd></div><div><dt>Photo category</dt><dd>{record.category}</dd></div><div><dt>Recorded attempts</dt><dd>{record.attempts}</dd></div></dl>
+        {!assignment?.requestId && <p className="photo-review-next"><strong>Next step</strong>{record.nextStep}</p>}
+        <PhotoAssignment record={record} onStatus={setAssignment} />
+        <dl><div><dt>Queue state</dt><dd>{assignment ? assignment.state === 'completed' ? assignment.verified ? 'Verified' : 'Verification unavailable' : labels[assignment.state] : labels[record.state]}</dd></div><div><dt>Received · Central time</dt><dd>{timestamp(record.receivedAt)}</dd></div><div><dt>Last outcome · Central time</dt><dd>{timestamp(assignment?.updatedAt || record.outcomeAt)}</dd></div><div><dt>Sender</dt><dd>{record.sender}</dd></div><div><dt>Photo category</dt><dd>{assignment?.category || record.category}</dd></div><div><dt>Recorded attempts</dt><dd>{record.attempts}</dd></div></dl>
         <p className="photo-review-caption"><strong>Message caption</strong>{record.caption || 'No caption recorded.'}</p>
-        {record.sourceHref ? <><a className="photo-review-source" href={record.sourceHref}>Review {record.jk} in Schedule <ChevronRight size={14} aria-hidden="true" /></a><p className="photo-review-note">Opens the job reference on the message’s received date ({record.jobDate}). Confirm the intended appointment; this link is not a verified photo match.</p></> : <p className="photo-review-note">A dated job reference is unavailable. Verify the original message and intended appointment before changing this record.</p>}
+        {record.sourceHref ? <><a className="photo-review-source" href={record.sourceHref}>Review {record.jk} in Schedule <ChevronRight size={14} aria-hidden="true" /></a><p className="photo-review-note">Opens the job reference for {record.jobDate}. Confirm the intended appointment; this link is not a verified photo match.</p></> : <p className="photo-review-note">The original message has no dated appointment reference. Confirm the appointment details when assigning this photo.</p>}
         <small className="photo-review-note">Record {record.id.slice(0, 12)} · {record.reason}</small>
       </div>
     </div>
@@ -57,7 +60,7 @@ function PhotoQueue() {
     }
   }, [selected]);
   return <div className="photo-review-body" id="photo-review-content">
-    <p className="photo-review-note">Current unresolved queue across all dates. Counts are read from the queue now; the received date shows the age of each photo. Reviewing a record leaves its queue state unchanged.</p>
+    <p className="photo-review-note">Current unresolved queue across all dates. Counts are read from the queue now; the received date shows the age of each photo. Inspecting a record leaves it unchanged. Assign and upload submits your confirmed correction.</p>
     <WorkspaceFreshness state={freshness} sourceAt={snapshot?.observedAt} budgetMinutes={2} />
     {snapshot && <div className="photo-review-counts" aria-label="Photo queue totals">{PHOTO_STATES.map(state => <div key={state}><strong>{snapshot.unavailableStates.includes(state) ? 'Unavailable' : snapshot.counts[state]}</strong><span>{labels[state]}</span></div>)}</div>}
     {snapshot && !snapshot.complete && <p className="photo-review-warning" role="alert">Queue view is incomplete. {snapshot.unavailableStates.length > 0 && `Unavailable: ${snapshot.unavailableStates.map(state => labels[state]).join(', ')}. `}{snapshot.unreadable > 0 && `${snapshot.unreadable} unreadable records are counted but cannot be displayed. `}This does not establish that the queue is clear.</p>}
@@ -80,5 +83,5 @@ function PhotoQueue() {
 
 export default function LivePhotoReview({ canReview = true }: { canReview?: boolean }) {
   const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).get('photoReview') === '1');
-  return <section className="photo-review-panel" aria-labelledby="photo-review-heading"><header><div><h2 id="photo-review-heading">WhatsApp photo review</h2><p>{canReview ? 'Held photos, source references, and recovery next steps' : 'A manager or administrator can review held photos and source references.'}</p></div><Button variant="brand" size="action" disabled={!canReview} aria-expanded={canReview && open} aria-controls="photo-review-content" onClick={() => setOpen(value => !value)}>{canReview ? open ? 'Hide photo queue' : 'Review WhatsApp photos' : 'Manager access required'}{open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</Button></header>{canReview && open && <PhotoQueue />}</section>;
+  return <section className="photo-review-panel" aria-labelledby="photo-review-heading"><header><div><h2 id="photo-review-heading">WhatsApp photo review</h2><p>{canReview ? 'Review held photos and assign them to the correct appointment' : 'A manager or administrator can review held photos and source references.'}</p></div><Button variant="brand" size="action" disabled={!canReview} aria-expanded={canReview && open} aria-controls="photo-review-content" onClick={() => setOpen(value => !value)}>{canReview ? open ? 'Hide photo queue' : 'Review WhatsApp photos' : 'Manager access required'}{open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</Button></header>{canReview && open && <PhotoQueue />}</section>;
 }

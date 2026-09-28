@@ -1,3 +1,4 @@
+import { photoAssignmentBlocked, photoRevision } from "./whatsapp-photo-review-assignment";
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -11,13 +12,15 @@ const time=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v))?new 
 const hash=(v:string)=>createHash('sha256').update(v).digest('hex');
 export class InvalidPhotoReviewFilter extends Error {}
 export function photoReason(reason:string): {label:string;nextStep:string} {
-  if(reason==='sender_not_mapped_to_truck')return {label:'Sender mapping needed',nextStep:'Verify which truck used this sender phone at the time of the message, or obtain the exact appointment reference.'};
+  if(reason==='reviewed_original_unavailable')return {label:'Original photo unavailable',nextStep:'The original photo could not be verified. Obtain a replacement for the selected appointment.'};
+  if(reason==='sender_not_mapped_to_truck')return {label:'Sender mapping needed',nextStep:'Select the correct dated appointment below. Use the truck filter if you know which truck handled the photo.'};
   if(reason==='explicit_job_ambiguous'||reason==='ambiguous_context'||/jk_(not_on_active_schedule|not_found_in_junkware)/.test(reason))return {label:'Appointment match needed',nextStep:'Confirm the JK number and the intended appointment date. A JK reference alone may have more than one appointment.'};
   if(/uncertain|outcome_unknown/.test(reason))return {label:reason==='processing_interrupted_outcome_unknown'?'Upload interrupted; outcome unknown':'Upload outcome uncertain',nextStep:'Inspect the intended JunkWare appointment and its existing photos before any retry; the upload may already have succeeded.'};
   if(/5 MB|5_MB|invalid size/.test(reason))return {label:'Photo too large',nextStep:'Use a JPEG or PNG below the 5 MB JunkWare limit and verify the appointment before submitting a replacement.'};
   if(/fetch failed|network|timeout|Meta media/.test(reason))return {label:'Network request failed',nextStep:'Verify the intended appointment and its existing JunkWare photos before any retry. A failed network request does not establish whether an upload succeeded. If original media is unavailable, it may need to be resent.'};
   if(reason==='unreadable_record')return {label:'Record unreadable',nextStep:'Recover the original queue record before any upload or retry.'};
   if(reason==='processing')return {label:'Processing',nextStep:'Wait for the worker result. A stale processing record needs outcome verification before it can be retried.'};
+  if(reason==='assigned')return {label:'Assigned for upload',nextStep:'The assignment is saved. Check upload status for JunkWare verification.'};
   if(reason==='incoming')return {label:'Waiting for worker',nextStep:'Check worker health if this record does not advance.'};
   return {label:'Source review needed',nextStep:'Review the original message, source match, and upload evidence before changing this record.'};
 }
@@ -58,7 +61,7 @@ export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):P
   const unavailableStates:PhotoState[]=[];let unreadable=0;
   const rows:PhotoReviewRecord[]=[];
   for(const queue of PHOTO_STATES){
-    let files:string[];try{files=fs.readdirSync(path.join(root,queue)).filter(f=>f.endsWith('.json'));}catch{unavailableStates.push(queue);continue;}
+    let files:string[];try{files=fs.readdirSync(path.join(root,queue)).filter(f=>f.endsWith('.json'));}catch(error){if(queue!=='assigned'||(error as NodeJS.ErrnoException).code!=='ENOENT')unavailableStates.push(queue);continue;}
     counts[queue]=files.length;
     for(const file of files){
       const id=file.slice(0,-5);let row:Record<string,unknown>|null=null;
@@ -66,8 +69,9 @@ export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):P
       if(!row){unreadable++;continue;}
       const review=(row.review&&typeof row.review==='object'?row.review:{}) as Record<string,unknown>;
       const match=(row.match&&typeof row.match==='object'?row.match:{}) as Record<string,unknown>;
-      const receivedAt=time(row.receivedAt);const jobDate=receivedAt?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date(receivedAt)):null;
-      const caption=clean(row.caption);const jk=extractJkNumber(clean(match.jkNumber))||extractJkNumber(caption)||extractJkNumber(clean(review.detail));
+      const manual=(row.manualAssignment&&typeof row.manualAssignment==='object'?row.manualAssignment:{}) as Record<string,any>;
+      const receivedAt=time(row.receivedAt);const jobDate=manual.appointment?.date||(receivedAt?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date(receivedAt)):null);
+      const caption=clean(row.caption);const jk=extractJkNumber(clean(manual.appointment?.jk))||extractJkNumber(clean(match.jkNumber))||extractJkNumber(caption)||extractJkNumber(clean(review.detail));
       // Worker exceptions may contain provider URLs or identifiers. Return a
       // bounded reason code rather than the original exception or payload.
       const storedReason=clean(review.reason,150),failure=clean(row.error)||clean(row.lastError);
@@ -76,7 +80,7 @@ export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):P
       const senderKey=hash(phone||id).slice(0,16),senderLabel=phone?`Sender ending ${phone.slice(-4)}`:'Sender unavailable';
       const sourceHref=jk&&jobDate?desktopWorkItemHref({operatingDate:jobDate,category:'Dispatch',entity:{type:'job',id:jk,label:jk}}):null;
       const attemptCount=Number(row.attempts);
-      rows.push({id,state:queue,receivedAt,outcomeAt:time(row.outcomeAt),jobDate,sender:senderLabel,senderKey,jk,category:clean(match.category||review.category,40)||'Unspecified',caption,reason:rawReason,reasonLabel:advice.label,nextStep:advice.nextStep,attempts:Number.isFinite(attemptCount)?Math.max(0,Math.floor(attemptCount)):0,previewAvailable:cachedPreviewExists(root,id,row.mimeType),sourceHref});
+      rows.push({id,revision:photoRevision(row),assignmentBlocked:photoAssignmentBlocked(row,queue),state:queue,receivedAt,outcomeAt:time(row.outcomeAt),jobDate,sender:senderLabel,senderKey,jk,category:clean(manual.category||match.category||review.category,40)||'Unspecified',caption,reason:rawReason,reasonLabel:advice.label,nextStep:advice.nextStep,attempts:Number.isFinite(attemptCount)?Math.max(0,Math.floor(attemptCount)):0,previewAvailable:cachedPreviewExists(root,id,row.mimeType),sourceHref});
     }
   }
   const reasons=new Map<string,{reason:string;label:string;count:number}>(),senders=new Map<string,{key:string;label:string;count:number}>();

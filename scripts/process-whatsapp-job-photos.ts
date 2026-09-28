@@ -1,3 +1,4 @@
+import { reviewedPhotoMatch, reviewedPhotoOriginal } from "@/lib/whatsapp-photo-review-assignment";
 import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
@@ -28,6 +29,7 @@ import {
   recoverMappedWhatsAppPhotoHolds,
   requeueWhatsAppImage,
   whatsappQueueCounts,
+  whatsappPhotoStateDirectory,
 } from "@/lib/whatsapp-job-photo-queue";
 import { whatsappSenderTruckMap } from "@/lib/whatsapp-sender-truck-map";
 import {
@@ -235,9 +237,10 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
-    const recycling = await processRecyclingImage(claim.message, media.download);
+    const reviewedMatch = reviewedPhotoMatch(claim.message);
+    const recycling = reviewedMatch ? null : await processRecyclingImage(claim.message, media.download);
     if (recycling) { finishWhatsAppImage(claim.file, "completed", { recycling }); return "completed"; }
-    const resale = await processResaleImage(claim.message, media.download);
+    const resale = reviewedMatch ? null : await processResaleImage(claim.message, media.download);
     if (resale) {
       const outcome = resale.status === "review" ? "review" : "completed";
       finishWhatsAppImage(claim.file, outcome, { resale });
@@ -245,12 +248,12 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
     }
     // A complete dispatcher caption is an observation, not a vision estimate
     // or a job upload. It does not depend on sender-to-truck mapping or media.
-    const captionLoad = ingestTruckLoadCaption(claim.message);
+    const captionLoad = reviewedMatch ? { status: "ignored" as const } : ingestTruckLoadCaption(claim.message);
     if (captionLoad.status !== "ignored") {
       finishWhatsAppImage(claim.file, "completed", { truckLoadStatus: captionLoad, source: "explicit_truck_load_caption" });
       return "completed";
     }
-    const date = chicagoDateKey(receivedAt);
+    const date = claim.message.manualAssignment?.appointment.date || chicagoDateKey(receivedAt);
     const metrics = readMetrics(date);
     const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments as AnyRecord[] : [];
     const matchingContext = claim.message.matchingContext?.version === 1 ? claim.message.matchingContext : recentWhatsAppPhotoContext(
@@ -261,15 +264,19 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
       claim.message.messageId,
     );
     const recentText = matchingContext.text;
-    const loadPhoto = matchingContext.reviewReason ? null : truckLoadPhotoRequest(claim.message, recentText);
+    const loadPhoto = reviewedMatch || matchingContext.reviewReason ? null : truckLoadPhotoRequest(claim.message, recentText);
     if (loadPhoto) loadPhotoTruck = loadPhoto.truck;
     // Retain the original even when matching requires human review. Provider
     // media availability must not be the only copy of a held photo.
     stage = "downloading";
-    const filePath = await media.download(claim.message);
+    const filePath = reviewedMatch ? reviewedPhotoOriginal(whatsappPhotoStateDirectory(), claim.message) : await media.download(claim.message);
+    if (!filePath) {
+      finishWhatsAppImage(claim.file, "review", { review: { reason: "reviewed_original_unavailable", detail: "The checksum-verified original is unavailable. Obtain a replacement photo." } });
+      return "review";
+    }
     timing.mediaReadyAt = new Date().toISOString();
     stage = "matching";
-    if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
+    if (!reviewedMatch && matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
       finishWhatsAppImage(claim.file, "review", { review: { reason: matchingContext.reviewReason, detail: "The preceding messages do not identify one reliable photo context. Supply the exact JK in the photo caption.", category: inferPhotoCategory(claim.message.caption) } });
       return "review";
     }
@@ -286,7 +293,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
       });
       return "completed";
     }
-    const match = matchWhatsAppPhoto({
+    const match = reviewedMatch || matchWhatsAppPhoto({
       senderPhone: claim.message.senderPhone,
       caption: claim.message.caption,
       recentText,

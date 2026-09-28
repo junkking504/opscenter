@@ -4,7 +4,7 @@ export type WhatsAppPhotoCategory = "before" | "after" | "donation";
 
 export type WhatsAppPhotoMatch = {
   status: "matched";
-  method: "jk_number" | "nearest_truck_gps";
+  method: "jk_number" | "nearest_truck_gps" | "review_assignment";
   // An explicit JK number can belong to an appointment outside the message
   // date's schedule snapshot. The worker resolves it directly through
   // JunkWare before it downloads or uploads a photo.

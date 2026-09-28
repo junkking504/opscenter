@@ -6,7 +6,7 @@ OpsCenter receives truck photos through Meta's official WhatsApp Cloud API and u
 
 Managers and administrators can open **Command → Control → Review WhatsApp photos**,
 or use **Source Health → Review photo decisions**. The panel reads the current
-`review`, `failed`, `processing`, and `incoming` queues across all dates, with
+`review`, `failed`, `processing`, `incoming`, and `assigned` queues across all dates, with
 oldest-first pagination and filters for reason, masked sender group, and text.
 Received and outcome times use America/Chicago. Queue observation time is
 separate from the age of each message. Open panels refresh every 30 seconds and
@@ -19,8 +19,52 @@ produce an explicit incomplete-view warning.
 for a currently unresolved record, with identity, size, file-type and signature
 checks and private/no-store caching. It does not retrieve media from Meta.
 Raw sender phones, provider IDs and worker exception payloads are omitted.
-There are no mutation handlers: opening the panel does not alter mappings,
-retry an upload, release a hold, or delete a record.
+Opening the panel does not alter mappings, retry an upload, release a hold, or
+delete a record. For pre-upload matching holds and eligible pre-upload failures,
+**Assign this photo** lets a manager choose the appointment date, filter by
+truck or search JK/customer/address, select the exact appointment, and confirm
+Before, After, or Donation / receipt. **Assign and upload photo** records that
+choice and queues the original photo through the existing upload worker.
+The truck is an appointment filter; this action does not change the sender's
+permanent phone-to-truck mapping or the appointment's scheduled truck.
+
+`GET /api/desktop/photos?appointments=YYYY-MM-DD` uses the same dated JunkWare
+schedule reader as Control, including completed appointments and excluding
+cancelled appointments. It returns source observation time and only the
+identity, customer, address, window, truck and status needed for selection.
+`POST /api/desktop/photos` requires manager access, a trusted request origin,
+a bounded body, the inspected record revision, a UUID request ID, explicit
+confirmation, and an exact dated appointment/JK pair rechecked at submission.
+The server rejects changed records, conflicting queue membership, uncertain
+prior uploads, alternate workflows, and missing or checksum-invalid originals.
+No Meta media recovery, new provider, AI call, or outbound notification is added.
+
+Assignment takes the same per-photo lock as worker claims, trailing context,
+and automatic sender-mapping recovery. The durable record retains the actor,
+time, request identity, prior review/failure, original message and original
+category/context. It is atomically moved into the separate `assigned` queue; a retry with the same
+request resumes a pre-dispatch interruption or returns the recorded result.
+Changed content under the same request ID is rejected. The worker uses the
+exact selected appointment and category, bypasses automatic GPS/context and
+alternate workflows, and requires the same checksum-verified cached original.
+The existing JunkWare uploader verifies the target identity and increased media
+count; an interrupted or uncertain upload stays in review and is never replayed
+by an assignment retry.
+
+`GET /api/desktop/photos?record=<hashed ID>` reads the result across the queue
+and completed receipts. While a submitted review remains open, the existing
+30-second local refresh pattern checks this result, with an explicit **Check
+upload status** control. The UI distinguishes assignment saved, processing,
+needs review, and upload verified. A lost response keeps the same request for
+read-back/idempotent retry. Completed verified photos also reach the existing
+Schedule photo receipt bridge. Queue/request IDs never expose raw sender or
+provider IDs to the browser.
+
+Deploy the web application and photo-worker source together through the
+controlled release. A previously running worker must finish its old cycle and
+pick up the new release to process assigned photos. Older worker cycles do not
+scan `assigned`, so they cannot rematch a reviewed photo during a release. Do not manually move
+review records with pending assignments or replay an uncertain worker result.
 
 Schedule links use the shared dated record-link builder and Schedule's `q`
 filter; ambiguous JK references remain a choice. A link is a **job reference
@@ -29,7 +73,10 @@ appointment match. Verify the intended appointment and existing JunkWare media
 before any separately authorized recovery, especially for an uncertain upload.
 An absent cached preview does not establish whether a photo was uploaded.
 
-Regression check: `node --import tsx scripts/test-desktop-photo-review.ts`.
+Regression checks: `npm run verify:photo-review` and
+`node scripts/test-photo-review-assignment-browser.mjs` against the isolated
+Vite fixture. The fixture uses synthetic records and in-memory submissions;
+it cannot upload a customer photo or contact a provider.
 
 The same signed webhook accepts structured dump and fuel reports from the Krewe. These appear in Finance → Truck breakdown under **OpsBot Truck Records Detail**, corresponding to JunkWare Accounting → Truck Records categories. JunkWare exposes only daily Dumps and Gas dollar totals; OpsCenter retains the additional location, quantity, and time detail with the original WhatsApp message ID for audit and duplicate protection.
 
@@ -181,7 +228,7 @@ The expense worker enforces this order:
 
 Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 
-Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
+Queue directories are `incoming`, `assigned`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
 On worker startup, any record left in `processing` belongs to an interrupted
 prior process. Because the durable claim alone cannot prove whether JunkWare
 accepted an upload, the new worker moves it to review as

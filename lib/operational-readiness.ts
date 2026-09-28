@@ -95,17 +95,20 @@ export function getOperationalReadiness(dataDirectory = path.join(process.cwd(),
   const counts = Object.fromEntries(
     PHOTO_QUEUE_NAMES.map((name) => [name, jsonFileCount(path.join(photoRoot, name))]),
   ) as Record<PhotoQueueName, number>;
+  // Reviewed assignments wait in a separate directory so older workers cannot
+  // apply automatic matching. They remain incoming work in source health.
+  counts.incoming += jsonFileCount(path.join(photoRoot, "assigned"));
   const reasons = {
     ...readPhotoReasons(path.join(photoRoot, "review")),
     ...Object.fromEntries(Object.entries(readPhotoReasons(path.join(photoRoot, "failed"))).map(([reason, count]) => [`failed:${reason}`, count])),
   };
-  const available = PHOTO_QUEUE_NAMES.every(name => { try { fs.accessSync(path.join(photoRoot, name), fs.constants.R_OK); return fs.statSync(path.join(photoRoot, name)).isDirectory(); } catch { return false; } });
-  const unresolvedTimes = ['incoming','processing','review','failed'].flatMap(name => {
+  const available = (!fs.existsSync(path.join(photoRoot, "assigned")) || (() => { try { fs.accessSync(path.join(photoRoot, "assigned"), fs.constants.R_OK); return fs.statSync(path.join(photoRoot, "assigned")).isDirectory(); } catch { return false; } })()) && PHOTO_QUEUE_NAMES.every(name => { try { fs.accessSync(path.join(photoRoot, name), fs.constants.R_OK); return fs.statSync(path.join(photoRoot, name)).isDirectory(); } catch { return false; } });
+  const unresolvedTimes = ['assigned','incoming','processing','review','failed'].flatMap(name => {
     try { return fs.readdirSync(path.join(photoRoot,name)).filter(file => file.endsWith('.json')).flatMap(file => { try { return [fs.statSync(path.join(photoRoot,name,file)).mtimeMs]; } catch { return []; } }); } catch { return []; }
   });
   const photoQueue = {
     oldestActiveAgeSeconds: (() => {
-      const times = ['incoming', 'processing'].flatMap(name => {
+      const times = ['assigned', 'incoming', 'processing'].flatMap(name => {
         try { return fs.readdirSync(path.join(photoRoot, name)).filter(file => file.endsWith('.json')).flatMap(file => { try { return [fs.statSync(path.join(photoRoot, name, file)).mtimeMs]; } catch { return []; } }); } catch { return []; }
       });
       return times.length ? Math.max(0, Math.floor((now - Math.min(...times)) / 1000)) : null;

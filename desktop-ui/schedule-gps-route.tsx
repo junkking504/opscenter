@@ -64,7 +64,7 @@ export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:
   const roadStatus=route?.streets?.status;
   const unmatched=route?.streets?.unmatched || 0;
   return <section className="schedule-gps-summary" aria-label={truckDisplayText(`${truck} trips`)}>
-    <header><strong>Trips</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
+    <header><strong>Trips & appointment stops</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
     {!!route?.points.length && <div className="schedule-gps-legend" aria-label="Route legend">
       <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>
       {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>{roadStatus==='partial'?'Dots · GPS awaiting road alignment':'Dots · recorded GPS positions'}</span>:null}

@@ -85,3 +85,24 @@ through a gap, and no exact onsite duration is created from inferred bounds.
 Source-confirmed zero-duration visits remain closed observations.
 
 Additional validation: `node --import tsx scripts/test-appointment-position-tracking.ts`.
+
+## Completed work before the booked window
+
+The existing visit runner retains its live arrival window and adds a conservative
+second pass for completed appointments with no detected visit. It reads the
+already-collected operating day's GPS from midnight, so an afternoon booking
+completed in the morning is not excluded by the four-hour pre-booking cutoff.
+Recovery requires an explicit appointment ID, verified premises, at least five
+minutes and three GPS points, confirmed departure, no boundary coverage gap,
+and one uniquely qualifying physical truck. Nearby competing bookings, overlapping
+visits already owned by another appointment, missing coordinates, unresolved
+visit evidence and canceled/open records are left unchanged. Source booking,
+assignment and closeout stay intact; the recovered measured visit feeds the same
+ledger and existing actual-time board. No new provider polling is added.
+
+The policy is versioned with `scripts/match-linxup-instant-arrivals.py` and
+`scripts/runtime/early_completed_visits.py`; the next existing collector run
+uses it after an approved application release. No manual ledger correction or
+separate edit to the installed collector is needed. Validate with
+`python3 -B scripts/test-early-completed-visits.py`, the existing actual-block
+tests, and a read-only replay of the affected operating day before release.

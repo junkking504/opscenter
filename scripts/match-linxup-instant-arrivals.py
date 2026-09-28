@@ -34,6 +34,12 @@ def main():
     module.DEFAULT_MIN_INSIDE_POINTS = 1
     module.DEFAULT_BEFORE_MINUTES = 240
     module.qualifying_visits = instant_qualifier(module.qualifying_visits)
+    sys.path.insert(0, str(Path(__file__).resolve().parent / 'runtime'))
+    from early_completed_visits import recover_early_completed_visits
+    reconcile = module.reconcile_linked_physical_visits
+    def reconcile_with_early_completion(rows, target, *args):
+        return recover_early_completed_visits(module, reconcile(rows, target, *args), target)
+    module.reconcile_linked_physical_visits = reconcile_with_early_completion
     return module.main()
 
 

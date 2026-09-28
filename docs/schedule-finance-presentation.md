@@ -834,6 +834,17 @@ source corrections, changed truck/date and excluded gaps cannot reuse old geomet
 
 ### Travel estimates on the board
 
+Selecting a truck shows trips into, between and out of confirmed appointment
+stops in its lower information panel. Ignition trips are split for display at
+that truck's measured arrival/departure intervals, with JK references, customer
+labels and recorded times. Each resulting leg can be selected on the map.
+This includes customer stops made while the engine remains running. Missing
+departure, ambiguous overlapping appointments, another operating day/truck or
+missing verified premises cannot create a customer leg. Original GPS history,
+booking windows and coverage-gap disclosures remain unchanged; future route
+estimates remain separate. Validate with `scripts/test-gps-appointment-trips.ts`
+and the `early-completed` isolated Schedule browser scenario.
+
 The Truck Schedule connectors show travel minutes and distance between stops,
 with Stop Order beside the board. The duplicate Travel Between Appointments
 panel below the board is removed; the All Appointments register follows the

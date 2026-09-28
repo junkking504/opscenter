@@ -46,6 +46,7 @@ import { AppointmentRegisterRow } from './appointment-register-row';
 import { schedulePayment } from './lib/schedule-payment';
 import { SourceEstimateSummary } from './source-estimate';
 import {GpsRouteSummary,useTruckGpsRoute} from './schedule-gps-route';
+import {gpsAppointmentTrips} from './lib/gps-appointment-trips';
 
 type Day = 'today' | 'tomorrow';
 type Props = { mapOnly?: boolean; view?: 'board' | 'calendar' | 'followup' | 'history'; onOpenDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void; baseDate: string; day: Day; onDayChange: (day: Day) => void; onCounts?: (counts: Record<Day, number>) => void; report: (message: string) => void };
@@ -77,7 +78,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [scope, setScope] = useState('ALL');
   const [priority, setPriority] = useState<string | null>(null);
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null);
-  const {route:gpsRoute,error:gpsRouteError}=useTruckGpsRoute(date,selectedTruck);
+  const {route:sourceGpsRoute,error:gpsRouteError}=useTruckGpsRoute(date,selectedTruck);
   const [mapResetKey, setMapResetKey] = useState(0);
   const [selectedGpsTrip, setSelectedGpsTrip] = useState<string|null>(null);
   const showGpsTrip = (id:string|null) => { setSelectedGpsTrip(id); setTruckMapView('route'); setMapResetKey(value=>value+1); };
@@ -293,6 +294,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const truckGps = truckGpsStatus(truckDetails, now.getTime());
   const truckGpsLabel = truckGps.label;
   const truckJobs = jobs.filter(job => scheduleDisplayTruck(job) === selectedTruck).sort(compareStops);
+  const gpsRoute = sourceGpsRoute ? gpsAppointmentTrips(sourceGpsRoute,jobs) : null;
   const selected = jobs.find(job => job.recordId === selectedId);
   const stopOrderTruck = selectedTruck || (selected ? scheduleDisplayTruck(selected) : null);
   const drawer = jobs.find(job => job.recordId === drawerId);

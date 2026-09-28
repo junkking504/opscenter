@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { appointmentOnsiteTime, completedOnsiteClockRange } from '../lib/appointment-onsite-time';
-import { timelineWindow, timelinePlacement, timelineRange, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { timelineWindow, timelinePlacement, timelineRange, scheduleDisplayTruck, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
 import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
 const job = {recordId:'2026-09-12:appointment:1',appointmentId:'1',jkNumber:'JK1',truck:'Truck 4',appointmentType:'Job',status:'Completed',hasScheduledTime:true,appointmentTime:'9–10 AM',appointmentStartMinutes:540,appointmentEndMinutes:600} as ScheduleAppointment;
@@ -25,7 +25,8 @@ const splitPosition=timelinePlacement(split,range)!;
 assert.equal(splitPosition.segments.length,2);
 assert.equal(splitPosition.segments.reduce((sum,row)=>sum+row.width*range.duration,0),45,'Time away remains a gap');
 for(const patch of [{status:'Canceled'},{onsiteTime:undefined},{onsiteTime:{...completed.onsiteTime,departure:null,minutes:null}},{onsiteTime:{...completed.onsiteTime,minutes:NaN}},{recordId:'2026-09-11:appointment:1'}]) {
- const fallback=timelineWindow({...completed,...patch});
+ const fallbackJob={...completed,...patch};
+ const fallback=timelineWindow(fallbackJob,scheduleDisplayTruck(fallbackJob));
  assert.equal(fallback?.actual,false); assert.equal(fallback?.start,540); assert.equal(fallback?.end,600);
 }
 const early={...job,onsiteTime:evidence([visit('2026-09-12T12:00:00Z','2026-09-12T12:30:00Z')])};

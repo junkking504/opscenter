@@ -36,7 +36,7 @@ for (const time of ['10:00', '10:15', '10:30', '11:29', '11:30']) {
 }
 assert.equal(project([actual('22:31')]).length, 1, 'Late same-day actual replaces unique visit');
 assert.equal(project([actual('11:30', { transactionAt: `${date}T11:30:00.001-05:00` })]).length, 1, 'No artificial sixty-minute cutoff');
-assert.equal(project([actual('09:59')]).length, 2, 'Before arrival cannot replace');
+assert.equal(project([actual('09:59')]).length, 1, 'Named manual actual within five minutes of GPS arrival replaces the assumption');
 assert.equal(project([actual('11:00', { truck: 'Truck# 8' })])[0].status, 'actual');
 assert.ok(project([actual('11:00', { truck: 'Truck# 8' })]).some(record => record.status === 'assumed'));
 assert.equal(project([actual('11:00', { kind: 'fuel' })])[0].status, 'assumed');
@@ -47,10 +47,12 @@ assert.equal(project([], [...source, ...source]).length, 1, 'Geofence retries de
 assert.equal(project([], [transition('entered', '10:00'), transition('entered', '10:01'), transition('exited', '10:30')]).length, 1, 'Repeated entry before an exit is one visit');
 const twice = [...source, transition('entered', '11:00'), transition('exited', '11:10')];
 const matched = project([actual('11:15')], twice);
-assert.equal(matched.length, 3);
-assert.ok(matched.every(record=>record.reconciliationNote), 'Late actual after repeated visits is ambiguous');
+assert.equal(matched.length, 2);
+assert.equal(matched.filter(record=>record.status==='actual').length,1);
+assert.equal(matched.filter(record=>record.status==='assumed').length,1,'One actual consumes one repeated GPS assumption');
+assert.ok(matched.every(record=>!record.reconciliationNote));
 assert.equal(project([actual('11:05')],twice).find(record=>record.status==='actual')?.enteredAt,new Date(at('11:00')).toISOString(),'Precise onsite time identifies one visit');
-assert.equal(project([actual('11:15', { location: '' })], twice).length, 3, 'Ambiguous location cannot remove either assumption');
+assert.equal(project([actual('11:15', { location: '' })], twice).filter(record=>record.status==='assumed').length, 1, 'A blank-location manual actual still consumes one same-truck, same-day assumption');
 assert.equal(project([], [transition('exited', '10:30')]).length, 0, 'Exit alone cannot invent a charged entry');
 assert.equal(project([], [transition('entered', '10:00', 'Warehouse')]).length, 0);
 assert.equal(project([], [transition('entered', '10:00', 'EMR')]).length, 0);

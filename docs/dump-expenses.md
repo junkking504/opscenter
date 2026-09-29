@@ -27,14 +27,17 @@ weight, receipt number, provider payment or fee is fabricated.
   no sixty-minute expiry. Late collection or manual entry backdated to the visit's
   operating day reconciles normally.
 - Match truck, facility aliases, and operating date. A later same-day actual can
-  replace a unique earlier visit. Precise onsite transaction timing distinguishes
-  repeated named-facility visits. A blank location requires one eligible visit.
-- Matching must be mutually unique: two competing actuals or ambiguous repeat
-  visits require review. No first-wins or closest-amount guess is made.
-- When a named receipt precedes the first GPS sample by five minutes or less,
-  an explicit manager confirmation may bind that exact expense ID to that exact
-  LinxUp visit ID. The reviewed pair must still agree on truck, facility and
-  operating day; confirmations never act as a general time-window override.
+  replace an earlier visit. For repeated visits to the same named facility,
+  verified manual actuals consume GPS assumptions one-for-one, ordered by the
+  closest transaction-to-visit interval. Transaction time selects among same-day
+  visits but does not block replacement because manual entry and GPS event clocks
+  can differ.
+  Extra GPS visits remain assumed; extra verified actuals remain actual source
+  records and never cause an assumption to be counted again. When a manual row
+  has no facility, it consumes the closest same-truck, same-day dump assumption;
+  the missing source location remains visible in provenance.
+- Source rows that remain possible duplicates or have receipt-ownership conflicts
+  require review and cannot replace assumptions. No amount-based guess is made.
 - A visit genuinely spanning midnight can match an actual on its departure day
   (within a maximum 36-hour visit). Other-day expenses do not silently attach to
   an old open visit. They need an explicit source association.
@@ -53,9 +56,9 @@ weight, receipt number, provider payment or fee is fabricated.
 
 Each physical truck keeps its own visit, unload and assumed cost. Equal costs,
 site and transaction time across different trucks never identify one expense.
-Different receipt numbers preserve both actual costs. Two actuals competing for
-one recorded truck's visit require review and leave the other truck's assumption
-intact. The same nonblank receipt recorded on different trucks at the same facility
+Different receipt numbers preserve both actual costs. Repeated actuals and visits
+reconcile one-for-one within their own truck; they never consume another truck's
+assumption. The same nonblank receipt recorded on different trucks at the same facility
 and operating date is an ownership conflict; actual and combined totals remain
 unavailable until receipt or crew evidence resolves it. GPS co-location alone
 cannot identify a swapped receipt assignment, so source truck ownership is never
@@ -110,11 +113,12 @@ The source defaults can be overridden with protected runtime configuration at
 places; aliases must be unique. An invalid override shows settings unavailable
 instead of silently using a different fee. Keep private runtime data out of Git.
 
-Reviewed near-arrival pairs are stored separately in protected runtime
-configuration at `data/config/dump-expense-confirmations.json`. Each record
+Reviewed exact pairs may be stored separately in protected runtime configuration
+at `data/config/dump-expense-confirmations.json`. Each record
 contains the operating `date`, exact `expenseId`, exact `visitId`, `confirmedAt`,
 `confirmedBy`, and a nonblank evidence `note`. Malformed or duplicate-expense
-records fail closed and do not change the automatic matching policy.
+records fail closed. Exact confirmations take precedence over automatic
+one-for-one ordering without weakening truck, facility or operating-day checks.
 
 Validation: `npm run verify:dump-expenses`, `npm run verify:geofence-alerts`,
 truck expense notification checks, TypeScript, desktop build and production build.

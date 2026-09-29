@@ -74,46 +74,48 @@ export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputE
     && truckKey(other.truck)!==truckKey(expense.truck) && other.receipt.trim().toLowerCase()===expense.receipt.trim().toLowerCase()
     && facilityKey(other.location,policy)===facilityKey(expense.location,policy)))
     expense.reconciliationNote='Receipt ownership conflict: this receipt is recorded on different trucks at the same facility. Review receipt or crew evidence; recorded ownership has not been changed.';
-  const options=actuals.map(expense=>{
+  const plans=actuals.map(expense=>{
     const time=Date.parse(expense.transactionAt);
-    // Collection time is not exact arrival time. A named receipt just before
-    // the first GPS observation needs review, never automatic replacement.
-    const nearby=records.filter(record=>expense.location.trim() && record.date===expense.date
-      && truckKey(record.truck)===truckKey(expense.truck)
-      && facilityKey(record.location,policy)===facilityKey(expense.location,policy)
-      && Date.parse(record.enteredAt!)>time && Date.parse(record.enteredAt!)-time<=5*60_000);
     const candidates=records.filter(record=>truckKey(record.truck)===truckKey(expense.truck) && time>=Date.parse(record.enteredAt!)
       && (record.date===expense.date || (!!record.departedAt && chicagoDateKey(new Date(record.departedAt))===expense.date && Date.parse(record.departedAt)-Date.parse(record.enteredAt!)<=36*3600_000))
       && (!expense.location.trim() || facilityKey(record.location,policy)===facilityKey(expense.location,policy)));
-    // Precise onsite timing can distinguish repeated named-site visits. A late
-    // record without that evidence must have one possible visit for its day.
+    // Source timing ranks repeated visits; unique onsite evidence wins first.
+    // Remaining verified actuals consume the nearest same-day assumption.
     const onsite=candidates.filter(record=>record.departedAt && time<=Date.parse(record.departureBounds?.after || record.departedAt));
+    const sameDay=records.filter(record=>record.date===expense.date
+      && truckKey(record.truck)===truckKey(expense.truck)
+      && (!expense.location.trim() || facilityKey(record.location,policy)===facilityKey(expense.location,policy)));
+    const possible=[...new Set([...candidates,...sameDay])];
     const confirmation=confirmations.find(row=>row.date===expense.date && row.expenseId===expense.id);
-    const confirmed=confirmation && [...candidates,...nearby].find(record=>record.id===`dump-visit:${confirmation.visitId}`);
-    if(confirmed && !expense.reconciliationNote)return [confirmed];
-    if(nearby.length) {
-      expense.reconciliationNote ||= 'Receipt precedes the first recorded arrival by five minutes or less. Confirm the visit using receipt or crew evidence before combining costs; no assumption has been replaced.';
-      return [...new Set([...candidates,...nearby])];
-    }
-    return expense.location.trim() && onsite.length===1 ? onsite : candidates;
+    const confirmed=confirmation && possible.find(record=>record.id===`dump-visit:${confirmation.visitId}`);
+    const eligible=confirmed && !expense.reconciliationNote ? [confirmed]
+      : expense.location.trim() && onsite.length===1 ? onsite : possible;
+    return {possible,eligible,confirmed:confirmed || null};
   });
   const matched=new Set<string>();
+  const assignedRecords=new Set<string>(),assignedActuals=new Map<number,DumpExpenseRecord>();
+  const edges=plans.flatMap((plan,index)=>expenseMatchBlocked(actuals[index]) ? [] : plan.eligible.map(record=>{
+    const time=Date.parse(actuals[index].transactionAt),entry=Date.parse(record.enteredAt!);
+    const exit=Date.parse(record.departureBounds?.after || record.departedAt || record.enteredAt!);
+    const intervalDistance=time<entry ? entry-time : time>exit ? time-exit : 0;
+    const score=(plan.confirmed===record ? -Number.MAX_SAFE_INTEGER : 0)+intervalDistance*1_000+Math.abs(time-entry);
+    return {index,record,score};
+  })).sort((a,b)=>a.score-b.score || actuals[a.index].id.localeCompare(actuals[b.index].id) || a.record.id.localeCompare(b.record.id));
+  for(const edge of edges) if(!assignedActuals.has(edge.index) && !assignedRecords.has(edge.record.id)) {
+    assignedActuals.set(edge.index,edge.record);assignedRecords.add(edge.record.id);
+  }
   actuals.forEach((expense,index)=>{
-    const candidates=options[index];
-    const record=candidates.length===1 && !expense.reconciliationNote
-      && options.filter(matches=>matches.includes(candidates[0])).length===1 ? candidates[0] : null;
+    const record=assignedActuals.get(index);
     if(record) {
       record.status='actual';record.amount=expense.amount;record.actualExpenseId=expense.id;record.sourceExpenseIds=expense.sourceExpenseIds || [expense.id];
-      record.transactionAt=expense.transactionAt;matched.add(expense.id);
-    } else if(candidates.length || expense.reconciliationNote) {
-      const note=expense.reconciliationNote || 'More than one visit or actual expense could match. Review the dump records; no assumption has been replaced.';
-      candidates.forEach(candidate=>candidate.reconciliationNote=note);
+      record.transactionAt=expense.transactionAt;matched.add(expense.id);return;
     }
+    if(expense.reconciliationNote) plans[index].possible.forEach(candidate=>candidate.reconciliationNote=expense.reconciliationNote);
   });
   const result:DumpExpenseRecord[]=[...records.filter(record=>record.date===date),...actuals.filter(row=>row.date===date && !matched.has(row.id)).map(expense=>({
     id:`dump-actual:${expense.id}`,date,truck:expense.truck.replace('#',''),location:canonicalDumpLocation(expense.location),enteredAt:null,departedAt:null,replaceUntil:null,
     amount:expense.amount,assumedAmount:null,status:'actual' as const,window:null,actualExpenseId:expense.id,sourceExpenseIds:expense.sourceExpenseIds || [expense.id],transactionAt:expense.transactionAt,
-    reconciliationNote:expense.reconciliationNote || (options[actuals.indexOf(expense)].length ? 'Review the matching visit or competing expense before counting the combined cost.' : undefined),
+    reconciliationNote:expense.reconciliationNote,
   }))].sort((a,b)=>Date.parse(b.transactionAt)-Date.parse(a.transactionAt));
   const total=(status:'actual'|'assumed')=>Math.round(result.filter(record=>record.status===status).reduce((sum,record)=>sum+(record.amount??0),0)*100)/100;
   const missingMinimumCount=result.filter(record=>record.status==='minimum_missing').length;
@@ -121,3 +123,5 @@ export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputE
   return {agentId:UNLOAD_COST_AGENT,date,records:result,unloads:projectUnloadEvents(date,visits,now),actualTotal:actuals.some(row=>row.date===date && (row.reconciliationNote?.startsWith('Possible duplicate') || row.reconciliationNote?.startsWith('Receipt ownership'))) ? null : total('actual'),assumedTotal:total('assumed'),
     total:missingMinimumCount || needsReviewCount ? null : Math.round((total('actual')+total('assumed'))*100)/100,missingMinimumCount,needsReviewCount};
 }
+
+function expenseMatchBlocked(expense:TruckExpense){return Boolean(expense.reconciliationNote);}

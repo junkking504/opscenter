@@ -33,6 +33,14 @@ export async function clearCrewPhotoDrafts() {
     transaction.onerror = () => reject(transaction.error);
   }); } finally { database.close(); }
 }
+export async function clearCrewPhotoDraft(key:string) {
+  const database=await db();
+  try {await new Promise<void>((resolve,reject)=>{
+    const transaction=database.transaction('drafts','readwrite');
+    transaction.objectStore('drafts').delete(key);
+    transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error);
+  });} finally {database.close();}
+}
 export async function storedPhotos(key: string, value?: CheckoutPhoto[]): Promise<CheckoutPhoto[]> {
   const database = await db();
   try { return await new Promise((resolve, reject) => {

@@ -9,12 +9,14 @@ import { readJobRouteAssignmentOverrides } from './job-route-assignments';
 import { sameTruck, truckNumber } from './junkware-trucks';
 import { applyStopOrders } from './desktop-stop-order-store';
 import { compareStops } from './schedule-stop-order';
+import {crewCloseoutReset} from './crew-closeout-reset';
 
 const sources = {
   snapshot: (date: string) => readVerifiedJunkwareScheduleSnapshot(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw', 'workspace', 'opsbot', 'data'), date),
   rows: readJobRows,
   overrides: readJobRouteAssignmentOverrides,
   dispatch: readCrewDispatch,
+  reset: crewCloseoutReset,
 };
 const safePaymentDetail=(method:string,detail:string)=>{
   const value=String(detail || '').trim();
@@ -39,10 +41,11 @@ export function crewAssignmentUpdateToken(payload: CrewCurrent) {
 
 /** Stable UUID-shaped scope for a truck-day appointment. This value is not
  * authority by itself; every operation rechecks the phone, truck, day and source. */
-export function crewScheduleAssignmentId(truck:string,date:string,appointmentId:string) {
+export function crewScheduleAssignmentId(truck:string,date:string,appointmentId:string,resetToken='') {
   const number=truckNumber(truck);
   if(number===null || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,12}$/.test(appointmentId))throw new Error('A valid truck-day appointment is required.');
-  const hex=createHash('sha256').update(`waypoint-truck-day-v1\0${number}\0${date}\0${appointmentId}`).digest('hex').slice(0,32);
+  const base=`waypoint-truck-day-v1\0${number}\0${date}\0${appointmentId}`;
+  const hex=createHash('sha256').update(resetToken?`${base}\0reset\0${resetToken}`:base).digest('hex').slice(0,32);
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
 }
 
@@ -52,7 +55,7 @@ function withUpdateToken(payload:CrewCurrent):CrewCurrent {
 
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
-export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, now = Date.now()): CrewCurrent {
+export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'> & {reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
   const snapshot = deps.snapshot(date);
   const age = snapshot ? now - snapshot.freshnessAtMs : Infinity;
   if (!snapshot || snapshot.date !== date || age < 0 || age > 120_000) return withUpdateToken({
@@ -79,7 +82,9 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
       recordId:`${date}:appointment:${row.appointmentId}`,version:''}];
   });
   const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
-    .map(row => ({
+    .map(row => {
+      const reset=deps.reset?.(phone.truck,date,row.appointmentId) || null;
+      return ({
       appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
@@ -89,8 +94,9 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
       assignmentId: current?.date === date && current.appointmentId === row.appointmentId
-        ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId),
-    }));
+        ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
+      ...(reset?{resetAt:reset.resetAt,resetPriorAssignmentId:reset.priorAssignmentId}:{}),
+    });});
   const active = jobs.find(job => job.assignmentId);
   return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,
     job: active?.assignmentId ? {...active, assignmentId: active.assignmentId} : null});

@@ -12,9 +12,10 @@ import SwitchTruck,{type SwitchSummary} from './switch-truck';
 import RequestSetupCode from './request-setup-code';
 import TruckInspectionApp from '@/components/TruckInspectionApp';
 import {chicagoDateKey} from '@/lib/chicago-date';
-import { clearCrewCloseoutDrafts, crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../desktop-ui/lib/closeout-drafts';
+import { clearCrewCloseoutAssignment, clearCrewCloseoutDrafts, crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../desktop-ui/lib/closeout-drafts';
 import type { Receipt } from '../../desktop-ui/schedule-receipt';
 import { clearCrewPhotoDrafts } from './job-photos';
+import {clearCrewPhotoDraft} from './photo-storage';
 import {HANDOFF_EVENT,readHandoffs,resumeHandoff,saveHandoff,type CheckoutHandoff} from './checkout-handoff';
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
@@ -63,6 +64,17 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       if(response.status===401){void clearCrewPhotoDrafts().catch(()=>{});setJobLoading(false);clearCrewCloseoutDrafts();setDay(null);setPhone(null);throw new Error(body.error || 'This phone needs manager setup.');}
       if(!response.ok)throw new Error(body.error || 'Your assignment could not be verified. Contact dispatch.');
       assignmentUpdateToken.current=String(body.updateToken || '');
+      if(dayBody.phone?.deviceId && Array.isArray(body.jobs))for(const job of body.jobs as CrewScheduledJob[]){
+        if(!job.resetAt || !job.resetPriorAssignmentId)continue;
+        const resetKey=`ops-crew-closeout-reset:${dayBody.phone.deviceId}:${job.appointmentId}`;
+        try {if(localStorage.getItem(resetKey)===job.resetAt)continue;} catch { /* Retry the cleanup below. */ }
+        clearCrewCloseoutAssignment(dayBody.phone.deviceId,job.resetPriorAssignmentId);
+        await clearCrewPhotoDraft(`${dayBody.phone.deviceId}:${job.resetPriorAssignmentId}`);
+        setHandoff(value=>value?.assignmentId===job.resetPriorAssignmentId?null:value);
+        setPendingCloseout(value=>value?.assignmentId===job.resetPriorAssignmentId?null:value);
+        setBackgroundNotice('');
+        try {localStorage.setItem(resetKey,job.resetAt);} catch { /* A later refresh can retry the reset. */ }
+      }
       setAssignment(body);setDetails(false);setCloseout(false);
       if(body.state==='assigned' && body.job && dayBody.phone?.deviceId){
         const saved=readCloseoutLocal<Receipt>(`${crewCloseoutKey(dayBody.phone.deviceId,body.job.assignmentId)}:receipt`);

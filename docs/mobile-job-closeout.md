@@ -214,6 +214,13 @@ server receipt existed, a deliberate **Check Saved Result** reopens only the
 same saved request ID and body. The server rechecks the reviewed JunkWare
 fingerprint before any write; it never creates a replacement payment request.
 
+An operator-requested clean reset rotates only that appointment's truck-day
+closeout scope. On the next **Refresh assignments**, Waypoint clears the prior
+phone draft, saved handoff, and local photo selection for that appointment and
+opens a fresh closeout. The appointment stays assigned to its truck, and the
+reset is refused unless the latest saved JunkWare read is Confirmed with no
+payments. Existing uploaded source photos remain audit evidence in JunkWare.
+
 Verified completed assignment cards use the source-backed heading **Completed
 Job | JunkWare ✔️**. They show the saved total prominently, then Load, Bedload
 when present, every saved Other Charge as its own row, non-zero discount and

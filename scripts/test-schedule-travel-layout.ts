@@ -45,3 +45,15 @@ for(const [from,to] of [['early2','later1'],['early1','later2'],['later1','early
   assert.equal(Number(c.path!.split(' ')[0].split(',')[1])+c.top,c.from.lane*drawn.laneStep+13,'Path starts on the source lane');
 }
 console.log('Gapped arrows follow source and destination lanes, including incoming stacked stops and reverse travel.');
+
+// The displayed start can differ from the booked window once GPS evidence is
+// available. A saved Stop Order still owns the vertical order when those two
+// rendered blocks overlap.
+const actualFirst={...job('2026-09-29:appointment:actual-first',480,540),truck:'Truck 3',stopOrder:0,onsiteTime:{minutes:20,arrival:'2026-09-29T13:20:00.000Z',departure:'2026-09-29T13:40:00.000Z'}} as ScheduleAppointment;
+const plannedSecond={...job('2026-09-29:appointment:planned-second',480,540),truck:'Truck 3',stopOrder:1} as ScheduleAppointment;
+const orderedStack=scheduleTravelLayout([plannedSecond,actualFirst],[],timelineRange([plannedSecond,actualFirst]),'Truck 3',Date.parse('2026-09-29T14:00:00.000Z'));
+assert.deepEqual(orderedStack.placed.map(item=>[item.job.recordId,item.lane]),[[actualFirst.recordId,0],[plannedSecond.recordId,1]],'Saved Stop Order must dictate top and bottom even when GPS changes the displayed start');
+
+const unsavedStack=scheduleTravelLayout([{...actualFirst,stopOrder:undefined},{...plannedSecond,stopOrder:undefined}],[],timelineRange([plannedSecond,actualFirst]),'Truck 3',Date.parse('2026-09-29T14:00:00.000Z'));
+assert.deepEqual(unsavedStack.placed.map(item=>item.job.recordId),[plannedSecond.recordId,actualFirst.recordId],'Without a saved order, displayed chronology still chooses the stack order');
+console.log('Saved Stop Order controls the visual top-to-bottom stack across planned and GPS-rendered blocks.');

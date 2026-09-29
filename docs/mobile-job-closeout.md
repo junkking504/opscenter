@@ -195,7 +195,9 @@ removable locally until submission.
 For crew phones, Tip is on the Payment step. That step shows charges after
 discount, tip, any non-billed payments already recorded in JunkWare, and the
 remaining **Amount to mark paid**. Enabling collected payment pre-fills that
-remaining amount while still allowing an intentional partial payment.
+remaining amount. While that value remains auto-filled, later tip or charge
+edits update the payment amount too; typing a payment amount manually freezes
+the operator's value. Intentional partial payments therefore remain possible.
 
 The final Submit keeps the crew on the closeout while selected photo bytes and
 the immutable checkout request are transferred. Waypoint returns to Assignments
@@ -203,7 +205,9 @@ only after OpsCenter has issued the durable server receipt. From that point the
 phone can close Waypoint; JunkWare verification continues server-side. If the
 server has not acknowledged the intake, the crew remains on the closeout and
 the same saved request identity is resumed instead of presenting Assignments as
-safe. Older interrupted handoffs remain recoverable with Resume transfer.
+safe. Check Saved Result first reads the receipt; a missing receipt resumes only
+that exact handset-saved request ID and immutable payload. Older interrupted
+handoffs remain recoverable with Resume transfer.
 
 Verified completed assignment cards use the source-backed heading **Completed
 Job | JunkWare ✔️**. They show the saved total prominently, then Load, Bedload

@@ -33,7 +33,7 @@ async function main(){
  for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();await page.getByRole('radio',{name:'Completed',exact:true}).check();await page.getByRole('checkbox',{name:'Add a payment'}).check();
   const methods=page.getByRole('group',{name:'Payment method',exact:true});assert.equal(await methods.getByRole('radio').count(),4);
   const method={selectOption:async(value:string)=>{const labels:Record<string,string>={'1':'Billed','2':'Cash','3':'Credit Card','4':'Check'};const radio=methods.getByRole('radio',{name:labels[value],exact:true});await radio.click();await expect(radio).toBeChecked();}};
-  await method.selectOption('4');await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1200');await page.getByRole('textbox',{name:'Check number',exact:true}).fill('009924');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();assert.ok((await page.getByRole('status').textContent())?.includes('Check number: 009924'));
+  await method.selectOption('4');await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1200');await page.getByRole('textbox',{name:'Check number',exact:true}).fill('009924');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();assert.ok((await page.getByLabel('Closeout review').textContent())?.includes('Check number: 009924'));
   await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1199');await page.getByRole('button',{name:'Review Closeout',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).count(),0);
   await method.selectOption('3');const ref=page.getByRole('textbox',{name:'Card last four',exact:true});assert.equal(await ref.inputValue(),'');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByText('Enter only the four trailing card digits for the recorded payment.',{exact:true}).waitFor();await ref.fill('6004');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();
   if(width===390) await page.screenshot({path:'/tmp/closeout-payment-mobile.png',fullPage:true});
@@ -164,7 +164,7 @@ async function main(){
   await truck.selectOption('Truck 6');
   await page.getByRole('button',{name:'Review Changes',exact:true}).click();
   assert.equal(submitted.length,0,'Truck selection and review do not write');
-  await expect(page.getByRole('status')).toContainText('Truck 1 → Truck 6');
+  await expect(page.getByLabel('Closeout review')).toContainText('Truck# 1 → Truck# 6');
   await page.getByRole('radio',{name:'Completed',exact:true}).check();
   await expect(page.getByRole('button',{name:'Review Closeout',exact:true})).toBeVisible();
   await page.getByRole('radio',{name:'Confirmed',exact:true}).check();

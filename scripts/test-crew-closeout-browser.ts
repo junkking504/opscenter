@@ -20,7 +20,7 @@ async function main(){
  try {for(const width of [320,390,430]){
   const context=await browser.newContext({viewport:{width,height:844},ignoreHTTPSErrors:true});let page=await context.newPage();
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  let posts=0,receipt:any=null,sourceVersion='a'.repeat(64),photos=true,receiptReads=0,completed=false,managerChanged=false,closeoutResponded=false;
+  let posts=0,receipt:any=null,sourceVersion='a'.repeat(64),photos=true,receiptReads=0,completed=false,managerChanged=false,closeoutResponded=false,closeoutIntakeFailures=width===320?2:0;
   const photoReceipts=new Map<string,unknown>();let photoPosts=0;
   const closeout=()=>({...fixture,actualStartMinute:managerChanged?field('05','05',minutes):fixture.actualStartMinute,photoEvidence:closeoutPhotoEvidence('900001',photos?['https://junkware.junk-king.com/system/aspnet/local/media/sample-900001-before.jpg']:[])});
   await context.route('**/api/**',async route=>{
@@ -38,6 +38,7 @@ async function main(){
    if(u.pathname==='/api/crew-jobs/closeout'){
     if(r.method()==='POST'){
      posts++;const b=r.postDataJSON();assert.equal(b.assignmentId,'sample-assignment');assert.equal(b.values.truck,'Truck 6');assert.equal(b.values.targetStatus,'8');assert.equal(b.crewVersion,1);assert.equal(b.values.driverId,'driver');assert.deepEqual(b.values.navigatorIds,['navigator','extra']);assert.deepEqual(b.values.otherChargeIdsToRemove,[savedChargeId]);assert.equal(b.values.tip,'20');assert.deepEqual(b.values.addPayment,{methodId:'3',amount:'420.00',reference:'1234'});
+     if(closeoutIntakeFailures>0){closeoutIntakeFailures--;return route.abort();}
      assert.equal(b.photoRequestIds.length,width===390?2:0);receipt={requestId:b.requestId,action:'closeout',status:'pending',message:'Source verification in progress.'};
      await new Promise(resolve=>setTimeout(resolve,600));closeoutResponded=true;
      return send({receipt});
@@ -50,8 +51,11 @@ async function main(){
   const open=async()=>{await expect(page.getByRole('heading',{name:'Later Sample Customer',exact:true})).toBeVisible();await page.getByRole('button',{name:'View assignment',exact:true}).first().click();await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();};
   await page.goto(`${process.argv[2] || 'http://127.0.0.1:3189'}/crew-jobs`);await open();const photoInput=page.getByLabel('Add before photos',{exact:true});await expect(photoInput).toBeEnabled();assert.equal(await photoInput.evaluate(element=>getComputedStyle(element).opacity),'0','Native file control is visually replaced by the compact picker');const pickerBox=await photoInput.locator('..').boundingBox();assert.ok(pickerBox && pickerBox.height<=120,'Photo picker stays compact');if(width===390)await page.screenshot({path:'/tmp/waypoint-closeout-before.png',fullPage:true});
   await expect(page.getByRole('radio',{name:'Cancelled',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Continue to charges',exact:true}).click();await expect(page.getByRole('radio',{name:'Completed',exact:true})).toHaveCount(0);await expect(page.getByText('Truck# 6 · Sample Driver (driver) · Sample Navigator (navigator)',{exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Driver',exact:true})).toHaveCount(0);await expect(page.getByLabel('Actual start hour')).toHaveCount(0);await page.getByLabel('Existing Other Charges').getByRole('button',{name:'Remove',exact:true}).click();await expect(page.getByText('Will remove',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Continue to payment',exact:true}).click();
-  await page.getByLabel('Tip',{exact:true}).fill('20');await expect(page.getByLabel('Amount to mark paid')).toContainText('$420.00');
-  await page.getByLabel('Record a collected payment',{exact:true}).check();await page.getByRole('radio',{name:'Credit Card',exact:true}).check();
+  await page.getByLabel('Record a collected payment',{exact:true}).check();await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('400.00');
+  await page.getByLabel('Tip',{exact:true}).fill('20');await expect(page.getByLabel('Amount to mark paid')).toContainText('$420.00');await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('420.00');
+  await page.getByLabel('Payment amount',{exact:true}).fill('410.00');await page.getByLabel('Tip',{exact:true}).fill('30');await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('410.00');
+  await page.getByRole('button',{name:'Use $430.00',exact:true}).click();await page.getByLabel('Tip',{exact:true}).fill('20');await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('420.00');
+  await page.getByRole('radio',{name:'Credit Card',exact:true}).check();
   await expect(page.getByRole('radio',{name:'Billed',exact:true})).toHaveCount(0);
   await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('420.00');await page.getByLabel('Card last four',{exact:false}).fill('1234');
   await page.reload();await open();await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('420.00');await expect(page.getByText('Draft restored against the current JunkWare record. Review before saving.')).toBeVisible();
@@ -69,11 +73,13 @@ async function main(){
   await page.screenshot({path:`/tmp/crew-closeout-${width}.png`,fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No overflow ${width}`);
   if(width===390)await page.screenshot({path:'/tmp/crew-closeout-review.png',fullPage:true});
-  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(closeoutResponded,true,'Assignments appears only after the server accepts the checkout');assert.ok(Date.now()-started>=500,'The closeout stays visible until its durable server receipt returns');assert.equal(posts,1);
+  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();
+  if(width===320){const check=page.getByRole('button',{name:'Check Saved Result',exact:true}).last();await expect(check).toBeVisible();await check.click();}
+  await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(closeoutResponded,true,'Assignments appears only after the server accepts the checkout');assert.ok(Date.now()-started>=500,'The closeout stays visible until its durable server receipt returns');assert.equal(posts,width===320?3:1);
   await expect(page.getByText('keep Waypoint open',{exact:false})).toHaveCount(0);await expect(page.getByRole('button',{name:'Resume transfer',exact:true})).toHaveCount(0);
   if(width===390)assert.equal(photoPosts,2,'A lost photo acknowledgment is recovered from its receipt without repeating the accepted upload');
   await page.getByRole('button',{name:'View assignment',exact:true}).last().click();await expect(page.getByText('Use the side gate',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Next Sample Customer',exact:true})).toBeVisible({timeout:10_000});assert.equal(posts,1);assert.deepEqual(errors,[]);
+  await expect(page.getByRole('heading',{name:'Next Sample Customer',exact:true})).toBeVisible({timeout:10_000});assert.equal(posts,width===320?3:1);assert.deepEqual(errors,[]);
   const completedCard=page.getByLabel('Saved closeout').filter({hasText:'Completed Job | JunkWare ✔️'});await expect(completedCard).toBeVisible();await expect(completedCard.getByText('Labor',{exact:true})).toBeVisible();await expect(completedCard.getByText('CC Surcharge (Card Present)',{exact:true})).toBeVisible();await expect(completedCard.getByText('Credit Card 2868',{exact:true})).toBeVisible();await expect(completedCard.getByText('$904.34',{exact:true})).toHaveCount(2);if(width===390)await page.screenshot({path:'/tmp/waypoint-completed-job.png',fullPage:true});
   await expect(page.getByText('Completed Estimate | JunkWare ✔️',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'View assignment',exact:true}).last().click();

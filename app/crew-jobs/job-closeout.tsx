@@ -26,9 +26,24 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   const endpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(job.assignmentId)}`;
   const transport=useMemo<CloseoutTransport>(()=>{
     const keep=(receipt:Receipt)=>{if(receipt.dryRun)return receipt;writeCloseoutLocal(`${key}:receipt`,receipt);verified.current=receipt.status==='verified' && (receipt.sourceResult?.closeout as {status?:{value:string}})?.status?.value==='8';return receipt;};
+    const accepted=(receipt:Receipt)=>{const saved=keep(receipt);onHandoffStarted?.();queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message}`):onQueued?.(saved.requestId));return saved;};
     async function check(requestId:string,reconcile=true){
       const response=await fetch(`${endpoint}&requestId=${encodeURIComponent(requestId)}${reconcile?'&reconcile=1':''}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
-      const body=await response.json();if(!response.ok || !body.receipt)throw new Error(body.error || 'Saved result unavailable. Do not repeat this payment.');return keep(body.receipt);
+      const body=await response.json();
+      if(response.ok && body.receipt)return accepted(body.receipt);
+      // A failed intake has no durable server receipt yet. Continue only the
+      // exact immutable phone handoff; transferCheckout checks for a receipt
+      // again before it re-sends this same request ID and payload.
+      if(response.status===404){
+        const handoff=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);
+        if(handoff && ['transferring','submitting'].includes(handoff.phase)){
+          const recovered=await resumeHandoff(handoff);
+          if(recovered)return accepted(recovered);
+          const latest=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);
+          throw new Error(latest?.message || 'Transfer is still paused. Keep this checkout saved on this phone and check again.');
+        }
+      }
+      throw new Error(body.error || 'Saved result unavailable. Do not repeat this payment.');
     }
     return {
       async prepare(){
@@ -60,10 +75,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
             if(latest && latest.phase!=='attention')receipt=await resumeHandoff(latest);
           }
           if(!receipt)throw new Error('Transfer paused. Stay on this checkout and tap Submit again to continue the same saved submission.');
-          const saved=keep(receipt);
-          onHandoffStarted?.();
-          queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message}`):onQueued?.(saved.requestId));
-          return saved;
+          return accepted(receipt);
         }
         return submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})},photoRequestIds:[],dryRun:true},{endpoint,waitForCompletion:false});
       },

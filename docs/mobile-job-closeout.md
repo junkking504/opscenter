@@ -35,18 +35,19 @@ Only one phone can redeem a code. The phone cannot self-register or select a tru
 
 ### OpsBot setup delivery
 
-Waypoint now starts with **Company phone number → Send setup code via OpsBot →
-enter the six-digit code**. Only one exact match in the private company-phone
-directory is eligible; unknown/ambiguous numbers receive no message and an explicit
-“No code was sent” error. Separately approved manager test phones can use the
-same flow through the private `selfSetupTestRecipientNames` list. The legacy
+Waypoint now starts with **Choose your phone → Send setup code via OpsBot →
+enter the six-digit code**. The server builds opaque choices from exact matches in
+the private phone directory; the public page receives labels and opaque IDs only.
+Unknown or ambiguous choices receive no message. Separately approved live personal
+phones use `selfSetupLiveRecipientNames`. Manager test phones can use the same
+delivery mechanism through the private `selfSetupTestRecipientNames` list. The legacy
 `selfSetupTestRecipientName` remains supported alongside that list. Each approved
 name and phone number must uniquely match the saved manager directory. Other manager
 numbers remain ineligible. The public response never returns a code, company directory, provider
 receipt or phone binding. Possession of the single-use code establishes access,
 then the crew chooses today’s truck before inspection and jobs.
 
-The same-origin HTTPS session endpoint accepts `request-code` with number and a
+The same-origin HTTPS session endpoint accepts `request-code` with an opaque choice ID and a
 client-retained request ID. Retrying **Check send status** uses the saved send,
 including uncertain results, without contacting Meta again. Public requests have
 the existing durable per-address attempt limit plus a ten-minute per-phone
@@ -91,8 +92,12 @@ Run `node --import tsx scripts/test-crew-phone-delivery.ts` for mocked delivery,
 approval denial, directory routing, concurrency, lost response, throttling,
 budget and failure checks. No real WhatsApp message is sent by these tests.
 
-Enrollment creates a separate 90-day crew-phone connection, not an OpsCenter
-manager session, payroll login or inspection connection. Every future job API
+Enrollment creates a separate operating-day crew-phone connection, not an
+OpsCenter manager session, payroll login or inspection connection. At the start
+of each Central calendar day, the crew chooses the approved phone identity they
+are holding, receives a new OpsBot setup code, and then selects the truck and
+crew. Public setup responses expose labels such as `Phone #1 | NOLA`, never the
+private phone numbers stored in the runtime directory. Every future job API
 must resolve this connection and its truck from server storage for each request.
 The inspection app's public connection must never authorize customer job access.
 Enrollment proves manager approval of a browser connection; it does not detect
@@ -182,7 +187,7 @@ versioned draft recovery, review and lost-response verification without replay.
 
 ## Daily phone crew
 
-After one-time device enrollment, the phone must be enabled for each Central
+After that day's phone enrollment, the phone must be enabled for that Central
 calendar day. The person taking responsibility selects their name, the driver
 and navigator (or driver only) from the active configured crew roster. The API
 returns only employee names, never usernames, payroll or credentials.
@@ -620,15 +625,29 @@ Server preflight rejects altered classifications/referrals; if JunkWare has no
 required referral value, the office must complete it rather than asking the crew
 to invent customer history.
 
-## Truck assignment and Waypoint release — September 22, 2026
+## Truck assignment and Waypoint release — September 29, 2026
 
-A Control board move assigns the appointment to a truck in JunkWare only.
-It does not release or queue the appointment in Waypoint, and a full Waypoint
-queue cannot block a schedule move. Multiple jobs may share the same truck and
-appointment window; the move dialog lists those bookings as information, and
-Stop Order controls their sequence. Managers release jobs separately through
-Crew Dispatch. An enrolled phone accesses the truck selected in its saved daily
-setup, regardless of its device label, phone number or enrollment truck default.
+A verified Control board move to a supported JunkWare truck is also the
+appointment's Waypoint assignment. The move is written and verified in JunkWare
+first; OpsCenter then makes it current for that truck or queues it behind the
+truck's current job. A stale current assignment from an earlier operating day is
+replaced rather than blocking today's appointment. Multiple jobs may share the
+same truck and appointment window; the move dialog lists those bookings as
+information, and Stop Order controls their sequence.
+
+The truck's full verified daily schedule is available to the selected Waypoint
+phone. The current/queued dispatch state controls which job may be closed out;
+it does not hide other verified jobs assigned to that truck. An enrolled phone
+accesses the truck selected in its saved daily setup, regardless of its phone
+identity's default truck.
+
+The daily setup screen lists the approved company phone labels and separately
+approved Robbie, Branden and Eugene phone identities. Their numbers remain only
+in the private runtime directory. Sending a daily setup code is a metered
+WhatsApp operation governed by the installed approval file, per-attempt reserve,
+monthly attempt cap and monthly dollar cap. Adding the personal-phone identities
+or activating the increased daily message cadence requires explicit spending
+approval; code and directory preparation alone do not authorize it.
 
 Manager test-phone enrollment remains sandboxed by default: it receives
 fictional appointments and test crew and cannot write to JunkWare. Company
@@ -640,12 +659,11 @@ phone must complete a fresh live daily truck/crew setup and the normal truck
 inspection before it can receive a released job. Revocation continues to take
 precedence over the live grant.
 
-Older browser tabs may still submit `assignCrew`; new schedule operations ignore
-that flag while preserving it in request fingerprints for exact receipt recovery.
-Old pending combined receipts recover only an already-saved dispatch request;
-checking a move never creates a new Waypoint release. Existing releases, queues,
-phone setup, drafts and receipts are preserved. A saved release is not evidence
-that a handset received or opened the appointment.
+Older browser tabs may still submit `assignCrew`; schedule operations preserve
+that flag in request fingerprints for exact receipt recovery, but all supported
+truck moves now create the same Waypoint assignment intent. Existing releases,
+queues, phone setup, drafts and receipts are preserved. A saved assignment is
+not evidence that a handset received or opened the appointment.
 
 
 ### Truck naming continuity (2026-09-22)

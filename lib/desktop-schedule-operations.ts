@@ -1,5 +1,6 @@
 import {assertAppointmentNotSwitching,assertTruckNotSwitching} from './crew-truck-switch-store';
-import { recoverScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
+import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
+import type { CrewDispatchSources } from './crew-dispatch-service';
 import { JUNKWARE_DISPATCH_PREFLIGHT_REJECTION } from './junkware-assignment-failure';
 import { parseClassificationChange } from './appointment-classification';
 import { validRescheduleDate, rescheduleTarget } from './appointment-reschedule';
@@ -115,9 +116,9 @@ export async function queueScheduleOperation(operation: ScheduleOperation, actor
     if (/cancel/i.test(job.status) && !['note','restore'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
     if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
-    // Legacy tabs may still send assignCrew. Keep it in the request fingerprint
-    // for receipt recovery, but a schedule move never releases a Waypoint job.
+    const crewAssignment = operation.action === 'move' ? prepareScheduleCrewAssignment(job, String(operation.values.truck || '')) : undefined;
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, createdAt: new Date().toISOString(), status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
+    if (crewAssignment) receipt.crewAssignment = crewAssignment;
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
     if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
     await writeReceipt(receipt);
@@ -311,14 +312,14 @@ export function assertRecoveredScheduleMatches(job: DesktopAppointment | undefin
   }
 }
 
-/** Resolve legacy combined receipts without creating a release or replaying JunkWare. */
-export async function finishScheduleCrewAssignment(id: string, actor: string): Promise<ScheduleReceipt | null> {
+/** Resume only the Waypoint assignment recorded with this move; never replay JunkWare. */
+export async function finishScheduleCrewAssignment(id: string, actor: string, sources: CrewDispatchSources): Promise<ScheduleReceipt | null> {
   const initial = await readScheduleReceipt(id);
   if (!initial || initial.actor !== actor || initial.action !== 'move' || initial.status !== 'verified' || initial.crewAssignment?.state !== 'pending') return initial;
   return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
     const receipt = await readScheduleReceipt(id);
     if (!receipt || receipt.actor !== actor || receipt.status !== 'verified' || receipt.crewAssignment?.state !== 'pending') return receipt;
-    const crewAssignment = recoverScheduleCrewAssignment(receipt);
+    const crewAssignment = await applyScheduleCrewAssignment(receipt, sources);
     const saved = {...receipt, crewAssignment, updatedAt:new Date().toISOString()};
     await writeReceipt(saved);
     return saved;

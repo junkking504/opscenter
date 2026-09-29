@@ -5,6 +5,7 @@ import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { withCrewPhoneSetupLimit } from './login-rate-limit';
 import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 import { CrewPhoneError, type CrewPhone } from './crew-phone';
+import { chicagoDateKey } from './chicago-date';
 
 type Enrollment = { test?: boolean; schema: 1; deviceId: string; truck: string; label: string; actor: string; createdAt: string; expiresAt: string };
 type Binding = { schema: 1; keyHash: string; enrollmentHash: string; actor: string; phone: CrewPhone };
@@ -119,6 +120,7 @@ export function crewPhone(key: string, now = new Date()): CrewPhone | null {
   const saved = read<Binding>(path.join(directory('bindings'), `${index.deviceId}.json`));
   if (!saved || !validBinding(saved) || saved.keyHash !== keyHash || saved.phone.deviceId !== index.deviceId
     || Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime()
+    || chicagoDateKey(new Date(saved.phone.enrolledAt)) !== chicagoDateKey(now)
     || revoked(index.deviceId)) return null;
   return effectivePhone(saved.phone);
 }
@@ -126,7 +128,7 @@ export function listCrewPhones(now = new Date()): Array<CrewPhone & { access: 'l
   return fs.readdirSync(directory('bindings')).filter(name => uuid.test(name.replace(/\.json$/, '')) && name.endsWith('.json')).map(name => {
     const saved = read<Binding>(path.join(directory('bindings'), name));
     if (!saved || !validBinding(saved)) throw new Error('Phone enrollment needs recovery.');
-    const state = revoked(saved.phone.deviceId) ? 'revoked' as const : Date.parse(saved.phone.expiresAt) <= now.getTime() ? 'expired' as const : 'active' as const;
+    const state = revoked(saved.phone.deviceId) ? 'revoked' as const : Date.parse(saved.phone.expiresAt) <= now.getTime() || chicagoDateKey(new Date(saved.phone.enrolledAt))!==chicagoDateKey(now) ? 'expired' as const : 'active' as const;
     const phone=effectivePhone(saved.phone);
     const day=phone.test ? null : readCrewDay(phone);
     return { ...phone, ...(day?{truck:day.truck}:{}), access: phone.test ? 'sandbox' as const : 'live' as const, state };
@@ -141,7 +143,8 @@ export function authorizeCrewPhoneLive(deviceId: string, actor: string, now = ne
   const saved = read<Binding>(path.join(directory('bindings'), `${deviceId}.json`));
   if (!saved || !validBinding(saved) || saved.phone.deviceId !== deviceId) throw new CrewPhoneError('Choose an enrolled sandbox phone.', 404);
   if (revoked(deviceId)) throw new CrewPhoneError('This phone access was removed. Enroll the phone again before enabling live access.', 409);
-  if (Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime())
+  if (Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime()
+    || chicagoDateKey(new Date(saved.phone.enrolledAt)) !== chicagoDateKey(now))
     throw new CrewPhoneError('This phone enrollment expired. Enroll the phone again before enabling live access.', 409);
   if (liveAccess(deviceId)) throw new CrewPhoneError('This phone already has live access.', 409);
   if (testPhone(saved.phone).test !== true) throw new CrewPhoneError('This phone already has live access.', 409);

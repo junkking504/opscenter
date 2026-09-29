@@ -82,6 +82,11 @@ export function releaseCrewJob(input: {truck:string;requestId:string;expectedVer
   if (!/^\d{1,12}$/.test(input.appointmentId) || !validCrewDate(input.date)) throw new CrewPhoneError('Choose a valid appointment.');
   return append(input.truck,input.requestId,input.expectedVersion,actor,{action:'release',appointmentId:input.appointmentId,date:input.date}, current=> {
     if (current.current?.appointmentId===input.appointmentId || current.queued?.appointmentId===input.appointmentId) throw new CrewPhoneError('This job is already assigned to this crew.',409);
+    if (current.current && current.current.date < input.date) {
+      const assignment: CrewAssignment = {assignmentId:randomUUID(),appointmentId:input.appointmentId,date:input.date,releasedAt:now.toISOString()};
+      return {...current,current:assignment,queued:null};
+    }
+    if (current.current && current.current.date > input.date) throw new CrewPhoneError('A newer operating day is already assigned to this truck.',409);
     if (current.queued) throw new CrewPhoneError('Remove the queued assignment before replacing it.',409);
     const assignment: CrewAssignment = {assignmentId:randomUUID(),appointmentId:input.appointmentId,date:input.date,releasedAt:now.toISOString()};
     return {...current,...(current.current ? {queued:assignment} : {current:assignment})};

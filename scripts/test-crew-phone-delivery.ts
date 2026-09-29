@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
-import { crewPhoneDeliveryAvailability, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '../lib/crew-phone-delivery';
+import { crewPhoneDeliveryAvailability, crewPhoneSetupChoices, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '../lib/crew-phone-delivery';
 import { enrollCrewPhone } from '../lib/crew-phone-store';
 
 async function main() {
@@ -34,6 +34,7 @@ async function main() {
     const policy = {schema:1,enabled:true,provider:'meta-whatsapp',purpose:'crew-phone-setup',approvedBy:'synthetic-test',approvedAt:new Date(Date.now()-1000).toISOString(),validUntil:new Date(Date.now()+86400000).toISOString(),monthlyBudgetMicros:20000,maxAttemptsPerMonth:2,reserveMicros:10000,template:'test_crew_setup',language:'en_US'};
     const approve = () => fs.writeFileSync(process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL!, JSON.stringify(policy));
     approve(); assert.equal(crewPhoneDeliveryAvailability().available, true);
+    assert.deepEqual(crewPhoneSetupChoices().map(choice=>choice.label),['Test phone','Test phone 3'],'Only company labels are public without personal-phone approval');
     await assert.rejects(sendCrewPhoneSetup('Truck 2', randomUUID(), manager), /saved company phone/);
     const [sent, concurrent] = await Promise.all([sendCrewPhoneSetup('Truck 6', first, manager), sendCrewPhoneSetup('Truck 6', first, manager)]);
     assert.equal(sent.status, 'accepted'); assert.equal(concurrent.deviceId, sent.deviceId); assert.equal(calls, 1);
@@ -68,6 +69,8 @@ async function main() {
     assert.equal((await sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager, true)).deviceId, testReceipt.deviceId);
     assert.equal(calls, 4, 'Approved test recipient has exactly one send attempt');
     await assert.rejects(sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager), /another setup/);
+    Object.assign(policy,{selfSetupLiveRecipientNames:['Synthetic Manager']});approve();
+    assert.deepEqual(crewPhoneSetupChoices().map(choice=>choice.label),['Test phone','Test phone 3','Synthetic Manager'],'An explicitly approved personal phone is selectable by label');
     console.log('PASS setup delivery: approval denial, fixed recipient, one-use code, concurrent/lost response recovery, no code in receipts, cooldown, monthly cap, uncertain reservation and rejection revocation.');
   } finally { globalThis.fetch = originalFetch; process.env = previous; fs.rmSync(dir, {recursive:true,force:true}); }
 }

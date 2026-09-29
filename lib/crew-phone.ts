@@ -17,8 +17,10 @@ export const CREW_PHONE_API = '/api/crew-jobs/session';
 
 export type CrewPhoneDirectory = {
   company: Array<{ label: string; truck: string; number: string }>;
-  managers: Array<{ name: string; number: string }>;
+  managers: Array<{ name: string; label?: string; number: string }>;
 };
+
+export type CrewPhoneSetupChoice = { id: string; label: string };
 
 export type CrewPhoneDelivery = {
   requestId: string; truck: string; label: string; number: string; deviceId: string;

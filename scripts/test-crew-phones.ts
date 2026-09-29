@@ -47,6 +47,12 @@ async function main() {
     assert.equal(crewPhone(token, new Date(Date.parse(phone.expiresAt))), null);
     const expired = createCrewPhoneEnrollment('Truck 1', 'Expired invite', manager, now);
     assert.throws(() => enrollCrewPhone(expired.code, key(), new Date(now.getTime() + 600_000)), /expired/);
+    const beforeMidnight=new Date('2026-09-29T04:59:00.000Z'),afterMidnight=new Date('2026-09-29T05:01:00.000Z');
+    const dailySetup=createCrewPhoneEnrollment('Truck 1','Daily reset phone',manager,beforeMidnight),dailyKey=key();
+    const dailyPhone=enrollCrewPhone(dailySetup.code,dailyKey,beforeMidnight);
+    assert.equal(crewPhone(dailyKey,new Date('2026-09-29T04:59:59.000Z'))?.deviceId,dailyPhone.deviceId);
+    assert.equal(crewPhone(dailyKey,afterMidnight),null,'Enrollment resets at the next Central calendar day');
+    assert.equal(listCrewPhones(afterMidnight).find(item=>item.deviceId===dailyPhone.deviceId)?.state,'expired');
     const reassignment = createCrewPhoneEnrollment('Truck 2', 'Other truck', manager, now);
     assert.throws(() => enrollCrewPhone(reassignment.code, token, now), /new connection/);
     assert.equal(crewPhone(token, now)?.truck, 'Truck 6', 'Existing key cannot change trucks');
@@ -196,7 +202,7 @@ async function main() {
     }
     const convoyEntry = await middleware(new NextRequest('https://ops.junk-king.app/truck-inspection'));
     assert.equal(convoyEntry.headers.get('location'), 'https://convoy.junk-king.app/truck-inspection');
-    console.log('PASS: manager-only access, fixed truck, one-phone enrollment race, retry recovery, expiry, revocation, private cookies, bounded same-origin requests, no credential storage, corrupt-storage denial. No browser or live writes.');
+    console.log('PASS: manager-only access, daily Central-time reset, fixed truck, one-phone enrollment race, retry recovery, expiry, revocation, private cookies, bounded same-origin requests, no credential storage, corrupt-storage denial. No browser or live writes.');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

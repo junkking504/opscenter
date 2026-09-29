@@ -31,6 +31,13 @@ async function main(){
       assignment:async id=>{if(sourceUnavailable)throw new Error('Source unavailable');return{appointmentId:id,truck:sourceTruck,date:sourceDate,status:sourceStatus};},
       closeout:async id=>{if(sourceUnavailable)throw new Error('Source unavailable');return{appointmentId:id,closeout:{truck:sourceTruck,status:{value:sourceStatus==='Completed'?'8':'1'},photoEvidence:closeoutPhotoEvidence(id,sourcePhotos?[`https://junkware.junk-king.com/system/aspnet/local/media/photo-${id}-test.jpg`]:[])}};},
     };
+    const rolloverTruck='Truck 4',priorDate='2026-01-01';
+    releaseCrewJob({truck:rolloverTruck,date:priorDate,appointmentId:'800001',expectedVersion:0,requestId:randomUUID()},'manager');
+    releaseCrewJob({truck:rolloverTruck,date:priorDate,appointmentId:'800002',expectedVersion:1,requestId:randomUUID()},'manager');
+    const rolled=releaseCrewJob({truck:rolloverTruck,date,appointmentId:'800003',expectedVersion:2,requestId:randomUUID()},'manager');
+    assert.equal(rolled.current?.appointmentId,'800003','Today replaces a stale prior-day current assignment');
+    assert.equal(rolled.queued,null,'A prior-day queue is cleared with the stale current assignment');
+    assert.throws(()=>releaseCrewJob({truck:rolloverTruck,date:priorDate,appointmentId:'800004',expectedVersion:rolled.version,requestId:randomUUID()},'manager'),/newer operating day/);
     assert.equal((await crewCurrentPayload(phone,sources)).state,'waiting');
     const first={truck,date,appointmentId:'900001',expectedVersion:0,expectedJobVersion:version,requestId:randomUUID()};
     observedAt=null;
@@ -104,7 +111,7 @@ async function main(){
       assert.equal(authorizeOpsRequest('operator',route,'GET').allowed,false);
       assert.equal(authorizeOpsRequest('manager',route,'POST').allowed,true);
     }
-    console.log('PASS: truck-scoped release, fresh-source preflight, durable queue, stale-write rejection, no future-data response, receipt-cycle and source-photo completion gates, unavailable-source handling, revocation boundaries. Synthetic sources only.');
+    console.log('PASS: truck-scoped release, prior-day rollover, fresh-source preflight, durable queue, stale-write rejection, no future-data response, receipt-cycle and source-photo completion gates, unavailable-source handling, revocation boundaries. Synthetic sources only.');
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

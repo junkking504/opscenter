@@ -57,16 +57,24 @@ export async function crewPhoneSession(request: Request) {
   try {
     // No tokens over plaintext, including the browser-generated enrollment key.
     if (!resolveRequestOrigin(request).startsWith('https://')) throw new CrewPhoneError('Open the secure company phone address.', 403);
-    if (request.method === 'GET') return crewPhoneResponse({ phone: requireCrewPhone(request) });
+    if (request.method === 'GET') {
+      const parameters=new URL(request.url).searchParams;
+      if(parameters.size){
+        if(parameters.size!==1 || parameters.get('setup')!=='choices')throw new CrewPhoneError('Open the company phone app to continue.',403);
+        const {crewPhoneSetupChoices}=await import('./crew-phone-delivery');
+        return crewPhoneResponse({choices:crewPhoneSetupChoices()});
+      }
+      return crewPhoneResponse({ phone: requireCrewPhone(request) });
+    }
     if (request.method !== 'POST') return crewPhoneResponse({ error: 'Method not allowed.' }, 405, { Allow: 'GET, POST' });
     const body = await crewPhoneBody(request);
     if(body.action==='request-code') {
-      if(Object.keys(body).some(key=>!['action','number','requestId'].includes(key)))throw new CrewPhoneError('Enter this company phone’s number.');
+      if(Object.keys(body).some(key=>!['action','choiceId','requestId'].includes(key)))throw new CrewPhoneError('Choose which phone you are using.');
       if(!loginAllowed('crew-setup',request.headers,''))throw new CrewPhoneError('Too many setup requests. Wait 15 minutes or contact your manager.',429);
       // Count every request, including unknown numbers, before any provider attempt.
       recordLoginFailure('crew-setup',request.headers,'');
-      const {requestCrewPhoneSetup}=await import('./crew-phone-delivery');
-      return crewPhoneResponse(await requestCrewPhoneSetup(body.number,body.requestId));
+      const {requestCrewPhoneSetupChoice}=await import('./crew-phone-delivery');
+      return crewPhoneResponse(await requestCrewPhoneSetupChoice(body.choiceId,body.requestId));
     }
     if (body.action === 'disconnect') {
       const phone = requireCrewPhone(request);

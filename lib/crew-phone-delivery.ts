@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { CrewPhoneError, type CrewPhoneDelivery } from './crew-phone';
+import { CrewPhoneError, type CrewPhoneDelivery, type CrewPhoneSetupChoice } from './crew-phone';
 import { readCrewPhoneDirectory } from './crew-phone-directory';
 import { createCrewPhoneEnrollment, revokeCrewPhone } from './crew-phone-store';
 import { chicagoDateKey } from './chicago-date';
@@ -10,7 +10,7 @@ import { chicagoDateKey } from './chicago-date';
 // Separate, explicit approval: routine deployment must never create this file.
 const approvalPath = () => process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL || path.join(process.env.HOME || '', 'Library/Application Support/OpsCenter/crew-phone-delivery-approval.json');
 const root = () => path.join(process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'crew-phones'), 'deliveries');
-type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp'; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string; testRecipientName?: string; testRequestId?: string; selfSetupTestRecipientName?: string; selfSetupTestRecipientNames?: string[] };
+type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp'; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string; testRecipientName?: string; testRequestId?: string; selfSetupTestRecipientName?: string; selfSetupTestRecipientNames?: string[]; selfSetupLiveRecipientNames?: string[] };
 type Saved = CrewPhoneDelivery & { schema: 1; actor: string; month: string; reservedMicros: number };
 function approval(): Approval {
   let value: Approval;
@@ -24,7 +24,8 @@ function approval(): Approval {
     || !Number.isSafeInteger(value.reserveMicros) || value.reserveMicros < 10_000 || value.reserveMicros > value.monthlyBudgetMicros
     || !/^[a-z][a-z0-9_]{0,99}$/.test(value.template) || !/^[a-z]{2}(?:_[A-Z]{2})?$/.test(value.language)
     || (value.selfSetupTestRecipientName!==undefined && !validTestName(value.selfSetupTestRecipientName))
-    || (value.selfSetupTestRecipientNames!==undefined && (!Array.isArray(value.selfSetupTestRecipientNames) || value.selfSetupTestRecipientNames.length>50 || !value.selfSetupTestRecipientNames.every(validTestName)))) {
+    || (value.selfSetupTestRecipientNames!==undefined && (!Array.isArray(value.selfSetupTestRecipientNames) || value.selfSetupTestRecipientNames.length>50 || !value.selfSetupTestRecipientNames.every(validTestName)))
+    || (value.selfSetupLiveRecipientNames!==undefined && (!Array.isArray(value.selfSetupLiveRecipientNames) || value.selfSetupLiveRecipientNames.length>50 || !value.selfSetupLiveRecipientNames.every(validTestName)))) {
     throw new CrewPhoneError('OpsBot setup-code delivery approval is unavailable or expired.', 503);
   }
   return value;
@@ -38,7 +39,24 @@ function approvedSelfSetupContacts(config: Approval, directory: ReturnType<typeo
     && directory.managers.filter(row=>row.name===contact.name).length===1
     && directory.managers.filter(row=>row.number===contact.number).length===1);
 }
+function approvedLiveSetupContacts(config: Approval, directory: ReturnType<typeof readCrewPhoneDirectory>) {
+  const names=new Set(config.selfSetupLiveRecipientNames || []);
+  return directory.managers.filter(contact=>names.has(contact.name)
+    && directory.managers.filter(row=>row.name===contact.name).length===1
+    && directory.managers.filter(row=>row.number===contact.number).length===1);
+}
 const selfSetupActor = (digits: string) => `crew-self-setup:${createHash('sha256').update(digits).digest('hex')}`;
+const setupChoiceId = (kind:string,number:string) => `phone-${createHash('sha256').update(`${kind}:${number}`).digest('hex').slice(0,24)}`;
+function liveSetupContacts() {
+  const config=approval(),directory=readCrewPhoneDirectory();
+  return [
+    ...directory.company.map(contact=>({...contact,id:setupChoiceId('company',contact.number)})),
+    ...approvedLiveSetupContacts(config,directory).map(contact=>({label:contact.label || contact.name,number:contact.number,truck:'Truck 1',id:setupChoiceId('manager',contact.number)})),
+  ];
+}
+export function crewPhoneSetupChoices():CrewPhoneSetupChoice[] {
+  return liveSetupContacts().map(({id,label})=>({id,label}));
+}
 function configuration() {
   const value = approval();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
@@ -74,6 +92,18 @@ export async function requestCrewPhoneSetup(rawNumber:unknown,rawRequestId:unkno
   if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
   if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
   return {message};
+}
+export async function requestCrewPhoneSetupChoice(rawChoiceId:unknown,rawRequestId:unknown) {
+  if(typeof rawChoiceId!=='string' || !/^phone-[a-f0-9]{24}$/.test(rawChoiceId) || typeof rawRequestId!=='string' || !uuid.test(rawRequestId))throw new CrewPhoneError('Choose which phone you are using.');
+  const contacts=liveSetupContacts().filter(contact=>contact.id===rawChoiceId);
+  if(contacts.length!==1)throw new CrewPhoneError('This phone is not enabled for Waypoint setup. Contact your manager.',403);
+  const contact=contacts[0],actor=selfSetupActor(contact.number.replace(/-/g,''));
+  const receipt=await sendCrewPhoneSetup(contact.truck,rawRequestId,actor,false,{label:contact.label,number:contact.number});
+  if(receipt.status==='failed')throw new CrewPhoneError('OpsBot could not send the setup code. Contact your manager.',503);
+  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
+  if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
+  if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
+  return {message:'WhatsApp accepted the OpsBot setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.'};
 }
 function token() {
   const configured = process.env.WHATSAPP_ACCESS_TOKEN_BASE64 ? Buffer.from(process.env.WHATSAPP_ACCESS_TOKEN_BASE64, 'base64').toString('utf8').trim() : process.env.WHATSAPP_ACCESS_TOKEN?.trim();
@@ -124,14 +154,14 @@ export function crewPhoneDeliveryHealth(now=Date.now()) {
 }
 
 /** One durable reservation and one provider attempt per request; never replay an uncertain send. */
-export async function sendCrewPhoneSetup(truck: string, requestId: string, actor: string, test = false): Promise<CrewPhoneDelivery> {
+export async function sendCrewPhoneSetup(truck: string, requestId: string, actor: string, test = false, selectedContact?:{label:string;number:string}): Promise<CrewPhoneDelivery> {
   if (!uuid.test(requestId) || !actor.trim()) throw new CrewPhoneError('A manager and valid send request are required.');
   fs.mkdirSync(root(), { recursive: true, mode: 0o700 });
   const file = path.join(root(), `${requestId}.json`);
   const existing = () => {
     if (!fs.existsSync(file)) return null;
     const saved = read(file);
-    if (saved.actor !== actor || saved.truck !== truck || Boolean(saved.test) !== test) throw new CrewPhoneError('This send request belongs to another setup.', 409);
+    if (saved.actor !== actor || saved.truck !== truck || Boolean(saved.test) !== test || (selectedContact && (saved.label!==selectedContact.label || saved.number!==selectedContact.number))) throw new CrewPhoneError('This send request belongs to another setup.', 409);
     return project(saved);
   };
   const prior = existing();
@@ -142,7 +172,7 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
   const directory = readCrewPhoneDirectory();
   const testContacts=selfTest ? approvedSelfSetupContacts(config,directory).filter(phone=>selfSetupActor(phone.number.replace(/-/g,''))===actor) : directory.managers.filter(phone=>phone.name===config.testRecipientName);
   if(selfTest && testContacts.length!==1)throw new CrewPhoneError('This test send has not been approved.',403);
-  const contacts = test ? testContacts.map(phone => ({label:`${phone.name} test`,number:phone.number})) : directory.company.filter(phone => phone.truck === truck);
+  const contacts = selectedContact ? [selectedContact] : test ? testContacts.map(phone => ({label:`${phone.name} test`,number:phone.number})) : directory.company.filter(phone => phone.truck === truck);
   if (contacts.length !== 1) throw new CrewPhoneError('Choose a truck with exactly one saved company phone.');
   const contact = contacts[0];
   const accessToken = token();

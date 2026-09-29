@@ -15,5 +15,6 @@ export function readCrewPhoneDirectory(): CrewPhoneDirectory {
     || value.company.length>50 || value.managers.length>50
     || value.company.some(row=>!row || !name(row.label) || !JUNKWARE_DISPATCH_TRUCKS.includes(row.truck) || !number(row.number))
     || value.managers.some(row=>!row || !name(row.name) || !number(row.number)))throw new Error('Invalid company-phone directory.');
-  return {company:value.company.map(({label,truck,number})=>({label,truck,number})),managers:value.managers.map(({name,number})=>({name,number}))};
+  if(value.managers.some(row=>row.label!==undefined && !name(row.label)))throw new Error('Invalid company-phone directory.');
+  return {company:value.company.map(({label,truck,number})=>({label,truck,number})),managers:value.managers.map(({name,label,number})=>({name,...(label?{label}:{}),number}))};
 }

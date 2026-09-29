@@ -86,8 +86,8 @@ export async function warmCrewCloseout(request:Request,assignmentId:string) {
 }
 async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps=crewCloseoutDependencies,deferProviderRead=false) {
   const phone=requireCrewPhone(request),assignmentId=String(body.assignmentId || '');
-  const current=readCrewDispatch(phone.truck).current;
-  if(!current || current.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
+  const current=deps===crewCloseoutDependencies ? readCrewJobScope(request,assignmentId).current : readCrewDispatch(phone.truck).current;
+  if(!current || current.assignmentId!==assignmentId)throw new CrewPhoneError('This truck assignment changed. Refresh assignments.',409);
   if(deps===crewCloseoutDependencies)forgetSavedCrewCloseout({assignmentId,appointmentId:current.appointmentId,date:current.date,truck:phone.truck});
   if(crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Live closeout writes are disabled.',409);
   if(Object.keys(body).some(key=>!['assignmentId','requestId','expectedVersion','crewVersion','values','photoRequestIds'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
@@ -108,7 +108,8 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
   if(baseline && (baseline.appointmentId!==current.appointmentId || !sameTruck(baseline.closeout?.truck,phone.truck) || baseline.closeout?.status?.value!=='1' || !reviewedSourceMatches(baseline.closeout)))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
   const load=()=>{
     requireCrewPhone(request);
-    if(readCrewDispatch(phone.truck).current?.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
+    if(deps===crewCloseoutDependencies)readCrewJobScope(request,assignmentId);
+    else if(readCrewDispatch(phone.truck).current?.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
     const snapshot=deps.schedule(current.date);
     if(!crewScheduleFresh(snapshot.observedAt))throw new CrewPhoneError('The appointment source is unavailable. Contact dispatch.',409);
     const matches=snapshot.appointments.filter(job=>job.appointmentId===current.appointmentId && sameTruck(job.truck,phone.truck));

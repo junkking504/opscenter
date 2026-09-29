@@ -100,7 +100,7 @@ async function main(){
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,false,'Completed source cannot be charged again through the phone');
   assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2);
   source=structuredClone(baseline);revokeOnRead=true;assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2,'Revocation during source read prevents payment write');
-  console.log('PASS: collected-payment authority, current-only scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
+  console.log('PASS: collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

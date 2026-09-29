@@ -250,7 +250,10 @@ contracts. Phone browser tests cover daily setup and additional job crew.
 - A server-owned verified closeout receipt must identify the current appointment,
   Completed source status and saved photos before unlocking another closeout.
   Pending, failed, uncertain, canceled or merely reconciled changes do not unlock it.
-- Dispatch must explicitly release the next closeout. Unreleased jobs remain viewable.
+- Every confirmed appointment in the fresh current-day schedule for the phone's
+  selected truck is viewable and closeout-capable. The current/queued dispatch
+  records preserve route progression and older draft identities, but they do not
+  hide or lock another appointment that JunkWare still assigns to that truck.
   Missing or ambiguous current-job source data means unavailable, never advance.
 - The current-job API binds release state to the enrolled truck and dispatch
   cycle, reads receipts from durable server storage, rechecks source state and
@@ -672,8 +675,9 @@ same truck and appointment window; the move dialog lists those bookings as
 information, and Stop Order controls their sequence.
 
 The truck's full verified daily schedule is available to the selected Waypoint
-phone. The current/queued dispatch state controls which job may be closed out;
-it does not hide other verified jobs assigned to that truck. An enrolled phone
+phone. The fresh truck-day assignment controls which jobs may be closed out;
+current/queued dispatch state preserves progression but does not lock the other
+verified appointments assigned to that truck. An enrolled phone
 accesses the truck selected in its saved daily setup, regardless of its phone
 identity's default truck.
 

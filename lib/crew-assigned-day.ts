@@ -6,7 +6,7 @@ import { readCrewDispatch } from './crew-dispatch-store';
 import { readJobRows, mergeFastScheduleRows } from './desktop-schedule-source';
 import { readVerifiedJunkwareScheduleSnapshot } from './junkware-fast-schedule';
 import { readJobRouteAssignmentOverrides } from './job-route-assignments';
-import { sameTruck } from './junkware-trucks';
+import { sameTruck, truckNumber } from './junkware-trucks';
 import { applyStopOrders } from './desktop-stop-order-store';
 import { compareStops } from './schedule-stop-order';
 
@@ -35,6 +35,15 @@ export function crewAssignmentUpdateToken(payload: CrewCurrent) {
     job:payload.job?.assignmentId || null,
     jobs:payload.jobs || [],
   })).digest('hex');
+}
+
+/** Stable UUID-shaped scope for a truck-day appointment. This value is not
+ * authority by itself; every operation rechecks the phone, truck, day and source. */
+export function crewScheduleAssignmentId(truck:string,date:string,appointmentId:string) {
+  const number=truckNumber(truck);
+  if(number===null || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,12}$/.test(appointmentId))throw new Error('A valid truck-day appointment is required.');
+  const hex=createHash('sha256').update(`waypoint-truck-day-v1\0${number}\0${date}\0${appointmentId}`).digest('hex').slice(0,32);
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
 }
 
 function withUpdateToken(payload:CrewCurrent):CrewCurrent {
@@ -79,7 +88,8 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
         ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
-      ...(current?.date === date && current.appointmentId === row.appointmentId ? { assignmentId: current.assignmentId } : {}),
+      assignmentId: current?.date === date && current.appointmentId === row.appointmentId
+        ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId),
     }));
   const active = jobs.find(job => job.assignmentId);
   return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,

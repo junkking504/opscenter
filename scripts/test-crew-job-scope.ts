@@ -22,22 +22,25 @@ async function main(){
   const state=releaseCrewJob({truck:'Truck 6',date,appointmentId:'900001',expectedVersion:0,requestId:randomUUID()},'test-manager');
   const current=state.current!;
   const request=new Request('https://ops.example.invalid/api/crew-jobs/photos',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});
+  const scheduledId=randomUUID();
   let calls=0,sourceTruck='Truck 6',sourceDate=date,observedAt:string|null=new Date().toISOString(),revokeDuringRead=false;
   const deps={
-   schedule:()=>({observedAt,appointments:[{appointmentId:'900001',truck:'Truck# 6'}]}),
-   assignment:async()=>{if(revokeDuringRead)revokeCrewPhone(phone.deviceId,'manager');return{appointmentId:'900001',truck:sourceTruck,date:sourceDate,status:'Confirmed'};},
+   schedule:()=>({observedAt,appointments:[{appointmentId:'900001',truck:'Truck# 6'},{appointmentId:'900002',truck:'Truck# 6'}]}),
+   assignment:async(id:string)=>{if(revokeDuringRead)revokeCrewPhone(phone.deviceId,'manager');return{appointmentId:id,truck:sourceTruck,date:sourceDate,status:'Confirmed'};},
+   assignedDay:()=>({jobs:[{assignmentId:scheduledId,appointmentId:'900002'}]}),
   } as unknown as NonNullable<Parameters<typeof withCrewJob>[3]>;
   const action=async()=>{calls++;return 'success';};
   await assert.rejects(withCrewJob(new Request(request.url),current.assignmentId,action,deps),/manager setup/);
-  await assert.rejects(withCrewJob(request,randomUUID(),action,deps),/Dispatch changed/);
+  await assert.rejects(withCrewJob(request,randomUUID(),action,deps),/truck assignment changed/i);
   sourceTruck='Truck 5';await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/no longer assigned/);sourceTruck='Truck 6';
   sourceDate='2020-01-01';await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/no longer assigned/);sourceDate=date;
   observedAt=null;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/source is unavailable/);observedAt=new Date().toISOString();
   assert.equal(calls,0,'Invalid authority never calls source mutation');
   sourceTruck='Truck #6';
   assert.equal(await withCrewJob(request,current.assignmentId,action,deps),'success');assert.equal(calls,1);
+  assert.equal(await withCrewJob(request,scheduledId,async scope=>scope.current.appointmentId,deps),'900002','Any fresh appointment on the selected truck is closeout-scoped');
   revokeDuringRead=true;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/manager setup/);assert.equal(calls,1,'Revocation during source lookup prevents mutation');
-  console.log('PASS: current assignment only, truck/date source checks, stale source rejection, unauthorized access and mid-read revocation before mutation. Synthetic sources only.');
+  console.log('PASS: full truck-day assignment scope, truck/date source checks, stale source rejection, unauthorized access and mid-read revocation before mutation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

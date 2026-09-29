@@ -9,26 +9,43 @@ import { readJunkwareTruckAssignment } from './junkware-truck-assignment';
 import { withJunkwareAppointmentSyncLock } from './job-route-assignments';
 import {crewAssignedDay} from './crew-assigned-day';
 
-/** Local read/staging gate only. JunkWare writes still use withCrewJob below. */
-export function readCrewJobScope(request:Request,assignmentId:string) {
-  const phone=requireCrewReady(request),day=requireCrewDay(phone),current=readCrewDispatch(phone.truck).current;
-  const job=crewAssignedDay(phone,day.date).jobs?.find(row=>row.assignmentId===assignmentId);
-  if(!current || current.assignmentId!==assignmentId || current.date!==day.date || !job || job.appointmentId!==current.appointmentId)throw new CrewPhoneError('Dispatch changed or assignments are updating. Refresh your assignment.',409);
-  return {phone,day,current,job};
+function scheduledAssignment(phone:ReturnType<typeof requireCrewReady>,date:string,assignmentId:string,
+  assignedDay:typeof crewAssignedDay=crewAssignedDay) {
+  const dispatch=readCrewDispatch(phone.truck).current;
+  const payload=assignedDay(phone,date);
+  const job=payload.jobs?.find(row=>row.assignmentId===assignmentId);
+  if(!job)return null;
+  if(dispatch?.assignmentId===assignmentId && dispatch.date===date && dispatch.appointmentId===job.appointmentId)return {current:dispatch,job};
+  return {current:{assignmentId,appointmentId:job.appointmentId,date,releasedAt:payload.observedAt || new Date().toISOString()},job};
 }
 
-const sources = { schedule: readDesktopSchedule, assignment: readJunkwareTruckAssignment };
-/** Resolve authority from the cookie and durable dispatch state, never a phone-supplied appointment. */
+/** Local read/staging gate only. JunkWare writes still use withCrewJob below. */
+export function readCrewJobScope(request:Request,assignmentId:string) {
+  const phone=requireCrewReady(request),day=requireCrewDay(phone),scope=scheduledAssignment(phone,day.date,assignmentId);
+  if(!scope)throw new CrewPhoneError('This truck assignment changed or is updating. Refresh assignments.',409);
+  return {phone,day,...scope};
+}
+
+const sources = { schedule: readDesktopSchedule, assignment: readJunkwareTruckAssignment, assignedDay:crewAssignedDay };
+/** Resolve authority from the cookie and fresh server-owned truck day, never a
+ * phone-supplied appointment. Durable current-dispatch IDs remain accepted. */
 export async function withCrewJob<T>(request: Request, assignmentId: string,
   run: (scope: { phone: ReturnType<typeof requireCrewReady>; current: NonNullable<ReturnType<typeof readCrewDispatch>['current']>; job: ReturnType<typeof readDesktopSchedule>['appointments'][number] }) => Promise<T>, dependencies = sources): Promise<T> {
   const phone = requireCrewReady(request);
   const day = requireCrewDay(phone);
-  const current = readCrewDispatch(phone.truck).current;
-  if (!current || current.assignmentId !== assignmentId || current.date !== day.date) throw new CrewPhoneError('Dispatch changed. Refresh your assignment.', 409);
+  const currentDispatch=readCrewDispatch(phone.truck).current;
+  const current=currentDispatch?.assignmentId===assignmentId && currentDispatch.date===day.date ? currentDispatch : (()=>{
+    const listed=dependencies.assignedDay(phone,day.date).jobs?.find(row=>row.assignmentId===assignmentId);
+    return listed?{assignmentId,appointmentId:listed.appointmentId,date:day.date,releasedAt:new Date().toISOString()}:null;
+  })();
+  if (!current) throw new CrewPhoneError('This truck assignment changed. Refresh assignments.', 409);
   return withJunkwareAppointmentSyncLock(current.appointmentId, async () => {
     const assertScope = () => {
       const active = requireCrewReady(request);
-      if (active.deviceId !== phone.deviceId || active.truck !== phone.truck || requireCrewDay(active).version !== day.version || readCrewDispatch(phone.truck).current?.assignmentId !== assignmentId) throw new CrewPhoneError('Phone access or dispatch changed. Contact dispatch.', 409);
+      const stillListed=currentDispatch?.assignmentId===assignmentId
+        ? readCrewDispatch(phone.truck).current?.assignmentId===assignmentId
+        : dependencies.assignedDay(active,day.date).jobs?.some(row=>row.assignmentId===assignmentId && row.appointmentId===current.appointmentId);
+      if (active.deviceId !== phone.deviceId || active.truck !== phone.truck || requireCrewDay(active).version !== day.version || !stillListed) throw new CrewPhoneError('Phone access or truck assignment changed. Contact dispatch.', 409);
     };
     assertScope();
     const source = await dependencies.assignment(current.appointmentId);

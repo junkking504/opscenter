@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { crewAssignedDay,crewAppointmentStatus } from '../lib/crew-assigned-day';
+import { crewAssignedDay,crewAppointmentStatus,crewScheduleAssignmentId } from '../lib/crew-assigned-day';
 import type { CrewPhone } from '../lib/crew-phone';
 
 const date='2026-09-22',now=Date.parse(`${date}T18:00:00Z`);
@@ -12,7 +12,8 @@ const result=crewAssignedDay(phone,date,deps,now);
 assert.equal(result.state,'assigned');
 assert.deepEqual(result.jobs?.map(job=>job.appointmentId),['100','101','103'],'All truck jobs are visible without a separate release, including completed work');
 assert.equal(result.job?.assignmentId,'released-100');
-assert.equal(result.jobs?.find(job=>job.appointmentId==='101')?.assignmentId,undefined,'Browsing does not invent closeout authority');
+assert.equal(result.jobs?.find(job=>job.appointmentId==='101')?.assignmentId,crewScheduleAssignmentId('Truck# 1',date,'101'),'Every fresh truck-day appointment has stable closeout scope');
+assert.equal(crewScheduleAssignmentId('Truck 1',date,'101'),crewScheduleAssignmentId('Truck #1',date,'101'),'Truck label variants retain one closeout scope');
 assert.equal(JSON.stringify(result).includes('Customer 102'),false,'Other truck customer data never leaves the server');
 assert.equal(JSON.stringify(result).includes('Customer 104'),false,'Canceled appointments are excluded');
 overrides.set('appt:102',{truck:'Truck 1',junkwareSyncStatus:'verified',junkwareVerifiedAt:new Date(now+1).toISOString(),appointmentTime:'11:00 AM - 12:00 PM'});
@@ -49,4 +50,4 @@ assert.equal(crewAppointmentStatus('Not Completed'),null);
 assert.equal(crewAppointmentStatus('Cancelled'),null);
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Confirmed'}]};
 assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].closedTotal,undefined,'An open appointment never claims a saved closeout amount');
-console.log('PASS: full assigned day, immediate verified assignment projection and update token, truck isolation, source freshness, pending move exclusion, duplicate identity rejection, and independent closeout authority; no provider calls.');
+console.log('PASS: full assigned day with closeout scope, immediate verified assignment projection and update token, truck isolation, source freshness, pending move exclusion and duplicate identity rejection; no provider calls.');

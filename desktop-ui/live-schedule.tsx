@@ -121,6 +121,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const hasSnapshot = Boolean(snapshot);
   useEffect(() => { if (snapshot && !mapOnly) workspaceReady('Schedule'); }, [snapshot,mapOnly]);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
+  const [timelineWidth,setTimelineWidth]=useState<number>();
   const appointmentRegisterRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const board = boardLayoutRef.current;
@@ -132,6 +133,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
       const rows = [...board.querySelectorAll<HTMLElement>('[data-schedule-truck]')];
+      const measuredTimelineWidth=rows[0]?.querySelector<HTMLElement>('.live-truck-timeline')?.clientWidth;
+      if (measuredTimelineWidth && measuredTimelineWidth > 0) setTimelineWidth(current=>current===measuredTimelineWidth?current:measuredTimelineWidth);
       const title = board.querySelector<HTMLElement>('.schedule-board-shell > .section-title');
       const header = board.querySelector<HTMLElement>('.schedule-time-row');
       const natural = rows.map(row => Number(row.dataset.naturalHeight));
@@ -153,7 +156,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     window.addEventListener('resize', fit);
     fit();
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
-  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap]);
+  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   useEffect(() => {
@@ -502,7 +505,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
-            const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime());
+            const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
             const rowHeight=rowJobs.length ? Math.max(36,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;

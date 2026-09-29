@@ -65,6 +65,7 @@
     "verify:schedule-cleanup:browser": "node scripts/test-schedule-cleanup-browser.mjs",
     "verify:schedule-truck-scroll:browser": "node scripts/test-schedule-truck-selection-scroll.mjs",
     "verify:schedule-stop-stack:browser": "node scripts/test-stop-order-stack-browser.mjs",
+    "verify:schedule-mobile-overlap:browser": "node scripts/test-mobile-schedule-overlap-browser.mjs",
     "verify:schedule-route-hover:browser": "node scripts/test-route-hover-browser.mjs",
     "verify:schedule-visit-gaps": "node --import tsx scripts/test-schedule-truck-visits.ts",
     "verify:linked-visit-dedup": "node --import tsx scripts/test-desktop-schedule-visits.ts && /usr/bin/python3 scripts/test-linked-visit-dedup.py",

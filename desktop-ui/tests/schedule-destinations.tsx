@@ -31,7 +31,7 @@ const assignments=new Map<string,string>();
 const cancellations=new Set<string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
-  return Array.from({length:areaCases?.length ?? (scenario==='empty'?0:scenario==='crowded'?14:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:['truck-scroll','stop-stack'].includes(scenario)?2:1)},(_,index)=>{
+  return Array.from({length:areaCases?.length ?? (scenario==='empty'?0:scenario==='crowded'?14:scenario==='dense'?24:['same-time','mobile-nearby'].includes(scenario)?4:['on-site','route-stack'].includes(scenario)?3:['truck-scroll','stop-stack'].includes(scenario)?2:1)},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:sourceLink?`https://example.test/appointment/${1001+index}`:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map((job,index)=>areaCases?{...job,address:`100 Example Rd ${areaCases[index][0]}`,territory:areaCases[index][1],location:{latitude:29.9+index*.035,longitude:-90.1},status:index===6?'Canceled':index===7?'Completed':'Confirmed'}:job)
@@ -46,6 +46,7 @@ function appointments(date:string):ScheduleAppointment[] {
     .map(job=>scenario==='canceled'?{...job,status:'Canceled'}:job)
     .map(job=>cancellations.has(job.recordId)?{...job,status:'Canceled'}:job)
     .map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
+    .map((job,index)=>scenario==='mobile-nearby'?{...job,truck:'Truck 8',status:'Completed',appointmentTime:`${8+index}:00 AM–${9+index}:00 AM`,appointmentStartMinutes:480+index*60,appointmentEndMinutes:540+index*60,onsiteTime:{minutes:20,arrival:`2026-09-08T${String(13+index).padStart(2,'0')}:00:00.000Z`,departure:`2026-09-08T${String(13+index).padStart(2,'0')}:20:00.000Z`,label:'20 min'}}:job)
     .map((job,index)=>scenario==='stop-stack'?{...job,truck:'Truck 3',customerName:index===0?'First stop':'Second stop',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540,stopOrder:index,...(index===0?{onsiteTime:{minutes:20,arrival:'2026-09-08T13:20:00.000Z',departure:'2026-09-08T13:40:00.000Z',label:'20 min'}}:{})}:job)
     .map((job,index)=>scenario==='truck-scroll'?{...job,truck:index===0?'Truck 3':'Truck 4'}:job)
     .map((job,index)=>scenario==='crowded'?{...job,truck:index<3?'Truck 9':index<5?'Truck 6':index<7?'Truck 4':'Virtual Truck',appointmentStartMinutes:index>=7?600:540,appointmentEndMinutes:index>=7?660:600,appointmentTime:index>=7?'10:00 AM–11:00 AM':'9:00 AM–10:00 AM'}:job)

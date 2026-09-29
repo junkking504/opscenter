@@ -3,6 +3,7 @@ import { Check, GripVertical, X } from 'lucide-react';
 import type { PointerEvent } from 'react';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { appointmentCategory, appointmentColorClass, appointmentStatus, isClosed, scheduleMoveRestriction, scheduleStatusTone, scheduleTimelineBlockMovable, timelinePlacement, type ScheduleAppointment } from './lib/schedule-contract';
+import { scheduleBlockMinimumWidth } from './lib/schedule-travel-layout';
 
 const clock = (minute:number) => new Date(Date.UTC(2000,0,1,0,Math.floor(minute))).toLocaleTimeString('en-US',{timeZone:'UTC',hour:'numeric',minute:'2-digit'});
 const duration = (minutes:number) => {
@@ -26,8 +27,9 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const time=position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
   const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time} · ${state}${assignment}${partner?` · ${partner.name}`:''}`;
+  const minimumWidth=scheduleBlockMinimumWidth(position.actual,Boolean(partner));
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
-    style={{left:`${segment.left*100}%`,width:`max(${position.actual?(partner?54:48):(partner?34:22)}px, ${segment.width*100}%)`,top,height:22}}
+    style={{left:`${segment.left*100}%`,width:`max(${minimumWidth}px, ${segment.width*100}%)`,top,height:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}

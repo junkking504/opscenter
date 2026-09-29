@@ -57,3 +57,15 @@ assert.deepEqual(orderedStack.placed.map(item=>[item.job.recordId,item.lane]),[[
 const unsavedStack=scheduleTravelLayout([{...actualFirst,stopOrder:undefined},{...plannedSecond,stopOrder:undefined}],[],timelineRange([plannedSecond,actualFirst]),'Truck 3',Date.parse('2026-09-29T14:00:00.000Z'));
 assert.deepEqual(unsavedStack.placed.map(item=>item.job.recordId),[plannedSecond.recordId,actualFirst.recordId],'Without a saved order, displayed chronology still chooses the stack order');
 console.log('Saved Stop Order controls the visual top-to-bottom stack across planned and GPS-rendered blocks.');
+
+// A phone timeline is narrow enough that the minimum tap width can be longer
+// than a short visit's real duration. Pack the rendered footprint, not only the
+// underlying time, so sequential appointments never paint over each other.
+const mobileVisits=[0,1,2].map(index=>({...job(`2026-09-29:appointment:mobile-${index}`,480+index*60,500+index*60),truck:'Truck 8',status:'Completed',onsiteTime:{minutes:20,arrival:`2026-09-29T${String(13+index).padStart(2,'0')}:00:00.000Z`,departure:`2026-09-29T${String(13+index).padStart(2,'0')}:20:00.000Z`}} as ScheduleAppointment));
+const mobileRange=timelineRange(mobileVisits);
+const desktopFootprint=scheduleTravelLayout(mobileVisits,[],mobileRange,'Truck 8',Date.parse('2026-09-29T17:00:00.000Z'),1000);
+assert.equal(new Set(desktopFootprint.placed.map(item=>item.lane)).size,1,'Wide timelines keep sequential short visits in one lane');
+const phoneFootprint=scheduleTravelLayout(mobileVisits,[],mobileRange,'Truck 8',Date.parse('2026-09-29T17:00:00.000Z'),190);
+assert.ok(new Set(phoneFootprint.placed.map(item=>item.lane)).size>1,'Narrow timelines separate minimum-width cards before they can overlap');
+assert.ok(phoneFootprint.rowHeight>desktopFootprint.rowHeight,'The truck row grows to contain the additional mobile lanes');
+console.log('Mobile layout packs minimum-width appointment cards into non-overlapping lanes.');

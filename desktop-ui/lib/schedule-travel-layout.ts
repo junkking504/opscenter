@@ -1,8 +1,11 @@
 import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-order';
+import { appointmentPartner } from '../../lib/appointment-partner';
 import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
+
+export const scheduleBlockMinimumWidth = (actual: boolean, hasPartner: boolean) => actual ? (hasPartner ? 54 : 48) : (hasPartner ? 34 : 22);
 
 function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck?: string, now = Date.now()) {
   const positioned = jobs.flatMap(job => {
@@ -51,12 +54,23 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
     .flat();
 }
 
-export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now()) {
+export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number) {
   const lanes: number[] = [];
   const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
     let lane = lanes.findIndex(end => end <= position.start);
     if (lane < 0) lane = lanes.length;
-    lanes[lane] = position.end;
+    // Cards retain a usable tap target even when a GPS visit or booked window
+    // is very short. On a narrow phone timeline that minimum pixel width can
+    // extend well past the underlying time window, so lane packing must use the
+    // rendered footprint instead of allowing visually overlapping cards.
+    const minimumFraction = timelineWidth && timelineWidth > 0
+      ? (scheduleBlockMinimumWidth(position.actual, Boolean(job.address && appointmentPartner(job))) + 2) / timelineWidth
+      : 0;
+    const renderedEnd = position.segments.reduce((end, segment) => Math.max(
+      end,
+      range.start + (segment.left + Math.max(segment.width, minimumFraction)) * range.duration,
+    ), position.end);
+    lanes[lane] = renderedEnd;
     return { job, position, lane };
   });
   const pairs = legs.flatMap(leg => {

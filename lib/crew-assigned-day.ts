@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import type { CrewPhone } from './crew-phone';
 import type { CrewCurrent, CrewScheduledJob } from './crew-dispatch';
 import { readCrewDispatch } from './crew-dispatch-store';
@@ -21,15 +22,28 @@ export function crewAppointmentStatus(value:string) {
   return match?match[1].toLowerCase()==='completed'?'Completed':'Confirmed':null;
 }
 
+export function crewAssignmentUpdateToken(payload: CrewCurrent) {
+  return createHash('sha256').update(JSON.stringify({
+    state:payload.state,
+    truck:payload.truck,
+    job:payload.job?.assignmentId || null,
+    jobs:payload.jobs || [],
+  })).digest('hex');
+}
+
+function withUpdateToken(payload:CrewCurrent):CrewCurrent {
+  return {...payload,updateToken:crewAssignmentUpdateToken(payload)};
+}
+
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
 export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, now = Date.now()): CrewCurrent {
   const snapshot = deps.snapshot(date);
   const age = snapshot ? now - snapshot.freshnessAtMs : Infinity;
-  if (!snapshot || snapshot.date !== date || age < 0 || age > 120_000) return {
+  if (!snapshot || snapshot.date !== date || age < 0 || age > 120_000) return withUpdateToken({
     state: 'unavailable', truck: phone.truck, job: null, jobs: [], observedAt: null,
     message: 'Today’s assignments are updating. Try Refresh assignments in a moment.',
-  };
+  });
   // The verified feed owns membership, truck and status; richer local rows only
   // supply notes/items. An omitted or moved appointment cannot survive a merge.
   const rows = mergeFastScheduleRows(deps.rows(date), snapshot.appointments, snapshot.cancelled, date);
@@ -37,12 +51,18 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
   for (const row of rows) counts.set(row.appointmentId, (counts.get(row.appointmentId) || 0) + 1);
   const overrides = deps.overrides(date);
   const current = deps.dispatch(phone.truck).current;
-  const eligible = rows.filter(row => {
+  const eligible = rows.flatMap(row => {
     const override = overrides.get(`appt:${row.appointmentId}`);
-    return /^\d{1,12}$/.test(row.appointmentId) && counts.get(row.appointmentId) === 1
-      && sameTruck(row.assignedTruck || row.truck, phone.truck) && Boolean(crewAppointmentStatus(row.status))
-      && (!override || (override.junkwareSyncStatus === 'verified' && sameTruck(override.truck, phone.truck)));
-  }).map(row=>({...row,truck:row.assignedTruck || row.truck,recordId:`${date}:appointment:${row.appointmentId}`,version:''}));
+    const verifiedAt=Date.parse(override?.junkwareVerifiedAt || '');
+    const newerVerifiedMove=Boolean(override?.junkwareSyncStatus==='verified' && Number.isFinite(verifiedAt) && verifiedAt>snapshot.freshnessAtMs);
+    const truck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
+    if (!/^\d{1,12}$/.test(row.appointmentId) || counts.get(row.appointmentId) !== 1
+      || !sameTruck(truck, phone.truck) || !crewAppointmentStatus(row.status)
+      || (override && override.junkwareSyncStatus !== 'verified')) return [];
+    return [{...row,truck,assignedTruck:truck,
+      ...(newerVerifiedMove && override?.appointmentTime ? {appointmentTime:override.appointmentTime} : {}),
+      recordId:`${date}:appointment:${row.appointmentId}`,version:''}];
+  });
   const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
     .map(row => ({
       appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
@@ -56,6 +76,6 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
       ...(current?.date === date && current.appointmentId === row.appointmentId ? { assignmentId: current.assignmentId } : {}),
     }));
   const active = jobs.find(job => job.assignmentId);
-  return {state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,
-    job: active?.assignmentId ? {...active, assignmentId: active.assignmentId} : null};
+  return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,
+    job: active?.assignmentId ? {...active, assignmentId: active.assignmentId} : null});
 }

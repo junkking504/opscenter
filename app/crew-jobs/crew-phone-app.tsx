@@ -40,6 +40,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const [backgroundNotice,setBackgroundNotice]=useState('');
   const [handoff,setHandoff]=useState<CheckoutHandoff|null>(null);
   const jobRequest=useRef(0);
+  const assignmentUpdateToken=useRef('');
   const step=!phone || !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
   async function loadJob() {
@@ -61,6 +62,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       if(request!==jobRequest.current)return;
       if(response.status===401){void clearCrewPhotoDrafts().catch(()=>{});setJobLoading(false);clearCrewCloseoutDrafts();setDay(null);setPhone(null);throw new Error(body.error || 'This phone needs manager setup.');}
       if(!response.ok)throw new Error(body.error || 'Your assignment could not be verified. Contact dispatch.');
+      assignmentUpdateToken.current=String(body.updateToken || '');
       setAssignment(body);setDetails(false);setCloseout(false);
       if(body.state==='assigned' && body.job && dayBody.phone?.deviceId){
         const saved=readCloseoutLocal<Receipt>(`${crewCloseoutKey(dayBody.phone.deviceId,body.job.assignmentId)}:receipt`);
@@ -99,6 +101,23 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     return()=>{window.removeEventListener(HANDOFF_EVENT,changed);window.removeEventListener('online',resume);document.removeEventListener('visibilitychange',resume);};
   },[phone?.deviceId,phone?.test]);
   useEffect(()=>{const resume=()=>{if(document.visibilityState==='visible' && phone && dayDate && dayDate!==chicagoDateKey() && !busy)void loadJob();};document.addEventListener('visibilitychange',resume);return()=>document.removeEventListener('visibilitychange',resume);});
+  const phoneDeviceId=phone?.deviceId,phoneTest=phone?.test===true,dayVersion=day?.version;
+  useEffect(()=>{
+    if(!phoneDeviceId || phoneTest || !dayVersion || inspectionRequired || busy || details || switching || pendingCloseout)return;
+    let stopped=false,timer:ReturnType<typeof setTimeout>|undefined;
+    const check=async()=>{
+      if(document.visibilityState==='visible')try{
+        const response=await fetch('/api/crew-jobs/updates',{cache:'no-store',signal:AbortSignal.timeout(10_000)});
+        const body=await response.json();
+        if(response.status===401){jobRequest.current++;setAssignment(null);setDay(null);setPhone(null);clearCrewCloseoutDrafts();void clearCrewPhotoDrafts().catch(()=>{});return;}
+        if(response.ok && body.updateToken && assignmentUpdateToken.current && body.updateToken!==assignmentUpdateToken.current)await loadJob();
+        else if(response.ok && body.updateToken && !assignmentUpdateToken.current)assignmentUpdateToken.current=body.updateToken;
+      }catch{/* Manual refresh remains available during a temporary connection failure. */}
+      if(!stopped)timer=setTimeout(check,3000);
+    };
+    timer=setTimeout(check,3000);
+    return()=>{stopped=true;if(timer)clearTimeout(timer);};
+  },[phoneDeviceId,phoneTest,dayVersion,inspectionRequired,busy,details,switching,pendingCloseout]);
   useEffect(()=>{
     if(!assignment?.completionPending || busy || details)return;
     const timer=setTimeout(()=>void loadJob(),5000);

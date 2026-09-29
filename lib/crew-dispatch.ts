@@ -14,4 +14,5 @@ export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignme
 export type CrewCurrent = {
   state: 'assigned' | 'waiting' | 'unavailable'; truck: string; job: CrewCurrentJob | null;
   observedAt: string | null; message?: string; summary?: WaypointDaySummary; jobs?: CrewScheduledJob[]; completionPending?: boolean;
+  updateToken?: string;
 };

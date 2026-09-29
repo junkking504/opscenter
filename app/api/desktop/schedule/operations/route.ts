@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     if (receipt.status === 'uncertain') checkMoveAfterResponse(requestId, actor.email);
   }
   if(parameters.get('reconcile')==='1' && ['reschedule','restore'].includes(receipt.action) && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
-  if (receipt?.crewAssignment && authorizeOpsRequest(actor.role,'/api/crew-dispatch','POST').allowed) receipt = await finishScheduleCrewAssignment(requestId, actor.email, crewDispatchSources);
+  if (receipt?.crewAssignment?.state==='pending' && receipt.status==='verified' && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) checkMoveAfterResponse(requestId, actor.email);
   return Response.json({ receipt }, { headers });
 }
 export async function POST(request: Request) {
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });
-    if (receipt.crewAssignment) receipt = await finishScheduleCrewAssignment(receipt.requestId, actor.email, crewDispatchSources) || receipt;
+    if (receipt.crewAssignment?.state==='pending' && receipt.status==='verified') checkMoveAfterResponse(receipt.requestId, actor.email);
     if (receipt.action === 'move' && receipt.status === 'uncertain') checkMoveAfterResponse(receipt.requestId, actor.email);
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {

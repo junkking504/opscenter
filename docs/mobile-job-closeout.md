@@ -647,7 +647,17 @@ in the private runtime directory. Sending a daily setup code is a metered
 WhatsApp operation governed by the installed approval file, per-attempt reserve,
 monthly attempt cap and monthly dollar cap. Adding the personal-phone identities
 or activating the increased daily message cadence requires explicit spending
-approval; code and directory preparation alone do not authorize it.
+approval. On September 29 the user approved necessary daily setup messages and
+added Operations, giving six company phones and three approved personal phones.
+The allowance is 837 attempts and $8.37 reserved per month (nine phones, three
+attempts per day, 31 days). The one-cent reservation, ten-minute cooldown and
+no-automatic-replay behavior remain. Messages are sent only when requested.
+
+Waypoint refresh fills its current/next closeout slots from the fresh truck day
+feed, including after a prior-day assignment or a completed job. Every assigned
+appointment remains in the daily list, even when both slots are occupied. The
+list uses Schedule's saved Stop Order within matching appointment windows.
+Schedule responses return before the background Waypoint source check finishes.
 
 Manager test-phone enrollment remains sandboxed by default: it receives
 fictional appointments and test crew and cannot write to JunkWare. Company

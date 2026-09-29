@@ -10,6 +10,7 @@ import { after } from 'next/server';
 import { crewAssignedDay } from '@/lib/crew-assigned-day';
 import { matchingCrewCompletion } from '@/lib/crew-dispatch-store';
 import {warmCrewCloseout} from '@/lib/crew-closeout-service';
+import {ensureCrewScheduleDispatch} from '@/lib/crew-schedule-dispatch';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const maxDuration=600;
@@ -24,7 +25,8 @@ export async function GET(request:Request) {
     const day=requireCrewDay(phone);
     // The phone cannot choose another truck, date or appointment through a URL.
     if(new URL(request.url).search) throw new CrewPhoneError('Use the current assignment screen.');
-    const payload=crewAssignedDay(phone,day.date);
+    let payload=crewAssignedDay(phone,day.date);
+    if(ensureCrewScheduleDispatch(phone.truck,day.date,payload))payload=crewAssignedDay(phone,day.date);
     const summary=readWaypointDay(day);
     // Completion recovery can open JunkWare, but must never hold up browsing.
     const dispatch=readCrewDispatch(phone.truck);

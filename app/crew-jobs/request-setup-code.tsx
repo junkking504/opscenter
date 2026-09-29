@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {CREW_PHONE_API,type CrewPhoneSetupChoice} from '@/lib/crew-phone';
+import {chicagoDateKey} from '@/lib/chicago-date';
 import styles from './phone-access.module.css';
 const storageKey='waypoint-setup-request-v1';
 type Saved={choiceId:string;requestId:string;createdAt:number};
@@ -8,7 +9,7 @@ export default function RequestSetupCode({busy,onBusy}:{busy:boolean;onBusy:(val
   const [choiceId,setChoiceId]=useState(''),[choices,setChoices]=useState<CrewPhoneSetupChoice[]>([]),[saved,setSaved]=useState<Saved|null>(null),[message,setMessage]=useState(''),[error,setError]=useState('');
   const sending=useRef(false);
   useEffect(()=>{
-    try{const value=JSON.parse(localStorage.getItem(storageKey)||'null') as Saved|null;if(value?.choiceId && value.requestId && Number.isFinite(value.createdAt)){setChoiceId(value.choiceId);setSaved(value);}}catch{/* A send requires working storage. */}
+    try{const value=JSON.parse(localStorage.getItem(storageKey)||'null') as Saved|null;if(value?.choiceId && value.requestId && Number.isFinite(value.createdAt) && chicagoDateKey(new Date(value.createdAt))===chicagoDateKey()){setChoiceId(value.choiceId);setSaved(value);}}catch{/* A send requires working storage. */}
     void fetch(`${CREW_PHONE_API}?setup=choices`,{cache:'no-store'}).then(async response=>{const body=await response.json();if(!response.ok || !Array.isArray(body.choices))throw new Error(body.error || 'Phone choices are unavailable.');setChoices(body.choices);}).catch(error=>setError(error instanceof Error?error.message:'Phone choices are unavailable.'));
   },[]);
   async function requestCode(event:React.FormEvent) {

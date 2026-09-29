@@ -8,6 +8,7 @@ import { executeScheduleOperation, finishScheduleCrewAssignment, parseScheduleOp
 import { readCrewDispatch, releaseCrewJob } from '../lib/crew-dispatch-store';
 import type { CrewDispatchSources } from '../lib/crew-dispatch-service';
 import { readPhotoResponse } from '../app/crew-jobs/photo-response';
+import { chicagoDateKey } from '../lib/chicago-date';
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schedule-crew-assignment-'));
@@ -15,7 +16,7 @@ async function main() {
   process.env.OPS_CREW_DISPATCH_DIR = path.join(root, 'crew');
   process.env.OPS_CREW_TRUCK_SWITCH_DIR = path.join(root, 'switches');
   process.env.JOB_ROUTE_ASSIGNMENTS_FILE = path.join(root, 'assignments.json');
-  const date = '2026-09-22', actor = 'test-manager', truck = 'Truck 6';
+  const date = chicagoDateKey(), actor = 'test-manager', truck = 'Truck 6';
   const jobs = ['901', '902', '903', '904', '905'].map(appointmentId => ({appointmentId, recordId:`${date}:appointment:${appointmentId}`, version:'a'.repeat(64), truck, status:'Confirmed', jkNumber:`SAMPLE-${appointmentId}`, customerName:`Synthetic ${appointmentId}`, address:'Synthetic address', appointmentTime:'4 PM–5 PM', junkItems:[], appointmentNotes:[], driver:'', navigator:''}));
   let writes = 0;
   const sources:CrewDispatchSources={
@@ -27,7 +28,7 @@ async function main() {
   const operation = (index: number, assignCrew?: boolean) => parseScheduleOperation({requestId:randomUUID(), date, recordId:jobs[index].recordId, expectedVersion:jobs[index].version, action:'move', values:{truck, ...(assignCrew === undefined ? {} : {assignCrew})}});
   const save = async () => { writes++; return {status:200, body:{ok:true}}; };
   try {
-    for (const [index,flag,expected] of [[0,undefined,'assigned'],[1,true,'queued'],[2,false,'attention']] as const) {
+    for (const [index,flag,expected] of [[0,undefined,'assigned'],[1,true,'queued'],[2,false,'queued']] as const) {
       const move = operation(index, flag);
       const receipt = await executeScheduleOperation(move, actor, () => jobs[index] as unknown as DesktopAppointment, save);
       assert.equal(receipt.status, 'verified');
@@ -49,7 +50,7 @@ async function main() {
     jobs[2].truck=fullTruck;
     const third=parseScheduleOperation({requestId:randomUUID(),date,recordId:jobs[2].recordId,expectedVersion:jobs[2].version,action:'move',values:{truck:fullTruck}});
     assert.equal((await executeScheduleOperation(third, actor, () => jobs[2] as unknown as DesktopAppointment, save)).status, 'verified', 'Full Waypoint queue cannot block truck scheduling');
-    assert.equal((await finishScheduleCrewAssignment(third.requestId,actor,sources))?.crewAssignment?.state,'attention');
+    assert.equal((await finishScheduleCrewAssignment(third.requestId,actor,sources))?.crewAssignment?.state,'queued');
     assert.deepEqual(readCrewDispatch(fullTruck), fullQueue, 'Existing current and queued releases survive while the receipt reports attention');
 
     // Seed old receipts to exercise restart recovery across the behavior change.

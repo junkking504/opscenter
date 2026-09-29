@@ -116,7 +116,9 @@ export async function queueScheduleOperation(operation: ScheduleOperation, actor
     if (/cancel/i.test(job.status) && !['note','restore'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
     if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
-    const crewAssignment = operation.action === 'move' ? prepareScheduleCrewAssignment(job, String(operation.values.truck || '')) : undefined;
+    // A reserved crew truck-switch transfers existing assignment identities after
+    // all moves finish; it must not create an independent Schedule release.
+    const crewAssignment = operation.action === 'move' && !actor.startsWith('waypoint-switch:') ? prepareScheduleCrewAssignment(job, String(operation.values.truck || '')) : undefined;
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, createdAt: new Date().toISOString(), status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
     if (crewAssignment) receipt.crewAssignment = crewAssignment;
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);

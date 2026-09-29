@@ -6,6 +6,8 @@ import { readJobRows, mergeFastScheduleRows } from './desktop-schedule-source';
 import { readVerifiedJunkwareScheduleSnapshot } from './junkware-fast-schedule';
 import { readJobRouteAssignmentOverrides } from './job-route-assignments';
 import { sameTruck } from './junkware-trucks';
+import { applyStopOrders } from './desktop-stop-order-store';
+import { compareStops } from './schedule-stop-order';
 
 const sources = {
   snapshot: (date: string) => readVerifiedJunkwareScheduleSnapshot(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw', 'workspace', 'opsbot', 'data'), date),
@@ -35,12 +37,13 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
   for (const row of rows) counts.set(row.appointmentId, (counts.get(row.appointmentId) || 0) + 1);
   const overrides = deps.overrides(date);
   const current = deps.dispatch(phone.truck).current;
-  const jobs: CrewScheduledJob[] = rows.filter(row => {
+  const eligible = rows.filter(row => {
     const override = overrides.get(`appt:${row.appointmentId}`);
     return /^\d{1,12}$/.test(row.appointmentId) && counts.get(row.appointmentId) === 1
       && sameTruck(row.assignedTruck || row.truck, phone.truck) && Boolean(crewAppointmentStatus(row.status))
       && (!override || (override.junkwareSyncStatus === 'verified' && sameTruck(override.truck, phone.truck)));
-  }).sort((a, b) => (a.appointmentStartMinutes ?? 1440) - (b.appointmentStartMinutes ?? 1440) || a.appointmentId.localeCompare(b.appointmentId))
+  }).map(row=>({...row,truck:row.assignedTruck || row.truck,recordId:`${date}:appointment:${row.appointmentId}`,version:''}));
+  const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
     .map(row => ({
       appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,

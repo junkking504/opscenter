@@ -188,6 +188,20 @@ numbers. Tests use mocked sends; do not claim handset delivery from eligibility.
 
 ## Kingpin and Convoy hostnames — September 18, 2026
 
+### Daily Waypoint setup expansion — approved September 29, 2026
+
+The user approved as many setup messages as necessary for daily enrollment and
+added the Operations company phone. The approved scope is six company identities
+and three named personal identities; every enrolled crew member still selects
+today's truck and crew. The runtime allowance is **837 attempts and $8.37 reserved
+per Central month**, enough for all nine identities at the existing three-request
+daily limit for 31 days. One cent remains reserved for every attempt; the
+ten-minute cooldown, durable ledger, single-use code, approval expiry and
+no-automatic-replay rules remain. No messages are scheduled automatically.
+Numbers and named personal approvals remain outside Git. This supersedes only
+the September 18 setup-message volume/cap and recipient scope, not other service
+approvals or budgets. The external deployment spending checker is unchanged.
+
 The user explicitly approved adding only `kingpin.junk-king.app` and
 `convoy.junk-king.app` to the installed hostname inventory for the app rename.
 Both use the existing Cloudflare DNS and Mission Control tunnel, with $0 in new

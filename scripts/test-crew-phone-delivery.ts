@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
-import { crewPhoneDeliveryAvailability, crewPhoneSetupChoices, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '../lib/crew-phone-delivery';
+import { crewPhoneDeliveryAvailability, crewPhoneSetupChoices, requestCrewPhoneSetupChoice, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '../lib/crew-phone-delivery';
 import { enrollCrewPhone } from '../lib/crew-phone-store';
 
 async function main() {
@@ -71,6 +71,18 @@ async function main() {
     await assert.rejects(sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager), /another setup/);
     Object.assign(policy,{selfSetupLiveRecipientNames:['Synthetic Manager']});approve();
     assert.deepEqual(crewPhoneSetupChoices().map(choice=>choice.label),['Test phone','Test phone 3','Synthetic Manager'],'An explicitly approved personal phone is selectable by label');
+    Object.assign(policy,{maxAttemptsPerMonth:837,monthlyBudgetMicros:8370000});approve();
+    assert.equal(crewPhoneDeliveryAvailability().available,true,'The approved daily allowance is accepted');
+    const testFile=path.join(dir,'deliveries',`${configuredTest.testRequestId}.json`);
+    const priorTest=JSON.parse(fs.readFileSync(testFile,'utf8'));
+    fs.writeFileSync(testFile,JSON.stringify({...priorTest,createdAt:new Date(Date.now()-11*60_000).toISOString()}));
+    const personal=crewPhoneSetupChoices().find(choice=>choice.label==='Synthetic Manager')!;
+    await requestCrewPhoneSetupChoice(personal.id,randomUUID());
+    assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).test,undefined,'Approved personal identity enrolls for live daily truck selection');
+    policy.maxAttemptsPerMonth=838;approve();
+    assert.equal(crewPhoneDeliveryAvailability().available,false,'Unapproved volume fails closed');
+    policy.maxAttemptsPerMonth=837;policy.monthlyBudgetMicros=8370001;approve();
+    assert.equal(crewPhoneDeliveryAvailability().available,false,'Unapproved spending fails closed');
     console.log('PASS setup delivery: approval denial, fixed recipient, one-use code, concurrent/lost response recovery, no code in receipts, cooldown, monthly cap, uncertain reservation and rejection revocation.');
   } finally { globalThis.fetch = originalFetch; process.env = previous; fs.rmSync(dir, {recursive:true,force:true}); }
 }

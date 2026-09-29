@@ -19,8 +19,8 @@ function approval(): Approval {
   if (value.schema !== 1 || value.enabled !== true || value.provider !== 'meta-whatsapp' || value.purpose !== 'crew-phone-setup'
     || !value.approvedBy || !Number.isFinite(Date.parse(value.approvedAt)) || Date.parse(value.approvedAt) > Date.now()
     || !Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) <= Date.now()
-    || !Number.isSafeInteger(value.monthlyBudgetMicros) || value.monthlyBudgetMicros < 1 || value.monthlyBudgetMicros > 1_000_000
-    || !Number.isSafeInteger(value.maxAttemptsPerMonth) || value.maxAttemptsPerMonth < 1 || value.maxAttemptsPerMonth > 100
+    || !Number.isSafeInteger(value.monthlyBudgetMicros) || value.monthlyBudgetMicros < 1 || value.monthlyBudgetMicros > 8_370_000
+    || !Number.isSafeInteger(value.maxAttemptsPerMonth) || value.maxAttemptsPerMonth < 1 || value.maxAttemptsPerMonth > 837
     || !Number.isSafeInteger(value.reserveMicros) || value.reserveMicros < 10_000 || value.reserveMicros > value.monthlyBudgetMicros
     || !/^[a-z][a-z0-9_]{0,99}$/.test(value.template) || !/^[a-z]{2}(?:_[A-Z]{2})?$/.test(value.language)
     || (value.selfSetupTestRecipientName!==undefined && !validTestName(value.selfSetupTestRecipientName))

@@ -66,8 +66,9 @@ automatically reassigned.
 JunkWare can show the complete truck expense table under multiple markets while
 its summary allocates the cost between markets. Operational views collapse those
 copies only when complete row identities and amounts agree, each market has one
-copy per identity, and verified market allocation totals sum exactly to the full
-truck table total. The known `--` marker means zero allocation; arbitrary missing
+copy per identity, and verified market allocation totals sum to the full truck
+table total within one cent. That narrow tolerance covers source allocation
+rounding only; larger differences remain unresolved. The known `--` marker means zero allocation; arbitrary missing
 text does not. This proof applies separately to dump and fuel rows. Same-market
 repeated rows and mismatched/correcting snapshots stay available for review.
 Potential duplicate expenses make the actual and combined dump totals unavailable,

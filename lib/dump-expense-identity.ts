@@ -4,6 +4,7 @@ import type {TruckExpense} from './truck-expense-notifications';
 export const canonicalDumpLocation = (name: string) => /^(?:gentil(?:l[yt]|ity)|gentilly landfill|gl)$/i.test(name.trim()) ? 'Gentilly' : name;
 export type DumpAllocation = {marketTotal: number | null; table: string; tableTotal: number; unique: boolean};
 const cents = (amount: number) => Math.round(amount * 100);
+const MAX_MARKET_ALLOCATION_ROUNDING_CENTS = 1;
 const identity = (row: TruckExpense) => JSON.stringify([row.date,row.truck,Date.parse(row.transactionAt),row.kind,row.receipt.trim(),(row.kind==='dump'?canonicalDumpLocation(row.location):row.location).trim().toLowerCase()]);
 export function dumpAllocation(rows: TruckExpense[], value: unknown, kind: 'dump' | 'fuel' = 'dump'): DumpAllocation {
   const dump = rows.filter(row=>row.kind===kind);
@@ -25,8 +26,9 @@ function consolidateKind(entries: TruckExpense[],kind: 'dump' | 'fuel'): TruckEx
   for (const rows of groups.values()) {
     const markets = new Map(rows.map(row=>[row.market,row[field]]));
     const metadata=[...markets.values()];
+    const allocatedTotal=metadata.reduce((sum,item)=>sum+(item?.marketTotal ?? 0),0);
     if (markets.size < 2 || metadata.some(item=>!item?.unique || item.marketTotal===null)
-      || metadata.reduce((sum,item)=>sum+item!.marketTotal!,0)!==metadata[0]!.tableTotal) continue;
+      || Math.abs(allocatedTotal-metadata[0]!.tableTotal)>MAX_MARKET_ALLOCATION_ROUNDING_CENTS) continue;
     const physical=new Map<string,TruckExpense[]>();
     for (const row of rows) physical.set(identity(row),[...(physical.get(identity(row))||[]),row]);
     if ([...physical.values()].some(copies=>copies.length!==markets.size || new Set(copies.map(row=>row.market)).size!==copies.length)) continue;

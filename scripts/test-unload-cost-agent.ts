@@ -77,6 +77,16 @@ try {
   const alerts=truckExpenseTimelineAlerts(date);assert.equal(alerts.length,1);assert.equal(alerts[0].facts.find(row=>row.label==='Location')?.value,'Gentilly');
   const rawAlerts=[{...alerts[0],id:'slack1',eventFingerprint:`truck_expense:${date}:${actual.id}`},{...alerts[0],id:'slack2',eventFingerprint:`truck_expense:${date}:${'b'.repeat(32)}`}];
   assert.equal(mergeTruckExpenseAlerts(rawAlerts,alerts).length,1,'Source fingerprint aliases replace both existing duplicate cards');
+  const stranco={...actual,id:'d'.repeat(32),transactionAt:at('17:00'),location:'Stranco',amount:85};
+  snapshot('352','$33.47',[actual,stranco]);
+  snapshot('477','$66.16',[{...actual,id:'e'.repeat(32)},{...stranco,id:'f'.repeat(32)}]);
+  snapshot('484','$29.36',[{...actual,id:'1'.repeat(32)},{...stranco,id:'2'.repeat(32)}]);
+  const rounded=readOperationalTruckExpenses(date);
+  assert.equal(rounded.length,2,'One-cent allocation rounding still collapses identical market copies');
+  assert.ok(rounded.every(row=>row.sourceExpenseIds?.length===3));
+  const roundedSummary=readDumpExpenses(date,now);
+  assert.equal(roundedSummary.actualTotal,129);assert.equal(roundedSummary.assumedTotal,0);assert.equal(roundedSummary.records.length,2,'Collapsed actual replaces its matching assumption');
+  fs.unlinkSync(path.join(root,`history/junkware/expenses/${date}/477/4.json`));
   snapshot('352','$40.00',[{...actual,amount:50}]);snapshot('484','$10.00',[{...actual,id:'b'.repeat(32),amount:50}]);
   assert.equal(readOperationalTruckExpenses(date)[0].id,canonical[0].id,'Source amount correction preserves physical identity');
   assert.equal(readDumpExpenses(date,now).actualTotal,50);

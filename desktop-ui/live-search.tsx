@@ -65,6 +65,10 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
     if(disabled||opsBotLoading||!opsBotStatus?.available||query.trim().length<2)return;
     setOpsBotLoading(true);setOpsBotError('');setOpsBotAnswer(null);
     try{
+      const localResponse=await fetch('/api/desktop/ask-opsbot/local',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:query.trim(),date}),signal:AbortSignal.timeout(20000)});
+      const localBody=await localResponse.json();
+      if(!localResponse.ok)throw Error(localBody.error||'OpsCenter sources could not answer this question.');
+      if(localBody.matched){setOpsBotAnswer(localBody);return;}
       const response=await fetch('/api/desktop/ask-opsbot',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:query.trim(),date}),signal:AbortSignal.timeout(60000)});
       const body=await response.json();
       if(typeof body.remaining==='number')setOpsBotStatus({available:Boolean(body.available),reason:body.reason||null,remaining:body.remaining,limit:body.limit||50});

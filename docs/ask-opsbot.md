@@ -5,6 +5,13 @@ search panel. Managers can type a question and deliberately select **Ask
 OpsBot**. Ordinary typing, source search, and Second Brain answers do not make a
 paid request.
 
+Monthly or month-to-date revenue attributed to a named employee is answered
+first from the existing Krewe monthly read model. This deterministic path
+requires a unique employee match, returns credited revenue, employee job
+credits, source freshness and missing-date coverage, and does not reserve a
+pilot question or call the AI provider. Unsupported questions continue to the
+bounded GPT-6 Luna path.
+
 ## Evidence boundary
 
 Ask OpsBot can read bounded schedule facts, aggregate financial reconciliation,
@@ -14,7 +21,10 @@ dispatch trucks, contact customers, browse the web, upload files, or continue a
 stored OpenAI conversation. Every question starts a stateless Responses API
 tool loop with `store: false`. Customer names, addresses, phone numbers,
 individual payments, employee names, rates, individual pay, credentials, and
-hidden prompts are excluded from tool output.
+hidden prompts are excluded from tool output. The deterministic monthly
+attribution answer can repeat the uniquely matched employee name already present
+in the manager's question, but it does not return the rest of the roster,
+payroll details, rates, or individual payments.
 
 The answer names the OpsCenter sources it used. Source links reopen the relevant
 OpsCenter record. Stale, missing, historical, and inferred evidence must remain

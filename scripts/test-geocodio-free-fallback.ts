@@ -42,6 +42,11 @@ async function main() {
   };
   try {
     assert.ok(verifyGeocodioAddress(address, payload).location);
+    const stateHighwayPayload = { results: [{ ...row,
+      address_components: { ...row.address_components, number: '100', formatted_street: 'State Highway 59', city: 'Mandeville', postal_code: '70471' },
+      location: { lat: 30.4, lng: -90.04 }, match_type: 'building_centroid' }] };
+    assert.ok(verifyGeocodioAddress('100 Highway 59, Mandeville, LA 70471', stateHighwayPayload).location,
+      'A unique parish rooftop may use the formal State Highway route name');
     assert.match(verifyGeocodioAddress(address.replace('Loop', 'Loop Apt 4'), payload).reason, /Unit Entrance Not Located/);
     assert.equal(verifyGeocodioAddress(address.replace('Loop', 'Loop Bldg 4'), payload).location, null);
     for (const accuracy_type of ['nearest_rooftop_match', 'range_interpolation', 'point', 'street_center', 'place']) {

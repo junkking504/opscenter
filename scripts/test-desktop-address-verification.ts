@@ -24,6 +24,10 @@ assert.equal(verifyAddressResult('100 Example New Orleans, LA 70125',{status:'OK
 const renamedRoute={...cityResult,address_components:cityResult.address_components.map(c=>c.types.includes('route')?component('route','South Norman C. Francis Parkway'):c)};
 assert.ok(verifyAddressResult('100 South Norman Francis Parkway, New Orleans, LA 70125',{status:'OK',results:[renamedRoute]}).location);
 assert.equal(verifyAddressResult('100 North Norman Francis Parkway, New Orleans, LA 70125',{status:'OK',results:[renamedRoute]}).location,null,'Direction remains significant');
+const stateHighway={...result,address_components:[component('street_number','100'),component('route','State Highway 59'),component('locality','Mandeville'),component('postal_code','70471'),component('administrative_area_level_1','LA'),component('country','US')]};
+assert.ok(verifyAddressResult('100 Highway 59, Mandeville, LA 70471',{status:'OK',results:[stateHighway]}).location,'Plain Highway and State Highway are the same Louisiana route');
+assert.ok(verifyAddressResult('100 LA-59, Mandeville, LA 70471',{status:'OK',results:[stateHighway]}).location,'LA-number form is the same Louisiana route');
+assert.equal(verifyAddressResult('100 US Highway 59, Mandeville, LA 70471',{status:'OK',results:[stateHighway]}).location,null,'An explicit US route cannot become a state route');
 console.log('Address verification: exact house/street/ZIP, aliases, business prefixes, partial matches, ambiguous results, and provider failure passed.');
 
 const censusMatch={matchedAddress:'100 EXAMPLE ST, NEW ORLEANS, LA, 70125',addressComponents:{zip:'70125',state:'LA',city:'NEW ORLEANS'},coordinates:{x:-90.1,y:29.95}};
@@ -140,6 +144,8 @@ assert.equal(addressQueries('100 Example Rd Bldg 1, Greenwell Springs, 70739')[0
 assert.equal(addressQueries('100 S Example Pky, Apt 156, New Orleans, 70123')[0],'100 S Example Pkwy, New Orleans, LA 70123');
 assert.equal(addressQueries('100 Example Dr, Kenner, La 70065 Kenner, LA 70065')[0],'100 Example Dr, Kenner, LA 70065');
 assert.equal(normalizeServiceAddress('LA-16'),normalizeServiceAddress('Louisiana Highway 16'));
+assert.equal(normalizeServiceAddress('Highway 59'),normalizeServiceAddress('State Highway 59'));
+assert.notEqual(normalizeServiceAddress('US Highway 59'),normalizeServiceAddress('State Highway 59'));
 const saint={...censusMatch,matchedAddress:'100 SAINT EXAMPLE ST, NEW ORLEANS, LA, 70125'};
 assert.ok(verifyCensusAddress('100 St Example St New Orleans LA 70125',{result:{addressMatches:[saint]}}).location);
 const parkway={...censusMatch,matchedAddress:'100 S EXAMPLE PKWY, NEW ORLEANS, LA, 70125'};

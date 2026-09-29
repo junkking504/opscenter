@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {transferCheckout,type CheckoutHandoff} from '../app/crew-jobs/checkout-handoff';
+import {reopenAttentionHandoff,transferCheckout,type CheckoutHandoff} from '../app/crew-jobs/checkout-handoff';
 import type {Receipt} from '../desktop-ui/schedule-receipt';
 
 async function main(){
@@ -54,6 +54,8 @@ async function main(){
   await transferCheckout(saved,{...deps,photos:async()=>[]});assert.equal(saved.phase,'attention','Missing local bytes cannot be called server-saved');
   saved=structuredClone(initial);
   await transferCheckout(saved,{...deps,fetch:async()=>Response.json({error:'revoked'},{status:401})});assert.equal(saved.phase,'attention','Revoked access stops recovery');
+  const reopened=reopenAttentionHandoff(saved);assert.equal(reopened?.phase,'transferring');assert.equal(reopened?.requestId,saved.requestId);assert.deepEqual(reopened?.payload,saved.payload);
+  assert.equal(reopenAttentionHandoff({...saved,receipt:{requestId:saved.requestId,action:'closeout',status:'pending',message:'accepted'}}),null,'An accepted handoff is never reopened');
   console.log('Checkout handoff passed: interruption, reload, lost acknowledgments, original IDs/payload, local-only receipt checks, provider uncertainty and revocation. No live writes.');
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

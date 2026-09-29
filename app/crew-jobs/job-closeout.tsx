@@ -8,7 +8,7 @@ import { crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../de
 import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
-import {createHandoff,readHandoffs,resumeHandoff} from './checkout-handoff';
+import {createHandoff,readHandoffs,resumeHandoff,retryAttentionHandoff} from './checkout-handoff';
 
 export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext,onHandoffStarted,onHandoffFailed,onQueued}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void;onHandoffStarted?:()=>void;onHandoffFailed?:(message:string)=>void;onQueued?:(requestId:string)=>void}) {
   const [completed,setCompleted]=useState(false);
@@ -41,6 +41,17 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
           if(recovered)return accepted(recovered);
           const latest=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);
           throw new Error(latest?.message || 'Transfer is still paused. Keep this checkout saved on this phone and check again.');
+        }
+        // A transient preflight rejection leaves the immutable handoff in
+        // attention without a server receipt. A deliberate check may reopen
+        // only that same request ID/body. The server rechecks the reviewed
+        // JunkWare fingerprint before any write, so a prior save or source
+        // change fails closed instead of recording another payment.
+        if(handoff?.phase==='attention' && !handoff.receipt){
+          const recovered=await retryAttentionHandoff(handoff);
+          if(recovered)return accepted(recovered);
+          const latest=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);
+          throw new Error(latest?.message || 'The exact saved checkout still needs review. Do not enter another payment.');
         }
       }
       throw new Error(body.error || 'Saved result unavailable. Do not repeat this payment.');

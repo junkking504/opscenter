@@ -26,6 +26,18 @@ export function readHandoffs(deviceId: string): CheckoutHandoff[] {
     } catch { return []; }
   });
 }
+export function reopenAttentionHandoff(value: CheckoutHandoff): CheckoutHandoff | null {
+  if (value.phase !== 'attention' || value.receipt) return null;
+  const photosAccepted = value.photoIds.every(id => Boolean(value.acceptedPhotos[id]));
+  return { ...value, phase: photosAccepted ? 'submitting' : 'transferring',
+    message: 'Rechecking the exact saved checkout. No new payment request will be created.' };
+}
+export function retryAttentionHandoff(value: CheckoutHandoff) {
+  const reopened = reopenAttentionHandoff(value);
+  if (!reopened) return Promise.resolve<Receipt | null>(null);
+  saveHandoff(reopened);
+  return resumeHandoff(reopened);
+}
 export async function createHandoff(deviceId: string, assignmentId: string, payload: CheckoutHandoff['payload']) {
   const saved = readHandoffs(deviceId);
   if (saved.some(value => value.assignmentId !== assignmentId && (['transferring', 'submitting'].includes(value.phase) || value.receipt?.status === 'pending'))) {

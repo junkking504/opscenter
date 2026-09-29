@@ -38,7 +38,9 @@ async function main(){
    if(u.pathname==='/api/crew-jobs/closeout'){
     if(r.method()==='POST'){
      posts++;const b=r.postDataJSON();assert.equal(b.assignmentId,'sample-assignment');assert.equal(b.values.truck,'Truck 6');assert.equal(b.values.targetStatus,'8');assert.equal(b.crewVersion,1);assert.equal(b.values.driverId,'driver');assert.deepEqual(b.values.navigatorIds,['navigator','extra']);assert.deepEqual(b.values.otherChargeIdsToRemove,[savedChargeId]);assert.equal(b.values.tip,'20');assert.deepEqual(b.values.addPayment,{methodId:'3',amount:'420.00',reference:'1234'});
-     if(closeoutIntakeFailures>0){closeoutIntakeFailures--;return route.abort();}
+     if(closeoutIntakeFailures>0){closeoutIntakeFailures--;return closeoutIntakeFailures===0
+       ?send({error:'Dispatch changed. Refresh your assignment.'},409)
+       :route.abort();}
      assert.equal(b.photoRequestIds.length,width===390?2:0);receipt={requestId:b.requestId,action:'closeout',status:'pending',message:'Source verification in progress.'};
      await new Promise(resolve=>setTimeout(resolve,600));closeoutResponded=true;
      return send({receipt});
@@ -87,7 +89,7 @@ async function main(){
   await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(width===390)await page.screenshot({path:'/tmp/waypoint-closed-estimate.png',fullPage:true});
-  await context.close();console.log(`PASS ${width}px: removable saved charge, tip and amount-to-mark-paid on Payment, durable server handoff before Assignments, background verification, one payment write, no overflow.`);
+  await context.close();console.log(`PASS ${width}px: removable saved charge, tip and amount-to-mark-paid on Payment, exact saved handoff recovery after assignment preflight, durable server handoff before Assignments, background verification, one payment write, no overflow.`);
  }}finally{await browser.close();}
 }
 void main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -209,6 +209,11 @@ safe. Check Saved Result first reads the receipt; a missing receipt resumes only
 that exact handset-saved request ID and immutable payload. Older interrupted
 handoffs remain recoverable with Resume transfer.
 
+If a temporary assignment or source preflight rejected that intake before a
+server receipt existed, a deliberate **Check Saved Result** reopens only the
+same saved request ID and body. The server rechecks the reviewed JunkWare
+fingerprint before any write; it never creates a replacement payment request.
+
 Verified completed assignment cards use the source-backed heading **Completed
 Job | JunkWare ✔️**. They show the saved total prominently, then Load, Bedload
 when present, every saved Other Charge as its own row, non-zero discount and

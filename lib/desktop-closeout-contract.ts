@@ -31,7 +31,7 @@ function chargeLabels(option: Row): string[] {
   return percentage === '1' && suffix && Number(suffix[1]) === Number(rate)
     ? [label, label.slice(0, suffix.index).trim()] : [label];
 }
-export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested: Row[], allowSourceCalculatedPrice = false): Row[] {
+export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested: Row[], allowSourceCalculatedPrice = false, requestedRemovalIds: string[] = []): Row[] {
   const options = Array.isArray(before.otherChargeOptions) ? before.otherChargeOptions as Row[] : [];
   const matchingOptions = (row: Row) => options.filter(option => chargeLabels(option).includes(normalized(row.label)));
   // Existing percentage fees legitimately recalculate when the operator changes base charges.
@@ -41,7 +41,16 @@ export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested
       ? JSON.stringify([String(matches[0].value), amount(row.quantity)])
       : JSON.stringify([normalized(row.label), amount(row.quantity), amount(row.price), amount(row.total)]);
   };
-  const added = addedRows(rows(before, 'otherCharges'), rows(closeout, 'otherCharges'), chargeKey);
+  const beforeRows = rows(before, 'otherCharges');
+  const afterRows = rows(closeout, 'otherCharges');
+  const removalIds = new Set(requestedRemovalIds);
+  if (removalIds.size !== requestedRemovalIds.length) throw new Error('The requested charge removals contain duplicates.');
+  for (const id of removalIds) {
+    if (beforeRows.filter(row => String(row.id || '') === id).length !== 1) throw new Error('The requested source charge is unavailable for removal.');
+    if (afterRows.some(row => String(row.id || '') === id)) throw new Error('JunkWare did not remove the requested charge.');
+  }
+  const retainedBefore = beforeRows.filter(row => !removalIds.has(String(row.id || '')));
+  const added = addedRows(retainedBefore, afterRows, chargeKey);
   if (added.length !== requested.length) throw new Error('JunkWare did not retain exactly the requested added charges.');
   return requested.map(request => {
     const option = options.find(option => String(option.value) === String(request.typeValue));
@@ -90,6 +99,7 @@ export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): v
     if (addedRows(rows(before, 'payments'), rows(closeout, 'payments'), key).length) throw new Error('An unexpected payment appeared during closeout.');
   }
   const charges = Array.isArray(input.otherChargesToAdd) ? input.otherChargesToAdd as Row[] : [];
-  if (before) verifyAddedCloseoutCharges(closeout, before, charges);
-  else if (charges.length) throw new Error('The charges need a source baseline before verification.');
+  const chargeRemovalIds = Array.isArray(input.otherChargeIdsToRemove) ? input.otherChargeIdsToRemove.map(String) : [];
+  if (before) verifyAddedCloseoutCharges(closeout, before, charges, false, chargeRemovalIds);
+  else if (charges.length || chargeRemovalIds.length) throw new Error('The charge changes need a source baseline before verification.');
 }

@@ -107,6 +107,12 @@
 .ops-live .ops-closeout-charge-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e6e9e5; }
 .ops-live .ops-closeout-charge-list > div > span:first-child { flex: 1; }
 .ops-live .ops-closeout-charge-list small { display: block; color: #7b847f; }
+.ops-live .ops-closeout-charge-list > div.pending-removal { background: #fff3f5; border-color: #e4a7b3; }
+.ops-live .ops-closeout-charge-list > div.pending-removal > span { text-decoration: line-through; }
+.ops-live .ops-closeout-payment-summary { margin: 10px 0 14px; padding: 12px; border: 1px solid #d9ded8; border-radius: 10px; background: #f8faf7; }
+.ops-live .ops-closeout-payment-summary > div { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
+.ops-live .ops-closeout-payment-summary .amount-due { margin-top: 8px; padding-top: 10px; border-top: 1px solid #cdd5cc; font-size: 16px; }
+.ops-live .ops-use-payment-amount { width: 100%; }
 .ops-live .appointment-closeout-body p,
 .ops-live .ops-closeout-editor-message { margin: 0; padding: 9px 12px; }
 .ops-live .appointment-closeout-body .ops-closeout-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 0; }

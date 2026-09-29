@@ -17,7 +17,9 @@ assert.equal(projectWaypointDay(day,{...metrics,date:'2026-09-18'},now).revenue,
 assert.equal(projectWaypointDay(day,null,now).completed,null);
 assert.equal(projectWaypointDay(day,{...metrics,payroll_records:[]},now).crew[0].revenue,null);
 assert.equal(projectWaypointDay(day,{...metrics,payroll_records:[{...metrics.payroll_records[0],revenue_bonus:999}]},now).crew[0].progress,null);
+const attendanceOnly={...metrics,payroll_records:[],credited_revenue_by_employee:{'Test Driver':452.17,'Test Navigator':452.17},credited_tip_by_employee:{'Test Driver':0,'Test Navigator':0},employee_leaderboard:[{name:'Test Driver',individual_revenue:452.17,tip:0,revenue_bonus:0,is_salary:false},{name:'Test Navigator',individual_revenue:0,tip:0,revenue_bonus:0,is_salary:false,attendance_only:true}]};
+const reconciled=projectWaypointDay(day,attendanceOnly,now);assert.equal(reconciled.crew[1].revenue,452.17);assert.equal(reconciled.crew[1].progress?.next?.remaining,547.83);
 const completed=[{id:'a',truck:'Truck 6',revenue:1000.01,tips:10.01,crew:['Test Driver','Test Navigator']},{id:'b',truck:'Truck 9',revenue:1000,tips:10,crew:['Test Driver','Test Navigator']}] as TestCompletion[];
 const moved=testDaySummary({...day,truck:'Truck 9'},completed,0);assert.equal(moved.revenue,1000);assert.equal(moved.completed?.length,1);assert.equal(moved.crew[0].revenue,1000.01);assert.equal(moved.crew[0].progress?.bonus,20);assert.equal(moved.crew[1].revenue,1000);assert.equal(testDaySummary(day,completed,1).revenue,null);
 assert.equal(mapsDirections('Address unavailable'),null);assert(mapsDirections('10 Main & A #2')?.includes('10%20Main%20%26%20A%20%232'));
-console.log('PASS: all tier boundaries, highest-tier cap, credited allocation, privacy projection, source freshness, missing data, truck switches, legacy test totals, Maps encoding.');
+console.log('PASS: all tier boundaries, authoritative credit for attendance-only crew, highest-tier cap, privacy projection, source freshness, missing data, truck switches, legacy test totals, Maps encoding.');

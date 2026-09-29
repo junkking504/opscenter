@@ -37,6 +37,7 @@ type CloseoutInput = {
   bedloadSize: string;
   bedloadPrice: string;
   otherChargesToAdd: OtherChargeInput[];
+  otherChargeIdsToRemove?: string[];
   discount: string;
   tip: string;
   jobCategoryId: string;
@@ -120,6 +121,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     const otherCharges = otherChargeLabels.map((label) => {
       const prefix = label.id.replace(/MiscChargeLbl$/, "");
       return {
+        id: input(prefix + "MCUniqueIdHF"),
         label: clean(label.textContent),
         quantity: input(prefix + "MCQuantityTB"),
         price: input(prefix + "MCPriceTB"),
@@ -268,6 +270,12 @@ function parsePayload(): CloseoutInput {
     if (!typeValue || !quantity || (!isPercentage && !price)) throw new Error("Each Other Charge needs a type, quantity, and price.");
     return { typeValue, quantity, price };
   });
+  const rawRemovalIds = Array.isArray(row.otherChargeIdsToRemove) ? row.otherChargeIdsToRemove : [];
+  if (rawRemovalIds.length > 20) throw new Error('Too many Other Charges were removed at once.');
+  const otherChargeIdsToRemove = rawRemovalIds.map(value => String(value || '').trim());
+  if (otherChargeIdsToRemove.some(value => !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value)) || new Set(otherChargeIdsToRemove).size !== otherChargeIdsToRemove.length) {
+    throw new Error('Each Other Charge removal must identify one saved source row.');
+  }
   const appointmentType = ["Job", "Estimate"].includes(String(row.appointmentType)) ? String(row.appointmentType) : undefined;
   const rawOutcome = row.estimateOutcome;
   let estimateOutcome: CloseoutInput['estimateOutcome'];
@@ -294,6 +302,7 @@ function parsePayload(): CloseoutInput {
     bedloadSize: String(row.bedloadSize || "").trim(),
     bedloadPrice: cleanMoney(row.bedloadPrice),
     otherChargesToAdd,
+    otherChargeIdsToRemove,
     discount: cleanMoney(row.discount),
     tip: cleanMoney(row.tip),
     expectedSourceVersion: row.expectedSourceVersion ? String(row.expectedSourceVersion) : undefined,
@@ -315,6 +324,7 @@ function parsePayload(): CloseoutInput {
 }
 
 export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
+  const otherChargeIdsToRemove = input.otherChargeIdsToRemove || [];
   // Category, status, charge and payment changes need JunkWare's native full or
   // partial postback. Other fields are filled locally before the final Save.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
@@ -385,6 +395,16 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndHourDD", input.actualEndHour);
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndMinuteDD", input.actualEndMinute);
 
+  for (const chargeId of otherChargeIdsToRemove) {
+    const hidden = page.locator(`input[id*="MiscellaneousChargesLV"][id$="MCUniqueIdHF"][value="${chargeId}"]`);
+    if (await hidden.count() !== 1) throw new Error('The requested source charge is unavailable for removal. Reload before saving.');
+    const hiddenId = await hidden.getAttribute('id');
+    const prefix = String(hiddenId || '').replace(/MCUniqueIdHF$/, '');
+    if (!prefix) throw new Error('The requested source charge could not be identified. Reload before saving.');
+    await clickWithWebFormsCompletion(page, `#${prefix}RemoveLB`, 'the charge removal');
+  }
+  if (otherChargeIdsToRemove.length) verifyAddedCloseoutCharges(await capture(page), before, [], true, otherChargeIdsToRemove);
+
   for (const charge of input.otherChargesToAdd) {
     const beforeCharge = await capture(page);
     const isPercentage = charge.typeValue.split("|")[2] === "1";
@@ -407,7 +427,7 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   }
 
   // Capture final provider-calculated prices after all added charges/payment postbacks.
-  const stagedCharges = verifyAddedCloseoutCharges(await capture(page), before, input.otherChargesToAdd, true);
+  const stagedCharges = verifyAddedCloseoutCharges(await capture(page), before, input.otherChargesToAdd, true, otherChargeIdsToRemove);
   input.otherChargesToAdd.forEach((charge, index) => { if (charge.typeValue.split("|")[2] === "1") charge.sourceCalculatedPrice = String(stagedCharges[index].price ?? ""); });
   const submit = async (selector: string, description: string) => {
     await clickWithWebFormsCompletion(page, selector, description);

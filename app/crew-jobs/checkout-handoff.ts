@@ -39,7 +39,7 @@ export async function createHandoff(deviceId: string, assignmentId: string, payl
   const value: CheckoutHandoff = { deviceId, assignmentId, requestId: payload.requestId,
     createdAt: Date.now(), payload, phase: 'transferring',
     photoIds: photos.filter(photo => photo.status !== 'verified').map(photo => photo.requestId),
-    acceptedPhotos: {}, message: 'Sending photos to OpsCenter. Keep Waypoint open until “Safe to close” appears. You can view other assignments.' };
+    acceptedPhotos: {}, message: 'Securing photos and checkout on OpsCenter. Stay on this screen until the server confirms the save.' };
   saveHandoff(value);
   return value;
 }
@@ -84,7 +84,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
       const photos = await dependencies.photos();
       for (const [index, id] of handoff.photoIds.entries()) {
         if (handoff.acceptedPhotos[id]) continue;
-        update({ message: `Sending photo ${index + 1} of ${handoff.photoIds.length}. Keep Waypoint open until “Safe to close” appears.` });
+        update({ message: `Securing photo ${index + 1} of ${handoff.photoIds.length} on the server.` });
         let receipt = await read(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(handoff.assignmentId)}&requestId=${encodeURIComponent(id)}&receiptOnly=1`);
         if (!receipt) {
           const photo = photos.find(row => row.requestId === id);
@@ -102,7 +102,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
         update({ acceptedPhotos: { ...handoff.acceptedPhotos, [id]: receipt.requestId } });
       }
       update({ phase: 'submitting', payload: { ...handoff.payload, photoRequestIds: [...new Set(Object.values(handoff.acceptedPhotos))] },
-        message: 'Photos transferred. Securing the checkout on the server—keep Waypoint open.' });
+        message: 'Photos are secure. Saving the checkout on the server.' });
     }
     // The immutable body and UUID were persisted above. A lost response is
     // recovered on reopening by GET first, then this same idempotent intake.
@@ -114,7 +114,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
     throw new Error('Checkout acceptance has not been confirmed.');
   } catch (error) {
     update({ ...(error instanceof NeedsAttention ? { phase: 'attention' } : {}), message: error instanceof NeedsAttention ? error.message
-      : 'Transfer paused · not yet safe to close. Your submission is saved on this phone. Reopen Waypoint or tap Resume transfer; the same request will continue.' });
+      : 'Transfer paused · not yet safe to close. Your submission is saved on this phone. Keep this checkout open and submit again; the same request will continue.' });
     return null;
   }
 }

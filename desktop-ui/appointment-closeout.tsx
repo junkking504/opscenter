@@ -16,7 +16,7 @@ import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } 
 import './appointment-closeout.css';
 
 type Option = { value: string; label: string };
-type OtherCharge = { label: string; quantity: string; price: string; total: string };
+type OtherCharge = { id?: string; label: string; quantity: string; price: string; total: string };
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 export type LiveCloseout = {
   photoEvidence?: CloseoutPhotoEvidence;
@@ -138,6 +138,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [otherChargeQuantity, setOtherChargeQuantity] = useState("1");
   const [otherChargePrice, setOtherChargePrice] = useState("");
   const [pendingOtherCharges, setPendingOtherCharges] = useState<PendingOtherCharge[]>([]);
+  const [pendingOtherChargeRemovals, setPendingOtherChargeRemovals] = useState<string[]>([]);
   const otherChargePriceIsAutomatic = otherChargeType.split("|")[2] === "1";
 
   useEffect(()=>{
@@ -147,9 +148,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
+      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
-  },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep,photoWorkflow]);
+  },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,mobileStep,photoWorkflow]);
 
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
@@ -206,6 +207,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setReceipt(payload.pendingReceipt || null);
       setReviewing(false);
       setPendingOtherCharges([]);
+      setPendingOtherChargeRemovals([]);
       setMessage(payload.message || '');
       if(draftKey && !payload.pendingReceipt && payload.canWrite){
         const draft=readCloseoutLocal<Record<string,unknown>>(`${draftKey}:draft`);
@@ -225,6 +227,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             setEstimateReason(String(draft.estimateReason || ''));setEstimateExplanation(String(draft.estimateExplanation || ''));setNoDiscountReason(String(draft.noDiscountReason || ''));
             setAddPayment(draft.addPayment===true);setPaymentMethod(String(draft.paymentMethod || ''));setPaymentAmount(String(draft.paymentAmount || ''));setPaymentReference(String(draft.paymentReference || ''));
             if(Array.isArray(draft.pendingOtherCharges) && draft.pendingOtherCharges.every(row=>row && ['clientId','typeValue','quantity','price','label','total'].every(key=>typeof row[key]==='string')))setPendingOtherCharges(draft.pendingOtherCharges);
+            if(Array.isArray(draft.pendingOtherChargeRemovals) && draft.pendingOtherChargeRemovals.every(id=>typeof id==='string') && draft.pendingOtherChargeRemovals.every(id=>source.otherCharges.some(charge=>charge.id===id)))setPendingOtherChargeRemovals(draft.pendingOtherChargeRemovals);
             if(Number.isInteger(draft.mobileStep) && Number(draft.mobileStep)>=0 && Number(draft.mobileStep)<=(photoSteps?3:2) && Boolean(draft.photoWorkflow)===Boolean(photoSteps))setMobileStep(Number(draft.mobileStep));
             setDraftNotice('Draft restored against the current JunkWare record. Review before saving.');
           }catch {setDraftNotice('The stored draft could not be restored. The current source is shown.');}
@@ -321,6 +324,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     setPendingOtherCharges((current) => current.filter((charge) => charge.clientId !== clientId));
   }
 
+  function toggleExistingOtherCharge(chargeId: string) {
+    setReviewing(false);
+    setPendingOtherChargeRemovals(current => current.includes(chargeId) ? current.filter(id => id !== chargeId) : [...current, chargeId]);
+  }
+
   async function save() {
     if (!live || !canWrite || requestPending.current || (receipt && receipt.status !== 'failed')) return;
     if (targetStatus === '9') {
@@ -412,6 +420,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             quantity: charge.quantity,
             price: inputMoney(charge.price),
           })),
+          otherChargeIdsToRemove: pendingOtherChargeRemovals,
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
           jobCategoryId: crewMode ? sourceBaseline.current?.jobCategory.value || '' : category === 'Estimate' ? '' : live.jobCategory.value,
@@ -439,6 +448,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setPaymentMethod("");
       setPaymentAmount("");
       setPendingOtherCharges([]);
+      setPendingOtherChargeRemovals([]);
       const loadStatus = payload.truckLoadStatus;
       setMessage(loadStatus?.updated && loadStatus?.status
         ? `Saved and verified in JunkWare. ${loadStatus.status.truck} is now ${loadStatus.status.currentLoadLabel}.`
@@ -466,7 +476,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           const source = result.sourceResult.closeout as LiveCloseout;
           setLive(source); setTargetStatus(source.status.value); setTruck(source.truck || '');
         }
-        setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]);
+        setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); setPendingOtherChargeRemovals([]);
         saved();
       }
     }
@@ -474,14 +484,17 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     finally { requestPending.current = false; setSaving(false); }
   }
 
-  const totals = live ? closeoutChargesSummary(live, pendingOtherCharges) : null;
+  const retainedOtherCharges = live ? live.otherCharges.filter(charge => !charge.id || !pendingOtherChargeRemovals.includes(charge.id)) : [];
+  const totals = live ? closeoutChargesSummary({...live,otherCharges:retainedOtherCharges}, pendingOtherCharges) : null;
   const gpsTimes = live ? closeoutGpsTimes(job.onsiteTime, job.truck, truck, serviceDate, live) : {};
   const hasGpsTimes = Object.keys(gpsTimes).length > 0;
   const money = (amount:number) => Number.isFinite(amount) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount) : 'Check amounts';
 
   const pendingReceipt = Boolean(receipt && ['pending','uncertain'].includes(receipt.status));
   const verified = receipt?.status === 'verified' || receipt?.dryRun===true;
-  const draftBalance = totals && live ? totals.total-live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const recordedPayments = live ? live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const draftBalance = totals ? totals.total-recordedPayments : 0;
+  const amountToMarkPaid = Number.isFinite(draftBalance) ? Math.max(0,draftBalance) : 0;
   const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
   const timeLabel = (hour:string,minute:string) => hour && minute ? `${Number(hour)%12 || 12}:${minute.padStart(2,'0')} ${Number(hour)>=12?'PM':'AM'}` : 'Not entered';
   const stepLabels=photoSteps ? ['Before photos','Charges','After photos','Payment','Review'] : ['Details','Charges','Payment','Review'];
@@ -520,7 +533,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               {targetStatus === '9' ? <p>{cancellationReason.trim()}</p> : <>
               <div className="closeout-review-facts"><div><span>Load · {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}</span><strong>{money(Number(inputMoney(live.loadPrice)))}</strong></div>
                 {Number(inputMoney(live.bedloadPrice)) > 0 && <div><span>Bedload</span><strong>{money(Number(inputMoney(live.bedloadPrice)))}</strong></div>}
-                {[...live.otherCharges,...pendingOtherCharges].map((charge,index)=><div key={index}><span>{charge.label} · {charge.quantity || '1'}{index>=live.otherCharges.length ? ' (to add)' : ''}</span><strong>{'typeValue' in charge && String(charge.typeValue).split('|')[2]==='1' ? 'Calculated by JunkWare' : money(charge.total ? Number(inputMoney(charge.total)) : Number(charge.quantity || '1')*Number(inputMoney(charge.price)))}</strong></div>)}
+                {live.otherCharges.filter(charge=>charge.id && pendingOtherChargeRemovals.includes(charge.id)).map(charge=><div key={`remove-${charge.id}`}><span>{charge.label} · {charge.quantity || '1'} (remove)</span><strong>Removed from total</strong></div>)}
+                {[...retainedOtherCharges,...pendingOtherCharges].map((charge,index)=><div key={'clientId' in charge ? String(charge.clientId) : charge.id || index}><span>{charge.label} · {charge.quantity || '1'}{index>=retainedOtherCharges.length ? ' (to add)' : ''}</span><strong>{'typeValue' in charge && String(charge.typeValue).split('|')[2]==='1' ? 'Calculated by JunkWare' : money(charge.total ? Number(inputMoney(charge.total)) : Number(charge.quantity || '1')*Number(inputMoney(charge.price)))}</strong></div>)}
                 <div><span>Subtotal</span><strong>{money(totals!.subtotal)}</strong></div><div><span>Discount</span><strong>−{money(Number(inputMoney(live.discount)))}</strong></div><div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div><div className="closeout-review-total"><span>Total{totals!.estimated ? ' (estimated)' : ''}</span><strong>{money(totals!.total)}</strong></div>
               </div>
               <div className="closeout-review-facts">{live.payments.map((payment,index)=><div key={index}><span>Already recorded · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
@@ -622,13 +636,15 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <h5>Other Charges</h5>
                 {live.otherCharges.length ? (
                   <div className="ops-closeout-charge-list" aria-label="Existing Other Charges">
-                    {live.otherCharges.map((charge, index) => (
-                      <div key={`existing-charge-${index}`}>
-                        <span>{charge.label}</span>
+                    {live.otherCharges.map((charge, index) => {
+                      const removing=Boolean(charge.id && pendingOtherChargeRemovals.includes(charge.id));
+                      return <div key={charge.id || `existing-charge-${index}`} className={removing ? 'pending-removal' : undefined}>
+                        <span>{removing && <small>Will remove</small>}{charge.label}</span>
                         <span>{charge.quantity ? `${charge.quantity} × ${charge.price}` : charge.price}</span>
                         <strong>{charge.total}</strong>
-                      </div>
-                    ))}
+                        {charge.id && <button type="button" className="ops-closeout-text-button" onClick={() => toggleExistingOtherCharge(charge.id!)}>{removing?'Undo':'Remove'}</button>}
+                      </div>;
+                    })}
                   </div>
                 ) : null}
                 {pendingOtherCharges.length ? (
@@ -660,19 +676,27 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div>
               <small>Before discount and tip{totals.estimated ? ' · Percentage fees estimated' : ''}</small>
                 <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
-                <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>
+                {!crewMode && <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>}
               <div><span>Total after discount and tip</span><strong>{money(totals.total)}</strong></div>
             </div>}
             <section data-closeout-step={photoSteps ? "3" : "2"} className="appointment-create-section">
               <h4>Payments</h4>
+              {crewMode && <label><span>Tip</span><input value={live.tip} inputMode="decimal" placeholder="0.00" onChange={(event) => update("tip", event.target.value)} /></label>}
+              {crewMode && totals && <div className="ops-closeout-payment-summary" aria-label="Amount to mark paid" aria-live="polite">
+                <div><span>Charges after discount</span><strong>{money(totals.total-Number(inputMoney(live.tip)))}</strong></div>
+                <div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div>
+                {recordedPayments>0 && <div><span>Already recorded</span><strong>−{money(recordedPayments)}</strong></div>}
+                <div className="amount-due"><span>{recordedPayments>0?'Remaining to mark paid':'Amount to mark paid'}</span><strong>{money(amountToMarkPaid)}{totals.estimated?' estimated':''}</strong></div>
+              </div>}
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
-              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => setAddPayment(event.target.checked)} /> <span>{crewMode?"Record a collected payment":"Add a payment"}</span></label>
+              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => { const checked=event.target.checked;setAddPayment(checked);if(checked && crewMode && !paymentAmount.trim())setPaymentAmount(amountToMarkPaid.toFixed(2)); }} /> <span>{crewMode?"Record a collected payment":"Add a payment"}</span></label>
               {!live.paymentMethods.some(option => option.value) && <p role="alert">Payment methods could not be loaded. Reload from JunkWare to try again.</p>}
               {addPayment ? <div className="ops-closeout-payment-entry">
                 <fieldset className="ops-closeout-payment-methods"><legend>Payment method</legend>
                   {live.paymentMethods.filter(option => option.value && (!crewMode || !/billed/i.test(option.label))).map(option => <label key={option.value}><input type="radio" name={paymentGroupId} value={option.value} checked={paymentMethod === option.value} onChange={() => { setPaymentMethod(option.value); setPaymentReference(""); setReviewing(false); }} /><span>{option.label}</span></label>)}
                 </fieldset>
                 <label><span>Payment amount</span><input aria-label="Payment amount" value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => setPaymentAmount(event.target.value)} /></label>
+                {crewMode && <button type="button" className="ops-button subtle ops-use-payment-amount" onClick={()=>setPaymentAmount(amountToMarkPaid.toFixed(2))}>Use {money(amountToMarkPaid)}</button>}
                 {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
                 <p>{crewMode?"Record money already collected. This does not charge a card. Payments already recorded in JunkWare are shown above; do not enter them again.":"Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed."}</p>
               </div> : null}

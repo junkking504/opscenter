@@ -41,6 +41,10 @@ assert.deepEqual(closed.estimateOutcomes,['Other: Training only, no discount: in
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Completed Duration: 585 min(s)'}]};
 const withDuration=crewAssignedDay(phone,date,deps,now).jobs![0];
 assert.equal(withDuration.status,'Completed');assert.equal(withDuration.closedTotal,568);
+snapshot={...snapshot,appointments:[{...row('105','Truck 1','Completed'),appointment_type:'Job',closeout:{loadQuantity:1,loadSize:'Full truck',loadPrice:728,bedloadQuantity:0,bedloadSize:'',bedloadPrice:0,otherCharges:[{name:'Labor',quantity:2,unitPrice:75,total:150},{name:'CC Surcharge (Card Present)',quantity:1,unitPrice:26.34,total:26.34}],discount:0,tip:0,total:904.34,payments:[{method:'Credit Card',detail:'4111111111112868',amount:904.34}],balance:0}} as ReturnType<typeof row>]};
+const completedJob=crewAssignedDay(phone,date,deps,now).jobs![0];
+assert.deepEqual(completedJob.closeout?.otherCharges.map(charge=>charge.name),['Labor','CC Surcharge (Card Present)']);
+assert.equal(completedJob.closeout?.payments[0].detail,'2868','Only the card last four leave the server projection');
 assert.equal(crewAppointmentStatus('Not Completed'),null);
 assert.equal(crewAppointmentStatus('Cancelled'),null);
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Confirmed'}]};

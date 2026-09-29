@@ -184,6 +184,34 @@ tests the production-built phone UI with synthetic API responses at 320/390/430p
 `scripts/test-crew-closeout-browser.ts` covers collected-payment entry, source-
 versioned draft recovery, review and lost-response verification without replay.
 
+## Closeout correction and safe return — September 29, 2026
+
+Saved Other Charges now carry JunkWare's exact row UUID into the closeout. A
+crew member can stage **Remove** or undo it before review. The writer clicks only
+the matching source row and requires that exact UUID to disappear on read-back;
+missing, duplicated or changed rows fail closed. Newly added charges remain
+removable locally until submission.
+
+For crew phones, Tip is on the Payment step. That step shows charges after
+discount, tip, any non-billed payments already recorded in JunkWare, and the
+remaining **Amount to mark paid**. Enabling collected payment pre-fills that
+remaining amount while still allowing an intentional partial payment.
+
+The final Submit keeps the crew on the closeout while selected photo bytes and
+the immutable checkout request are transferred. Waypoint returns to Assignments
+only after OpsCenter has issued the durable server receipt. From that point the
+phone can close Waypoint; JunkWare verification continues server-side. If the
+server has not acknowledged the intake, the crew remains on the closeout and
+the same saved request identity is resumed instead of presenting Assignments as
+safe. Older interrupted handoffs remain recoverable with Resume transfer.
+
+Verified completed assignment cards use the source-backed heading **Completed
+Job | JunkWare ✔️**. They show the saved total prominently, then Load, Bedload
+when present, every saved Other Charge as its own row, non-zero discount and
+tip, Total, and Payment. Card payment detail is reduced to the last four digits
+before it leaves the server projection; a full card number is never sent to the
+phone.
+
 
 ## Daily phone crew
 

@@ -108,7 +108,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     catch(error){setError(error instanceof Error?error.message:'Photo verification is pending.');throw error;}
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
   }}));
-  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Choose ${visibleCategory || 'job'} photos now. They will upload when you submit the completed checkout.` : 'Upload job photos and check the saved result.'}</p>
+  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Choose ${visibleCategory || 'job'} photos now. They transfer when you submit the completed checkout.` : 'Upload job photos and check the saved result.'}</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
     <p className={styles.muted}>{photos.filter(row=>row.status!=='verified').length} of {MAX_CHECKOUT_PHOTOS} selected · Before and After combined</p>
     {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}>
@@ -130,6 +130,6 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once and continue viewing assignments. Keep Waypoint open until “Safe to close” appears. If interrupted, reopen Waypoint to resume the saved transfer. Unsubmitted photo drafts expire after 24 hours.':'Selected photos stay on this phone for 24 hours. Uploads start only when you tap Upload photo.'}</p>
+    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint stays on the closeout until the server has the photos and checkout, then returns to Assignments and is safe to close. Unsubmitted photo drafts expire after 24 hours.':'Selected photos stay on this phone for 24 hours. Uploads start only when you tap Upload photo.'}</p>
   </section>;
 }

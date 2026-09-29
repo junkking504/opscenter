@@ -30,11 +30,13 @@ export function crewReceiptProjection(receipt:ScheduleReceipt) {
     ...(result?.closeout ? {sourceResult:{appointmentId:result.appointmentId,closeout:result.closeout,truckLoadStatus:result.truckLoadStatus}} : {})};
 }
 export function validateCrewCloseout(values:Record<string,unknown>,truck:string,id:string,date:string) {
-  const allowed=['appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','expectedSourceFieldsVersion','appointmentType','estimateOutcome','photoRequestIds'];
+  const allowed=['appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','otherChargeIdsToRemove','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','expectedSourceFieldsVersion','appointmentType','estimateOutcome','photoRequestIds'];
   if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || !sameTruck(values.truck,truck) || values.appointmentId!==id || values.serviceDate!==date
     || !['Job','Estimate'].includes(String(values.appointmentType)))throw new CrewPhoneError('Close only your current appointment using its assigned truck.',403);
   const payment=values.addPayment;
+  const removals=values.otherChargeIdsToRemove===undefined ? [] : values.otherChargeIdsToRemove;
   if(values.expectedSourceFieldsVersion!==undefined && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceFieldsVersion)))throw new CrewPhoneError('Reload the closeout before saving.');
+  if(!Array.isArray(removals) || removals.length>20 || removals.some(value=>typeof value!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) || new Set(removals).size!==removals.length)throw new CrewPhoneError('Reload the saved charges before removing one.');
   if(payment!==null && payment!==undefined && (typeof payment!=='object' || Array.isArray(payment) || Object.keys(payment).some(key=>!['methodId','amount','reference'].includes(key))))throw new CrewPhoneError('Enter a collected payment with its method, amount and reference.');
   if(!Array.isArray(values.photoRequestIds) || values.photoRequestIds.length>MAX_CHECKOUT_PHOTOS || values.photoRequestIds.some(value=>typeof value!=='string' || !/^[0-9a-f-]{36}$/i.test(value)) || new Set(values.photoRequestIds).size!==values.photoRequestIds.length)throw new CrewPhoneError('Use the photos selected for this checkout.');
 }
@@ -58,7 +60,9 @@ export async function loadCrewCloseout(request:Request,assignmentId:string,deps=
   const initial=savedCloseoutScope(request,assignmentId);
   const prior=readSavedCrewCloseout(initial.scope);
   const priorStatus=(prior?.closeout.status as {label?:string}|undefined)?.label;
-  const saved=await savedCrewCloseout(initial.scope,refresh || Boolean(prior && priorStatus?.toLowerCase()!==initial.job.status.toLowerCase()),async()=>{
+  const priorCharges=Array.isArray(prior?.closeout.otherCharges) ? prior.closeout.otherCharges : [];
+  const missingChargeIdentity=priorCharges.some(row=>!row || typeof row!=='object' || typeof (row as {id?:unknown}).id!=='string');
+  const saved=await savedCrewCloseout(initial.scope,refresh || missingChargeIdentity || Boolean(prior && priorStatus?.toLowerCase()!==initial.job.status.toLowerCase()),async()=>{
     const loaded=await loadFreshCrewCloseout(request,assignmentId);
     return {closeout:loaded.closeout,arrival:loaded.arrival,jobVersion:loaded.jobVersion};
   });

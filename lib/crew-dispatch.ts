@@ -9,7 +9,7 @@ export type CrewCurrentJob = {
 export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; status: string; appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{
   loadQuantity:number;loadSize:string;loadPrice:number;bedloadQuantity:number;bedloadSize:string;bedloadPrice:number;
   otherCharges:Array<{name:string;quantity:number;unitPrice:number;total:number}>;discount:number;tip:number;total:number;
-  payments:Array<{method:string;amount:number}>;balance:number;
+  payments:Array<{method:string;detail?:string;amount:number}>;balance:number;
 } };
 export type CrewCurrent = {
   state: 'assigned' | 'waiting' | 'unavailable'; truck: string; job: CrewCurrentJob | null;

@@ -32,10 +32,17 @@
 .crew-mobile .ops-closeout-charge-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:start;padding:12px;border-bottom:1px solid #d7ddcf}
 .crew-mobile .ops-closeout-charge-list>div>span{min-width:0;color:#25312c;overflow-wrap:break-word}
 .crew-mobile .ops-closeout-charge-list>div>span:nth-child(2){grid-column:1;font-variant-numeric:tabular-nums}
-.crew-mobile .ops-closeout-charge-list>div>:last-child:not(span){grid-column:2;grid-row:1 / span 2;align-self:center}
+.crew-mobile .ops-closeout-charge-list>div>strong{grid-column:2;grid-row:1 / span 2;align-self:center}
+.crew-mobile .ops-closeout-charge-list>div>button{grid-column:1 / -1;grid-row:auto;justify-self:start}
 .crew-mobile .ops-closeout-charge-list.pending>div{background:#fff4dc;border:1px solid #cfb778;border-radius:8px;margin-top:8px}
+.crew-mobile .ops-closeout-charge-list>div.pending-removal{background:#fff1f3;border:1px solid #dca0ac;border-radius:8px;margin-top:8px}
 .crew-mobile .ops-closeout-charge-list small{display:block;color:#58604c;font-size:11px;font-weight:700;letter-spacing:.04em}
 .crew-mobile .ops-closeout-charge-list button{min-height:44px;color:#25312c;background:#fff;border:1px solid #b9c4b9;border-radius:8px;padding:8px 12px}
+.crew-mobile .ops-closeout-payment-summary{margin:8px 0 16px;padding:14px;background:#eef2eb;border:1px solid #cdd5c7;border-radius:10px}
+.crew-mobile .ops-closeout-payment-summary>div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:14px}
+.crew-mobile .ops-closeout-payment-summary .amount-due{margin-top:8px;padding-top:10px;border-top:1px solid #bfc9bb;font-size:17px}
+.crew-mobile .ops-closeout-payment-summary .amount-due strong{color:#a4112d}
+.crew-mobile .appointment-closeout-body .ops-use-payment-amount{width:100%;margin-top:-2px}
 .crew-mobile [data-photo-workflow] .mobile-closeout-steps button>.mobile-closeout-step-label{display:block;width:auto;height:auto;background:transparent;color:#4b5846;line-height:1.4}
 .crew-mobile [data-photo-workflow] .mobile-closeout-steps button[aria-current]>.mobile-closeout-step-label{background:transparent;color:#a4112d}
 .crew-mobile [data-photo-workflow] .mobile-closeout-step-label{font-size:11px}

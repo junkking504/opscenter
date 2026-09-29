@@ -6,6 +6,10 @@ const amountForTruck=(values:AnyRecord|undefined,truck:string)=>{
   const matches=Object.entries(values || {}).filter(([key])=>truckKey(key)===truckKey(truck));
   return matches.length===1?moneyValue(matches[0][1]):null;
 };
+const amountForPerson=(values:AnyRecord|undefined,name:string)=>{
+  const matches=Object.entries(values || {}).filter(([key])=>nameKey(key)===nameKey(name));
+  return matches.length===1?moneyValue(matches[0][1]):null;
+};
 /** Project only this truck's completed appointments and the selected crew's performance.
  * Never return upcoming appointments, payroll rates, wages or other employees. */
 export function projectWaypointDay(day:CrewPhoneDay,metrics:AnyRecord|null,now=Date.now()):WaypointDaySummary {
@@ -29,7 +33,9 @@ export function projectWaypointDay(day:CrewPhoneDay,metrics:AnyRecord|null,now=D
   const rows=[...(Array.isArray(metrics.payroll_records)?metrics.payroll_records:[]),...(Array.isArray(metrics.employee_leaderboard)?metrics.employee_leaderboard:[])];
   result.crew=[...new Set([day.driver,...day.navigators])].map(name=>{
     const row=rows.find((candidate:AnyRecord)=>nameKey(candidate.name || candidate.employee || candidate.employee_name)===nameKey(name));
-    const revenue=moneyValue(row?.individual_revenue),tips=moneyValue(row?.tip),bonus=moneyValue(row?.revenue_bonus);
+    const revenue=amountForPerson(metrics.credited_revenue_by_employee,name) ?? moneyValue(row?.individual_revenue);
+    const tips=amountForPerson(metrics.credited_tip_by_employee,name) ?? moneyValue(row?.tip);
+    const bonus=moneyValue(row?.revenue_bonus);
     // Do not promise a tier for salary/ineligible staff or when payroll's current policy disagrees.
     const progress=revenue!==null && row?.is_salary===false && bonus!==null && bonusProgress(revenue).bonus===bonus?bonusProgress(revenue):null;
     return {name,revenue,tips,bonus,progress};

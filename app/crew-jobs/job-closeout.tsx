@@ -8,7 +8,7 @@ import { crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../de
 import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
-import {createHandoff,resumeHandoff} from './checkout-handoff';
+import {createHandoff,readHandoffs,resumeHandoff} from './checkout-handoff';
 
 export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext,onHandoffStarted,onHandoffFailed,onQueued}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void;onHandoffStarted?:()=>void;onHandoffFailed?:(message:string)=>void;onQueued?:(requestId:string)=>void}) {
   const [completed,setCompleted]=useState(false);
@@ -54,10 +54,14 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       async send(values,requestId){
         if(!dryRunMode.current){
           const handoff=await createHandoff(deviceId,job.assignmentId,{assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})}});
-          onHandoffStarted?.();
-          const receipt=await resumeHandoff(handoff);
-          if(!receipt)throw new Error('Transfer paused. Resume the saved submission from Assignments.');
+          let receipt=await resumeHandoff(handoff);
+          if(!receipt && navigator.onLine){
+            const latest=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);
+            if(latest && latest.phase!=='attention')receipt=await resumeHandoff(latest);
+          }
+          if(!receipt)throw new Error('Transfer paused. Stay on this checkout and tap Submit again to continue the same saved submission.');
           const saved=keep(receipt);
+          onHandoffStarted?.();
           queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message}`):onQueued?.(saved.requestId));
           return saved;
         }
@@ -68,7 +72,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   },[endpoint,key,deviceId,job.assignmentId,onHandoffStarted,onHandoffFailed,onQueued]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once, then return to Assignments while Waypoint finishes in the background."}</p>
+    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
     <AppointmentCloseout dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>

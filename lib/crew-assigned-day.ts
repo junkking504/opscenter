@@ -16,6 +16,12 @@ const sources = {
   overrides: readJobRouteAssignmentOverrides,
   dispatch: readCrewDispatch,
 };
+const safePaymentDetail=(method:string,detail:string)=>{
+  const value=String(detail || '').trim();
+  if(!/card/i.test(method))return value;
+  const digits=value.replace(/\D/g,'');
+  return digits.length>=4?digits.slice(-4):'';
+};
 /** The schedule appends its duration to status text after completion. */
 export function crewAppointmentStatus(value:string) {
   const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(value.trim());
@@ -70,7 +76,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,
       ...(crewAppointmentStatus(row.status)==='Completed' ? {
-        ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,amount:payment.amount}))}} : {}),
+        ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
       ...(current?.date === date && current.appointmentId === row.appointmentId ? { assignmentId: current.assignmentId } : {}),

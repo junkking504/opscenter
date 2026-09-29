@@ -242,7 +242,15 @@ Never create a customer payment or closeout solely as a production test.
 Manager setup is `/crew-phones`; dispatch is `/crew-dispatch`; phones use
 `/crew-jobs`. Deploy through the normal immutable production controller. Keep
 release/service health, browser acceptance and actual phone pilot evidence
-separate. No paid provider, subscription or background polling was introduced.
+separate. No paid provider or subscription was introduced.
+
+The visible Assignments screen checks a small local change token every three
+seconds while it is idle. A changed token reloads the full assignment once;
+unchanged checks do not open JunkWare or any paid provider. A source-verified
+Schedule move is projected immediately until a newer complete schedule snapshot
+supersedes it, so the phone does not wait for the next collector cycle. Polling
+pauses while the phone is hidden, editing an assignment, switching trucks or
+submitting a checkout. Manual Refresh assignments remains available.
 
 ## Product Design pass — September 17, 2026
 

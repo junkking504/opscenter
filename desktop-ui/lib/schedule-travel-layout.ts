@@ -1,17 +1,63 @@
-import { compareStops } from '../../lib/schedule-stop-order';
-import { timelinePlacement, timelineWindow, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
+import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-order';
+import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
+
+function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck?: string, now = Date.now()) {
+  const positioned = jobs.flatMap(job => {
+    const position = timelinePlacement(job, range, truck, now);
+    return position ? [{ job, position }] : [];
+  });
+  const bySavedWindow = new Map<string, typeof positioned>();
+  for (const item of positioned) {
+    if (item.job.stopOrder === undefined || !item.job.truck || truck && stopTruck(item.job.truck) !== stopTruck(truck)) continue;
+    const key = stopGroupKey(item.job);
+    bySavedWindow.set(key, [...(bySavedWindow.get(key) || []), item]);
+  }
+
+  // A saved same-window order is also the visual top-to-bottom order. Group
+  // only appointments that actually overlap on this rendered timeline; a GPS
+  // visit that no longer overlaps another stop remains chronologically placed.
+  const unitFor = new Map<string,string>();
+  for (const [groupKey, items] of bySavedWindow) {
+    const pending = new Set(items.map(item => item.job.recordId));
+    let component = 0;
+    while (pending.size) {
+      const members = [pending.values().next().value as string];
+      pending.delete(members[0]);
+      for (let index = 0; index < members.length; index++) {
+        const current = items.find(item => item.job.recordId === members[index])!;
+        for (const candidateId of [...pending]) {
+          const candidate = items.find(item => item.job.recordId === candidateId)!;
+          if (Math.min(current.position.end,candidate.position.end) <= Math.max(current.position.start,candidate.position.start)) continue;
+          pending.delete(candidateId);
+          members.push(candidateId);
+        }
+      }
+      if (members.length > 1) members.forEach(id => unitFor.set(id,`${groupKey}:${component}`));
+      component++;
+    }
+  }
+
+  const units = new Map<string, typeof positioned>();
+  for (const item of positioned) {
+    const key = unitFor.get(item.job.recordId) || `appointment:${item.job.recordId}`;
+    units.set(key,[...(units.get(key) || []),item]);
+  }
+  return [...units.values()]
+    .map(unit => unit.sort((a,b)=>compareStops(a.job,b.job)))
+    .sort((a,b)=>Math.min(...a.map(item=>item.position.start))-Math.min(...b.map(item=>item.position.start)) || compareStops(a[0].job,b[0].job))
+    .flat();
+}
+
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now()) {
   const lanes: number[] = [];
-  const placed = [...jobs].sort((a,b) => (timelineWindow(a,truck,now)?.start ?? Infinity) - (timelineWindow(b,truck,now)?.start ?? Infinity) || compareStops(a,b)).flatMap(job => {
-    const position = timelinePlacement(job, range, truck, now);
-    if (!position) return [];
+  const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
     let lane = lanes.findIndex(end => end <= position.start);
     if (lane < 0) lane = lanes.length;
     lanes[lane] = position.end;
-    return [{ job, position, lane }];
+    return { job, position, lane };
   });
   const pairs = legs.flatMap(leg => {
     const from = placed.find(item => item.job.recordId === leg.fromAppointmentId);

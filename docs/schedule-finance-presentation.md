@@ -647,7 +647,7 @@ coverage, and ambiguity checks remain in force.
 
 The default map refits after its panel finishes resizing, with 28-pixel padding.
 Manual pan/zoom and selected appointment/truck views are preserved.
-Route arrows across a time gap attach to the source and destination appointment lanes, with a bend when those lanes differ. An incoming route to a same-time stack points to its actual next stop, rather than the bottom of the truck row. Saved stop order and appointment times remain the source of the route and stack sequence.
+Route arrows across a time gap attach to the source and destination appointment lanes, with a bend when those lanes differ. An incoming route to a same-time stack points to its actual next stop, rather than the bottom of the truck row. Saved stop order and appointment times remain the source of the route and stack sequence. When GPS evidence changes one stop's displayed interval, the saved order still determines which overlapping appointment is on top or bottom; unrelated appointments remain ordered by their displayed timing.
 
 ## Truck progress between appointments
 

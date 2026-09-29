@@ -448,6 +448,13 @@ addresses remain subject to the existing strict checks. Source text, saved
 review identities and lifetime research keys remain unchanged. JunkWare is not
 edited. Policy 12 retries older failed checks/backoff and revalidates older
 successful evidence, with no new provider or change to request limits.
+
+Policy 13 also treats a Louisiana source such as `Highway 59` as the same route
+as an exact parish/provider result named `State Highway 59` or `LA-59`. House,
+route number, locality, state, ZIP, unique-result and rooftop/building-point
+requirements remain unchanged. An explicit `US Highway` designation is never
+collapsed into a state route. Older failures retry automatically; no provider,
+request-volume or spending limit changes.
 The isolated background-sweep regression verifies recovery and cache reuse
 after restart, including a failed result under the previous production policy.
 

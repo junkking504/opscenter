@@ -47,7 +47,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
         // only that same request ID/body. The server rechecks the reviewed
         // JunkWare fingerprint before any write, so a prior save or source
         // change fails closed instead of recording another payment.
-        if(handoff?.phase==='attention' && !handoff.receipt){
+        if(reconcile && handoff?.phase==='attention' && !handoff.receipt){
           const recovered=await retryAttentionHandoff(handoff);
           if(recovered)return accepted(recovered);
           const latest=readHandoffs(deviceId).find(value=>value.assignmentId===job.assignmentId && value.requestId===requestId);

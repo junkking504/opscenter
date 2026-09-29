@@ -42,6 +42,12 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const [handoff,setHandoff]=useState<CheckoutHandoff|null>(null);
   const jobRequest=useRef(0);
   const assignmentUpdateToken=useRef('');
+  const invalidatedAssignmentIds=useRef<Set<string>>(new Set());
+  const backgroundNoticeAssignment=useRef('');
+  const showBackgroundNotice=(message:string,assignmentId='')=>{
+    backgroundNoticeAssignment.current=assignmentId;
+    setBackgroundNotice(message);
+  };
   const step=!phone || !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
   async function loadJob() {
@@ -64,22 +70,26 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       if(response.status===401){void clearCrewPhotoDrafts().catch(()=>{});setJobLoading(false);clearCrewCloseoutDrafts();setDay(null);setPhone(null);throw new Error(body.error || 'This phone needs manager setup.');}
       if(!response.ok)throw new Error(body.error || 'Your assignment could not be verified. Contact dispatch.');
       assignmentUpdateToken.current=String(body.updateToken || '');
+      const invalidated=new Set<string>((Array.isArray(body.jobs)?body.jobs:[]).flatMap((job:CrewScheduledJob)=>job.resetPriorAssignmentId?[job.resetPriorAssignmentId]:[]));
+      invalidatedAssignmentIds.current=invalidated;
       if(dayBody.phone?.deviceId && Array.isArray(body.jobs))for(const job of body.jobs as CrewScheduledJob[]){
         if(!job.resetAt || !job.resetPriorAssignmentId)continue;
         const resetKey=`ops-crew-closeout-reset:${dayBody.phone.deviceId}:${job.appointmentId}`;
-        try {if(localStorage.getItem(resetKey)===job.resetAt)continue;} catch { /* Retry the cleanup below. */ }
+        // Clear the retired assignment on every successful refresh. A request
+        // that was already in flight can otherwise recreate its local handoff
+        // after the first reset cleanup and restore a stale dispatch warning.
         clearCrewCloseoutAssignment(dayBody.phone.deviceId,job.resetPriorAssignmentId);
         await clearCrewPhotoDraft(`${dayBody.phone.deviceId}:${job.resetPriorAssignmentId}`);
         setHandoff(value=>value?.assignmentId===job.resetPriorAssignmentId?null:value);
         setPendingCloseout(value=>value?.assignmentId===job.resetPriorAssignmentId?null:value);
-        setBackgroundNotice('');
+        if(backgroundNoticeAssignment.current===job.resetPriorAssignmentId)showBackgroundNotice('');
         try {localStorage.setItem(resetKey,job.resetAt);} catch { /* A later refresh can retry the reset. */ }
       }
       setAssignment(body);setDetails(false);setCloseout(false);
       if(body.state==='assigned' && body.job && dayBody.phone?.deviceId){
         const saved=readCloseoutLocal<Receipt>(`${crewCloseoutKey(dayBody.phone.deviceId,body.job.assignmentId)}:receipt`);
         if(saved?.status==='pending')setPendingCloseout({assignmentId:body.job.assignmentId,requestId:saved.requestId});
-        else if(saved?.status==='uncertain')setBackgroundNotice(saved.message || 'Checkout needs verification. Open the assignment and check the saved result; do not submit it again.');
+        else if(saved?.status==='uncertain')showBackgroundNotice(saved.message || 'Checkout needs verification. Open the assignment and check the saved result; do not submit it again.',body.job.assignmentId);
       }
       // Keep assignment-scoped drafts across truck handoffs and temporary unavailable states.
     }catch(error){if(request===jobRequest.current)setError(error instanceof Error?error.message:'Your assignment could not be verified. Contact dispatch.');}
@@ -93,7 +103,15 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     if(!phone || phone.test)return;
     const show=(value:CheckoutHandoff)=>{
       if(value.deviceId!==phone.deviceId)return;
-      setHandoff(value);setBackgroundNotice(value.message);
+      if(invalidatedAssignmentIds.current.has(value.assignmentId)){
+        clearCrewCloseoutAssignment(value.deviceId,value.assignmentId);
+        void clearCrewPhotoDraft(`${value.deviceId}:${value.assignmentId}`).catch(()=>{});
+        setHandoff(current=>current?.assignmentId===value.assignmentId?null:current);
+        setPendingCloseout(current=>current?.assignmentId===value.assignmentId?null:current);
+        if(backgroundNoticeAssignment.current===value.assignmentId)showBackgroundNotice('');
+        return;
+      }
+      setHandoff(value);showBackgroundNotice(value.message,value.assignmentId);
       if(value.phase==='transferring' || value.phase==='submitting')setPendingCloseout({assignmentId:value.assignmentId});
       else if(value.receipt?.status==='pending')setPendingCloseout({assignmentId:value.assignmentId,requestId:value.requestId});
       else setPendingCloseout(null);
@@ -104,8 +122,8 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
         const latest=readHandoffs(phone.deviceId).sort((a,b)=>b.createdAt-a.createdAt)[0];
         if(!latest)return;
         show(latest);
-        if(['transferring','submitting'].includes(latest.phase))void resumeHandoff(latest).catch(()=>setBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.'));
-      }catch{setBackgroundNotice('Saved checkout storage is unavailable on this phone. Contact the office before submitting again.');}
+        if(['transferring','submitting'].includes(latest.phase) && !invalidatedAssignmentIds.current.has(latest.assignmentId))void resumeHandoff(latest).catch(()=>showBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.',latest.assignmentId));
+      }catch{showBackgroundNotice('Saved checkout storage is unavailable on this phone. Contact the office before submitting again.');}
     };
     const changed=(event:Event)=>show((event as CustomEvent<CheckoutHandoff>).detail);
     window.addEventListener(HANDOFF_EVENT,changed);window.addEventListener('online',resume);
@@ -152,13 +170,13 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
           if(saved)saveHandoff({...saved,receipt,phase:receipt.status==='verified'?'accepted':'attention',message:receipt.status==='verified'?'Closed out · verified in JunkWare.':`Server saved this checkout, but JunkWare needs review. ${receipt.message} Do not submit another payment.`});
         }
         if(receipt.status==='verified'){
-          setPendingCloseout(null);setBackgroundNotice('Checkout finished and was verified in JunkWare. Loading the next assignment…');
+          setPendingCloseout(null);showBackgroundNotice('Checkout finished and was verified in JunkWare. Loading the next assignment…',pending.assignmentId);
           await loadJob();return;
         }
         if(receipt.status!=='pending'){
-          setPendingCloseout(null);setBackgroundNotice(receipt.message || 'Checkout needs verification. Open the assignment and check the saved result; do not submit it again.');return;
+          setPendingCloseout(null);showBackgroundNotice(receipt.message || 'Checkout needs verification. Open the assignment and check the saved result; do not submit it again.',pending.assignmentId);return;
         }
-      }catch(error){if(!canceled)setBackgroundNotice(error instanceof Error?error.message:'Background checkout status is unavailable.');}
+      }catch(error){if(!canceled)showBackgroundNotice(error instanceof Error?error.message:'Background checkout status is unavailable.',pending.assignmentId);}
       if(!canceled)timer=setTimeout(check,3000);
     };
     void check();return()=>{canceled=true;if(timer)clearTimeout(timer);};
@@ -229,11 +247,11 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     {step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
     {loading ? <p role="status">Checking this phone…</p> : phone ? <>
       {backgroundNotice && <p className={pendingCloseout?styles.backgroundProgress:styles.backgroundNotice} role={pendingCloseout?'status':'alert'}>{backgroundNotice}</p>}
-      {handoff && ['transferring','submitting'].includes(handoff.phase) && <button className={styles.secondary} onClick={()=>void resumeHandoff(handoff).catch(()=>setBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.'))}>Resume transfer</button>}
+      {handoff && ['transferring','submitting'].includes(handoff.phase) && <button className={styles.secondary} onClick={()=>void resumeHandoff(handoff).catch(()=>showBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.',handoff.assignmentId))}>Resume transfer</button>}
       {jobLoading ? <p role="status">Loading today’s assignments…</p> : dayDate && (!day || editingCrew) ? <DailyCrew key={`${phone.deviceId}:${dayDate}:${day?.version || 0}`} date={dayDate} roster={roster} trucks={trucks} day={day} onBusy={setBusy} onSaved={()=>void loadJob()} onCancel={()=>setEditingCrew(false)}/> : assignment?.state==='waiting' ? <><h1>Assignments</h1><p>{phone.test?'All three test assignments are complete. You can reset them in Truck & phone.':'No appointments are assigned to this truck today.'}</p></> : assignment?.state==='assigned' && viewedJob ? <>
         <h1>{details?'Assignment details':'Assignments'}</h1>
         {!details ? <><p className={styles.muted}>{truckDisplayText(phone.truck)} · {jobs.length} {jobs.length===1?'appointment':'appointments'} today</p>{jobs.map(job=><section className={styles.card} key={job.appointmentId}><p className={styles.muted}>{job.jkNumber} · {job.appointmentTime} · {job.status}</p><h2>{job.customerName}</h2><AssignmentOutcome job={job}/><p><AddressLink address={job.address}/></p><p>{job.junkItems.join(' · ') || job.appointmentNotes.find(note=>/^Work:/i.test(note))?.replace(/^Work:\s*/i,'').split(/\s+\(\d{1,2}\//)[0]}</p>{job.assignmentId && pendingCloseout?.assignmentId===job.assignmentId && <p role="status">{pendingCloseout.requestId?'Server saved · verification pending':'Securing checkout on the server'}</p>}<button className={styles.primary} onClick={()=>{setSelectedAppointment(job.appointmentId);setDetails(true);setCloseout(false);}}>View assignment</button></section>)}</> : <section className={`${styles.card} ${closeout ? styles.closeoutCard : ''}`}><p className={styles.muted}>{viewedJob.jkNumber} · {viewedJob.appointmentTime}</p><h2>{viewedJob.customerName}</h2><AssignmentOutcome job={viewedJob} details/><p><AddressLink address={viewedJob.address}/></p>
-          {closeout && viewedJob.assignmentId ? <JobCloseout key={viewedJob.assignmentId} job={{...viewedJob,assignmentId:viewedJob.assignmentId}} truck={phone.truck} deviceId={phone.deviceId} test={phone.test} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>void loadJob()} onHandoffStarted={()=>{setPendingCloseout({assignmentId:viewedJob.assignmentId!});setDetails(false);setCloseout(false);}} onHandoffFailed={message=>{setPendingCloseout(null);setBackgroundNotice(message);}} onQueued={requestId=>{setPendingCloseout({assignmentId:viewedJob.assignmentId!,requestId});}}/> : <><h2>Items to remove</h2><p>{viewedJob.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{viewedJob.appointmentNotes.length?viewedJob.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{viewedJob.driver || day?.driver} · Driver</p><p>{viewedJob.navigator || day?.navigators.join(', ') || 'No navigator'} · Navigator</p>
+          {closeout && viewedJob.assignmentId ? <JobCloseout key={viewedJob.assignmentId} job={{...viewedJob,assignmentId:viewedJob.assignmentId}} truck={phone.truck} deviceId={phone.deviceId} test={phone.test} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>void loadJob()} onHandoffStarted={()=>{setPendingCloseout({assignmentId:viewedJob.assignmentId!});setDetails(false);setCloseout(false);}} onHandoffFailed={message=>{setPendingCloseout(null);showBackgroundNotice(message,viewedJob.assignmentId!);}} onQueued={requestId=>{setPendingCloseout({assignmentId:viewedJob.assignmentId!,requestId});}}/> : <><h2>Items to remove</h2><p>{viewedJob.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{viewedJob.appointmentNotes.length?viewedJob.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{viewedJob.driver || day?.driver} · Driver</p><p>{viewedJob.navigator || day?.navigators.join(', ') || 'No navigator'} · Navigator</p>
           {viewedJob.assignmentId && !/^completed$/i.test(viewedJob.status) ? <button className={styles.primary} disabled={busy || pendingCloseout?.assignmentId===viewedJob.assignmentId} onClick={()=>setCloseout(true)}>{pendingCloseout?.assignmentId===viewedJob.assignmentId?(pendingCloseout.requestId?'Server saved · verification pending':'Sending checkout…'):'Start closeout · Before photos'}</button> : <p className={styles.muted}>{/^completed$/i.test(viewedJob.status)?'Completed in JunkWare.':'Closeout is available when dispatch releases this appointment.'}</p>}<button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to Assignments</button></>}
         </section>}
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}

@@ -220,6 +220,11 @@ phone draft, saved handoff, and local photo selection for that appointment and
 opens a fresh closeout. The appointment stays assigned to its truck, and the
 reset is refused unless the latest saved JunkWare read is Confirmed with no
 payments. Existing uploaded source photos remain audit evidence in JunkWare.
+Reset cleanup is idempotent: every successful assignment refresh removes the
+retired handoff again, and a late browser event from that retired assignment is
+ignored. A stale **Dispatch changed** notice therefore cannot return after the
+new assignment list has loaded; current pending or uncertain receipts remain
+visible under their current assignment identity.
 
 Verified completed assignment cards use the source-backed heading **Completed
 Job | JunkWare ✔️**. They show the saved total prominently, then Load, Bedload

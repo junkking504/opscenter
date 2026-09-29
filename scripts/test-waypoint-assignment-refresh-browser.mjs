@@ -7,8 +7,17 @@ try {
   const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
   const phone={deviceId:'00000000-0000-4000-8000-000000000001',truck:'Truck 3',label:'Synthetic phone',enrolledAt:'2026-09-29T12:00:00.000Z',expiresAt:'2026-12-29T12:00:00.000Z'};
   const day={date:'2026-09-29',version:1,deviceId:phone.deviceId,truck:phone.truck,responsible:'Sample Driver',driver:'Sample Driver',navigators:['Sample Navigator']};
+  const priorAssignmentId='00000000-0000-4000-8000-000000000003',resetAt='2026-09-29T19:10:53.351Z';
   let assigned=false,currentReads=0,updateChecks=0;
-  const job={assignmentId:'00000000-0000-4000-8000-000000000002',appointmentId:'900001',date:day.date,jkNumber:'SAMPLE-REFRESH',customerName:'Sample customer',address:'100 Sample Street',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side door'],driver:'Sample Driver',navigator:'Sample Navigator',status:'Confirmed'};
+  const job={assignmentId:'00000000-0000-4000-8000-000000000002',appointmentId:'900001',date:day.date,jkNumber:'SAMPLE-REFRESH',customerName:'Sample customer',address:'100 Sample Street',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side door'],driver:'Sample Driver',navigator:'Sample Navigator',status:'Confirmed',resetAt,resetPriorAssignmentId:priorAssignmentId};
+  const stale={deviceId:phone.deviceId,assignmentId:priorAssignmentId,requestId:'00000000-0000-4000-8000-000000000004',createdAt:Date.now(),phase:'attention',payload:{requestId:'00000000-0000-4000-8000-000000000004'},photoIds:[],acceptedPhotos:{},message:'Dispatch changed. Refresh your assignment.'};
+  const staleKey=`ops-crew-closeout:${phone.deviceId}:${priorAssignmentId}:handoff`;
+  await page.addInitScript(({stale,staleKey,resetKey,resetAt})=>{
+    localStorage.setItem(staleKey,JSON.stringify(stale));
+    // Reproduce a late failed handoff that was rewritten after the first reset
+    // cleanup had already recorded its marker.
+    localStorage.setItem(resetKey,resetAt);
+  },{stale,staleKey,resetKey:`ops-crew-closeout-reset:${phone.deviceId}:${job.appointmentId}`,resetAt});
   await page.route('**/api/crew-jobs/**',route=>{
     const url=new URL(route.request().url()),send=body=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
     if(url.pathname==='/api/crew-jobs/session')return send({phone});
@@ -27,7 +36,18 @@ try {
   await expect(page.getByText('SAMPLE-REFRESH',{exact:false})).toBeVisible({timeout:8_000});
   assert.ok(updateChecks>=1,'The visible assignment list checks the local update token.');
   assert.ok(currentReads>=2,'A changed token reloads the full assignment once.');
+  await expect(page.getByText('Dispatch changed. Refresh your assignment.',{exact:true})).toHaveCount(0);
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'A refresh clears a retired assignment even after its reset marker was recorded.');
+  await page.evaluate(({stale,staleKey})=>{
+    localStorage.setItem(staleKey,JSON.stringify(stale));
+    window.dispatchEvent(new CustomEvent('waypoint-checkout-handoff',{detail:stale}));
+  },{stale,staleKey});
+  await expect(page.getByText('Dispatch changed. Refresh your assignment.',{exact:true})).toHaveCount(0);
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'A late retired handoff cannot restore its warning after refresh.');
+  const currentHandoff={...stale,assignmentId:job.assignmentId,requestId:'00000000-0000-4000-8000-000000000005',message:'Current checkout needs review.'};
+  await page.evaluate(value=>window.dispatchEvent(new CustomEvent('waypoint-checkout-handoff',{detail:value})),currentHandoff);
+  await expect(page.getByText('Current checkout needs review.',{exact:true})).toBeVisible();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-  console.log(JSON.stringify({status:'passed',updateChecks,currentReads,viewport:'390x844',providerCalls:0}));
+  console.log(JSON.stringify({status:'passed',updateChecks,currentReads,staleResetCleared:true,lateStaleEventIgnored:true,currentAttentionPreserved:true,viewport:'390x844',providerCalls:0}));
   await context.close();
 } finally {await browser.close();}

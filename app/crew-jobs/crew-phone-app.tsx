@@ -139,7 +139,11 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       if(document.visibilityState==='visible')try{
         const response=await fetch('/api/crew-jobs/updates',{cache:'no-store',signal:AbortSignal.timeout(10_000)});
         const body=await response.json();
+        if(stopped)return;
         if(response.status===401){jobRequest.current++;setAssignment(null);setDay(null);setPhone(null);clearCrewCloseoutDrafts();void clearCrewPhotoDrafts().catch(()=>{});return;}
+        // Metrics can finish syncing after assignment status has stopped changing.
+        // Refresh the scoped totals in place without resetting the assignment view.
+        if(response.ok && body.summary)setAssignment(current=>current && current.truck===body.summary.truck && body.summary.date===dayDate?{...current,summary:body.summary}:current);
         if(response.ok && body.updateToken && assignmentUpdateToken.current && body.updateToken!==assignmentUpdateToken.current)await loadJob();
         else if(response.ok && body.updateToken && !assignmentUpdateToken.current)assignmentUpdateToken.current=body.updateToken;
       }catch{/* Manual refresh remains available during a temporary connection failure. */}
@@ -147,7 +151,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     };
     timer=setTimeout(check,3000);
     return()=>{stopped=true;if(timer)clearTimeout(timer);};
-  },[phoneDeviceId,phoneTest,dayVersion,inspectionRequired,busy,details,switching,pendingCloseout]);
+  },[phoneDeviceId,phoneTest,dayVersion,dayDate,inspectionRequired,busy,details,switching,pendingCloseout]);
   useEffect(()=>{
     if(!assignment?.completionPending || busy || details)return;
     const timer=setTimeout(()=>void loadJob(),5000);

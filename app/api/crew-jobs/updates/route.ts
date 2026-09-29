@@ -2,6 +2,7 @@ import { requireCrewDay } from '@/lib/crew-phone-day';
 import { requireCrewPhone, requireCrewReady, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
 import { crewAssignedDay } from '@/lib/crew-assigned-day';
 import { ensureCrewScheduleDispatch } from '@/lib/crew-schedule-dispatch';
+import { readWaypointDay } from '@/lib/waypoint-day-summary-source';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -14,6 +15,6 @@ export async function GET(request:Request) {
     const phone=requireCrewReady(request),day=requireCrewDay(phone);
     let payload=crewAssignedDay(phone,day.date);
     if(ensureCrewScheduleDispatch(phone.truck,day.date,payload))payload=crewAssignedDay(phone,day.date);
-    return crewPhoneResponse({updateToken:payload.updateToken});
+    return crewPhoneResponse({updateToken:payload.updateToken,summary:readWaypointDay(day)});
   } catch(error) {return crewPhoneFailure(error);}
 }

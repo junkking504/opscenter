@@ -661,6 +661,12 @@ truck and current crew only; salary, hourly rates and unrelated employees are
 never returned. Source timestamp and stale status accompany results. Missing
 metrics remain unavailable rather than becoming zero.
 
+The existing three-second local update check also returns the scoped day summary.
+Assignments refresh those totals in place even when the assignment token is
+unchanged, so a later metrics sync updates revenue, tips, completed counts and
+bonus progress without requiring another assignment change or manual refresh.
+The check reads local metrics only and does not initiate provider requests.
+
 Revenue bonus progress uses each crew member's `individual_revenue` and
 `revenue_bonus` from OpsBot daily metrics, retaining explicit revenue allocations
 and credits across truck switches. The tier table matches

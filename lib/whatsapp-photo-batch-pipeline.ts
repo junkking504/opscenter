@@ -71,7 +71,7 @@ export function createPhotoUploadBatchQueue(upload: UploadBatch | UploadBatch[],
     const group = [pending.shift()!];
     let bytes = group[0].bytes;
     // Keep the oldest ready photo first and fill spare capacity without crossing
-    // a different job/category. Original files are read, never transformed.
+    // a different job/category. Upload-ready files are immutable at this stage.
     for (let index = 0; index < pending.length && group.length < 5;) {
       if (!sameTarget(group[0].input, pending[index].input)) break;
       if (bytes + pending[index].bytes > GROUP_BYTES) { index++; continue; }

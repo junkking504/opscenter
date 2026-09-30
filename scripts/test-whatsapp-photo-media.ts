@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
+import { downloadWhatsAppImage, JUNKWARE_PREPARED_MAX_BYTES, prepareWhatsAppImageForJunkware } from "@/lib/whatsapp-photo-media";
 import { whatsappMediaFile, type WhatsAppImageMessage } from "@/lib/whatsapp-job-photo-queue";
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "photo-media-"));
@@ -31,11 +31,21 @@ async function main() {
     mockMediaResponses({...metadata,sha256:"invalid"});await assert.rejects(downloadWhatsAppImage(fresh),/checksum/);
     assert.equal(fs.existsSync(whatsappMediaFile(fresh.messageId,fresh.mimeType)),false);
     mockMediaResponses(metadata);await assert.rejects(downloadWhatsAppImage({...fresh,sha256:"wrong-inbound-hash"}),/checksum/);
-    mockMediaResponses({...metadata,file_size:6*1024*1024});await assert.rejects(downloadWhatsAppImage(fresh),/5 MB/);assert.equal(calls,1);
+    const oversizedBytes = Buffer.alloc(6 * 1024 * 1024); oversizedBytes[0]=255;oversizedBytes[1]=216;oversizedBytes[2]=255;
+    const oversizedHash = crypto.createHash("sha256").update(oversizedBytes).digest("base64");
+    const oversized = {...fresh,messageId:"oversized",sha256:oversizedHash};
+    mockMediaResponses({...metadata,file_size:oversizedBytes.length,sha256:oversizedHash},oversizedBytes);
+    const oversizedFile=await downloadWhatsAppImage(oversized);assert.equal(calls,2);assert.equal(fs.statSync(oversizedFile).size,oversizedBytes.length);
+    let preparations=0;
+    const prepared=prepareWhatsAppImageForJunkware(oversizedFile,(_source,target)=>{preparations++;const output=preparations===1?Buffer.alloc(JUNKWARE_PREPARED_MAX_BYTES+1):bytes;fs.writeFileSync(target,output);});
+    assert.equal(preparations,2,"oversized prepared output retries with a smaller profile");assert.notEqual(prepared,oversizedFile);assert.deepEqual(fs.readFileSync(prepared),bytes);
+    assert.equal(fs.statSync(oversizedFile).size,oversizedBytes.length,"the checksum-verifiable original is preserved");
+    globalThis.fetch=async()=>{throw new Error("Provider media unavailable");};assert.equal(await downloadWhatsAppImage(oversized),oversizedFile,"oversized original is reusable without another provider request");
+    mockMediaResponses({...metadata,file_size:26*1024*1024});await assert.rejects(downloadWhatsAppImage({...fresh,messageId:"too-large"}),/25 MB/);assert.equal(calls,1);
     mockMediaResponses({...metadata,url:"https://example.com/photo"});await assert.rejects(downloadWhatsAppImage(fresh),/unexpected media host/);assert.equal(calls,1);
     const invalid = Buffer.from("not an image");mockMediaResponses({...metadata,sha256:crypto.createHash("sha256").update(invalid).digest("base64")},invalid);
     await assert.rejects(downloadWhatsAppImage({...fresh,sha256:""}),/contents/);
-    console.log("PASS: original photo caching, retry without provider, checksum and inbox isolation, corrupt cache, size/type/host guards");
+    console.log("PASS: original photo caching, oversized-source preservation and preparation, retry without provider, checksum and inbox isolation, size/type/host guards");
   } finally {globalThis.fetch=originalFetch;for(const k of keys){if(saved[k]===undefined)delete process.env[k];else process.env[k]=saved[k];}fs.rmSync(root,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

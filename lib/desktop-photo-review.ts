@@ -16,7 +16,7 @@ export function photoReason(reason:string): {label:string;nextStep:string} {
   if(reason==='sender_not_mapped_to_truck')return {label:'Sender mapping needed',nextStep:'Select the correct dated appointment below. Use the truck filter if you know which truck handled the photo.'};
   if(reason==='explicit_job_ambiguous'||reason==='ambiguous_context'||/jk_(not_on_active_schedule|not_found_in_junkware)/.test(reason))return {label:'Appointment match needed',nextStep:'Confirm the JK number and the intended appointment date. A JK reference alone may have more than one appointment.'};
   if(/uncertain|outcome_unknown/.test(reason))return {label:reason==='processing_interrupted_outcome_unknown'?'Upload interrupted; outcome unknown':'Upload outcome uncertain',nextStep:'Inspect the intended JunkWare appointment and its existing photos before any retry; the upload may already have succeeded.'};
-  if(/5 MB|5_MB|invalid size/.test(reason))return {label:'Photo too large',nextStep:'Use a JPEG or PNG below the 5 MB JunkWare limit and verify the appointment before submitting a replacement.'};
+  if(/5 MB|5_MB|invalid size/.test(reason))return {label:'Photo exceeded the prior upload limit',nextStep:'Confirm the exact appointment before recovery. OpsCenter now preserves the original and prepares a bounded JunkWare upload copy.'};
   if(/fetch failed|network|timeout|Meta media/.test(reason))return {label:'Network request failed',nextStep:'Verify the intended appointment and its existing JunkWare photos before any retry. A failed network request does not establish whether an upload succeeded. If original media is unavailable, it may need to be resent.'};
   if(reason==='unreadable_record')return {label:'Record unreadable',nextStep:'Recover the original queue record before any upload or retry.'};
   if(reason==='processing')return {label:'Processing',nextStep:'Wait for the worker result. A stale processing record needs outcome verification before it can be retried.'};
@@ -38,7 +38,7 @@ export function readPhotoPreview(id:string,state:string,root=photoReviewRoot()) 
     const row=safeRecord(root,state as PhotoState,id); if(!row)return null;
     const ext=row.mimeType==='image/png'?'png':row.mimeType==='image/jpeg'?'jpg':null; if(!ext)return null;
     const file=path.join(root,'media',`${id}.${ext}`);
-    const stat=fs.lstatSync(file); if(!stat.isFile()||stat.size>5*1024*1024||stat.size===0)return null;
+    const stat=fs.lstatSync(file); if(!stat.isFile()||stat.size>25*1024*1024||stat.size===0)return null;
     const bytes=fs.readFileSync(file);
     const png=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
     const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
@@ -51,7 +51,7 @@ export function readPhotoPreview(id:string,state:string,root=photoReviewRoot()) 
 function cachedPreviewExists(root:string,id:string,mimeType:unknown) {
   const ext=mimeType==='image/png'?'png':mimeType==='image/jpeg'?'jpg':null;
   if(!ext)return false;
-  try { const stat=fs.lstatSync(path.join(root,'media',`${id}.${ext}`)); return stat.isFile()&&stat.size>0&&stat.size<=5*1024*1024; } catch { return false; }
+  try { const stat=fs.lstatSync(path.join(root,'media',`${id}.${ext}`)); return stat.isFile()&&stat.size>0&&stat.size<=25*1024*1024; } catch { return false; }
 }
 export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):PhotoReviewSnapshot {
   const state=params.get('state')||'all',reason=params.get('reason')||'',sender=params.get('sender')||'',q=(params.get('q')||'').trim().toLowerCase();

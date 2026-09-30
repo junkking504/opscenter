@@ -106,8 +106,8 @@ async function main() {
     await assert.rejects(actual.download({ ...validated, phoneNumberId: '999' }), /mismatch/); assert.equal(requests, 2);
     actual.prefetch({ ...validated, messageId: 'bad-sha', sha256: 'b'.repeat(64) });
     await assert.rejects(actual.download({ ...validated, messageId: 'bad-sha', sha256: 'b'.repeat(64) }), /checksum/); assert.equal(requests, 4);
-    globalThis.fetch = async () => { requests++; return new Response(JSON.stringify({ url: 'https://lookaside.fbsbx.com/image', file_size: 6 * 1024 * 1024 })); };
-    actual.prefetch({ ...validated, messageId: 'oversize' }); await assert.rejects(actual.download({ ...validated, messageId: 'oversize' }), /5 MB/); assert.equal(requests, 5);
+    globalThis.fetch = async () => { requests++; return new Response(JSON.stringify({ url: 'https://lookaside.fbsbx.com/image', file_size: 26 * 1024 * 1024 })); };
+    actual.prefetch({ ...validated, messageId: 'oversize' }); await assert.rejects(actual.download({ ...validated, messageId: 'oversize' }), /25 MB/); assert.equal(requests, 5);
     await actual.close();
     console.log('PASS: bounded photo prefetch overlap, singleflight, original media guards, retry accounting, orphan cleanup, incoming confirmation guard, and cycle cap');
   } finally {

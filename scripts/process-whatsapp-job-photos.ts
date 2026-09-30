@@ -3,7 +3,7 @@ import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
 import { createPhotoDownloadPool, createPhotoUploadBatchQueue, drainConcurrentPhotoQueue } from "@/lib/whatsapp-photo-batch-pipeline";
-import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
+import { downloadWhatsAppImage, prepareWhatsAppImageForJunkware } from "@/lib/whatsapp-photo-media";
 import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
@@ -336,13 +336,15 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
         status: "pending",
       });
     }
+    const uploadFilePath = prepareWhatsAppImageForJunkware(filePath);
+    timing.uploadPreparedAt = new Date().toISOString();
     stage = "uploading";
     timing.uploadStartedAt = new Date().toISOString();
     timing.uploadQueuedAt = timing.uploadStartedAt;
     const verification = await upload({
       appointmentId,
       jkNumber: match.jkNumber,
-      filePath,
+      filePath: uploadFilePath,
       category: match.category,
     });
     timing.verifiedAt = new Date().toISOString();
@@ -366,7 +368,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
         jobDate: date,
         truck: match.truck || "",
         status: "completed",
-        filePath,
+        filePath: uploadFilePath,
       });
     }
     finishWhatsAppImage(claim.file, "completed", {

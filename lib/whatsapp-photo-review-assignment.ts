@@ -33,7 +33,7 @@ export function reviewedPhotoOriginal(root: string, row: RecordValue): string | 
   const file = path.join(root, 'media', `${digest(row.messageId)}.${ext}`);
   try {
     const stat = fs.lstatSync(file);
-    if (!stat.isFile() || stat.size <= 0 || stat.size > 5 * 1024 * 1024) return null;
+    if (!stat.isFile() || stat.size <= 0 || stat.size > 25 * 1024 * 1024) return null;
     const bytes = fs.readFileSync(file), hash = digest(bytes);
     const signature = ext === 'png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
     return signature && [hash, Buffer.from(hash, 'hex').toString('base64')].includes(row.sha256) ? file : null;

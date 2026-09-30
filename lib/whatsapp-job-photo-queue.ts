@@ -458,7 +458,7 @@ function validCachedOriginal(message: WhatsAppImageMessage): boolean {
   const file = whatsappMediaFile(message.messageId, message.mimeType);
   try {
     const stat = fs.lstatSync(file);
-    if (!stat.isFile() || stat.size <= 0 || stat.size > 5 * 1024 * 1024) return false;
+    if (!stat.isFile() || stat.size <= 0 || stat.size > 25 * 1024 * 1024) return false;
     const bytes = fs.readFileSync(file);
     const signature = message.mimeType === "image/png"
       ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))

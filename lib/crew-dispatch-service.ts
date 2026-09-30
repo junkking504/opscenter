@@ -59,7 +59,7 @@ export async function crewCurrentPayload(phone: CrewPhone, sources:CrewDispatchS
   if (finalState.current?.assignmentId!==current.assignmentId) return unavailable('Dispatch changed. Refresh your assignment.');
   return {state:'assigned',truck:phone.truck,observedAt:snapshot.observedAt,job:{
     assignmentId:current.assignmentId,appointmentId:current.appointmentId,date:current.date,jkNumber:job.jkNumber,
-    customerName:job.customerName,address:job.address,appointmentTime:job.appointmentTime,
+    customerName:job.customerName,phone:job.phone,address:job.address,appointmentTime:job.appointmentTime,
     junkItems:job.junkItems,appointmentNotes:job.appointmentNotes,driver:job.driver,navigator:job.navigator,
   }};
 }

@@ -61,6 +61,13 @@
 .bonusPerson progress { width:100%; accent-color:#b51935; height:10px; }
 .mapLink { color:#8c1730; overflow-wrap:anywhere; display:inline-block; padding:6px 0; }
 .mapLink small { display:block; font-size:13px; }
+.customerPhoneControl { display:inline-flex; flex-direction:column; align-items:flex-start; max-width:100%; }
+.customerPhone { color:#8c1730; display:inline-block; overflow-wrap:anywhere; padding:6px 0; font-size:18px; font-weight:700; -webkit-touch-callout:none; }
+.customerPhone small { display:block; color:#58665e; font-size:12px; font-weight:500; }
+.customerPhoneUnavailable { color:#58665e; font-size:14px; }
+.customerPhoneActions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; min-width:min(300px,calc(100vw - 66px)); margin-top:6px; padding:10px; box-sizing:border-box; border:1px solid #bdc7bc; border-radius:10px; background:#f7f8f3; }
+.customerPhoneActions a,.customerPhoneActions button { min-height:44px; padding:10px 12px; box-sizing:border-box; border:1px solid #b51935; border-radius:8px; background:white; color:#8c1730; font:inherit; font-weight:650; text-align:center; text-decoration:none; }
+.customerPhoneActions button { grid-column:1 / -1; border-color:#bdc7bc; color:#25312c; }
 .closeoutCard { padding: 16px 12px; overflow: clip; }
 .backgroundProgress,.backgroundNotice { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
 .backgroundProgress { background: #eef3e8; border: 1px solid #c7d1bf; color: #354431; }

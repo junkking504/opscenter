@@ -12,7 +12,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'waypoint-schedule-'));
 process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');
 process.env.OPS_CREW_TRUCK_SWITCH_DIR=path.join(dir,'switches');
 const now=new Date('2026-09-29T14:00:00Z'),date='2026-09-29',truck='Truck 1';
-const payload:CrewCurrent={state:'assigned',truck,observedAt:now.toISOString(),job:null,jobs:['100','101','102'].map(appointmentId=>({appointmentId,date,status:'Confirmed',jkNumber:appointmentId,customerName:'Synthetic',address:'Synthetic',appointmentTime:'9–10 AM',junkItems:[],appointmentNotes:[],driver:'',navigator:''}))};
+const payload:CrewCurrent={state:'assigned',truck,observedAt:now.toISOString(),job:null,jobs:['100','101','102'].map(appointmentId=>({appointmentId,date,status:'Confirmed',jkNumber:appointmentId,customerName:'Synthetic',phone:'(225) 555-0100',address:'Synthetic',appointmentTime:'9–10 AM',junkItems:[],appointmentNotes:[],driver:'',navigator:''}))};
 try {
   releaseCrewJob({truck,date:'2026-09-22',appointmentId:'900',expectedVersion:0,requestId:randomUUID()},'test',now);
   releaseCrewJob({truck,date:'2026-09-22',appointmentId:'100',expectedVersion:1,requestId:randomUUID()},'test',now);

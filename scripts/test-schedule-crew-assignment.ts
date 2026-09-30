@@ -17,7 +17,7 @@ async function main() {
   process.env.OPS_CREW_TRUCK_SWITCH_DIR = path.join(root, 'switches');
   process.env.JOB_ROUTE_ASSIGNMENTS_FILE = path.join(root, 'assignments.json');
   const date = chicagoDateKey(), actor = 'test-manager', truck = 'Truck 6';
-  const jobs = ['901', '902', '903', '904', '905'].map(appointmentId => ({appointmentId, recordId:`${date}:appointment:${appointmentId}`, version:'a'.repeat(64), truck, status:'Confirmed', jkNumber:`SAMPLE-${appointmentId}`, customerName:`Synthetic ${appointmentId}`, address:'Synthetic address', appointmentTime:'4 PM–5 PM', junkItems:[], appointmentNotes:[], driver:'', navigator:''}));
+  const jobs = ['901', '902', '903', '904', '905'].map(appointmentId => ({appointmentId, recordId:`${date}:appointment:${appointmentId}`, version:'a'.repeat(64), truck, status:'Confirmed', jkNumber:`SAMPLE-${appointmentId}`, customerName:`Synthetic ${appointmentId}`, phone:'(225) 555-0100', address:'Synthetic address', appointmentTime:'4 PM–5 PM', junkItems:[], appointmentNotes:[], driver:'', navigator:''}));
   let writes = 0;
   const sources:CrewDispatchSources={
     schedule:()=>({observedAt:new Date().toISOString(),appointments:jobs}),

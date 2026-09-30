@@ -3,7 +3,7 @@ export type CrewAssignment = { assignmentId: string; appointmentId: string; date
 export type CrewDispatch = { truck: string; version: number; current: CrewAssignment | null; queued: CrewAssignment | null };
 export type CrewCurrentJob = {
   assignmentId: string; appointmentId: string; date: string; jkNumber: string;
-  customerName: string; address: string; appointmentTime: string;
+  customerName: string; phone: string; address: string; appointmentTime: string;
   junkItems: string[]; appointmentNotes: string[]; driver: string; navigator: string;
 };
 export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; status: string; resetAt?:string;resetPriorAssignmentId?:string;appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{

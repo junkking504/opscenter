@@ -285,6 +285,10 @@ contracts. Phone browser tests cover daily setup and additional job crew.
 - The current-job API binds release state to the enrolled truck and dispatch
   cycle, reads receipts from durable server storage, rechecks source state and
   returns only approved customer fields for the enrolled truck's current day.
+  Those fields include customer name, phone number, service address, appointment
+  window, work items and job notes. Waypoint renders the phone number as a native
+  phone link: tap starts a call, while touch-and-hold opens explicit Call and
+  Message actions using the device's `tel:` and `sms:` handlers.
   Never send another truck's customer data and hide it with CSS. Never accept
   completion evidence supplied by the phone.
 

@@ -58,11 +58,20 @@ async function main(){
   await expect(page.getByRole('list',{name:'Start your day'})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Switch truck',exact:true})).not.toBeVisible();
   await expect(page.getByRole('heading',{name:'Next bonus tier',exact:true})).toBeVisible();
+  const firstCustomerPhone=page.getByRole('link',{name:/Call \(225\) 555-0101/}).first();
+  await expect(firstCustomerPhone).toHaveAttribute('href','tel:+12255550101');
+  await expect(firstCustomerPhone).toHaveAttribute('title','Tap to call. Touch and hold for call or message options.');
+  await firstCustomerPhone.dispatchEvent('contextmenu');
+  const contactActions=page.getByRole('group',{name:'Contact (225) 555-0101'});
+  await expect(contactActions.getByRole('link',{name:'Call customer',exact:true})).toHaveAttribute('href','tel:+12255550101');
+  await expect(contactActions.getByRole('link',{name:'Message customer',exact:true})).toHaveAttribute('href','sms:+12255550101');
+  await contactActions.getByRole('button',{name:'Close',exact:true}).click();
   await expect(page.getByRole('link',{name:/101 Practice Lane/})).toHaveAttribute('href',/https:\/\/www.google.com\/maps\/dir\/\?api=1&destination=/);
   await capture('04-assignments');
   for(let i=1;i<=3;i++){
    await expect(page.getByRole('heading',{name:new RegExp(`Test ${i} ·`)})).toBeVisible();
    await time(`Job ${i}: open assignment`,async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+   await expect(page.getByRole('link',{name:new RegExp(`Call \\(225\\) 555-010${i}`)})).toHaveAttribute('href',`tel:+1225555010${i}`);
    await time(`Job ${i}: open closeout and photo history`,async()=>{await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();});
    const data=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=10;c.height=10;const x=c.getContext('2d')!;x.fillStyle='#b51935';x.fillRect(0,0,10,10);return c.toDataURL('image/jpeg').split(',')[1];});
    await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();

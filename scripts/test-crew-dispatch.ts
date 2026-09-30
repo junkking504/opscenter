@@ -17,8 +17,8 @@ async function main(){
     const now=new Date(),date=now.toISOString().slice(0,10),truck='Truck 6';
     const version='a'.repeat(64);
     const jobs=[
-      {appointmentId:'900001',version,truck,status:'Confirmed',jkNumber:'SAMPLE-01',customerName:'Current customer',address:'Current address',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side entrance'],driver:'Driver',navigator:'Navigator',futureMetadata:'NEVER DISCLOSE',financialData:'NEVER DISCLOSE'},
-      {appointmentId:'900002',version,truck:'Truck# 6',status:'Confirmed',jkNumber:'SAMPLE-02',customerName:'FUTURE CUSTOMER',address:'FUTURE ADDRESS',appointmentTime:'1–3 PM',junkItems:[],appointmentNotes:[],driver:'Driver',navigator:'Navigator'},
+      {appointmentId:'900001',version,truck,status:'Confirmed',jkNumber:'SAMPLE-01',customerName:'Current customer',phone:'(225) 555-0101',address:'Current address',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side entrance'],driver:'Driver',navigator:'Navigator',futureMetadata:'NEVER DISCLOSE',financialData:'NEVER DISCLOSE'},
+      {appointmentId:'900002',version,truck:'Truck# 6',status:'Confirmed',jkNumber:'SAMPLE-02',customerName:'FUTURE CUSTOMER',phone:'(225) 555-0102',address:'FUTURE ADDRESS',appointmentTime:'1–3 PM',junkItems:[],appointmentNotes:[],driver:'Driver',navigator:'Navigator'},
     ];
     const phone:CrewPhone={deviceId:randomUUID(),truck,label:'Synthetic company phone',enrolledAt:now.toISOString(),expiresAt:new Date(now.getTime()+86400_000).toISOString()};
     let receipts:DispatchReceipt[]=[];
@@ -60,6 +60,7 @@ async function main(){
     assert.equal(two.current?.appointmentId,'900001');assert.equal(two.queued?.appointmentId,'900002');
     let payload=await crewCurrentPayload(phone,sources);
     assert.equal(payload.job?.appointmentId,'900001');
+    assert.equal(payload.job?.phone,'(225) 555-0101','The enrolled truck receives its current customer phone number');
     for(const forbidden of ['FUTURE','900002','NEVER DISCLOSE','queued','version'])assert.equal(JSON.stringify(payload).includes(forbidden),false,forbidden);
     assert.throws(()=>releaseCrewJob({...second,requestId:randomUUID()},'manager'),/Dispatch changed/);
     assert.throws(()=>releaseCrewJob({...second,appointmentId:'900003',expectedVersion:2,requestId:randomUUID()},'manager'),/Remove the queued/);

@@ -85,7 +85,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     .map(row => {
       const reset=deps.reset?.(phone.truck,date,row.appointmentId) || null;
       return ({
-      appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
+      appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,

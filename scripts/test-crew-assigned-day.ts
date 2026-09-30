@@ -4,7 +4,7 @@ import type { CrewPhone } from '../lib/crew-phone';
 
 const date='2026-09-22',now=Date.parse(`${date}T18:00:00Z`);
 const phone={deviceId:'test-phone',truck:'Truck 1'} as CrewPhone;
-const row=(id:string,truck='Truck# 1',status='Confirmed')=>({appt_id:id,job_id:`JK${id}`,truck,job_status:status,customer_name:`Customer ${id}`,address:`${id} Example Street`,appointment_time:'09:00 AM - 10:00 AM'});
+const row=(id:string,truck='Truck# 1',status='Confirmed')=>({appt_id:id,job_id:`JK${id}`,truck,job_status:status,customer_name:`Customer ${id}`,phone:'(225) 555-0100',address:`${id} Example Street`,appointment_time:'09:00 AM - 10:00 AM'});
 let snapshot={date,scrapedAt:new Date(now).toISOString(),updatedAt:new Date(now).toISOString(),updatedAtMs:now,freshnessAtMs:now,appointments:[row('100'),row('101'),row('102','Truck 2'),row('103','Truck 1','Completed')],cancelled:[row('104','Truck 1','Cancelled')]};
 const overrides=new Map();
 let resetToken:string|null=null;
@@ -13,6 +13,7 @@ const result=crewAssignedDay(phone,date,deps,now);
 assert.equal(result.state,'assigned');
 assert.deepEqual(result.jobs?.map(job=>job.appointmentId),['100','101','103'],'All truck jobs are visible without a separate release, including completed work');
 assert.equal(result.job?.assignmentId,'released-100');
+assert.equal(result.jobs?.[0].phone,'(225) 555-0100','The truck-scoped Waypoint projection includes the customer phone number');
 assert.equal(result.jobs?.find(job=>job.appointmentId==='101')?.assignmentId,crewScheduleAssignmentId('Truck# 1',date,'101'),'Every fresh truck-day appointment has stable closeout scope');
 assert.equal(crewScheduleAssignmentId('Truck 1',date,'101'),crewScheduleAssignmentId('Truck #1',date,'101'),'Truck label variants retain one closeout scope');
 resetToken='11111111-1111-4111-8111-111111111111';

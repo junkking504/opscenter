@@ -48,6 +48,10 @@ get silently claimed by an agent.
 - Load uses the existing operational load projection, preserving its uncertainty
   and reconciliation rules. A carried day-start is not a new physical observation.
   Recorded near-full loads prompt disposal review, not an automatic unload.
+  Its source watermark includes the saved ledger's update time: reconciling a
+  duplicate expense unload to an earlier physical visit must not make the ledger
+  appear older. Per-truck event times remain unchanged, and missing/invalid ledger
+  timestamps or genuinely regressed source watermarks still fail closed.
 - Visits and expense exceptions consume the shared visit/unload agents. Each
   disposal record has a separate recommendation identity. Actual receipts resolve
   only their matched exception; duplicate/ambiguous receipts remain reviewable.

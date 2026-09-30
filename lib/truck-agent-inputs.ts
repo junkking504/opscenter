@@ -96,8 +96,11 @@ export function readTruckAgentInputs(date: string, now = Date.now()): TruckAgent
   });
   const loads: TruckAgentInputs['loads'] = source(() => {
     const ledger = json('fleet/truck_load_status.json'); rows(ledger.events);
+    const ledgerObservedAt = observed(ledger.updatedAt);
     const data = readOperationalTruckLoads(date, Array.from({ length: 9 }, (_, i) => `Truck ${i + 1}`), jobs);
-    return { at: latest(data.map(r => r.lastEvent?.occurredAt || null)), data: data.map(r => ({ truck: r.truck, label: r.displayLoadLabel || r.currentLoadLabel, percent: r.needsVerification ? null : r.capacityPercent,
+    // Expense reconciliation can replace a saved unload with its earlier visit.
+    // Preserve the ledger revision, not just the remaining physical event times.
+    return { at: latest([ledgerObservedAt, ...data.map(r => r.lastEvent?.occurredAt || null)]), data: data.map(r => ({ truck: r.truck, label: r.displayLoadLabel || r.currentLoadLabel, percent: r.needsVerification ? null : r.capacityPercent,
       at: r.lastEvent?.kind === 'day_start' && r.carriedFromDate ? null : r.lastEvent?.occurredAt || null, uncertain: Boolean(r.carriedFromDate && !r.events.some(e => e.kind !== 'day_start')) || Boolean(r.needsVerification) || !schedule.available || !inspections.available,
       note: r.verificationNote || (r.carriedFromDate ? `Baseline carried from ${r.carriedFromDate}` : r.currentContents) })) };
   });

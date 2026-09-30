@@ -25,7 +25,28 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'truck-agents-'));
 process.env.OPSCENTER_DATA_DIR = root; process.env.OPSBOT_DATA_DIR = root;
 process.env.OPSCENTER_AGENT_LOCK_HELD = '1';
 const { projectTruckAgents, runTruckAgents, reviewTruckRecommendation, readTruckAgentReviewReceipt } = await import('../lib/truck-agents');
+const { readTruckAgentInputs } = await import('../lib/truck-agent-inputs');
 try {
+  // A reconciled expense can remove the latest projected unload event. The
+  // saved ledger revision is still current; event time is not revision time.
+  fs.mkdirSync(path.join(root, 'fleet'), { recursive: true });
+  const ledgerPath = path.join(root, 'fleet/truck_load_status.json');
+  fs.writeFileSync(ledgerPath, JSON.stringify({ version: 1, updatedAt: stamp, events: [] }));
+  const reconciledLoads = readTruckAgentInputs(date, now).loads;
+  assert.equal(reconciledLoads.available, true);
+  assert.equal(reconciledLoads.observedAt, stamp, 'Load watermark retains the saved ledger revision when projected event time retreats');
+  const beforeReconciliation = fixture();
+  beforeReconciliation.loads.observedAt = new Date(now - 1000).toISOString();
+  const before = projectTruckAgents(date, beforeReconciliation, now);
+  const afterReconciliation = fixture(); afterReconciliation.loads = reconciledLoads;
+  const after = projectTruckAgents(date, afterReconciliation, now + 1000, before);
+  assert.equal(after.inputs.loads.available, true, 'Reconciled projection must not be rejected as an older source');
+  assert(!after.agents.some(agent => agent.recommendations.some(rec => rec.id.endsWith(':source:loads'))));
+  fs.writeFileSync(ledgerPath, JSON.stringify({ version: 1, updatedAt: new Date(now - 2000).toISOString(), events: [] }));
+  const regressedLoads = fixture(); regressedLoads.loads = readTruckAgentInputs(date, now).loads;
+  assert.equal(projectTruckAgents(date, regressedLoads, now + 2000, after).inputs.loads.available, false, 'A genuinely older ledger remains unavailable');
+  fs.writeFileSync(ledgerPath, JSON.stringify({ version: 1, events: [] }));
+  assert.equal(readTruckAgentInputs(date, now).loads.available, false, 'An unversioned ledger cannot claim current load evidence');
   const input = fixture(), original = JSON.stringify(input);
   const all = projectTruckAgents(date, input, now);
   assert.equal(all.agents.length, 9); assert.equal(new Set(all.agents.map(a => a.id)).size, 9);

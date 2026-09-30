@@ -23,5 +23,5 @@ export async function captureCloseoutSource(page: Page, capture: (page: Page) =>
   const reopened = await capture(page);
   if (closeoutSourceVersion(before) !== closeoutSourceVersion(reopened)) throw new Error('The source appointment changed while loading payment options. Reload and review it.');
   if (!(staged.paymentMethods as unknown[])?.length) throw new Error('JunkWare did not expose payment methods. Open the source appointment to review it.');
-  return { ...before, paymentMethods: staged.paymentMethods, payments: staged.payments, balance: staged.balance };
+  return { ...reopened, paymentMethods: staged.paymentMethods, payments: staged.payments, balance: staged.balance };
 }

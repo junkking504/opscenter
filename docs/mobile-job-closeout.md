@@ -186,9 +186,12 @@ versioned draft recovery, review and lost-response verification without replay.
 
 ## Closeout correction and safe return — September 29, 2026
 
-Saved Other Charges now carry JunkWare's exact row UUID into the closeout. A
-crew member can stage **Remove** or undo it before review. The writer clicks only
-the matching source row and requires that exact UUID to disappear on read-back;
+Saved Other Charges carry a deterministic identity derived from the exact row
+values and their occurrence order. JunkWare regenerates its hidden form UUID on
+every render, so that UUID is retained only long enough to click the matching
+row in the current form and is excluded from source-version checks. A crew
+member can stage **Remove** or undo it before review. The writer removes selected
+rows from the bottom up, then verifies the remaining semantic row multiset;
 missing, duplicated or changed rows fail closed. Newly added charges remain
 removable locally until submission.
 

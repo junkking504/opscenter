@@ -5,6 +5,7 @@ import { CrewPhoneError } from '@/lib/crew-phone';
 import { checkCrewCloseout, crewReceiptProjection, loadCrewCloseout, queueCrewCloseout, simulateCrewCloseout } from '@/lib/crew-closeout-service';
 import { PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { publishVerifiedCloseout } from '@/lib/publish-closeout';
+import { JunkwareCloseoutError } from '@/lib/junkware-job-closeout';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const maxDuration=600;
@@ -18,7 +19,10 @@ export async function GET(request:Request) {
     if([...params.keys()].some(key=>!['assignmentId','requestId','reconcile','refresh'].includes(key)) || (params.has('refresh')&&params.get('refresh')!=='1'))throw new CrewPhoneError('Use the current closeout screen.');
     const assignmentId=params.get('assignmentId') || '',requestId=params.get('requestId');
     return crewPhoneResponse(requestId?{receipt:crewReceiptProjection(await checkCrewCloseout(request,assignmentId,requestId,params.get('reconcile')==='1'))}:await loadCrewCloseout(request,assignmentId,undefined,params.get('refresh')==='1'));
-  }catch(error){return crewPhoneFailure(error);}
+  }catch(error){
+    if(error instanceof JunkwareCloseoutError && error.stage==='preflight')return crewPhoneResponse({error:error.message},409);
+    return crewPhoneFailure(error);
+  }
 }
 export async function POST(request:Request) {
   try {

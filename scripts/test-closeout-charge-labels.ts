@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
+import { closeoutSourceVersion, stableCloseoutChargeRows, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 
 const option = { value: 'card|3|1', label: 'CC Surcharge (Card Present), 3.00%' };
 const before = { otherChargeOptions: [option], otherCharges: [] };
@@ -35,4 +35,13 @@ assert.throws(() => verifyAddedCloseoutCharges({ otherCharges: [retained] }, rem
 assert.throws(() => verifyAddedCloseoutCharges({ otherCharges: [retained] }, removalBaseline, [], false, ['33333333-3333-4333-8333-333333333333']), /unavailable/);
 const fixed = { otherChargeOptions: [{ value: 'fixed|9|0', label: option.label }], otherCharges: [] };
 assert.throws(() => verifyAddedCloseoutCharges({ otherCharges: [charge] }, fixed, [{ typeValue: 'fixed|9|0', quantity: '1', price: '9' }]), /charge type/);
+
+const firstRender=stableCloseoutChargeRows([{...charge,id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'},retained]);
+const secondRender=stableCloseoutChargeRows([{...charge,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'},retained]);
+assert.equal(firstRender[0].id,secondRender[0].id,'Provider render UUIDs must not change the phone row identity');
+assert.notEqual(firstRender[0].sourceId,secondRender[0].sourceId,'The current provider UUID remains available for the exact removal click');
+assert.equal(closeoutSourceVersion({otherCharges:firstRender}),closeoutSourceVersion({otherCharges:secondRender}),'Provider render UUIDs must not change the reviewed closeout');
+const duplicates=stableCloseoutChargeRows([{...charge,id:removalId},{...charge,id:keepId}]);
+assert.notEqual(duplicates[0].id,duplicates[1].id,'Identical saved rows retain separate deterministic identities');
+verifyAddedCloseoutCharges({otherCharges:stableCloseoutChargeRows([{...charge,id:'33333333-3333-4333-8333-333333333333'}])},{...before,otherCharges:duplicates},[],false,[String(duplicates[1].id)]);
 console.log('Closeout charges: saved/picker percentage forms pass; exact row removals verify; wrong rate, type, quantity, price, duplicates, ambiguity and missing originals stay blocked.');

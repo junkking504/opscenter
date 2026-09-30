@@ -1,6 +1,29 @@
 import { createHash } from 'node:crypto';
-export function closeoutSourceVersion(closeout: Record<string, unknown>): string { return createHash('sha256').update(JSON.stringify(closeout)).digest('hex'); }
 type Row = Record<string, unknown>;
+function stableUuid(value:string):string {
+  const hash=createHash('sha256').update(value).digest('hex');
+  return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-${((parseInt(hash[16],16)&3)|8).toString(16)}${hash.slice(17,20)}-${hash.slice(20,32)}`;
+}
+/** JunkWare's hidden miscellaneous-charge UUID is regenerated on every form
+ * render. Give the phone a deterministic identity for the same semantic row,
+ * while retaining the current-render UUID only for the provider click. */
+export function stableCloseoutChargeRows(value:unknown):Row[] {
+  if(!Array.isArray(value))return [];
+  const occurrences=new Map<string,number>();
+  return value.map(raw=>{
+    const row=raw && typeof raw==='object' && !Array.isArray(raw) ? raw as Row : {};
+    const sourceId=String(row.sourceId || row.id || '');
+    const signature=JSON.stringify([normalized(row.label),amount(row.quantity),amount(row.price),amount(row.total)]);
+    const occurrence=occurrences.get(signature)||0;occurrences.set(signature,occurrence+1);
+    return {...row,id:stableUuid(`junkware-closeout-charge-v1\0${signature}\0${occurrence}`),...(sourceId?{sourceId}:{})};
+  });
+}
+export function closeoutSourceVersion(closeout: Record<string, unknown>): string {
+  const charges=Array.isArray(closeout.otherCharges)
+    ? (closeout.otherCharges as Row[]).map(row=>{const {sourceId:_sourceId,...stable}=row;return stable;})
+    : closeout.otherCharges;
+  return createHash('sha256').update(JSON.stringify({...closeout,otherCharges:charges})).digest('hex');
+}
 function amount(value: unknown): number {
   const text = String(value ?? '').replace(/[$,\s]/g, '');
   if (!text) return 0;
@@ -47,9 +70,9 @@ export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested
   if (removalIds.size !== requestedRemovalIds.length) throw new Error('The requested charge removals contain duplicates.');
   for (const id of removalIds) {
     if (beforeRows.filter(row => String(row.id || '') === id).length !== 1) throw new Error('The requested source charge is unavailable for removal.');
-    if (afterRows.some(row => String(row.id || '') === id)) throw new Error('JunkWare did not remove the requested charge.');
   }
   const retainedBefore = beforeRows.filter(row => !removalIds.has(String(row.id || '')));
+  if(removalIds.size && afterRows.length!==retainedBefore.length+requested.length)throw new Error('JunkWare did not remove exactly the requested source charges.');
   const added = addedRows(retainedBefore, afterRows, chargeKey);
   if (added.length !== requested.length) throw new Error('JunkWare did not retain exactly the requested added charges.');
   return requested.map(request => {

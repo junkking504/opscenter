@@ -4,7 +4,7 @@ import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
 import { clickWithWebFormsCompletion, selectWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
-import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
+import { closeoutSourceVersion, stableCloseoutChargeRows, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { classificationCompletionTimeWarning, parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -181,7 +181,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     };
   })()`) as { status: { value: string; label: string }; [key: string]: unknown };
   const {photoUrls, ...fields} = source;
-  return {...fields, photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
+  return {...fields,otherCharges:stableCloseoutChargeRows(source.otherCharges),photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
 }
 
 async function captureSource(page: Page) { return captureCloseoutSource(page, capture); }
@@ -395,8 +395,19 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndHourDD", input.actualEndHour);
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndMinuteDD", input.actualEndMinute);
 
-  for (const chargeId of otherChargeIdsToRemove) {
-    const hidden = page.locator(`input[id*="MiscellaneousChargesLV"][id$="MCUniqueIdHF"][value="${chargeId}"]`);
+  const removalOrder=(before.otherCharges as Array<Record<string,unknown>> || [])
+    .map((row,index)=>({row,index}))
+    .filter(({row})=>otherChargeIdsToRemove.includes(String(row.id || '')))
+    .sort((a,b)=>b.index-a.index);
+  if(removalOrder.length!==otherChargeIdsToRemove.length)throw new Error('The requested source charge is unavailable for removal. Reload before saving.');
+  for (const requested of removalOrder) {
+    // Remove from the bottom up so deterministic occurrence identities remain
+    // stable even when otherwise-identical source rows are selected together.
+    const current=stableCloseoutChargeRows((await capture(page)).otherCharges);
+    const row=current.find(value=>String(value.id || '')===String(requested.row.id || ''));
+    const sourceId=String(row?.sourceId || '');
+    if(!sourceId)throw new Error('The requested source charge is unavailable for removal. Reload before saving.');
+    const hidden = page.locator(`input[id*="MiscellaneousChargesLV"][id$="MCUniqueIdHF"][value="${sourceId}"]`);
     if (await hidden.count() !== 1) throw new Error('The requested source charge is unavailable for removal. Reload before saving.');
     const hiddenId = await hidden.getAttribute('id');
     const prefix = String(hiddenId || '').replace(/MCUniqueIdHF$/, '');

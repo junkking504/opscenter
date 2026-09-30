@@ -241,6 +241,12 @@ calendar day. The person taking responsibility selects their name, the driver
 and navigator (or driver only) from the active configured crew roster. The API
 returns only employee names, never usernames, payroll or credentials.
 
+The roster includes active `OPS_CREW_ROSTER_JSON` identities plus names in
+`OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON`. The latter is a JSON array of employee
+names for Waypoint setup only; it does not grant Krewe login or payroll access.
+Keep it in the protected production environment, require an exact unique
+JunkWare driver/navigator match at closeout, and remove departed crew explicitly.
+
 Immutable daily revisions in `data/crew-phones/days/<device>/<date>` retain the
 responsible person, selected crew, device/truck, time and request identity. Reads
 recover a lost response; duplicate request IDs cannot create another revision.

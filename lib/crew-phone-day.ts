@@ -7,7 +7,21 @@ import {crewRoster} from './crew-auth';
 import {chicagoDateKey} from './chicago-date';
 import {CrewPhoneError,type CrewPhone,type CrewPhoneDay} from './crew-phone';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-export function crewDayRoster() {return [...new Set(crewRoster().filter(row=>row.active).map(row=>row.employee))].sort((a,b)=>a.localeCompare(b));}
+function waypointCrewExtraNames() {
+ const raw=String(process.env.OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON || '').trim();
+ if(!raw)return [];
+ try {
+  const parsed=JSON.parse(raw) as unknown;
+  if(!Array.isArray(parsed))return [];
+  return parsed.map(name=>String(name || '').trim()).filter(name=>name.length>0 && name.length<=100);
+ } catch {return [];}
+}
+export function crewDayRoster() {
+ const names=[...crewRoster().filter(row=>row.active).map(row=>row.employee),...waypointCrewExtraNames()];
+ const unique=new Map<string,string>();
+ for(const name of names){const key=name.toLocaleLowerCase();if(!unique.has(key))unique.set(key,name);}
+ return [...unique.values()].sort((a,b)=>a.localeCompare(b));
+}
 function directory(phone:CrewPhone,date:string) {
  if(!uuid.test(phone.deviceId) || !/^\d{4}-\d{2}-\d{2}$/.test(date))throw new CrewPhoneError('Invalid phone day.');
  const root=process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'crew-phones');

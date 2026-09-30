@@ -9,11 +9,12 @@ const root=fs.mkdtempSync(path.join(os.tmpdir(),'crew-day-'));
 process.env.OPS_CREW_PHONE_DIR=root;
 const roster=['Sample Driver','Sample Navigator','Extra Crew'];
 process.env.OPS_CREW_ROSTER_JSON=JSON.stringify(roster.map((employee,index)=>({employee,username:`sample${index}`,active:true})));
+process.env.OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON=JSON.stringify(['Waypoint Only','sample driver','',null]);
 try{
  const phone={deviceId:randomUUID(),truck:'Truck 6',label:'Sample phone',enrolledAt:new Date().toISOString(),expiresAt:'2027-01-01T00:00:00Z'};
  const date=chicagoDateKey(),base={date,requestId:randomUUID(),expectedVersion:0,responsible:'Sample Driver',driver:'Sample Driver',navigators:['Sample Navigator']};
  assert.equal(readCrewDay(phone),null);assert.throws(()=>requireCrewDay(phone),/today/);
- assert.deepEqual(crewDayRoster().sort(),roster.sort());
+ assert.deepEqual(crewDayRoster(),[...roster,'Waypoint Only'].sort((a,b)=>a.localeCompare(b)),'Waypoint-only crew are added without duplicating Krewe identities');
  assert.throws(()=>saveCrewDay(phone,{...base,driver:'Unknown'}),/crew list/);
  assert.throws(()=>saveCrewDay(phone,{...base,navigators:['Sample Driver']}),/one position/);
  assert.throws(()=>saveCrewDay(phone,{...base,date:'2000-01-01'}),/Refresh/);
@@ -28,5 +29,5 @@ try{
  assert.equal(chicagoDateKey(before),'2026-09-18');assert.equal(chicagoDateKey(after),'2026-09-19');
  const boundaryPhone={...phone,deviceId:randomUUID()};saveCrewDay(boundaryPhone,{...base,date:chicagoDateKey(before)},before);
  assert.equal(readCrewDay(boundaryPhone,chicagoDateKey(after)),null,'Crew does not carry across Central midnight');
- console.log('PASS: daily crew scope, responsible person, roster validation, duplicate roles, version conflicts, idempotency, exact source ID mapping and ambiguity rejection, Central-day reset. No source writes.');
+ console.log('PASS: daily crew scope, responsible person, Krewe plus Waypoint-only roster validation, duplicate roles, version conflicts, idempotency, exact source ID mapping and ambiguity rejection, Central-day reset. No source writes.');
 }finally{fs.rmSync(root,{recursive:true,force:true});}

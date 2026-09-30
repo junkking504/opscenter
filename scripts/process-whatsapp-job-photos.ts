@@ -374,7 +374,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
           jobDate: date,
           truck: match.truck || "",
           status: "completed",
-          filePath,
+          filePath: uploadFilePath,
         });
       } catch (error) {
         notificationErrors.push(`Slack photo receipt: ${clean(error instanceof Error ? error.message : error).slice(0, 300)}`);

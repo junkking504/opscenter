@@ -88,6 +88,15 @@ function mediaDirectory(): string {
   return path.join(whatsappPhotoStateDirectory(), "media");
 }
 
+function protectedMediaReference(input: string): { file: string; relative: string } | null {
+  const root = path.resolve(mediaDirectory());
+  const file = path.resolve(input);
+  const parent = path.dirname(file);
+  if (![root, path.join(root, "prepared")].includes(parent)
+    || !/^[a-f0-9]{64}\.(?:jpg|png)$/.test(path.basename(file))) return null;
+  return { file, relative: path.relative(root, file) };
+}
+
 function ensureDirectories(): void {
   for (const name of ["pending", "delivered"] as const) {
     fs.mkdirSync(batchDirectory(name), { recursive: true, mode: 0o700 });
@@ -201,12 +210,11 @@ export function recordWhatsAppPhotoSlackUpload(input: {
   const current = index >= 0 ? batch.photos[index] : null;
   let mediaFile = current?.mediaFile;
   if (input.status === "completed") {
-    const resolvedFile = path.resolve(clean(input.filePath));
-    const resolvedMediaDirectory = path.resolve(mediaDirectory());
-    if (path.dirname(resolvedFile) !== resolvedMediaDirectory || !/^[a-f0-9]{64}\.(?:jpg|png)$/.test(path.basename(resolvedFile))) {
+    const protectedFile = protectedMediaReference(clean(input.filePath));
+    if (!protectedFile) {
       throw new Error("The completed WhatsApp photo is outside the protected media directory.");
     }
-    mediaFile = path.basename(resolvedFile);
+    mediaFile = protectedFile.relative;
   }
   const nextPhoto: WhatsAppPhotoSlackBatchPhoto = {
     messageId,
@@ -301,7 +309,9 @@ async function uploadSlackBatch(
   let retryAfterSeconds = 0;
   for (const [index, photo] of batch.photos.entries()) {
     if (staged.has(photo.messageId)) continue;
-    const filePath = path.join(mediaDirectory(), clean(photo.mediaFile));
+    const protectedFile = protectedMediaReference(path.join(mediaDirectory(), clean(photo.mediaFile)));
+    if (!protectedFile) return { payload: { ok: false, error: "WhatsApp photo file is invalid" }, retryAfterSeconds };
+    const filePath = protectedFile.file;
     let stats: fs.Stats;
     try {
       stats = fs.statSync(filePath);

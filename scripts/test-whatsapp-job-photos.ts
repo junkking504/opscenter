@@ -314,8 +314,10 @@ try {
   const secondPhoto = { ...firstPhoto, messageId: "image-2", category: "after" as const };
   const firstPhotoFile = whatsappMediaFile(firstPhoto.messageId, "image/jpeg");
   const secondPhotoFile = whatsappMediaFile(secondPhoto.messageId, "image/png");
+  const secondPreparedFile = path.join(path.dirname(secondPhotoFile), "prepared", `${path.parse(secondPhotoFile).name}.jpg`);
   fs.writeFileSync(firstPhotoFile, "photo-one", { mode: 0o600 });
-  fs.writeFileSync(secondPhotoFile, "photo-two", { mode: 0o600 });
+  fs.mkdirSync(path.dirname(secondPreparedFile), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(secondPreparedFile, "photo-two", { mode: 0o600 });
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "pending", now }).duplicate, false);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "pending", now }).duplicate, false);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", filePath: firstPhotoFile, now }).duplicate, false);
@@ -323,7 +325,8 @@ try {
   assert.equal(incomplete.attempted, 0);
   assert.equal(incomplete.pending, 1);
   const secondCompletedAt = new Date(now.getTime() + 10_000);
-  assert.equal(recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "completed", filePath: secondPhotoFile, now: secondCompletedAt }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "completed", filePath: secondPreparedFile, now: secondCompletedAt }).duplicate, false);
+  assert.throws(() => recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "completed", filePath: path.join(temporaryState, "outside.jpg"), now: secondCompletedAt }), /outside the protected media directory/);
   const stillOpen = await deliverWhatsAppPhotoSlackNotifications({ now: new Date(now.getTime() + 50_000), fetchImpl });
   assert.equal(stillOpen.attempted, 0);
   const delivered = await deliverWhatsAppPhotoSlackNotifications({

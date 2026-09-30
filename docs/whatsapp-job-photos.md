@@ -226,6 +226,24 @@ The expense worker enforces this order:
 3. Send a terse notification to the truck's Slack channel and require Slack's success timestamp.
 4. Publish the expense record to OpsCenter Finance and send the detailed WhatsApp verification, including a simple `EDIT` option for a correction request.
 
+`EDIT` applies only to the sender's single most recent verified OpsBot expense
+within the 12-hour expense-session window. OpsBot shows the exact row it will
+edit and asks for one complete corrected expense. The correction keeps the
+original date, truck, expense type, transaction time and deterministic receipt
+number; it can change location, amount, weight or gallons. Truck/date/type
+changes fail closed and require manager review because they would move the
+source row to a different ledger.
+
+The original JunkWare row remains untouched until the complete correction is
+queued. The worker then re-reads the exact deterministic receipt, requires it
+to match either the saved original or the requested correction, edits that same
+row, and verifies the corrected source values. A lost response is recovered by
+read-back and never creates a second row. Only after source verification does
+OpsBot replace the supporting Finance detail, post a correction notification
+to Slack and confirm the correction in WhatsApp. The original and correction
+remain in the completed transaction audit, while Capital shows one current
+supporting record.
+
 Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 
 Queue directories are `incoming`, `assigned`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.

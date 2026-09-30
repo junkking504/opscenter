@@ -8,7 +8,7 @@ import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { createJunkwarePhotoUploadSession, findJunkwareAppointmentIdByJkNumber } from "@/lib/junkware-photo-uploader";
-import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
+import { correctJunkwareTruckRecord, uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { extractJkNumber, inferPhotoCategory, matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
@@ -156,14 +156,16 @@ async function processCrewExpenseTransactions(): Promise<{ completed: number; re
     try {
       let transaction = claim.transaction;
       if (transaction.stage === "pending_junkware") {
-        const verification = await uploadJunkwareTruckRecord(transaction.record);
+        const verification = transaction.operation === "edit" && transaction.previousRecord
+          ? await correctJunkwareTruckRecord(transaction.previousRecord, transaction.record)
+          : await uploadJunkwareTruckRecord(transaction.record);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "junkware_verified",
           junkware: { ...verification, verifiedAt: new Date().toISOString() },
         });
       }
       if (transaction.stage === "junkware_verified") {
-        const delivery = await sendCrewExpenseSlackNotification(transaction.record);
+        const delivery = await sendCrewExpenseSlackNotification(transaction.record, fetch, transaction.previousRecord);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "slack_sent",
           slack: { ...delivery, sentAt: new Date().toISOString() },

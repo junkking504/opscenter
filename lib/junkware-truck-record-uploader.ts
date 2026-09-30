@@ -68,9 +68,13 @@ async function persistStorageState(context: BrowserContext): Promise<void> {
   fs.chmodSync(target, 0o600);
 }
 
-function receiptNumber(messageId: string): string {
+export function junkwareTruckRecordReceiptNumber(messageId: string): string {
   if (messageId.startsWith("wex:")) return `WEX-${messageId.slice(4).replace(/[^A-Za-z0-9-]/g, "").slice(0, 32)}`;
   return `OB-${crypto.createHash("sha256").update(messageId).digest("hex").slice(0, 12).toUpperCase()}`;
+}
+
+function recordReceiptNumber(record: CrewExpenseRecord): string {
+  return junkwareTruckRecordReceiptNumber(record.receiptMessageId || record.messageId);
 }
 
 function truckNumber(truck: string): number {
@@ -136,6 +140,25 @@ async function entryEvidence(page: Page, receipt: string): Promise<string> {
   return clean(await (await row.count() ? row.innerText() : exact.first().innerText())).slice(0, 1_000);
 }
 
+function expectedCategory(record: CrewExpenseRecord): "Dumps" | "Gas" {
+  return record.kind === "fuel" ? "Gas" : "Dumps";
+}
+
+function evidenceMatches(evidence: string, record: CrewExpenseRecord, receipt: string): boolean {
+  const amount = record.cost.toFixed(2);
+  return Boolean(evidence)
+    && evidence.includes(receipt)
+    && evidence.includes(expectedCategory(record))
+    && evidence.includes(record.location)
+    && evidence.replace(/[$,]/g, "").includes(amount);
+}
+
+function entryDescription(record: CrewExpenseRecord): string {
+  return record.kind === "fuel"
+    ? `${record.source === "wex_posted" ? "WEX posted fuel" : "OpsBot fuel"}${record.gallons === null ? "" : ` · ${record.gallons} gal`}`
+    : `OpsBot dump${record.weight ? ` · ${record.weight}` : ""}`;
+}
+
 async function saveEntry(page: Page, record: CrewExpenseRecord, receipt: string): Promise<void> {
   await page.locator('[id$="AddNewLink"]').evaluate((element) => (element as HTMLElement).click());
   const category = page.locator('[id$="CategoryDD"]');
@@ -143,14 +166,71 @@ async function saveEntry(page: Page, record: CrewExpenseRecord, receipt: string)
   await category.selectOption(record.kind === "fuel" ? "3" : "2");
   await page.locator('[id$="ReceiptNoTB"]').fill(receipt);
   await page.locator('[id$="LocationTB"]').fill(record.location.slice(0, 120));
-  const description = record.kind === "fuel"
-    ? `${record.source === "wex_posted" ? "WEX posted fuel" : "OpsBot fuel"}${record.gallons === null ? "" : ` · ${record.gallons} gal`}`
-    : `OpsBot dump${record.weight ? ` · ${record.weight}` : ""}`;
-  await page.locator('[id$="DescriptionTB"]').fill(description.slice(0, 120));
+  await page.locator('[id$="DescriptionTB"]').fill(entryDescription(record).slice(0, 120));
   await page.locator('[id$="AmountTB"]').fill(record.cost.toFixed(2));
   await page.locator('[id$="TimeTB"]').fill(record.time);
   await page.locator('[id$="InsertButton"]').evaluate((element) => (element as HTMLElement).click());
   await page.waitForFunction((marker) => document.body.innerText.includes(marker), receipt, { timeout: 30_000 });
+}
+
+type EntryEditor = {
+  rowId: string;
+  editId: string;
+  updateId: string;
+  editor: Locator;
+  update: Locator;
+  cancel: Locator;
+};
+
+async function openEntryEditor(page: Page, receipt: string): Promise<EntryEditor> {
+  const exact = page.getByText(receipt, { exact: true });
+  if (await exact.count() !== 1) throw new Error("The exact JunkWare Truck Records row is unavailable for correction.");
+  const row = exact.locator("xpath=ancestor::tr[1]");
+  const rowId = clean(await row.getAttribute("id"));
+  if (!rowId) throw new Error("The JunkWare Truck Records row identity is unavailable for correction.");
+  const editId = `${rowId.replace(/_ItemRow$/, "")}_EditButton`;
+  const updateId = `${rowId.replace(/_ItemRow$/, "")}_UpdateButton`;
+  const edit = page.locator(`#${editId}`);
+  if (await edit.count() !== 1) throw new Error("The exact JunkWare Truck Records edit control is unavailable.");
+  await edit.evaluate((element) => (element as HTMLElement).click());
+  const update = page.locator(`#${updateId}`);
+  await update.waitFor({ state: "visible", timeout: 30_000 });
+  const editor = update.locator("xpath=ancestor::tr[1]");
+  return { rowId, editId, updateId, editor, update, cancel: editor.locator('[id$="CancelButton"]') };
+}
+
+async function editorMatches(entry: EntryEditor, record: CrewExpenseRecord, receipt: string): Promise<boolean> {
+  const category = clean(await entry.editor.locator('[id$="CategoryDD"]').inputValue());
+  const savedReceipt = clean(await entry.editor.locator('[id$="ReceiptNoTB"]').inputValue());
+  const location = clean(await entry.editor.locator('[id$="LocationTB"]').inputValue());
+  const description = clean(await entry.editor.locator('[id$="DescriptionTB"]').inputValue());
+  const amount = Number(clean(await entry.editor.locator('[id$="AmountTB"]').inputValue()).replace(/[$,]/g, ""));
+  const time = clean(await entry.editor.locator('[id$="TimeTB"]').inputValue()).replace(/^0/, "");
+  return category === (record.kind === "fuel" ? "3" : "2")
+    && savedReceipt === receipt
+    && location === record.location
+    && description === entryDescription(record)
+    && Number.isFinite(amount)
+    && Math.abs(amount - record.cost) < 0.005
+    && time.toUpperCase() === record.time.toUpperCase();
+}
+
+async function cancelEditor(page: Page, entry: EntryEditor): Promise<void> {
+  if (await entry.cancel.count() !== 1) throw new Error("The JunkWare Truck Records cancel control is unavailable.");
+  await entry.cancel.evaluate((element) => (element as HTMLElement).click());
+  await page.locator(`#${entry.editId}`).waitFor({ state: "visible", timeout: 30_000 });
+}
+
+async function saveEditor(page: Page, entry: EntryEditor, previous: CrewExpenseRecord, corrected: CrewExpenseRecord, receipt: string): Promise<void> {
+  const { editor, update } = entry;
+  await editor.locator('[id$="CategoryDD"]').selectOption(corrected.kind === "fuel" ? "3" : "2");
+  await editor.locator('[id$="ReceiptNoTB"]').fill(receipt);
+  await editor.locator('[id$="LocationTB"]').fill(corrected.location.slice(0, 120));
+  await editor.locator('[id$="DescriptionTB"]').fill(entryDescription(corrected).slice(0, 120));
+  await editor.locator('[id$="AmountTB"]').fill(corrected.cost.toFixed(2));
+  await editor.locator('[id$="TimeTB"]').fill(previous.time);
+  await update.evaluate((element) => (element as HTMLElement).click());
+  await page.locator(`#${entry.editId}`).waitFor({ state: "visible", timeout: 30_000 });
 }
 
 export type JunkwareTruckRecordVerification = {
@@ -159,6 +239,7 @@ export type JunkwareTruckRecordVerification = {
   amount: number;
   evidence: string;
   duplicate: boolean;
+  corrected?: boolean;
 };
 
 export async function uploadJunkwareTruckRecord(record: CrewExpenseRecord): Promise<JunkwareTruckRecordVerification> {
@@ -171,20 +252,73 @@ export async function uploadJunkwareTruckRecord(record: CrewExpenseRecord): Prom
     await ensureAuthenticated(page);
     await selectDate(page, record.date);
     await selectTruck(page, truckNumber(record.truck));
-    const receipt = receiptNumber(record.messageId);
+    const receipt = recordReceiptNumber(record);
     let evidence = await entryEvidence(page, receipt);
     const duplicate = Boolean(evidence);
     if (!evidence) {
       await saveEntry(page, record, receipt);
       evidence = await entryEvidence(page, receipt);
     }
-    const expectedCategory = record.kind === "fuel" ? "Gas" : "Dumps";
-    const expectedAmount = record.cost.toFixed(2);
-    if (!evidence || !evidence.includes(receipt) || !evidence.includes(expectedCategory) || !evidence.replace(/[$,]/g, "").includes(expectedAmount)) {
+    const category = expectedCategory(record);
+    if (!evidenceMatches(evidence, record, receipt)) {
       throw new Error("JunkWare did not verify the saved Truck Records line item.");
     }
     await persistStorageState(context);
-    return { receiptNumber: receipt, category: expectedCategory, amount: record.cost, evidence, duplicate };
+    return { receiptNumber: receipt, category, amount: record.cost, evidence, duplicate };
+  } finally {
+    await browser.close();
+    try { fs.rmdirSync(WRITE_LOCK); } catch { /* worker lock cleanup is best effort */ }
+  }
+}
+
+export async function correctJunkwareTruckRecord(
+  previous: CrewExpenseRecord,
+  corrected: CrewExpenseRecord,
+): Promise<JunkwareTruckRecordVerification> {
+  if (previous.date !== corrected.date || previous.truck !== corrected.truck || previous.kind !== corrected.kind) {
+    throw new Error("A Truck Records correction cannot change its date, truck, or expense type.");
+  }
+  const receipt = recordReceiptNumber(previous);
+  if (receipt !== recordReceiptNumber(corrected)) throw new Error("The Truck Records correction lost its original receipt identity.");
+  fs.mkdirSync(WRITE_LOCK, { mode: 0o700 });
+  const stateFile = storageStateFile();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext(fs.existsSync(stateFile) ? { storageState: stateFile } : {});
+    const page = await context.newPage();
+    await ensureAuthenticated(page);
+    await selectDate(page, previous.date);
+    await selectTruck(page, truckNumber(previous.truck));
+    let evidence = await entryEvidence(page, receipt);
+    if (!evidence) throw new Error("The original JunkWare Truck Records row is missing; no correction was submitted.");
+    let editor = await openEntryEditor(page, receipt);
+    const alreadyCorrected = await editorMatches(editor, corrected, receipt);
+    if (alreadyCorrected) {
+      await cancelEditor(page, editor);
+    } else {
+      if (!await editorMatches(editor, previous, receipt)) {
+        await cancelEditor(page, editor);
+        throw new Error("The original JunkWare Truck Records row changed; no correction was submitted.");
+      }
+      await saveEditor(page, editor, previous, corrected, receipt);
+      evidence = await entryEvidence(page, receipt);
+      editor = await openEntryEditor(page, receipt);
+      const verified = await editorMatches(editor, corrected, receipt);
+      await cancelEditor(page, editor);
+      if (!verified) throw new Error("JunkWare did not retain every corrected Truck Records field.");
+    }
+    if (!evidenceMatches(evidence, corrected, receipt)) {
+      throw new Error("JunkWare did not verify the corrected Truck Records line item.");
+    }
+    await persistStorageState(context);
+    return {
+      receiptNumber: receipt,
+      category: expectedCategory(corrected),
+      amount: corrected.cost,
+      evidence,
+      duplicate: alreadyCorrected,
+      corrected: true,
+    };
   } finally {
     await browser.close();
     try { fs.rmdirSync(WRITE_LOCK); } catch { /* worker lock cleanup is best effort */ }

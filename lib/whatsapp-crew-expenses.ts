@@ -24,6 +24,10 @@ export type CrewExpenseRecord = {
   senderHash: string;
   source: "whatsapp_opsbot" | "wex_posted";
   sourceMessageIds?: string[];
+  receiptMessageId?: string;
+  replacesMessageId?: string;
+  revision?: number;
+  revisedAt?: string;
 };
 
 export type CrewExpenseIngestResult = {
@@ -55,6 +59,8 @@ export type CrewExpenseTransaction = {
   lastError?: string;
   junkware?: Record<string, unknown>;
   slack?: Record<string, unknown>;
+  operation?: "create" | "edit";
+  previousRecord?: CrewExpenseRecord;
 };
 
 type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons", string>>;
@@ -66,6 +72,7 @@ type CrewExpenseSession = {
   updatedAt: string;
   fields: CrewExpenseFields;
   messageIds: string[];
+  editTarget?: CrewExpenseRecord;
 };
 
 const DUMP_TEMPLATE = [
@@ -424,10 +431,52 @@ function activeSession(senderPhone: string, receivedAt: string): CrewExpenseSess
       updatedAt: String(payload.updatedAt || payload.openedAt),
       fields: payload.fields && typeof payload.fields === "object" ? payload.fields : {},
       messageIds: Array.isArray(payload.messageIds) ? payload.messageIds.map(String) : [],
+      ...(payload.editTarget && typeof payload.editTarget === "object"
+        ? { editTarget: payload.editTarget as CrewExpenseRecord }
+        : {}),
     };
   } catch {
     return null;
   }
+}
+
+function expenseSummary(record: CrewExpenseRecord): string {
+  const quantity = record.kind === "dump"
+    ? record.weight || "no weight"
+    : `${record.gallons} gal`;
+  return `${record.kind === "dump" ? "Dump" : "Fuel"} · ${record.truck} · ${record.location} · $${record.cost.toFixed(2)} · ${quantity} · ${record.time}`;
+}
+
+function editableExpense(senderPhone: string, receivedAt: string): CrewExpenseRecord | null {
+  const senderHash = recordKey(normalizePhone(senderPhone));
+  const messageAt = new Date(receivedAt).getTime();
+  if (!Number.isFinite(messageAt)) return null;
+  const candidates = readCrewExpenseRecords()
+    .filter((record) => record.source === "whatsapp_opsbot" && record.senderHash === senderHash)
+    .map((record) => ({
+      record,
+      activityAt: new Date(record.revisedAt || record.reportedAt).getTime(),
+    }))
+    .filter(({ activityAt }) => Number.isFinite(activityAt)
+      && activityAt <= messageAt + 60_000
+      && messageAt - activityAt <= SESSION_MAX_IDLE_MS)
+    .sort((left, right) => right.activityAt - left.activityAt);
+  if (!candidates.length) return null;
+  if (candidates.length > 1 && candidates[0].activityAt === candidates[1].activityAt) return null;
+  return candidates[0].record;
+}
+
+function openEditSession(message: WhatsAppTextMessage, target: CrewExpenseRecord): void {
+  const session: CrewExpenseSession = {
+    version: 1,
+    kind: target.kind,
+    openedAt: message.receivedAt,
+    updatedAt: message.receivedAt,
+    fields: {},
+    messageIds: [message.messageId],
+    editTarget: target,
+  };
+  writeJsonAtomic(sessionFile(message.senderPhone), session);
 }
 
 function openSession(message: WhatsAppTextMessage, kind: CrewExpenseKind): void {
@@ -507,6 +556,19 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
 
   const normalizedMessage = { ...message, text: canonicalizeStructuredTerms(message.text) };
 
+  if (/^edit$/i.test(clean(normalizedMessage.text))) {
+    const target = editableExpense(message.senderPhone, message.receivedAt);
+    if (!target) {
+      enqueueReply(normalizedMessage, "I couldn't find one recent verified expense to edit. Send Dump or Fuel to record a new expense; ask a manager to review an older entry.", "expense-edit-review");
+      writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "review", reason: "editable_expense_not_found", processedAt: new Date().toISOString() });
+      return { status: "review" };
+    }
+    openEditSession(normalizedMessage, target);
+    enqueueReply(normalizedMessage, `Editing this verified expense:\n${expenseSummary(target)}\n\nSend the complete corrected expense. I'll update the same JunkWare row after verification; the original stays in place until then.`, "expense-edit-prompt");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "prompted", kind: target.kind, editTarget: target.messageId, processedAt: new Date().toISOString() });
+    return { status: "prompted", kind: target.kind, record: target };
+  }
+
   const command = commandKind(normalizedMessage.text);
   if (command) {
     openSession(normalizedMessage, command);
@@ -520,7 +582,13 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const explicit = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : explicitKind(normalizedMessage.text);
   const inferred = explicit || freeformKind(normalizedMessage.text);
   const session = activeSession(message.senderPhone, message.receivedAt);
-  const kind = heading || explicit || session?.kind || inferred;
+  const incomingKind = heading || explicit || inferred;
+  if (session?.editTarget && incomingKind && incomingKind !== session.kind) {
+    enqueueReply(message, `This correction must stay a ${session.kind === "dump" ? "Dump" : "Fuel"} expense. Send the complete corrected ${session.kind === "dump" ? "Dump" : "Fuel"} details again.`, "expense-edit-review");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "review", kind: session.kind, reason: "expense_edit_kind_changed", processedAt: new Date().toISOString() });
+    return { status: "review", kind: session.kind };
+  }
+  const kind = session?.editTarget ? session.kind : heading || explicit || session?.kind || inferred;
   if (!parsed.recognized && !kind) return { status: "ignored" };
   if (!kind) {
     const detail = "Start with Dump or Fuel so OpsBot knows which expense form you are sending.";
@@ -551,6 +619,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     ...(fields.cost && cost === null ? ["Cost"] : []),
     ...(kind === "fuel" && fields.gallons && gallons === null ? ["Gallons"] : []),
     ...(time === null ? ["Message timestamp"] : []),
+    ...(session?.editTarget && truck && truck !== session.editTarget.truck ? ["Truck cannot change during an edit"] : []),
   ];
 
   if (missing.length || invalid.length || !truck || cost === null || !time || (kind === "fuel" && gallons === null)) {
@@ -575,19 +644,40 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     version: 1,
     messageId: message.messageId,
     kind,
-    date: chicagoDateKey(new Date(message.receivedAt)),
+    date: session?.editTarget?.date || chicagoDateKey(new Date(message.receivedAt)),
     truck,
     location: canonicalLocation(fields.location || "", kind),
     cost,
     weight: kind === "dump" ? clean(fields.weight) || null : null,
     gallons: kind === "fuel" ? gallons : null,
-    time,
-    reportedAt: message.receivedAt,
+    time: session?.editTarget?.time || time,
+    reportedAt: session?.editTarget?.reportedAt || message.receivedAt,
     senderHash: recordKey(normalizePhone(message.senderPhone)),
     source: "whatsapp_opsbot",
-    sourceMessageIds: currentSession?.messageIds,
+    sourceMessageIds: [...new Set([
+      ...(session?.editTarget?.sourceMessageIds || [session?.editTarget?.messageId].filter(Boolean) as string[]),
+      ...(currentSession?.messageIds || []),
+    ])].slice(-20),
+    ...(session?.editTarget ? {
+      receiptMessageId: session.editTarget.receiptMessageId || session.editTarget.messageId,
+      replacesMessageId: session.editTarget.messageId,
+      revision: Math.max(1, Number(session.editTarget.revision) || 1) + 1,
+      revisedAt: message.receivedAt,
+    } : {}),
   };
-  const wexMatch = kind === "fuel" ? findMatchingWexAutomation(record) : null;
+  if (session?.editTarget
+    && record.kind === session.editTarget.kind
+    && record.truck === session.editTarget.truck
+    && record.location === session.editTarget.location
+    && record.cost === session.editTarget.cost
+    && record.weight === session.editTarget.weight
+    && record.gallons === session.editTarget.gallons) {
+    enqueueReply(message, `No changes detected. The verified expense remains:\n${expenseSummary(session.editTarget)}`, "expense-edit-unchanged");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "duplicate", kind, editTarget: session.editTarget.messageId, processedAt: new Date().toISOString() });
+    closeSession(message.senderPhone);
+    return { status: "duplicate", kind, record: session.editTarget };
+  }
+  const wexMatch = !session?.editTarget && kind === "fuel" ? findMatchingWexAutomation(record) : null;
   if (wexMatch) {
     enqueueReply(message, `Matched posted WEX transaction ${wexMatch.transaction.transactionId} for ${record.truck} · $${record.cost.toFixed(2)}. The expense is already tracked, so no duplicate JunkWare record was created.`, "expense-wex-duplicate");
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "duplicate", kind, wexTransactionId: wexMatch.transaction.transactionId, processedAt: new Date().toISOString() });
@@ -601,6 +691,8 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     phoneNumberId: clean(message.phoneNumberId),
     stage: "pending_junkware",
     enqueuedAt: new Date().toISOString(),
+    operation: session?.editTarget ? "edit" : "create",
+    ...(session?.editTarget ? { previousRecord: session.editTarget } : {}),
   };
   writeJsonAtomic(path.join(directory("transactions-pending"), `${recordKey(message.messageId)}.json`), transaction);
   writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "queued", kind, processedAt: new Date().toISOString() });
@@ -640,7 +732,8 @@ export function updateCrewExpenseTransaction(processingFile: string, update: Par
 export function finishCrewExpenseTransaction(processingFile: string): CrewExpenseRecord {
   const transaction = JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction;
   if (transaction.stage !== "slack_sent") throw new Error("The Krewe expense cannot appear in OpsCenter before Slack delivery.");
-  writeJsonAtomic(path.join(directory("records"), `${recordKey(transaction.record.messageId)}.json`), transaction.record);
+  const stableRecordMessageId = transaction.record.receiptMessageId || transaction.record.messageId;
+  writeJsonAtomic(path.join(directory("records"), `${recordKey(stableRecordMessageId)}.json`), transaction.record);
   const completedFile = path.join(directory("transactions-completed"), path.basename(processingFile));
   writeJsonAtomic(completedFile, { ...transaction, completedAt: new Date().toISOString() });
   const detail = transaction.record.kind === "dump"
@@ -653,14 +746,14 @@ export function finishCrewExpenseTransaction(processingFile: string): CrewExpens
       location: /\bmetal\b/i.test(transaction.record.location) ? "metal_yard" : "dump",
       recordedBy: "Verified OpsBot dump expense",
       occurredAt: transaction.record.reportedAt,
-      eventId: `expense:${transaction.record.messageId}`,
+      eventId: `expense:${stableRecordMessageId}`,
     });
   }
   enqueueReply({
     messageId: transaction.record.messageId,
     senderPhone: transaction.recipient,
     phoneNumberId: transaction.phoneNumberId,
-  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}\n\nNeed to fix something? Reply EDIT.`, "expense-verified");
+  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"}${transaction.operation === "edit" ? " correction" : ""} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}\n\nNeed to fix something? Reply EDIT.`, "expense-verified");
   fs.unlinkSync(processingFile);
   return transaction.record;
 }

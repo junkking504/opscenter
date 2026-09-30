@@ -14,16 +14,24 @@ function clientMessageId(messageId: string): string {
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 }
 
-export function formatCrewExpenseSlackNotification(record: CrewExpenseRecord): string {
+function changedValue(previous: string, current: string): string {
+  return previous === current ? current : `${previous} → ${current}`;
+}
+
+export function formatCrewExpenseSlackNotification(record: CrewExpenseRecord, previous?: CrewExpenseRecord): string {
   const isFuel = record.kind === "fuel";
+  const quantity = isFuel ? `${record.gallons} gal` : record.weight || "Not recorded";
+  const previousQuantity = previous
+    ? (isFuel ? `${previous.gallons} gal` : previous.weight || "Not recorded")
+    : quantity;
   return formatSlackMessage({
     icon: isFuel ? ":fuelpump:" : ":wastebasket:",
-    title: `${isFuel ? "Fuel" : "Dump"} receipt recorded`,
+    title: `${isFuel ? "Fuel" : "Dump"} receipt ${previous ? "corrected" : "recorded"}`,
     fields: [
       { label: "Truck", value: record.truck },
-      { label: "Location", value: record.location },
-      { label: "Amount", value: `$${record.cost.toFixed(2)}` },
-      { label: isFuel ? "Gallons" : "Weight", value: isFuel ? `${record.gallons} gal` : record.weight || "Not recorded" },
+      { label: "Location", value: previous ? changedValue(previous.location, record.location) : record.location },
+      { label: "Amount", value: previous ? changedValue(`$${previous.cost.toFixed(2)}`, `$${record.cost.toFixed(2)}`) : `$${record.cost.toFixed(2)}` },
+      { label: isFuel ? "Gallons" : "Weight", value: previous ? changedValue(previousQuantity, quantity) : quantity },
       { label: "Time", value: record.time },
     ],
   });
@@ -32,6 +40,7 @@ export function formatCrewExpenseSlackNotification(record: CrewExpenseRecord): s
 export async function sendCrewExpenseSlackNotification(
   record: CrewExpenseRecord,
   fetchImpl: typeof fetch = fetch,
+  previous?: CrewExpenseRecord,
 ): Promise<{ channel: string; ts: string; clientMessageId: string }> {
   if (!/^(1|true|yes|on)$/i.test(clean(process.env.SLACK_OPSCENTER_ALERTS_ENABLED))) {
     throw new Error("OpsCenter Slack alerts are disabled.");
@@ -45,7 +54,7 @@ export async function sendCrewExpenseSlackNotification(
   const response = await fetchImpl("https://slack.com/api/chat.postMessage", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify({ channel, text: formatCrewExpenseSlackNotification(record), client_msg_id: dedupeId, unfurl_links: false, unfurl_media: false }),
+    body: JSON.stringify({ channel, text: formatCrewExpenseSlackNotification(record, previous), client_msg_id: dedupeId, unfurl_links: false, unfurl_media: false }),
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),
   });

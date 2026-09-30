@@ -334,6 +334,50 @@ assert.throws(() => finishCrewExpenseTransaction(transaction.file), /before Slac
 updateCrewExpenseTransaction(transaction.file, { stage: "slack_sent" });
 finishCrewExpenseTransaction(transaction.file);
 assert.equal(readCrewExpenseRecords("2026-08-12").length, 1);
+const originalRecord = transaction.transaction.record;
+const editAt = new Date(new Date(originalRecord.reportedAt).getTime() + 60_000).toISOString();
+const editPrompt = ingestCrewExpenseText(message("expense-edit-command", "EDIT", transaction.transaction.recipient, editAt));
+assert.equal(editPrompt.status, "prompted");
+assert.equal(editPrompt.record?.messageId, originalRecord.messageId);
+const editPromptReply = queuedCrewExpenseReplies()
+  .map((file) => JSON.parse(fs.readFileSync(file, "utf8")))
+  .find((reply) => reply.messageId === "expense-edit-command");
+assert.ok(editPromptReply);
+assert.match(editPromptReply.text, /update the same JunkWare row/i);
+assert.doesNotMatch(editPromptReply.text, /^Recorded\.$/);
+
+const correctedCost = originalRecord.cost + 9;
+const correctedAt = new Date(new Date(editAt).getTime() + 60_000).toISOString();
+const correctedText = [
+  originalRecord.kind === "dump" ? "Dump" : "Fuel",
+  originalRecord.truck,
+  originalRecord.location,
+  ...(originalRecord.kind === "fuel" ? [`${originalRecord.gallons} gallons`] : []),
+  `$${correctedCost.toFixed(2)}`,
+  ...(originalRecord.kind === "dump" && originalRecord.weight ? [originalRecord.weight] : []),
+].join("\n");
+const correction = ingestCrewExpenseText(message("expense-edit-details", correctedText, transaction.transaction.recipient, correctedAt));
+assert.equal(correction.status, "queued");
+assert.equal(correction.record?.cost, correctedCost);
+assert.equal(correction.record?.reportedAt, originalRecord.reportedAt);
+assert.equal(correction.record?.time, originalRecord.time);
+assert.equal(correction.record?.receiptMessageId, originalRecord.messageId);
+assert.equal(correction.record?.replacesMessageId, originalRecord.messageId);
+assert.equal(correction.record?.revision, 2);
+const correctionFile = queuedCrewExpenseTransactions(50)
+  .find((file) => JSON.parse(fs.readFileSync(file, "utf8")).record?.messageId === "expense-edit-details");
+assert.ok(correctionFile);
+const correctionTransaction = claimCrewExpenseTransaction(correctionFile);
+assert.ok(correctionTransaction);
+assert.equal(correctionTransaction.transaction.operation, "edit");
+assert.equal(correctionTransaction.transaction.previousRecord?.messageId, originalRecord.messageId);
+updateCrewExpenseTransaction(correctionTransaction.file, { stage: "slack_sent" });
+finishCrewExpenseTransaction(correctionTransaction.file);
+const correctedRecords = readCrewExpenseRecords("2026-08-12");
+assert.equal(correctedRecords.length, 1);
+assert.equal(correctedRecords[0].cost, correctedCost);
+assert.equal(correctedRecords[0].messageId, "expense-edit-details");
+
 const verificationReply = queuedCrewExpenseReplies()
   .map((file) => claimCrewExpenseReply(file)?.reply)
   .find((reply) => reply?.messageId === transaction.transaction.record.messageId);
@@ -348,6 +392,10 @@ assert.equal(formatCrewExpenseSlackNotification(singleLineFuel.record!), [
   "*Gallons:* 24 gal",
   "*Time:* 2:30 PM",
 ].join("\n"));
+assert.match(
+  formatCrewExpenseSlackNotification({ ...originalRecord, messageId: "corrected-slack", cost: correctedCost }, originalRecord),
+  /receipt corrected[\s\S]*\$[\d,.]+ → \$[\d,.]+/,
+);
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
 process.env.SLACK_BOT_TOKEN = "xoxb-test";
 process.env.SLACK_TRUCK_1_CHANNEL_ID = "C_TRUCK_1";

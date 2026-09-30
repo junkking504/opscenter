@@ -349,32 +349,42 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
     });
     timing.verifiedAt = new Date().toISOString();
     if (verification.submittedAt) timing.uploadStartedAt = verification.submittedAt;
+    const notificationErrors: string[] = [];
     if (match.method === "jk_number") {
-      recordVerifiedWhatsAppJobPhoto({
-        messageId: claim.message.messageId,
-        jkNumber: match.jkNumber,
-        jobDate: date,
-        senderPhone: claim.message.senderPhone,
-        phoneNumberId: claim.message.phoneNumberId,
-        receivedAt: claim.message.receivedAt,
-      });
+      try {
+        recordVerifiedWhatsAppJobPhoto({
+          messageId: claim.message.messageId,
+          jkNumber: match.jkNumber,
+          jobDate: date,
+          senderPhone: claim.message.senderPhone,
+          phoneNumberId: claim.message.phoneNumberId,
+          receivedAt: claim.message.receivedAt,
+        });
+      } catch (error) {
+        notificationErrors.push(`WhatsApp confirmation receipt: ${clean(error instanceof Error ? error.message : error).slice(0, 300)}`);
+      }
     }
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
-      recordWhatsAppPhotoSlackUpload({
-        messageId: claim.message.messageId,
-        jkNumber: match.jkNumber,
-        category: match.category,
-        receivedAt: claim.message.receivedAt,
-        jobDate: date,
-        truck: match.truck || "",
-        status: "completed",
-        filePath: uploadFilePath,
-      });
+      try {
+        recordWhatsAppPhotoSlackUpload({
+          messageId: claim.message.messageId,
+          jkNumber: match.jkNumber,
+          category: match.category,
+          receivedAt: claim.message.receivedAt,
+          jobDate: date,
+          truck: match.truck || "",
+          status: "completed",
+          filePath,
+        });
+      } catch (error) {
+        notificationErrors.push(`Slack photo receipt: ${clean(error instanceof Error ? error.message : error).slice(0, 300)}`);
+      }
     }
     finishWhatsAppImage(claim.file, "completed", {
       match: matchedJob,
       upload: { verified: true, ...verification },
       timing,
+      ...(notificationErrors.length ? { notificationErrors } : {}),
     });
     return "completed";
   } catch (error) {

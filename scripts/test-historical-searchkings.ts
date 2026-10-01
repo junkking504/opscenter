@@ -29,7 +29,7 @@ try {
   assert.equal(readSearchKingsSnapshot("1999-01"), null);
 
   const fixture = readSearchKingsSnapshot("2026-03")!;
-  const call = { id: "history-regression-call", name: "Older inquiry", calledAtDate: "2026-03-12", calledAtTime: "12:00 PM", callerNumberComplete: "5045550100", duration: "1:00" };
+  const call = { id: "history-regression-call", name: "Older inquiry", calledAtDate: "2026-03-12", calledAtTime: "12:00 PM", callerNumberComplete: "5045550100", duration: "1:00", tagList: [] };
   fixture.calls.calls = [call] as typeof fixture.calls.calls;
   fs.writeFileSync(path.join(historyDirectory, "searchkings_2026-03.json"), JSON.stringify(fixture));
   fs.mkdirSync(path.join(temporaryRoot, "searchkings"), { recursive: true });

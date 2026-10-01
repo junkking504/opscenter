@@ -189,7 +189,7 @@
  * span is evidence of time away; only a positive dump geofence earns Dump. */
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap {
   position: absolute;
-  z-index: 0;
+  z-index: 3;
   display: grid;
   place-items: center;
   min-width: 1px;
@@ -213,18 +213,16 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap > span {
   position: relative;
   z-index: 1;
-  max-width: calc(100% - 4px);
-  padding: 1px 3px;
+  padding: 1px 4px;
   border-radius: 3px;
   background: rgb(255 255 255 / 86%);
-  font-size: 7px;
-  font-weight: 850;
-  line-height: 10px;
-  letter-spacing: .04em;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 14px;
+  letter-spacing: .02em;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump {
   border-block-color: #9b6a13;
@@ -239,20 +237,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 18px;
+  height: 22px;
   min-width: 1px;
-  border: 1px solid #64736b;
-  border-radius: 4px;
+  border: 1.5px solid #64736b;
+  border-radius: 5px;
   background: #eef3f0;
   color: #34453c;
   overflow: hidden;
   pointer-events: auto;
+  box-shadow: 0 1px 2px rgb(27 43 34 / 18%);
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop > span {
-  padding-inline: 4px;
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: .04em;
+  padding-inline: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 14px;
+  letter-spacing: .02em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;

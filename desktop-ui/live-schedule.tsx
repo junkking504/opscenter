@@ -509,7 +509,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth);
             const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const stopHeight=rowStops.length ? 22 : 0;
+            const stopHeight=rowStops.length ? 24 : 0;
             const rowHeight=rowJobs.length || rowStops.length ? Math.max(36,travelHeight+stopHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;

@@ -23,10 +23,13 @@ try {
     assert.ok(geometry.leftConnected && geometry.rightDelta<=1,`Striped connector fills the leave-and-return gap without a visual break: ${JSON.stringify(geometry)}`);
     assert.match(geometry.background,/repeating-linear-gradient/);
     assert.equal(geometry.height,22);
+    assert.equal(await gap.locator('span').evaluate(element=>getComputedStyle(element).fontSize),'11px');
     const standaloneDump=page.locator('[data-operational-stop="dump"]');
     assert.equal(await standaloneDump.count(),1,'The dump inside the appointment gap is not duplicated; the later between-customer dump remains');
     assert.equal((await standaloneDump.innerText()).trim(),'DUMP');
     assert.match(await standaloneDump.getAttribute('aria-label'),/visited Gentilly · 11:15 AM–11:30 AM/);
+    assert.equal(await standaloneDump.locator('span').evaluate(element=>getComputedStyle(element).fontSize),'11px');
+    assert.equal(await standaloneDump.evaluate(element=>element.getBoundingClientRect().height),22);
     const hqDeparture=page.locator('[data-operational-stop="departure"]');
     assert.equal((await hqDeparture.innerText()).trim(),'LEFT NOHQ');
     assert.match(await hqDeparture.getAttribute('aria-label'),/departed NOHQ at 8:30 AM/);

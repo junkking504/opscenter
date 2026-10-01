@@ -1,4 +1,5 @@
 import { geofenceAlertLocation } from './linxup-geofence-alerts';
+import { operationalLocationCodeAt } from './fleet-map';
 import { truckLabel, type ScheduleOperationalStop } from '../desktop-ui/lib/schedule-contract';
 
 type FacilityVisit = {
@@ -12,6 +13,7 @@ type FacilityVisit = {
   departedAt: string | null;
   lastSeenAt: string;
   conflict?: boolean;
+  facilityPosition?: { latitude: number; longitude: number };
 };
 
 const day = (value: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date(value));
@@ -35,7 +37,10 @@ export function scheduleOperationalStops(date: string, visits: FacilityVisit[]):
     const enteredToday = Boolean(entered && day(entered) === date);
     const departedToday = Boolean(departed && day(departed) === date);
     if (!enteredToday && !departedToday) return [];
-    const name = geofenceAlertLocation(visit.name);
+    const positionCode = /warehouse|\bhq\b/i.test(visit.name) && visit.facilityPosition
+      ? operationalLocationCodeAt(visit.facilityPosition)
+      : null;
+    const name = positionCode === 'NOHQ' || positionCode === 'BRHQ' ? positionCode : geofenceAlertLocation(visit.name);
     const hq = /^(?:NOHQ|BRHQ)$/i.test(name) || /warehouse/i.test(visit.facility || '');
     const dump = visit.resetLocation === 'dump';
     const departureOnly = !enteredToday && departedToday;

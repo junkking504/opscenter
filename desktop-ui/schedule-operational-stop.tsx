@@ -15,7 +15,7 @@ export default function ScheduleOperationalStopBlock({ stop, range, top }: {
     ? `${stop.truck} departed ${stop.name} at ${time}. Arrival was before this operating day.`
     : `${stop.truck} visited ${stop.name} · ${time}${stop.ongoing ? ' · departure unconfirmed' : ''}. Source: LinxUp facility evidence.`;
   return <div className={`schedule-operational-stop is-${stop.kind}${point ? ' is-point' : ''}`}
-    style={{ left:`${left * 100}%`, width:`max(${point ? 76 : 42}px, ${width * 100}%)`, top }}
+    style={{ left:`${left * 100}%`, width:`max(${point ? 90 : 50}px, ${width * 100}%)`, top }}
     role="note" aria-label={detail} title={detail}
     data-operational-stop={stop.kind} data-operational-location={stop.name}>
     <span>{stop.label}</span>

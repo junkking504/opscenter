@@ -12,6 +12,7 @@ const tracked = [
   {id:'dump-between-customers',kind:'geofence' as const,truck:'Truck 6',name:'BR Landfilll',facility:'Landfill',resetLocation:'dump' as const,enteredAt:'2026-09-30T20:12:37Z',departedAt:'2026-09-30T20:25:50Z',lastSeenAt:'2026-09-30T20:24:49Z'},
   {id:'hq-departure',kind:'geofence' as const,truck:'Truck 8',name:'Warehouse',facility:'Junk King warehouse',resetLocation:null,enteredAt:'2026-09-29T20:00:00Z',departedAt:'2026-09-30T13:27:40Z',lastSeenAt:'2026-09-30T13:26:39Z'},
   {id:'hq-visit',kind:'geofence' as const,truck:'Truck 6',name:'Warehouse',facility:'Junk King warehouse',resetLocation:null,enteredAt:'2026-10-01T02:15:23Z',departedAt:null,lastSeenAt:'2026-10-01T02:36:16Z'},
+  {id:'brhq-visit',kind:'geofence' as const,truck:'Truck 7',name:'Warehouse',facility:'Junk King warehouse',resetLocation:null,enteredAt:'2026-09-30T13:15:23Z',departedAt:'2026-09-30T13:36:16Z',lastSeenAt:'2026-09-30T13:35:16Z',facilityPosition:{latitude:30.4191544,longitude:-91.144973}},
 ];
 const stops=scheduleOperationalStops('2026-09-30',tracked);
 assert.deepEqual(stops.filter(stop=>stop.truck==='Truck 6').map(stop=>[stop.kind,stop.label,Math.floor(stop.startMinutes),Math.floor(stop.endMinutes)]),[
@@ -19,6 +20,7 @@ assert.deepEqual(stops.filter(stop=>stop.truck==='Truck 6').map(stop=>[stop.kind
 ]);
 assert.deepEqual(stops.find(stop=>stop.id==='hq-departure') && {kind:stops.find(stop=>stop.id==='hq-departure')!.kind,label:stops.find(stop=>stop.id==='hq-departure')!.label,start:Math.floor(stops.find(stop=>stop.id==='hq-departure')!.startMinutes)},
   {kind:'departure',label:'Left NOHQ',start:507},'An overnight HQ stay becomes a departure marker on the selected operating day');
+assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ','A generic Warehouse visit at the Baton Rouge warehouse coordinates is labeled BRHQ');
 
 const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'4090218',jkNumber:'JK4103396',customerName:'Terrencia Polk',truck:'Truck 6',status:'Completed',hasScheduledTime:true,appointmentStartMinutes:660,appointmentEndMinutes:720,
   truckVisits:[{truck:'Truck 6',arrival:'2026-09-30T17:10:44Z',departure:'2026-09-30T18:00:24Z',observedThrough:'2026-09-30T18:00:24Z'},{truck:'Truck 6',arrival:'2026-09-30T18:53:30Z',departure:'2026-09-30T19:50:15Z',observedThrough:'2026-09-30T19:50:15Z'}],

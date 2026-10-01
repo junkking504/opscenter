@@ -4363,7 +4363,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="krewe-view-switcher workspace-tabs" role="tablist" aria-label="Crew views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
-                  ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (key === 'today') changeScheduleDay('today'); if (key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
+                  ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Fleet' ? (

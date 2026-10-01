@@ -2,6 +2,10 @@
 
 The selected operating day is the planning date; the plan covers the following
 day's published JunkWare appointments. Suggestions are not confirmed availability.
+Selecting the live Call-in plan tab only changes the view; it preserves the
+selected operating day. The server advances that planning date once to obtain
+the target day. Repeated tab clicks and switching between Crew views must not
+advance the operating date or the target day.
 
 Candidates must have positive recorded work hours in the planning date's current
 pay period, through that planning date. Eligibility uses the shared Pay period

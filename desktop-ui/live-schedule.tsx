@@ -152,6 +152,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
+        row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
+        row.toggleAttribute('data-condensed', layout.scale < .72);
       });
     };
     const observer = new ResizeObserver(fit);
@@ -508,12 +510,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
-            const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth);
+            const compactTimeline=truckNames.length>=10;
+            const { placed, laneStep, rowHeight: travelHeight, connectors, laneCount: travelLaneCount, occupiedLanes } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth,compactTimeline);
             const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
-            const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth);
+            const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth,occupiedLanes);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const stopHeight=stopLayout.laneCount*24;
-            const rowHeight=rowJobs.length || rowStops.length ? Math.max(36,travelHeight+stopHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
+            const extraStopLanes=Math.max(0,stopLayout.laneCount-travelLaneCount);
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,travelHeight+extraStopLanes*24+(hasProgress&&!compactTimeline?10:0)) : 32;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
@@ -525,7 +528,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
               ])}
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
-              {stopLayout.placements.map(({stop,lane})=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={travelHeight+1+lane*24} />)}
+              {stopLayout.placements.map(({stop,lane})=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={lane<travelLaneCount?lane*laneStep+2:travelHeight+1+(lane-travelLaneCount)*24} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
             </div></div></div>;

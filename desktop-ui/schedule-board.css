@@ -179,8 +179,15 @@
   flex: none;
 }
 
-/* Only lane content scales; the label column and hourly grid stay full size. */
-.ops-live .schedule-dispatch .schedule-timeline-content { position: relative; width: 100%; height: 100%; zoom: var(--schedule-timeline-scale, 1); }
+/* Only lane height scales. Horizontal time geometry must stay aligned with the
+ * full-width hourly ruler even when ten rows share a short screen. */
+.ops-live .schedule-dispatch .schedule-timeline-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: scaleY(var(--schedule-timeline-scale, 1));
+  transform-origin: top left;
+}
 
 .ops-live .schedule-dispatch .schedule-time-basis { display: block; color: #607069; font-size: 10px; line-height: 1.2; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { padding-inline: 0; border-left-width: 1px; }
@@ -284,4 +291,36 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 12; background: var(--surface, #fff); }
   .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open > .schedule-map-panel { height: 100%; min-height: 0; overflow: auto; }
   .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open .schedule-map-canvas { flex: 1 1 auto; height: auto; min-height: 200px; }
+
+  /* At compressed heights, blocks and lines carry the overview. Remove tiny
+   * inline copy that cannot fit; the complete wording remains in titles,
+   * accessible labels, route hover help, and the appointment detail action. */
+  .ops-live .schedule-truck-row[data-condensed] .schedule-appointment .schedule-block-status > *,
+  .ops-live .schedule-truck-row[data-condensed] .schedule-visit-duration,
+  .ops-live .schedule-truck-row[data-condensed] .schedule-visit-gap > span,
+  .ops-live .schedule-truck-row[data-condensed] .schedule-operational-stop > span,
+  .ops-live .schedule-truck-row[data-condensed] .route-connector-miles,
+  .ops-live .schedule-truck-row[data-condensed] .truck-progress-customer { display: none; }
+  .ops-live .schedule-truck-row[data-condensed] .route-connector-label {
+    inset-inline: auto;
+    left: calc(50% - 4px);
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    background: #fff;
+    text-indent: -999px;
+    transform: scaleY(var(--schedule-timeline-inverse-scale, 1));
+    transform-origin: center;
+  }
+  .ops-live .schedule-truck-row[data-condensed] .schedule-truck-progress {
+    left: auto;
+    width: auto;
+    max-width: 74px;
+    min-width: 42px;
+    justify-content: center;
+    transform: scaleY(var(--schedule-timeline-inverse-scale, 1));
+    transform-origin: bottom;
+  }
 }

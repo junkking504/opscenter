@@ -54,7 +54,7 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
     .flat();
 }
 
-export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number) {
+export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number, compact = false) {
   const lanes: number[] = [];
   const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
     let lane = lanes.findIndex(end => end <= position.start);
@@ -71,7 +71,7 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
       range.start + (segment.left + Math.max(segment.width, minimumFraction)) * range.duration,
     ), position.end);
     lanes[lane] = renderedEnd;
-    return { job, position, lane };
+    return { job, position, lane, renderedEnd };
   });
   const pairs = legs.flatMap(leg => {
     const from = placed.find(item => item.job.recordId === leg.fromAppointmentId);
@@ -80,8 +80,8 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const overlap = Math.min(from.position.end, to.position.end) > Math.max(from.position.start, to.position.start);
     return [{ leg, from, to, vertical: overlap && from.lane !== to.lane }];
   });
-  const laneStep = pairs.some(pair => pair.vertical) ? 38 : 24;
-  const rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + 42 : 32;
+  const laneStep = pairs.some(pair => pair.vertical) ? (compact ? 28 : 38) : 24;
+  const rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + (compact ? 30 : 42) : compact ? 28 : 32;
   const connectors = pairs.map((pair): typeof pair & ConnectorGeometry => {
     const { from, to, vertical } = pair;
     const reverse = vertical ? from.lane > to.lane : from.position.left > to.position.left;
@@ -115,6 +115,9 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const b = gapEnd > gapStart ? gapEnd : to.position.left + to.position.width / 2;
     return { ...pair, reverse, left: Math.min(a, b), width: Math.abs(b - a), top: rowHeight - 16, height: 15, labelTop: 2 };
   });
-  return { placed, laneStep, rowHeight, connectors };
+  const occupiedLanes = Array.from({ length: lanes.length }, (_, lane) => placed
+    .filter(item => item.lane === lane)
+    .map(item => ({ left: (item.position.start - range.start) / range.duration, right: (item.renderedEnd - range.start) / range.duration })));
+  return { placed, laneStep, rowHeight, connectors, laneCount: lanes.length, occupiedLanes };
 }
 export type TimelineConnector = ReturnType<typeof scheduleTravelLayout>['connectors'][number];

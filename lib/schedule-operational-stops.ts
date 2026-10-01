@@ -1,6 +1,7 @@
 import { geofenceAlertLocation } from './linxup-geofence-alerts';
 import { operationalLocationCodeAt } from './fleet-map';
 import { truckLabel, type ScheduleOperationalStop } from '../desktop-ui/lib/schedule-contract';
+import type { TruckGpsRoute } from '../desktop-ui/lib/gps-route-contract';
 
 type FacilityVisit = {
   id: string;
@@ -64,4 +65,49 @@ export function scheduleOperationalStops(date: string, visits: FacilityVisit[]):
       ongoing: !departed,
     }];
   }).sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));
+}
+
+/** A recorded trip endpoint at HQ is positive presence evidence even when the
+ * geofence transition feed omitted that truck. Pair an arrival with the next
+ * departure to show one Visit block; an unpaired departure/arrival stays a
+ * zero-duration Visit rather than inventing dwell time. */
+export function scheduleGpsHqStops(date: string, routes: TruckGpsRoute[]): ScheduleOperationalStop[] {
+  const result: ScheduleOperationalStop[] = [];
+  const add = (route: TruckGpsRoute, code: 'NOHQ' | 'BRHQ', enteredAt: string, departedAt: string | null, observedThrough: string) => {
+    const startMinutes = minute(enteredAt), endMinutes = Math.max(startMinutes, minute(departedAt || observedThrough));
+    result.push({
+      id: `gps-hq:${route.truck}:${code}:${enteredAt}:${departedAt || observedThrough}`,
+      truck: truckLabel(route.truck), name: code, facility: 'Junk King warehouse', kind: 'hq', label: `${code} Visit`,
+      enteredAt, departedAt, observedThrough, startMinutes, endMinutes, ongoing: !departedAt,
+    });
+  };
+  for (const route of routes) {
+    let open: { code: 'NOHQ' | 'BRHQ'; arrival: string } | null = null;
+    for (const trip of [...(route.trips || [])].sort((a, b) => a.departure.localeCompare(b.departure))) {
+      if (day(trip.departure) !== date) continue;
+      const from = operationalLocationCodeAt(trip.from);
+      const fromHq = from === 'NOHQ' || from === 'BRHQ' ? from : null;
+      if (open && fromHq === open.code && Date.parse(trip.departure) >= Date.parse(open.arrival)) {
+        add(route, open.code, open.arrival, trip.departure, trip.departure);
+        open = null;
+      } else if (fromHq) add(route, fromHq, trip.departure, trip.departure, trip.departure);
+      const to = operationalLocationCodeAt(trip.to);
+      open = to === 'NOHQ' || to === 'BRHQ' ? { code: to, arrival: trip.arrival } : null;
+    }
+    if (open) {
+      const latest = [...route.points].reverse().find(point => operationalLocationCodeAt(point) === open!.code && Date.parse(point.timestamp) >= Date.parse(open!.arrival));
+      const coverage = latest && [latest.timestamp, route.coveredThrough || '']
+        .filter(value => Number.isFinite(Date.parse(value)) && Date.parse(value) >= Date.parse(open!.arrival))
+        .sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+      add(route, open.code, open.arrival, coverage ? null : open.arrival, coverage || open.arrival);
+    }
+  }
+  return result.sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));
+}
+
+export function mergeScheduleOperationalStops(primary: ScheduleOperationalStop[], gps: ScheduleOperationalStop[]) {
+  const overlaps = (a: ScheduleOperationalStop, b: ScheduleOperationalStop) => a.truck === b.truck && a.name === b.name
+    && a.startMinutes <= b.endMinutes + 2 && b.startMinutes <= a.endMinutes + 2;
+  return [...primary, ...gps.filter(candidate => !primary.some(stop => overlaps(stop, candidate)))]
+    .sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));
 }

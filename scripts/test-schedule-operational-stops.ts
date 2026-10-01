@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { scheduleOperationalStops } from '../lib/schedule-operational-stops';
+import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalStops } from '../lib/schedule-operational-stops';
 import { applyRouteOrderConfirmations } from '../lib/schedule-route-order-confirmations';
 import { scheduleStandaloneOperationalStops, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { operationalStopIcon, scheduleOperationalStopLayout, stopMinimumWidth } from '../desktop-ui/lib/schedule-operational-stop-layout';
@@ -23,6 +23,22 @@ assert.deepEqual(stops.find(stop=>stop.id==='hq-departure') && {kind:stops.find(
   {kind:'hq',label:'NOHQ Visit',start:480},'An overnight HQ stay remains one visit block through its selected-day departure');
 assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ Visit','A generic Warehouse visit at the Baton Rouge warehouse coordinates is labeled BRHQ');
 
+const gpsHqStops=scheduleGpsHqStops('2026-10-01',[
+  {date:'2026-10-01',truck:'Truck 2',status:'available',observedAt:'2026-10-01T15:20:00Z',coveredThrough:'2026-10-01T15:20:00Z',paths:[],gapLinks:[],gaps:0,rejected:0,
+    points:[{timestamp:'2026-10-01T15:15:00Z',latitude:29.9863006,longitude:-90.0586452}],trips:[
+      {id:'t2-out',number:1,departure:'2026-10-01T13:10:00Z',arrival:'2026-10-01T13:40:00Z',from:{latitude:29.9863006,longitude:-90.0586452,address:'NOHQ'},to:{latitude:29.95,longitude:-90.1,address:'Customer'}},
+      {id:'t2-back',number:2,departure:'2026-10-01T14:30:00Z',arrival:'2026-10-01T15:00:00Z',from:{latitude:29.95,longitude:-90.1,address:'Customer'},to:{latitude:29.9863006,longitude:-90.0586452,address:'NOHQ'}},
+    ]},
+  {date:'2026-10-01',truck:'Truck 3',status:'available',observedAt:'2026-10-01T16:00:00Z',coveredThrough:'2026-10-01T16:00:00Z',points:[],paths:[],gapLinks:[],gaps:0,rejected:0,trips:[
+      {id:'t3-back',number:1,departure:'2026-10-01T15:00:00Z',arrival:'2026-10-01T15:30:00Z',from:{latitude:30.5,longitude:-91.2,address:'Customer'},to:{latitude:30.4191544,longitude:-91.144973,address:'BRHQ'}},
+      {id:'t3-out',number:2,departure:'2026-10-01T16:00:00Z',arrival:'2026-10-01T16:20:00Z',from:{latitude:30.4191544,longitude:-91.144973,address:'BRHQ'},to:{latitude:30.48,longitude:-91.18,address:'Next customer'}},
+    ]},
+]);
+assert.deepEqual(gpsHqStops.map(stop=>[stop.truck,stop.label,Math.floor(stop.startMinutes),Math.floor(stop.endMinutes),stop.ongoing]),[
+  ['Truck 2','NOHQ Visit',490,490,false],['Truck 2','NOHQ Visit',600,620,true],['Truck 3','BRHQ Visit',630,660,false],
+],'Trips leaving and returning to HQ produce one block per confirmed contiguous visit without inventing dwell time');
+assert.equal(mergeScheduleOperationalStops([{...gpsHqStops[2],id:'native'}],gpsHqStops).filter(stop=>stop.truck==='Truck 3').length,1,'Native geofence evidence wins over an overlapping trip-derived HQ visit');
+
 const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'4090218',jkNumber:'JK4103396',customerName:'Terrencia Polk',truck:'Truck 6',status:'Completed',hasScheduledTime:true,appointmentStartMinutes:660,appointmentEndMinutes:720,
   truckVisits:[{truck:'Truck 6',arrival:'2026-09-30T17:10:44Z',departure:'2026-09-30T18:00:24Z',observedThrough:'2026-09-30T18:00:24Z'},{truck:'Truck 6',arrival:'2026-09-30T18:53:30Z',departure:'2026-09-30T19:50:15Z',observedThrough:'2026-09-30T19:50:15Z'}],
   truckVisitGaps:[{truck:'Truck 6',departedAt:'2026-09-30T18:00:24Z',returnedAt:'2026-09-30T18:53:30Z',kind:'dump' as const,facilityName:'BR Landfilll'}]} as ScheduleAppointment;
@@ -40,6 +56,10 @@ assert.equal(stopMinimumWidth(emrStop),24,'The steel-beam stop remains as compac
 const crowdedLayout=scheduleOperationalStopLayout(crowdedStops,{start:480,duration:540},628);
 assert.equal(crowdedLayout.laneCount,2,'Compact facility icons need fewer lanes while remaining separate');
 assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['nohq-visit',0],['dump',1],['nohq',0]]);
+const sharedLane=scheduleOperationalStopLayout([crowdedStops[0]],{start:480,duration:540},628,[[{left:.05,right:.25}]]);
+assert.deepEqual(sharedLane.placements.map(row=>[row.stop.id,row.lane]),[['nohq-visit',0]],'A visit shares an appointment line when its rendered span fits');
+const collidedLane=scheduleOperationalStopLayout([crowdedStops[0]],{start:480,duration:540},628,[[{left:.3,right:.45}]]);
+assert.deepEqual(collidedLane.placements.map(row=>[row.stop.id,row.lane]),[['nohq-visit',1]],'A visit adds a line only when its rendered span truly collides');
 
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'route-order-test-'));
 process.env.SCHEDULE_ROUTE_ORDER_DIR=directory;

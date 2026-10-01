@@ -21,15 +21,15 @@ try {
     assert.ok(b.y<c.y, 'Saved first stop is above the second stop');
     assert.ok(Math.abs(arrow.y+arrow.height/2-(b.y+b.height/2))<1.5, '31-minute arrow aligns with the first appointment center');
     assert.ok(Math.abs(arrow.x+arrow.width-b.x)<3, 'Arrow tip reaches the first appointment left edge');
-    const path = incoming.locator('svg');
+    const path = incoming.locator('.route-connector-path');
     const pathBox = await path.boundingBox();
     assert.ok(Math.abs(pathBox.y-(a.y+a.height/2))<1.5, 'Travel line leaves the completed source appointment');
     await incoming.getByRole('button').click();
-    const details = page.getByRole('dialog',{name:'Travel · Truck 9',exact:true});
+    const details = page.getByRole('dialog',{name:'Travel · Truck# 9',exact:true});
     await details.waitFor();
     assert.match(await details.innerText(), /JK1001001[\s\S]*JK1001002[\s\S]*31m/);
     await details.getByRole('button',{name:'Close travel details'}).click();
-    await target.click();
+    await target.press('Enter');
     await page.locator('.schedule-appointment-summary').waitFor();
     const selectedArrow = await incoming.locator('.route-connector-arrow').boundingBox();
     const selectedTarget = await target.boundingBox();

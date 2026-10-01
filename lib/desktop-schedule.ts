@@ -22,8 +22,9 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 import { dedupeLinkedAppointmentVisitState } from './linked-appointment-visit-dedup';
-import { scheduleOperationalStops } from './schedule-operational-stops';
+import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalStops } from './schedule-operational-stops';
 import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
+import { readTruckGpsRoute } from './desktop-gps-route';
 
 export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
@@ -88,11 +89,16 @@ export function readDesktopSchedule(date: string) {
     job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
     job.truckVisitGaps = scheduleTruckVisitGaps(job.truckVisits, tracked.visits);
   }
+  const geofenceStops = scheduleOperationalStops(date, tracked.visits);
+  const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {
+    const label = truck.truck.replace(/^Truck#?\s*/i, 'Truck ');
+    try { return [readTruckGpsRoute(date, label)]; } catch { return []; }
+  }));
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
     appointments: applyRouteOrderConfirmations(date, applyStopOrders(date, appointments)),
-    operationalStops: scheduleOperationalStops(date, tracked.visits),
+    operationalStops: mergeScheduleOperationalStops(geofenceStops, gpsHqStops),
     truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], sourceAppointments).map(load=>({
       truck:load.truck, label:load.displayLoadLabel,
       percent:!load.events.length ? null : load.capacityPercent,

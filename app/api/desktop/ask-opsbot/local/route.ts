@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, resolveRequestOrigin, verifyAuthSessionCookie } from '@/lib/auth';
 import { buildLocalCrewRevenueAnswer } from '@/lib/local-crew-revenue-answer';
+import { buildLocalTerritoryDemandAnswer } from '@/lib/local-territory-demand-answer';
 import { opsRoleCan } from '@/lib/ops-roles';
 
 export const dynamic = 'force-dynamic';
@@ -23,8 +24,8 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Enter a question under 1,000 characters and select a valid operating date.' }, { status: 400, headers });
   }
   try {
-    return Response.json(buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
+    return Response.json(buildLocalTerritoryDemandAnswer(question, date) || buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
   } catch {
-    return Response.json({ error: 'The monthly Krewe attribution source is unavailable.' }, { status: 503, headers });
+    return Response.json({ error: 'The OpsCenter reporting source is unavailable.' }, { status: 503, headers });
   }
 }

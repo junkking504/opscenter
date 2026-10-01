@@ -19,7 +19,7 @@ export type KnowledgeAnswer = {
 const STOP_WORDS = new Set([
   'a','about','an','and','are','as','at','be','been','being','by','can','could','did','do','does','for','from','had','has','have',
   'i','if','in','into','is','it','its','me','my','of','on','or','our','should','so','that','the','their','them','there','this','to',
-  'was','we','were','what','when','where','which','who','will','with','would','you','your','opscenter','please','tell','explain',
+  'was','we','were','what','when','where','which','who','will','with','would','you','your','opscenter','please','tell','explain','day','week','per',
 ]);
 
 const SYNONYMS: Record<string, string[]> = {
@@ -110,7 +110,7 @@ export function answerKnowledgeQuestion(entries: KnowledgeEntry[], query: string
   const queryTerms = terms(query);
   if (!query.trim() || !queryTerms.length) return null;
   const ranked = entries.filter(entry => entry.status !== 'archived').map(entry => ({ entry, ...score(entry, query, queryTerms) }))
-    .filter(row => row.value >= 8 && (row.coverage >= .34 || row.value >= 28))
+    .filter(row => row.value >= 8 && (row.coverage >= .34))
     .sort((a, b) => b.value - a.value || b.coverage - a.coverage || (b.entry.learning?.recordedAt || b.entry.updatedAt).localeCompare(a.entry.learning?.recordedAt || a.entry.updatedAt));
   const best = ranked[0];
   if (!best) return null;

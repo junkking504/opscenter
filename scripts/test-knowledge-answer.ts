@@ -16,6 +16,9 @@ const incident: KnowledgeEntry = {
   verificationNote: 'Checked synthetic evidence.', reviewDue: '2026-10-23T17:00:00.000Z', history: [],
 };
 
+const waypoint = { ...incident, title: 'Waypoint full-day closeouts blocked by current-assignment dry-run gate', summary: 'Schedule-derived truck-day appointments were rejected before authoritative scope validation.', body: 'The simulator required the assignment to match before the full truck-day authorization.', learning: { ...incident.learning!, topics: ['waypoint', 'full-day', 'closeout'] } };
+assert.equal(answerKnowledgeQuestion([waypoint], "what’s our busiest day of the week per territory", now), null);
+
 const entries = [...knowledgeSeeds, incident];
 const cause = answerKnowledgeQuestion(entries, 'Why were the truck geofence alerts missing?', now);
 assert.equal(cause?.entryId, incident.id);

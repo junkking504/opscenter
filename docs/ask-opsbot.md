@@ -9,7 +9,21 @@ Monthly or month-to-date revenue attributed to a named employee is answered
 first from the existing Krewe monthly read model. This deterministic path
 requires a unique employee match, returns credited revenue, employee job
 credits, source freshness and missing-date coverage, and does not reserve a
-pilot question or call the AI provider. Unsupported questions continue to the
+pilot question or call the AI provider. Busiest-weekday questions by territory are calculated locally from non-provisional
+`jobs_by_market` daily history, defaulting to the last 365 completed calendar
+days before the earlier of today and the selected day. Rankings compare average
+jobs on positive-job territory days, require three observations per weekday,
+normalize existing territory labels, retain ties, and disclose missing coverage.
+Rolling 7–365 day requests are supported. Average jobs per day by territory
+uses the same full historical range, returning total jobs, recorded-day count,
+recorded-day average including explicit zeros, and positive-job-day average.
+Absent territory counts and missing dates are excluded and disclosed separately;
+they never become zero. This is an observed average, not a verified complete
+calendar-period average when coverage is missing. These answers consume no AI question.
+Enter submits a natural-language question; record searches retain result navigation.
+Local answers remain available when the paid pilot is paused or exhausted.
+
+Unsupported questions continue to the
 bounded GPT-6 Luna path.
 
 ## Evidence boundary

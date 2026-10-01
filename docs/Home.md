@@ -43,6 +43,7 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
+- [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [OpsBot Resale photos and sales](whatsapp-resale.md)

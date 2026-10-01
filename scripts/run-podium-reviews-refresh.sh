@@ -5,7 +5,7 @@ USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 ENV_FILE="${OPSCENTER_ENV_FILE:-$USER_HOME/Library/Application Support/OpsCenter/production.env}"
-MIN_AGE_MINUTES="${PODIUM_REVIEWS_MIN_AGE_MINUTES:-15}"
+MIN_AGE_MINUTES="${PODIUM_REVIEWS_MIN_AGE_MINUTES:-0}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a

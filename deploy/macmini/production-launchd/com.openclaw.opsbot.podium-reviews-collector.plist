@@ -12,7 +12,7 @@
   <key>RunAtLoad</key>
   <true/>
   <key>StartInterval</key>
-  <integer>900</integer>
+  <integer>60</integer>
   <key>ProcessType</key>
   <string>Background</string>
   <key>WorkingDirectory</key>
@@ -34,7 +34,7 @@
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>PODIUM_REVIEWS_MIN_AGE_MINUTES</key>
-    <string>15</string>
+    <string>0</string>
   </dict>
 </dict>
 </plist>

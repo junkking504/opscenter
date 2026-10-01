@@ -45,4 +45,4 @@ launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
 launchctl enable "gui/$(id -u)/$LABEL"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
-echo "Podium reviews collector installed; Google reviews refresh every 15 minutes."
+echo "Podium reviews collector installed; Google reviews refresh every minute."

@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { readKreweHours } from "@/lib/desktop-krewe-hours";
 
 const RECENT_LOOKBACK_DAYS = 21;
-const ACTIVE_LOOKBACK_DAYS = 14;
 const ASSUMED_CALL_IN_HOURS = 8;
 const JOBS_PER_CREW_DAY = 4;
 const PEOPLE_PER_CREW = 2;
@@ -229,8 +229,15 @@ function percentile(values: number[], value: number): number {
 
 function collectCandidates(baseDate: string): CandidateAccumulator[] {
   const recentStart = addDays(baseDate, -(RECENT_LOOKBACK_DAYS - 1));
-  const activeCutoff = addDays(baseDate, -(ACTIVE_LOOKBACK_DAYS - 1));
   const weekStart = mondayFor(baseDate);
+  // Eligibility uses recorded work in the selected pay period, including
+  // applied hours corrections. Revenue, bonuses and old shifts do not qualify.
+  const periodWorkers = new Map(readKreweHours(baseDate).employees.flatMap((employee) => {
+    const days = employee.weeks.flatMap((week) => week.days).filter((day) => day.date <= baseDate);
+    if (!days.some((day) => (day.hours ?? 0) > 0)) return [];
+    return [[personKey(employee.name), days.filter((day) => day.date >= weekStart)
+      .reduce((sum, day) => sum + (day.hours ?? 0), 0)] as const];
+  }));
   const byEmployee = new Map<string, CandidateAccumulator>();
 
   for (const date of datesBetween(recentStart, baseDate)) {
@@ -270,7 +277,6 @@ function collectCandidates(baseDate: string): CandidateAccumulator[] {
       existing.recentRevenue += revenue;
       existing.recentJobs += jobs;
       existing.recentShifts += 1;
-      if (date >= weekStart) existing.weeklyHours += hours;
       const driverTrucks = Array.isArray(row?.driver_trucks) ? row.driver_trucks : [];
       const drove = driverTrucks.length > 0 || Boolean(row?.driver_assignment_windows?.length);
       if (drove) existing.driverShifts += 1;
@@ -283,9 +289,9 @@ function collectCandidates(baseDate: string): CandidateAccumulator[] {
     }
   }
 
-  return Array.from(byEmployee.values()).filter(
-    (candidate) => candidate.lastWorked >= activeCutoff && !candidate.salary,
-  );
+  return Array.from(byEmployee.values())
+    .filter((candidate) => periodWorkers.has(personKey(candidate.name)) && !candidate.salary)
+    .map((candidate) => ({ ...candidate, weeklyHours: periodWorkers.get(personKey(candidate.name))! }));
 }
 
 function candidateReason(candidate: Omit<CrewCallInCandidate, "rank" | "reason">): string {
@@ -443,7 +449,7 @@ export function buildCrewCallInPlan(baseDate: string): CrewCallInPlan {
     ? "No active appointments are on tomorrow’s schedule, so no call-ins are suggested."
     : uncovered > 0
       ? `${uncovered} additional person${uncovered === 1 ? "" : "s"} may be needed; there is not enough recent Krewe history to make a confident suggestion.`
-      : "Recommendations balance recent RPH, current-week hours, recent activity, and driver coverage. Confirm availability before scheduling.";
+      : "Only people with recorded work this pay period are considered. Recommendations balance recent RPH, current-week hours, recent activity, and driver coverage. Confirm availability before scheduling.";
 
   return {
     baseDate,

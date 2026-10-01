@@ -32,6 +32,7 @@ without mixing live runtime data or secrets into Git.
 ## Integrations and operating areas
 
 - [Krewe Pay Portal](crew-pay-portal.md)
+- [Crew call-in plan](crew-call-in-plan.md)
 - [Mobile crew closeout and company-phone access](mobile-job-closeout.md)
 - [JunkWare write-through](junkware-write-through.md)
 - [Payment reconciliation](payment-reconciliation.md)

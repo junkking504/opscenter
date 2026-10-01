@@ -45,9 +45,13 @@ const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "
 const usabilityCss = readFileSync(new URL("../app/ops-usability.css", import.meta.url), "utf8");
 assert.match(
   globalCss,
-  /\.ops-jobs-map-pin\.is-canceled \{[\s\S]*?border-radius: 3px;[\s\S]*?repeating-linear-gradient[\s\S]*?opacity: 1;/,
-  "Cancelled map pins must use the high-contrast caution diamond, not a dimmed scheduled pin.",
+  /\.ops-jobs-map-pin\.is-canceled \{[\s\S]*?border-color: #cbd5e1;[\s\S]*?border-radius: 3px;[\s\S]*?repeating-linear-gradient[\s\S]*?opacity: \.82;/,
+  "Cancelled map pins must use a muted gray diamond, not a scheduled-job territory color.",
 );
 assert.match(globalCss, /\.ops-jobs-map-pin \.ops-jobs-map-pin-cancel \{/);
-assert.match(usabilityCss, /\.ops-map-cluster\.is-appointments\.has-canceled,[\s\S]*?\.ops-map-cluster\.is-appointments\.is-all-canceled/);
+assert.match(
+  usabilityCss,
+  /\.ops-map-cluster\.is-appointments\.has-canceled,[\s\S]*?border-color: #cbd5e1;[\s\S]*?\.ops-map-cluster\.is-appointments\.is-all-canceled \{[\s\S]*?#9ca3af/,
+  "Clusters containing cancelled appointments must use the same muted gray treatment.",
+);
 console.log("Dispatch appointments cluster cleanly while truck locators remain individual.");

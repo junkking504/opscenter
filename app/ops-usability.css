@@ -1303,20 +1303,21 @@ body {
 
 .ops-map-cluster.is-appointments.has-canceled,
 .ops-map-cluster.is-appointments.is-all-canceled {
-  border-color: #facc15;
+  border-color: #cbd5e1;
   box-shadow:
-    0 0 0 3px #111827,
-    0 0 0 6px rgba(250, 204, 21, .86),
-    0 5px 14px rgba(0, 0, 0, .55);
+    0 0 0 3px #1f2937,
+    0 0 0 6px rgba(156, 163, 175, .76),
+    0 5px 14px rgba(0, 0, 0, .46);
 }
 
 .ops-map-cluster.is-appointments.is-all-canceled {
   background: repeating-linear-gradient(
     135deg,
-    #facc15 0 6px,
-    #111827 6px 12px
+    #9ca3af 0 6px,
+    #4b5563 6px 12px
   );
   color: #fff;
+  opacity: .86;
 }
 
 .ops-map-cluster.is-appointments.is-all-canceled :is(b, small) {
@@ -1334,9 +1335,9 @@ body {
   height: 24px;
   place-items: center;
   padding: 0 4px;
-  border: 2px solid #111827;
+  border: 2px solid #374151;
   border-radius: 6px;
-  background: #facc15;
+  background: #9ca3af;
   color: #111827;
   font-size: .68rem;
   font-style: normal;

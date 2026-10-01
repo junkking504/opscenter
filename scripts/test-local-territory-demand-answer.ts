@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { territoryDemandQuestion, territoryWeekdaySummary } from '../lib/local-territory-demand-answer';
 assert(territoryDemandQuestion("what's our busiest day of the week per territory"));
 assert(!territoryDemandQuestion('Why do Waypoint closeouts fail?'));
-const rows: Array<{ date: string; metrics: { provisional: boolean; jobs_by_market: Record<string, number> } }> = [1, 8, 15].flatMap(day => [
+type Row = { date: string; metrics: { provisional: boolean; jobs_by_market: Record<string, number> } };
+const rows = [1, 8, 15].flatMap<Row>(day => [
   { date: `2026-09-${String(day).padStart(2, '0')}`, metrics: { provisional: false, jobs_by_market: { 'Junk King New Orleans': 3, 'New Orleans': 1, 'Northshore': 2 } } },
   { date: `2026-09-${String(day + 1).padStart(2, '0')}`, metrics: { provisional: false, jobs_by_market: { 'New Orleans': 4, 'Northshore': 1 } } },
 ]);

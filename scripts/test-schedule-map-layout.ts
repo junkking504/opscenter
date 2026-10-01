@@ -9,6 +9,7 @@ const map = fs.readFileSync('desktop-ui/schedule-map.tsx', 'utf8');
 assert.match(map, /for \(const \{ pin \} of visiblePins\)/, 'Render each appointment and truck separately');
 assert.match(map, /L\.marker\(pin\.coordinate/, 'Each icon must retain its own exact source coordinate');
 assert.match(map, /iconAnchor: \[iconSize\[0\] \/ 2, iconSize\[1\] \/ 2\]/, 'The visible icon must stay centered on that coordinate');
+assert.match(map, /scheduleDisplayTruck\(job\) === 'Unassigned' \? 'assignment-unassigned' : 'assignment-assigned'/, 'Map appointments expose their current assignment state to styling');
 assert.doesNotMatch(map, /groupMapLocators|separateMapLocators|map-locator-(?:count|overflow|connector|origin)|choicesForGroup|containerPointToLatLng/, 'Do not shift icons, group locations, add counters or draw locator leaders');
 assert.match(map, /className="truck-map-view-controls"/, 'Selected trucks expose grouped map view controls');
 assert.match(map, /View Routes/, 'Selected trucks expose the requested View Routes action');

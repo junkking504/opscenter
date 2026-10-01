@@ -3766,31 +3766,9 @@ a {
 .ops-jobs-map-pin.is-northshore.is-completed { background: #a78bfa; }
 .ops-jobs-map-pin.is-baton-rouge.is-completed { background: #d39096; }
 .ops-jobs-map-pin.is-canceled {
-  width: 18px;
-  height: 18px;
-  border-color: #cbd5e1;
-  border-radius: 3px;
-  background: repeating-linear-gradient(
-    135deg,
-    #9ca3af 0 4px,
-    #4b5563 4px 8px
-  );
-  box-shadow:
-    0 0 0 2px rgba(31, 41, 55, .82),
-    0 4px 12px rgba(0, 0, 0, .42);
+  background: #4b5563;
+  border-color: #fb7185;
   opacity: .82;
-}
-
-.ops-jobs-map-pin .ops-jobs-map-pin-cancel {
-  width: 13px;
-  height: 13px;
-  border: 1px solid #d1d5db;
-  border-radius: 2px;
-  background: #374151;
-  color: #f3f4f6;
-  font-size: 16px;
-  font-weight: 950;
-  line-height: 11px;
 }
 
 .ops-jobs-truck-marker {
@@ -3856,13 +3834,6 @@ a {
   z-index: 2;
   box-shadow: 0 0 0 4px rgba(246, 195, 67, .34), 0 5px 14px rgba(0, 0, 0, .58);
   transform: rotate(-45deg) scale(1.2);
-}
-
-.ops-jobs-map-pin.is-canceled.is-selected {
-  box-shadow:
-    0 0 0 3px #1f2937,
-    0 0 0 6px rgba(203, 213, 225, .56),
-    0 6px 16px rgba(0, 0, 0, .65);
 }
 
 .ops-jobs-map-schedule {
@@ -4033,14 +4004,9 @@ a {
 }
 
 .ops-jobs-map-legend i.is-canceled {
-  border-color: #cbd5e1;
-  background: repeating-linear-gradient(
-    135deg,
-    #9ca3af 0 3px,
-    #4b5563 3px 6px
-  );
-  color: #f3f4f6;
-  text-shadow: 0 1px 2px #000;
+  border-color: rgba(251, 113, 133, .92);
+  background: rgb(var(--ops-brand-red-rgb) / .94);
+  color: #ffe4e6;
 }
 
 .ops-jobs-map-legend i.is-canceled {

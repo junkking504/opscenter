@@ -11,6 +11,19 @@ try {
     await page.setViewportSize({width,height:900});
     await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?areas=1');
     await page.locator('[data-schedule-appointment]').first().waitFor();
+    const assignedSymbol=page.locator('.appointment-marker.assignment-assigned[aria-label^="Open appointment JK1001001,"] .map-pin-symbol');
+    const unassignedSymbol=page.locator('.appointment-marker.assignment-unassigned[aria-label^="Open appointment JK1001002,"] .map-pin-symbol');
+    await assignedSymbol.waitFor();
+    await unassignedSymbol.waitFor();
+    assert.equal(await assignedSymbol.evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(251, 191, 36)','Assigned markers use the same vibrant area color as their appointment blocks');
+    assert.equal(await assignedSymbol.evaluate(element=>getComputedStyle(element).opacity),'1','Assigned markers retain full color strength');
+    assert.equal(await unassignedSymbol.evaluate(element=>getComputedStyle(element).opacity),'0.72','Unassigned markers remain visibly duller than assigned appointments');
+    assert.match(await unassignedSymbol.evaluate(element=>getComputedStyle(element).filter),/saturate\(0\.45\).*grayscale\(0\.18\)/,'Unassigned markers mute the same area palette');
+    assert.equal(await page.locator('.appointment-marker.status-completed .map-pin-symbol').innerText(),'✓');
+    const canceledSymbol=page.locator('.appointment-marker.status-canceled .map-pin-symbol');
+    assert.equal(await canceledSymbol.innerText(),'×');
+    assert.equal(await canceledSymbol.evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(156, 163, 175)','Cancelled appointments are gray on the current desktop map');
+    assert.equal(await canceledSymbol.evaluate(element=>getComputedStyle(element).filter),'grayscale(1)','Cancelled markers cannot retain an active appointment color');
     for(let index=0;index<colors.length;index++) {
       const jk=`JK100${1001+index}`;
       const block=page.locator(`[data-schedule-appointment][aria-label^="${jk} "]`);
@@ -28,8 +41,6 @@ try {
       assert.equal((await block.evaluate(e=>getComputedStyle(e).getPropertyValue('--territory-color'))).trim(),colors[index],'Selection preserves area color');
       await summary.getByRole('button',{name:'Clear appointment selection'}).click();
     }
-    assert.equal(await page.locator('.appointment-marker.status-completed .map-pin-symbol').innerText(),'✓');
-    assert.equal(await page.locator('.appointment-marker.status-canceled .map-pin-symbol').innerText(),'×');
     assert.match(await page.locator('#fixture-writes').innerText(),/Writes: 0/);
     await page.getByRole('button',{name:'Focus River Parishes',exact:true}).click();
     assert.equal(await page.locator('.appointment-register-row').count(),2,'River Parishes has its own working filter');

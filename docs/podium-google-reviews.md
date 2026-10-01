@@ -60,7 +60,10 @@ npm run verify:podium-reviews
 ./deploy/macmini/install-podium-reviews-collector.sh
 ```
 
-The dedicated LaunchAgent checks every 15 minutes. A failed request preserves
+The dedicated LaunchAgent checks every minute with the minimum-age skip disabled.
+The Campaign page reads the latest snapshot every 30 seconds while visible and
+not editing a job match. Reviews appear after Podium exposes them; this is
+polling, not an instant Google event feed. A failed request preserves
 the last verified snapshot; it never substitutes a partial result. Production
 deployment restarts the collector only after it has been explicitly installed.
 

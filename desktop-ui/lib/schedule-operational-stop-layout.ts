@@ -5,8 +5,17 @@ export type ScheduleOperationalStopPlacement = {
   lane: number;
 };
 
+export type ScheduleOperationalStopIcon = 'house' | 'dump' | 'steel-beam' | null;
+
+export const operationalStopIcon = (stop: ScheduleOperationalStop): ScheduleOperationalStopIcon => {
+  if (stop.kind === 'hq' || stop.kind === 'departure') return 'house';
+  if (stop.kind === 'dump') return 'dump';
+  if (stop.name.trim().toUpperCase() === 'EMR') return 'steel-beam';
+  return null;
+};
+
 export const stopMinimumWidth = (stop: ScheduleOperationalStop) =>
-  stop.kind === 'hq' || stop.kind === 'departure' || stop.kind === 'dump' ? 24 : 50;
+  operationalStopIcon(stop) ? 24 : 50;
 
 /** Put facility stops on separate rows whenever their rendered pills would collide. */
 export function scheduleOperationalStopLayout(

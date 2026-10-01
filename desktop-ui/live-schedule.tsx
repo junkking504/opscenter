@@ -145,16 +145,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const cell = row.querySelector<HTMLElement>('.schedule-truck-cell')!;
         const style = getComputedStyle(cell);
         const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
-        return Math.ceil(content.reduce((sum, label) => sum + label.offsetHeight, 0) + Math.max(0, content.length - 1) * (parseFloat(style.rowGap) || 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
+        return Math.ceil(Math.max(20, ...content.map(label => label.offsetHeight)) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
       });
       const available = parseFloat(height) - (title?.offsetHeight || 0) - (header?.offsetHeight || 0) - 8;
       const layout = window.innerWidth >= 1000 ? scheduleViewportLayout(natural, labels, available) : { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i])) };
       rows.forEach((row, index) => {
-        const hasOperationalLanes = Number(row.dataset.operationalLanes) > 0;
-        const rowScale = hasOperationalLanes ? 1 : layout.scale;
-        const rowHeight = hasOperationalLanes ? Math.ceil(Math.max(labels[index] || 36, natural[index] || 36)) : layout.heights[index];
-        row.style.setProperty('--schedule-row-height', `${rowHeight}px`);
-        row.style.setProperty('--schedule-timeline-scale', String(rowScale));
+        row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
+        row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
       });
     };
     const observer = new ResizeObserver(fit);

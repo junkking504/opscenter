@@ -260,6 +260,7 @@
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-dump { border-color: #9b6a13; background: #fff0bd; color: #704805; }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq { border-color: #3c6f91; background: #e8f5ff; color: #204f70; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq > span { text-transform: none; }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-departure { border-style: dashed; background: #fff; }
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #24483a; font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: -.02em; }
@@ -279,7 +280,7 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: var(--schedule-available-height, 600px); min-height: 280px; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-shell { height: 100%; min-height: 0; overflow: hidden; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1 1 0; height: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1 1 0; height: 0; min-height: 0; overflow: hidden; }
   .ops-live .live-schedule.schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 12; background: var(--surface, #fff); }
   .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open > .schedule-map-panel { height: 100%; min-height: 0; overflow: auto; }
   .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open .schedule-map-canvas { flex: 1 1 auto; height: auto; min-height: 200px; }

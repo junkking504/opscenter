@@ -10,8 +10,11 @@ for(const available of [500,550,700,1000]){
 }
 const short=scheduleViewportLayout(natural,labels,200);
 assert.equal(short.fits,false);
-assert.equal(short.scale,.65);
+assert.equal(short.scale,.05);
 assert.ok(short.heights.every(height=>height>=36),'Short windows retain readable labels and page scrolling');
+const compact=scheduleViewportLayout(natural,natural.map(()=>20),320);
+assert.equal(compact.fits,true,'Ten compact truck labels and dense lanes fit in the visible desktop schedule');
+assert.ok(compact.scale>=.05 && compact.scale<1);
 assert.equal(scheduleViewportLayout(natural,labels,1000).scale,1);
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
 console.log('Schedule viewport allocation passed: label floors, dense lanes, short screens and empty boards.');

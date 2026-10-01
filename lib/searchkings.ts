@@ -888,6 +888,16 @@ export function buildSearchKingsView(monthKey?: string): SearchKingsView {
   return buildSearchKingsViewFromData(snapshot, appointments, readLostLeadStore().entries);
 }
 
+export function buildSearchKingsInquiryHistory(): SearchKingsLead[] {
+  const byCall = new Map<string, SearchKingsLead>();
+  // Read oldest first so newer snapshots, including current, win overlaps.
+  for (const month of [...availableSearchKingsMonths()].reverse()) {
+    for (const lead of buildSearchKingsView(month).leads) byCall.set(lead.callId, lead);
+  }
+  for (const lead of buildSearchKingsView().leads) byCall.set(lead.callId, lead);
+  return [...byCall.values()].sort((a, b) => b.calledAt.localeCompare(a.calledAt));
+}
+
 export function searchKingsSetupSummary(): string {
   return [
     `Customer ${CUSTOMER_ID || "not configured"}`,

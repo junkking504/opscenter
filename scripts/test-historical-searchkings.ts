@@ -21,12 +21,23 @@ try {
     calls: { total: {}, callsQuality: [], calls: [] },
   }));
 
-  const { availableSearchKingsMonths, readSearchKingsSnapshot } = await import("../lib/searchkings");
+  const { availableSearchKingsMonths, readSearchKingsSnapshot, buildSearchKingsInquiryHistory, canonicalSearchKingsCallId } = await import("../lib/searchkings");
   assert.ok(availableSearchKingsMonths().includes("2026-03"));
   assert.equal(readSearchKingsSnapshot("2026-03")?.range.endDate, "2026-03-31");
   // The production data root can contain other months. Use a deliberately
   // unsupported historical key so this isolation check never reads it.
   assert.equal(readSearchKingsSnapshot("1999-01"), null);
+
+  const fixture = readSearchKingsSnapshot("2026-03")!;
+  const call = { id: "history-regression-call", name: "Older inquiry", calledAtDate: "2026-03-12", calledAtTime: "12:00 PM", callerNumberComplete: "5045550100", duration: "1:00" };
+  fixture.calls.calls = [call] as typeof fixture.calls.calls;
+  fs.writeFileSync(path.join(historyDirectory, "searchkings_2026-03.json"), JSON.stringify(fixture));
+  fs.mkdirSync(path.join(temporaryRoot, "searchkings"), { recursive: true });
+  fs.writeFileSync(path.join(temporaryRoot, "searchkings", "current.json"), JSON.stringify({ ...fixture, range: { ...fixture.range, startDate: "2026-10-01", endDate: "2026-10-01" }, calls: { ...fixture.calls, calls: [{ ...call, name: "Latest copy" }, { ...call, id: "current-regression-call", callerNumberComplete: "5045550101" }] } }));
+  const history = buildSearchKingsInquiryHistory();
+  assert.equal(history.filter(lead => lead.callId === canonicalSearchKingsCallId(call)).length, 1);
+  assert.equal(history.find(lead => lead.callId === canonicalSearchKingsCallId(call))?.callerName, "Latest copy");
+  assert.ok(history.some(lead => lead.phone === "5045550101"));
 
   const marketingPage = fs.readFileSync(path.join(process.cwd(), "app", "(protected)", "marketing", "page.tsx"), "utf8");
   assert.match(marketingPage, /availableSearchKingsMonths/);

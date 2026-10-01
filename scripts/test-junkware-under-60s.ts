@@ -27,6 +27,7 @@ expect(!plist.includes("<key>StartInterval</key>"), "Persistent detector must no
 expect(deploy.includes('restart_release_bound_services "$release"'), "Production deploy must restart release-bound services after activation");
 expect(deploy.includes('"$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1'), "Production deploy must reinstall and restart the detector from the active release");
 expect(installer.includes("for attempt in {1..5}"), "Detector install must retry launchd's transient bootstrap race");
+expect(installer.includes('launchctl kickstart -k "gui/$(id -u)/$LABEL"'), "Detector install must explicitly start the freshly registered LaunchAgent");
 expect(installer.includes("INSTALL_STARTED_EPOCH"), "Detector install must wait for a heartbeat from the new process");
 expect(installer.includes("child_command") && installer.includes("collect-junkware-schedule-stream.py"), "Detector install must validate orphan child commands");
 expect(installer.includes('kill -TERM "$LOCK_PID"'), "Detector install must terminate only the validated detector PID");

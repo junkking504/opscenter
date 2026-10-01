@@ -22,8 +22,10 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 import { dedupeLinkedAppointmentVisitState } from './linked-appointment-visit-dedup';
+import { scheduleOperationalStops } from './schedule-operational-stops';
+import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -89,7 +91,8 @@ export function readDesktopSchedule(date: string) {
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
-    appointments: applyStopOrders(date, appointments),
+    appointments: applyRouteOrderConfirmations(date, applyStopOrders(date, appointments)),
+    operationalStops: scheduleOperationalStops(date, tracked.visits),
     truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], sourceAppointments).map(load=>({
       truck:load.truck, label:load.displayLoadLabel,
       percent:!load.events.length ? null : load.capacityPercent,
@@ -121,13 +124,15 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
   }
   return [...trucks.entries()].flatMap(([truck, jobs]) => {
     // Use the saved stack order; stable identity order is the default.
-    jobs.sort(compareStops);
+    jobs.sort((a,b) => (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity) || compareStops(a,b));
     return jobs.slice(1).map((to, index) => {
       const from = jobs[index];
       return {
         truck, fromAppointmentId: from.recordId, toAppointmentId: to.recordId,
         fromJk: from.jkNumber, toJk: to.jkNumber,
-        gapMinutes: to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
+        gapMinutes: to.routeAfterAppointmentId === from.appointmentId
+          ? null
+          : to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
         travelMinutes: null, miles: null, bufferMinutes: null, source: 'unavailable' as const,
       };
     });
@@ -210,7 +215,7 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   const snapshot = await readVerifiedDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
-  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
+  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.routeOrder, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
   // Last-known coordinates remain eligible until a newer valid report replaces
   // them. The timestamp stays in the cache identity and response for confidence.
   const now = Date.now();

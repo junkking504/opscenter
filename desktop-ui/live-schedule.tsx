@@ -2,6 +2,7 @@ import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import ScheduleVisitBlock from './schedule-visit-block';
 import ScheduleVisitGap from './schedule-visit-gap';
+import ScheduleOperationalStopBlock from './schedule-operational-stop';
 import ScheduleColocatedVisitConnectors from './schedule-colocated-visit-connectors';
 import { workspaceReady } from './navigation-performance';
 import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
@@ -37,7 +38,7 @@ import { readScheduleChange } from './schedule-receipt';
 import { AppointmentReschedule } from './appointment-reschedule';
 import { scheduleMoveProposal, useScheduleDrag } from './schedule-drag';
 import { applyBackgroundScheduleMove, backgroundScheduleMove, sourceMatchesBackgroundScheduleMove, type BackgroundScheduleMove } from './lib/schedule-move-background';
-import { displayedOnsiteTime, needsScheduleAddressVerification, scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckMismatch, scheduleTruckNames, scheduleMoveWindow, resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleCustomerLabel, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentColorClass, appointmentRegion, appointmentStatus, isClosed, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
+import { displayedOnsiteTime, needsScheduleAddressVerification, scheduleBoardJobs, scheduleDisplayTruck, scheduleStandaloneOperationalStops, scheduleTruckMismatch, scheduleTruckNames, scheduleMoveWindow, resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleCustomerLabel, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentColorClass, appointmentRegion, appointmentStatus, isClosed, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
 import './live-schedule.css';
 import './schedule-board.css';
 import './schedule-selection.css';
@@ -302,7 +303,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const stopOrderTruck = selectedTruck || (selected ? scheduleDisplayTruck(selected) : null);
   const drawer = jobs.find(job => job.recordId === drawerId);
   const truckNames = scheduleTruckNames(snapshot);
-  const range = timelineRange(jobs, now.getTime());
+  const range = timelineRange(jobs, now.getTime(), snapshot?.operationalStops || []);
   const movePolls = useRef(new Map<string, number>());
   const creationPolls = useRef(new Map<string, number>());
   useEffect(() => () => {
@@ -506,8 +507,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
             const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth);
+            const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length ? Math.max(36,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
+            const stopHeight=rowStops.length ? 22 : 0;
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(36,travelHeight+stopHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
@@ -519,6 +522,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
               ])}
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
+              {rowStops.map(stop=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={travelHeight+1} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
             </div></div></div>;

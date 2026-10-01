@@ -233,6 +233,34 @@
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::before,
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::after { background: #9b6a13; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 1px;
+  border: 1px solid #64736b;
+  border-radius: 4px;
+  background: #eef3f0;
+  color: #34453c;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop > span {
+  padding-inline: 4px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-dump { border-color: #9b6a13; background: #fff0bd; color: #704805; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq { border-color: #3c6f91; background: #e8f5ff; color: #204f70; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-departure { border-style: dashed; background: #fff; }
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #24483a; font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: -.02em; }
 .ops-live .live-schedule.schedule-dispatch [data-visit-point] .schedule-visit-duration { display: inline; }

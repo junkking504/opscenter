@@ -857,6 +857,16 @@ with Stop Order beside the board. The duplicate Travel Between Appointments
 panel below the board is removed; the All Appointments register follows the
 board and its source timestamp.
 
+Positive LinxUp facility visits are also projected directly onto each truck's
+Schedule row. Confirmed dump visits between different customers remain visible,
+while a dump already labeled inside one customer's leave-and-return gap is not
+duplicated. NOHQ, BRHQ, and other named facility visits use their recorded
+entry/departure evidence. When a truck arrived before the selected operating
+day, Schedule shows a current-day **Left NOHQ/BRHQ** marker instead of inventing
+an all-day stop. A user-confirmed route relationship can place an appointment
+after a verified customer stop while retaining **exact time unavailable** when
+GPS did not establish an arrival.
+
 Billed jobs show **Billed · daily revenue** and their saved job total prominently
 in All Appointments. Collection is a separate detail. Mixed billing and collected
 payments use the job total once, excluding tips, rather than adding invoice and

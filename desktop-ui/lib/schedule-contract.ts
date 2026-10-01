@@ -8,6 +8,20 @@ export type ScheduleTruckVisitGap = {
   facilityName?: string;
   facilityEnteredAt?: string;
 };
+export type ScheduleOperationalStop = {
+  id: string;
+  truck: string;
+  name: string;
+  facility: string;
+  kind: 'dump' | 'hq' | 'facility' | 'departure';
+  label: string;
+  enteredAt: string | null;
+  departedAt: string | null;
+  observedThrough: string;
+  startMinutes: number;
+  endMinutes: number;
+  ongoing: boolean;
+};
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
@@ -21,6 +35,10 @@ export type ScheduleAppointment = {
   recordId: string;
   version: string;
   stopOrder?: number;
+  routeOrder?: number;
+  routeAfterAppointmentId?: string;
+  routeAfterLabel?: string;
+  routePlacementMinutes?: number;
   callAhead: 'called' | 'not_called';
   junkwareSyncStatus?: 'pending' | 'verified' | 'manual_correction';
   junkwareSyncError?: string;
@@ -100,6 +118,7 @@ export type ScheduleSnapshot = {
   sourceRequest?: {state:'ready'|'loading'|'queued'|'failed';message:string};
   assignmentRecoveryNotices?: Array<{requestId:string;recordId:string;message:string}>;
   appointments: ScheduleAppointment[];
+  operationalStops?: ScheduleOperationalStop[];
   truckLoads?: Array<{truck:string;label:string;percent:number|null;needsVerification:boolean;note:string}>;
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
@@ -218,6 +237,16 @@ export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, no
     return window !== null && (window.actual || scheduleDisplayTruck(job) === lane);
   });
 }
+export function scheduleStandaloneOperationalStops(stops: ScheduleOperationalStop[], jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
+  const lane = truckLabel(truck);
+  const dumpGaps = jobs.flatMap(job => {
+    const window = timelineWindow(job,lane,now);
+    return window?.gaps.filter(gap=>gap.kind==='dump') || [];
+  });
+  return stops.filter(stop => truckLabel(stop.truck) === lane
+    && !(stop.kind === 'dump' && dumpGaps.some(gap => stop.startMinutes >= gap.start && stop.startMinutes <= gap.end)))
+    .sort((a,b)=>a.startMinutes-b.startMinutes || a.id.localeCompare(b.id));
+}
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
 export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {
   if (/cancel/i.test(job.status || '')) {
@@ -255,6 +284,11 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
     return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,gaps,
       label:`${minutes===0?'GPS visit · duration unavailable':`${minutes<1?'<1':Math.round(minutes)} min on site`}${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
   }
+  if (job.routeAfterAppointmentId && job.routePlacementMinutes !== undefined && truckLabel(job.truck || '') === truckLabel(truck)) {
+    return { actual: false, sequence: true, start: job.routePlacementMinutes, end: job.routePlacementMinutes,
+      intervals: [{start:job.routePlacementMinutes,end:job.routePlacementMinutes,ongoing:false,complete:/complete|closed/i.test(job.status)}], gaps: [],
+      label: `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` };
+  }
   if (truckLabel(job.truck || '')!==truckLabel(truck)) return null;
   const time = job.onsiteTime;
   if (!/cancel/i.test(job.status) && time && time.minutes !== null && Number.isFinite(time.minutes) && time.minutes > 0 && time.arrival && time.departure) {
@@ -288,15 +322,16 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
   return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
     intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], gaps: [], label: 'Planned · booked window' };
 }
-export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
+export function timelineRange(jobs: ScheduleAppointment[], now = Date.now(), operationalStops: ScheduleOperationalStop[] = []) {
   const windows = jobs.flatMap(job => {
     const display = timelineWindow(job,scheduleDisplayTruck(job),now);
     const booked = job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null
       ? [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}] : [];
     return display ? [...booked,display] : booked;
   });
-  const start = Math.min(480, ...windows.map(row => Math.floor(row.start / 60) * 60));
-  const end = Math.max(1020, ...windows.map(row => Math.ceil(row.end / 60) * 60));
+  const stopWindows = operationalStops.map(stop => ({start:stop.startMinutes,end:stop.endMinutes}));
+  const start = Math.min(480, ...windows.map(row => Math.floor(row.start / 60) * 60), ...stopWindows.map(row => Math.floor(row.start / 60) * 60));
+  const end = Math.max(1020, ...windows.map(row => Math.ceil(row.end / 60) * 60), ...stopWindows.map(row => Math.ceil(row.end / 60) * 60));
   return { start, end, duration: end - start };
 }
 export function scheduleTimelineBlockMovable(job: ScheduleAppointment, actual: boolean, busy = false) {

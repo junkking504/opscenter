@@ -5,6 +5,7 @@ import path from 'node:path';
 import { scheduleOperationalStops } from '../lib/schedule-operational-stops';
 import { applyRouteOrderConfirmations } from '../lib/schedule-route-order-confirmations';
 import { scheduleStandaloneOperationalStops, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleOperationalStopLayout } from '../desktop-ui/lib/schedule-operational-stop-layout';
 import { scheduleRoutePairs, type DesktopAppointment } from '../lib/desktop-schedule';
 
 const tracked = [
@@ -27,6 +28,15 @@ const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'409021
   truckVisitGaps:[{truck:'Truck 6',departedAt:'2026-09-30T18:00:24Z',returnedAt:'2026-09-30T18:53:30Z',kind:'dump' as const,facilityName:'BR Landfilll'}]} as ScheduleAppointment;
 assert.deepEqual(scheduleStandaloneOperationalStops(stops,[terrencia],'Truck 6').map(stop=>stop.id),['dump-between-customers','hq-visit'],'The dump already shown inside a return gap is not duplicated, while the later between-customer dump remains visible');
 assert.equal(timelineRange([terrencia],Date.parse('2026-10-01T04:00:00Z'),stops).end,1320,'Late HQ stops extend the visible route range');
+
+const crowdedStops = [
+  {id:'left-nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'departure' as const,label:'Left NOHQ',enteredAt:'2026-10-01T15:56:00Z',departedAt:'2026-10-01T15:56:00Z',observedThrough:'2026-10-01T15:56:00Z',startMinutes:656,endMinutes:656,ongoing:false},
+  {id:'dump',truck:'Truck 6',name:'Gentilly',facility:'Landfill',kind:'dump' as const,label:'Dump',enteredAt:'2026-10-01T16:07:00Z',departedAt:'2026-10-01T16:28:00Z',observedThrough:'2026-10-01T16:28:00Z',startMinutes:667,endMinutes:688,ongoing:false},
+  {id:'nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'hq' as const,label:'NOHQ',enteredAt:'2026-10-01T16:38:00Z',departedAt:'2026-10-01T16:38:00Z',observedThrough:'2026-10-01T16:38:00Z',startMinutes:698,endMinutes:698,ongoing:false},
+];
+const crowdedLayout=scheduleOperationalStopLayout(crowdedStops,{start:480,duration:540},628);
+assert.equal(crowdedLayout.laneCount,3,'Three close facility pills receive three readable lanes');
+assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['left-nohq',0],['dump',1],['nohq',2]]);
 
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'route-order-test-'));
 process.env.SCHEDULE_ROUTE_ORDER_DIR=directory;

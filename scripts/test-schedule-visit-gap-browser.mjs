@@ -35,6 +35,9 @@ try {
     assert.equal((await hqDeparture.innerText()).trim(),'LEFT NOHQ');
     assert.equal(await hqDeparture.getAttribute('aria-label'),'Left NOHQ · 8:30 AM');
     assert.equal(await hqDeparture.getAttribute('title'),'Left NOHQ · 8:30 AM');
+    const operationalRow=page.locator('[data-schedule-truck="Truck 8"]');
+    assert.equal(await operationalRow.getAttribute('data-operational-lanes'),width===390?'2':'1','Facility pills stack only when the available timeline width would make them collide');
+    assert.equal(await operationalRow.locator('.schedule-timeline-content').evaluate(element=>getComputedStyle(element).zoom),'1','Rows with facility labels preserve readable text instead of shrinking to fit');
     assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
   }
   console.log('Schedule visit gap passed: connected return blocks, deduplicated and between-customer dumps, HQ departure, responsive layout and zero writes.');

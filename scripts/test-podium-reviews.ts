@@ -271,7 +271,7 @@ const marketingPage = fs.readFileSync(path.join(import.meta.dirname, "../app/(pr
 const assignmentRoute = fs.readFileSync(path.join(import.meta.dirname, "../app/api/integrations/podium/reviews/attribution/route.ts"), "utf8");
 const unassignedComponent = fs.readFileSync(path.join(import.meta.dirname, "../components/PodiumUnassignedReviews.tsx"), "utf8");
 assert.match(runner, /load-opscenter-secrets\.sh/);
-assert.match(plist, /<integer>900<\/integer>/);
+assert.match(plist, /<integer>60<\/integer>/);
 assert.match(callbackRoute, /NextResponse\.redirect\(podiumUrl\("\/marketing\?section=reviews&podium=connected"\)\)/);
 assert.doesNotMatch(callbackRoute, /NextResponse\.redirect\(new URL\([^\n]+request\.url/);
 assert.match(marketingPage, /New Reviews Today/);

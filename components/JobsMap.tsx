@@ -312,9 +312,16 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
   const tone = territoryTone(job);
   const completed = job.statusBucket === "Completed";
+  const canceled = job.statusBucket === "Canceled";
+  const symbol = canceled ? "&times;" : completed ? "&#10003;" : "";
+  const symbolClass = canceled
+    ? "ops-jobs-map-pin-cancel"
+    : completed
+      ? "ops-jobs-map-pin-check"
+      : "";
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${completed ? ' class="ops-jobs-map-pin-check"' : ""}>${completed ? "✓" : ""}</i></span>`,
+    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${symbolClass ? ` class="${symbolClass}"` : ""}>${symbol}</i></span>`,
     iconSize: [20, 24],
     iconAnchor: [10, 22],
     tooltipAnchor: [0, -22],
@@ -344,10 +351,20 @@ function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolea
   });
 }
 
-function appointmentClusterIcon(leaflet: LeafletModule, count: number, tone: string) {
+function appointmentClusterIcon(leaflet: LeafletModule, jobs: JobsMapPoint[], tone: string) {
+  const count = jobs.length;
+  const canceledCount = jobs.filter((job) => job.statusBucket === "Canceled").length;
+  const cancellationClass = canceledCount === count
+    ? " is-all-canceled"
+    : canceledCount
+      ? " has-canceled"
+      : "";
+  const cancellationBadge = canceledCount
+    ? `<em aria-hidden="true">&times;${canceledCount}</em>`
+    : "";
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-map-cluster is-appointments ${tone}"><b>${count}</b><small>jobs</small></span>`,
+    html: `<span class="ops-map-cluster is-appointments ${tone}${cancellationClass}"><b>${count}</b><small>jobs</small>${cancellationBadge}</span>`,
     iconSize: [42, 42],
     iconAnchor: [21, 21],
     tooltipAnchor: [0, -21],
@@ -1396,14 +1413,16 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     };
     for (const cluster of jobClusters) {
       if (cluster.items.length > 1) {
+        const canceledCount = cluster.items.filter((job) => job.statusBucket === "Canceled").length;
+        const clusterLabel = `${cluster.items.length} appointments in this area${canceledCount ? `, ${canceledCount} cancelled` : ""}`;
         const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
-          icon: appointmentClusterIcon(leaflet, cluster.items.length, clusterTerritoryTone(cluster.items)),
+          icon: appointmentClusterIcon(leaflet, cluster.items, clusterTerritoryTone(cluster.items)),
           keyboard: true,
-          title: `${cluster.items.length} appointments in this area`,
-          alt: `${cluster.items.length} appointments in this area`,
+          title: clusterLabel,
+          alt: clusterLabel,
           zIndexOffset: 1000,
         });
-        marker.bindTooltip(`${cluster.items.length} appointments · tap to focus`, {
+        marker.bindTooltip(`${cluster.items.length} appointments${canceledCount ? ` · ${canceledCount} cancelled` : ""} · tap to focus`, {
           direction: "top",
           offset: [0, -18],
         });
@@ -1421,7 +1440,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         zIndexOffset: selectedKey === job.key ? 1100 : 1000,
       });
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
-      marker.bindTooltip(`${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
+      const cancellationPrefix = job.statusBucket === "Canceled" ? "CANCELLED · " : "";
+      marker.bindTooltip(`${cancellationPrefix}${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
         direction: "top",
         offset: [0, -10],
       });

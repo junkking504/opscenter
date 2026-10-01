@@ -134,7 +134,7 @@ export type FleetMapPayload = {
 
 const STALE_THRESHOLD_MINUTES = 120;
 
-type OperationalLocationCode = "NOHQ" | "BRHQ" | "GL" | "RBL" | "BRL" | "STS" | "GMTS" | "EMR";
+export type OperationalLocationCode = "NOHQ" | "BRHQ" | "GL" | "RBL" | "BRL" | "STS" | "GMTS" | "EMR";
 
 const OPERATIONAL_LOCATIONS: Array<{
   code: OperationalLocationCode;
@@ -298,7 +298,7 @@ function operationalLocationCodeFromName(value: unknown): OperationalLocationCod
   return null;
 }
 
-function operationalLocationCodeAt(point: { latitude: number; longitude: number }): OperationalLocationCode | null {
+export function operationalLocationCodeAt(point: { latitude: number; longitude: number }): OperationalLocationCode | null {
   return OPERATIONAL_LOCATIONS.find((location) => distanceMeters(point, location) <= location.radiusMeters)?.code || null;
 }
 

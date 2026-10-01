@@ -17,21 +17,22 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   selected:boolean; muted:boolean; matched:boolean; dragging:boolean; busy:boolean; onPointerDown:(event:PointerEvent<HTMLDivElement>)=>void; onSelect:()=>void;
 }) {
   const interval=position.intervals[segmentIndex],segment=position.segments[segmentIndex];
+  const sequenced='sequence' in position && position.sequence === true;
   const tone=position.actual ? interval.ongoing?'on-site':isClosed(job)?scheduleStatusTone(job):'visited' : scheduleStatusTone(job);
   const state=position.actual ? interval.ongoing?'On site':interval.complete?'Recorded visit':'Departure unconfirmed' : appointmentStatus(job);
   const partner=appointmentPartner(job);
   const visitTruckCount=new Set((job.truckVisits || []).map(visit=>truckDisplayText(visit.truck))).size;
   const movable=scheduleTimelineBlockMovable(job,position.actual,busy) && (!position.actual || visitTruckCount<=1);
-  const description=position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
+  const description=sequenced ? `Confirmed route order: after ${job.routeAfterLabel || job.routeAfterAppointmentId}. Exact arrival time is unavailable.` : position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
   const minutes=interval.end-interval.start;
-  const time=position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
+  const time=sequenced ? `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` : position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
   const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time} · ${state}${assignment}${partner?` · ${partner.name}`:''}`;
   const minimumWidth=scheduleBlockMinimumWidth(position.actual,Boolean(partner));
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
     style={{left:`${segment.left*100}%`,width:`max(${minimumWidth}px, ${segment.width*100}%)`,top,height:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
-    aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
+    aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':sequenced?'sequence':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}
     data-visit-point={position.actual && minutes===0?true:undefined}
     data-visit-left={position.actual?segment.left:undefined} data-visit-right={position.actual?segment.left+segment.width:undefined}

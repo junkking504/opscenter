@@ -97,3 +97,10 @@ keeps that date when moving between Marketing sections and other operating
 pages. The live `current.json` is a fallback only for the current calendar
 month; OpsCenter never substitutes it for a missing historical month. A month
 without a verified snapshot is shown as unavailable until it is backfilled.
+
+### Inquiry history
+
+Campaign inquiry and follow-up lists combine all available monthly snapshots and
+the current snapshot, deduplicated by call ID with the newest copy taking
+precedence. The operating day/month still scopes performance totals; it does
+not restrict inquiry history. The legacy Calls browser defaults to All dates.

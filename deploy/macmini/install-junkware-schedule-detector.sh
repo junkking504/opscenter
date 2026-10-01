@@ -94,6 +94,11 @@ for attempt in {1..5}; do
   sleep 2
 done
 launchctl enable "gui/$(id -u)/$LABEL"
+# Background LaunchAgents can remain speculatively pended after bootstrap even
+# with RunAtLoad/KeepAlive. Start the freshly registered detector explicitly so
+# the bounded heartbeat check measures this release rather than waiting on an
+# event that may never wake it.
+launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
 
 HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json"

@@ -20,7 +20,7 @@ function Pages({ page, pageCount, onPage, disabled }: { page: number; pageCount:
 function Empty({ children }: { children: ReactNode }) { return <div className="campaign-empty">{children}</div>; }
 
 export function CampaignLeads({ leads, draft, locked, onDraft, onReview }: { leads: Lead[]; draft: Lead | null; locked: boolean; onDraft: (lead: Lead | null) => void; onReview: () => void }) {
-  const [filters, setFilters] = useState<LeadFilters>(defaultLeadFilters);
+  const [filters, setFilters] = useState<LeadFilters>({ ...defaultLeadFilters, queue: 'all' });
   const [page, setPage] = useState(1), [selectedId, setSelectedId] = useState(''), [mobileDetail, setMobileDetail] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const result = useMemo(() => browseLeads(leads, filters, page, 8), [leads, filters, page]);

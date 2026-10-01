@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { buildSearchKingsView, saveLostLeadOverride, type LostLeadStatus, type LostLeadReason, type SearchKingsLead } from '@/lib/searchkings';
+import { buildSearchKingsView, buildSearchKingsInquiryHistory, saveLostLeadOverride, type LostLeadStatus, type LostLeadReason, type SearchKingsLead } from '@/lib/searchkings';
 import { buildPodiumGoogleReviewsView } from '@/lib/podium-reviews';
 import { assignPodiumReviewToAppointment, podiumReviewNameSuggestions, readPodiumReviewAssignments } from '@/lib/podium-review-assignments';
 import { addDays } from '@/lib/report-dates';
@@ -17,6 +17,7 @@ export function authoritativeMarketingTotals(leads: SearchKingsLead[]) {
 }
 export function readDesktopMarketing(date: string, role: InteractiveOpsRole): MarketingData {
   const source = buildSearchKingsView(date.slice(0, 7));
+  const inquiryLeads = buildSearchKingsInquiryHistory();
   const podium = buildPodiumGoogleReviewsView();
   const reviews = podium.locations.flatMap(location => location.reviews.map(review => ({ ...review, location: location.name })));
   const suggestions = podiumReviewNameSuggestions(reviews.map(review => ({ uid: review.uid, authorName: review.authorName, createdAt: review.createdAt, locationName: review.location })));
@@ -28,7 +29,7 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
   const recent = authoritativeMarketingTotals(source.leads.filter(lead => lead.calledDate >= recentStart)).bookings;
   const previous = authoritativeMarketingTotals(source.leads.filter(lead => lead.calledDate >= previousStart && lead.calledDate < recentStart)).bookings;
   return { date, range: source.rangeLabel, fetchedAt: source.snapshot?.fetchedAt || null, available: source.available, error: source.error || null, canAssignReviews: opsRoleCan(role, 'sensitive.write'), reviewAvailable: podium.available, reviewFetchedAt: podium.snapshot?.fetchedAt || null, reviewError: podium.error || null,
-    leads: source.leads.map(lead => ({ id: lead.callId, version: commercialVersion(lead), customer: lead.callerName || 'Name unavailable', phone: lead.phone, duration: lead.duration, recordingUrl: lead.recordingUrl, territory: lead.territory, intent: lead.summary || 'Call intent unavailable', quotedValue: lead.potentialRevenue, status: lead.status, reason: lead.reason, note: lead.note, contacted: lead.franchiseContacted, calledAt: lead.calledAt, updatedAt: lead.updatedAt, source: lead.source, sourceUrl: lead.searchKingsUrl, appointmentId: lead.matchedAppointment?.appointmentId || null, jk: lead.matchedAppointment?.jobId || null, completed: lead.matchedAppointment?.completed || false, revenue: lead.matchedAppointment?.revenue ?? null })),
+    leads: inquiryLeads.map(lead => ({ id: lead.callId, version: commercialVersion(lead), customer: lead.callerName || 'Name unavailable', phone: lead.phone, duration: lead.duration, recordingUrl: lead.recordingUrl, territory: lead.territory, intent: lead.summary || 'Call intent unavailable', quotedValue: lead.potentialRevenue, status: lead.status, reason: lead.reason, note: lead.note, contacted: lead.franchiseContacted, calledAt: lead.calledAt, updatedAt: lead.updatedAt, source: lead.source, sourceUrl: lead.searchKingsUrl, appointmentId: lead.matchedAppointment?.appointmentId || null, jk: lead.matchedAppointment?.jobId || null, completed: lead.matchedAppointment?.completed || false, revenue: lead.matchedAppointment?.revenue ?? null })),
     reviews: reviews.map(review => ({ id: review.uid, version: commercialVersion(review), customer: review.authorName, location: review.location, excerpt: review.body, stars: review.rating, createdAt: review.createdAt, sourceUrl: review.url, needsResponse: review.needsResponse, attribution: review.attribution || null, candidates: (suggestions[review.uid] || []).map(candidate => ({ appointmentId: candidate.appointmentId, jkNumber: candidate.jkNumber, label: candidate.label })) })),
     totals: { calls: source.totalCalls, qualified: source.qualifiedCalls, ...totals, cost: source.spend },
     sources: source.territoryRows.map(row => { const leads = source.leads.filter(lead => lead.territory === row.territory); return { source: row.territory, calls: leads.length, qualified: row.qualifiedCalls, ...authoritativeMarketingTotals(leads), cost: row.spend }; }),

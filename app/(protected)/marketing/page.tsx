@@ -14,6 +14,7 @@ import {
 import {
   availableSearchKingsMonths,
   buildSearchKingsView,
+  buildSearchKingsInquiryHistory,
   searchKingsSetupSummary,
 } from "@/lib/searchkings";
 import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
@@ -131,8 +132,10 @@ export default async function MarketingPage({
       day: "2-digit",
     }).format(new Date());
   const marketingHref = (nextSection: string) => `/marketing?date=${encodeURIComponent(date)}&view=monthly&section=${nextSection}`;
-  const calls = buildSearchKingsCallBrowser(view.leads, {
-    range: params?.range || (requestedDate ? "all" : undefined),
+  const inquiryLeads = section === "calls" || section === "lost-leads"
+    ? buildSearchKingsInquiryHistory() : view.leads;
+  const calls = buildSearchKingsCallBrowser(inquiryLeads, {
+    range: params?.range || "all",
     filter: params?.filter,
     query: params?.q,
     page: params?.page,
@@ -154,7 +157,9 @@ export default async function MarketingPage({
       <PageHeader
         title="Campaign"
         subtitle={
-          section === "reviews"
+          section === "calls" || section === "lost-leads"
+            ? "SearchKings inquiries · All available history"
+            : section === "reviews"
             ? "Newest Google reviews from Podium"
             : view.available
             ? `SearchKings performance · ${view.rangeLabel}`
@@ -165,7 +170,7 @@ export default async function MarketingPage({
         dateLabel="Month"
         lastUpdated={section === "reviews" ? reviews.snapshot?.fetchedAt : view.snapshot?.fetchedAt}
         status={section === "reviews" ? podiumReviewsSetupSummary(reviews) : searchKingsSetupSummary()}
-        controls={section === "reviews" ? undefined : <OpsMonthSelector months={months} selectedMonthKey={selectedMonthKey} />}
+        controls={section === "reviews" || section === "calls" || section === "lost-leads" ? undefined : <OpsMonthSelector months={months} selectedMonthKey={selectedMonthKey} />}
         sections={[
           {
             label: "Overview",
@@ -710,7 +715,7 @@ export default async function MarketingPage({
               </div>
             </div>
           </div>
-          <LostLeadTracker leads={view.leads} />
+          <LostLeadTracker leads={inquiryLeads} />
         </section>
       ) : null}
 

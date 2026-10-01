@@ -189,7 +189,7 @@
  * span is evidence of time away; only a positive dump geofence earns Dump. */
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap {
   position: absolute;
-  z-index: 0;
+  z-index: 3;
   display: grid;
   place-items: center;
   min-width: 1px;
@@ -213,18 +213,16 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap > span {
   position: relative;
   z-index: 1;
-  max-width: calc(100% - 4px);
-  padding: 1px 3px;
+  padding: 1px 4px;
   border-radius: 3px;
   background: rgb(255 255 255 / 86%);
-  font-size: 7px;
-  font-weight: 850;
-  line-height: 10px;
-  letter-spacing: .04em;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 14px;
+  letter-spacing: .02em;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump {
   border-block-color: #9b6a13;
@@ -233,6 +231,36 @@
 }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::before,
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::after { background: #9b6a13; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 1px;
+  border: 1.5px solid #64736b;
+  border-radius: 5px;
+  background: #eef3f0;
+  color: #34453c;
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: 0 1px 2px rgb(27 43 34 / 18%);
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop > span {
+  padding-inline: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 14px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-dump { border-color: #9b6a13; background: #fff0bd; color: #704805; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq { border-color: #3c6f91; background: #e8f5ff; color: #204f70; }
+.ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-departure { border-style: dashed; background: #fff; }
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #24483a; font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: -.02em; }
 .ops-live .live-schedule.schedule-dispatch [data-visit-point] .schedule-visit-duration { display: inline; }

@@ -49,8 +49,14 @@ result as confidence evidence, but age alone does not erase the truck's location
 `linxupV3AgeSeconds`, `linxupV3ExpectedSilent`, and `linxupFallbackActive`. A
 healthy V2 snapshot with no current V3 and no explicit final ignition-off V3
 state returns HTTP 200 as `degraded-linxup-v3-fallback`. Expected ignition-off
-silence keeps V3 primary without changing the real position age. Stale V2 and
-V3 data remains a hard `stale-linxup-data` failure. Provider configuration
+silence keeps V3 primary without changing the real position age.
+V3 stream-health evaluation reads the selected operating day's snapshot plus
+the immediately preceding day's validated snapshot, so Chicago midnight does not
+erase the final ignition-off report. This is bounded, read-only delivery evidence,
+not new-day travel or refreshed position time. Newer ignition-on/movement evidence
+still exposes fallback. Missing or malformed current data fails closed; absent,
+wrong-day or malformed previous data supplies no parked-state evidence.
+Stale V2 and V3 data remains a hard `stale-linxup-data` failure. Provider configuration
 is not complete until a real (non-synthetic) LinxUp event is stored below
 `data/history/linxup/push/<date>/`, appears in the normalized snapshot with
 `delivery_source: v3_position_push`, and makes health report

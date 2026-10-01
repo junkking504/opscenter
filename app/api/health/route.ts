@@ -13,10 +13,9 @@ import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
 import { collectSystemSignals } from "@/lib/system-signals";
 import {
   LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS,
-  summarizeLinxupV3Stream,
   type LinxupDeliveryMode,
-  type LinxupPointLike,
 } from "@/lib/linxup-authority";
+import { readLinxupV3StreamState } from "@/lib/linxup-stream-health";
 
 export const dynamic = "force-dynamic";
 
@@ -52,19 +51,6 @@ function writableStateTarget(directory: string): string {
     target = path.dirname(target);
   }
   return target;
-}
-
-function linxupV3StreamState(file: string, maxV3AgeSeconds: number) {
-  try {
-    const payload = JSON.parse(fs.readFileSync(file, "utf8")) as { points?: LinxupPointLike[] };
-    return summarizeLinxupV3Stream(
-      Array.isArray(payload.points) ? payload.points : [],
-      Date.now(),
-      maxV3AgeSeconds,
-    );
-  } catch {
-    return { latestPositionAt: null, fresh: false, expectedSilent: false };
-  }
 }
 
 export async function GET(request: Request) {
@@ -153,7 +139,7 @@ export async function GET(request: Request) {
       Number(process.env.OPSCENTER_LINXUP_V3_MAX_AGE_SECONDS || LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS),
     );
     const linxupV3State = fs.existsSync(linxupFile)
-      ? linxupV3StreamState(linxupFile, linxupV3MaxAgeSeconds)
+      ? readLinxupV3StreamState(linxupFile, linxupV3MaxAgeSeconds)
       : { latestPositionAt: null, fresh: false, expectedSilent: false };
     const linxupV3UpdatedAt = linxupV3State.latestPositionAt;
     const linxupV3AgeSeconds = linxupV3UpdatedAt

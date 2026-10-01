@@ -106,5 +106,8 @@ Uncertain saves stay attached to their receipt and block repeat submissions;
 
 Counts describe the loaded Podium snapshot (latest 100 reviews per location),
 not all historical reviews. SearchKings failure does not hide available reviews.
+Review-history zeroes are emitted only for fully completed dates covered by every
+location's retained latest-100 window. Dates outside that common retained window
+remain unavailable rather than being guessed as zero.
 The synthetic Campaign fixture documented in [SearchKings integration](searchkings-integration.md)
 exercises attribution and uncertain receipt recovery without live writes.

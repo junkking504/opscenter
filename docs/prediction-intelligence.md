@@ -33,7 +33,9 @@ projections bounded to 365 days. Finance/forecast/labor require `finance.read`;
 operations scopes use explicit field allowlists, without revenue, payroll or
 financial forecasts. No new vendor requests or background polling are added.
 
-Missing calendar days remain null gaps. Current partial actuals are excluded;
+Each source contributes its own observed calendar days; a missing JunkWare day
+does not suppress available SearchKings, Podium, QBO or WEX history. Missing
+source observations remain null gaps. Current partial actuals are excluded;
 today's baseline is never replayed on historical selected dates. WEX and JunkWare
 fuel expenses remain distinct, non-additive series. Net cost per gallon is total
 WEX net cost divided by gallons (including any net-cost adjustments), not a pump
@@ -54,7 +56,10 @@ average. A source-confirmed zero completed-job day is excluded, per the operator
 closure rule; missing jobs or missing metrics stay gaps. Calendar spacing stays
 accurate. Daily mode and source tables preserve originals, including zero days.
 Ad/review averages use seven calendar days because their activity can continue
-while closed. Rates are recomputed from summed numerators and denominators.
+while closed. Recent Podium dates are recorded as zero only when every location's
+latest-100 retained window reaches that date and a later snapshot closes the full
+day; older or incomplete coverage stays unavailable. Rates are recomputed from
+summed numerators and denominators.
 
 Capital Trends, Command Forecast and Control job drill-downs include weekday and
 day-of-month average completed jobs (90/180/365 days), sample counts, and 14-day

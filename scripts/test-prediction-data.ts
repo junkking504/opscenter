@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { buildPredictionDataset, writePredictionDataset } from "../lib/prediction-data";
-import { operatingTrendsSnapshot, operatingChartRows, scopeOperatingTrends } from "../lib/operating-trends";
+import { operatingTrendsSnapshot, operatingChartRows, scopeOperatingTrends, smoothOperatingChartRows } from "../lib/operating-trends";
 import { commandKpiDestination } from '../desktop-ui/lib/command-kpi-navigation';
 import { accountingTrendRows } from '../desktop-ui/lib/accounting-trend';
 import type { FinancialStatement } from '../desktop-ui/lib/financial-statements';
@@ -57,13 +57,16 @@ writeJson("integrations/wex-fuel/posted-transactions.json", {
 writeJson("history/searchkings/searchkings_2026-08.json", {
   fetchedAt: "2026-08-12T12:00:00Z",
   range: { startDate: "2026-08-01", endDate: "2026-08-12" },
-  accounts: [{ metrics: [{ label: "Cost", chartData: { labels: ["Aug 10 2026"], datasets: [{ data: [100] }] } }] }],
-  calls: { calls: [{ id: "call-1", calledAtDate: "Aug 10, 2026", score: 4, status: "answered", duration: "2:30" }] },
+  accounts: [{ metrics: [{ label: "Cost", chartData: { labels: ["Aug 10 2026", "Aug 12 2026"], datasets: [{ data: [100, 120] }] } }] }],
+  calls: { calls: [
+    { id: "call-1", calledAtDate: "Aug 10, 2026", score: 4, status: "answered", duration: "2:30" },
+    { id: "call-2", calledAtDate: "Aug 12, 2026", score: 3, status: "answered", duration: "1:30" },
+  ] },
 });
 
 writeJson("history/podium-google-reviews/podium-google-reviews_2026-08-12.json", {
   fetchedAt: "2026-08-12T12:00:00Z",
-  locations: [{ reviews: [{ uid: "review-1", createdAt: "2026-08-10T15:00:00Z", rating: 5, needsResponse: true, body: "Must not leak" }] }],
+  locations: [{ reviewCount: 1, reviews: [{ uid: "review-1", createdAt: "2026-08-10T15:00:00Z", rating: 5, needsResponse: true, body: "Must not leak" }] }],
 });
 
 writeJson("history/payment_reconciliation/payment_reconciliation_2026-08-10.json", {
@@ -74,16 +77,39 @@ writeJson("history/payment_reconciliation/payment_reconciliation_2026-08-10.json
 });
 
 const dataset = buildPredictionDataset(root, new Date("2026-08-12T15:00:00Z"));
-assert.equal(dataset.daily.length, 42);
+assert.equal(dataset.daily.length, 43);
 assert.equal(dataset.truckDaily.length, 42);
 assert.equal(dataset.sourceCoverage.wex.records, 2);
 assert.equal(dataset.daily.find((row) => row.date === "2026-08-10")?.actuals.fuelCostSource, "wex");
 assert.equal(dataset.daily.find((row) => row.date === "2026-08-10")?.searchKings.qualifiedCalls, 1);
 assert.equal(dataset.daily.find((row) => row.date === "2026-08-10")?.podium.newReviews, 1);
 assert.equal(dataset.daily.find((row) => row.date === "2026-08-10")?.qbo.postedPaymentTotal, 1200);
+assert.equal(dataset.daily.find((row) => row.date === "2026-08-11")?.podium.newReviews, 0, "A complete retained Podium window records a verified zero-review day");
+assert.deepEqual(dataset.daily.find((row) => row.date === "2026-08-12")?.searchKings, {
+  adCost: 120, conversions: null, impressions: null, clicks: null, calls: 1, qualifiedCalls: 1, answeredCalls: 1, callMinutes: 1.5,
+}, "A SearchKings-only day survives without a JunkWare daily-metrics file");
+assert.equal(dataset.daily.find((row) => row.date === "2026-08-12")?.availability.junkware, false);
+assert.equal(dataset.daily.find((row) => row.date === "2026-08-12")?.actuals.fuelCostSource, "unavailable");
+assert.match(dataset.sourceCoverage.podium.note, /including zero-review days/);
 assert.equal(dataset.forecasts.find((forecast) => forecast.target === "revenue")?.points.length, 7);
 assert.equal(dataset.guardrails.some((guardrail) => guardrail.includes("assumptions are excluded")), true);
 assert.equal(JSON.stringify(dataset).includes("Must not leak"), false);
+
+const partialRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-podium-partial-"));
+for (const date of ["2026-08-10", "2026-08-11"]) {
+  const file = path.join(partialRoot, "history", "daily_metrics", `daily_metrics_${date}.json`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ date, appointments: [], jobs_by_truck: {} }));
+}
+const partialSnapshot = path.join(partialRoot, "history", "podium-google-reviews", "podium-google-reviews_2026-08-12.json");
+fs.mkdirSync(path.dirname(partialSnapshot), { recursive: true });
+fs.writeFileSync(partialSnapshot, JSON.stringify({
+  fetchedAt: "2026-08-12T12:00:00Z",
+  locations: [{ reviewCount: 2, reviews: [{ uid: "review-1", createdAt: "2026-08-10T15:00:00Z", rating: 5 }] }],
+}));
+const partialPodium = buildPredictionDataset(partialRoot, new Date("2026-08-12T15:00:00Z"));
+assert.equal(partialPodium.daily.find((row) => row.date === "2026-08-11")?.podium.newReviews, null, "An incomplete retained window must not invent a zero-review day");
+assert.doesNotMatch(partialPodium.sourceCoverage.podium.note, /including zero-review days/);
 
 const output = path.join(root, "prediction", "daily-operating-features.json");
 writePredictionDataset(root, output, new Date("2026-08-12T15:00:00Z"));
@@ -130,6 +156,10 @@ assert.equal(marketingCharts.forecasts.length, 0);
 assert.equal(marketingCharts.trucks, undefined);
 assert.equal(marketingCharts.wexCoverage, null);
 assert.deepEqual(Object.keys(marketingCharts.sourceCoverage!), ['searchKings']);
+const reviewRows = operatingChartRows(scopeOperatingTrends(charts, 'reviews')!, 'reviews', 30);
+const reviewAverage = smoothOperatingChartRows(scopeOperatingTrends(charts, 'reviews')!, 'reviews', reviewRows, false).find(row => row.date === '2026-08-11');
+assert.equal(reviewAverage?.actual, 0.5, 'Verified zero-review days contribute to the calendar-day average');
+assert.equal(reviewAverage?.observedDays, 2);
 assert.equal(scopeOperatingTrends(charts, 'jobs')?.daily.at(-1)?.labor, undefined);
 assert.equal(scopeOperatingTrends(charts, 'fleet')?.trucks?.[0].daily.at(-1)?.revenue, null);
 assert.deepEqual(commandKpiDestination('Today’s jobs'), { workspace: 'Schedule', scope: 'jobs', metric: 'scheduledAppointments' });

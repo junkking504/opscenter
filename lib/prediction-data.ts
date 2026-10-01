@@ -244,12 +244,15 @@ function aggregatePodium(dataRoot: string) {
   const snapshots = files(path.join(dataRoot, "history", "podium-google-reviews"), /^podium-google-reviews_\d{4}-\d{2}-\d{2}\.json$/);
   const reviews = new Map<string, JsonRecord>();
   let latestUpdated: string | null = null;
+  let latestSnapshot: JsonRecord | null = null;
   let valid = 0;
   for (const file of snapshots) {
     const snapshot = readJson(file);
     if (!snapshot || !Array.isArray(snapshot.locations)) continue;
     valid += 1;
-    latestUpdated = [latestUpdated, String(snapshot.fetchedAt || "")].filter(Boolean).sort().at(-1) || null;
+    const fetchedAt = String(snapshot.fetchedAt || "");
+    latestUpdated = [latestUpdated, fetchedAt].filter(Boolean).sort().at(-1) || null;
+    if (fetchedAt && (!latestSnapshot || fetchedAt > String(latestSnapshot.fetchedAt || ""))) latestSnapshot = snapshot;
     for (const location of snapshot.locations) {
       for (const review of Array.isArray(location.reviews) ? location.reviews : []) {
         const id = String(review.uid || "");
@@ -267,8 +270,37 @@ function aggregatePodium(dataRoot: string) {
     if (review.needsResponse === true) row.reviewsNeedingResponse = (row.reviewsNeedingResponse || 0) + 1;
     daily.set(date, row);
   }
+  // A latest-100 feed can prove recent zero-review days once every location's
+  // retained window reaches that date. Never extend that proof into the partial
+  // current day or beyond a location whose retained rows are incomplete.
+  const snapshotDate = latestSnapshot ? chicagoDate(String(latestSnapshot.fetchedAt || "")) : null;
+  const completeThrough = snapshotDate ? addDays(snapshotDate, -1) : null;
+  let completeFrom: string | null = null;
+  if (latestSnapshot && completeThrough) {
+    const retainedFrom: string[] = [];
+    let complete = true;
+    for (const location of latestSnapshot.locations) {
+      const total = finite(location.reviewCount);
+      const retained = Array.isArray(location.reviews) ? location.reviews : [];
+      const expected = total === null ? null : Math.min(100, Math.max(0, Math.trunc(total)));
+      const dates = retained.map((review: JsonRecord) => chicagoDate(String(review.createdAt || ""))).filter((date: string | null): date is string => date !== null).sort();
+      if (expected === null || retained.length < expected || dates.length < expected) { complete = false; break; }
+      if (dates.length) retainedFrom.push(dates[0]);
+    }
+    completeFrom = complete ? (retainedFrom.sort().at(-1) || completeThrough) : null;
+    if (completeFrom && completeFrom <= completeThrough) {
+      for (let date = completeFrom; date <= completeThrough; date = addDays(date, 1)) {
+        if (!daily.has(date)) daily.set(date, { newReviews: 0, ratingSum: 0, reviewsNeedingResponse: 0 });
+      }
+    }
+  }
   const dates = [...daily.keys()].sort();
-  return { daily, valid, snapshots: snapshots.length, reviews: reviews.size, latestUpdated, coverageFrom: dates[0] || null, coverageThrough: dates.at(-1) || null };
+  return {
+    daily, valid, snapshots: snapshots.length, reviews: reviews.size, latestUpdated,
+    coverageFrom: completeFrom || dates[0] || null,
+    coverageThrough: completeThrough || dates.at(-1) || null,
+    completeFrom, completeThrough,
+  };
 }
 
 function aggregateQbo(dataRoot: string) {
@@ -516,8 +548,15 @@ export function buildPredictionDataset(dataRoot: string, now = new Date()): Pred
     }
   }
 
-  for (const [date, fuel] of wex.daily) {
+  const sourceDates = new Set([
+    ...searchKings.daily.keys(),
+    ...podium.daily.keys(),
+    ...qbo.daily.keys(),
+    ...wex.daily.keys(),
+  ]);
+  for (const date of sourceDates) {
     if (dailyByDate.has(date)) continue;
+    const fuel = wex.daily.get(date) || { postedTransactions: null, gallons: null, netCost: null, averageUnitCost: null };
     dailyByDate.set(date, {
       date, calendar: calendar(date),
       junkware: { revenue: null, completedJobs: null, estimates: null, appointments: null, payroll: null, recordedFuelCost: null, recordedDumpCost: null, otherExpense: null, netProfit: null },
@@ -526,8 +565,8 @@ export function buildPredictionDataset(dataRoot: string, now = new Date()): Pred
       podium: podium.daily.get(date) || { newReviews: null, ratingSum: null, reviewsNeedingResponse: null },
       qbo: qbo.daily.get(date) || { postedPayments: null, postedPaymentTotal: null, matchedTotal: null },
       wex: fuel,
-      actuals: { fuelCost: fuel.netCost, fuelCostSource: "wex", dumpCost: null, dumpCostSource: "unavailable" },
-      availability: { junkware: false, fleet: false, searchKings: searchKings.daily.has(date), podium: podium.daily.has(date), qbo: qbo.daily.has(date), wex: true },
+      actuals: { fuelCost: fuel.netCost, fuelCostSource: fuel.netCost !== null ? "wex" : "unavailable", dumpCost: null, dumpCostSource: "unavailable" },
+      availability: { junkware: false, fleet: false, searchKings: searchKings.daily.has(date), podium: podium.daily.has(date), qbo: qbo.daily.has(date), wex: wex.daily.has(date) },
     });
   }
 
@@ -540,7 +579,7 @@ export function buildPredictionDataset(dataRoot: string, now = new Date()): Pred
     junkware: { status: validMetrics ? (validMetrics === metricsFiles.length ? "available" : "partial") : "missing", records: validMetrics, coverageFrom: metricDates[0] || null, coverageThrough: metricDates.at(-1) || null, updatedAt: metricsUpdatedAt, note: `${metricsFiles.length - validMetrics} unreadable daily metric files.` },
     linxup: { status: daily.some((row) => row.availability.fleet) ? "available" : "missing", records: daily.filter((row) => row.availability.fleet).length, coverageFrom: daily.find((row) => row.availability.fleet)?.date || null, coverageThrough: daily.filter((row) => row.availability.fleet).at(-1)?.date || null, updatedAt: metricsUpdatedAt, note: "Fleet distance and time are derived from daily LinxUp-backed metrics." },
     searchKings: { status: searchKings.valid ? (searchKings.valid === searchKings.snapshots ? "available" : "partial") : "missing", records: searchKings.calls, coverageFrom: searchKings.coverageFrom, coverageThrough: searchKings.coverageThrough, updatedAt: searchKings.latestUpdated, note: `${searchKings.valid}/${searchKings.snapshots} monthly snapshots readable; calls deduplicated by source ID.` },
-    podium: { status: podium.valid ? "partial" : "missing", records: podium.reviews, coverageFrom: podium.coverageFrom, coverageThrough: podium.coverageThrough, updatedAt: podium.latestUpdated, note: "Podium retains the latest 100 reviews per location in each snapshot; older history may be incomplete." },
+    podium: { status: podium.valid ? "partial" : "missing", records: podium.reviews, coverageFrom: podium.coverageFrom, coverageThrough: podium.coverageThrough, updatedAt: podium.latestUpdated, note: podium.completeFrom && podium.completeThrough ? `Verified daily review coverage, including zero-review days, runs ${podium.completeFrom} through ${podium.completeThrough}; older history may be incomplete because Podium retains the latest 100 reviews per location.` : "Podium retains the latest 100 reviews per location in each snapshot; older history may be incomplete." },
     qbo: { status: qbo.valid ? "partial" : "missing", records: qbo.valid, coverageFrom: qbo.coverageFrom, coverageThrough: qbo.coverageThrough, updatedAt: qbo.latestUpdated, note: `${qbo.valid}/${qbo.snapshots} reconciliation days contain an available QBO-backed source.` },
     wex: { status: wexSnapshot ? "partial" : "missing", records: Number(wexSnapshot?.transactionCount || 0), coverageFrom: String(wexSnapshot?.coverageFrom || "") || null, coverageThrough: String(wexSnapshot?.coverageThrough || "") || null, updatedAt: String(wexSnapshot?.importedAt || "") || null, note: "Posted purchases only; coverage is limited to imported WEX exports." },
   };

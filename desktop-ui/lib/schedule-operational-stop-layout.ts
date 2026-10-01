@@ -5,7 +5,8 @@ export type ScheduleOperationalStopPlacement = {
   lane: number;
 };
 
-const stopMinimumWidth = (stop: ScheduleOperationalStop) => stop.endMinutes === stop.startMinutes ? 90 : 50;
+export const stopMinimumWidth = (stop: ScheduleOperationalStop) =>
+  stop.kind === 'hq' || stop.kind === 'departure' || stop.kind === 'dump' ? 24 : 50;
 
 /** Put facility stops on separate rows whenever their rendered pills would collide. */
 export function scheduleOperationalStopLayout(

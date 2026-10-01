@@ -35,8 +35,8 @@ const crowdedStops = [
   {id:'nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'hq' as const,label:'NOHQ',enteredAt:'2026-10-01T16:38:00Z',departedAt:'2026-10-01T16:38:00Z',observedThrough:'2026-10-01T16:38:00Z',startMinutes:698,endMinutes:698,ongoing:false},
 ];
 const crowdedLayout=scheduleOperationalStopLayout(crowdedStops,{start:480,duration:540},628);
-assert.equal(crowdedLayout.laneCount,3,'Three close facility pills receive three readable lanes');
-assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['left-nohq',0],['dump',1],['nohq',2]]);
+assert.equal(crowdedLayout.laneCount,2,'Compact facility icons need fewer lanes while remaining separate');
+assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['left-nohq',0],['dump',1],['nohq',0]]);
 
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'route-order-test-'));
 process.env.SCHEDULE_ROUTE_ORDER_DIR=directory;

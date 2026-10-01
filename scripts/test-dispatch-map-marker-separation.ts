@@ -9,7 +9,18 @@ assert.match(
   "Nearby appointments must collapse into a count that focuses the map without opening one appointment.",
 );
 assert.match(source, /function clusterTerritoryTone\(jobs: JobsMapPoint\[\]\): string/);
-assert.match(source, /function appointmentClusterIcon\(leaflet: LeafletModule, count: number, tone: string\)/);
+assert.match(source, /function appointmentClusterIcon\(leaflet: LeafletModule, jobs: JobsMapPoint\[\], tone: string\)/);
+assert.match(
+  source,
+  /const canceledCount = jobs\.filter\(\(job\) => job\.statusBucket === "Canceled"\)\.length;[\s\S]*?is-all-canceled[\s\S]*?has-canceled[\s\S]*?&times;\$\{canceledCount\}/,
+  "Appointment clusters must expose how many nearby appointments are cancelled.",
+);
+assert.match(
+  source,
+  /const canceled = job\.statusBucket === "Canceled";[\s\S]*?ops-jobs-map-pin-cancel[\s\S]*?&times;/,
+  "A cancelled appointment must render an explicit cross instead of an empty scheduled-job pin.",
+);
+assert.match(source, /const cancellationPrefix = job\.statusBucket === "Canceled" \? "CANCELLED · " : "";/);
 assert.doesNotMatch(source, /spreadLocatedJobMarkers/);
 assert.match(source, /function spreadLiveTruckMarkers\(map: any, trucks: JobsMapTruck\[\]\): VisibleTruckMarker\[\]/);
 assert.match(source, /const truckMarkers = spreadLiveTruckMarkers\(map, liveTruckLocations\);/);
@@ -29,4 +40,14 @@ assert.doesNotMatch(source, /locationClusterIcon/);
 assert.doesNotMatch(source, /map items at this location/);
 assert.doesNotMatch(source, /truckClusterIcon/);
 assert.doesNotMatch(source, /truckClusters = clusterVisibleMapItems/);
+
+const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const usabilityCss = readFileSync(new URL("../app/ops-usability.css", import.meta.url), "utf8");
+assert.match(
+  globalCss,
+  /\.ops-jobs-map-pin\.is-canceled \{[\s\S]*?border-radius: 3px;[\s\S]*?repeating-linear-gradient[\s\S]*?opacity: 1;/,
+  "Cancelled map pins must use the high-contrast caution diamond, not a dimmed scheduled pin.",
+);
+assert.match(globalCss, /\.ops-jobs-map-pin \.ops-jobs-map-pin-cancel \{/);
+assert.match(usabilityCss, /\.ops-map-cluster\.is-appointments\.has-canceled,[\s\S]*?\.ops-map-cluster\.is-appointments\.is-all-canceled/);
 console.log("Dispatch appointments cluster cleanly while truck locators remain individual.");

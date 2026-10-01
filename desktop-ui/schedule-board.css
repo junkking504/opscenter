@@ -272,3 +272,15 @@
 /* Planned windows remain distinct from measured truck visits. */
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="booked"] { border-style: dashed; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { margin-inline: 0; }
+
+/* Keep the desktop board inside the window while retaining readable stacked
+ * stops. Dense days scroll within the schedule, with the hourly ruler pinned. */
+@media (min-width: 1000px) {
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: var(--schedule-available-height, 600px); min-height: 280px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-shell { height: 100%; min-height: 0; overflow: hidden; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1 1 0; height: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 12; background: var(--surface, #fff); }
+  .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open > .schedule-map-panel { height: 100%; min-height: 0; overflow: auto; }
+  .ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open .schedule-map-canvas { flex: 1 1 auto; height: auto; min-height: 200px; }
+}

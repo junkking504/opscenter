@@ -5,7 +5,7 @@ import path from 'node:path';
 import { scheduleOperationalStops } from '../lib/schedule-operational-stops';
 import { applyRouteOrderConfirmations } from '../lib/schedule-route-order-confirmations';
 import { scheduleStandaloneOperationalStops, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
-import { scheduleOperationalStopLayout } from '../desktop-ui/lib/schedule-operational-stop-layout';
+import { operationalStopIcon, scheduleOperationalStopLayout, stopMinimumWidth } from '../desktop-ui/lib/schedule-operational-stop-layout';
 import { scheduleRoutePairs, type DesktopAppointment } from '../lib/desktop-schedule';
 
 const tracked = [
@@ -34,6 +34,9 @@ const crowdedStops = [
   {id:'dump',truck:'Truck 6',name:'Gentilly',facility:'Landfill',kind:'dump' as const,label:'Dump',enteredAt:'2026-10-01T16:07:00Z',departedAt:'2026-10-01T16:28:00Z',observedThrough:'2026-10-01T16:28:00Z',startMinutes:667,endMinutes:688,ongoing:false},
   {id:'nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'hq' as const,label:'NOHQ',enteredAt:'2026-10-01T16:38:00Z',departedAt:'2026-10-01T16:38:00Z',observedThrough:'2026-10-01T16:38:00Z',startMinutes:698,endMinutes:698,ongoing:false},
 ];
+const emrStop = {id:'emr',truck:'Truck 8',name:'EMR',facility:'Metal recycling yard',kind:'facility' as const,label:'EMR',enteredAt:'2026-10-01T17:00:00Z',departedAt:'2026-10-01T17:10:00Z',observedThrough:'2026-10-01T17:10:00Z',startMinutes:720,endMinutes:730,ongoing:false};
+assert.equal(operationalStopIcon(emrStop),'steel-beam','The canonical EMR facility uses the steel-beam pictogram');
+assert.equal(stopMinimumWidth(emrStop),24,'The steel-beam stop remains as compact as the HQ and dump icons');
 const crowdedLayout=scheduleOperationalStopLayout(crowdedStops,{start:480,duration:540},628);
 assert.equal(crowdedLayout.laneCount,2,'Compact facility icons need fewer lanes while remaining separate');
 assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['left-nohq',0],['dump',1],['nohq',0]]);
@@ -60,4 +63,4 @@ try {
   fs.rmSync(directory,{recursive:true,force:true});
   delete process.env.SCHEDULE_ROUTE_ORDER_DIR;
 }
-console.log('Schedule operational stops passed: dump/HQ projection, overnight departures, gap deduplication, route range, and user-confirmed untimed ordering.');
+console.log('Schedule operational stops passed: dump/HQ/EMR icons, overnight departures, gap deduplication, route range, and user-confirmed untimed ordering.');

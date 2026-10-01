@@ -26,19 +26,25 @@ try {
     assert.equal(await gap.locator('span').evaluate(element=>getComputedStyle(element).fontSize),'11px');
     const standaloneDump=page.locator('[data-operational-stop="dump"]');
     assert.equal(await standaloneDump.count(),1,'The dump inside the appointment gap is not duplicated; the later between-customer dump remains');
-    assert.equal((await standaloneDump.innerText()).trim(),'DUMP');
+    assert.equal(await standaloneDump.getAttribute('data-operational-icon'),'dump');
     assert.equal(await standaloneDump.getAttribute('aria-label'),'Dump · 11:15 AM–11:30 AM');
     assert.equal(await standaloneDump.getAttribute('title'),'Dump · 11:15 AM–11:30 AM');
-    assert.equal(await standaloneDump.locator('span').evaluate(element=>getComputedStyle(element).fontSize),'11px');
+    assert.equal(await standaloneDump.locator('svg').count(),1);
     assert.equal(await standaloneDump.evaluate(element=>element.getBoundingClientRect().height),22);
     const hqDeparture=page.locator('[data-operational-stop="departure"]');
-    assert.equal((await hqDeparture.innerText()).trim(),'LEFT NOHQ');
+    assert.equal(await hqDeparture.getAttribute('data-operational-icon'),'house');
     assert.equal(await hqDeparture.getAttribute('aria-label'),'Left NOHQ · 8:30 AM');
     assert.equal(await hqDeparture.getAttribute('title'),'Left NOHQ · 8:30 AM');
+    const emr=page.locator('[data-operational-icon="steel-beam"]');
+    assert.equal(await emr.count(),1,'EMR is represented by one steel-beam icon');
+    assert.equal(await emr.getAttribute('aria-label'),'EMR · 12:00 PM–12:10 PM');
+    assert.equal(await emr.getAttribute('title'),'EMR · 12:00 PM–12:10 PM');
+    assert.equal(await emr.locator('svg').count(),1);
+    assert.equal(await emr.evaluate(element=>element.getBoundingClientRect().height),22);
     const operationalRow=page.locator('[data-schedule-truck="Truck 8"]');
     assert.equal(await operationalRow.getAttribute('data-operational-lanes'),width===390?'2':'1','Facility pills stack only when the available timeline width would make them collide');
     assert.equal(await operationalRow.locator('.schedule-timeline-content').evaluate(element=>getComputedStyle(element).zoom),'1','Rows with facility labels preserve readable text instead of shrinking to fit');
     assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
   }
-  console.log('Schedule visit gap passed: connected return blocks, deduplicated and between-customer dumps, HQ departure, responsive layout and zero writes.');
+  console.log('Schedule visit gap passed: connected return blocks, compact dump/HQ/EMR icons, responsive layout and zero writes.');
 } finally { await browser.close(); }

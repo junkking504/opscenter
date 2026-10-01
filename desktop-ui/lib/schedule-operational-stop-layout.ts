@@ -15,7 +15,7 @@ export const operationalStopIcon = (stop: ScheduleOperationalStop): ScheduleOper
 };
 
 export const stopMinimumWidth = (stop: ScheduleOperationalStop) =>
-  operationalStopIcon(stop) ? 24 : 50;
+  stop.kind === 'hq' ? 48 : operationalStopIcon(stop) ? 24 : 50;
 
 /** Put facility stops on separate rows whenever their rendered pills would collide. */
 export function scheduleOperationalStopLayout(

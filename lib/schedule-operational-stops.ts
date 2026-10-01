@@ -25,8 +25,9 @@ const minute = (value: string) => {
 };
 
 /** Project positive facility evidence onto the dispatch timeline. Appointment
- * visits remain owned by their appointment cards. An overnight HQ presence is
- * represented by its current-day departure, not a fabricated all-day stop. */
+ * visits remain owned by their appointment cards. HQ entry and exit evidence
+ * stays one visit; an overnight visit is clipped to the visible operating day
+ * while retaining its real timestamps for the duration label. */
 export function scheduleOperationalStops(date: string, visits: FacilityVisit[]): ScheduleOperationalStop[] {
   return visits.flatMap(visit => {
     if (visit.kind !== 'geofence' || visit.conflict) return [];
@@ -34,31 +35,33 @@ export function scheduleOperationalStops(date: string, visits: FacilityVisit[]):
     const departed = visit.departedAt && Number.isFinite(Date.parse(visit.departedAt)) ? visit.departedAt : null;
     const observed = Number.isFinite(Date.parse(visit.lastSeenAt)) ? visit.lastSeenAt : entered || departed;
     if (!observed) return [];
-    const enteredToday = Boolean(entered && day(entered) === date);
-    const departedToday = Boolean(departed && day(departed) === date);
-    if (!enteredToday && !departedToday) return [];
     const positionCode = /warehouse|\bhq\b/i.test(visit.name) && visit.facilityPosition
       ? operationalLocationCodeAt(visit.facilityPosition)
       : null;
     const name = positionCode === 'NOHQ' || positionCode === 'BRHQ' ? positionCode : geofenceAlertLocation(visit.name);
     const hq = /^(?:NOHQ|BRHQ)$/i.test(name) || /warehouse/i.test(visit.facility || '');
+    const enteredToday = Boolean(entered && day(entered) === date);
+    const departedToday = Boolean(departed && day(departed) === date);
+    const observedToday = day(observed) === date;
+    const spanningHqVisit = hq && !enteredToday && (departedToday || (!departed && observedToday));
+    if (!enteredToday && !departedToday && !spanningHqVisit) return [];
     const dump = visit.resetLocation === 'dump';
-    const departureOnly = !enteredToday && departedToday;
-    const startAt = departureOnly ? departed! : entered!;
-    const endAt = departureOnly ? departed! : departedToday ? departed! : observed;
+    const startAt = enteredToday ? entered! : departedToday ? departed! : observed;
+    const endAt = departedToday ? departed! : observed;
+    const startMinutes = spanningHqVisit ? Math.min(480, minute(endAt)) : minute(startAt);
     return [{
       id: visit.id,
       truck: truckLabel(visit.truck),
       name,
       facility: visit.facility || 'Geofenced location',
-      kind: departureOnly ? 'departure' as const : dump ? 'dump' as const : hq ? 'hq' as const : 'facility' as const,
-      label: departureOnly ? `Left ${name}` : dump ? 'Dump' : name,
+      kind: dump ? 'dump' as const : hq ? 'hq' as const : 'facility' as const,
+      label: hq ? `${name} Visit` : dump ? 'Dump' : name,
       enteredAt: entered,
       departedAt: departed,
       observedThrough: observed,
-      startMinutes: minute(startAt),
-      endMinutes: Math.max(minute(startAt), minute(endAt)),
-      ongoing: enteredToday && !departed,
+      startMinutes,
+      endMinutes: Math.max(startMinutes, minute(endAt)),
+      ongoing: !departed,
     }];
   }).sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));
 }

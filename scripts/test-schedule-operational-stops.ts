@@ -17,11 +17,11 @@ const tracked = [
 ];
 const stops=scheduleOperationalStops('2026-09-30',tracked);
 assert.deepEqual(stops.filter(stop=>stop.truck==='Truck 6').map(stop=>[stop.kind,stop.label,Math.floor(stop.startMinutes),Math.floor(stop.endMinutes)]),[
-  ['dump','Dump',799,816],['dump','Dump',912,925],['hq','NOHQ',1275,1296],
+  ['dump','Dump',799,816],['dump','Dump',912,925],['hq','NOHQ Visit',1275,1296],
 ]);
 assert.deepEqual(stops.find(stop=>stop.id==='hq-departure') && {kind:stops.find(stop=>stop.id==='hq-departure')!.kind,label:stops.find(stop=>stop.id==='hq-departure')!.label,start:Math.floor(stops.find(stop=>stop.id==='hq-departure')!.startMinutes)},
-  {kind:'departure',label:'Left NOHQ',start:507},'An overnight HQ stay becomes a departure marker on the selected operating day');
-assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ','A generic Warehouse visit at the Baton Rouge warehouse coordinates is labeled BRHQ');
+  {kind:'hq',label:'NOHQ Visit',start:480},'An overnight HQ stay remains one visit block through its selected-day departure');
+assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ Visit','A generic Warehouse visit at the Baton Rouge warehouse coordinates is labeled BRHQ');
 
 const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'4090218',jkNumber:'JK4103396',customerName:'Terrencia Polk',truck:'Truck 6',status:'Completed',hasScheduledTime:true,appointmentStartMinutes:660,appointmentEndMinutes:720,
   truckVisits:[{truck:'Truck 6',arrival:'2026-09-30T17:10:44Z',departure:'2026-09-30T18:00:24Z',observedThrough:'2026-09-30T18:00:24Z'},{truck:'Truck 6',arrival:'2026-09-30T18:53:30Z',departure:'2026-09-30T19:50:15Z',observedThrough:'2026-09-30T19:50:15Z'}],
@@ -30,7 +30,7 @@ assert.deepEqual(scheduleStandaloneOperationalStops(stops,[terrencia],'Truck 6')
 assert.equal(timelineRange([terrencia],Date.parse('2026-10-01T04:00:00Z'),stops).end,1320,'Late HQ stops extend the visible route range');
 
 const crowdedStops = [
-  {id:'left-nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'departure' as const,label:'Left NOHQ',enteredAt:'2026-10-01T15:56:00Z',departedAt:'2026-10-01T15:56:00Z',observedThrough:'2026-10-01T15:56:00Z',startMinutes:656,endMinutes:656,ongoing:false},
+  {id:'nohq-visit',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'hq' as const,label:'NOHQ Visit',enteredAt:'2026-10-01T15:50:00Z',departedAt:'2026-10-01T15:56:00Z',observedThrough:'2026-10-01T15:56:00Z',startMinutes:650,endMinutes:656,ongoing:false},
   {id:'dump',truck:'Truck 6',name:'Gentilly',facility:'Landfill',kind:'dump' as const,label:'Dump',enteredAt:'2026-10-01T16:07:00Z',departedAt:'2026-10-01T16:28:00Z',observedThrough:'2026-10-01T16:28:00Z',startMinutes:667,endMinutes:688,ongoing:false},
   {id:'nohq',truck:'Truck 6',name:'NOHQ',facility:'Junk King warehouse',kind:'hq' as const,label:'NOHQ',enteredAt:'2026-10-01T16:38:00Z',departedAt:'2026-10-01T16:38:00Z',observedThrough:'2026-10-01T16:38:00Z',startMinutes:698,endMinutes:698,ongoing:false},
 ];
@@ -39,7 +39,7 @@ assert.equal(operationalStopIcon(emrStop),'steel-beam','The canonical EMR facili
 assert.equal(stopMinimumWidth(emrStop),24,'The steel-beam stop remains as compact as the HQ and dump icons');
 const crowdedLayout=scheduleOperationalStopLayout(crowdedStops,{start:480,duration:540},628);
 assert.equal(crowdedLayout.laneCount,2,'Compact facility icons need fewer lanes while remaining separate');
-assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['left-nohq',0],['dump',1],['nohq',0]]);
+assert.deepEqual(crowdedLayout.placements.map(row=>[row.stop.id,row.lane]),[['nohq-visit',0],['dump',1],['nohq',0]]);
 
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'route-order-test-'));
 process.env.SCHEDULE_ROUTE_ORDER_DIR=directory;
@@ -63,4 +63,4 @@ try {
   fs.rmSync(directory,{recursive:true,force:true});
   delete process.env.SCHEDULE_ROUTE_ORDER_DIR;
 }
-console.log('Schedule operational stops passed: dump/HQ/EMR icons, overnight departures, gap deduplication, route range, and user-confirmed untimed ordering.');
+console.log('Schedule operational stops passed: dump/HQ/EMR visits, overnight HQ continuity, gap deduplication, route range, and user-confirmed untimed ordering.');

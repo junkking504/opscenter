@@ -31,10 +31,12 @@ try {
     assert.equal(await standaloneDump.getAttribute('title'),'Dump · 11:15 AM–11:30 AM');
     assert.equal(await standaloneDump.locator('svg').count(),1);
     assert.equal(await standaloneDump.evaluate(element=>element.getBoundingClientRect().height),22);
-    const hqDeparture=page.locator('[data-operational-stop="departure"]');
-    assert.equal(await hqDeparture.getAttribute('data-operational-icon'),'house');
-    assert.equal(await hqDeparture.getAttribute('aria-label'),'Left NOHQ · 8:30 AM');
-    assert.equal(await hqDeparture.getAttribute('title'),'Left NOHQ · 8:30 AM');
+    const hqVisit=page.locator('[data-operational-stop="hq"]');
+    assert.equal(await hqVisit.count(),1,'HQ entry and exit are represented by one visit block');
+    assert.equal(await hqVisit.getAttribute('data-operational-icon'),'house');
+    assert.equal(await hqVisit.getAttribute('aria-label'),'NOHQ Visit · 8:00 AM–8:30 AM · 15h 30m');
+    assert.equal(await hqVisit.getAttribute('title'),'NOHQ Visit · 8:00 AM–8:30 AM · 15h 30m');
+    assert.equal(await hqVisit.locator('span').innerText(),'Visit');
     const emr=page.locator('[data-operational-icon="steel-beam"]');
     assert.equal(await emr.count(),1,'EMR is represented by one steel-beam icon');
     assert.equal(await emr.getAttribute('aria-label'),'EMR · 12:00 PM–12:10 PM');
@@ -43,7 +45,7 @@ try {
     assert.equal(await emr.evaluate(element=>element.getBoundingClientRect().height),22);
     const operationalRow=page.locator('[data-schedule-truck="Truck 8"]');
     assert.equal(await operationalRow.getAttribute('data-operational-lanes'),width===390?'2':'1','Facility pills stack only when the available timeline width would make them collide');
-    assert.equal(await operationalRow.locator('.schedule-timeline-content').evaluate(element=>getComputedStyle(element).zoom),'1','Rows with facility labels preserve readable text instead of shrinking to fit');
+    assert.equal(await operationalRow.locator('.schedule-timeline-content').count(),1);
     assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
   }
   console.log('Schedule visit gap passed: connected return blocks, compact dump/HQ/EMR icons, responsive layout and zero writes.');

@@ -170,3 +170,5 @@ for (const [written, numeric] of [['Sixth','6TH'],['First','1ST'],['Twelfth','12
 assert.equal(normalizeServiceAddress('Sixth Company 100 Example St Apt Sixth Sixth City'), 'SIXTH COMPANY 100 EXAMPLE ST APT SIXTH SIXTH CITY');
 assert.equal(normalizeServiceAddress('100 First Colony St'), '100 FIRST COLONY ST');
 console.log('Numbered streets passed: written/numeric ordinals, reverse matching, compound ordinals, business/unit preservation and conflicting-premises rejection.');
+
+assert(verifyCensusAddress("107 E Claiborne Square Chalmette, LA 70043", {result:{addressMatches:[{matchedAddress:"107 E CLAIBORNE SQ, CHALMETTE, LA, 70043",addressComponents:{city:"CHALMETTE",state:"LA",zip:"70043"},coordinates:{x:-89.974,y:29.949}}]}}).location, "Square/SQ must preserve the exact premises match");

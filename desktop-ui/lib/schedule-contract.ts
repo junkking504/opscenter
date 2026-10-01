@@ -139,7 +139,7 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
     .map(id => jobs.find(job => job.recordId === id))
     .filter(job => !job?.location);
   return missing.length
-    ? { label: 'Location pending', detail: `OpsCenter automatically resolves verified coordinates for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
+    ? { label: 'Location pending', detail: `Address verification failed for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}. Dispatch owns recovery; unresolved locations require escalation.` }
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
 }
 

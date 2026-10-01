@@ -11,14 +11,14 @@ const monitor = '/desktop?data=live&workspace=Command&commandView=monitor';
 /** Whole-schedule coverage includes unassigned appointments, unlike truck rules. */
 export function scheduleAddressFeed(date: string, jobs: AddressJob[], observedAt: string | null, now: number): HierarchyFeed {
   const available = hierarchyFresh(observedAt, now, 120_000);
-  const unresolved = jobs.filter(j => !/cancel|no.?show|complet|closed/i.test(j.status) && !j.located);
+  const unresolved = jobs.filter(j => !j.located);
   const findings: HierarchyFinding[] = unresolved.map(j => ({
     id: `appointment-location:${date}:${j.appointmentId}`, feed: 'schedule-addresses',
-    title: `${j.jkNumber || j.appointmentId}: service location unresolved`,
+    title: `${j.jkNumber || j.appointmentId}: address verification failed`,
     detail: 'No verified service location. Map placement and closest-truck guidance are unavailable. Dispatch must follow through on address recovery; this includes unassigned appointments. Escalates to Control if the review deadline passes.',
     href: agentScheduleHref(date, j.appointmentId), origin: 'dispatch', target: 'dispatch', priority: 'urgent',
   }));
-  return {id: 'schedule-addresses', available, observedAt, detail: `${jobs.length} appointments checked; ${unresolved.length} open appointments lack a verified location.`, findings};
+  return {id: 'schedule-addresses', available, observedAt, detail: `${jobs.length} appointments checked; ${unresolved.length} appointments lack a verified location.`, findings};
 }
 
 /** Read-only oversight: never requests research, changes a ledger or raises limits. */

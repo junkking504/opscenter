@@ -15,7 +15,7 @@ export function addressResearchCandidates(today: string, root = addressDataRoot(
   }
   let pins = {};
   try { pins = JSON.parse(fs.readFileSync(path.join(root, 'cache/appointment_geocodes.json'), 'utf8')).addresses || {}; } catch { /* Missing geocodes remain unresolved. */ }
-  return [...dates].sort().flatMap(date => readJobRows(date).filter(j => j.address && j.address !== '—' && !/cancel|complete|closed/i.test(j.status))
+  return [...dates].sort().flatMap(date => readJobRows(date).filter(j => j.address && j.address !== '—')
     .map(j => ({ address: j.address, dates: [date], located: Boolean(planningLocation(j.address, pins)) })));
 }
 

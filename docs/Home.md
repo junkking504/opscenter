@@ -105,3 +105,5 @@ cleanup, task completion and daily storage checks.
 4. Use the Business bundle builder for a curated share package; never upload
    the full Mission Control project directory.
 5. Treat production, preview, and source as distinct until verified.
+
+- [Address verification completion](address-verification-completion.md)

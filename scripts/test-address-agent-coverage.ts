@@ -10,7 +10,9 @@ const jobs=[{appointmentId:'test-unassigned',jkNumber:'TEST-1',status:'Confirmed
   {appointmentId:'test-canceled',jkNumber:'TEST-3',status:'Canceled',located:false},
   {appointmentId:'test-complete',jkNumber:'TEST-4',status:'Completed',located:false}];
 const schedule=scheduleAddressFeed(date,jobs,at,now);
-assert.equal(schedule.findings.length,1);
+assert.equal(schedule.findings.length,3);
+assert(schedule.findings.some(f=>f.href.includes("appointment=test-complete")),"Completed addresses remain owned until verified");
+assert(schedule.findings.some(f=>f.href.includes("appointment=test-canceled")),"Canceled source addresses still require verification");
 assert.equal(schedule.findings[0].origin,'dispatch');
 assert(schedule.findings[0].href.includes('appointment=test-unassigned'));
 const state=initialMaintenanceState();

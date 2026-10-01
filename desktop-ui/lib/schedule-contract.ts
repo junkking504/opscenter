@@ -174,7 +174,7 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
   if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }
-export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !/cancel/i.test(job.status) && !job.location; }
+export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }
 export function addressResolutionCopy(reason?: string) {
   if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };
   if (/provider|temporarily unavailable|usage guard/i.test(reason || '')) return { title: 'Location check delayed', detail: 'The verified-address sources are unavailable; OpsCenter will retry automatically.' };

@@ -11,7 +11,7 @@ async function main() {
   for (const status of ['Canceled', 'Cancelled by Dispatcher']) {
     const canceled = appointment('canceled-missing-address', 550, 600, {status, location:null});
     assert.deepEqual(await calculateClosestTrucks(canceled, [], true, async()=>{throw Error('Canceled appointments must not request closest trucks');}),[]);
-    assert.equal(needsScheduleAddressVerification(canceled),false,'Canceled records do not request geocoding or count as address attention');
+    assert.equal(needsScheduleAddressVerification(canceled),true,'Canceled records still require verified addresses');
     assert.deepEqual(scheduleRoutePairs([jobs[0],canceled,jobs[1]]).map(leg=>[leg.fromAppointmentId,leg.toAppointmentId]),[['estimate-1','job-2']],'A canceled unverified stop cannot interrupt the truck route');
   }
   const closest = await calculateClosestTrucks(jobs[0], [

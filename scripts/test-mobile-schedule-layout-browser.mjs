@@ -59,7 +59,8 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]) {
     const label=row.locator('.route-connector-label').first();await label.scrollIntoViewIfNeeded();
     if(width<=900)await label.tap();else await label.click();
     const dialog=page.locator('.schedule-route-popover:popover-open');await dialog.waitFor();
-    assert.match(await dialog.innerText(),/5\.2mi/,'Compact travel labels preserve miles in the details popover');
+    assert.match(await dialog.innerText(),/11m/,'Travel time stays available in the details popover');
+    assert.doesNotMatch(await dialog.innerText(),/mi\b/,'Travel distance is omitted from details');
     await dialog.getByRole('button',{name:'Close travel details'}).click();
    }
    const target=blocks.last();await target.scrollIntoViewIfNeeded();

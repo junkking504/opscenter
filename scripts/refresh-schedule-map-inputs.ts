@@ -36,18 +36,22 @@ async function main() {
     if (date && date >= target) dates.add(date);
   }
   const missingAddresses = new Set<string>();
+  const addressedAppointments = new Set<string>();
   const addresses = [...new Set([...dates].sort().flatMap(date => {
     const source = readVerifiedJunkwareScheduleSnapshot(root, date);
     const rows = [...readJobRows(date), ...(source?.appointments || []), ...(source?.cancelled || [])];
     return rows.flatMap((row, index) => {
       const address = String(row.address || '').trim();
+      const identity = `${date}:${row.appointmentId || ('appt_id' in row ? row.appt_id : '') || index}`;
       if (!address || address === '—' || /^address unavailable$/i.test(address)) {
-        missingAddresses.add(`${date}:${row.appointmentId || ('appt_id' in row ? row.appt_id : '') || index}`);
+        missingAddresses.add(identity);
         return [];
       }
+      addressedAppointments.add(identity);
       return [address];
     });
   }))];
+  for (const identity of addressedAppointments) missingAddresses.delete(identity);
   // Reviewed corrections must also reach the independently consumed visit
   // cache, even when an older collector still holds a conflicting entry.
   for (const address of addresses) {

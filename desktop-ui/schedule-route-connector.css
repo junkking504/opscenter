@@ -9,14 +9,14 @@
 .ops-live .schedule-route-connector.horizontal .route-connector-hover-target { inset: -6px 0 auto; height: 14px; }
 .ops-live .schedule-route-connector.vertical .route-connector-hover-target { inset: 0 -6px 0 auto; width: 18px; }
 .ops-live .route-connector-arrow { position: absolute; right: -1px; top: -8px; font: 700 12px/14px sans-serif; background: #fff; }
-.ops-live .route-connector-label { position: absolute; inset-inline: 2px; height: 13px; min-height: 0; min-width: 0; padding: 0 1px; border: 0; border-radius: 2px; background: #fffffff2; color: inherit; font: 650 8px/13px sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; }
+.ops-live .route-connector-label { position: absolute; inset-inline: 2px; height: 20px; min-height: 0; min-width: 0; padding: 0 1px; border: 0; border-radius: 2px; background: #fffffff2; color: inherit; font: 650 10px/20px sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; }
 .ops-live .route-connector-label:focus-visible { outline: 2px solid #273d4b; outline-offset: 1px; }
 .ops-live .schedule-route-connector.vertical .route-connector-line { inset: 0 3px 0 auto; width: 6px; border: 0; border-right: 2px dotted currentColor; border-block: 1px solid currentColor; }
 .ops-live .schedule-route-connector.vertical .route-connector-arrow { top: auto; bottom: 1px; right: 0; font-size: 10px; background: transparent; }
 .ops-live .schedule-route-connector.vertical.reverse .route-connector-arrow { top: 1px; bottom: auto; }
 .ops-live .schedule-route-connector.horizontal.reverse .route-connector-arrow { left: -1px; right: auto; }
 .ops-live .schedule-route-connector.vertical .route-connector-label { right: 10px; }
-@container (max-width: 66px) { .ops-live .route-connector-miles { display: none; } }
+
 .ops-live .route-connector-tooltip { position: absolute; z-index: 5; width: max-content; max-width: 150px; padding: 5px 8px; border: 1px solid #406751; border-radius: 5px; background: #fff; color: #26372e; box-shadow: 0 3px 12px #17212b35; font: 700 11px/1.25 sans-serif; white-space: nowrap; opacity: 0; visibility: hidden; transform: translate(-50%, -100%); transition: opacity .1s ease; pointer-events: none; }
 .ops-live .route-connector-tooltip strong { color: #406751; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .ops-live .schedule-route-connector.horizontal .route-connector-tooltip { left: 50%; top: -8px; }

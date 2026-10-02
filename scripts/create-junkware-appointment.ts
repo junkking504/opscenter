@@ -380,6 +380,7 @@ async function bookEstimate(page: Page, input: JunkwareAppointmentCreationInput)
   await ensureAuthenticated(page,sourceUrl);
   const type = await selectedText(page,'#ctl00_Content_AppointmentTypeDD');
   if (type !== 'Estimate' || !await page.locator('#ctl00_Content_BookJobLB').count()) throw new Error('This source record is not an estimate available for booking.');
+  if (!/^complete(?:d)?$/i.test(await selectedText(page,'#ctl00_Content_StatusDD'))) throw new Error('Mark the estimate Complete in JunkWare before booking its job.');
   const name = normalized((await page.locator('#ctl00_Content_FirstNameTB').inputValue())+' '+(await page.locator('#ctl00_Content_LastNameTB').inputValue()));
   if (name !== normalized(input.firstName+' '+input.lastName) || phoneDigits(await page.locator('#ctl00_Content_Phone1TB').inputValue())!==input.phone || !normalized(input.serviceAddress).startsWith(normalized(await page.locator('#ctl00_Content_AppointmentAddressTB').inputValue())) || (await page.locator('#ctl00_Content_AppointmentZipTB').inputValue()).slice(0,5)!==input.serviceZip.slice(0,5)) throw new Error('The source estimate customer or service address changed. Reload it before booking.');
   await clickWithWebFormsCompletion(page,'#ctl00_Content_BookJobLB','the estimate booking form');

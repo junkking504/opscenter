@@ -67,6 +67,6 @@ follow-up source version alongside quote/notes changes. No new provider requests
 
 ## Book a job from an estimate
 
-The estimate detail and Control appointment drawer offer **Book Job**. Choose a future job date, start time, duration, and optional additional notes, then review and submit. OpsCenter uses JunkWare's native estimate Book Job form, preserving the original estimate and quote. It verifies the returned new job and its source-estimate link before reporting success. The native form determines the copied truck assignment.
+The estimate detail and Control appointment drawer offer **Book Job**. The estimate must be marked Complete in JunkWare; a GPS visit alone does not qualify. Choose a future job date, start time, duration, and optional additional notes, then review and submit. OpsCenter uses JunkWare's native estimate Book Job form, preserving the original estimate and quote. It verifies the returned new job and its source-estimate link before reporting success. The native form determines the copied truck assignment.
 
 Bookings use the appointment-creation journal and duplicate review. An unresolved booking blocks another submission for that source estimate, even if the proposed date changes. Use **Check Saved Result** after an interrupted submission; never resubmit an uncertain result. Collector recovery requires an explicit source-estimate relationship. Booking does not send separate customer or crew messages.

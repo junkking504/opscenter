@@ -49,7 +49,7 @@ export function scheduleOperationalStops(date: string, visits: FacilityVisit[]):
     const dump = visit.resetLocation === 'dump';
     const startAt = enteredToday ? entered! : departedToday ? departed! : observed;
     const endAt = departedToday ? departed! : observed;
-    const startMinutes = spanningHqVisit ? Math.min(480, minute(endAt)) : minute(startAt);
+    const startMinutes = spanningHqVisit ? Math.min(420, minute(endAt)) : minute(startAt);
     return [{
       id: visit.id,
       truck: truckLabel(visit.truck),
@@ -106,8 +106,19 @@ export function scheduleGpsHqStops(date: string, routes: TruckGpsRoute[]): Sched
 }
 
 export function mergeScheduleOperationalStops(primary: ScheduleOperationalStop[], gps: ScheduleOperationalStop[]) {
-  const overlaps = (a: ScheduleOperationalStop, b: ScheduleOperationalStop) => a.truck === b.truck && a.name === b.name
-    && a.startMinutes <= b.endMinutes + 2 && b.startMinutes <= a.endMinutes + 2;
+  const overlaps = (a: ScheduleOperationalStop, b: ScheduleOperationalStop) => {
+    if (a.truck !== b.truck || a.name !== b.name) return false;
+    // Compare source intervals before operating-day clipping. An overnight HQ
+    // stay contains the trip's origin even when their exit clocks differ.
+    const interval = (stop: ScheduleOperationalStop) => {
+      const start = Date.parse(stop.enteredAt || '');
+      const end = Date.parse(stop.departedAt || stop.observedThrough || '');
+      return Number.isFinite(start) && Number.isFinite(end) ? { start, end: Math.max(start,end) } : null;
+    };
+    const first = interval(a), second = interval(b);
+    if (first && second) return first.start <= second.end + 120_000 && second.start <= first.end + 120_000;
+    return a.startMinutes <= b.endMinutes + 2 && b.startMinutes <= a.endMinutes + 2;
+  };
   return [...primary, ...gps.filter(candidate => !primary.some(stop => overlaps(stop, candidate)))]
     .sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));
 }

@@ -20,7 +20,7 @@ assert.deepEqual(stops.filter(stop=>stop.truck==='Truck 6').map(stop=>[stop.kind
   ['dump','Dump',799,816],['dump','Dump',912,925],['hq','NOHQ Visit',1275,1296],
 ]);
 assert.deepEqual(stops.find(stop=>stop.id==='hq-departure') && {kind:stops.find(stop=>stop.id==='hq-departure')!.kind,label:stops.find(stop=>stop.id==='hq-departure')!.label,start:Math.floor(stops.find(stop=>stop.id==='hq-departure')!.startMinutes)},
-  {kind:'hq',label:'NOHQ Visit',start:480},'An overnight HQ stay remains one visit block through its selected-day departure');
+  {kind:'hq',label:'NOHQ Visit',start:420},'An overnight HQ stay remains one visit block through its selected-day departure');
 assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ Visit','A generic Warehouse visit at the Baton Rouge warehouse coordinates is labeled BRHQ');
 
 const gpsHqStops=scheduleGpsHqStops('2026-10-01',[
@@ -84,3 +84,13 @@ try {
   delete process.env.SCHEDULE_ROUTE_ORDER_DIR;
 }
 console.log('Schedule operational stops passed: dump/HQ/EMR visits, overnight HQ continuity, gap deduplication, route range, and user-confirmed untimed ordering.');
+
+// An overnight native HQ stay owns its trip-origin evidence even when the
+// native exit is more than two minutes later than the trip departure.
+const overnight=scheduleOperationalStops('2026-10-02',[{id:'overnight',kind:'geofence',truck:'Truck 4',name:'Warehouse',facility:'Junk King warehouse',enteredAt:'2026-10-01T19:00:00Z',departedAt:'2026-10-02T12:54:00Z',lastSeenAt:'2026-10-02T12:53:00Z'}]);
+const origin={...overnight[0],id:'trip-origin',enteredAt:'2026-10-02T12:49:00Z',departedAt:'2026-10-02T12:49:00Z',observedThrough:'2026-10-02T12:49:00Z',startMinutes:469,endMinutes:469};
+assert.equal(mergeScheduleOperationalStops(overnight,[origin]).length,1,'One continuous overnight HQ stay must not become two visits');
+assert.equal(overnight[0].startMinutes,420,'The starting HQ stay is visible before morning dump and appointment stops');
+const later={...origin,id:'real-return',enteredAt:'2026-10-02T16:00:00Z',departedAt:'2026-10-02T16:00:00Z',observedThrough:'2026-10-02T16:00:00Z',startMinutes:660,endMinutes:660};
+assert.equal(mergeScheduleOperationalStops(overnight,[origin,later]).length,2,'A genuine later HQ return stays separate');
+console.log('Overnight HQ and trip origin consolidate without hiding a later return.');

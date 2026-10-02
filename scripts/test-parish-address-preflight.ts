@@ -10,13 +10,14 @@ import { ADDRESS_VERIFICATION_POLICY } from '../lib/desktop-address-verification
 async function main() {
   if (process.argv[2] === '--child') {
     const root = process.argv[3];
+    const sourceAddress = process.argv[4];
     Date.now = () => 1_800_000_000_000;
     let calls = 0;
     globalThis.fetch = async input => {
       assert.match(String(input), /maps\.brla\.gov/, 'No paid request or browser needed even at the shared 500-call cap');
       calls++;
       return new Response(JSON.stringify({ spatialReference: { wkid: 4326 }, features: [{
-        attributes: { ID: 1, ADDRESS_ID: 1, FULL_ADDRESS: '100 EXAMPLE HWY', CITY: 'BATON ROUGE', STATE: 'LA', ZIP: 70816, ADDRESS_AUTHORITY: 'SAINT GEORGE' },
+        attributes: { ID: 1, ADDRESS_ID: 1, FULL_ADDRESS: sourceAddress.includes('Settlers') ? "7939 SETTLER'S CIR" : '100 EXAMPLE HWY', CITY: 'BATON ROUGE', STATE: 'LA', ZIP: sourceAddress.includes('Settlers') ? 70810 : 70816, ADDRESS_AUTHORITY: 'SAINT GEORGE' },
         geometry: { x: -91.1, y: 30.4 },
       }] }));
     };
@@ -25,7 +26,7 @@ async function main() {
     await import('./refresh-schedule-map-inputs');
     return;
   }
-  for (const address of ['100 Example Hwy Apt 4 Baton Rouge 70816', '100 Example Hwy Apt 4, Baton Rouge, La Baton Rouge, LA 70816']) {
+  for (const address of ['7939 Settlers Cir BATON ROUGE, LA 70810', '100 Example Hwy Apt 4 Baton Rouge 70816', '100 Example Hwy Apt 4, Baton Rouge, La Baton Rouge, LA 70816']) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'parish-preflight-test-'));
     try {
       const history = path.join(root, 'history/junkware'); fs.mkdirSync(history, { recursive: true });
@@ -44,7 +45,7 @@ async function main() {
       const ledger = JSON.stringify({ months: { '2026-09': { calls: 500, committedMicros: 10_000_000 } }, addressResearch: { status: 'Shared budget or address allowance reached' } });
       fs.writeFileSync(path.join(maintenance, 'state.json'), ledger);
       const run = () => {
-        const result = spawnSync(process.execPath, ['--import', 'tsx', fileURLToPath(import.meta.url), '--child', root], {
+        const result = spawnSync(process.execPath, ['--import', 'tsx', fileURLToPath(import.meta.url), '--child', root, address], {
           env: { ...process.env, OPSBOT_DATA_DIR: root, OPSCENTER_DATA_DIR: root, SERVICE_ADDRESS_CACHE_DIR: path.join(root, 'cache/service-address-verifications') },
           encoding: 'utf8', timeout: 10000,
         });
@@ -53,6 +54,7 @@ async function main() {
       };
       assert.equal(run(), 1, 'Old negative cache and six-hour retry delay cannot suppress the new free provider');
       const state = JSON.parse(fs.readFileSync(path.join(root, 'cache/schedule-address-refresh.json'), 'utf8'));
+      assert.deepEqual(state.coverage, { addresses: 1, mapped: 1, unresolved: 0, missing: 0, complete: true });
       assert.equal(state.scheduleDates, 2); assert.equal(state.verified, 1);
       const pins = JSON.parse(fs.readFileSync(path.join(root, 'cache/appointment_geocodes.json'), 'utf8')).addresses;
       const pin = Object.values(pins)[0] as Record<string, unknown>;

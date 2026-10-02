@@ -43,6 +43,16 @@ for (const geometry of [{ x: 0, y: 0 }, { x: NaN, y: 30.4 }, { x: -91.1, y: Infi
 assert.equal(verifyParishAddress(address, { ...payload(feature()), exceededTransferLimit: true }).location, null);
 assert.equal(verifyParishAddress(address, { ...payload(feature()), spatialReference: { wkid: 3857 } }).location, null);
 assert.equal(verifyParishAddress(address, { error: 'unavailable' }).location, null);
+// Possessive punctuation varies between source and authoritative providers.
+for (const spelling of ["SETTLER'S", 'SETTLER’S', 'SETTLER‘S', 'SETTLERʼS', 'SETTLERS']) {
+  const row = feature(`7939 ${spelling} CIR`); row.attributes.ZIP = 70810;
+  assert.ok(verifyParishAddress('7939 Settlers Cir BATON ROUGE, LA 70810', payload(row)).location);
+  for (const wrong of ['7938 Settlers Cir BATON ROUGE, LA 70810', '7939 Settlers Cir BATON ROUGE, LA 70809',
+    '7939 N Settlers Cir BATON ROUGE, LA 70810', '7939 Settler Cir BATON ROUGE, LA 70810']) {
+    assert.equal(verifyParishAddress(wrong, payload(row)).location, null, wrong);
+  }
+}
+
 
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'parish-address-test-'));

@@ -15,6 +15,7 @@ async function main() {
       calls++;
       if (!String(input).includes('census.gov')) return new Response('[]');
       if (phase!=='outage') assert.match(String(input), /address=100\+Recovery\+Street/, 'Worker cleans shorthand and numeric business label without manual evidence');
+      if (phase==='no-match') return new Response(JSON.stringify({result:{addressMatches:[]}}));
       if (phase==='outage') return new Response('Unavailable',{status:503});
       return new Response(JSON.stringify({result:{addressMatches:[{matchedAddress:'100 RECOVERY ST, NEW ORLEANS, LA, 70125',addressComponents:{city:'NEW ORLEANS',state:'LA',zip:'70125'},coordinates:{x:-90.1,y:29.95}}]}}));
     };
@@ -47,6 +48,15 @@ async function main() {
     assert.equal(pin.matched_address,'100 RECOVERY ST, NEW ORLEANS, LA, 70125');
     assert.equal(pin.house_street_verified,true);
     assert.equal(run(now+120_000,'recovered').calls,0,'Verified evidence survives process restarts without another request');
+    fs.rmSync(path.join(root,'cache'),{recursive:true,force:true});
+    const rejected=run(now+200_000,'no-match');
+    assert.equal(rejected.state.coverage.complete,false);
+    assert.equal(rejected.state.coverage.unresolved,1);
+    assert.equal(run(now+200_000+300_000,'recovered').state.verified,1,'Ordinary failure retries in five minutes, not six hours');
+    fs.writeFileSync(path.join(root,'history/junkware/junkware_live_2026-09-17_summary.csv'),'appt_id,jk_number,address,status\n123456,JK_TEST,,Canceled\n');
+    const missing=run(now+600_000,'recovered');
+    assert.equal(missing.state.coverage.complete,false,'Missing canceled address cannot disappear from coverage');
+    assert.equal(missing.state.coverage.missing,1);
     console.log('Real address worker: outage, persisted backoff, one-minute recovery, policy-stamped publication and restart reuse passed. Synthetic providers only.');
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 }

@@ -10,6 +10,7 @@ import { planningLocation } from '../lib/planning-geocodes';
 
 const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data');
 const target = process.argv[2];
+const retryIntervalMs = 5 * 60_000;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(target || '')) throw new Error('Service date required');
 const read = (file: string) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; } };
 const write = (file: string, value: unknown) => { fs.mkdirSync(path.dirname(file), { recursive: true }); const temp = file + '.' + randomUUID() + '.tmp'; fs.writeFileSync(temp, JSON.stringify(value), { mode: 0o660 }); fs.renameSync(temp, file); };
@@ -34,7 +35,19 @@ async function main() {
     const date = file.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
     if (date && date >= target) dates.add(date);
   }
-  const addresses = [...new Set([...dates].sort().flatMap(date => [...readJobRows(date).map(job => job.address), ...(readVerifiedJunkwareScheduleSnapshot(root, date)?.appointments || []).map(row => String(row.address || ''))]).filter(address => address && address !== '—'))];
+  const missingAddresses = new Set<string>();
+  const addresses = [...new Set([...dates].sort().flatMap(date => {
+    const source = readVerifiedJunkwareScheduleSnapshot(root, date);
+    const rows = [...readJobRows(date), ...(source?.appointments || []), ...(source?.cancelled || [])];
+    return rows.flatMap((row, index) => {
+      const address = String(row.address || '').trim();
+      if (!address || address === '—' || /^address unavailable$/i.test(address)) {
+        missingAddresses.add(`${date}:${row.appointmentId || ('appt_id' in row ? row.appt_id : '') || index}`);
+        return [];
+      }
+      return [address];
+    });
+  }))];
   // Reviewed corrections must also reach the independently consumed visit
   // cache, even when an older collector still holds a conflicting entry.
   for (const address of addresses) {
@@ -47,12 +60,12 @@ async function main() {
     write(geocodeFile, cache);
     geocodes[hash(address)] = cache.addresses[hash(address)];
   }
-  const candidates = addresses.filter(address => !planningLocation(address, geocodes) && Date.now() - Number(attempts[hash(address)] || 0) >= 6 * 3600_000)
+  const candidates = addresses.filter(address => !planningLocation(address, geocodes) && Date.now() - Number(attempts[hash(address)] || 0) >= retryIntervalMs)
     .sort((a, b) => Number(attempts[hash(a)] || 0) - Number(attempts[hash(b)] || 0)).slice(0, 4);
   let verified = 0;
   for (const address of candidates) {
     const result = cachedAddressVerification(address) || await verifyDesktopAddress(address);
-    attempts[hash(address)] = result.retryAfterMs ? Date.now() - 6 * 3600_000 + result.retryAfterMs : Date.now();
+    attempts[hash(address)] = result.retryAfterMs ? Date.now() - retryIntervalMs + result.retryAfterMs : Date.now();
     if (result.location) {
       // Reload immediately before the atomic write to preserve other entries.
       const cache = read(geocodeFile);
@@ -60,7 +73,9 @@ async function main() {
       write(geocodeFile, cache); verified++;
     }
   }
-  write(stateFile, { policyVersion: ADDRESS_VERIFICATION_POLICY, observedAt: new Date().toISOString(), checked: candidates.length, verified, scheduleDates: dates.size, attempts });
-  console.log(`Schedule map refresh: ${dates.size} dates, ${candidates.length} address checks, ${verified} verified.`);
+  const finalGeocodes = read(geocodeFile).addresses || {};
+  const unresolved = addresses.filter(address => !planningLocation(address, finalGeocodes));
+  write(stateFile, { coverage: { addresses: addresses.length, mapped: addresses.length - unresolved.length, unresolved: unresolved.length, missing: missingAddresses.size, complete: unresolved.length === 0 && missingAddresses.size === 0 }, unresolvedAddresses: unresolved, missingAddressAppointments: [...missingAddresses], policyVersion: ADDRESS_VERIFICATION_POLICY, observedAt: new Date().toISOString(), checked: candidates.length, verified, scheduleDates: dates.size, attempts });
+  console.log(`Schedule map refresh: ${dates.size} dates, ${candidates.length} address checks, ${verified} verified; ${addresses.length - unresolved.length}/${addresses.length} mapped, ${unresolved.length} unresolved.`);
 }
 main().catch(error => { console.error(error instanceof Error ? error.message : 'Schedule map refresh failed'); process.exitCode = 1; });

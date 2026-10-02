@@ -25,6 +25,16 @@ const source = { appt_id: '123456', jk_number: 'JK_TEST', address, status: 'Conf
 const component = (type: string, value: string) => ({ types: [type], long_name: value, short_name: value });
 const payload = { status: 'OK', results: [{ address_components: [component('street_number', '100'), component('route', 'Example Drive'), component('locality', 'Mandeville'), component('postal_code', '70448'), component('administrative_area_level_1', 'LA'), component('country', 'US')], geometry: { location: { lat: location.latitude, lng: location.longitude }, location_type: 'ROOFTOP' } }] };
 try {
+  const streetPayload = structuredClone(payload);
+  streetPayload.results[0].address_components.find(c => c.types.includes('route'))!.long_name = 'Example Street';
+  for (const input of ['100 Example Str, Mandeville, LA 70448', 'x Vendor1 100 Example Str Mandeville, LA 70448', 'Vendor1 100 Example Str. Mandeville, LA 70448']) {
+    assert.deepEqual(verifyAddressResult(input, streetPayload).location, location, 'Street shorthand and numeric business labels verify automatically');
+    assert.ok(addressQueries(input)[0].startsWith('100 Example Street'), 'Clean street query runs before raw source');
+    assert.ok(geocodioAddressQuery(input)?.startsWith('100 Example Street'));
+    for (const conflicting of [input.replace('100 ', '101 '), input.replace('Example', 'Other'), input.replace('70448', '70447'), input.replace('Mandeville', 'Covington'), input.replace('Example', 'N Example'), input + ' or 200 Other Str Mandeville LA 70448']) {
+      assert.equal(verifyAddressResult(conflicting, streetPayload).location, null, 'Shorthand never relaxes identity or multiple-premises checks');
+    }
+  }
   const canonical = '100 Example Ave, Baton Rouge, LA 70817';
   const parishPoint = { latitude: 30.4, longitude: -91.1 };
   const parishPayload = { spatialReference: { wkid: 4326 }, features: [{

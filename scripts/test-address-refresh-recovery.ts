@@ -14,6 +14,7 @@ async function main() {
     globalThis.fetch=async(input)=>{
       calls++;
       if (!String(input).includes('census.gov')) return new Response('[]');
+      if (phase!=='outage') assert.match(String(input), /address=100\+Recovery\+Street/, 'Worker cleans shorthand and numeric business label without manual evidence');
       if (phase==='outage') return new Response('Unavailable',{status:503});
       return new Response(JSON.stringify({result:{addressMatches:[{matchedAddress:'100 RECOVERY ST, NEW ORLEANS, LA, 70125',addressComponents:{city:'NEW ORLEANS',state:'LA',zip:'70125'},coordinates:{x:-90.1,y:29.95}}]}}));
     };
@@ -25,7 +26,7 @@ async function main() {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'address-worker-recovery-'));
   try {
     const history=path.join(root,'history/junkware');fs.mkdirSync(history,{recursive:true});
-    fs.writeFileSync(path.join(history,'junkware_live_2026-09-17_summary.csv'),'appt_id,jk_number,address,status\n123456,JK_TEST,100 Recovery St New Orleans LA 70125,Confirmed\n');
+    fs.writeFileSync(path.join(history,'junkware_live_2026-09-17_summary.csv'),'appt_id,jk_number,address,status\n123456,JK_TEST,x Vendor1 100 Recovery Str New Orleans LA 70125,Confirmed\n');
     const run=(time:number,phase:string)=>{
       const result=spawnSync(process.execPath,['--import','tsx',fileURLToPath(import.meta.url),'--child',root,String(time),phase],{
         env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,SERVICE_ADDRESS_CACHE_DIR:path.join(root,'cache/service-address-verifications'),OSM_ADDRESS_CACHE_DIR:path.join(root,'osm')},encoding:'utf8',timeout:10000,

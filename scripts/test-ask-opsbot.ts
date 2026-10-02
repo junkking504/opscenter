@@ -55,6 +55,18 @@ async function main() {
   assert.equal(requests[1].tool_choice, 'auto');
   assert.match(JSON.stringify(requests[1].input), /function_call_output/);
   assert(!JSON.stringify(requests).includes('web_search'));
+  let repeatedCalls=0,toolReads=0;
+  const repeatFetch=(async()=>{
+    repeatedCalls++;
+    return new Response(JSON.stringify({output:repeatedCalls%3!==0
+      ?[{type:'function_call',name:'read_source_health',call_id:`repeat-${repeatedCalls}`,arguments:'{}'}]
+      :[{type:'message',content:[{type:'output_text',text:'Saved source answer.'}]}],usage:{input_tokens:1,output_tokens:1}}),{status:200});
+  }) as typeof fetch;
+  const repeatedTool=()=>{toolReads++;return {output:{checkedAt:'synthetic'},sources:[]};};
+  await runAskOpsBot('Is source current?','2026-09-24','manager','test-key',repeatFetch,repeatedTool);
+  assert.equal(toolReads,1,'Repeated identical tool calls reuse one read within a question');
+  await runAskOpsBot('Is source current?','2026-09-24','manager','test-key',repeatFetch,repeatedTool);
+  assert.equal(toolReads,2,'A separate question must reread source, never reuse another user/request cache');
   console.log('Ask OpsBot: approval shape, durable 50-question ledger, bounded tool loop, sources, and token accounting passed.');
 }
 

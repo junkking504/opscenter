@@ -68,6 +68,11 @@ export function executeDesktopLocalAction(input: { requestId: string; action: st
   } finally { fs.closeSync(descriptor); fs.unlinkSync(lock); }
 }
 function decisions() { return readPrivate<CallInDecision[]>('call-in.json', []); }
+/** Saved intent only; no recommendation rebuild or source refresh. */
+export function readSavedCallInDecisions(targetDate: string) {
+  if (!validDesktopDate(targetDate)) throw new Error('A valid target date is required.');
+  return decisions().filter(row=>row.targetDate===targetDate).map(({name,status,note,updatedAt})=>({name,status,note,updatedAt}));
+}
 const amountKeys: Array<keyof CrewAmounts> = ['hours','regularHours','overtimeHours','jobs','revenue','labor','tips','bonuses','supplemental','totalPay'];
 const nameOf = (row: AnyRecord) => String(row.name || row.employee_name || row.employee || row.crew_member || '').trim();
 const keyOf = normalizePayrollEmployeeKey;

@@ -260,6 +260,9 @@ export async function runAskOpsBot(
   let input: unknown[] = [{ role: 'user', content: [{ type: 'input_text', text: question }] }];
   const sources: AskOpsBotSource[] = [];
   const usage = { inputTokens: 0, outputTokens: 0 };
+  // Cache only safe tool projections within this question. A new request reads
+  // fresh sources; roles/users and individual payroll never share a cache.
+  const toolReads = new Map<string, ReturnType<typeof toolResult>>();
 
   for (let call = 0; call < 3; call += 1) {
     const body: Record<string, unknown> = {
@@ -298,7 +301,10 @@ export async function runAskOpsBot(
     }
     const outputs = functionCalls.map(item => {
       try {
-        const result = executeTool(String(item.name || ''), safeArgs(item.arguments), role);
+        const name = String(item.name || ''), args = safeArgs(item.arguments);
+        const key = JSON.stringify([name,Object.entries(args).sort(([a],[b])=>a.localeCompare(b)),role]);
+        let result = toolReads.get(key);
+        if (!result) { result = executeTool(name,args,role); toolReads.set(key,result); }
         sources.push(...result.sources);
         return { type: 'function_call_output', call_id: String(item.call_id || ''), output: JSON.stringify(result.output) };
       } catch {

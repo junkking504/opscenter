@@ -5,6 +5,7 @@ import { runAskOpsBot, readOpenAIKey } from '@/lib/ask-opsbot-agent';
 import { readAskOpsBotLedger, reserveAskOpsBotQuestion, settleAskOpsBotQuestion } from '@/lib/ask-opsbot-ledger';
 import { askOpsBotApproved } from '@/lib/metered-usage-policy';
 import { opsRoleCan } from '@/lib/ops-roles';
+import { buildLocalOperationsAnswer, validLookupDate } from '@/lib/local-operations-answer';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -41,10 +42,17 @@ export async function POST(request: Request) {
   let body: { question?: unknown; date?: unknown };
   try { body = await request.json(); }
   catch { return Response.json({ error: 'A valid question is required.' }, { status: 400, headers: responseHeaders }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return Response.json({ error: 'A valid question is required.' }, { status: 400, headers: responseHeaders });
   const question = typeof body.question === 'string' ? body.question.trim() : '';
   const date = typeof body.date === 'string' ? body.date : '';
-  if (question.length < 2 || question.length > 1_000 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (question.length < 2 || question.length > 1_000 || !validLookupDate(date)) {
     return Response.json({ error: 'Enter a question under 1,000 characters and select a valid operating date.' }, { status: 400, headers: responseHeaders });
+  }
+  try {
+    const local = buildLocalOperationsAnswer(question, date, access.session.role);
+    if (local) return Response.json(local, { headers: responseHeaders });
+  } catch {
+    return Response.json({ error: 'The saved OpsCenter source is unavailable.' }, { status: 503, headers: responseHeaders });
   }
   if (!askOpsBotApproved()) return Response.json({ error: 'Ask OpsBot is not approved.' }, { status: 503, headers: responseHeaders });
   const apiKey = readOpenAIKey();

@@ -3,6 +3,7 @@ import { AUTH_SESSION_COOKIE, resolveRequestOrigin, verifyAuthSessionCookie } fr
 import { buildLocalCrewRevenueAnswer } from '@/lib/local-crew-revenue-answer';
 import { buildLocalTerritoryDemandAnswer } from '@/lib/local-territory-demand-answer';
 import { opsRoleCan } from '@/lib/ops-roles';
+import { buildLocalOperationsAnswer, validLookupDate } from '@/lib/local-operations-answer';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -18,13 +19,14 @@ export async function POST(request: Request) {
   let body: { question?: unknown; date?: unknown };
   try { body = await request.json(); }
   catch { return Response.json({ error: 'A valid question is required.' }, { status: 400, headers }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return Response.json({ error: 'A valid question is required.' }, { status: 400, headers });
   const question = typeof body.question === 'string' ? body.question.trim() : '';
   const date = typeof body.date === 'string' ? body.date : '';
-  if (question.length < 2 || question.length > 1_000 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (question.length < 2 || question.length > 1_000 || !validLookupDate(date)) {
     return Response.json({ error: 'Enter a question under 1,000 characters and select a valid operating date.' }, { status: 400, headers });
   }
   try {
-    return Response.json(buildLocalTerritoryDemandAnswer(question, date) || buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
+    return Response.json(buildLocalOperationsAnswer(question, date, session.role) || buildLocalTerritoryDemandAnswer(question, date) || buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
   } catch {
     return Response.json({ error: 'The OpsCenter reporting source is unavailable.' }, { status: 503, headers });
   }

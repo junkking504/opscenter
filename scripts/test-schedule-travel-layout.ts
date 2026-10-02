@@ -69,3 +69,11 @@ const phoneFootprint=scheduleTravelLayout(mobileVisits,[],mobileRange,'Truck 8',
 assert.ok(new Set(phoneFootprint.placed.map(item=>item.lane)).size>1,'Narrow timelines separate minimum-width cards before they can overlap');
 assert.ok(phoneFootprint.rowHeight>desktopFootprint.rowHeight,'The truck row grows to contain the additional mobile lanes');
 console.log('Mobile layout packs minimum-width appointment cards into non-overlapping lanes.');
+
+// A return visit must not reserve the empty hours between visible GPS blocks.
+const returning = {...job('returning',480,720),truck:'Truck 8',onsiteTime:{minutes:40,arrival:'2026-09-29T13:00:00Z',departure:'2026-09-29T16:20:00Z',intervals:[{arrival:'2026-09-29T13:00:00Z',departure:'2026-09-29T13:20:00Z'},{arrival:'2026-09-29T16:00:00Z',departure:'2026-09-29T16:20:00Z'}]}} as ScheduleAppointment;
+const between=job('between',540,600);
+const consolidated=scheduleTravelLayout([returning,between],[],timelineRange([returning,between]),'Truck 8',Date.parse('2026-09-29T18:00:00Z'),1000);
+assert.equal(consolidated.laneCount,1,'Appointments between separate visits reuse the same lane');
+assert.equal(consolidated.occupiedLanes[0].length,3,'Facility packing receives each visible block rather than its envelope');
+console.log('Separate return visits consolidate with intervening appointments.');

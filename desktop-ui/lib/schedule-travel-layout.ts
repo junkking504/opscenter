@@ -55,10 +55,8 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
 }
 
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number, compact = false) {
-  const lanes: number[] = [];
+  const lanes: Array<Array<{ left: number; right: number }>> = [];
   const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
-    let lane = lanes.findIndex(end => end <= position.start);
-    if (lane < 0) lane = lanes.length;
     // Cards retain a usable tap target even when a GPS visit or booked window
     // is very short. On a narrow phone timeline that minimum pixel width can
     // extend well past the underlying time window, so lane packing must use the
@@ -66,11 +64,16 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const minimumFraction = timelineWidth && timelineWidth > 0
       ? (scheduleBlockMinimumWidth(position.actual, Boolean(job.address && appointmentPartner(job))) + 2) / timelineWidth
       : 0;
-    const renderedEnd = position.segments.reduce((end, segment) => Math.max(
-      end,
-      range.start + (segment.left + Math.max(segment.width, minimumFraction)) * range.duration,
-    ), position.end);
-    lanes[lane] = renderedEnd;
+    const footprints = position.segments.map(segment => ({
+      left: segment.left,
+      right: segment.left + Math.max(segment.width, minimumFraction),
+    }));
+    let lane = lanes.findIndex(intervals => footprints.every(footprint => intervals.every(
+      interval => footprint.right <= interval.left || footprint.left >= interval.right,
+    )));
+    if (lane < 0) lane = lanes.length;
+    (lanes[lane] ||= []).push(...footprints);
+    const renderedEnd = Math.max(position.end, ...footprints.map(interval => range.start + interval.right * range.duration));
     return { job, position, lane, renderedEnd };
   });
   const pairs = legs.flatMap(leg => {
@@ -115,9 +118,9 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const b = gapEnd > gapStart ? gapEnd : to.position.left + to.position.width / 2;
     return { ...pair, reverse, left: Math.min(a, b), width: Math.abs(b - a), top: rowHeight - 16, height: 15, labelTop: 2 };
   });
-  const occupiedLanes = Array.from({ length: lanes.length }, (_, lane) => placed
-    .filter(item => item.lane === lane)
-    .map(item => ({ left: (item.position.start - range.start) / range.duration, right: (item.renderedEnd - range.start) / range.duration })));
+  // Separate GPS visits leave usable space between them for appointments and
+  // geofence blocks. Do not reserve the invisible envelope of the whole job.
+  const occupiedLanes = lanes;
   return { placed, laneStep, rowHeight, connectors, laneCount: lanes.length, occupiedLanes };
 }
 export type TimelineConnector = ReturnType<typeof scheduleTravelLayout>['connectors'][number];

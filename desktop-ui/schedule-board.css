@@ -324,3 +324,20 @@
     transform-origin: bottom;
   }
 }
+
+.ops-live .schedule-mobile-scroll-hint { display: none; }
+
+/* Phone boards retain readable time geometry inside their own horizontal scroll.
+ * One shared width controls the pinned truck labels, ruler and timeline origin. */
+@media (max-width: 900px) {
+  .ops-live .schedule-mobile-scroll-hint { display: block; margin: 0; padding: 4px 8px; color: #607069; font-size: 11px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { overflow-x: auto; overflow-y: hidden; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { --schedule-route-width: 88px; min-width: 808px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 13; background: var(--surface, #fff); }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { z-index: 10; background: var(--surface, #fff); }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 11px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-appointment[aria-roledescription] { touch-action: pan-x; }
+  .ops-live .live-schedule.schedule-dispatch .route-connector-label { height: 44px; font-size: 11px; line-height: 44px; border: 1px solid #d8e2dc; border-radius: 5px; }
+  .ops-live .live-schedule.schedule-dispatch .route-connector-miles { display: none; }
+  .ops-live .live-schedule.schedule-dispatch .route-connector-tooltip { display: none; }
+}

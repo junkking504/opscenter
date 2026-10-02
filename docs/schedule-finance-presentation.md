@@ -28,6 +28,13 @@ scrollbar. Empty truck rows use 32px before fitting. The map uses the full same
 height allowance, without the former 600px cap. Duplicate date/introduction
 copy is omitted on desktop, with Schedule and its tabs sharing one row.
 Phones keep natural-height lanes and page scrolling instead of tiny targets.
+At widths up to 900px, an 88px sticky truck column accompanies a horizontally
+scrollable timeline of at least 720px. The hourly ruler shares that timeline
+geometry. Appointment and travel buttons have at least 44px touch targets;
+travel buttons show minutes, with miles and full route details in their popover.
+Mobile travel packing reserves the compact label footprints rather than whole
+empty rows. Real overlaps and minimum-width collisions still use separate lanes;
+no appointment or GPS interval is removed to reduce row height.
 `scripts/test-schedule-board-visibility.mjs` checks row/block containment and
 last-appointment selection in Chromium and WebKit with the map on and off.
 Map and register territory selectors have 38px targets, legible counts and

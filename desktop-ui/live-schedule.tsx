@@ -127,11 +127,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   useEffect(() => { if (snapshot && !mapOnly) workspaceReady('Schedule'); }, [snapshot,mapOnly]);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
   const [timelineWidth,setTimelineWidth]=useState<number>();
+  const [mobileTimeline,setMobileTimeline]=useState(false);
   const appointmentRegisterRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const board = boardLayoutRef.current;
     if (!board || mapOnly || view !== 'board') return;
     const fit = () => {
+      setMobileTimeline(window.innerWidth <= 900);
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
       // Reserve the 44px list jump banner, its 8px top gap, and 24px below it.
       const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
@@ -167,7 +169,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     window.addEventListener('resize', fit);
     fit();
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
-  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth]);
+  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   useEffect(() => {
@@ -511,17 +513,17 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         </aside>
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
-        <div className="schedule-board-scroll"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
+        <p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
             const compactTimeline=truckNames.length>=10;
-            const { placed, laneStep, rowHeight: travelHeight, connectors, occupiedLanes } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth,compactTimeline);
+            const { placed, laneStep, rowHeight: travelHeight, connectors, occupiedLanes } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth,compactTimeline,mobileTimeline);
             const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
             const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth,occupiedLanes);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,(stopLayout.laneCount-1)*laneStep+(compactTimeline?30:42))+(hasProgress&&!compactTimeline?10:0)) : 32;
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,(stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:compactTimeline?30:42))+(hasProgress&&!compactTimeline?10:0)) : 32;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
@@ -529,7 +531,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
               <div className="schedule-timeline-content">{placed.flatMap(({ job, position, segmentLanes, gapLanes }) => [
                 ...position.gapSegments.map((segment,gapIndex)=><ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={gapLanes[gapIndex]*laneStep+2} />),
-                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={segmentLanes[segmentIndex]*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
+                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} mobile={mobileTimeline} top={segmentLanes[segmentIndex]*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
               ])}
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}

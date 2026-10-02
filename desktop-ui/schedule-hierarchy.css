@@ -158,3 +158,26 @@
 .ops-live .live-schedule .live-map-territories button:focus-visible,
 .ops-live .live-schedule .appointment-territory-toolbar button:focus-visible,
 .ops-live .live-schedule .appointment-territory-heading button:focus-visible { outline: 3px solid #174e77; outline-offset: 3px; }
+
+/* Readable dispatch: details above the board, with room for the full-day ruler. */
+@media (min-width: 1000px) {
+  .ops-live .schedule-dispatch > .schedule-dispatch-surface.has-selected-job { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .ops-live .schedule-dispatch .schedule-selected-job-pane { grid-column: 1; grid-row: 1; }
+  .ops-live .schedule-dispatch .has-selected-job > .schedule-board-layout { grid-column: 1; grid-row: 2; }
+  .ops-live .schedule-dispatch .schedule-appointment-summary { height: auto; max-height: none; overflow: visible; grid-template-columns: minmax(0,1fr) minmax(260px,.35fr); grid-template-rows: auto; padding: 16px 20px; gap: 24px; }
+  .ops-live .schedule-dispatch .selected-job-main { overflow: visible; }
+  .ops-live .schedule-dispatch .selected-job-heading h2 { font-size: 20px; }
+  .ops-live .schedule-dispatch .selected-job-work > span,
+  .ops-live .schedule-dispatch .selected-job-note > span { flex-basis: 180px; }
+  .ops-live .schedule-dispatch .selected-job-next { border-top: 0; border-left: 1px solid #e0e7eb; padding: 0 0 0 20px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { grid-template-columns: minmax(300px,.7fr) minmax(0,1.3fr); gap: 16px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: max(520px, var(--schedule-available-height, 600px)); }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { overflow: auto; padding-right: 0; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { min-width: 900px; --schedule-route-width: 160px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-shell > .section-title:has(.schedule-stop-order-trigger) { flex: 0 0 auto; min-height: 46px; height: auto; padding: 8px 12px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { padding: 6px 8px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 13px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-time-row { height: 30px; flex-basis: 30px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-time-row > span { font-size: 11px; padding: 7px 6px; }
+}

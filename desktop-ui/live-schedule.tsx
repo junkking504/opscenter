@@ -32,7 +32,6 @@ import { AlertPhotos } from './components/alert-details';
 import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-tabs';
 import ScheduleMap from './schedule-map';
 import ScheduleRouteConnector from './schedule-route-connector';
-import { scheduleViewportLayout } from './lib/schedule-viewport-layout';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import { scheduleOperationalStopLayout } from './lib/schedule-operational-stop-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -139,8 +138,6 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const rows = [...board.querySelectorAll<HTMLElement>('[data-schedule-truck]')];
       const measuredTimelineWidth=rows[0]?.querySelector<HTMLElement>('.live-truck-timeline')?.clientWidth;
       if (measuredTimelineWidth && measuredTimelineWidth > 0) setTimelineWidth(current=>current===measuredTimelineWidth?current:measuredTimelineWidth);
-      const title = board.querySelector<HTMLElement>('.schedule-board-shell > .section-title');
-      const header = board.querySelector<HTMLElement>('.schedule-time-row');
       const natural = rows.map(row => Number(row.dataset.naturalHeight));
       const labels = rows.map(row => {
         const cell = row.querySelector<HTMLElement>('.schedule-truck-cell')!;
@@ -148,8 +145,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
         return Math.ceil(Math.max(20, ...content.map(label => label.offsetHeight)) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
       });
-      const available = parseFloat(height) - (title?.offsetHeight || 0) - (header?.offsetHeight || 0) - 8;
-      const layout = window.innerWidth >= 1000 ? scheduleViewportLayout(natural, labels, available) : { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i])) };
+      const layout = { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i], 48)) };
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));

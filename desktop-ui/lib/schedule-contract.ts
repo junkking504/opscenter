@@ -266,7 +266,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
       const start = Math.max(0,local(visit.arrival));
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
-      return Number.isFinite(start) && Number.isFinite(end) && end>=start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
     if (!intervals.length) {
       // GPS history belongs to the truck that physically visited the address. It

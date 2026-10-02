@@ -1009,3 +1009,5 @@ by globally stripping road directions. Property pins identify the premises, not
 an independently verified apartment entrance. Private appointment evidence stays
 outside Git. The agent hierarchy supervises missing locations and blocked research
 as described in [Agent hierarchy](agent-hierarchy.md).
+
+Closed GPS observations with identical arrival and departure timestamps do not establish a Schedule visit or replace the booked window. Current presence is evaluated separately from historical dwell; open observations remain eligible for live presence checks.

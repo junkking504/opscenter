@@ -1,3 +1,4 @@
+import { hasVisitIntervalEvidence } from './schedule-visit-evidence';
 import type {TrackedVisit} from './visit-tracking-agent';
 import { parkedTruckObservation } from './truck-gps-status';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
@@ -18,7 +19,7 @@ export function readScheduleVisits(date: string): { visits: AnyRecord[]; observe
   try {
     const payload = JSON.parse(fs.readFileSync(path.join(directory, 'history', 'linxup', 'appointment_visits', `linxup_appointment_visits_${date}.json`), 'utf8'));
     if (payload.date !== date) return { visits: [], observedAt: '' };
-    return { visits: withAppointmentVisitConfirmations(Array.isArray(payload.visits) ? payload.visits : [], date), observedAt: String(payload.collection_timestamp || '') };
+    return { visits: withAppointmentVisitConfirmations(Array.isArray(payload.visits) ? payload.visits : [], date).filter(hasVisitIntervalEvidence), observedAt: String(payload.collection_timestamp || '') };
   } catch { return { visits: [], observedAt: '' }; }
 }
 
@@ -30,7 +31,7 @@ export function scheduleVisitState(
   const bounded = (row: AnyRecord) => trackedForJob?.find(visit=>(visit.departureBounds || visit.supersededAt) && truckLabel(visit.truck) === truckLabel(String(row.truck_number || row.truck || '')) && Date.parse([...(row.visit_intervals || [])].sort((a:AnyRecord,b:AnyRecord)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0]?.arrival || row.first_arrival || '') === Date.parse(visit.enteredAt || ''));
   const fresh = (stamp: string | null) => { const age = now - Date.parse(stamp || ''); return age >= -60_000 && age <= LIVE_GPS_MAX_AGE_MS; };
   const confirmed = visits.filter(row => job.appointmentId && String(row.appointment_id || row.appt_id || '') === job.appointmentId
-    && row.match_confidence === 'confirmed' && !row.pass_by_only
+    && row.match_confidence === 'confirmed' && !row.pass_by_only && hasVisitIntervalEvidence(row)
     && (Number(row.visit_count) > 0 || Number.isFinite(Date.parse(row.first_arrival || row.arrival_at || ''))));
   const activeVisit = fresh(observedAt) ? confirmed.find(row => {
     if (bounded(row)) return false;

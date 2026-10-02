@@ -121,3 +121,10 @@ const distinct = dedupeLinkedAppointmentVisitState([
   {appointmentId:'job-2',sourceEstimateAppointmentId:'estimate-2',appointmentType:'Job',hasVisit:true,onsiteTime:{...duplicatedVisit}},
 ]);
 assert.equal(distinct[0].hasVisit,true,'Distinct estimate and job visits remain separate');
+
+// A single historical point must leave a confirmed booking dispatchable.
+const pointOnly = {...visit, first_arrival:recent, final_departure:recent, visit_intervals:[{arrival:recent,departure:recent,departure_confirmed:true}]};
+const pointState = fullScheduleVisitState(job,[pointOnly],recent,[],now);
+assert.equal(pointState.hasVisit,false);
+assert.equal(pointState.hasDepartedVisit,false);
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...pointState}),'Confirmed');

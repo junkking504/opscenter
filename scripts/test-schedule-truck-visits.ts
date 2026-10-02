@@ -89,3 +89,9 @@ const travel=scheduleTravelLayout([fragmented],[leg,{...leg}],range,'Truck 8',no
 assert.notEqual(travel.connectors[0].labelTop,travel.connectors[1].labelTop,'Overlapping travel labels use separate rows');
 assert.ok(travel.connectors.every(c=>c.top+c.labelTop>=travel.laneCount*travel.laneStep),'Travel labels sit below all appointment lanes');
 console.log('Fragmented same-job visits and crowded travel labels use independent collision lanes.');
+
+const zeroClosed={...ledger[0],visit_intervals:[{arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T14:00:00Z'}]};
+assert.equal(scheduleTruckVisits(job,[zeroClosed],[],[job],now).length,0,'Identical closed timestamps do not establish a visit');
+const invalidHistorical={...job,truckVisits:[{truck:'Truck 8',arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T14:00:00Z',observedThrough:'2026-09-14T14:00:00Z'}]};
+assert.equal(timelineWindow(invalidHistorical,'Truck 8',now)?.actual,false);
+assert.equal(timelineWindow(invalidHistorical,'Truck 8',now)?.start,480,'Invalid historical visit retains the booked window');

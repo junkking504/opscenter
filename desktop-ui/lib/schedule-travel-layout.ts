@@ -77,9 +77,18 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
       (lanes[lane] ||= []).push(footprint);
       return lane;
     });
+    const gapLanes = position.gapSegments.map(segment => {
+      const footprint = {left:segment.left,right:segment.left+segment.width};
+      let lane = lanes.findIndex(intervals => intervals.every(interval =>
+        footprint.right <= interval.left || footprint.left >= interval.right,
+      ));
+      if (lane < 0) lane = lanes.length;
+      (lanes[lane] ||= []).push(footprint);
+      return lane;
+    });
     const lane = segmentLanes[0] ?? 0;
     const renderedEnd = Math.max(position.end, ...footprints.map(interval => range.start + interval.right * range.duration));
-    return { job, position, lane, segmentLanes, renderedEnd };
+    return { job, position, lane, segmentLanes, gapLanes, renderedEnd };
   });
   const pairs = legs.flatMap(leg => {
     const from = placed.find(item => item.job.recordId === leg.fromAppointmentId);

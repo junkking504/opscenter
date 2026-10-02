@@ -17,6 +17,8 @@ try {
    assert.ok(geometry.scroll<=geometry.client+1,'All truck rows fit without internal scrolling');
    assert.ok(geometry.scrollWidth<=geometry.width+1,'The hourly ruler fits horizontally');
    assert.ok(geometry.bottom<viewport.height,'The complete board remains on screen');
+   const map=await page.locator('.schedule-map-panel').boundingBox();
+   assert.ok(map && map.width>=300,'Map retains a useful width with or without selected details');
    if(selected){const details=await page.locator('.schedule-selected-job-pane').boundingBox();assert.ok(details && details.y<geometry.rows[0].top,'Selection details stay beside the board');}
   }
  }

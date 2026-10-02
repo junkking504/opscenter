@@ -24,6 +24,12 @@ async function main() {
     const backgroundResult = await finishDesktopCreation(backgroundStart, create);
     assert.equal(backgroundResult.status, 'verified'); assert.equal(calls, 1);
     assert.equal((await startDesktopCreation(backgroundInput, 'actor-a')).execute, false, 'A verified background request must not run twice');
+    const estimateInput={...input,requestId:randomUUID(),sourceEstimateAppointmentId:'8888'};
+    const estimateStart=await startDesktopCreation(estimateInput,'actor-a');
+    assert.equal(estimateStart.execute,true);
+    const replay=await startDesktopCreation({...estimateInput,requestId:randomUUID(),startTime:'10:00'},'actor-a');
+    assert.equal(replay.execute,false,'An unresolved estimate booking blocks a changed-time replay');
+    assert.equal(replay.receipt.status,'failed');
     calls = 0;
     const [first, concurrent] = await Promise.all([executeDesktopCreation(input, 'actor-a', create), executeDesktopCreation(input, 'actor-a', create)]);
     assert.equal(calls, 1); assert.equal(first.status, 'verified'); assert.ok(['pending', 'verified'].includes(concurrent.status));

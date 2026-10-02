@@ -64,3 +64,9 @@ are already extended totals and are not multiplied by quantity. Missing prices
 stay unavailable; a total-only quote does not imply an itemized breakdown. These
 are estimate charges, not payments or revenue. Charge changes invalidate the
 follow-up source version alongside quote/notes changes. No new provider requests.
+
+## Book a job from an estimate
+
+The estimate detail and Control appointment drawer offer **Book Job**. Choose a future job date, start time, duration, and optional additional notes, then review and submit. OpsCenter uses JunkWare's native estimate Book Job form, preserving the original estimate and quote. It verifies the returned new job and its source-estimate link before reporting success. The native form determines the copied truck assignment.
+
+Bookings use the appointment-creation journal and duplicate review. An unresolved booking blocks another submission for that source estimate, even if the proposed date changes. Use **Check Saved Result** after an interrupted submission; never resubmit an uncertain result. Collector recovery requires an explicit source-estimate relationship. Booking does not send separate customer or crew messages.

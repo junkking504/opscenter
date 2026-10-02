@@ -350,13 +350,13 @@ async function readBack(page: Page, input: JunkwareAppointmentCreationInput, cus
   if (normalized(verified.firstName) !== normalized(input.firstName)
       || normalized(verified.lastName) !== normalized(input.lastName)
       || phoneDigits(verified.phone) !== input.phone
-      || normalized(verified.serviceAddress) !== normalized(input.serviceAddress)
+      || (input.sourceEstimateAppointmentId ? !normalized(input.serviceAddress).startsWith(normalized(verified.serviceAddress)) : normalized(verified.serviceAddress) !== normalized(input.serviceAddress))
       || verified.serviceZip.slice(0, 5) !== input.serviceZip.slice(0, 5)
       || isoDate(verified.date) !== input.date
       || time24(verified.startTime) !== input.startTime
       || normalized(verified.appointmentType) !== normalized(input.appointmentType)
-      || !normalized(verified.truck).includes(normalized(input.truck))
-      || !normalized(verified.franchise).includes(normalized(input.franchise))) {
+      || (!input.sourceEstimateAppointmentId && !normalized(verified.truck).includes(normalized(input.truck)))
+      || (!input.sourceEstimateAppointmentId && !normalized(verified.franchise).includes(normalized(input.franchise)))) {
     throw new Error("The JunkWare read-back did not match the reviewed appointment. Search JunkWare before retrying.");
   }
 
@@ -368,11 +368,40 @@ async function readBack(page: Page, input: JunkwareAppointmentCreationInput, cus
     date: input.date,
     startTime: input.startTime,
     durationHours: input.durationHours,
-    truck: input.truck,
+    truck: input.sourceEstimateAppointmentId ? verified.truck : input.truck,
     appointmentType: input.appointmentType,
     customerMode,
     verifiedAt: new Date().toISOString(),
   };
+}
+
+async function bookEstimate(page: Page, input: JunkwareAppointmentCreationInput): Promise<JunkwareAppointmentCreationResult> {
+  const sourceUrl = `${ORIGIN}/franchise/appointment.aspx?id=${input.sourceEstimateAppointmentId}`;
+  await ensureAuthenticated(page,sourceUrl);
+  const type = await selectedText(page,'#ctl00_Content_AppointmentTypeDD');
+  if (type !== 'Estimate' || !await page.locator('#ctl00_Content_BookJobLB').count()) throw new Error('This source record is not an estimate available for booking.');
+  const name = normalized((await page.locator('#ctl00_Content_FirstNameTB').inputValue())+' '+(await page.locator('#ctl00_Content_LastNameTB').inputValue()));
+  if (name !== normalized(input.firstName+' '+input.lastName) || phoneDigits(await page.locator('#ctl00_Content_Phone1TB').inputValue())!==input.phone || !normalized(input.serviceAddress).startsWith(normalized(await page.locator('#ctl00_Content_AppointmentAddressTB').inputValue())) || (await page.locator('#ctl00_Content_AppointmentZipTB').inputValue()).slice(0,5)!==input.serviceZip.slice(0,5)) throw new Error('The source estimate customer or service address changed. Reload it before booking.');
+  await clickWithWebFormsCompletion(page,'#ctl00_Content_BookJobLB','the estimate booking form');
+  await page.locator('#book-job-dialog').waitFor({state:'visible'});
+  const [year,month,day]=input.date.split('-');
+  await page.locator('#ctl00_Content_BJAppointmentDateTB').fill(`${month}/${day}/${year}`);
+  await page.locator('#ctl00_Content_BJDurationDD').selectOption(String(input.durationHours));
+  await page.locator('#ctl00_Content_BJStartTimeTB').fill(`${Number(input.startTime.slice(0,2))%12||12}:00 ${Number(input.startTime.slice(0,2))>=12?'PM':'AM'}`);
+  await page.locator('#ctl00_Content_BJStartTimeTB').dispatchEvent('change');
+  const notes=page.locator('#ctl00_Content_BJAdditionalNotesTB');
+  if (input.notes && await notes.count()) await notes.fill(input.notes);
+  stage='saving';
+  await clickWithWebFormsCompletion(page,'#ctl00_Content_BookJobOkBtn','the linked job booking');
+  stage='verifying';
+  // Require a returned new job and an explicit source-estimate link. Never infer
+  // success from the dialog closing or retry a timed-out source submission.
+  const result = await readBack(page,input,'existing');
+  if(result.appointmentId===input.sourceEstimateAppointmentId) throw new Error('A new linked job was not returned. Check JunkWare before retrying.');
+  const sourceField=page.locator('#ctl00_Content_EstimateIDHF');
+  if(!await sourceField.count() || await sourceField.inputValue()!==input.sourceEstimateAppointmentId) throw new Error('The new job source-estimate relationship could not be verified. Check the saved result before retrying.');
+  if(Number(await page.locator('#ctl00_Content_DurationDD').inputValue())!==input.durationHours) throw new Error('The saved job duration does not match the review. Check the saved result before retrying.');
+  return result;
 }
 
 async function main(): Promise<void> {
@@ -386,6 +415,13 @@ async function main(): Promise<void> {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(45_000);
+    if (input.sourceEstimateAppointmentId) {
+      const result=await bookEstimate(page,input);
+      await persistStorageState(context);
+      process.stdout.write(`${JSON.stringify({ok:true,result})}\n`);
+      await context.close();
+      return;
+    }
     await ensureAuthenticated(page, NEW_APPOINTMENT_URL);
     await chooseFranchise(page, input);
     const customerMode = await chooseCustomer(page, input);

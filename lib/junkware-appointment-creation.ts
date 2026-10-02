@@ -20,6 +20,7 @@ export type JunkwareAppointmentType = (typeof JUNKWARE_APPOINTMENT_TYPES)[number
 
 export type JunkwareAppointmentCreationInput = {
   requestId: string;
+  sourceEstimateAppointmentId?: string;
   customerSelection?: CustomerSelection;
   franchise: JunkwareFranchise;
   date: string;
@@ -127,6 +128,16 @@ function required(value: unknown, label: string, maximum = 200): string {
 export function normalizeJunkwareAppointmentCreationInput(value: unknown): JunkwareAppointmentCreationInput {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const requestId = clean(input.requestId, 64);
+  if (input.sourceEstimateAppointmentId !== undefined) {
+    const sourceEstimateAppointmentId = clean(input.sourceEstimateAppointmentId,12);
+    const date = clean(input.date,10), startTime = clean(input.startTime,5), durationHours = Number(input.durationHours);
+    if (!UUID_PATTERN.test(requestId) || !/^\d{1,12}$/.test(sourceEstimateAppointmentId) || !validDate(date) || date < operatingDate() || !/^(?:0[8-9]|1[0-7]):00$/.test(startTime) || !Number.isInteger(durationHours) || durationHours<1 || durationHours>12)
+      throw new JunkwareAppointmentCreationError('Choose a valid estimate, future date, hourly start time and duration.','invalid_appointment','validation');
+    const firstName = required(input.firstName,'Customer name',80), lastName = clean(input.lastName,80);
+    const phone = digits(input.phone), serviceAddress = required(input.serviceAddress,'Service address',180), serviceZip = clean(input.serviceZip,10);
+    if (phone.length!==10 || !/^\d{5}(?:-\d{4})?$/.test(serviceZip)) throw new JunkwareAppointmentCreationError('The estimate needs a valid customer phone and service ZIP.','invalid_appointment','validation');
+    return {requestId,sourceEstimateAppointmentId,date,startTime,durationHours,firstName,lastName,phone,serviceAddress,serviceZip,appointmentType:'Job',truck:'',franchise:clean(input.franchise,50) as JunkwareFranchise,business:false,company:'',email:'',billingAddress:serviceAddress,billingZip:serviceZip,billingEmail:'',howHeard:'Returning',serviceContactName:'',serviceContactPhone:'',estimatedPickups:0.5,scope:'Job booked from estimate',notes:cleanMultiline(input.notes),duplicateOverrideReason:cleanMultiline(input.duplicateOverrideReason,500)};
+  }
   const franchise = clean(input.franchise, 50) as JunkwareFranchise;
   const date = clean(input.date, 10);
   const startTime = clean(input.startTime, 5);
@@ -314,6 +325,7 @@ export function sourceAppointment(input: JunkwareAppointmentCreationInput): Sour
     ] as Array<Record<string, unknown>>;
     const match = rows.find((row) => {
       if (/cancel/i.test(clean(row.job_status || row.status, 40))) return false;
+      if (input.sourceEstimateAppointmentId && clean(row.source_estimate_appointment_id,12)!==input.sourceEstimateAppointmentId) return false;
       return digits(row.phone || row.customer_phone) === input.phone
         && normalizeAddress(row.address || row.service_address || row.appointment_address) === normalizeAddress(input.serviceAddress)
         && time24(row.appointment_time || row.start_time) === input.startTime

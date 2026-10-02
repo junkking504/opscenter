@@ -32,6 +32,7 @@ import { AlertPhotos } from './components/alert-details';
 import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-tabs';
 import ScheduleMap from './schedule-map';
 import ScheduleRouteConnector from './schedule-route-connector';
+import {scheduleViewportLayout} from './lib/schedule-viewport-layout';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import { scheduleOperationalStopLayout } from './lib/schedule-operational-stop-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -45,6 +46,7 @@ import './live-schedule.css';
 import './schedule-board.css';
 import './schedule-selection.css';
 import './schedule-hierarchy.css';
+import './schedule-viewport.css';
 import { AppointmentRegisterRow } from './appointment-register-row';
 import { schedulePayment } from './lib/schedule-payment';
 import { SourceEstimateSummary } from './source-estimate';
@@ -145,12 +147,18 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
         return Math.ceil(Math.max(20, ...content.map(label => label.offsetHeight)) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
       });
-      const layout = { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i], 48)) };
+      const shell = board.querySelector<HTMLElement>('.schedule-board-shell');
+      const titleHeight = shell?.querySelector<HTMLElement>(':scope > .section-title')?.offsetHeight || 30;
+      const rulerHeight = board.querySelector<HTMLElement>('.schedule-time-row')?.offsetHeight || 30;
+      const available = Math.max(0, parseFloat(height) - titleHeight - rulerHeight - 4);
+      const layout = window.innerWidth >= 1000
+        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available)
+        : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
         row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
-        row.toggleAttribute('data-condensed', layout.scale < .72);
+        row.removeAttribute('data-condensed');
       });
     };
     const observer = new ResizeObserver(fit);

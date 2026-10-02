@@ -348,3 +348,7 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-truck-cell,
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline { background-color: var(--schedule-truck-background); box-shadow: none; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-truck-cell { border-right-color: #abbab1; }
+
+/* Keep small labels readable on the stronger territory fills. */
+.ops-live .live-schedule.schedule-dispatch .schedule-appointment > .schedule-block-status,
+.ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #17212b; }

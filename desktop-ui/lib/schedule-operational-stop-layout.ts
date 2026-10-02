@@ -15,7 +15,7 @@ export const operationalStopIcon = (stop: ScheduleOperationalStop): ScheduleOper
 };
 
 export const stopMinimumWidth = (stop: ScheduleOperationalStop) =>
-  stop.kind === 'hq' ? 48 : operationalStopIcon(stop) ? 24 : 50;
+  operationalStopIcon(stop) ? 24 : 50;
 
 /** Share appointment lanes when a facility pill fits; add a lane only for a real collision. */
 export function scheduleOperationalStopLayout(

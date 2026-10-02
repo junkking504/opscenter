@@ -30,6 +30,6 @@ export default function ScheduleOperationalStopBlock({ stop, range, top }: {
       {icon === 'house' ? <path d="M3 11 12 3l9 8M5 10v11h14V10M10 21v-7h4v7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         : icon === 'dump' ? <><path d="m2 20 4-5 3-2 3-7 4 5 2 1 4 8Z" fill="currentColor" opacity=".8" /><path d="m7 18 3-3m3-4 2 3m1 3 2 1M2 21h20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>
           : <path d="M4 3h16v4h-6v10h6v4H4v-4h6V7H4V3Z" fill="currentColor" />}
-    </svg>{stop.kind === 'hq' && <span>Visit</span>}</> : <span>{stop.label}</span>}
+    </svg></> : <span>{stop.label}</span>}
   </div>;
 }

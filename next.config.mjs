@@ -1,9 +1,31 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const cloudflareBuild = process.env.OPSCENTER_BUILD_TARGET === "cloudflare";
+const projectDirectory = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   experimental: { webpackMemoryOptimizations: true, webpackBuildWorker: true },
   outputFileTracingExcludes: { "*": ["./data/**/*", "./logs/**/*"] },
-  webpack(config, { dev, isServer, nextRuntime }) {
+  // OpenNext bundles imports that Next's minimal server trace omits.
+  ...(cloudflareBuild ? {
+    outputFileTracingIncludes: {
+      "/*": [
+        "./node_modules/next/dist/lib/metadata/**/*.js",
+        "./node_modules/next/dist/server/dev/browser-logs/**/*.js",
+      ],
+    },
+  } : {}),
+  webpack(config, { dev, isServer, nextRuntime, webpack }) {
+    if (cloudflareBuild && isServer) {
+      const unavailableBrowser = path.join(projectDirectory, "lib/cloudflare-browser-unavailable.cjs");
+      config.plugins.push(new webpack.NormalModuleReplacementPlugin(
+        /^@\/lib\/local-browser$/,
+        unavailableBrowser,
+      ));
+    }
     if (!dev && isServer && nextRuntime !== "edge") {
       // Runtime data is linked by the deployment controller, never bundled.
       // Next 16 applies outputFileTracingExcludes after its entrypoint scan.

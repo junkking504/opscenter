@@ -1,8 +1,9 @@
+import { chromium } from "@/lib/local-browser";
 import { execFileSync } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { chromium, type BrowserContext, type Page } from "playwright";
+import { type BrowserContext, type Page } from "playwright";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
 import { readLinxupPortalCameraInventory, type PortalCameraTracker } from "@/lib/linxup-camera-inventory";
 

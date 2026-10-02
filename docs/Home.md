@@ -67,6 +67,8 @@ without mixing live runtime data or secrets into Git.
 - [Geocodio free address fallback](geocodio-free-fallback.md)
 - [Server continuity recovery](server-continuity.md)
 
+- [Cloudflare Worker build](cloudflare-build.md)
+
 ## Canonical topology
 
 ```text

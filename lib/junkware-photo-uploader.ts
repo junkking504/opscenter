@@ -1,8 +1,9 @@
+import { chromium } from "@/lib/local-browser";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { matchesExactJkReference, type WhatsAppPhotoCategory } from "@/lib/whatsapp-job-photo-matching";
 import { newVerifiedAppointmentMedia } from "@/lib/verified-job-photos";
 import { junkwarePhotoIdentityIssue, junkwarePhotoPageIdentity, verifyJunkwarePhotoPostbackIdentity } from "@/lib/junkware-photo-identity";

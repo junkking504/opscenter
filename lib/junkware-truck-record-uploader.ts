@@ -1,8 +1,9 @@
+import { chromium } from "@/lib/local-browser";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { chromium, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { type BrowserContext, type Locator, type Page } from "@playwright/test";
 import type { CrewExpenseRecord } from "@/lib/whatsapp-crew-expenses";
 
 const ORIGIN = "https://junkware.junk-king.com";

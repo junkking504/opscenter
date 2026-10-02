@@ -341,3 +341,10 @@
   .ops-live .live-schedule.schedule-dispatch .route-connector-miles { display: none; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-tooltip { display: none; }
 }
+
+/* Separate truck bands from the lighter hourly grid without changing geometry. */
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-truck-background: #fff; border-bottom-color: #abbab1; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-row:nth-child(even) { --schedule-truck-background: #edf3ef; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-truck-cell,
+.ops-live .live-schedule.schedule-dispatch .live-truck-timeline { background-color: var(--schedule-truck-background); box-shadow: inset 0 2px #9baaA1; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-truck-cell { border-right-color: #abbab1; }

@@ -12,7 +12,7 @@ assert.ok(layout.connectors.every(c=>c.width>0 && c.top>=0 && c.top+c.height<=la
 assert.ok(layout.placed.every(p=>p.position.left===(p.job.appointmentStartMinutes!-range.start)/range.duration),'Preserve booked horizontal position');
 const reverse = scheduleTravelLayout(jobs,[leg('e','c',-60)],range).connectors[0];
 assert.equal(reverse.reverse,true,'Arrow follows route order even if stack order differs');
-assert.ok(reverse.top+reverse.labelTop>=0 && reverse.top+reverse.labelTop+20<=scheduleTravelLayout(jobs,[leg('e','c',-60)],range).rowHeight, 'Travel labels occupy separate rows within the truck row');
+assert.ok(reverse.top+reverse.labelTop>=0 && reverse.top+reverse.labelTop+12<=scheduleTravelLayout(jobs,[leg('e','c',-60)],range).rowHeight, 'Travel times fit inside the existing lane gutter');
 const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).connectors[0];
 assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
@@ -79,3 +79,8 @@ assert.equal(consolidated.laneCount,2,'An intervening appointment uses a separat
 assert.equal(consolidated.occupiedLanes[0].length,3,'Facility packing receives two visit segments and their visible gap');
 assert.notEqual(consolidated.placed.find(p=>p.job.recordId==='between')!.lane, consolidated.placed.find(p=>p.job.recordId==='returning')!.gapLanes[0]);
 console.log('Return visits preserve their striped off-site gap without covering intervening appointments.');
+
+const withoutTravel=scheduleTravelLayout(jobs,[],range);
+assert.equal(layout.rowHeight,withoutTravel.rowHeight,'Loading travel times does not expand truck rows');
+assert.equal(layout.laneStep,withoutTravel.laneStep,'Travel times do not change lane spacing');
+assert.deepEqual(layout.occupiedLanes,withoutTravel.occupiedLanes,'Facility placement remains unchanged when routing loads');

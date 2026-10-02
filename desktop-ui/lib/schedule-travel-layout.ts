@@ -97,8 +97,8 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const overlap = Math.min(from.position.end, to.position.end) > Math.max(from.position.start, to.position.start);
     return [{ leg, from, to, vertical: overlap && from.lane !== to.lane }];
   });
-  const laneStep = mobile ? 48 : pairs.some(pair => pair.vertical) ? (compact ? 32 : 38) : 30;
-  const cardHeight = mobile ? 46 : compact ? 30 : 42;
+  const laneStep = mobile ? 48 : 38;
+  const cardHeight = mobile ? 46 : 38;
   const centerY = mobile ? 24 : 13;
   let rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + cardHeight : mobile ? 44 : compact ? 28 : 32;
   const connectors = pairs.map((pair): typeof pair & ConnectorGeometry => {
@@ -134,6 +134,16 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const b = gapEnd > gapStart ? gapEnd : to.position.left + to.position.width / 2;
     return { ...pair, reverse, left: Math.min(a, b), width: Math.abs(b - a), top: rowHeight - 16, height: 15, labelTop: 2 };
   });
+  if (!mobile) {
+    // Time-only labels use the existing gutter beneath their source lane.
+    // Route estimates must not change appointment packing or truck height.
+    const labelWidth = Math.min(1, 36 / (timelineWidth || 640));
+    return { placed, laneStep, rowHeight, laneCount: lanes.length, occupiedLanes: lanes,
+      connectors: connectors.map(c => ({...c,
+        labelLeft: Math.max(0, Math.min(1-labelWidth, c.left+c.width/2-labelWidth/2)),
+        labelWidth, labelTop: c.from.lane*laneStep+25-c.top,
+      })) };
+  }
   // Travel labels have their own collision-packed rows beneath appointment
   // cards. Their readable pixel width must not depend on a tiny time gap.
   const labelRows: Array<Array<{left:number;right:number}>> = [];

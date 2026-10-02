@@ -468,7 +468,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (routeState || routing?.appointmentId !== job.recordId) return 'Closest truck: checking current distance…';
     const closest = closestTruckFor(job);
     return closest
-      ? `Closest truck now: ${truckLabel(closest.truck)} · ${closest.minutes} min · ${closest.miles} mi`
+      ? `Closest truck now: ${truckLabel(closest.truck)} · ${closest.minutes} min`
       : 'Closest truck: unavailable from the current address/GPS data';
   };
   const safeSourceHref = (job: ScheduleAppointment) => { try { const url = new URL(job.appointmentUrl); return /^https?:$/.test(url.protocol) ? url.href : null; } catch { return null; } };
@@ -523,7 +523,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
             const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth,occupiedLanes);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,(stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:compactTimeline?30:42))+(hasProgress&&!compactTimeline?10:0)) : 32;
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,(stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:38))+(hasProgress&&!compactTimeline?10:0)) : 32;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
@@ -562,7 +562,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
                 const leg = routeTo(job.recordId);
                 return <AppointmentRegisterRow key={job.recordId} job={job} area={area} selected={selectedId === job.recordId}
                   warning={needsReview ? reason : mismatch ? `JunkWare franchise: ${sourceTerritory} · address-based territory` : undefined}
-                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.travelMinutes} min · ${leg.miles} mi`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
+                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.travelMinutes} min`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
                   proximity={closestTruckText(job)} select={() => selectAppointment(job.recordId)} open={() => setDrawerId(job.recordId)} />;
               })}
             </section>;

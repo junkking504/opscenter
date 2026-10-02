@@ -352,3 +352,7 @@
 /* Keep small labels readable on the stronger territory fills. */
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment > .schedule-block-status,
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #17212b; }
+
+@media (min-width: 901px) {
+  .ops-live .live-schedule.schedule-dispatch .route-connector-label { height: 12px; line-height: 12px; font-size: 8px; padding: 0; }
+}

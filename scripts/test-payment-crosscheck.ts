@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { exceptionRows, type PaymentReconciliation, type MerchantCenterPayment, type JunkwarePayment } from '../lib/payment-reconciliation';
+import { paymentIssues, qboTransactionHref, junkwareTransactionHref, type Payment } from '../desktop-ui/lib/payment-crosscheck';
+import { paymentVerification } from '../desktop-ui/lib/payment-verification';
+import type { FinanceData } from '../desktop-ui/lib/commercial-contract';
+const date = '2026-09-01';
+const jw = { date, appt_id: '101', jk_number: 'JK101', amount: 100, paid_amount: 100, payment_method: 'Credit Card x0026', card_last_four: '0026', customer_name: 'Fixture Customer' } as JunkwarePayment;
+const qbo = { date, transaction_id: '201', transaction_type: 'SalesReceipt', amount: 125, card_last_four: '0026', customer_name: '', status: 'posted' } as MerchantCenterPayment;
+const payload = { date, exceptions: { missing_in_merchant_center: [jw], merchant_center_only: [qbo], ambiguous: [] } } as unknown as PaymentReconciliation;
+const payment: Payment = { date, appointmentId: '101', jkNumber: 'JK101', customer: 'Fixture Customer', paymentMethod: 'Credit Card x0026', cardLastFour: '0026', tender: 'card', paidAmount: 100, revenueAmount: 100, tipAmount: 0, qboTransactionId: null, qboStatus: null, reconciliation: 'Missing in QBO' };
+const recon = { exceptions: exceptionRows(payload), paymentsByJob: [payment], merchantCenterAvailable: true, merchantCenterFresh: true, status: 'needs_review' } as FinanceData['reconciliation'];
+let issues = paymentIssues(recon, row => paymentVerification(row, true));
+assert.equal(issues.length, 2, 'one card issue and one QBO-only, not duplicate missing-card cases');
+assert.deepEqual(issues[0].categories, ['accounting', 'cards']);
+assert.equal(issues[0].appointmentId, '101');
+assert.equal(issues[0].qbo.length, 0, 'hint must not become a match');
+assert.equal(issues[0].possibleQbo[0].id, '201');
+assert.equal(issues[1].recorded, null);
+assert.equal(qboTransactionHref('201','SalesReceipt'), 'https://qbo.intuit.com/app/salesreceipt?txnId=201');
+assert.equal(qboTransactionHref('301','Payment'), 'https://qbo.intuit.com/app/recvpayment?txnId=301');
+assert.equal(qboTransactionHref('201',null), null);
+assert.equal(qboTransactionHref('../201','SalesReceipt'), null);
+assert.equal(junkwareTransactionHref('101'), 'https://junkware.junk-king.com/franchise/appointment.aspx?id=101');
+assert.equal(junkwareTransactionHref('JK101'), null, 'JK numbers are not native appointment IDs');
+for (const tx of [{...qbo,date:'2026-08-31'},{...qbo,card_last_four:'1026'},{...qbo,card_last_four:''}]) {
+ const different = {...recon, exceptions: exceptionRows({...payload, exceptions:{...payload.exceptions,merchant_center_only:[tx]}})};
+ assert.equal(paymentIssues(different, row => paymentVerification(row,true))[0].possibleQbo.length,0,'no hints for unknown card, other card or other date');
+}
+const ambiguous = exceptionRows({...payload, exceptions:{missing_in_merchant_center:[],merchant_center_only:[],ambiguous:[{junkware:jw,candidates:[qbo,{...qbo,transaction_id:'202'}],reason:'Same amount'}]}});
+assert.equal(ambiguous[0].merchantAmount,null);
+assert.deepEqual(ambiguous[0].qboTransactions?.map(tx => tx.id),['201','202']);
+assert.equal(exceptionRows({...payload,exceptions:{...payload.exceptions,merchant_center_only:[{...qbo,amount:null as unknown as number}]}})[1].merchantAmount,null,'missing is never zero');
+issues = paymentIssues({...recon,exceptions:[],paymentsByJob:[{...payment,tender:'cash'}, {...payment,jkNumber:'JK102',tender:'check',checkNumber:'001',paidAmount:200}]},row => row.tender === 'cash' ? 'Verified · Manager' : 'Needs verification');
+assert.equal(issues.length,1);assert.deepEqual(issues[0].categories,['cash']);
+assert.equal(issues[0].payment?.checkNumber,'001');
+issues = paymentIssues({...recon, exceptions:[],paymentsByJob:[{...payment,jobDifference:5}]},()=>'Verified · QBO');
+assert.deepEqual(issues[0].reasons,['Job total differs from payments']);
+console.log('Payment cross-check passed: exact source IDs, distinct unmatched records, same-card hints only, ambiguity preserved, unknown amounts, manager verification, and job differences.');

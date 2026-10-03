@@ -1,3 +1,4 @@
+import type { QboPaymentReference } from '../desktop-ui/lib/payment-source-reference';
 import fs from "fs";
 import { readMerchantSnapshot, reconcileMerchantEvidence } from "./merchant-center-evidence";
 import type { MerchantEvidence, MerchantReport } from "../desktop-ui/lib/merchant-evidence-contract";
@@ -18,6 +19,7 @@ export type PaymentSource = {
 
 export type JunkwarePayment = {
   date: string;
+  appt_id?: string | number;
   jk_number: string;
   amount: number;
   revenue_amount?: number;
@@ -92,6 +94,8 @@ export type PaymentReconciliation = {
 };
 
 export type PaymentExceptionRow = {
+  appointmentId?: string | null;
+  qboTransactions?: QboPaymentReference[];
   date: string;
   type: "Missing in QBO" | "QBO only" | "Ambiguous match" | "Amount mismatch";
   reference: string;
@@ -102,6 +106,8 @@ export type PaymentExceptionRow = {
 };
 
 export type PaymentByJobRow = {
+  qboTransaction?: QboPaymentReference | null;
+  appointmentId?: string | null;
   processor?: MerchantEvidence;
   date: string;
   jkNumber: string;
@@ -236,42 +242,53 @@ export function readPaymentReconciliation(date: string): PaymentReconciliation |
   return null;
 }
 
-function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
+const sourceAmount = (value: unknown): number | null => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+const qboReference = (row: MerchantCenterPayment): QboPaymentReference => ({
+  id: row.transaction_id || '', type: row.transaction_type || '', date: row.date || '',
+  amount: sourceAmount(row.amount), cardLastFour: row.card_last_four || '', customer: row.customer_name || '', status: row.status || '',
+});
+export function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
   const missing = (payload.exceptions?.missing_in_merchant_center || []).map((row) => ({
     date: payload.date,
     type: "Missing in QBO" as const,
     reference: row.jk_number || "—",
+    appointmentId: row.appt_id ? String(row.appt_id) : null,
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",
-    junkwareAmount: Number(row.amount || 0),
+    junkwareAmount: sourceAmount(row.amount),
     merchantAmount: null,
   }));
   const merchantOnly = (payload.exceptions?.merchant_center_only || []).map((row) => ({
     date: payload.date,
     type: "QBO only" as const,
     reference: row.transaction_id || "—",
+    qboTransactions: [qboReference(row)],
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",
     junkwareAmount: null,
-    merchantAmount: Number(row.amount || 0),
+    merchantAmount: sourceAmount(row.amount),
   }));
   const ambiguous = (payload.exceptions?.ambiguous || []).map((row) => ({
     date: payload.date,
     type: "Ambiguous match" as const,
     reference: row.junkware?.jk_number || "—",
+    appointmentId: row.junkware?.appt_id ? String(row.junkware.appt_id) : null,
+    qboTransactions: (row.candidates || []).map(qboReference),
     customer: row.junkware?.customer_name || "—",
     cardLastFour: row.junkware?.card_last_four || "",
-    junkwareAmount: Number(row.junkware?.amount || 0),
-    merchantAmount: row.candidates?.[0] ? Number(row.candidates[0].amount || 0) : null,
+    junkwareAmount: sourceAmount(row.junkware?.amount),
+    merchantAmount: null,
   }));
   const amountMismatch = (payload.exceptions?.amount_mismatch || []).map((row) => ({
     date: payload.date,
     type: "Amount mismatch" as const,
     reference: row.junkware?.jk_number || row.merchant_center?.transaction_id || "—",
+    appointmentId: row.junkware?.appt_id ? String(row.junkware.appt_id) : null,
+    qboTransactions: row.merchant_center ? [qboReference(row.merchant_center)] : [],
     customer: row.junkware?.customer_name || row.merchant_center?.customer_name || "—",
     cardLastFour: row.junkware?.card_last_four || row.merchant_center?.card_last_four || "",
-    junkwareAmount: Number(row.junkware?.amount || 0),
-    merchantAmount: Number(row.merchant_center?.amount || 0),
+    junkwareAmount: sourceAmount(row.junkware?.amount),
+    merchantAmount: sourceAmount(row.merchant_center?.amount),
   }));
   return [...missing, ...merchantOnly, ...ambiguous, ...amountMismatch];
 }
@@ -282,6 +299,7 @@ function paymentByJobRows(payload: PaymentReconciliation): PaymentByJobRow[] {
     reconciliation: PaymentByJobRow["reconciliation"],
     merchant?: MerchantCenterPayment | null,
   ): PaymentByJobRow => ({
+    appointmentId: junkware.appt_id ? String(junkware.appt_id) : null,
     date: junkware.date || payload.date,
     jkNumber: junkware.jk_number || "—",
     customer: junkware.customer_name || "—",
@@ -290,6 +308,7 @@ function paymentByJobRows(payload: PaymentReconciliation): PaymentByJobRow[] {
     paidAmount: Number(junkware.paid_amount ?? junkware.amount ?? 0),
     revenueAmount: Number.isFinite(Number(junkware.revenue_amount)) ? Number(junkware.revenue_amount) : null,
     tipAmount: Number.isFinite(Number(junkware.tip_amount)) ? Number(junkware.tip_amount) : null,
+    qboTransaction: merchant ? qboReference(merchant) : null,
     qboTransactionId: merchant?.transaction_id || null,
     qboTransactionType: merchant?.transaction_type || null,
     qboStatus: merchant?.status || null,
@@ -303,7 +322,7 @@ function paymentByJobRows(payload: PaymentReconciliation): PaymentByJobRow[] {
     paymentRow(junkware, "Missing in QBO"),
   );
   const ambiguous = (payload.exceptions?.ambiguous || []).map((row) =>
-    paymentRow(row.junkware, "Needs review", row.candidates?.[0] || null),
+    paymentRow(row.junkware, "Needs review"),
   );
   const amountMismatch = (payload.exceptions?.amount_mismatch || []).map((row) =>
     paymentRow(row.junkware, "Needs review", row.merchant_center),

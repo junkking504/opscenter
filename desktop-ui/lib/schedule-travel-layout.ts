@@ -1,5 +1,5 @@
 import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-order';
-import { scheduleStatusTone, timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
+import { scheduleStatusTone, timelinePlacement, truckLabel, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
@@ -47,10 +47,21 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
     const key = unitFor.get(item.job.recordId) || `appointment:${item.job.recordId}`;
     units.set(key,[...(units.get(key) || []),item]);
   }
-  return [...units.values()]
+  const ordered = [...units.values()]
     .map(unit => unit.sort((a,b)=>compareStops(a.job,b.job)))
     .sort((a,b)=>Math.min(...a.map(item=>item.position.start))-Math.min(...b.map(item=>item.position.start)) || compareStops(a[0].job,b[0].job))
     .flat();
+  // Reserve the top lane for the truck's current appointment before packing
+  // upcoming windows. Presence belongs to the physical truck, which can differ
+  // from the assignment. Past visits and source status text are not presence.
+  const current = ({job, position}: typeof positioned[number]) => {
+    if (!truck || truckLabel(truck) === 'Unassigned' || /cancel/i.test(job.status || '')) return false;
+    const same = (value: string) => truckLabel(value) === truckLabel(truck);
+    return position.intervals.some(interval => interval.ongoing && !interval.complete)
+      || Boolean(job.truckOnSite && same(job.onsiteTruck || job.truck))
+      || Boolean(job.truckAtJob && same(job.atJobTruck || job.truck));
+  };
+  return [...ordered.filter(current), ...ordered.filter(item => !current(item))];
 }
 
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number, compact = false, mobile = false) {

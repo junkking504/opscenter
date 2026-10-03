@@ -11,6 +11,7 @@ try {
   await page.evaluate(() => {
     const original = window.fetch;
     window.closestReads = [];
+    window.scheduleRefreshes = 0;
     window.fetch = async (input, init) => {
       const url = new URL(String(input), location.origin);
       if (url.pathname === '/api/desktop/schedule/routes') {
@@ -21,6 +22,7 @@ try {
       if (url.pathname !== '/api/desktop/schedule') return response;
       const body = await response.json();
       body.appointments[1].version = String(Date.now());
+      window.scheduleRefreshes += 1;
       return Response.json(body);
     };
     window.finishClosest = (index, truck = 'Truck 8', status = 200) => {
@@ -32,7 +34,8 @@ try {
   const summary = page.getByRole('region', { name: 'Selected job JK1001001', exact: true });
   await page.waitForFunction(() => window.closestReads.length === 1);
   await page.getByRole('button', { name: 'Refresh day', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('.live-schedule-error') === null);
+  await page.waitForFunction(() => window.scheduleRefreshes >= 2);
+  assert.equal(await page.evaluate(() => window.closestReads.length), 1);
   assert.equal(await page.evaluate(() => window.closestReads[0].signal.aborted), false, 'Other appointment changes do not cancel proximity');
   await page.evaluate(() => window.finishClosest(0));
   await summary.getByText(/12 min · 7.5 mi/).waitFor();

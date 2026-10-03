@@ -9,6 +9,9 @@ class FakeEventSource extends EventTarget {
   close(){this.closed=true;}
 }
 const previous=globalThis.EventSource;
+const previousDocument=globalThis.document;
+const page=Object.assign(new EventTarget(),{visibilityState:'visible'});
+globalThis.document=page as unknown as Document;
 globalThis.EventSource=FakeEventSource as unknown as typeof EventSource;
 try {
   let day='2026-09-25',historical=0,current=0,future=0,schedule=0;
@@ -25,15 +28,25 @@ try {
   assert.equal(current,21,'Current-day Command still receives every source hint');
   assert.equal(future,0,'Future dates retain normal polling instead of current-day hints');
   assert.equal(schedule,21,'Schedule delivery is unchanged');
+  page.visibilityState='hidden';
+  page.dispatchEvent(new Event('visibilitychange'));
+  for(let i=0;i<20;i++)stream.dispatchEvent(new Event('change'));
+  assert.equal(current,21,'Hidden Command does not build a refresh backlog');
+  assert.equal(schedule,21,'Hidden Schedule does not rebuild for every GPS hint');
+  page.visibilityState='visible';
+  page.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(current,22,'Returning to the tab refreshes immediately');
+  assert.equal(schedule,22,'Schedule catches up with one current read');
   day='2026-09-26';
   stream.dispatchEvent(new Event('change'));
-  assert.equal(current,21,'Pinned prior day stops receiving live hints at Central midnight');
+  assert.equal(current,22,'Pinned prior day stops receiving live hints at Central midnight');
   assert.equal(future,1,'A pinned future date receives hints when it becomes today');
   offHistorical();offCurrent();offFuture();
   assert.equal(stream.closed,false,'Command unmount cannot close Schedule stream');
   offSchedule();assert.equal(stream.closed,true);
   const before=future;
   stream.dispatchEvent(new Event('change'));
+  page.dispatchEvent(new Event('visibilitychange'));
   assert.equal(future,before,'Unmounted Command cannot queue more refreshes');
   const source=fs.readFileSync('desktop-ui/live-command.tsx','utf8');
   assert(source.includes('subscribeCommandArrivalUpdates(date, load)'),'Live component uses date-aware event delivery');
@@ -41,4 +54,4 @@ try {
   for(const event of ['focus','online','visibilitychange'])assert(source.includes(`addEventListener('${event}',load)`));
   assert(source.includes('await refresh();'),'Post-action source read-back remains');
   console.log('Command live-hint isolation passed: historical/future suppression, current-day updates, Central rollover, shared Schedule stream, cleanup and correction-refresh paths.');
-}finally{globalThis.EventSource=previous;}
+}finally{globalThis.EventSource=previous;globalThis.document=previousDocument;}

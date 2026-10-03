@@ -179,6 +179,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     let pending = false;
     let reloadQueued = false;
     const load = async () => {
+      if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) { reloadQueued = true; return; }
       pending = true;
       try {
@@ -229,6 +230,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const abort = new AbortController();
     let pending = false;
     const load = async () => {
+      if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) return;
       pending = true;
       setRouteState('Loading Route Estimates');
@@ -244,8 +246,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     };
     setRouting(null);
     void load();
+    const resume = () => { void load(); };
+    document.addEventListener('visibilitychange', resume);
     const timer = window.setInterval(() => { void load(); }, 120_000);
-    return () => { abort.abort(); window.clearInterval(timer); };
+    return () => { abort.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
   }, [date, selectedId, routingKey, mapOnly]);
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {

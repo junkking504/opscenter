@@ -21,6 +21,7 @@ export type ScheduleOperationalStop = {
   startMinutes: number;
   endMinutes: number;
   ongoing: boolean;
+  groupedVisits?: number;
 };
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
@@ -239,12 +240,7 @@ export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, no
 }
 export function scheduleStandaloneOperationalStops(stops: ScheduleOperationalStop[], jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
   const lane = truckLabel(truck);
-  const dumpGaps = jobs.flatMap(job => {
-    const window = timelineWindow(job,lane,now);
-    return window?.gaps.filter(gap=>gap.kind==='dump') || [];
-  });
-  return stops.filter(stop => truckLabel(stop.truck) === lane
-    && !(stop.kind === 'dump' && dumpGaps.some(gap => stop.startMinutes >= gap.start && stop.startMinutes <= gap.end)))
+  return stops.filter(stop => truckLabel(stop.truck) === lane)
     .sort((a,b)=>a.startMinutes-b.startMinutes || a.id.localeCompare(b.id));
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
@@ -347,7 +343,7 @@ export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<ty
   const window = timelineWindow(job, truck, now);
   if (!window) return null;
   const place = (row: {start:number;end:number}) => ({ left: (row.start - range.start) / range.duration, width: Math.max(0,row.end-row.start) / range.duration });
-  return { ...window, ...place(window), segments: window.intervals.map(place), gapSegments: window.gaps.map(place) };
+  return { ...window, ...place(window), rangeDuration: range.duration, segments: window.intervals.map(place), gapSegments: window.gaps.map(place) };
 }
 
 export type ScheduleFollowupFlags = { estimates: boolean; closed: boolean; unclosed: boolean; photos: boolean; linkedBooking: ScheduleAppointment | null };

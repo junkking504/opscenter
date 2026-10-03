@@ -28,9 +28,9 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const time=sequenced ? `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` : position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
   const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time} · ${state}${assignment}${partner?` · ${partner.name}`:''}`;
-  const minimumWidth=scheduleBlockMinimumWidth(position.actual,Boolean(partner),mobile);
+  const minimumWidth=scheduleBlockMinimumWidth(position.rangeDuration);
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
-    style={{left:`${segment.left*100}%`,width:`max(${minimumWidth}px, ${segment.width*100}%)`,top,height:mobile?44:22}}
+    style={{left:`${segment.left*100}%`,width:`${Math.max(minimumWidth,segment.width)*100}%`,top,height:mobile?44:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':sequenced?'sequence':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}

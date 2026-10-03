@@ -1,3 +1,4 @@
+import { DumpTruckGlyph } from './schedule-operational-stop';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { timelinePlacement, type ScheduleAppointment } from './lib/schedule-contract';
 
@@ -19,11 +20,11 @@ export default function ScheduleVisitGap({job,truck,position,gapIndex,top}: {
   const label=`${truckDisplayText(truck)} left ${job.jkNumber} at ${clock(gap.start)} and returned at ${clock(gap.end)}. ${evidence}.`;
   return <div
     className={`schedule-visit-gap is-${gap.kind}`}
-    style={{left:`${segment.left*100}%`,width:`${segment.width*100}%`,top,height:22}}
+    style={{left:`${segment.left*100}%`,width:isDump?'24px':`${segment.width*100}%`,top,height:22}}
     role="note"
     aria-label={label}
     title={label}
     data-visit-gap={gap.kind}
     data-gap-appointment={job.recordId}
-  ><span>{visibleLabel}</span></div>;
+  ><>{isDump ? <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><DumpTruckGlyph /></svg> : <span>{visibleLabel}</span>}</></div>;
 }

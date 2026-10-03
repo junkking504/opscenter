@@ -39,7 +39,8 @@ for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]) {
    assert.ok(await alignment()<1,'Ruler and timelines share their origin');
    if(width<=900) {
     assert.equal(metrics.label,88);assert.ok(metrics.timeline>=720);
-    assert.ok(b.every(x=>x.width>=43.5&&x.height>=43.5),'Mobile appointment targets are at least 44px');
+    const minimumWidth=await row.evaluate(n=>n.querySelector('.live-truck-timeline').getBoundingClientRect().width/((document.querySelectorAll('.schedule-time-row > span').length-1)*4));
+    assert.ok(b.every(x=>x.width>=minimumWidth-.5&&x.height>=43.5),'Mobile appointments retain fifteen-minute widths and 44px height');
     const pinned=await row.locator('.schedule-truck-cell').boundingBox();
     await scroller.evaluate(n=>{n.scrollLeft=250;});
     assert.ok(Math.abs((await row.locator('.schedule-truck-cell').boundingBox()).x-pinned.x)<1,'Truck labels stay pinned while scrolling');

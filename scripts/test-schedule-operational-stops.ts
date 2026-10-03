@@ -42,7 +42,7 @@ assert.equal(mergeScheduleOperationalStops([{...gpsHqStops[2],id:'native'}],gpsH
 const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'4090218',jkNumber:'JK4103396',customerName:'Terrencia Polk',truck:'Truck 6',status:'Completed',hasScheduledTime:true,appointmentStartMinutes:660,appointmentEndMinutes:720,
   truckVisits:[{truck:'Truck 6',arrival:'2026-09-30T17:10:44Z',departure:'2026-09-30T18:00:24Z',observedThrough:'2026-09-30T18:00:24Z'},{truck:'Truck 6',arrival:'2026-09-30T18:53:30Z',departure:'2026-09-30T19:50:15Z',observedThrough:'2026-09-30T19:50:15Z'}],
   truckVisitGaps:[{truck:'Truck 6',departedAt:'2026-09-30T18:00:24Z',returnedAt:'2026-09-30T18:53:30Z',kind:'dump' as const,facilityName:'BR Landfilll'}]} as ScheduleAppointment;
-assert.deepEqual(scheduleStandaloneOperationalStops(stops,[terrencia],'Truck 6').map(stop=>stop.id),['dump-between-customers','hq-visit'],'The dump already shown inside a return gap is not duplicated, while the later between-customer dump remains visible');
+assert.deepEqual(scheduleStandaloneOperationalStops(stops,[terrencia],'Truck 6').map(stop=>stop.id),['dump-inside-return','dump-between-customers','hq-visit'],'Dump visits keep their exact recorded arrival markers rather than inheriting the wider off-site gap');
 assert.equal(timelineRange([terrencia],Date.parse('2026-10-01T04:00:00Z'),stops).end,1320,'Late HQ stops extend the visible route range');
 
 const crowdedStops = [

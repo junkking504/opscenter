@@ -1,11 +1,10 @@
 import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-order';
-import { appointmentPartner } from '../../lib/appointment-partner';
 import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
 
-export const scheduleBlockMinimumWidth = (actual: boolean, hasPartner: boolean, mobile = false) => Math.max(mobile ? 44 : 0, actual ? (hasPartner ? 54 : 48) : (hasPartner ? 34 : 22));
+export const scheduleBlockMinimumWidth = (rangeDuration: number) => 15 / rangeDuration;
 
 function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck?: string, now = Date.now()) {
   const positioned = jobs.flatMap(job => {
@@ -57,13 +56,8 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number, compact = false, mobile = false) {
   const lanes: Array<Array<{ left: number; right: number }>> = [];
   const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
-    // Cards retain a usable tap target even when a GPS visit or booked window
-    // is very short. On a narrow phone timeline that minimum pixel width can
-    // extend well past the underlying time window, so lane packing must use the
-    // rendered footprint instead of allowing visually overlapping cards.
-    const minimumFraction = timelineWidth && timelineWidth > 0
-      ? (scheduleBlockMinimumWidth(position.actual, Boolean(job.address && appointmentPartner(job)), mobile)) / timelineWidth
-      : 0;
+    // Render and pack the same fifteen-minute minimum footprint.
+    const minimumFraction = scheduleBlockMinimumWidth(range.duration);
     const footprints = position.segments.map(segment => ({
       left: segment.left,
       right: segment.left + Math.max(segment.width, minimumFraction) + (timelineWidth ? 8/timelineWidth : 0),
@@ -77,8 +71,8 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
       (lanes[lane] ||= []).push(footprint);
       return lane;
     });
-    const gapLanes = position.gapSegments.map(segment => {
-      const footprint = {left:segment.left,right:segment.left+segment.width};
+    const gapLanes = position.gapSegments.map((segment,index) => {
+      const footprint = {left:segment.left,right:segment.left+(position.gaps[index].kind==='dump' ? 24/(timelineWidth || 640) : segment.width)};
       let lane = lanes.findIndex(intervals => intervals.every(interval =>
         footprint.right <= interval.left || footprint.left >= interval.right,
       ));

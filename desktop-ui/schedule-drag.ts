@@ -68,9 +68,11 @@ export function useScheduleDrag(
     )
       return;
     cleanup.current?.();
-    // Mouse dragging cancels text selection. Preventing touch pointerdown also
-    // suppresses WebKit's synthesized click, so a stationary tap must stay native.
-    if (event.pointerType !== 'touch') event.preventDefault();
+    // Touch gestures belong to native timeline/page scrolling. Appointment
+    // changes remain available through details; a swipe must never submit a move.
+    if (event.pointerType === 'touch') return;
+    // Mouse/pen dragging cancels text selection; touch taps stay native.
+    event.preventDefault();
     document.body.classList.add('schedule-pointer-drag');
     const x = event.clientX,
       y = event.clientY;

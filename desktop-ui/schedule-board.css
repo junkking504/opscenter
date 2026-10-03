@@ -322,12 +322,12 @@
  * One shared width controls the pinned truck labels, ruler and timeline origin. */
 @media (max-width: 900px) {
   .ops-live .schedule-mobile-scroll-hint { display: block; margin: 0; padding: 4px 8px; color: #607069; font-size: 11px; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { overflow-x: auto; overflow-y: hidden; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; overscroll-behavior-y: auto; touch-action: pan-x pan-y pinch-zoom; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { --schedule-route-width: 88px; min-width: 808px; }
   .ops-live .live-schedule.schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 13; background: var(--surface, #fff); }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { z-index: 10; background: var(--surface, #fff); }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 11px; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-appointment[aria-roledescription] { touch-action: pan-x; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-appointment[aria-roledescription] { touch-action: pan-x pan-y pinch-zoom; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-label { height: 44px; font-size: 11px; line-height: 44px; border: 1px solid #d8e2dc; border-radius: 5px; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-miles { display: none; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-tooltip { display: none; }
@@ -361,3 +361,8 @@
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment { padding-block: 0; margin-block: 0; border-radius: 0; }
 
 .ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment.status-canceled { opacity: .5; }
+
+/* Native touch scrolling is available on tablets too; mouse drag still uses
+ * pointer events. Do not let nested links reinstate touch-action: none. */
+.ops-live .live-schedule.schedule-dispatch .schedule-appointment[aria-roledescription],
+.ops-live .live-schedule.schedule-dispatch .schedule-jk-link { touch-action: pan-x pan-y pinch-zoom; }

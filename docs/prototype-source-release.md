@@ -403,10 +403,14 @@ Map hover labels show only the JK number and appointment window, or the truck
 number and GPS freshness. They wrap within 150px and clamp to the map canvas;
 full accessible labels and click-through details remain available.
 
-Dragging can begin anywhere on the appointment block. Pointer capture and temporary
-selection suppression prevent native text selection; drop still requires the
-existing review and verified JunkWare write. Clicks after a drag are suppressed,
-and Escape, pointer cancellation, blur, or unmount clean up the gesture.
+Mouse or pen dragging can begin anywhere on the appointment block. Pointer capture
+and temporary selection suppression prevent native text selection; drop still
+uses the existing review and verified JunkWare write. Clicks after a drag are
+suppressed, and Escape, pointer cancellation, blur, or unmount clean up the gesture.
+Touch gestures scroll the timeline horizontally or the page vertically and do
+not start appointment moves. Stationary taps open details, where assignment and
+time changes remain available. Mobile timeline overscroll chains vertically to
+the page so the last truck and appointment list remain reachable.
 
 Unavailable route labels distinguish an unverified appointment address from a
 missing provider estimate. Coordinates remain subject to the existing strict

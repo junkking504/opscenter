@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { createRouteLoader, type RouteLoadState } from '../desktop-ui/lib/route-loader';
+
+async function main() {
+  const states: RouteLoadState<string>[] = [];
+  const requests: { resolve: (value: string) => void; reject: (error: Error) => void; signal: AbortSignal }[] = [];
+  const loader = createRouteLoader<string>(signal => new Promise((resolve, reject) => requests.push({ resolve, reject, signal })), state => states.push(state));
+  const first = loader.refresh();
+  await loader.refresh();
+  await loader.refresh();
+  assert.equal(requests.length, 1, 'Repeated refreshes cannot starve or overlap a pending lookup');
+  assert.equal(requests[0].signal.aborted, false);
+  requests[0].resolve('Truck 8');
+  await first;
+  assert.equal(requests.length, 2, 'Changes coalesce into one follow-up');
+  assert.deepEqual(states.at(-1), { data: 'Truck 8', loading: true, error: false }, 'Keep completed estimate while refreshing');
+  requests[1].reject(new Error('Timeout'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(states.at(-1), { data: 'Truck 8', loading: false, error: true }, 'Failure ends loading and retains last estimate');
+  const retry = loader.refresh();
+  requests[2].resolve('Truck 4');
+  await retry;
+  assert.deepEqual(states.at(-1), { data: 'Truck 4', loading: false, error: false }, 'Retry replaces stale result');
+  const stale = loader.refresh();
+  loader.dispose();
+  const count = states.length;
+  requests[3].resolve('Wrong selection');
+  await stale;
+  assert.equal(states.length, count, 'A late response cannot overwrite another selection');
+  assert.equal(requests[3].signal.aborted, true);
+  await loader.refresh();
+  assert.equal(requests.length, 4);
+  let failure: RouteLoadState<string> | undefined;
+  const failed = createRouteLoader<string>(async () => { throw new Error('503'); }, state => { failure = state; });
+  await failed.refresh();
+  assert.deepEqual(failure, { data: null, loading: false, error: true }, 'First lookup failure must not remain checking');
+  failed.dispose();
+  console.log('Route loader passed: coalescing, retained estimate, timeout, retry, first failure and selection isolation.');
+}
+void main();

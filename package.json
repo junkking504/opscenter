@@ -158,7 +158,9 @@
     "verify:photo-review": "node --import tsx scripts/test-desktop-photo-review.ts && node --import tsx scripts/test-photo-review-assignment.ts",
     "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts",
     "verify:payment-crosscheck": "node --import tsx scripts/test-payment-crosscheck.ts && node --import tsx scripts/test-payment-crosscheck-browser.ts",
-    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts"
+    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts",
+    "verify:closest-truck": "node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
+    "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

@@ -163,3 +163,27 @@ both TypeScript projects, desktop build and production build. Synthetic tests
 cover single submission, lost responses, replay rejection, stale source rows,
 partial batches, exact checkbox selection and read-only recovery. A real
 accounting write requires an explicitly selected, authorized source record.
+
+
+## Payment cross-check navigation
+
+Capital → Payments places **Cross-check payments** above the accounting register.
+The Unverified cards and Cash & checks summary tiles open their filtered review
+queues. Accounting exceptions also have **Compare sources** shortcuts. A payment
+that is both unverified and missing in QBO appears once in the queue; unmatched
+QBO and processor transactions remain independent records.
+
+The selected record compares source amounts, payment method, job total, tip, and
+job difference. Source observation times and stale/unavailable QBO evidence are
+explicit. **Open JunkWare job** uses the native appointment ID, never the JK
+number. **Open QuickBooks transaction** uses the source entity type and ID
+(`SalesReceipt` or `Payment`); unknown types do not receive guessed links. The
+payment evidence drawer exposes these same direct links.
+
+A missing-QBO card payment may show **Possible related transactions** for
+unmatched QBO records on the exact same date and known four-digit card suffix.
+The hint displays the amount difference but does not associate, verify, post, or
+change either transaction. Ambiguous accounting matches retain every candidate
+and never present the first candidate as a confirmed match. Unknown amounts
+remain unavailable. Review navigation makes no financial writes and leaves the
+existing reviewed accounting-update workflow responsible for source changes.

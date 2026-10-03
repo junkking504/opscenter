@@ -1,3 +1,5 @@
+import { CapitalPaymentCrosscheck } from './capital-payment-crosscheck';
+import { paymentIssues, type CrosscheckFilter } from './lib/payment-crosscheck';
 import { CapitalAccounting, type Verification } from './capital-accounting';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useState } from 'react';
@@ -10,6 +12,8 @@ import { MerchantPaymentEvidence, MerchantReportSummary } from './merchant-evide
 type Payment = FinanceData['reconciliation']['paymentsByJob'][number];
 export function CapitalPayments({ data, date, onReview }: { data: FinanceData; date: string; onReview: (payment: Payment) => void }) {
   const [manualVerifications, setManualVerifications] = useState<Record<string, Verification>>({});
+  const [crosscheckFilter, setCrosscheckFilter] = useState<CrosscheckFilter>('all');
+  const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'review' | 'cash'>('all');
   const recon = data.reconciliation, verification = verifiedPayments(recon);
@@ -18,6 +22,12 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
   const status = (row: Payment) => {
     const matches = Object.values(manualVerifications).filter(mark => mark.row.date === row.date && mark.row.jkNumber === row.jkNumber && Math.round(mark.row.amount * 100) === Math.round(row.paidAmount * 100) && (row.tender === 'cash' ? mark.row.method === 'Cash' : row.tender === 'check' && mark.row.method === `Check #${row.checkNumber}`));
     return matches.length === 1 ? 'Verified · Manager' : row.tender === 'cash' || row.tender === 'check' ? 'Needs verification' : paymentVerification(row, verification.qboUsable);
+  };
+  const issues = paymentIssues(recon, status);
+  const openCrosscheck = (category: CrosscheckFilter, id?: string) => {
+    setCrosscheckFilter(category); setSelectedIssue(id || null);
+    const panel = document.getElementById('payment-crosscheck');
+    panel?.scrollIntoView({ block: 'start', behavior: 'smooth' }); panel?.focus({ preventScroll: true });
   };
   const rows = recon.paymentsByJob.filter(row => {
     const matches = !query.trim() || [row.jkNumber, row.customer, row.truck, row.paymentMethod, row.checkNumber, row.qboTransactionId].join(' ').toLowerCase().includes(query.trim().toLowerCase());
@@ -28,9 +38,10 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
     <section className="capital-stat-grid" aria-label="Payment summary">
       <CapitalStat primary icon={Banknote} label="Recorded payments" value={money(recon.recordedPayments?.total ?? (collected ? recon.summary.junkware_total : null))} detail="Card, cash and checks · JunkWare"/>
       <CapitalStat icon={CheckCircle2} label="Verified cards" value={money(verification.available ? verification.total : null)} detail={`${verification.count} verified · QBO or Merchant Center`}/>
-      <CapitalStat icon={CreditCard} label="Cash & checks" value={money(recon.recordedPayments ? recon.recordedPayments.cash + recon.recordedPayments.check : null)} detail={`Cash ${money(recon.recordedPayments?.cash)} · Checks ${money(recon.recordedPayments?.check)}`}/>
-      <CapitalStat warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified cards" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'card payment needs' : 'card payments need'} verification` : 'Payment source unavailable'}/>
+      <CapitalStat onClick={() => openCrosscheck('cash')} icon={CreditCard} label="Cash & checks" value={money(recon.recordedPayments ? recon.recordedPayments.cash + recon.recordedPayments.check : null)} detail={`Cash ${money(recon.recordedPayments?.cash)} · Checks ${money(recon.recordedPayments?.check)} · Review →`}/>
+      <CapitalStat onClick={() => openCrosscheck('cards')} warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified cards" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'card payment needs' : 'card payments need'} verification · Review →` : 'Payment source unavailable'} />
     </section>
+    <CapitalPaymentCrosscheck issues={issues} filter={crosscheckFilter} selected={selectedIssue} onFilter={category => {setCrosscheckFilter(category);setSelectedIssue(null);}} onSelect={setSelectedIssue} onReview={onReview} qboFresh={qboUsable} qboObservedAt={recon.merchantCenterCollectedAt || null} processorObservedAt={recon.processor?.collectedAt}/>
     <CapitalAccounting key={date} date={date} onVerifications={setManualVerifications}/>
     <section className="capital-panel capital-payment-register" aria-label="Payments by job">
       <header><div><span className="capital-eyebrow">PAYMENT EVIDENCE</span><h3>Payments by job</h3></div><span className="capital-date">{rows.length} of {recon.paymentsByJob.length} records</span></header>
@@ -47,7 +58,7 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
       <footer>Recorded payments, processor approvals and accounting postings remain separate. Source review does not post an adjustment.</footer>
     </section>
     <div className="capital-evidence-grid">
-      <section className="finance-recovery-ledger" aria-label="QBO accounting comparison"><div className="section-title"><div><span className="section-kicker">ACCOUNTING EVIDENCE</span><h2>QuickBooks posting</h2><p>A posting difference does not undo a verified card payment.</p></div></div><div className="finance-recovery-ledger-summary"><article><span>Card payments in QBO</span><strong>{money(qboUsable ? recon.summary.merchant_center_total : null)}</strong></article><article><span>Posting difference</span><strong>{money(qboUsable ? recon.summary.net_difference : null)}</strong><small>{recon.summary.exception_count} accounting exceptions</small></article></div>{!!recon.exceptions.length && <div className="capital-exception-rows">{recon.exceptions.map((item,index)=><article key={`${item.reference}:${index}`}><div><strong>{item.type} · {item.reference}</strong><small>{item.customer}</small></div><span>JunkWare {money(item.junkwareAmount)}<small>QBO {money(item.merchantAmount)}</small></span></article>)}</div>}<footer>Source observed {commercialDate(recon.generatedAt || '')}</footer></section>
+      <section className="finance-recovery-ledger" aria-label="QBO accounting comparison"><div className="section-title"><div><span className="section-kicker">ACCOUNTING EVIDENCE</span><h2>QuickBooks posting</h2><p>A posting difference does not undo a verified card payment.</p></div></div><div className="finance-recovery-ledger-summary"><article><span>Card payments in QBO</span><strong>{money(qboUsable ? recon.summary.merchant_center_total : null)}</strong></article><article><span>Posting difference</span><strong>{money(qboUsable ? recon.summary.net_difference : null)}</strong><small><button className="capital-button" onClick={() => openCrosscheck('accounting')}>{recon.summary.exception_count} accounting exceptions · Review</button></small></article></div>{!!recon.exceptions.length && <div className="capital-exception-rows">{recon.exceptions.map((item,index)=><article key={`${item.reference}:${index}`}><div><strong>{item.type} · {item.reference}</strong><small>{item.customer}</small><button className="capital-button" onClick={() => openCrosscheck('accounting', issues.find(issue => issue.date === item.date && issue.reference === item.reference && issue.reasons.includes(item.type))?.id)}>Compare sources</button></div><span>JunkWare {money(item.junkwareAmount)}<small>QBO {money(item.merchantAmount)}</small></span></article>)}</div>}<footer>Source observed {commercialDate(recon.generatedAt || '')}</footer></section>
       <MerchantReportSummary report={recon.processor}/>
     </div>
   </div>;

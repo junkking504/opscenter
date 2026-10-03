@@ -157,6 +157,7 @@
     "verify:truck-continuity": "node --import tsx scripts/test-truck-continuity.ts",
     "verify:photo-review": "node --import tsx scripts/test-desktop-photo-review.ts && node --import tsx scripts/test-photo-review-assignment.ts",
     "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts",
+    "verify:payment-crosscheck": "node --import tsx scripts/test-payment-crosscheck.ts && node --import tsx scripts/test-payment-crosscheck-browser.ts",
     "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts"
   },
   "dependencies": {

@@ -30,6 +30,13 @@ if (bootstrap.mode === 'reference') {
   if (bootstrap.workspace && navigation.get('workspace') === 'Fleet') {
     void fetchWorkspace(fleetSnapshotUrl(bootstrap.workspace.date, navigation.get('fleetView') || 'overview'), AbortSignal.timeout(30_000)).catch(() => {});
   }
+  // Dispatch's first read must start before unrelated Command preparation.
+  // LiveSchedule joins this same request and still owns refresh/error handling.
+  if (bootstrap.workspace && navigation.get('workspace') === 'Schedule') {
+    const selectedDate = new Date(`${bootstrap.workspace.date}T12:00:00Z`);
+    if (navigation.get('scheduleDay') === 'tomorrow') selectedDate.setUTCDate(selectedDate.getUTCDate()+1);
+    void fetchWorkspace(`/api/desktop/schedule?date=${selectedDate.toISOString().slice(0,10)}&load=1`, AbortSignal.timeout(30_000)).catch(() => {});
+  }
   createRoot(root).render(<WorkspaceBoundary root><LiveCommand bootstrap={bootstrap.workspace} /></WorkspaceBoundary>);
 } else {
   root.textContent = 'The desktop release is not ready. No operational changes were made.';

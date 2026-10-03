@@ -39,7 +39,30 @@ try {
     const dir=path.join(root,'history','junkware','schedule-watchers',market);fs.mkdirSync(dir,{recursive:true});
     fs.writeFileSync(path.join(dir,`junkware_schedule_fast_${day}.json`),JSON.stringify({date:day,scraped_at:`${day}T20:00:00Z`,markets_scraped:[name],appointments:market==='399'?[{appt_id:'1001',job_id:'JK1001',truck:'Truck# 6',appointment_type:'Job',job_status:'Completed',closeout:job('1001','3/8').closeout}]:[],cancelled:[]}));
   }
-  const source=`const {readOperationalTruckLoads}=require('./lib/truck-load-closeouts.ts');console.log(JSON.stringify(readOperationalTruckLoads('${next}',['6','9'],[])));`;
+  const source=`
+    const assert=require('node:assert/strict'),fs=require('node:fs');
+    const {readOperationalTruckLoads}=require('./lib/truck-load-closeouts.ts');
+    const read=fs.readFileSync;
+    let historicalReads=0;
+    fs.readFileSync=function(file,...args){
+      if(String(file).includes('junkware_schedule_fast_${day}.json')) historicalReads++;
+      return read.call(this,file,...args);
+    };
+    const loads=readOperationalTruckLoads('${next}',['6','9'],[]);
+    assert.ok(historicalReads>0,'Cold history must be read');
+    readOperationalTruckLoads('2026-09-11',['6'],[]);
+    historicalReads=0;
+    assert.deepEqual(readOperationalTruckLoads('${next}',['6','9'],[]),loads);
+    readOperationalTruckLoads('2026-09-11',['6'],[]);
+    assert.equal(historicalReads,0,'Alternating dates must not evict each other');
+    const current=${JSON.stringify(job('1002','1/4'))};
+    assert.equal(readOperationalTruckLoads('${next}',['6'],[current]).find(x=>x.truck==='Truck# 6').currentLoadFraction,5/8,'Current-day changes bypass historical cache');
+    const now=Date.now;Date.now=()=>now()+31_000;
+    readOperationalTruckLoads('${next}',['6'],[]);
+    assert.ok(historicalReads>0,'Historical corrections must be reread after 30 seconds');
+    Date.now=now;
+    console.log(JSON.stringify(loads));
+  `;
   const loads=JSON.parse(execFileSync(process.execPath,['--import','tsx','-e',source],{encoding:'utf8',env:{...process.env,OPSCENTER_DATA_DIR:root,OPSBOT_DATA_DIR:root}}));
   assert.equal(loads.find((x:any)=>x.truck==='Truck# 6').currentLoadFraction,3/8,'The runtime discovers prior fast-only closeouts');
   const unknown=loads.find((x:any)=>x.truck==='Truck# 9');assert.equal(unknown.displayLoadLabel,'Load unknown');assert.equal(unknown.needsVerification,true);

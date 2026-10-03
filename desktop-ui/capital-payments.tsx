@@ -17,7 +17,7 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
   const qboUsable = collected && verification.qboUsable;
   const status = (row: Payment) => {
     const matches = Object.values(manualVerifications).filter(mark => mark.row.date === row.date && mark.row.jkNumber === row.jkNumber && Math.round(mark.row.amount * 100) === Math.round(row.paidAmount * 100) && (row.tender === 'cash' ? mark.row.method === 'Cash' : row.tender === 'check' && mark.row.method === `Check #${row.checkNumber}`));
-    return matches.length === 1 ? 'Verified · Manager' : paymentVerification(row, verification.qboUsable);
+    return matches.length === 1 ? 'Verified · Manager' : row.tender === 'cash' || row.tender === 'check' ? 'Needs verification' : paymentVerification(row, verification.qboUsable);
   };
   const rows = recon.paymentsByJob.filter(row => {
     const matches = !query.trim() || [row.jkNumber, row.customer, row.truck, row.paymentMethod, row.checkNumber, row.qboTransactionId].join(' ').toLowerCase().includes(query.trim().toLowerCase());
@@ -29,7 +29,7 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
       <CapitalStat primary icon={Banknote} label="Recorded payments" value={money(recon.recordedPayments?.total ?? (collected ? recon.summary.junkware_total : null))} detail="Card, cash and checks · JunkWare"/>
       <CapitalStat icon={CheckCircle2} label="Verified cards" value={money(verification.available ? verification.total : null)} detail={`${verification.count} verified · QBO or Merchant Center`}/>
       <CapitalStat icon={CreditCard} label="Cash & checks" value={money(recon.recordedPayments ? recon.recordedPayments.cash + recon.recordedPayments.check : null)} detail={`Cash ${money(recon.recordedPayments?.cash)} · Checks ${money(recon.recordedPayments?.check)}`}/>
-      <CapitalStat warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified difference" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'payment needs' : 'payments need'} verification` : 'Payment source unavailable'}/>
+      <CapitalStat warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified cards" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'card payment needs' : 'card payments need'} verification` : 'Payment source unavailable'}/>
     </section>
     <CapitalAccounting key={date} date={date} onVerifications={setManualVerifications}/>
     <section className="capital-panel capital-payment-register" aria-label="Payments by job">

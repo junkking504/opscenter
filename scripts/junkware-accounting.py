@@ -119,6 +119,7 @@ class Source:
             if form.empty and not form.rows:
                 yield form
                 return
+            if not form.rows: raise ValueError('JunkWare accounting rows are unavailable; empty coverage is not confirmed.')
             current=int(form.label('CurrentPageLbl')); total=int(form.label('TotalPagesLbl'))
             if current in seen or total>100: raise ValueError('JunkWare accounting coverage is incomplete. Narrow the date range.')
             seen.add(current); yield form

@@ -91,8 +91,8 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const overlap = Math.min(from.position.end, to.position.end) > Math.max(from.position.start, to.position.start);
     return [{ leg, from, to, vertical: overlap && from.lane !== to.lane }];
   });
-  const laneStep = mobile ? 48 : 38;
-  const cardHeight = mobile ? 46 : 38;
+  const laneStep = mobile ? 48 : 22;
+  const cardHeight = mobile ? 46 : 24;
   const centerY = mobile ? 24 : 13;
   let rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + cardHeight : mobile ? 44 : compact ? 28 : 32;
   const connectors = pairs.map((pair): typeof pair & ConnectorGeometry => {

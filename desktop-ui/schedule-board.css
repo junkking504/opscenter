@@ -365,3 +365,6 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump { display: flex; align-items: center; justify-content: center; background: transparent; border: 0; box-shadow: none; color: #704805; }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::before,
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-gap.is-dump::after { display: none; }
+
+/* Appointment lanes share their edges; vertical padding must not reopen gaps. */
+.ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment { padding-block: 0; margin-block: 0; border-radius: 0; }

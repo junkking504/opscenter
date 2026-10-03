@@ -6,6 +6,7 @@ import { cleanServiceAddressForVerification } from './junkware-address-text';
 import { normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import type { AddressVerification } from './desktop-address-verification';
 
+const tammanyEndpoint = 'https://maps.stpgov.org/server/rest/services/Referenced_Layers/Address_Points/MapServer/0/query';
 const endpoint = 'https://maps.brla.gov/gis/rest/services/Map_Reference/Street_Address/MapServer/0/query';
 const unavailable = (): AddressVerification => ({ location: null, reason: 'No Exact Parish Address Match' });
 const normalize = normalizeServiceAddress;
@@ -14,6 +15,15 @@ export function parishAddressQuery(address: string) {
   address = cleanServiceAddressForVerification(address);
   if (serviceStreetCandidates(address).length !== 1) return null;
   const full = fullFieldStreetAddress(address);
+  const tammany = withoutServiceUnit(full).match(/^(\d{1,7})\s+(.+?)[,\s]+(SLIDELL|MANDEVILLE|COVINGTON|LACOMBE|ABITA SPRINGS|MADISONVILLE|PEARL RIVER|FOLSOM|BUSH),?\s+(?:(?:LA|LOUISIANA)[,\s]+)?(\d{5})(?:-\d{4})?$/i);
+  if (tammany) {
+    if (!/^[A-Z][A-Z0-9 .'-]*$/i.test(tammany[2]) || /\b(?:BLDG|BUILDING)\b/i.test(full)) return null;
+    const city = tammany[3].toUpperCase(), zip = tammany[4];
+    const expected = normalize(`${tammany[1]} ${tammany[2].replace(/[,\s]+$/, '')}`);
+    const params = new URLSearchParams({ where: `ADDRESS LIKE '${tammany[1]} %' AND CITY_L = '${city}' AND ZIP_CODE = ${zip}`,
+      outFields: 'OBJECTID,ADDRESS,CITY_L,ZIP_CODE', returnGeometry: 'true', outSR: '4326', resultRecordCount: '100', f: 'json' });
+    return { expected, city, zip, provider: 'tammany' as const, url: `${tammanyEndpoint}?${params}` };
+  }
   const match = withoutServiceUnit(full).match(/^(\d{1,7})\s+(.+?)[,\s]+(BATON ROUGE|ZACHARY|BAKER|CENTRAL),?\s+(?:(?:LA|LOUISIANA)[,\s]+)?(\d{5})(?:-\d{4})?$/i);
   if (!match || !/^[A-Z][A-Z0-9 .'-]*$/i.test(match[2])) return null;
   const buildings = [...full.matchAll(/\b(?:BLDG|BUILDING)\.?\s*#?\s*([A-Z0-9-]+)\b/gi)];
@@ -26,7 +36,7 @@ export function parishAddressQuery(address: string) {
   const params = new URLSearchParams({ where: `ADDRESS_NO = ${Number(match[1])} AND CITY = '${city}'`,
     outFields: 'ID,ADDRESS_ID,FULL_ADDRESS,CITY,STATE,ZIP,ADDRESS_AUTHORITY',
     returnGeometry: 'true', outSR: '4326', resultRecordCount: '100', f: 'json' });
-  return { expected, city, zip, url: `${endpoint}?${params}` };
+  return { expected, city, zip, provider: 'ebr' as const, url: `${endpoint}?${params}` };
 }
 
 type Feature = { attributes?: Record<string, unknown>; geometry?: { x?: number; y?: number } };
@@ -34,6 +44,24 @@ export function verifyParishAddress(address: string, payload: unknown): AddressV
   const query = parishAddressQuery(address);
   const data = payload as { features?: Feature[]; exceededTransferLimit?: boolean; spatialReference?: { wkid?: number } } | null;
   if (!query || !Array.isArray(data?.features) || data.exceededTransferLimit || data.spatialReference?.wkid !== 4326) return unavailable();
+  if (query.provider === 'tammany') {
+    const candidates = data.features.filter(row => row?.attributes && normalize(String(row.attributes.ADDRESS || '')) === query.expected);
+    if (!candidates.length) return unavailable();
+    const points = new Set<string>();
+    for (const row of candidates) {
+      const a = row.attributes!, g = row.geometry;
+      if (a.CITY_L !== query.city || String(a.ZIP_CODE) !== query.zip || !Number.isInteger(a.OBJECTID)
+        || !g || !Number.isFinite(g.x) || !Number.isFinite(g.y)
+        || g.y! < 30.1 || g.y! > 30.8 || g.x! < -90.5 || g.x! > -89.4) return unavailable();
+      points.add(JSON.stringify([a.OBJECTID, g.x, g.y]));
+    }
+    if (points.size !== 1) return { location: null, reason: 'Conflicting Parish Address Points' };
+    const row = candidates[0];
+    return { location: { latitude: row.geometry!.y!, longitude: row.geometry!.x! },
+      matchedAddress: `${row.attributes!.ADDRESS}, ${query.city}, LA ${query.zip}`,
+      reason: 'Exact Parish Service Premises Verified; Unit Entrance Not Located',
+      source: 'St. Tammany Parish Communications District Address Points', sourceUrl: query.url };
+  }
   const candidates = data.features.filter(row => row?.attributes && normalize(String(row.attributes.FULL_ADDRESS || '')) === query.expected);
   if (!candidates.length) return unavailable();
   const points = new Set<string>();

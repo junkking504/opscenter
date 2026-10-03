@@ -54,6 +54,20 @@ for (const spelling of ["SETTLER'S", 'SETTLER’S', 'SETTLER‘S', 'SETTLERʼS',
 }
 
 
+const northshoreAddress = '100 Example Blvd, Slidell, La SLIDELL, LA 70461';
+const northshoreRow = { attributes: { OBJECTID: 7, ADDRESS: '100 EXAMPLE BLVD', CITY_L: 'SLIDELL', ZIP_CODE: 70461 }, geometry: { x: -89.76, y: 30.22 } };
+const northshorePayload = { spatialReference: { wkid: 4326 }, features: [northshoreRow] };
+assert.ok(verifyParishAddress(northshoreAddress, northshorePayload).location);
+assert.match(parishAddressQuery(northshoreAddress)!.url, /maps.stpgov.org/);
+for (const bad of [northshoreAddress.replace('100', '101'), northshoreAddress.replace('Example', 'Other'), northshoreAddress.replace('Blvd', 'N Blvd'), northshoreAddress.replace('70461', '70458'), northshoreAddress.replaceAll('Slidell', 'Mandeville').replace('SLIDELL', 'MANDEVILLE'), northshoreAddress.replace('Blvd,', 'Blvd Building 4,')]) {
+  assert.equal(verifyParishAddress(bad, northshorePayload).location, null, bad);
+}
+for (const patch of [{ attributes: { ...northshoreRow.attributes, CITY_L: 'MANDEVILLE' } }, { attributes: { ...northshoreRow.attributes, ZIP_CODE: 70458 } }, { attributes: { ...northshoreRow.attributes, OBJECTID: null } }, { geometry: { x: 0, y: 0 } }]) {
+  assert.equal(verifyParishAddress(northshoreAddress, { ...northshorePayload, features: [{ ...northshoreRow, ...patch }] }).location, null);
+}
+assert.equal(verifyParishAddress(northshoreAddress, { ...northshorePayload, exceededTransferLimit: true }).location, null);
+assert.equal(verifyParishAddress(northshoreAddress, { ...northshorePayload, features: [northshoreRow, { ...northshoreRow, geometry: { x: -89.761, y: 30.22 } }] }).location, null);
+
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'parish-address-test-'));
   const previous = { root: process.env.OPSBOT_DATA_DIR, cache: process.env.SERVICE_ADDRESS_CACHE_DIR, fetch: globalThis.fetch, now: Date.now };

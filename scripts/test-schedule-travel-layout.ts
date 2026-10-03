@@ -12,7 +12,7 @@ assert.ok(layout.connectors.every(c=>c.width>0 && c.top>=0 && c.top+c.height<=la
 assert.ok(layout.placed.every(p=>p.position.left===(p.job.appointmentStartMinutes!-range.start)/range.duration),'Preserve booked horizontal position');
 const reverse = scheduleTravelLayout(jobs,[leg('e','c',-60)],range).connectors[0];
 assert.equal(reverse.reverse,true,'Arrow follows route order even if stack order differs');
-assert.ok(reverse.top+reverse.labelTop>=0 && reverse.top+reverse.labelTop+12<=scheduleTravelLayout(jobs,[leg('e','c',-60)],range).rowHeight, 'Travel times fit inside the existing lane gutter');
+assert.equal(reverse.top+reverse.labelTop,reverse.from.lane*layout.laneStep+25,'Travel times use the existing source lane gutter');
 const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).connectors[0];
 assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
@@ -55,8 +55,29 @@ const orderedStack=scheduleTravelLayout([plannedSecond,actualFirst],[],timelineR
 assert.deepEqual(orderedStack.placed.map(item=>[item.job.recordId,item.lane]),[[actualFirst.recordId,0],[plannedSecond.recordId,1]],'Saved Stop Order must dictate top and bottom even when GPS changes the displayed start');
 
 const unsavedStack=scheduleTravelLayout([{...actualFirst,stopOrder:undefined},{...plannedSecond,stopOrder:undefined}],[],timelineRange([plannedSecond,actualFirst]),'Truck 3',Date.parse('2026-09-29T14:00:00.000Z'));
-assert.deepEqual(unsavedStack.placed.map(item=>item.job.recordId),[plannedSecond.recordId,actualFirst.recordId],'Without a saved order, displayed chronology still chooses the stack order');
+assert.deepEqual(unsavedStack.placed.map(item=>item.job.recordId),[actualFirst.recordId,plannedSecond.recordId],'Without a saved order, recorded visits reserve the top lane before planned windows');
 console.log('Saved Stop Order controls the visual top-to-bottom stack across planned and GPS-rendered blocks.');
+
+// Finished work remains above the next booked stops even when GPS includes
+// seconds after their shared booked start. This must survive input reordering.
+const finished={...job('2026-10-03:appointment:finished',480,540),truck:'Truck 4',status:'Completed',truckVisits:[{truck:'Truck 4',arrival:'2026-10-03T15:00:20Z',departure:'2026-10-03T15:35:00Z',observedThrough:'2026-10-03T15:35:00Z'}]} as ScheduleAppointment;
+const nextStops=[{...job('next',600,660),truck:'Truck 4',stopOrder:0},{...job('later',600,660),truck:'Truck 4',stopOrder:1}];
+for (const mobile of [false,true]) for (const input of [[...nextStops,finished],[finished,...nextStops].reverse()]) {
+  const before=JSON.stringify(input);
+  const drawn=scheduleTravelLayout(input,[],timelineRange(input),'Truck 4',Date.parse('2026-10-03T15:48:00Z'),mobile?190:720,!mobile,mobile);
+  assert.deepEqual(drawn.placed.map(p=>[p.job.recordId,p.lane]),[[finished.recordId,0],['next',1],['later',2]]);
+  assert.equal(drawn.placed[0].position.start,600+20/60,'Recorded arrival retains its exact horizontal position');
+  assert.equal(JSON.stringify(input),before,'Stacking never changes bookings, assignment or saved stop order');
+}
+const explicitReverse=scheduleTravelLayout([{...actualFirst,stopOrder:1},{...plannedSecond,stopOrder:0}],[],timelineRange([actualFirst,plannedSecond]),'Truck 3',Date.parse('2026-09-29T14:00:00Z'));
+assert.equal(explicitReverse.placed[0].job.recordId,plannedSecond.recordId,'Explicit saved same-window order remains authoritative within its group');
+const closedEstimate={...finished,recordId:'2026-10-03:appointment:closed-estimate',truck:'Truck 8',status:'Estimate Closed',appointmentStartMinutes:540,appointmentEndMinutes:600,truckVisits:[{truck:'Truck 8',arrival:'2026-10-03T15:18:00Z',departure:'2026-10-03T15:32:00Z',observedThrough:'2026-10-03T15:32:00Z'}]} as ScheduleAppointment;
+const followingJob={...job('following-job',600,660),truck:'Truck 8'};
+for (const mobile of [false,true]) {
+  const input=[followingJob,closedEstimate];
+  const drawn=scheduleTravelLayout(input,[],timelineRange(input),'Truck 8',Date.parse('2026-10-03T15:50:00Z'),mobile?190:720,!mobile,mobile);
+  assert.deepEqual(drawn.placed.map(p=>[p.job.recordId,p.lane]),[[closedEstimate.recordId,0],[followingJob.recordId,1]],'Upcoming job stays underneath the completed estimate');
+}
 
 // Fifteen-minute minimum widths follow the ruler at every viewport size.
 const mobileVisits=[0,1,2].map(index=>({...job(`2026-09-29:appointment:mobile-${index}`,480+index*60,500+index*60),truck:'Truck 8',status:'Completed',onsiteTime:{minutes:20,arrival:`2026-09-29T${String(13+index).padStart(2,'0')}:00:00.000Z`,departure:`2026-09-29T${String(13+index).padStart(2,'0')}:20:00.000Z`}} as ScheduleAppointment));

@@ -47,9 +47,14 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
     const key = unitFor.get(item.job.recordId) || `appointment:${item.job.recordId}`;
     units.set(key,[...(units.get(key) || []),item]);
   }
+  // Recorded visits reserve lanes before unvisited booked windows. GPS arrival
+  // may be seconds after a booked start, but that must not push finished work
+  // below future stops. Keep explicit same-window order together as one unit.
+  const recorded = (unit: typeof positioned) => unit.some(({position}) =>
+    position.actual && position.intervals.some(interval => interval.complete && interval.end > interval.start));
   const ordered = [...units.values()]
     .map(unit => unit.sort((a,b)=>compareStops(a.job,b.job)))
-    .sort((a,b)=>Math.min(...a.map(item=>item.position.start))-Math.min(...b.map(item=>item.position.start)) || compareStops(a[0].job,b[0].job))
+    .sort((a,b)=>Number(recorded(b))-Number(recorded(a)) || Math.min(...a.map(item=>item.position.start))-Math.min(...b.map(item=>item.position.start)) || compareStops(a[0].job,b[0].job))
     .flat();
   // Reserve the top lane for the truck's current appointment before packing
   // upcoming windows. Presence belongs to the physical truck, which can differ

@@ -483,7 +483,7 @@ function buildTruckRecord({
       longitude: Number(row.longitude),
       speed: row.speed == null ? null : Number(row.speed),
       ignition: /^(ON|OFF)$/i.test(String(row.ignition_state || "").trim()) ? String(row.ignition_state).trim().toUpperCase() : null,
-      heading: row.heading ? String(row.heading) : null,
+      heading: row.heading == null ? null : String(row.heading),
       sourceRecordId: row.source_record_id ? String(row.source_record_id) : null,
       deliverySource: String(row.delivery_source || "").toLowerCase() === "v3_position_push"
         || String(row.source_record_id || "").toLowerCase().startsWith("v3-position-")

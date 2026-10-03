@@ -22,7 +22,7 @@ const officialPayload = {
   latitude: 30.2241,
   longitude: -92.0198,
   speed: 17,
-  heading: "NE",
+  heading: 0,
   engineOn: true,
   geofence: {name: 'Synthetic facility', geofenceId: 123},
   tracker: { trackerId: 12345, name: "Truck 2" },
@@ -67,6 +67,7 @@ try {
   expect(snapshot.delivery?.current_mode === "v3_position_push", "V3 ingestion must switch the normalized snapshot to V3 authority");
   expect(snapshot.points?.[0]?.delivery_source === "v3_position_push", "V3 delivery source must survive normalization");
   expect(snapshot.points?.[0]?.ignition_state === "ON", "Official engineOn must normalize to ignition state");
+  expect(snapshot.points?.[0]?.heading === 0, "Due north (zero degrees) must survive ingestion");
   const rawFiles = fs.readdirSync(path.join(temporaryRoot, "history", "linxup", "push", date));
   expect(rawFiles.length === 1, "V3 ingestion must retain one provider payload for audit");
   const raw = JSON.parse(fs.readFileSync(path.join(temporaryRoot, "history", "linxup", "push", date, rawFiles[0]), "utf8"));

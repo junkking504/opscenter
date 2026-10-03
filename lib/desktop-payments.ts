@@ -31,7 +31,7 @@ export function desktopPayments(date: string, reconciliation: PaymentReconciliat
   const payments: FinanceData['reconciliation']['paymentsByJob'] = reconciliation.paymentsByJob.map(payment => {
     const matches = byJk(payment.jkNumber);
     const row = matches.length === 1 ? matches[0] : null;
-    return { ...payment, tender: 'card', truck: row ? text(row.truck || row.assigned_truck) : '',
+    return { ...payment, appointmentId: payment.appointmentId || (row ? text(row.appt_id || row.appointment_id) || null : null), tender: 'card', truck: row ? text(row.truck || row.assigned_truck) : '',
       jobDifference: row ? jobDifference(row) : payment.revenueAmount != null && payment.tipAmount != null ? cents(payment.paidAmount - payment.revenueAmount - payment.tipAmount) : null };
   });
   let cashTotal = 0, checkTotal = 0;
@@ -44,7 +44,7 @@ export function desktopPayments(date: string, reconciliation: PaymentReconciliat
       if (!tender || paid == null) continue;
       const checkNumber = tender === 'check' ? (text(payment.check_number) || text(payment.checkNumber) || text(payment.detail)).replace(/^(?:check\s*)?(?:number|no\.?)?\s*#?\s*/i, '').trim() : '';
       if (tender === 'cash') cashTotal += paid; else checkTotal += paid;
-      payments.push({ date, jkNumber: text(row.job_id || row.jk_number || row.job_number), customer: text(row.customer_name || row.customerName) || 'Unavailable',
+      payments.push({ date, appointmentId: text(row.appt_id || row.appointment_id) || null, jkNumber: text(row.job_id || row.jk_number || row.job_number), customer: text(row.customer_name || row.customerName) || 'Unavailable',
         truck: text(row.truck || row.assigned_truck), paymentMethod: tender === 'check' ? 'Check' : 'Cash', tender, checkNumber,
         paidAmount: paid, revenueAmount: amount(row.revenue ?? row.job_total),
         tipAmount: tenders.length === 1 ? amount(row.closeout.tip ?? row.tip) ?? 0 : amount(payment.tip),

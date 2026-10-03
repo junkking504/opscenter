@@ -20,7 +20,7 @@ recorded-day average including explicit zeros, and positive-job-day average.
 Absent territory counts and missing dates are excluded and disclosed separately;
 they never become zero. This is an observed average, not a verified complete
 calendar-period average when coverage is missing. These answers consume no AI question.
-Enter submits a natural-language question; record searches retain result navigation.
+Enter submits to the assistant regardless of wording, except exact workspace or record matches; records also retain click navigation.
 Local answers remain available when the paid pilot is paused or exhausted.
 
 Saved-source lookup also answers simple clocked/worked crew, booked schedule,
@@ -100,3 +100,44 @@ actual HTTP-handler tests with injected auth, readers, provider and ledger.
 No live provider request is required. The local module and existing UI early
 return work when the paid pilot is disabled; this is not an end-to-end outage
 certification for every feature in OpsCenter.
+
+## Employee performance comparisons
+
+Manager questions such as “based on metrics, who is the highest performing
+employee in our system” resolve locally from the existing Crew monthly view.
+The default period is the last completed calendar month before the selected
+day (bounded by today). Named months, last month, and this month are supported;
+unsupported or conflicting periods receive an explicit explanation.
+The default metric is observed credited revenue, disclosed as attributed
+production rather than an overall employee score. Explicit job-credit or
+revenue-per-hour rankings use that metric. Ties are retained, missing values
+are excluded, missing dates and partial component coverage are disclosed.
+Revenue/hour requires matched daily revenue and hours; positive revenue with
+zero hours cannot produce a rate. Quality, safety and attendance are not scored.
+This manager-only answer stays local and consumes no paid pilot question,
+even through the paid POST route. Provider data permissions remain unchanged.
+Question submission does not depend on recognized opening words. Exact workspace and record matches keep their navigation shortcuts.
+
+The model also has a reusable `read_employee_performance` tool for paraphrases
+and broader comparisons. It reads one requested calendar month, returns only
+operational metrics and coverage with per-request employee reference tokens,
+and resolves names locally in the final manager response. It does not send
+pay, rates, names, employee IDs, or raw payroll records in this tool's payload.
+The prompt instructs intent inference, disclosed defaults, comparisons across
+available metrics, and clarification only for material ambiguity. No new model,
+credential, paid limit, operational write, or automatic memory is introduced.
+
+User correction captured in this version: flexibility and evidence-based
+inference are product requirements; phrase-specific fixes alone are insufficient.
+This lesson is versioned in the prompt, documentation and regression cases.
+Automatic cross-question learning remains unimplemented and must not be claimed.
+
+## Shared behavior requirement
+
+Across every workspace, infer business intent, choose tools by the question,
+state reasonable defaults, and distinguish observation, calculation and inference.
+An empty search is not an analytical answer: check related evidence and coverage,
+then provide the best supported partial answer. Do not fabricate missing values.
+User corrections should become reviewed, versioned behavior and regression cases
+that generalize across phrasing and domains. This release records that rule in
+the shared prompt; it does not implement autonomous memory or chat history.

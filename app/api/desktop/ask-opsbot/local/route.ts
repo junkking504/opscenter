@@ -1,3 +1,4 @@
+import { buildLocalCrewPerformanceAnswer } from '@/lib/local-crew-performance-answer';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, resolveRequestOrigin, verifyAuthSessionCookie } from '@/lib/auth';
 import { buildLocalCrewRevenueAnswer } from '@/lib/local-crew-revenue-answer';
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Enter a question under 1,000 characters and select a valid operating date.' }, { status: 400, headers });
   }
   try {
-    return Response.json(buildLocalOperationsAnswer(question, date, session.role) || buildLocalTerritoryDemandAnswer(question, date) || buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
+    return Response.json(buildLocalCrewPerformanceAnswer(question, date, session.role) || buildLocalOperationsAnswer(question, date, session.role) || buildLocalTerritoryDemandAnswer(question, date) || buildLocalCrewRevenueAnswer(question, date, session.role) || { matched: false }, { headers });
   } catch {
     return Response.json({ error: 'The OpsCenter reporting source is unavailable.' }, { status: 503, headers });
   }

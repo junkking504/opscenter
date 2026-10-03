@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { initializeAskOpsBotLedger, readAskOpsBotLedger, reserveAskOpsBotQuestion, settleAskOpsBotQuestion } from '../lib/ask-opsbot-ledger';
+import { readOpsBotEmployeeMetrics, resolveEmployeeReferences } from '../lib/opsbot-employee-metrics';
+import type { readDesktopKrewe } from '../lib/desktop-krewe';
 import { runAskOpsBot } from '../lib/ask-opsbot-agent';
 
 async function main() {
@@ -67,6 +69,30 @@ async function main() {
   assert.equal(toolReads,1,'Repeated identical tool calls reuse one read within a question');
   await runAskOpsBot('Is source current?','2026-09-24','manager','test-key',repeatFetch,repeatedTool);
   assert.equal(toolReads,2,'A separate question must reread source, never reuse another user/request cache');
+  const identities = new Map<string,{token:string;name:string}>();
+  const fixtureRead = (()=>({start:'2026-09-01',end:'2026-09-30',sourceUpdatedAt:'2026-10-01T12:00:00Z',missingDates:['2026-09-07'],members:[
+    {id:'private-id',name:'Private Employee Name',revenue:500,jobs:5,hours:10,hourlyRate:999,totalPay:12345,days:[{revenue:500,jobs:5,hours:10}]},
+    {id:'other-id',name:'Other Private Name',revenue:100,jobs:2,hours:4,days:[{revenue:100,jobs:2,hours:4},{revenue:null,jobs:null,hours:4}]},
+  ]})) as unknown as typeof readDesktopKrewe;
+  const safeMetrics = readOpsBotEmployeeMetrics('2026-09-30','manager',identities,fixtureRead);
+  assert.equal(safeMetrics.output.employees[0].creditedRevenuePerRecordedHour,50);
+  assert.equal(safeMetrics.output.employees[1].creditedRevenuePerRecordedHour,null);
+  for(const secret of ['Private Employee Name','private-id','hourlyRate','totalPay','12345']) assert(!JSON.stringify(safeMetrics).includes(secret));
+  assert.equal(resolveEmployeeReferences('EMPLOYEE_REF_1 leads; EMPLOYEE_REF_999 unknown.',identities),'Private Employee Name leads; Unverified employee reference unknown.');
+  assert.throws(()=>readOpsBotEmployeeMetrics('2026-09-30','operator',identities,fixtureRead),/Manager/);
+  assert.throws(()=>readOpsBotEmployeeMetrics('2026-02-30','manager',identities,fixtureRead),/valid/);
+  const inferenceRequests:Record<string,unknown>[]=[];
+  const inferenceFetch=(async(_url:unknown,init?:RequestInit)=>{
+    inferenceRequests.push(JSON.parse(String(init?.body)));
+    return new Response(JSON.stringify({output:inferenceRequests.length===1
+      ?[{type:'function_call',name:'read_employee_performance',call_id:'performance',arguments:'{"through_date":"2026-09-30"}'}]
+      :[{type:'message',content:[{type:'output_text',text:'EMPLOYEE_REF_1 leads observed revenue, with incomplete date coverage.'}]}],usage:{input_tokens:1,output_tokens:1}}),{status:200});
+  }) as typeof fetch;
+  const inference = await runAskOpsBot('Which team members are pulling the most weight?', '2026-10-03','manager','test-key',inferenceFetch,(_name,args,role,map)=>readOpsBotEmployeeMetrics(String(args.through_date),role,map!,fixtureRead));
+  assert.match(inference.answer,/Private Employee Name leads/);
+  assert(!JSON.stringify(inferenceRequests).includes('Private Employee Name'));
+  assert.match(String(inferenceRequests[0].instructions),/Infer the business intent/);
+  assert.match(JSON.stringify(inferenceRequests[0].tools),/read_employee_performance/);
   console.log('Ask OpsBot: approval shape, durable 50-question ledger, bounded tool loop, sources, and token accounting passed.');
 }
 

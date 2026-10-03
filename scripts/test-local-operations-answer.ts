@@ -61,6 +61,7 @@ const dependencies:Record<string,unknown>={
  'next/headers':{cookies:async()=>({get:()=>({value:'synthetic'})})},
  '@/lib/auth':{AUTH_SESSION_COOKIE:'fixture',verifyAuthSessionCookie:async()=>signedIn?{email:'fixture',role}:null,resolveRequestOrigin:()=> 'https://fixture.invalid'},
  '@/lib/ops-roles':{opsRoleCan},'@/lib/local-operations-answer':localModule,
+ '@/lib/local-crew-performance-answer':{buildLocalCrewPerformanceAnswer:()=>null},
  '@/lib/local-territory-demand-answer':{buildLocalTerritoryDemandAnswer:()=>null},
  '@/lib/local-crew-revenue-answer':{buildLocalCrewRevenueAnswer:()=>null},
  '@/lib/ask-opsbot-agent':{readOpenAIKey:()=>{providerReads++;throw Error('Credential access forbidden in local route');},runAskOpsBot:()=>{throw Error('Provider forbidden');}},

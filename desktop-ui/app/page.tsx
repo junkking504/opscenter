@@ -577,7 +577,7 @@ function GoogleMapsAddress({ address }: { address: string }) {
       <a
         className="google-maps-address"
         href={googleMapsHref(address)}
-        target="_self"
+        target="_blank"
         rel="noreferrer noopener"
         aria-label={`Open ${address} in Google Maps`}
         title="Open in Google Maps"

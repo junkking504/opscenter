@@ -14,8 +14,9 @@ async function main() {
     Date.now = () => 1_800_000_000_000;
     let calls = 0;
     globalThis.fetch = async input => {
-      assert.match(String(input), /maps\.brla\.gov/, 'No paid request or browser needed even at the shared 500-call cap');
+      assert.match(String(input), sourceAddress.includes('Slidell') ? /maps\.stpgov\.org/ : /maps\.brla\.gov/, 'No paid request or browser needed even at the shared 500-call cap');
       calls++;
+      if (sourceAddress.includes('Slidell')) return new Response(JSON.stringify({ spatialReference: { wkid: 4326 }, features: [{ attributes: { OBJECTID: 7, ADDRESS: '100 EXAMPLE BLVD', CITY_L: 'SLIDELL', ZIP_CODE: 70461 }, geometry: { x: -89.76, y: 30.22 } }] }));
       return new Response(JSON.stringify({ spatialReference: { wkid: 4326 }, features: [{
         attributes: { ID: 1, ADDRESS_ID: 1, FULL_ADDRESS: sourceAddress.includes('Settlers') ? "7939 SETTLER'S CIR" : '100 EXAMPLE HWY', CITY: 'BATON ROUGE', STATE: 'LA', ZIP: sourceAddress.includes('Settlers') ? 70810 : 70816, ADDRESS_AUTHORITY: 'SAINT GEORGE' },
         geometry: { x: -91.1, y: 30.4 },
@@ -26,7 +27,7 @@ async function main() {
     await import('./refresh-schedule-map-inputs');
     return;
   }
-  for (const address of ['7939 Settlers Cir BATON ROUGE, LA 70810', '100 Example Hwy Apt 4 Baton Rouge 70816', '100 Example Hwy Apt 4, Baton Rouge, La Baton Rouge, LA 70816']) {
+  for (const address of ['100 Example Blvd, Slidell, La SLIDELL, LA 70461', '7939 Settlers Cir BATON ROUGE, LA 70810', '100 Example Hwy Apt 4 Baton Rouge 70816', '100 Example Hwy Apt 4, Baton Rouge, La Baton Rouge, LA 70816']) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'parish-preflight-test-'));
     try {
       const history = path.join(root, 'history/junkware'); fs.mkdirSync(history, { recursive: true });
@@ -59,7 +60,7 @@ async function main() {
       const pins = JSON.parse(fs.readFileSync(path.join(root, 'cache/appointment_geocodes.json'), 'utf8')).addresses;
       const pin = Object.values(pins)[0] as Record<string, unknown>;
       assert.equal(pin.verification_policy, ADDRESS_VERIFICATION_POLICY); assert.equal(pin.house_street_verified, true);
-      assert.equal(pin.latitude, 30.4); assert.equal(pin.longitude, -91.1);
+      assert.equal(pin.latitude, address.includes('Slidell') ? 30.22 : 30.4); assert.equal(pin.longitude, address.includes('Slidell') ? -89.76 : -91.1);
       assert.equal(run(), 0, 'A fresh process reuses saved evidence before service day');
       assert.equal(fs.readFileSync(path.join(maintenance, 'state.json'), 'utf8'), ledger, 'Paid ledger is untouched');
       console.log('Actual background sweep verified tomorrow without a browser at the exhausted paid cap; saved evidence survives restart. Synthetic provider only.');

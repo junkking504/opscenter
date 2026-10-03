@@ -1,3 +1,4 @@
+import { buildLocalCrewPerformanceAnswer } from '@/lib/local-crew-performance-answer';
 import { createHash } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, resolveRequestOrigin, verifyAuthSessionCookie } from '@/lib/auth';
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Enter a question under 1,000 characters and select a valid operating date.' }, { status: 400, headers: responseHeaders });
   }
   try {
-    const local = buildLocalOperationsAnswer(question, date, access.session.role);
+    const local = buildLocalCrewPerformanceAnswer(question, date, access.session.role) || buildLocalOperationsAnswer(question, date, access.session.role);
     if (local) return Response.json(local, { headers: responseHeaders });
   } catch {
     return Response.json({ error: 'The saved OpsCenter source is unavailable.' }, { status: 503, headers: responseHeaders });

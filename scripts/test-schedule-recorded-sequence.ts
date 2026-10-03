@@ -11,7 +11,10 @@ assert.equal(grouped[0].groupedVisits,2);
 assert.equal(grouped[0].startMinutes,first.startMinutes);
 assert.equal(grouped[0].endMinutes,second.endMinutes);
 assert.equal(JSON.stringify([first,second]),original,'Source records are never mutated');
-assert.equal(groupNearbyHqStops([first,second],[job('intervening',645,658)],'Truck 4').length,2,'An intervening job preserves both HQ visits');
+const intervening=job('intervening',645,658);
+const groupedAcrossJob=groupNearbyHqStops([first,second],[intervening],'Truck 4');
+assert.equal(groupedAcrossJob.length,1,'Nearby HQ markers merge even when a job was recorded between them');
+assert.deepEqual(recordedStopSequence([intervening],groupedAcrossJob,'Truck 4').map(stop=>stop.label),['NOHQ Visit','intervening · Fixture'],'The intervening job remains a separate visible event');
 assert.equal(groupNearbyHqStops([first,hq('later',665,666)],[],'Truck 4').length,2,'Over twenty minutes stays separate');
 assert.equal(groupNearbyHqStops([first,hq('other-hq',650,651,'BRHQ')],[],'Truck 4').length,2);
 assert.equal(groupNearbyHqStops([first,{...second,truck:'Truck 6'}],[],'Truck 4').length,2);
@@ -22,4 +25,4 @@ assert.deepEqual(sequence.map(stop=>stop.label),['before · Fixture','NOHQ Visit
 const planned={...job('planned',690,700),truckVisits:[],hasScheduledTime:true,appointmentStartMinutes:690,appointmentEndMinutes:700};
 assert.equal(recordedStopSequence([planned],[],'Truck 4').length,0,'Planned windows are not recorded history');
 assert.equal(recordedStopSequence([job('before',620,635)],[first],'Truck 6').length,0,'Other trucks do not leak into history');
-console.log('Recorded stop sequence passed: job/HQ/dump order, truthful history, and bounded HQ grouping with intervening stops preserved.');
+console.log('Recorded stop sequence passed: job/HQ/dump order, truthful history, and bounded HQ grouping with intervening jobs retained.');

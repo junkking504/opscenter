@@ -1027,8 +1027,9 @@ elapsed gaps are not asserted to be measured driving time. Job-to-job route
 arrows are hidden when they skip a recorded facility stop.
 
 Nearby same-truck visits to the same HQ consolidate in the display when their
-gap is at most twenty minutes and no recorded job or facility intervenes. Source
-records remain unchanged. Grouped tooltips distinguish the elapsed window from
+gap is at most twenty minutes and no other facility intervenes. A recorded job
+between nearby HQ markers does not prevent grouping and remains a separate
+event in the timeline and recorded sequence. Source records remain unchanged. Grouped tooltips distinguish the elapsed window from
 dwell time. HQ and dump visits use standalone home and tipping-truck icons at
 arrival, with interval details retained in their tooltips and recorded sequence.
 Appointment minimum width equals fifteen minutes on the timeline ruler; lane

@@ -65,6 +65,18 @@ class AccountingTests(unittest.TestCase):
     def test_recover_absent_receipt_is_terminal_without_writes(self):
         result=m.execute(self.source,{'requestId':str(uuid.uuid4())},'manager@example.invalid',True)
         self.assertEqual(result['items'],[]);self.assertEqual(self.source.calls,0)
+    def test_native_background_processing_stays_pending_without_replay(self):
+        self.source.lost=True
+        original=self.source.submit
+        def queued(form,r,action):
+            original(form,r,action)
+            return type('F',(),{'label':lambda self,s:'Processing 1 records into QuickBooks.'})()
+        self.source.submit=queued
+        self.source.find=lambda r,status: (None,r) if status=='U' else (_ for _ in ()).throw(ValueError('The selected source record is missing or ambiguous. Refresh the register.'))
+        result=self.run_action();self.assertEqual(result['items'][0]['state'],'submitted')
+        self.assertIn('processing',result['items'][0]['message'])
+        m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
+        self.assertEqual(self.source.calls,1)
     def test_range_validation(self):
         with self.assertRaises(ValueError): m.validate_filters({'from':'2026-10-03','to':'2026-10-02','status':'U'})
     def test_native_submission_selects_only_exact_row(self):

@@ -211,6 +211,11 @@ def execute(source,body,actor,verify_only=False):
                 source.find(row,target)
                 item.update(state='verified',syncedAt=now(),message='Excluded in JunkWare.' if target=='E' else 'JunkWare confirms this record is synced to QuickBooks.')
             except Exception as error:
+                queued = item.get('submittedAt') and re.search(r'Processing \d+ records? into QuickBooks', item.get('sourceMessage',''), re.I) and 'missing or ambiguous' in str(error)
+                if queued:
+                    item.update(state='submitted',message='JunkWare is processing the QuickBooks update. Check saved result to confirm completion.')
+                    save(file,receipt)
+                    continue
                 item.update(state='uncertain' if item.get('submittedAt') else 'failed',message=str(error))
                 # Stop batch after the first failure; never hide partial completion.
                 if not verify_only:

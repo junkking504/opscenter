@@ -143,8 +143,10 @@ Private durable receipts live in `OPSBOT_DATA_DIR/accounting-actions` (override
 accounting mutations. The source job identity, date, amount, tender/reference,
 customer, billing details and crew must still match the reviewed record. Every
 individual submission is journaled and fsynced before the source POST; the exact
-checkbox is selected, never Select All. One failed item stops the remaining
-batch with explicit per-job results. An interrupted or uncertain submission
+checkbox is selected, never Select All. JunkWare can accept updates for background processing; these remain submitted
+until read-back finds the matching Synced row. Accepted queued items allow the
+remaining selected records to be queued; recovery never resubmits them.
+One failed item stops the remaining batch with explicit per-job results. An interrupted or uncertain submission
 blocks another request for that appointment. **Check saved result** only reads
 the requested Synced/Excluded source status and never replays the write. A
 reused request ID returns its receipt or rejects changed content. Unknown

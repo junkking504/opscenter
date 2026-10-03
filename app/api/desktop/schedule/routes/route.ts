@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { chicagoDateKey } from '@/lib/report-dates';
-import { readDesktopScheduleRouting } from '@/lib/desktop-schedule';
+import { readDesktopClosestTrucks, readDesktopScheduleRouting } from '@/lib/desktop-schedule';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   const recordId = query.get('appointment');
   if (recordId && recordId.length > 180) return Response.json({ error: 'Invalid appointment identity.' }, { status: 400, headers });
   try {
-    const result = await readDesktopScheduleRouting(date, recordId);
+    const result = query.get('scope') === 'closest' && recordId
+      ? await readDesktopClosestTrucks(date, recordId)
+      : await readDesktopScheduleRouting(date, recordId);
     return result ? Response.json(result, { headers }) : Response.json({ error: 'Appointment no longer exists in this schedule. Refresh before comparing routes.' }, { status: 404, headers });
   } catch {
     return Response.json({ error: 'Route estimates are unavailable. No travel time or distance has been assumed.' }, { status: 503, headers });

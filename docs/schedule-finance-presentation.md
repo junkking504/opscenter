@@ -1038,3 +1038,27 @@ packing uses that same footprint.
 Validate with `scripts/test-schedule-recorded-sequence.ts`,
 `scripts/test-schedule-operational-stops.ts`, and
 `scripts/test-schedule-travel-layout.ts`.
+
+
+### Closest-truck refresh recovery
+
+The selected appointment requests `scope=closest` from the authenticated schedule
+routes endpoint. That path reads the verified saved pin and last-known truck
+locations directly; it does not wait for unrelated address verification,
+appointment-to-appointment legs or truck-progress calculations. It retains the
+existing road-provider queue, cache and limits, and makes no source writes.
+The general board route request no longer includes the selected appointment.
+
+Selection identity includes appointment, location and status. Unrelated schedule
+refreshes cannot cancel its pending lookup. The 120-second refresh and 60-second
+request deadline remain bounded. A completed result stays visible during refresh;
+its checked time, updating state or refresh failure identifies its age. An initial
+failure ends loading and offers Retry. A failed refresh retains the previous
+estimate with an explicit label. Changing appointment or verified location clears
+the old result immediately and rejects late responses. All eligible road estimates
+being unavailable returns an error instead of replacing a known estimate with an
+empty success. Last-known GPS eligibility remains unchanged.
+
+Validation: `verify:closest-truck`, `verify:closest-truck:browser` against the
+isolated schedule fixture, truck-progress regression, both TypeScript projects,
+targeted lint, production build and authenticated live Schedule acceptance.

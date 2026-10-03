@@ -2,19 +2,12 @@ import assert from 'node:assert/strict';
 import {scheduleViewportLayout} from '../desktop-ui/lib/schedule-viewport-layout';
 const natural=[36,36,36,64,36,110,36,36,128,114];
 const labels=natural.map(()=>36);
-for(const available of [500,550,700,1000]){
+for(const available of [200,320,500,550,700,1000]){
  const layout=scheduleViewportLayout(natural,labels,available);
- assert.ok(layout.fits);
- assert.ok(layout.heights.reduce((a,b)=>a+b,0)<=available);
- assert.ok(layout.heights.every((height,i)=>height>=labels[i] && height>=natural[i]*layout.scale));
+ assert.equal(layout.scale,1,'Routing or viewport changes must never squeeze blocks thinner');
+ assert.deepEqual(layout.heights,natural);
+ assert.equal(layout.fits,natural.reduce((a,b)=>a+b,0)<=available);
 }
-const short=scheduleViewportLayout(natural,labels,200);
-assert.equal(short.fits,false);
-assert.equal(short.scale,.05);
-assert.ok(short.heights.every(height=>height>=36),'Short windows retain readable labels and page scrolling');
-const compact=scheduleViewportLayout(natural,natural.map(()=>20),320);
-assert.equal(compact.fits,true,'Ten compact truck labels and dense lanes fit in the visible desktop schedule');
-assert.ok(compact.scale>=.05 && compact.scale<1);
-assert.equal(scheduleViewportLayout(natural,labels,1000).scale,1);
+assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[36]);
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
-console.log('Schedule viewport allocation passed: label floors, dense lanes, short screens and empty boards.');
+console.log('Stable schedule block thickness passed across short and tall viewports.');

@@ -53,7 +53,7 @@ export default function ScheduleDuplicates({snapshot,busy,open}:{snapshot:Schedu
       <div className="duplicate-pair-grid">{pair.jobs.map(job=><div className="duplicate-appointment" key={job.recordId}>
         <div><button className="duplicate-reference" disabled={busy} onClick={()=>open(job.recordId)}>{job.jkNumber||'JK Pending'}</button><span>{appointmentCategory(job)} · {appointmentStatus(job)}</span></div>
         <strong>{job.customerName||'Customer Unavailable'}</strong><span>{job.phone||'Phone Unavailable'}</span>
-        <a href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))} target="_self" rel="noopener noreferrer">{appointmentServiceAddress(job)}</a>
+        <a href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))} target="_blank" rel="noopener noreferrer">{appointmentServiceAddress(job)}</a>
         <dl><div><dt>Window</dt><dd>{job.appointmentTime}</dd></div><div><dt>Truck</dt><dd>{truckDisplayText(truckLabel(job.truck))}</dd></div><div><dt>Service Territory</dt><dd>{appointmentRegion(job).label}</dd></div><div><dt>JunkWare Franchise</dt><dd>{job.sourceTerritory||job.territory||'Unavailable'}</dd></div></dl>
         <div className="duplicate-record-actions"><Button variant="outline" size="sm" disabled={busy} onClick={()=>open(job.recordId)}>Open Appointment</Button>{job.appointmentUrl&&/^https:\/\/junkware\.junk-king\.com\//i.test(job.appointmentUrl)&&<a href={job.appointmentUrl} target="_self" rel="noopener noreferrer">Review in JunkWare ↗</a>}</div>
       </div>)}</div>

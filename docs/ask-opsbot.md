@@ -23,6 +23,37 @@ calendar-period average when coverage is missing. These answers consume no AI qu
 Enter submits a natural-language question; record searches retain result navigation.
 Local answers remain available when the paid pilot is paused or exhausted.
 
+Saved-source lookup also answers simple clocked/worked crew, booked schedule,
+named employee day/week/pay-period gross, saved daily revenue/sales/expense/profit,
+truck daily performance, and saved call-in plan questions. Call-in answers read
+only persisted decisions for the target date without rebuilding recommendations;
+Recommended/Called is not confirmed availability. Relative dates resolve from the selected
+operating date. Invalid dates, conflicting date selectors, ambiguous employees,
+recommendations, mutations, comparisons and unsupported historical ranges do
+not become a guessed local answer. Missing source values are unavailable, not
+zero. Schedule rows remain scheduled evidence, not clock-ins; daily truck
+performance cannot establish readiness, location or availability. Daily finance
+metrics are labeled unreconciled, not represented as accounting/payment truth.
+
+Both the local endpoint and the paid endpoint's POST first try this bounded
+saved-source path after session/manager/same-origin/body checks. The paid
+endpoint returns a matching local answer before spending approval, credential
+lookup or ledger reservation. A local source failure returns 503 rather than
+triggering a paid request or collection. Local responses retain no-store headers.
+Returned facts include observed timestamp, historical/partial/future labels,
+missing-date coverage for payroll, and a live-use stale label after 15 minutes;
+this threshold is a lookup warning, not a replacement for collector authority
+policies. Verified payroll corrections use the existing correction projection,
+and weekly overtime uses the existing employee portal calculation at saved hours.
+
+Only the chosen domain's reader is invoked. Daily metrics are reused by date
+inside that one lookup, and repeat identical safe provider tool projections are
+reused inside one question. No user, conversation, payroll record or tool result
+is cached across requests. The next request reads current saved sources again;
+no TTL or invalidation daemon is needed. Local output contains only the requested
+answer and source links, not raw customer contacts, audit actors or receipt IDs.
+There is no new database, collector, scrape, source rebuild or operational write.
+
 Unsupported questions continue to the
 bounded GPT-6 Luna path.
 
@@ -39,6 +70,11 @@ hidden prompts are excluded from tool output. The deterministic monthly
 attribution answer can repeat the uniquely matched employee name already present
 in the manager's question, but it does not return the rest of the roster,
 payroll details, rates, or individual payments.
+The new named-pay deterministic answer may show the uniquely matched employee's
+gross, hours, wage/tip/bonus components to the existing authenticated manager
+role. Clock/work queries may show worked crew names. These facts stay in the
+local manager response; they are never added to provider tool payloads, and the
+provider's existing individual-pay/name prohibition remains intact.
 
 The answer names the OpsCenter sources it used. Source links reopen the relevant
 OpsCenter record. Stale, missing, historical, and inferred evidence must remain
@@ -58,3 +94,9 @@ Ask OpsBot fails closed while deterministic OpsCenter search remains available.
 
 See [Spending controls](spending-controls.md) for the exact approval shape and
 deployment boundary.
+
+Verification: `npm run verify:ask-opsbot` includes synthetic saved-source and
+actual HTTP-handler tests with injected auth, readers, provider and ledger.
+No live provider request is required. The local module and existing UI early
+return work when the paid pilot is disabled; this is not an end-to-end outage
+certification for every feature in OpsCenter.

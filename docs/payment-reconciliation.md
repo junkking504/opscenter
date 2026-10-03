@@ -111,3 +111,55 @@ time, then run `node --import tsx scripts/import-merchant-center-evidence.ts <fi
 Keep evidence and provenance outside Git. This adds processor evidence only; it
 cannot repair QBO or JunkWare. A later complete export supersedes older details.
 Run `npm run verify:merchant-evidence` for source-isolation and matching checks.
+
+## Review and update QuickBooks from Capital → Payments
+
+The live **Review & update QuickBooks** register reads JunkWare's native
+Accounting → Update QuickBooks form, including billed receivables, cash, checks
+and cards. Franchise, inclusive date range (up to 93 days), payment method and
+Unsynced/Synced/Excluded filters are source-backed. All source pages are read;
+incomplete or ambiguous coverage fails rather than presenting a partial total.
+Billed rows count toward this register total but are never labeled collected
+payments or included in the separate payment summary.
+
+Managers select exact records, review their customers, methods and amounts,
+and confirm one of three registered actions: `finance.update-quickbooks`,
+`finance.exclude-from-quickbooks`, or `finance.verify-payment-and-sync`.
+**Verify & update QuickBooks** records the manager's cash/check verification and
+uses JunkWare's native Update QuickBooks action for each unsynced record. An
+already-synced cash/check can be verified without submitting it again. Card
+processor approval, manual cash/check verification, JunkWare sync status, and
+QBO accounting evidence remain separate. This does not charge a card, deposit
+a check, move money, or create an independent QBO transaction outside JunkWare.
+
+`POST /api/desktop/accounting` requires finance access and trusted origin; actions
+and read-only recovery require `sensitive.write`. The server supplies the actor.
+`scripts/junkware-accounting.py` uses the protected JunkWare authentication cookie
+with a fresh ASP.NET session and native form state. An expired authentication
+fails closed; the existing source-session refresh owns sign-in recovery.
+
+Private durable receipts live in `OPSBOT_DATA_DIR/accounting-actions` (override
+`OPSCENTER_ACCOUNTING_DIR` only in isolated tests). A process lock serializes
+accounting mutations. The source job identity, date, amount, tender/reference,
+customer, billing details and crew must still match the reviewed record. Every
+individual submission is journaled and fsynced before the source POST; the exact
+checkbox is selected, never Select All. JunkWare can accept updates for background processing; these remain submitted
+until read-back finds the matching Synced row. Accepted queued items allow the
+remaining selected records to be queued; recovery never resubmits them.
+One failed item stops the remaining batch with explicit per-job results. An interrupted or uncertain submission
+blocks another request for that appointment. **Check saved result** only reads
+the requested Synced/Excluded source status and never replays the write. A
+reused request ID returns its receipt or rejects changed content. Unknown
+outcomes require source review, not clearing audit files or blind retries.
+
+The UI keeps the request ID before submission and exposes unresolved receipts
+after reopening. Cash/check verification stays visible even when source syncing
+is uncertain; only a saved matching Synced row confirms the native sync. Fresh
+QBO collector evidence remains a separate accounting observation below. Back up
+the receipt directory with runtime data; never commit it or raw source HTML.
+
+Validation: `python3 scripts/test-junkware-accounting.py`, desktop browser fixture,
+both TypeScript projects, desktop build and production build. Synthetic tests
+cover single submission, lost responses, replay rejection, stale source rows,
+partial batches, exact checkbox selection and read-only recovery. A real
+accounting write requires an explicitly selected, authorized source record.

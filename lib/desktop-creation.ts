@@ -10,7 +10,7 @@ const directory = () => process.env.OPSCENTER_DESKTOP_CREATIONS_DIR || path.join
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RECENT_VERIFIED_MS = 24 * 60 * 60 * 1000;
 export function desktopCreationIdentity(input: JunkwareAppointmentCreationInput): string {
-  return createHash('sha256').update(JSON.stringify({ phone: input.phone, address: input.serviceAddress.toLowerCase().replace(/[^a-z0-9]/g, ''), zip: input.serviceZip.slice(0, 5), date: input.date, startTime: input.startTime })).digest('hex');
+  return createHash('sha256').update(JSON.stringify(input.sourceEstimateAppointmentId ? {sourceEstimateAppointmentId:input.sourceEstimateAppointmentId} : { phone: input.phone, address: input.serviceAddress.toLowerCase().replace(/[^a-z0-9]/g, ''), zip: input.serviceZip.slice(0, 5), date: input.date, startTime: input.startTime })).digest('hex');
 }
 export async function readDesktopCreation(id: string, actor: string): Promise<DesktopCreationReceipt | null> {
   if (!uuid.test(id)) return null;

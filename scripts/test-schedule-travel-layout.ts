@@ -12,7 +12,7 @@ assert.ok(layout.connectors.every(c=>c.width>0 && c.top>=0 && c.top+c.height<=la
 assert.ok(layout.placed.every(p=>p.position.left===(p.job.appointmentStartMinutes!-range.start)/range.duration),'Preserve booked horizontal position');
 const reverse = scheduleTravelLayout(jobs,[leg('e','c',-60)],range).connectors[0];
 assert.equal(reverse.reverse,true,'Arrow follows route order even if stack order differs');
-assert.ok(reverse.labelTop>=0 && reverse.labelTop<reverse.height);
+assert.ok(reverse.top+reverse.labelTop>=0 && reverse.top+reverse.labelTop+12<=scheduleTravelLayout(jobs,[leg('e','c',-60)],range).rowHeight, 'Travel times fit inside the existing lane gutter');
 const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).connectors[0];
 assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
@@ -58,22 +58,30 @@ const unsavedStack=scheduleTravelLayout([{...actualFirst,stopOrder:undefined},{.
 assert.deepEqual(unsavedStack.placed.map(item=>item.job.recordId),[plannedSecond.recordId,actualFirst.recordId],'Without a saved order, displayed chronology still chooses the stack order');
 console.log('Saved Stop Order controls the visual top-to-bottom stack across planned and GPS-rendered blocks.');
 
-// A phone timeline is narrow enough that the minimum tap width can be longer
-// than a short visit's real duration. Pack the rendered footprint, not only the
-// underlying time, so sequential appointments never paint over each other.
+// Fifteen-minute minimum widths follow the ruler at every viewport size.
 const mobileVisits=[0,1,2].map(index=>({...job(`2026-09-29:appointment:mobile-${index}`,480+index*60,500+index*60),truck:'Truck 8',status:'Completed',onsiteTime:{minutes:20,arrival:`2026-09-29T${String(13+index).padStart(2,'0')}:00:00.000Z`,departure:`2026-09-29T${String(13+index).padStart(2,'0')}:20:00.000Z`}} as ScheduleAppointment));
 const mobileRange=timelineRange(mobileVisits);
 const desktopFootprint=scheduleTravelLayout(mobileVisits,[],mobileRange,'Truck 8',Date.parse('2026-09-29T17:00:00.000Z'),1000);
 assert.equal(new Set(desktopFootprint.placed.map(item=>item.lane)).size,1,'Wide timelines keep sequential short visits in one lane');
 const phoneFootprint=scheduleTravelLayout(mobileVisits,[],mobileRange,'Truck 8',Date.parse('2026-09-29T17:00:00.000Z'),190);
-assert.ok(new Set(phoneFootprint.placed.map(item=>item.lane)).size>1,'Narrow timelines separate minimum-width cards before they can overlap');
-assert.ok(phoneFootprint.rowHeight>desktopFootprint.rowHeight,'The truck row grows to contain the additional mobile lanes');
+assert.equal(new Set(phoneFootprint.placed.map(item=>item.lane)).size,1,'Sequential visits fit when their minimum is fifteen timeline minutes');
+assert.equal(phoneFootprint.rowHeight,desktopFootprint.rowHeight,'Viewport width does not inflate time-based appointment footprints');
+const shortVisits=[job('short-a',480,481),job('short-b',490,491)];
+const shortLayout=scheduleTravelLayout(shortVisits,[],{start:420,end:1020,duration:600},undefined,0,720);
+assert.equal(shortLayout.laneCount,2,'Fifteen-minute minimum footprints cannot overlap on one lane');
 console.log('Mobile layout packs minimum-width appointment cards into non-overlapping lanes.');
 
-// A return visit must not reserve the empty hours between visible GPS blocks.
+// A confirmed off-site gap remains visible between return visits. An
+// intervening appointment must not collide with that striped gap.
 const returning = {...job('returning',480,720),truck:'Truck 8',onsiteTime:{minutes:40,arrival:'2026-09-29T13:00:00Z',departure:'2026-09-29T16:20:00Z',intervals:[{arrival:'2026-09-29T13:00:00Z',departure:'2026-09-29T13:20:00Z'},{arrival:'2026-09-29T16:00:00Z',departure:'2026-09-29T16:20:00Z'}]}} as ScheduleAppointment;
 const between={...job('between',540,600),truck:'Truck 8'};
 const consolidated=scheduleTravelLayout([returning,between],[],timelineRange([returning,between]),'Truck 8',Date.parse('2026-09-29T18:00:00Z'),1000);
-assert.equal(consolidated.laneCount,1,'Appointments between separate visits reuse the same lane');
-assert.equal(consolidated.occupiedLanes[0].length,3,'Facility packing receives each visible block rather than its envelope');
-console.log('Separate return visits consolidate with intervening appointments.');
+assert.equal(consolidated.laneCount,2,'An intervening appointment uses a separate lane from the visible off-site gap');
+assert.equal(consolidated.occupiedLanes[0].length,3,'Facility packing receives two visit segments and their visible gap');
+assert.notEqual(consolidated.placed.find(p=>p.job.recordId==='between')!.lane, consolidated.placed.find(p=>p.job.recordId==='returning')!.gapLanes[0]);
+console.log('Return visits preserve their striped off-site gap without covering intervening appointments.');
+
+const withoutTravel=scheduleTravelLayout(jobs,[],range);
+assert.equal(layout.rowHeight,withoutTravel.rowHeight,'Loading travel times does not expand truck rows');
+assert.equal(layout.laneStep,withoutTravel.laneStep,'Travel times do not change lane spacing');
+assert.deepEqual(layout.occupiedLanes,withoutTravel.occupiedLanes,'Facility placement remains unchanged when routing loads');

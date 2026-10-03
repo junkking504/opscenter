@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts",
+    "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts && node --import tsx scripts/test-crew-publication-months.ts",
     "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
     "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-schedule-dispatch.ts",
@@ -129,7 +129,7 @@
     "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && node --import tsx scripts/test-maintenance-client-recovery.ts && /usr/bin/python3 scripts/test-process-recovery.py && node --import tsx scripts/test-maintenance-verification-route.ts",
     "verify:workspace-retention": "python3 scripts/test-workspace-retention.py",
     "verify:spending": "node scripts/verify-spending-boundary.mjs && node --import tsx scripts/test-metered-usage-policy.ts && node scripts/test-spending-boundary.mjs && npm run verify:address-research && npm run verify:ask-opsbot",
-    "verify:ask-opsbot": "node --import tsx scripts/test-ask-opsbot.ts && node --import tsx scripts/test-local-crew-revenue-answer.ts && node --import tsx scripts/test-local-territory-demand-answer.ts",
+    "verify:ask-opsbot": "node --import tsx scripts/test-ask-opsbot.ts && node --import tsx scripts/test-local-crew-revenue-answer.ts && node --import tsx scripts/test-local-territory-demand-answer.ts && node --import tsx scripts/test-local-operations-answer.ts",
     "verify:estimates": "node --import tsx scripts/test-estimate-follow-up.ts",
     "verify:recycling": "node --import tsx scripts/test-recycling-income.ts && node --import tsx scripts/test-recycling-monthly.ts && node --import tsx scripts/test-whatsapp-recycling.ts && node --import tsx scripts/test-recycling-ticket-reconciliation.ts",
     "verify:merchant-evidence": "node --import tsx scripts/test-merchant-center-evidence.ts && python3 scripts/test-merchant-center-snapshot.py && python3 scripts/test-merchant-refresh-runner.py",
@@ -156,7 +156,8 @@
     "verify:crew-self-setup": "node --import tsx scripts/test-crew-self-setup.ts",
     "verify:truck-continuity": "node --import tsx scripts/test-truck-continuity.ts",
     "verify:photo-review": "node --import tsx scripts/test-desktop-photo-review.ts && node --import tsx scripts/test-photo-review-assignment.ts",
-    "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts"
+    "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts",
+    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

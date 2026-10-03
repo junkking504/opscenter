@@ -22,12 +22,18 @@ The dispatch board reserves bottom space for an `All Appointments` jump banner.
 It remains reachable on narrow screens and clears board filters before scrolling
 and focusing the complete register. Empty truck rows use the same base height
 whether load data is present or missing. The current-time line starts beneath
-the hour header. Desktop fits the complete grid (rows, appointment lanes and
-travel/status gutters together) into the available viewport, without an inner
-scrollbar. Empty truck rows use 32px before fitting. The map uses the full same
+the hour header. Desktop keeps appointment and lane heights stable and scrolls the grid when
+needed, rather than shrinking blocks as routing data arrives. Empty truck rows use 32px before fitting. The map uses the full same
 height allowance, without the former 600px cap. Duplicate date/introduction
 copy is omitted on desktop, with Schedule and its tabs sharing one row.
 Phones keep natural-height lanes and page scrolling instead of tiny targets.
+At widths up to 900px, an 88px sticky truck column accompanies a horizontally
+scrollable timeline of at least 720px. The hourly ruler shares that timeline
+geometry. Appointment and travel buttons have at least 44px touch targets;
+travel buttons show minutes, with miles and full route details in their popover.
+Mobile travel packing reserves the compact label footprints rather than whole
+empty rows. Real overlaps and minimum-width collisions still use separate lanes;
+no appointment or GPS interval is removed to reduce row height.
 `scripts/test-schedule-board-visibility.mjs` checks row/block containment and
 last-appointment selection in Chromium and WebKit with the map on and off.
 Map and register territory selectors have 38px targets, legible counts and
@@ -1009,3 +1015,26 @@ by globally stripping road directions. Property pins identify the premises, not
 an independently verified apartment entrance. Private appointment evidence stays
 outside Git. The agent hierarchy supervises missing locations and blocked research
 as described in [Agent hierarchy](agent-hierarchy.md).
+
+Closed GPS observations with identical arrival and departure timestamps do not establish a Schedule visit or replace the booked window. Current presence is evaluated separately from historical dwell; open observations remain eligible for live presence checks.
+
+## Recorded truck stop sequence
+
+The board’s Recorded stops control lists physical job visits, HQ visits and
+facility visits in recorded arrival order. Booked windows and proposed job order
+are excluded from this history. Overlapping records are flagged for verification;
+elapsed gaps are not asserted to be measured driving time. Job-to-job route
+arrows are hidden when they skip a recorded facility stop.
+
+Nearby same-truck visits to the same HQ consolidate in the display when their
+gap is at most twenty minutes and no other facility intervenes. A recorded job
+between nearby HQ markers does not prevent grouping and remains a separate
+event in the timeline and recorded sequence. Source records remain unchanged. Grouped tooltips distinguish the elapsed window from
+dwell time. HQ and dump visits use standalone home and tipping-truck icons at
+arrival, with interval details retained in their tooltips and recorded sequence.
+Appointment minimum width equals fifteen minutes on the timeline ruler; lane
+packing uses that same footprint.
+
+Validate with `scripts/test-schedule-recorded-sequence.ts`,
+`scripts/test-schedule-operational-stops.ts`, and
+`scripts/test-schedule-travel-layout.ts`.

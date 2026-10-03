@@ -31,7 +31,8 @@ export function scheduleOperationalStopLayout(
     .sort((a, b) => a.startMinutes - b.startMinutes || a.id.localeCompare(b.id))
     .map(stop => {
       const left = (stop.startMinutes - range.start) / range.duration * width;
-      const durationWidth = Math.max(0, stop.endMinutes - stop.startMinutes) / range.duration * width;
+      const icon = operationalStopIcon(stop);
+      const durationWidth = icon === 'house' || icon === 'dump' ? 0 : Math.max(0, stop.endMinutes - stop.startMinutes) / range.duration * width;
       const right = left + Math.max(stopMinimumWidth(stop), durationWidth);
       let lane = laneIntervals.findIndex(intervals => intervals.every(interval => right + gap <= interval.left || left >= interval.right + gap));
       if (lane < 0) lane = laneIntervals.length;

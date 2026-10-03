@@ -2,7 +2,7 @@ import { normalizeStreetOrdinal } from './street-ordinal';
 import { cleanServiceAddressForVerification } from './junkware-address-text';
 // Formatting aliases do not change the house, road number, direction or locality.
 const aliases: Record<string,string> = { STREET:'ST',STR:'ST',ROAD:'RD',AVENUE:'AVE',AV:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',PKY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',SQUARE:'SQ',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W',SAINT:'ST',NORTHEAST:'NE',NORTHWEST:'NW',SOUTHEAST:'SE',SOUTHWEST:'SW' };
-export const normalizeServiceAddress = (text: string) => normalizeStreetOrdinal(text.toUpperCase().replace(/\bLP\b/g,'LOOP').replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ')
+export const normalizeServiceAddress = (text: string) => normalizeStreetOrdinal(text.toUpperCase().replace(/(?<=[A-Z])['’‘ʼ](?=[A-Z])/g,'').replace(/\bLP\b/g,'LOOP').replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ')
   .replace(/\b(?:LOUISIANA|LA|STATE) (?:HWY|ROUTE|RTE|RT) (\d+)\b/g,'LA $1')
   // Louisiana parish/provider records commonly spell a source "Highway 59"
   // as "State Highway 59". Treat those as the same numbered state route, but

@@ -203,3 +203,19 @@ instructions to use the CSV instead. The separate [scheduled payroll delivery](p
 full report with flags at 8 a.m. Central on the Monday after each biweekly
 period ends. It uses the existing Mail account through the Codex schedule.
 No test report is sent to the real recipients.
+
+## Selective historical publication
+
+The existing publisher accepts `--month=YYYY-MM` to publish one saved month and
+read back its existing Cloudflare KV key. The default remains latest-month-only;
+`--all` remains explicit. Invalid, missing or conflicting month selectors fail
+before contacting the remote. Historical payroll corrections need publication
+of their month; an October-only success receipt does not establish that a
+September correction reached the crew portal.
+
+After specific owner approval, use `npm run sync:crew-portal -- --month=2026-09`
+from the approved checkout with its existing runtime source mappings and existing
+uploader authentication. This command is an external write, not a read or test.
+The selector neither creates credentials/access nor changes credential handling.
+Do not run `--all` to repair one month. Check the month-specific sync receipt and
+remote read-back separately from the actual authenticated served payroll view.

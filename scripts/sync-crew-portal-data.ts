@@ -4,6 +4,7 @@ import path from "path";
 import { publishCrewValue, runCrewWrangler, writeCrewSyncStatus } from "@/lib/crew-portal-sync";
 import { applyPayrollCorrectionsToCrewMetrics } from "@/lib/crew-portal-publication";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
+import { crewPublicationMonths } from "@/lib/crew-publication-months";
 
 const DATA_KEY = "crew-portal-data-v1";
 const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
@@ -57,7 +58,7 @@ async function main(): Promise<string[]> {
   try {
     const monthKeys = [...new Set(dates.map((date) => date.slice(0, 7)))];
     const keys = monthKeys.map((month) => `${DATA_KEY}:${month}`);
-    const monthsToUpload = process.argv.includes("--all") ? monthKeys : monthKeys.slice(-1);
+    const monthsToUpload = crewPublicationMonths(monthKeys, process.argv.slice(2));
     for (const month of monthsToUpload) {
       const index = monthKeys.indexOf(month);
       const monthDates = dates.filter((date) => date.startsWith(month));

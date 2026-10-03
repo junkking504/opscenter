@@ -55,6 +55,14 @@ async function main() {
     duplicateOverrideReason: "",
   };
 
+  const linked = normalizeJunkwareAppointmentCreationInput({...input,sourceEstimateAppointmentId:'12345'});
+  assert.equal(linked.appointmentType,'Job');
+  assert.equal(linked.sourceEstimateAppointmentId,'12345');
+  assert.deepEqual(normalizeJunkwareAppointmentCreationInput(linked),linked);
+  assert.throws(()=>normalizeJunkwareAppointmentCreationInput({...input,sourceEstimateAppointmentId:'invalid'}));
+  const {desktopCreationIdentity}=await import('@/lib/desktop-creation');
+  assert.equal(desktopCreationIdentity(linked),desktopCreationIdentity({...linked,startTime:'10:00'}),'Unresolved native estimate bookings must block replay even if the time changes');
+  assert.notEqual(desktopCreationIdentity(linked),desktopCreationIdentity({...linked,sourceEstimateAppointmentId:'12346'}));
   const normalized = normalizeJunkwareAppointmentCreationInput(input);
   const customerSelection = { query: 'Test Customer', key: 'a'.repeat(64) };
   assert.deepEqual(normalizeJunkwareAppointmentCreationInput({ ...input, customerSelection }).customerSelection, customerSelection);

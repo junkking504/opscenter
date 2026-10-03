@@ -21,6 +21,7 @@ export type ScheduleOperationalStop = {
   startMinutes: number;
   endMinutes: number;
   ongoing: boolean;
+  groupedVisits?: number;
 };
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
@@ -179,7 +180,7 @@ export function addressResolutionCopy(reason?: string) {
   if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };
   if (/provider|temporarily unavailable|usage guard/i.test(reason || '')) return { title: 'Location check delayed', detail: 'The verified-address sources are unavailable; OpsCenter will retry automatically.' };
   if (/multiple|conflicting/i.test(reason || '')) return { title: 'Address needs confirmation', detail: 'More than one premises matches. Confirm the complete service address before dispatch.' };
-  if (/no exact .*premises match|precise service location unavailable/i.test(reason || '')) return { title: 'Precise pin required', detail: 'The address may be real but is not mapped to an exact premises point. Get a customer or crew location pin before dispatch.' };
+  if (/no exact .*premises match|precise service location unavailable/i.test(reason || '')) return { title: 'Locating automatically…', detail: 'The map providers have not returned this exact property yet. OpsCenter will retry automatically.' };
   return { title: 'Address needs correction', detail: 'The house number and street could not be verified. Confirm the service address before dispatch.' };
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
@@ -239,12 +240,7 @@ export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, no
 }
 export function scheduleStandaloneOperationalStops(stops: ScheduleOperationalStop[], jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
   const lane = truckLabel(truck);
-  const dumpGaps = jobs.flatMap(job => {
-    const window = timelineWindow(job,lane,now);
-    return window?.gaps.filter(gap=>gap.kind==='dump') || [];
-  });
-  return stops.filter(stop => truckLabel(stop.truck) === lane
-    && !(stop.kind === 'dump' && dumpGaps.some(gap => stop.startMinutes >= gap.start && stop.startMinutes <= gap.end)))
+  return stops.filter(stop => truckLabel(stop.truck) === lane)
     .sort((a,b)=>a.startMinutes-b.startMinutes || a.id.localeCompare(b.id));
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
@@ -266,7 +262,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
       const start = Math.max(0,local(visit.arrival));
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
-      return Number.isFinite(start) && Number.isFinite(end) && end>=start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
     if (!intervals.length) {
       // GPS history belongs to the truck that physically visited the address. It
@@ -347,7 +343,7 @@ export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<ty
   const window = timelineWindow(job, truck, now);
   if (!window) return null;
   const place = (row: {start:number;end:number}) => ({ left: (row.start - range.start) / range.duration, width: Math.max(0,row.end-row.start) / range.duration });
-  return { ...window, ...place(window), segments: window.intervals.map(place), gapSegments: window.gaps.map(place) };
+  return { ...window, ...place(window), rangeDuration: range.duration, segments: window.intervals.map(place), gapSegments: window.gaps.map(place) };
 }
 
 export type ScheduleFollowupFlags = { estimates: boolean; closed: boolean; unclosed: boolean; photos: boolean; linkedBooking: ScheduleAppointment | null };

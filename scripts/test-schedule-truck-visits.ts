@@ -73,3 +73,25 @@ const shortActive={...job,truckVisits:scheduleTruckVisits(job,shortLedger,[short
 assert.equal(timelineWindow(shortActive,'Truck 3',now+25*60_000)?.end,805,'Parking-speed shutdown keeps the actual block growing through the parked reporting interval');
 assert.equal(timelineWindow(shortActive,'Truck 3',now+25*60_000)?.intervals[0].complete,false,'An active truck visit never receives the departed checkmark');
 console.log('Truck visit blocks passed: per-truck intervals, split trips, active growth, stale stop, assignment changes, duplicates, identity, invalid evidence and unchanged sources.');
+
+// A tracker may create several short observations of a single appointment.
+// Their minimum-width cards must pack independently on a narrow desktop board.
+const fragmented={...job,truckVisits:[
+  {truck:'Truck 8',arrival:'2026-09-14T16:16:00Z',observedThrough:'2026-09-14T16:31:00Z'},
+  {truck:'Truck 8',arrival:'2026-09-14T16:36:00Z',observedThrough:'2026-09-14T16:48:00Z'},
+  {truck:'Truck 8',arrival:'2026-09-14T17:48:00Z',observedThrough:'2026-09-14T17:48:00Z'},
+]} as ScheduleAppointment;
+const fragmentedLayout=scheduleTravelLayout([fragmented],[],range,'Truck 8',now,450,true);
+const fragments=fragmentedLayout.placed[0];
+assert.notEqual(fragments.segmentLanes[0],fragments.segmentLanes[1],'Same-job GPS cards cannot overlap at their rendered minimum width');
+const leg={truck:'Truck 8',fromAppointmentId:job.recordId,toAppointmentId:job.recordId,fromJk:'JK1',toJk:'JK1',travelMinutes:10,miles:4.4,gapMinutes:0} as Parameters<typeof scheduleTravelLayout>[1][number];
+const travel=scheduleTravelLayout([fragmented],[leg,{...leg}],range,'Truck 8',now,450,true);
+assert.notEqual(travel.connectors[0].labelTop,travel.connectors[1].labelTop,'Overlapping travel labels use separate rows');
+assert.ok(travel.connectors.every(c=>c.top+c.labelTop>=travel.laneCount*travel.laneStep),'Travel labels sit below all appointment lanes');
+console.log('Fragmented same-job visits and crowded travel labels use independent collision lanes.');
+
+const zeroClosed={...ledger[0],visit_intervals:[{arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T14:00:00Z'}]};
+assert.equal(scheduleTruckVisits(job,[zeroClosed],[],[job],now).length,0,'Identical closed timestamps do not establish a visit');
+const invalidHistorical={...job,truckVisits:[{truck:'Truck 8',arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T14:00:00Z',observedThrough:'2026-09-14T14:00:00Z'}]};
+assert.equal(timelineWindow(invalidHistorical,'Truck 8',now)?.actual,false);
+assert.equal(timelineWindow(invalidHistorical,'Truck 8',now)?.start,480,'Invalid historical visit retains the booked window');

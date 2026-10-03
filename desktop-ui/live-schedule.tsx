@@ -1,9 +1,12 @@
+import EstimateBooking from './estimate-booking';
 import {ScheduleCrewRoster} from './schedule-crew-roster';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import ScheduleVisitBlock from './schedule-visit-block';
 import ScheduleVisitGap from './schedule-visit-gap';
 import ScheduleOperationalStopBlock from './schedule-operational-stop';
+import ScheduleRecordedSequence from './schedule-recorded-sequence';
+import { groupNearbyHqStops } from './lib/schedule-recorded-sequence';
 import ScheduleColocatedVisitConnectors from './schedule-colocated-visit-connectors';
 import { workspaceReady } from './navigation-performance';
 import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
@@ -31,7 +34,7 @@ import { AlertPhotos } from './components/alert-details';
 import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-tabs';
 import ScheduleMap from './schedule-map';
 import ScheduleRouteConnector from './schedule-route-connector';
-import { scheduleViewportLayout } from './lib/schedule-viewport-layout';
+import {scheduleViewportLayout} from './lib/schedule-viewport-layout';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import { scheduleOperationalStopLayout } from './lib/schedule-operational-stop-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -45,6 +48,7 @@ import './live-schedule.css';
 import './schedule-board.css';
 import './schedule-selection.css';
 import './schedule-hierarchy.css';
+import './schedule-viewport.css';
 import { AppointmentRegisterRow } from './appointment-register-row';
 import { schedulePayment } from './lib/schedule-payment';
 import { SourceEstimateSummary } from './source-estimate';
@@ -58,7 +62,7 @@ const slug = (value: string) => value.toLowerCase().replaceAll(' ', '-');
 const clock = (minutes: number) => { const whole = Math.floor(minutes) % 1440; return `${Math.floor(whole / 60) % 12 || 12}${whole % 60 ? ':' + String(whole % 60).padStart(2, '0') : ''} ${whole >= 720 ? 'PM' : 'AM'}`; };
 export const dateForDay = (base: string, day: Day) => { const date = new Date(`${base}T12:00:00Z`); if (day === 'tomorrow') date.setUTCDate(date.getUTCDate() + 1); return date.toISOString().slice(0, 10); };
 const crew = (job: ScheduleAppointment) => [job.driver, job.navigator, ...(job.additionalCrew || [])].filter(value => value && !/^—$|^unknown$/i.test(value)).join(' · ') || 'Crew Not Available';
-function Address({ value }: { value: string }) { return value ? <strong className="google-maps-address-shell"><a className="google-maps-address" target="_self" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(value))}`}>{value}</a></strong> : <span>Address Unavailable</span>; }
+function Address({ value }: { value: string }) { return value ? <strong className="google-maps-address-shell"><a className="google-maps-address" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(value))}`}>{value}</a></strong> : <span>Address Unavailable</span>; }
 function PartnerBadge({ job }: { job: ScheduleAppointment }) { const partner = appointmentPartner(job); return partner ? <span className="appointment-partner-badge">{partner.name}</span> : null; }
 function Phone({ value }: { value: string }) { const digits = value.replace(/\D/g, ''); return digits.length >= 7 ? <span className="phone-contact"><a className="phone-link" href={`tel:${digits.length === 10 ? '+1' : '+'}${digits}`}>{value}</a></span> : <small>Phone Unavailable</small>; }
 
@@ -125,11 +129,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   useEffect(() => { if (snapshot && !mapOnly) workspaceReady('Schedule'); }, [snapshot,mapOnly]);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
   const [timelineWidth,setTimelineWidth]=useState<number>();
+  const [mobileTimeline,setMobileTimeline]=useState(false);
   const appointmentRegisterRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const board = boardLayoutRef.current;
     if (!board || mapOnly || view !== 'board') return;
     const fit = () => {
+      setMobileTimeline(window.innerWidth <= 900);
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
       // Reserve the 44px list jump banner, its 8px top gap, and 24px below it.
       const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
@@ -138,8 +144,6 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const rows = [...board.querySelectorAll<HTMLElement>('[data-schedule-truck]')];
       const measuredTimelineWidth=rows[0]?.querySelector<HTMLElement>('.live-truck-timeline')?.clientWidth;
       if (measuredTimelineWidth && measuredTimelineWidth > 0) setTimelineWidth(current=>current===measuredTimelineWidth?current:measuredTimelineWidth);
-      const title = board.querySelector<HTMLElement>('.schedule-board-shell > .section-title');
-      const header = board.querySelector<HTMLElement>('.schedule-time-row');
       const natural = rows.map(row => Number(row.dataset.naturalHeight));
       const labels = rows.map(row => {
         const cell = row.querySelector<HTMLElement>('.schedule-truck-cell')!;
@@ -147,21 +151,27 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
         return Math.ceil(Math.max(20, ...content.map(label => label.offsetHeight)) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
       });
-      const available = parseFloat(height) - (title?.offsetHeight || 0) - (header?.offsetHeight || 0) - 8;
-      const layout = window.innerWidth >= 1000 ? scheduleViewportLayout(natural, labels, available) : { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i])) };
+      const shell = board.querySelector<HTMLElement>('.schedule-board-shell');
+      const titleHeight = shell?.querySelector<HTMLElement>(':scope > .section-title')?.offsetHeight || 30;
+      const rulerHeight = board.querySelector<HTMLElement>('.schedule-time-row')?.offsetHeight || 30;
+      const available = Math.max(0, parseFloat(height) - titleHeight - rulerHeight - 4);
+      const layout = window.innerWidth >= 1000
+        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available)
+        : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
         row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
-        row.toggleAttribute('data-condensed', layout.scale < .72);
+        row.removeAttribute('data-condensed');
       });
     };
     const observer = new ResizeObserver(fit);
     document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
+    board.querySelectorAll('.live-truck-timeline').forEach(element => observer.observe(element));
     window.addEventListener('resize', fit);
     fit();
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
-  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth]);
+  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   useEffect(() => {
@@ -169,6 +179,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     let pending = false;
     let reloadQueued = false;
     const load = async () => {
+      if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) { reloadQueued = true; return; }
       pending = true;
       try {
@@ -219,6 +230,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const abort = new AbortController();
     let pending = false;
     const load = async () => {
+      if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) return;
       pending = true;
       setRouteState('Loading Route Estimates');
@@ -234,8 +246,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     };
     setRouting(null);
     void load();
+    const resume = () => { void load(); };
+    document.addEventListener('visibilitychange', resume);
     const timer = window.setInterval(() => { void load(); }, 120_000);
-    return () => { abort.abort(); window.clearInterval(timer); };
+    return () => { abort.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
   }, [date, selectedId, routingKey, mapOnly]);
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -460,7 +474,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (routeState || routing?.appointmentId !== job.recordId) return 'Closest truck: checking current distance…';
     const closest = closestTruckFor(job);
     return closest
-      ? `Closest truck now: ${truckLabel(closest.truck)} · ${closest.minutes} min · ${closest.miles} mi`
+      ? `Closest truck now: ${truckLabel(closest.truck)} · ${closest.minutes} min`
       : 'Closest truck: unavailable from the current address/GPS data';
   };
   const safeSourceHref = (job: ScheduleAppointment) => { try { const url = new URL(job.appointmentUrl); return /^https?:$/.test(url.protocol) ? url.href : null; } catch { return null; } };
@@ -472,9 +486,6 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
       <div className="schedule-control-actions"><div className="schedule-search-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} />{addAppointmentAction}<ScheduleCrewRoster key={date} date={date} busy={operationBusy} /></div><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button></div>
     </div>}
-    {snapshot.sourceRequest?.state !== 'ready' && snapshot.sourceRequest?.message && <p className="live-schedule-status" role="status">{snapshot.sourceRequest.message} {snapshot.appointments.length ? 'Showing the available records while the date is checked.' : 'The appointment count is not yet verified.'}</p>}
-    {linkNotice && <p className="live-schedule-status" role="status">{linkNotice}</p>}
-    {snapshot.assignmentRecoveryNotices?.map(notice => <p key={notice.requestId} className="live-schedule-status" role="status">{jobs.find(job => job.recordId === notice.recordId)?.jkNumber}: {notice.message}</p>)}
     {view === 'board' && <>{!mapOnly && <div className="schedule-summary-strip">{[
       ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => scheduleDisplayTruck(job) === 'Unassigned').length], ['verify', 'Location pending', jobs.filter(needsScheduleAddressVerification).length],
     ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
@@ -491,7 +502,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         </div>
           {selectedTruck && <section className="live-map-truck-details live-map-truck-card" aria-label={truckDisplayText(`${selectedTruck} details`)}>
             <header><strong>{truckDisplayText(selectedTruck)}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
-            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={truckDisplayText(`View live video for ${selectedTruck}`)}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_self" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
+            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={truckDisplayText(`View live video for ${selectedTruck}`)}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
             <dl><TruckTelemetry truck={truckDetails} /><TruckPosition truck={truckDetails} /><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{snapshot.fleet.isToday && truckGps.stale ? truckGps.status : truckDetails?.operationalStatus || 'GPS unavailable'}{truckDetails?.serviceStatus && truckDetails.serviceStatus !== 'Unavailable' ? ` · ${truckDetails.serviceStatus}` : ''}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}{Number.isFinite(truckGpsAge) && truckGpsAge > 0 ? ` · ${Math.floor(truckGpsAge / 60_000)}m since report` : ''}{truckDetails?.ignition && truckDetails.ignition !== 'Unavailable' ? ` · Last ignition: ${truckDetails.ignition}` : ''}</dd></div></dl>
 
             {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
@@ -504,33 +515,36 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(needsScheduleAddressVerification).length} appointments need verified coordinates</span><span>Locators are centered on their recorded locations.</span></div>}
         </aside>
       </section>}
-      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
-        <div className="schedule-board-scroll"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
+      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleRecordedSequence jobs={jobs} stops={snapshot.operationalStops || []} trucks={truckNames} now={now.getTime()} select={selectAppointment} /><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
+        <p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
             const compactTimeline=truckNames.length>=10;
-            const { placed, laneStep, rowHeight: travelHeight, connectors, occupiedLanes } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth,compactTimeline);
-            const rowStops=scheduleStandaloneOperationalStops(snapshot.operationalStops || [],rowJobs,truck,now.getTime());
+            const { placed, laneStep, rowHeight: travelHeight, connectors, occupiedLanes } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range, truck, now.getTime(), timelineWidth,compactTimeline,mobileTimeline);
+            const groupedStops=groupNearbyHqStops((snapshot.operationalStops || []).filter(stop=>truckLabel(stop.truck)===truck),rowJobs,truck,now.getTime());
+            const rowStops=scheduleStandaloneOperationalStops(groupedStops,rowJobs,truck,now.getTime());
             const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth,occupiedLanes);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,(stopLayout.laneCount-1)*laneStep+(compactTimeline?30:42))+(hasProgress&&!compactTimeline?10:0)) : 32;
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,rowStops.length ? (stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:22) : 0)) : 32;
+            const totalRowHeight = rowHeight + (hasProgress ? 23 : 0);
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
-            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={rowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${rowHeight}px)`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
+            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={totalRowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${totalRowHeight}px)`, '--schedule-row-min-height': `${totalRowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
-              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, lane }) => [
-                ...position.gapSegments.map((segment,gapIndex)=><ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={lane*laneStep+2} />),
-                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} top={lane*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
+              <div className="schedule-timeline-content">{placed.flatMap(({ job, position, segmentLanes, gapLanes }) => [
+                ...position.gapSegments.flatMap((segment,gapIndex)=>position.gaps[gapIndex].kind==='dump' && rowStops.some(stop=>stop.kind==='dump' && stop.startMinutes>=position.gaps[gapIndex].start && stop.startMinutes<=position.gaps[gapIndex].end) ? [] : <ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={gapLanes[gapIndex]*laneStep+2} />),
+                ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} mobile={mobileTimeline} top={segmentLanes[segmentIndex]*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
               ])}
 
-              {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
+              {connectors.filter(connector=>!groupedStops.some(stop=>stop.startMinutes>=connector.from.position.end && stop.endMinutes<=connector.to.position.start)).map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {stopLayout.placements.map(({stop,lane})=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={lane*laneStep+2} />)}
-              {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
-            </div></div></div>;
+            </div>
+              {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
+            </div></div>;
           })}
           <ScheduleColocatedVisitConnectors refreshKey={`${snapshot.observedAt || ''}:${now.getTime()}:${truckNames.join(',')}`} appointments={jobs} trucks={snapshot.fleet.isToday?snapshot.fleet.trucks:[]} now={now.getTime()} />
         </div></div>
@@ -554,7 +568,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
                 const leg = routeTo(job.recordId);
                 return <AppointmentRegisterRow key={job.recordId} job={job} area={area} selected={selectedId === job.recordId}
                   warning={needsReview ? reason : mismatch ? `JunkWare franchise: ${sourceTerritory} · address-based territory` : undefined}
-                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.travelMinutes} min · ${leg.miles} mi`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
+                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.travelMinutes} min`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
                   proximity={closestTruckText(job)} select={() => selectAppointment(job.recordId)} open={() => setDrawerId(job.recordId)} />;
               })}
             </section>;
@@ -567,7 +581,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     {view === 'history' && <ScheduleHistory date={date} jobs={jobs} open={setDrawerId} />}
     {view === 'followup' && <ScheduleFollowup jobs={jobs} open={setDrawerId} />}
     {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} background={startBackgroundCreation} onBusyChange={onOperationBusyChange} />}
-    {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p>{scheduleCustomerLabel(drawer)}</p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><div className="record-drawer-body"><AppointmentCloseout key={`closeout:${date}:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /><SourceEstimateSummary job={drawer} showPhotos /><section className="drawer-facts" aria-label="Record details">{[
+    {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p>{scheduleCustomerLabel(drawer)}</p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><div className="record-drawer-body"><AppointmentCloseout key={`closeout:${date}:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /><SourceEstimateSummary job={drawer} showPhotos />{appointmentCategory(drawer)==='Estimate' && !/cancel/i.test(drawer.status) && drawer.appointmentId && <EstimateBooking key={`booking:${drawer.appointmentId}`} estimate={{id:drawer.appointmentId,jk:drawer.jkNumber,customer:drawer.customerName,phone:drawer.phone,address:drawer.address,territory:drawer.territory}} saved={refresh} onBusyChange={onOperationBusyChange}/> }<section className="drawer-facts" aria-label="Record details">{[
       ['Appointment ID', drawer.appointmentId || 'Unavailable'], ['Time', drawer.appointmentTime], ['Customer', scheduleCustomerLabel(drawer)], ['Phone', <Phone key="phone" value={drawer.phone} />], ['Email', drawer.customerEmail || 'Not Recorded'], ['Address', <Address key="address" value={appointmentServiceAddress(drawer)} />], ['Truck', scheduleDisplayTruck(drawer)], ['Krewe', crew(drawer)], ['Category', appointmentCategory(drawer)], ['Status', appointmentStatus(drawer)], ['Work', (drawer.pickupItems?.length ? drawer.pickupItems : drawer.junkItems).join(' · ') || 'Not Recorded'], [schedulePayment(drawer).label, schedulePayment(drawer).amount || (schedulePayment(drawer).label === 'Estimate open' ? 'No quote recorded' : 'See payment detail')], ['Payment detail', [...schedulePayment(drawer).details, schedulePayment(drawer).balance].filter(Boolean).join(' · ') || 'Not recorded'], ['Tip', money(drawer.closeout?.tip ?? drawer.tipAmount)],
     ].map(([label, value]) => <div key={String(label)}><span>{label}</span><strong>{truckDisplayText(String(value || 'Unavailable'))}</strong></div>)}{scheduleTruckMismatch(drawer) && <div><span>JunkWare truck</span><strong>{truckDisplayText(scheduleTruckMismatch(drawer)!.junkwareTruck)}</strong></div>}{['Completed', 'Estimate Closed'].includes(appointmentStatus(drawer)) && onsiteTimeFacts(displayedOnsiteTime(drawer) || {minutes:null,arrival:null,departure:null,label:'Unavailable · no confirmed visit'}).map(fact=><div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}</section><AppointmentNotes notes={drawer.appointmentNotes} />{<AlertPhotos photos={drawer.photos?.filter(photo => !drawer.sourceEstimate?.photos.some(estimatePhoto => estimatePhoto.url.split('?')[0] === photo.url.split('?')[0]))} />}<AppointmentReschedule key={'reschedule:'+drawer.recordId} job={drawer} date={date} saved={destination => { setRescheduleNotice({date:destination,jk:drawer.jkNumber}); refreshSourceDate.current=date; refresh(); }} onBusyChange={onOperationBusyChange} onOpenDate={onOpenDate ? destination => { setDrawerId(null); onOpenDate(destination); } : undefined} /><ScheduleControls key={drawer.recordId} job={drawer} date={date} trucks={truckNames} saved={refresh} onBusyChange={onOperationBusyChange} onMove={proposal => commitScheduleMove(scheduleMoveProposal(proposal.job, proposal.truck, proposal.start, jobs))} /><AppointmentClassification key={`type:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /></div><footer className="record-drawer-actions"><div className="closeout-footer-slot" />{(!isClosed(drawer) || /cancel(?:ed|led)/i.test(drawer.status)) && <Button className="drawer-reschedule-shortcut" variant="outline" size="action" disabled={operationBusy} onClick={() => { document.getElementById("appointment-reschedule")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-reschedule-date")?.focus({preventScroll:true}); }}>{/cancel(?:ed|led)/i.test(drawer.status)?'Restore Appointment':'Reschedule Appointment'}</Button>}{!isClosed(drawer) && <Button className="drawer-cancel-shortcut" variant="outline" size="action" disabled={operationBusy} onClick={() => { document.getElementById("appointment-cancellation")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-cancellation-reason")?.focus({preventScroll:true}); }}>Cancel Appointment</Button>}<Button variant="outline" size="action" disabled={operationBusy} onClick={() => setDrawerId(null)}>Close</Button>{safeSourceHref(drawer) && <Button variant="brand" size="action" onClick={() => window.location.assign(safeSourceHref(drawer)!)}>Open in JunkWare <ArrowRight /></Button>}</footer></aside></>}
   </section></TruckCameraController>;

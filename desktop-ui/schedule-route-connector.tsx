@@ -8,15 +8,15 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
   const id = useId();
   const { leg } = c;
   const unavailable = unavailableRoute(leg, jobs);
-  const estimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes}m${leg.miles === null ? '' : ` · ${leg.miles}mi`}`;
-  const hoverEstimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes} min${leg.miles === null ? '' : ` · ${leg.miles} mi`}`;
+  const estimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes}m`;
+  const hoverEstimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes} min`;
   const orderLabel = c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
   const label = `${leg.fromJk} → ${leg.toJk}: ${estimate} · ${orderLabel}`;
   return <>
-    <div className={`schedule-route-connector ${c.vertical ? 'vertical' : 'horizontal'}${c.reverse ? ' reverse' : ''}${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${c.width * 100}%`, top: c.top, height: c.height }}>
+    <div className={`schedule-route-connector ${c.vertical ? 'vertical' : 'horizontal'}${c.reverse ? ' reverse' : ''}${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${Math.max(c.width,.0001) * 100}%`, top: c.top, height: c.height }}>
       {c.path ? <><svg className="route-connector-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg><svg className="route-connector-hit-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg></> : <><i className="route-connector-line" aria-hidden="true" /><i className="route-connector-hover-target" aria-hidden="true" /></>}<i className="route-connector-arrow" style={c.path ? { top: c.arrowTop } : undefined} aria-hidden="true">{c.vertical ? c.reverse ? '↑' : '↓' : c.reverse ? '←' : '→'}</i>
-      <button type="button" className="route-connector-label" style={{ top: c.labelTop }} popoverTarget={id} title={label} aria-label={label} aria-describedby={`${id}-tooltip`}>
-        {leg.travelMinutes === null ? <span>ETA ?</span> : <><span>{leg.travelMinutes}m</span>{leg.miles !== null && <span className="route-connector-miles"> · {leg.miles}mi</span>}</>}
+      <button type="button" className="route-connector-label" style={{ top: c.labelTop, left: `${(c.labelLeft-c.left)*100 / Math.max(c.width, .0001)}%`, width: `${c.labelWidth*100 / Math.max(c.width, .0001)}%`, right: 'auto' }} popoverTarget={id} title={label} aria-label={label} aria-describedby={`${id}-tooltip`}>
+        {leg.travelMinutes === null ? <span>ETA ?</span> : <><span>{leg.travelMinutes}m</span></>}
       </button>
       <span id={`${id}-tooltip`} className="route-connector-tooltip" role="tooltip"><strong>Travel</strong> {hoverEstimate}</span>
     </div>

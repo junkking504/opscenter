@@ -229,3 +229,15 @@ The existing shared $10/500-attempt paid address limits, Google API retirement,
 providers, dependencies and checker remain unchanged. Back up the installed
 pair and record the new inventory hash plus the unchanged checker hash in the
 external installation record before production deployment.
+
+## St. Tammany Parish address lookup — approved October 3, 2026
+
+The user explicitly approved adding `maps.stpgov.org` to the protected hostname
+inventory for the free parish address-point preflight, with $0 maximum spend.
+The public endpoint requires no API key, subscription or billing account. It
+uses the existing parish request reservation and cache. The reviewed Geocodio
+verifier change classifies nearest-house suggestions as missing exact coverage
+instead of competing exact premises; it does not accept those suggestions.
+Only that module pin changes. The checker, Geocodio transport, all paid limits,
+other hostnames and dependencies remain unchanged. Back up the installed pair,
+record checksums and preserve read-only permissions when installing approval.

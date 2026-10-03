@@ -633,3 +633,13 @@ revenue rank, jobs, revenue per hour, and the driving breakdown. Both views
 share name/truck search and All crew, Needs attention, and Unassigned filters.
 Summary cards continue to describe the full day's crew; filtered counts are
 shown beside the roster heading. Source issues appear on the employee's row.
+## Schedule opening performance
+
+The selected Schedule request starts alongside desktop shell rendering, before
+Command preparation. The mounted Schedule joins the same authenticated request;
+normal refresh, mutation invalidation and source-error handling still apply.
+Truck-load carry-forward history keeps up to eight date/source-version entries
+so today and tomorrow do not evict one another. Entries retain the existing
+30-second expiry, and selected-day evidence is read on every request.
+Hidden tabs suppress arrival-triggered reads and Schedule/route polling. Becoming
+visible immediately requests current data, rather than replaying missed hints.

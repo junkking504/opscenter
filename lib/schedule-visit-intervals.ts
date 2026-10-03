@@ -22,7 +22,7 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
       if (!Number.isFinite(start) || start > now) continue;
       const departure = interval.departure_confirmed === false ? null : interval.departure || null;
       const end = departure ? Date.parse(departure) : Math.max(start, ...(interval.source_timestamps || []).map(Date.parse).filter(t => Number.isFinite(t) && t >= start && t <= now));
-      if (!Number.isFinite(end) || end < start || end > now) continue;
+      if (!Number.isFinite(end) || (departure ? end <= start : end < start) || end > now) continue;
       result.push({truck,arrival:new Date(start).toISOString(),departure:departure ? new Date(end).toISOString() : null,observedThrough:new Date(end).toISOString()});
     }
   }

@@ -207,8 +207,16 @@ export function readOperationalTruckLoads(date: string, trucks: string[] = [], j
     }
     previous=[];
     for (const day of [...dates].sort()) previous=readLoadDay(day,[],store.events,previous);
-    historyCache.clear();
+    // Today, tomorrow and other workspaces share this reader. Keep their
+    // independent histories warm instead of replaying every prior day each
+    // time the selected date alternates. Historical corrections still expire
+    // after 30 seconds; the selected day's evidence is always read below.
+    for (const [entryKey, entry] of historyCache) {
+      if (Date.now()-entry.at>=30_000) historyCache.delete(entryKey);
+    }
+    historyCache.delete(key);
     historyCache.set(key,{at:Date.now(),loads:previous});
+    while (historyCache.size>8) historyCache.delete(historyCache.keys().next().value!);
   }
   return readLoadDay(date,names,store.events,previous,jobs).map(load=>load.events.length ? load : {...load,needsVerification:true,displayLoadLabel:'Load unknown',verificationNote:'No load baseline or unload is recorded. A current observation is required to establish onboard capacity.'});
 }

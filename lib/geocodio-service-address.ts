@@ -28,8 +28,6 @@ export function verifyGeocodioAddress(address: string, payload: unknown): Addres
   // Never select the first result or remove competing candidates to create
   // apparent certainty. A high score alone is not premise-level evidence.
   if (!Array.isArray(rows) || !rows.length) return unavailable;
-  // Nearby-house suggestions are missing coverage, not competing exact premises.
-  if (rows.every(row => row?.accuracy_type === 'nearest_rooftop_match')) return unavailable;
   if (rows.length !== 1) return { location: null, reason: 'Multiple Geocodio Address Matches' };
   const row = rows[0], a = row?.address_components;
   if (!a || Object.values(a).some(value => typeof value !== 'string')

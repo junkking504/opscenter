@@ -60,7 +60,6 @@ async function main() {
       assert.equal(verifyGeocodioAddress(address, { results: [{ ...row, address_components: { ...row.address_components, ...change } }] }).location, null);
     }
     assert.equal(verifyGeocodioAddress(address, { results: [row, row] }).location, null);
-    assert.equal(verifyGeocodioAddress(address, { results: [row, row].map(r => ({ ...r, accuracy_type: 'nearest_rooftop_match' })) }).reason, 'No Exact Geocodio Premises Match');
     assert.equal(geocodioAddressQuery('100 Example Loop or 200 Other St, Madisonville, 70447'), null);
     assert.equal(geocodioAddressQuery('Business Name, 100 Example Loop Apt 4, Madisonville, 70447'), '100 Example Loop Madisonville, LA 70447');
     assert.equal(await request(), null); assert.equal(calls, 0);
@@ -100,7 +99,6 @@ async function main() {
     globalThis.fetch = async input => {
       const url = new URL(String(input));
       if (url.hostname === 'api.geocod.io') { geocodioCalls++; return new Response(JSON.stringify(payload)); }
-      if (url.hostname === 'maps.stpgov.org') return new Response(JSON.stringify({ spatialReference: { wkid: 4326 }, features: [] }));
       assert.equal(url.hostname, 'geocoding.geo.census.gov');
       return new Response(JSON.stringify({ result: { addressMatches: [
         { matchedAddress: '100 OTHER ST, MADISONVILLE, LA, 70447', coordinates: { x: -90.2, y: 30.4 } },

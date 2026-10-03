@@ -1,5 +1,5 @@
 import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-order';
-import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
+import { scheduleStatusTone, timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
@@ -55,7 +55,17 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
 
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now(), timelineWidth?: number, compact = false, mobile = false) {
   const lanes: Array<Array<{ left: number; right: number }>> = [];
-  const placed = stackOrderedPlacements(jobs,range,truck,now).map(({job,position}) => {
+  const ordered = stackOrderedPlacements(jobs,range,truck,now);
+  const separateCanceled = truck === 'Unassigned';
+  const isCanceled = (job: ScheduleAppointment) => scheduleStatusTone(job) === 'canceled';
+  const placements = separateCanceled
+    ? [...ordered.filter(item => !isCanceled(item.job)), ...ordered.filter(item => isCanceled(item.job))]
+    : ordered;
+  let canceledLaneStart: number | undefined;
+  const placed = placements.map(({job,position}) => {
+    // Cancellations stay below every active appointment, even at different times.
+    if (separateCanceled && isCanceled(job)) canceledLaneStart ??= lanes.length;
+    const firstLane = canceledLaneStart ?? 0;
     // Render and pack the same fifteen-minute minimum footprint.
     const minimumFraction = scheduleBlockMinimumWidth(range.duration);
     const footprints = position.segments.map(segment => ({
@@ -64,7 +74,7 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     }));
     // Pack every segment, including segments belonging to the same job.
     const segmentLanes = footprints.map(footprint => {
-      let lane = lanes.findIndex(intervals => intervals.every(
+      let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(
         interval => footprint.right <= interval.left || footprint.left >= interval.right,
       ));
       if (lane < 0) lane = lanes.length;
@@ -73,7 +83,7 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     });
     const gapLanes = position.gapSegments.map((segment,index) => {
       const footprint = {left:segment.left,right:segment.left+(position.gaps[index].kind==='dump' ? 24/(timelineWidth || 640) : segment.width)};
-      let lane = lanes.findIndex(intervals => intervals.every(interval =>
+      let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(interval =>
         footprint.right <= interval.left || footprint.left >= interval.right,
       ));
       if (lane < 0) lane = lanes.length;

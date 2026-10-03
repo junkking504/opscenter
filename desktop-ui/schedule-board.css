@@ -368,3 +368,5 @@
 
 /* Appointment lanes share their edges; vertical padding must not reopen gaps. */
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment { padding-block: 0; margin-block: 0; border-radius: 0; }
+
+.ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment.status-canceled { opacity: .5; }

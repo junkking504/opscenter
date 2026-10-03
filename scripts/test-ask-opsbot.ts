@@ -92,6 +92,8 @@ async function main() {
   assert.match(inference.answer,/Private Employee Name leads/);
   assert(!JSON.stringify(inferenceRequests).includes('Private Employee Name'));
   assert.match(String(inferenceRequests[0].instructions),/Infer the business intent/);
+  assert.match(String(inferenceRequests[0].instructions),/America\/Chicago/);
+  assert.match(String(inferenceRequests[0].instructions),/Convert ISO timestamps/);
   assert.match(JSON.stringify(inferenceRequests[0].tools),/read_employee_performance/);
   console.log('Ask OpsBot: approval shape, durable 50-question ledger, bounded tool loop, sources, and token accounting passed.');
 }

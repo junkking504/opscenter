@@ -217,6 +217,17 @@ async function cachedRouting<T>(keyParts: unknown, read: () => Promise<T>): Prom
   return result;
 }
 
+// Selected proximity must not wait for other appointments' address checks,
+// route legs or truck-progress estimates. The board already verifies its pin.
+export async function readDesktopClosestTrucks(date: string, recordId: string) {
+  const snapshot = readDesktopSchedule(date);
+  const target = snapshot.appointments.find(job => job.recordId === recordId);
+  if (!target) return null;
+  const closest = await cachedRouting(['closest', date, target.recordId, target.location, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday));
+  if (closest.data.some(row => row.status === 'routing_unavailable') && !closest.data.some(row => row.status === 'available')) throw new Error('Road estimates unavailable');
+  return { date, appointmentId: target.recordId, closest: closest.data, closestCalculatedAt: closest.calculatedAt, calculatedAt: closest.calculatedAt, legs: [] };
+}
+
 export async function readDesktopScheduleRouting(date: string, recordId: string | null) {
   const snapshot = await readVerifiedDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;

@@ -91,7 +91,7 @@ const point = {
   longitude,
   speed: Number(payload.speed) || 0,
   ignition_state: typeof payload.engineOn === "boolean" ? (payload.engineOn ? "ON" : "OFF") : String(payload.status || ""),
-  heading: payload.heading || payload.direction || null,
+  heading: payload.heading ?? payload.direction ?? null,
   source_record_id: `v3-position-${sourcePositionId}`,
   delivery_source: "v3_position_push",
   received_at: receivedAt,

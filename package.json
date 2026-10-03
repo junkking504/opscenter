@@ -99,6 +99,7 @@
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts && node --import tsx scripts/test-linxup-camera-inventory.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
     "verify:gps-routes": "node --import tsx scripts/test-linxup-route-detail.ts && node --import tsx scripts/test-desktop-gps-route.ts && node --import tsx scripts/test-desktop-street-route.ts && node --import tsx scripts/test-street-route-cache.ts && node --import tsx scripts/test-gps-trip-display.ts && node --import tsx scripts/test-gps-street-progress.ts",
+    "verify:truck-map-heading": "node --import tsx scripts/test-truck-map-heading.ts && node --import tsx scripts/test-truck-telemetry.ts",
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts && node --import tsx scripts/test-cancellation-precedence.ts",
@@ -129,7 +130,7 @@
     "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && node --import tsx scripts/test-maintenance-client-recovery.ts && /usr/bin/python3 scripts/test-process-recovery.py && node --import tsx scripts/test-maintenance-verification-route.ts",
     "verify:workspace-retention": "python3 scripts/test-workspace-retention.py",
     "verify:spending": "node scripts/verify-spending-boundary.mjs && node --import tsx scripts/test-metered-usage-policy.ts && node scripts/test-spending-boundary.mjs && npm run verify:address-research && npm run verify:ask-opsbot",
-    "verify:ask-opsbot": "node --import tsx scripts/test-ask-opsbot.ts && node --import tsx scripts/test-local-crew-revenue-answer.ts && node --import tsx scripts/test-local-territory-demand-answer.ts && node --import tsx scripts/test-local-operations-answer.ts",
+    "verify:ask-opsbot": "node --import tsx scripts/test-ask-opsbot.ts && node --import tsx scripts/test-local-crew-performance-answer.ts && node --import tsx scripts/test-local-crew-revenue-answer.ts && node --import tsx scripts/test-local-territory-demand-answer.ts && node --import tsx scripts/test-local-operations-answer.ts",
     "verify:estimates": "node --import tsx scripts/test-estimate-follow-up.ts",
     "verify:recycling": "node --import tsx scripts/test-recycling-income.ts && node --import tsx scripts/test-recycling-monthly.ts && node --import tsx scripts/test-whatsapp-recycling.ts && node --import tsx scripts/test-recycling-ticket-reconciliation.ts",
     "verify:merchant-evidence": "node --import tsx scripts/test-merchant-center-evidence.ts && python3 scripts/test-merchant-center-snapshot.py && python3 scripts/test-merchant-refresh-runner.py",
@@ -158,7 +159,9 @@
     "verify:photo-review": "node --import tsx scripts/test-desktop-photo-review.ts && node --import tsx scripts/test-photo-review-assignment.ts",
     "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts",
     "verify:payment-crosscheck": "node --import tsx scripts/test-payment-crosscheck.ts && node --import tsx scripts/test-payment-crosscheck-browser.ts",
-    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts"
+    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts",
+    "verify:closest-truck": "node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
+    "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

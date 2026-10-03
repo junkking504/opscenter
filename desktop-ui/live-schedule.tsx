@@ -1,3 +1,4 @@
+import { useRouteEstimate } from './lib/use-route-estimate';
 import EstimateBooking from './estimate-booking';
 import {ScheduleCrewRoster} from './schedule-crew-roster';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -121,10 +122,15 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const operationBusyRef = useRef(false);
   const onOperationBusyChange = useCallback((busy: boolean) => { operationBusyRef.current = busy; setOperationBusy(busy); onBusyChange?.(busy); }, [onBusyChange]);
   const setDrawerId = useCallback((id: string | null) => { if (!operationBusyRef.current) setDrawerIdValue(id); }, []);
-  const [routing, setRouting] = useState<ScheduleRouting | null>(null);
-  const [routeState, setRouteState] = useState('Loading Route Estimates');
   const [now, setNow] = useState(new Date());
   const snapshot = snapshots[date];
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.atJobGpsAt, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
+  const [routing, setRouting] = useState<ScheduleRouting | null>(null);
+  const closestJob = snapshot?.appointments.find(job => job.recordId === selectedId);
+  const closestIdentity = JSON.stringify([closestJob?.recordId, closestJob?.location, closestJob?.status]);
+  const closestUrl = closestJob?.location && snapshot?.fleet.isToday && !isClosed(closestJob)
+    ? `/api/desktop/schedule/routes?${new URLSearchParams({ date, appointment: closestJob.recordId, scope: 'closest' })}` : null;
+  const closestRequest = useRouteEstimate(closestUrl, closestIdentity);
   const hasSnapshot = Boolean(snapshot);
   useEffect(() => { if (snapshot && !mapOnly) workspaceReady('Schedule'); }, [snapshot,mapOnly]);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
@@ -205,7 +211,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const interval = window.setInterval(() => { setNow(new Date()); void load(); }, 15_000);
     return () => { unsubscribe(); abort.abort(); window.clearInterval(interval); };
   }, [baseDate, refreshKey, mapOnly]);
-  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); setRouting(null); }, [date, setDrawerId]);
+  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); }, [date, setDrawerId]);
   useEffect(() => {
     if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current) return;
     // A queued date can initially contain no appointments. Keep the navigation
@@ -224,24 +230,21 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     setSearchQuery(target.query); setLinkNotice(target.notice);
     if (target.recordId) { setSelectedId(target.recordId); setDrawerId(target.recordId); }
   }, [snapshot, date, baseDate, setDrawerId, mapOnly]);
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.atJobGpsAt, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
   useEffect(() => {
-    if (!routingKey || (mapOnly && !selectedId)) return;
+    if (!routingKey || mapOnly) return;
     const abort = new AbortController();
     let pending = false;
     const load = async () => {
       if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) return;
       pending = true;
-      setRouteState('Loading Route Estimates');
       try {
         const query = new URLSearchParams({ date });
-        if (selectedId) query.set('appointment', selectedId);
         const response = await fetch(`/api/desktop/schedule/routes?${query}`, { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.any([abort.signal, AbortSignal.timeout(60_000)]) });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error);
-        if (!abort.signal.aborted) { setRouting(body); setRouteState(''); }
-      } catch { if (!abort.signal.aborted) { setRouting(null); setRouteState('Route Estimates Unavailable'); } }
+        if (!abort.signal.aborted) { setRouting(body); }
+      } catch { if (!abort.signal.aborted) { setRouting(null); } }
       finally { pending = false; }
     };
     setRouting(null);
@@ -250,7 +253,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     document.addEventListener('visibilitychange', resume);
     const timer = window.setInterval(() => { void load(); }, 120_000);
     return () => { abort.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
-  }, [date, selectedId, routingKey, mapOnly]);
+  }, [date, routingKey, mapOnly]);
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!drawerId) return;
@@ -463,19 +466,18 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const displayLegs = routing?.date === date ? routing.legs : [];
   const routeTo = (id: string) => displayLegs.find(leg => leg.toAppointmentId === id);
   const closestTruckFor = (job: ScheduleAppointment) => {
-    if (selectedId !== job.recordId || routing?.appointmentId !== job.recordId) return null;
-    return closestAvailableTruck(routing.closest);
+    if (selectedId !== job.recordId || closestRequest.data?.appointmentId !== job.recordId) return null;
+    return closestAvailableTruck(closestRequest.data.closest);
   };
   const closestTruckText = (job: ScheduleAppointment) => {
     if (selectedId !== job.recordId || /cancel/i.test(job.status)) return '';
     if (snapshot?.fleet.isToday && !isClosed(job) && job.truckOnSite) return `${job.onsiteTruck || truckLabel(job.truck)} on site`;
     if (snapshot?.fleet.isToday && job.truckAtJob) return `${job.atJobTruck || truckLabel(job.truck)} at job · Parked report ${job.atJobGpsAt ? new Date(job.atJobGpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'time unavailable'} · Arrival and duration unconfirmed`;
     if (snapshot?.fleet.isToday && !isClosed(job) && job.lastSeenOnsiteTruck) return `${job.lastSeenOnsiteTruck} last reported on site · Awaiting fresh GPS`;
-    if (routeState || routing?.appointmentId !== job.recordId) return 'Closest truck: checking current distance…';
     const closest = closestTruckFor(job);
-    return closest
-      ? `Closest truck now: ${truckLabel(closest.truck)} · ${closest.minutes} min`
-      : 'Closest truck: unavailable from the current address/GPS data';
+    if (closest) return `Closest truck${closestRequest.loading || closestRequest.error ? ' (last estimate)' : ' now'}: ${truckLabel(closest.truck)} · ${closest.minutes} min${closestRequest.error ? ' · Refresh failed' : closestRequest.loading ? ' · Updating…' : ''}`;
+    if (closestRequest.loading) return 'Closest truck: checking current distance…';
+    return closestRequest.error ? 'Closest truck: lookup failed · Retry in appointment panel' : 'Closest truck: unavailable from the current address/GPS data';
   };
   const safeSourceHref = (job: ScheduleAppointment) => { try { const url = new URL(job.appointmentUrl); return /^https?:$/.test(url.protocol) ? url.href : null; } catch { return null; } };
 
@@ -491,7 +493,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
     {error && <div className="live-schedule-status live-schedule-error" role="alert">{error}</div>}
     <div ref={dispatchSurfaceRef} className={`schedule-dispatch-surface${selected ? ' has-selected-job' : ''}`}>
-    {selected && <div className="schedule-selected-job-pane" ref={selectedSummaryRef}><ScheduleAppointmentSummary job={selected} closest={closestTruckFor(selected)} loading={routeState === 'Loading Route Estimates' || !routeState && routing?.appointmentId !== selected.recordId} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
+    {selected && <div className="schedule-selected-job-pane" ref={selectedSummaryRef}><ScheduleAppointmentSummary job={selected} closest={closestTruckFor(selected)} loading={closestRequest.loading} error={closestRequest.error} checkedAt={closestRequest.data?.closestCalculatedAt || closestRequest.data?.calculatedAt} retry={closestRequest.retry} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
     <div ref={boardLayoutRef} className={`schedule-board-layout${showMap ? ' map-open' : ''}`}>
       {showMap && <section ref={mapPanelRef} className={`schedule-map-panel${selectedTruck ? ' has-truck-card' : ''}`}>
         <nav className="live-map-territories" aria-label="Focus map on territory"><button onClick={reset} aria-pressed={scope === 'ALL'}>All</button>{territoryOrder.filter(code => code !== 'UNK' || groups.some(group => group.code === code)).map(code => <button key={code} className={`territory-${code.toLowerCase()}`} aria-label={`Focus ${territoryLabels[code]}`} aria-pressed={scope === code} onClick={() => focusTerritory(code)} title={territoryLabels[code]}>{code}<small>{regions.filter(region => region.code === code).length}</small></button>)}</nav>

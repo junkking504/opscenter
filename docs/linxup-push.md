@@ -332,3 +332,13 @@ It never carries that address to a different truck, substitutes a scheduled job
 address, or implies an exact premise from a reverse lookup (shown as **Near**).
 If no address has ever resolved, the card shows automatic lookup recovery rather
 than declaring a temporary admission delay a permanent missing address.
+
+### Map heading
+
+Schedule and Command truck markers orient the cab using the heading from the
+same authoritative GPS observation as the position. Compass bearings (including
+16-point directions) and numeric degrees clockwise from north are supported;
+zero degrees is retained as north. Westbound silhouettes are mirrored before
+rotation, while fleet numbers and speed labels remain upright. Stale reports
+identify the last heading in the tooltip. Missing or invalid headings retain the
+neutral icon and report `Heading unavailable`; no destination bearing is inferred.

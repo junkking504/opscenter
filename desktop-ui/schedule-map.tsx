@@ -1,5 +1,5 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
-import { dumpTruckMapSvg } from './lib/truck-map-icon';
+import { dumpTruckMapSvg, truckMapOrientation } from './lib/truck-map-icon';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef, useState } from 'react';
@@ -81,7 +81,7 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -100,10 +100,12 @@ export default function ScheduleMap(props: Props) {
       const gps = truckGpsStatus(truck);
       const telemetry = truckTelemetry(truck);
       const fresh = !gps.stale;
+      const orientation = truckMapOrientation(truck.heading);
+      const headingLabel = orientation ? `${telemetry.recent ? 'Heading' : 'Last heading'} ${orientation.direction}` : 'Heading unavailable';
       pins.push({ id: `truck:${name}`, coordinate: [truck.latitude, truck.longitude], text: name.replace('Truck ', 'T'),
-        speed: telemetry.markerLabel,
-        tooltipTitle: truckDisplayText(name), tooltipDetail: `${gps.label} · ${telemetry.markerLabel}`,
-        label: `Select ${truckDisplayText(name)}, ${gps.label}, ${telemetry.markerLabel}`,
+        speed: telemetry.markerLabel, orientation,
+        tooltipTitle: truckDisplayText(name), tooltipDetail: `${gps.label} · ${telemetry.markerLabel} · ${headingLabel}`,
+        label: `Select ${truckDisplayText(name)}, ${gps.label}, ${telemetry.markerLabel}, ${headingLabel}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name, 'overview'),
         zoom: () => current.current.onSelectTruck(name, 'location') });
@@ -171,7 +173,16 @@ export default function ScheduleMap(props: Props) {
           // Static icon geometry; the truck number is inserted as text, never HTML.
           symbol.innerHTML = dumpTruckMapSvg;
           const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          number.setAttribute('x', '17');
+          const orientation = pin.orientation;
+          const svg = symbol.querySelector('svg')!;
+          const labelX = orientation?.mirrored ? 31 : 17;
+          if (orientation) {
+            svg.style.transform = `rotate(${orientation.rotation}deg)`;
+            if (orientation.mirrored) svg.querySelector('.truck-shape')!.setAttribute('transform', 'translate(48 0) scale(-1 1)');
+            number.setAttribute('transform', `rotate(${-orientation.rotation} ${labelX} 14)`);
+            button.dataset.heading = String(orientation.bearing);
+          }
+          number.setAttribute('x', String(labelX));
           number.setAttribute('y', '19');
           number.setAttribute('text-anchor', 'middle');
           number.textContent = pin.text.replace(/^T/, '');

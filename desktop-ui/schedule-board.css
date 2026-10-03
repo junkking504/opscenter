@@ -299,8 +299,7 @@
   .ops-live .schedule-truck-row[data-condensed] .schedule-visit-duration,
   .ops-live .schedule-truck-row[data-condensed] .schedule-visit-gap > span,
   .ops-live .schedule-truck-row[data-condensed] .schedule-operational-stop > span,
-  .ops-live .schedule-truck-row[data-condensed] .route-connector-miles,
-  .ops-live .schedule-truck-row[data-condensed] .truck-progress-customer { display: none; }
+  .ops-live .schedule-truck-row[data-condensed] .route-connector-miles { display: none; }
   .ops-live .schedule-truck-row[data-condensed] .route-connector-label {
     inset-inline: auto;
     left: calc(50% - 4px);
@@ -314,15 +313,7 @@
     transform: scaleY(var(--schedule-timeline-inverse-scale, 1));
     transform-origin: center;
   }
-  .ops-live .schedule-truck-row[data-condensed] .schedule-truck-progress {
-    left: auto;
-    width: auto;
-    max-width: 74px;
-    min-width: 42px;
-    justify-content: center;
-    transform: scaleY(var(--schedule-timeline-inverse-scale, 1));
-    transform-origin: bottom;
-  }
+
 }
 
 .ops-live .schedule-mobile-scroll-hint { display: none; }

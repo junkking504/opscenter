@@ -66,16 +66,18 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     // Cancellations stay below every active appointment, even at different times.
     if (separateCanceled && isCanceled(job)) canceledLaneStart ??= lanes.length;
     const firstLane = canceledLaneStart ?? 0;
+    // Unassigned windows can share a lane at touching edges; there is no travel
+    // connector between them that needs the extra horizontal gutter.
     // Render and pack the same fifteen-minute minimum footprint.
     const minimumFraction = scheduleBlockMinimumWidth(range.duration);
     const footprints = position.segments.map(segment => ({
       left: segment.left,
-      right: segment.left + Math.max(segment.width, minimumFraction) + (timelineWidth ? 8/timelineWidth : 0),
+      right: segment.left + Math.max(segment.width, minimumFraction) + (timelineWidth && !separateCanceled ? 8/timelineWidth : 0),
     }));
     // Pack every segment, including segments belonging to the same job.
     const segmentLanes = footprints.map(footprint => {
       let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(
-        interval => footprint.right <= interval.left || footprint.left >= interval.right,
+        interval => footprint.right <= interval.left + 1e-9 || footprint.left >= interval.right - 1e-9,
       ));
       if (lane < 0) lane = lanes.length;
       (lanes[lane] ||= []).push(footprint);
@@ -84,7 +86,7 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const gapLanes = position.gapSegments.map((segment,index) => {
       const footprint = {left:segment.left,right:segment.left+(position.gaps[index].kind==='dump' ? 24/(timelineWidth || 640) : segment.width)};
       let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(interval =>
-        footprint.right <= interval.left || footprint.left >= interval.right,
+        footprint.right <= interval.left + 1e-9 || footprint.left >= interval.right - 1e-9,
       ));
       if (lane < 0) lane = lanes.length;
       (lanes[lane] ||= []).push(footprint);

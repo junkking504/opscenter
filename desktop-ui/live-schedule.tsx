@@ -523,11 +523,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const rowStops=scheduleStandaloneOperationalStops(groupedStops,rowJobs,truck,now.getTime());
             const stopLayout=scheduleOperationalStopLayout(rowStops,range,timelineWidth,occupiedLanes);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,rowStops.length ? (stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:22) : 0)+(hasProgress&&!compactTimeline?10:0)) : 32;
+            const rowHeight=rowJobs.length || rowStops.length ? Math.max(32,Math.max(travelHeight,rowStops.length ? (stopLayout.laneCount-1)*laneStep+(mobileTimeline?46:22) : 0)) : 32;
+            const totalRowHeight = rowHeight + (hasProgress ? 23 : 0);
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
-            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={rowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${rowHeight}px)`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
+            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={totalRowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${totalRowHeight}px)`, '--schedule-row-min-height': `${totalRowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
               <div className="schedule-timeline-content">{placed.flatMap(({ job, position, segmentLanes, gapLanes }) => [
                 ...position.gapSegments.flatMap((segment,gapIndex)=>position.gaps[gapIndex].kind==='dump' && rowStops.some(stop=>stop.kind==='dump' && stop.startMinutes>=position.gaps[gapIndex].start && stop.startMinutes<=position.gaps[gapIndex].end) ? [] : <ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={gapLanes[gapIndex]*laneStep+2} />),
@@ -536,9 +537,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
 
               {connectors.filter(connector=>!groupedStops.some(stop=>stop.startMinutes>=connector.from.position.end && stop.endMinutes<=connector.to.position.start)).map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {stopLayout.placements.map(({stop,lane})=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={lane*laneStep+2} />)}
-              {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
-            </div></div></div>;
+            </div>
+              {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
+            </div></div>;
           })}
           <ScheduleColocatedVisitConnectors refreshKey={`${snapshot.observedAt || ''}:${now.getTime()}:${truckNames.join(',')}`} appointments={jobs} trucks={snapshot.fleet.isToday?snapshot.fleet.trucks:[]} now={now.getTime()} />
         </div></div>

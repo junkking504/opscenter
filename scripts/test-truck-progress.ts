@@ -39,6 +39,15 @@ assert.equal((await get([job('onsite',{truckOnSite:true}),second],[{...parked,ig
 assert.equal((await get([job('seen',{lastSeenOnsiteTruck:'Truck 9'}),second],[parked]))[0].status,'last_seen','Parked telemetry alone cannot establish on-site presence');
 assert.equal((await get([job('at-job',{status:'Completed',truckAtJob:true,atJobTruck:'Truck 9',atJobGpsAt:parked.lastGpsUpdate}),second],[parked]))[0].status,'at_job','A parked assigned-truck observation is surfaced separately from on-site dwell');
 assert.equal(nextTruckStop([job('at-job',{status:'Completed',truckAtJob:true,atJobTruck:'Truck 9'}),second],'Truck 9',true,now)?.job.recordId,'at-job','Current job location outranks the next planned stop even after source completion');
+for (const status of ['Completed', 'Closed']) {
+  const onsite=job('closed-onsite',{status,truckOnSite:true,onsiteTruck:'Truck 9'});
+  assert.equal(nextTruckStop([onsite,second],'Truck 9',true,now)?.job.recordId,'closed-onsite','Source closeout must not advance a truck still on site');
+  assert.equal((await get([onsite,second]))[0].status,'on_site','Fresh idling GPS remains on site after closeout');
+  assert.equal((await get([onsite,second],[expiredParked]))[0].status,'last_seen','Expired GPS cannot silently imply departure after closeout');
+  assert.equal((await get([{...onsite,truckOnSite:false,lastSeenOnsiteTruck:'Truck 9'},second]))[0].status,'last_seen');
+  assert.equal(nextTruckStop([{...onsite,truckOnSite:false,onsiteTime:done.onsiteTime},second],'Truck 9',true,now)?.job.recordId,'a-second','Cleared presence and confirmed departure advance a closed stop');
+}
+assert.equal(nextTruckStop([job('cancelled',{status:'Canceled',truckOnSite:true,truckAtJob:true,lastSeenOnsiteTruck:'Truck 9'}),second],'Truck 9',true,now)?.job.recordId,'a-second','Canceled appointments stay excluded');
 assert.equal(calls,1,'Retaining parked on-site presence never requests an ETA');
 await get(jobs,[{...gps,lastGpsUpdate:new Date(now+1000).toISOString()}]);assert.equal(calls,1,'Future GPS cannot generate an ETA');
 assert.deepEqual(await get(jobs,[gps],false),[]);

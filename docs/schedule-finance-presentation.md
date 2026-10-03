@@ -657,6 +657,12 @@ Route arrows across a time gap attach to the source and destination appointment 
 
 ## Truck progress between appointments
 
+GPS-backed current or last-reported on-site presence takes precedence over the
+next scheduled stop even after JunkWare marks a job Completed or an estimate
+Closed. Source closeout does not prove departure. The progress banner retains
+the observed stop until the presence layer clears it; canceled appointments are
+excluded. Job outcome badges and source records remain unchanged.
+
 Today's assigned truck rows show their next open stop in saved order, with the
 remaining road travel and estimated arrival time from that truck's recent GPS.
 A confirmed recorded departure advances the next-stop view without changing the

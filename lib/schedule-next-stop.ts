@@ -11,9 +11,11 @@ export function nextTruckStop<T extends Stop>(jobs:T[], truck:string, isToday:bo
   const same=(value:string)=>truckLabel(value)===truckLabel(truck);
   const assigned=jobs.filter(job=>same(job.truck)).sort(compareStops);
   const departed=(job:T)=>Boolean(job.onsiteTime?.departure && Date.parse(job.onsiteTime.departure)<=now);
-  const onsite=jobs.filter(job=>!isClosed(job) && job.truckOnSite && same(job.onsiteTruck || job.truck));
-  const atJob=jobs.filter(job=>job.truckAtJob && same(job.atJobTruck || job.truck));
-  const lastSeen=jobs.find(job=>!isClosed(job) && !job.truckOnSite && job.lastSeenOnsiteTruck && same(job.lastSeenOnsiteTruck));
+  // Source completion records the job outcome, not a physical departure.
+  // Keep GPS-backed presence ahead of the next stop until presence clears.
+  const onsite=jobs.filter(job=>!/cancel/i.test(job.status) && job.truckOnSite && same(job.onsiteTruck || job.truck));
+  const atJob=jobs.filter(job=>!/cancel/i.test(job.status) && job.truckAtJob && same(job.atJobTruck || job.truck));
+  const lastSeen=jobs.find(job=>!/cancel/i.test(job.status) && !job.truckOnSite && job.lastSeenOnsiteTruck && same(job.lastSeenOnsiteTruck));
   const job=onsite[0] || atJob[0] || lastSeen || assigned.find(job=>!isClosed(job) && !departed(job));
   if (!job) return null;
   const state=onsite.length>1 || atJob.length>1 ? 'ambiguous' : onsite.length ? 'on_site' : atJob.length ? 'at_job' : lastSeen ? 'last_seen' : assignmentNeedsVerification(job) ? 'unverified' : job.appointmentStartMinutes===null ? 'untimed' : 'next';

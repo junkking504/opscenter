@@ -1,3 +1,4 @@
+import { CapitalAccounting, type Verification } from './capital-accounting';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useState } from 'react';
 import { Banknote, CheckCircle2, CircleAlert, CreditCard, Search } from 'lucide-react';
@@ -8,14 +9,19 @@ import { MerchantPaymentEvidence, MerchantReportSummary } from './merchant-evide
 
 type Payment = FinanceData['reconciliation']['paymentsByJob'][number];
 export function CapitalPayments({ data, date, onReview }: { data: FinanceData; date: string; onReview: (payment: Payment) => void }) {
+  const [manualVerifications, setManualVerifications] = useState<Record<string, Verification>>({});
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'review' | 'cash'>('all');
   const recon = data.reconciliation, verification = verifiedPayments(recon);
   const collected = recon.status !== 'not_collected';
   const qboUsable = collected && verification.qboUsable;
+  const status = (row: Payment) => {
+    const matches = Object.values(manualVerifications).filter(mark => mark.row.date === row.date && mark.row.jkNumber === row.jkNumber && Math.round(mark.row.amount * 100) === Math.round(row.paidAmount * 100) && (row.tender === 'cash' ? mark.row.method === 'Cash' : row.tender === 'check' && mark.row.method === `Check #${row.checkNumber}`));
+    return matches.length === 1 ? 'Verified · Manager' : paymentVerification(row, verification.qboUsable);
+  };
   const rows = recon.paymentsByJob.filter(row => {
     const matches = !query.trim() || [row.jkNumber, row.customer, row.truck, row.paymentMethod, row.checkNumber, row.qboTransactionId].join(' ').toLowerCase().includes(query.trim().toLowerCase());
-    return matches && (filter === 'all' || (filter === 'review' ? paymentVerification(row, verification.qboUsable) === 'Needs verification' : row.tender === 'cash' || row.tender === 'check'));
+    return matches && (filter === 'all' || (filter === 'review' ? status(row) === 'Needs verification' : row.tender === 'cash' || row.tender === 'check'));
   });
   return <div className="capital-page capital-payments">
     <CapitalPageHeader eyebrow={`PAYMENTS & COLLECTIONS · ${commercialDate(date)}`} title="Every payment, accounted for" description="Follow job payments from the recorded tender to card verification and accounting." action={<CapitalSourceLink href="https://qbo.intuit.com/">Open QuickBooks</CapitalSourceLink>}/>
@@ -25,16 +31,17 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
       <CapitalStat icon={CreditCard} label="Cash & checks" value={money(recon.recordedPayments ? recon.recordedPayments.cash + recon.recordedPayments.check : null)} detail={`Cash ${money(recon.recordedPayments?.cash)} · Checks ${money(recon.recordedPayments?.check)}`}/>
       <CapitalStat warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified difference" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'payment needs' : 'payments need'} verification` : 'Payment source unavailable'}/>
     </section>
+    <CapitalAccounting key={date} date={date} onVerifications={setManualVerifications}/>
     <section className="capital-panel capital-payment-register" aria-label="Payments by job">
-      <header><div><span className="capital-eyebrow">PAYMENT REGISTER</span><h3>Payments by job</h3></div><span className="capital-date">{rows.length} of {recon.paymentsByJob.length} records</span></header>
+      <header><div><span className="capital-eyebrow">PAYMENT EVIDENCE</span><h3>Payments by job</h3></div><span className="capital-date">{rows.length} of {recon.paymentsByJob.length} records</span></header>
       <div className="capital-toolbar"><div className="capital-filter-group" role="group" aria-label="Filter payments">{([['all','All payments'],['review','Needs verification'],['cash','Cash & checks']] as const).map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{label}</button>)}</div><label className="capital-search"><Search size={15}/><input aria-label="Search payments" placeholder="Search job, customer or reference" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>
-      {rows.length ? <div className="capital-table-scroll"><table className="capital-table capital-payment-table"><thead><tr><th>Job / customer</th><th>Truck</th><th>Job total</th><th>Payment</th><th>Method / reference</th><th>Verification</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((row,index)=><tr key={`${row.jkNumber}:${row.qboTransactionId}:${index}`} className={paymentVerification(row,verification.qboUsable)==='Needs verification'?'needs-review':''}>
+      {rows.length ? <div className="capital-table-scroll"><table className="capital-table capital-payment-table"><thead><tr><th>Job / customer</th><th>Truck</th><th>Job total</th><th>Payment</th><th>Method / reference</th><th>Verification</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((row,index)=><tr key={`${row.jkNumber}:${row.qboTransactionId}:${index}`} className={status(row)==='Needs verification'?'needs-review':''}>
         <td data-label="Job / customer"><strong>{row.customer || 'Customer unavailable'}</strong>{row.jkNumber ? <a href={`/schedule?date=${date}&job=${encodeURIComponent(row.jkNumber)}`}>{row.jkNumber}</a> : <small>Job unspecified</small>}</td>
         <td data-label="Truck">{truckDisplayText(row.truck || 'Unavailable')}</td>
         <td data-label="Job total"><strong>{money(row.revenueAmount)}</strong><small>Tips {money(row.tipAmount)}</small></td>
         <td data-label="Payment"><strong>{money(row.paidAmount)}</strong><small>Difference {money(row.jobDifference === undefined ? row.revenueAmount != null && row.tipAmount != null ? row.paidAmount-row.revenueAmount-row.tipAmount : null : row.jobDifference)}</small></td>
         <td data-label="Method / reference"><strong>{row.paymentMethod}</strong><small>{row.tender==='check' ? row.checkNumber ? `Check #${row.checkNumber}` : 'Check number unavailable' : row.tender==='cash' ? 'Recorded in JunkWare' : row.qboTransactionId || 'No QBO reference'}</small><small>{row.tender !== 'cash' && row.tender !== 'check' ? row.qboStatus || 'QBO status unavailable' : ''}</small></td>
-        <td data-label="Verification"><span className={`capital-status ${paymentVerification(row,verification.qboUsable)==='Needs verification'?'warning':''}`}>{paymentVerification(row,verification.qboUsable)}</span>{row.tender!=='cash' && row.tender!=='check' && <MerchantPaymentEvidence evidence={row.processor}/>}</td>
+        <td data-label="Verification"><span className={`capital-status ${status(row)==='Needs verification'?'warning':''}`}>{status(row)}</span>{row.tender!=='cash' && row.tender!=='check' && <MerchantPaymentEvidence evidence={row.processor}/>}</td>
         <td><button className="capital-button" onClick={()=>onReview(row)} aria-label={`Review sources for ${row.jkNumber || row.customer}`}>Review sources</button></td>
       </tr>)}</tbody></table></div> : <CapitalEmpty icon={CreditCard} title={collected ? query || filter!=='all' ? 'No matching payments' : 'No payments in this snapshot' : 'Payment source unavailable'} description={query || filter!=='all' ? 'Try another search or return to all payments.' : 'Recorded job payments will appear here after source collection.'} action={(query || filter!=='all') && <button className="capital-button" onClick={()=>{setQuery('');setFilter('all');}}>Clear filters</button>}/>}
       <footer>Recorded payments, processor approvals and accounting postings remain separate. Source review does not post an adjustment.</footer>

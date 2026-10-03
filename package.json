@@ -156,7 +156,8 @@
     "verify:crew-self-setup": "node --import tsx scripts/test-crew-self-setup.ts",
     "verify:truck-continuity": "node --import tsx scripts/test-truck-continuity.ts",
     "verify:photo-review": "node --import tsx scripts/test-desktop-photo-review.ts && node --import tsx scripts/test-photo-review-assignment.ts",
-    "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts"
+    "verify:schedule-crew-roster": "node --import tsx scripts/test-schedule-crew-roster.ts",
+    "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

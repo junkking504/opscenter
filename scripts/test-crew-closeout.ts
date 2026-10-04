@@ -58,6 +58,8 @@ async function main(){
   const invalid=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350',reference:'123'}}},deps);assert.equal(invalid.status,'failed');assert.equal(writes,0);
   const billed=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'billed',amount:'350'}}},deps);assert.equal(billed.status,'failed');assert.equal(writes,0);
   source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  await assert.rejects(submitCrewCloseout(request,{...body(),application:'opscenter'},deps),/current closeout/);
+  await assert.rejects(submitCrewCloseout(request,{...body(),values:{...body().values,application:'opscenter',requirePhotos:false}},deps),/current appointment/);
   assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,0);
   source=structuredClone(baseline);
   const stale=body();stale.values.expectedSourceVersion='b'.repeat(64);assert.equal((await submitCrewCloseout(request,stale,deps)).status,'failed');assert.equal(writes,0);

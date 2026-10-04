@@ -1,4 +1,4 @@
-import { closeoutPhotoEvidence, requireCloseoutPhotos } from '../lib/closeout-photo-policy';
+import { closeoutPhotoEvidence, requireCloseoutPhotos, type CloseoutApplication } from '../lib/closeout-photo-policy';
 import { pathToFileURL } from 'node:url';
 import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
@@ -323,13 +323,13 @@ function parsePayload(): CloseoutInput {
   };
 }
 
-export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
+export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>, application: CloseoutApplication = 'waypoint'): Promise<void> {
   const otherChargeIdsToRemove = input.otherChargeIdsToRemove || [];
   // Category, status, charge and payment changes need JunkWare's native full or
   // partial postback. Other fields are filled locally before the final Save.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
   const targetStatus = input.targetStatus || '8';
-  requireCloseoutPhotos(before, targetStatus);
+  requireCloseoutPhotos(before, targetStatus, undefined, application);
   const completingEstimate = targetStatus === '8' && input.appointmentType === 'Estimate' && priorStatus !== '8';
   const truck = input.truck || String(before.truck || '');
   const truckOption = (before.truckOptions as Option[] || []).find(option => option.value && option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck);
@@ -501,11 +501,11 @@ function verifyEstimateOutcome(closeout: Record<string, unknown>, before: Record
 
 let writeStarted = false;
 let failureCode = 'closeout_unavailable';
-async function applyClassification(page: Page, change: ClassificationChange, before: Record<string,unknown>) {
+async function applyClassification(page: Page, change: ClassificationChange, before: Record<string,unknown>, application: CloseoutApplication = 'waypoint') {
   const currentType = before.appointmentType as {value:string;options:Option[]};
   const target = currentType.options.find(option=>option.label === change.appointmentType);
   const status = before.status as {value:string;label:string};
-  requireCloseoutPhotos(before, change.completeEstimate ? '8' : status.value);
+  requireCloseoutPhotos(before, change.completeEstimate ? '8' : status.value, undefined, application);
   if (!target || !['1','8'].includes(status.value)) throw new Error('This appointment cannot change type from its current source status.');
   if ((change.completeEstimate || status.value === '8') && !before.truck && !change.truck) throw new Error('JunkWare requires a truck to complete this appointment. Select its completion truck and review the change.');
   if (change.truck && before.truck) throw new Error('Use dispatch controls to change an existing truck assignment.');
@@ -576,6 +576,9 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const mode = argument("mode") || "read";
+  // Separate process argument supplied by the server adapter, not decoded payload.
+  const application = argument("application") || "waypoint";
+  if (application !== "opscenter" && application !== "waypoint") throw new Error("The closeout application is not valid.");
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid JunkWare appointment ID is required.");
   if (!/^(read|write|classify)$/.test(mode)) throw new Error("The closeout action is not valid.");
   let browser: Browser | null = null;
@@ -610,7 +613,7 @@ async function main(): Promise<void> {
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
     if (input || classification) {
       const target = input ? input.targetStatus || '8' : classification!.completeEstimate ? '8' : String(before!.status.value);
-      try { requireCloseoutPhotos(before!, target, appointmentId); }
+      try { requireCloseoutPhotos(before!, target, appointmentId, application); }
       catch (error) { failureCode = 'completion_photos_required'; throw error; }
     }
     if (input) {
@@ -629,10 +632,10 @@ async function main(): Promise<void> {
       }
       writeStarted = true;
       try {
-        await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!), async () => {
+        await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!, application), async () => {
           await ensureAuthenticated(page, targetUrl);
           return captureSource(page);
-        }, persisted => { requireCloseoutPhotos(persisted, input.targetStatus || '8', appointmentId); verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
+        }, persisted => { requireCloseoutPhotos(persisted, input.targetStatus || '8', appointmentId, application); verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
       }
       catch (error) {
         if (error instanceof CloseoutNotAppliedError) { writeStarted = false; failureCode = 'source_closeout_not_applied'; }
@@ -641,12 +644,12 @@ async function main(): Promise<void> {
     }
     if (classification && before) {
       if (closeoutSourceVersion(before) !== classification.expectedSourceVersion) {failureCode='source_version_conflict';throw new Error('This JunkWare appointment changed. Reload and review it before saving.');}
-      await applyClassification(page,classification,before);
+      await applyClassification(page,classification,before,application);
     }
     const closeout = await captureSource(page);
-    if (input) { requireCloseoutPhotos(closeout, input.targetStatus || '8', appointmentId); verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
+    if (input) { requireCloseoutPhotos(closeout, input.targetStatus || '8', appointmentId, application); verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
     if (classification && before) {
-      requireCloseoutPhotos(closeout, classification.completeEstimate ? '8' : String(before.status.value), appointmentId);
+      requireCloseoutPhotos(closeout, classification.completeEstimate ? '8' : String(before.status.value), appointmentId, application);
       verifyClassificationChange(before,closeout,classification);
     }
     const warning = classification && before ? classificationCompletionTimeWarning(before,closeout,classification) : undefined;

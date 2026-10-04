@@ -1,9 +1,10 @@
+import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from "next/headers";
 import { after, NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
-import { junkwareJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";
+import { junkwareJobCloseout, opscenterJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";
 import { publishVerifiedCloseout } from "@/lib/publish-closeout";
 import { updateVerifiedCloseoutLoad } from "@/lib/truck-load-closeouts";
 
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const authSession = await authenticated();
   if (!authSession) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!authorizeOpsRequest(authSession.role, "/api/job-closeout", "POST").allowed) return NextResponse.json({ error: "Your role does not include this action." }, { status: 403 });
   if (!isDesktopWriteOriginAllowed(request)) return NextResponse.json({ ok: false, error: "Same-origin request required.", stage: "preflight" }, { status: 403 });
   const parsed = await request.json().catch(() => null);
   const body = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
   if (!/^\d{1,12}$/.test(id)) return NextResponse.json({ error: "The appointment is unavailable." }, { status: 400 });
   try {
     const { appointmentId: _ignored, serviceDate: _serviceDate, ...payload } = body;
-    const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id, payload));
+    const result = await withJunkwareAppointmentSyncLock(id, () => opscenterJobCloseout(id, payload));
     const closeout = result && typeof result === "object" && "closeout" in result && result.closeout && typeof result.closeout === "object"
       ? result.closeout as Record<string, unknown>
       : {};

@@ -72,6 +72,16 @@ scripts/test-reschedule-source.ts, and scripts/test-reschedule-operations.ts.
 
 ### Schedule closeout reliability
 
+OpsCenter closeout permits Jobs and Estimates with no uploaded photos, including
+estimate completion through classification. Other classification changes keep their
+existing photo policy. The office routes require an OpsCenter
+session, the existing closeout write role, and a trusted origin before choosing
+the office writer. Application policy travels as a server-owned process argument;
+request fields, query strings and headers cannot disable Waypoint photo checks.
+Waypoint and direct writer calls retain photo-required preflight and read-back.
+Existing photos and every source-version, payment, crew, estimate outcome and
+saved-result protection remain intact. Photo audits remain independent.
+
 While closeout is open, its fixed drawer footer owns the primary **Review** and
 **Confirm in JunkWare** action. Status/category, truck/crew and actual visit times
 come first, followed by charges, subtotal/discount/tip and payments. Review moves

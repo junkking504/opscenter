@@ -1,3 +1,6 @@
+// Chosen by trusted server callers, never by closeout payload fields.
+export type CloseoutApplication = 'opscenter' | 'waypoint';
+
 export type CloseoutPhotoEvidence = { appointmentId: string; urls: string[] };
 export const CLOSEOUT_PHOTOS_REQUIRED = 'Upload at least one job photo before closing this job. Photos must be saved to this appointment in JunkWare.';
 
@@ -26,7 +29,8 @@ export function closeoutPhotoCount(evidence: CloseoutPhotoEvidence | null | unde
   return closeoutPhotoEvidence(appointmentId, evidence.urls).urls.length;
 }
 
-export function requireCloseoutPhotos(source: Record<string, unknown>, targetStatus: string, appointmentId?: string): void {
+export function requireCloseoutPhotos(source: Record<string, unknown>, targetStatus: string, appointmentId?: string, application: CloseoutApplication = 'waypoint'): void {
+  if (application === 'opscenter') return;
   if (targetStatus !== '8') return;
   const evidence = source.photoEvidence as CloseoutPhotoEvidence | undefined;
   if (!closeoutPhotoCount(evidence, appointmentId ?? evidence?.appointmentId ?? '')) {

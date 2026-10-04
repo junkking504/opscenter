@@ -269,14 +269,17 @@ contracts. Phone browser tests cover daily setup and additional job crew.
 
 ## Completion and next-assignment rules
 
-- A completion requires at least one photo observed on the owning JunkWare
+- A Waypoint completion requires at least one photo observed on the owning JunkWare
   appointment, with the exact appointment ID in an approved source media URL.
   Local selections, upload counts, unrelated images and unavailable evidence
   cannot satisfy the requirement. Before/after sections organize photos; both
   categories are not separately mandatory.
-- The shared closeout writer checks evidence before any mutation and on read-back.
-  This applies to Completed closeouts and classification paths completing an
-  estimate. Saving a Confirmed draft remains possible without photos.
+- The shared writer defaults to requiring photos before any mutation and on
+  read-back. The authenticated, role-authorized OpsCenter routes explicitly use
+  the office writer for Job/Estimate closeouts and estimate classification
+  completion; photos are optional there. This server-owned application choice
+  is passed separately from the request payload. Waypoint cannot select it.
+  Saving a Confirmed draft remains possible without photos.
 - A server-owned verified closeout receipt must identify the current appointment,
   Completed source status and saved photos before unlocking another closeout.
   Pending, failed, uncertain, canceled or merely reconciled changes do not unlock it.

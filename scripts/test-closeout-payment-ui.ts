@@ -5,7 +5,7 @@ import { chromium, expect } from '@playwright/test';
 const field=(value='',label='',options=[{value:'',label:''}])=>({value,label,options});
 const fixture={photoEvidence:{appointmentId:'1234',urls:['https://junkware.junk-king.com/system/aspnet/local/media/before-1234-test.jpg']},truck:'Truck 1',truckOptions:[{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}],status:field('1','Confirmed'),appointmentType:field('2','Job'),driver:{value:'d',label:'Fixture Driver'},drivers:[{value:'d',label:'Fixture Driver'}],navigators:[],navigatorOptions:[],loadQuantity:'1',loadSize:field(),loadPrices:[],loadPrice:'1200',bedloadQuantity:'',bedloadSize:field(),bedloadPrices:[],bedloadPrice:'',otherChargeOptions:[],otherCharges:[],discount:'',tip:'',jobCategory:field(),howHeard:field('ref','Referral',[{value:'ref',label:'Referral'}]),actualStartHour:field('12','12 PM',[{value:'12',label:'12 PM'}]),actualStartMinute:field('00','00',[{value:'00',label:'00'}]),actualEndHour:field('13','1 PM',[{value:'13',label:'1 PM'}]),actualEndMinute:field('00','00',[{value:'00',label:'00'}]),paymentMethods:[{value:'1',label:'Billed'},{value:'2',label:'Cash'},{value:'3',label:'Credit Card'},{value:'4',label:'Check'}],payments:[],balance:'1200.00',total:'$1,200.00'};
 async function main(){
- const output=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Closeout from './desktop-ui/appointment-closeout';createRoot(document.getElementById('root')).render(<div className="ops-live job-record-drawer"><main className="fixture-scroll"><Closeout job={{appointmentId:'1234',appointmentUrl:'https://example.invalid/appointment/1234',status:'Confirmed',appointmentType:'Job',truck:'Truck 1',onsiteTime:{arrival:'2026-09-09T14:26:24Z',departure:'2026-09-09T14:49:00Z',minutes:23,label:'23 min'},id:'2026-09-09:appointment:1234',sourceVersion:'${'a'.repeat(64)}'}} date="2026-09-09" saved={()=>{}} onBusyChange={()=>{}}/></main><footer className="record-drawer-actions"><div className="closeout-footer-slot"/><button>Reschedule Appointment</button><button>Cancel Appointment</button></footer></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',jsx:'automatic',alias:{react:process.cwd()+'/desktop-ui/node_modules/react','react-dom':process.cwd()+'/desktop-ui/node_modules/react-dom'}});
+ const output=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Closeout from './desktop-ui/appointment-closeout';const waypoint=new URLSearchParams(location.search).has('waypoint');const transport=waypoint?{load:async()=>await(await fetch('/api/desktop/schedule/closeout')).json(),send:async()=>{throw new Error('Waypoint zero-photo submission must stay blocked');},check:async()=>{throw new Error('No pending receipt');}}:undefined;createRoot(document.getElementById('root')).render(<div className="ops-live job-record-drawer"><main className="fixture-scroll"><Closeout transport={transport} job={{appointmentId:'1234',appointmentUrl:'https://example.invalid/appointment/1234',status:'Confirmed',appointmentType:'Job',truck:'Truck 1',onsiteTime:{arrival:'2026-09-09T14:26:24Z',departure:'2026-09-09T14:49:00Z',minutes:23,label:'23 min'},id:'2026-09-09:appointment:1234',sourceVersion:'${'a'.repeat(64)}'}} date="2026-09-09" saved={()=>{}} onBusyChange={()=>{}}/></main><footer className="record-drawer-actions"><div className="closeout-footer-slot"/><button>Reschedule Appointment</button><button>Cancel Appointment</button></footer></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',jsx:'automatic',alias:{react:process.cwd()+'/desktop-ui/node_modules/react','react-dom':process.cwd()+'/desktop-ui/node_modules/react-dom'}});
  const js=output.outputFiles.find(f=>f.path.endsWith('.js'))!.text,css=output.outputFiles.find(f=>f.path.endsWith('.css'))!.text;
  let posts=0;
  const server=createServer(async(req,res)=>{if(req.method==='POST'){posts++;res.writeHead(400);res.end('{}');return;}if(req.url?.includes('/api/desktop/schedule/closeout')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true}));return;}if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}res.setHeader('Content-Type','text/html');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial}*{box-sizing:border-box}.job-record-drawer{height:100dvh;max-width:560px;margin-left:auto;display:flex;flex-direction:column}.fixture-scroll{flex:1;overflow:auto;min-height:0}.record-drawer-actions{padding:12px;border-top:1px solid #ddd;flex-shrink:0}${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);});
@@ -187,6 +187,55 @@ async function main(){
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.close();
  }
+ // OpsCenter zero-photo completion at phone and desktop widths, with real editor.
+ for(const width of [390,1280]) for(const category of ['Job','Estimate']) for(const status of ['verified','failed','uncertain']) {
+  const page=await browser.newPage({viewport:{width,height:844}});
+  const noPhotos={...fixture,photoEvidence:{appointmentId:'1234',urls:[]}};
+  let receipt:any=null,submitted=0;
+  await page.route('**/api/desktop/schedule/closeout*',route=>route.fulfill({json:{closeout:noPhotos,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:receipt?.status==='uncertain'?receipt:null}}));
+  await page.route('**/api/desktop/schedule/operations*',async route=>{
+    if(route.request().method()==='GET')return route.fulfill({json:{receipt}});
+    submitted++;const body=route.request().postDataJSON();
+    assert.equal(body.values.appointmentType,category);assert.equal(body.values.targetStatus,'8');
+    assert.equal(body.values.application,undefined,'Editor sends no application bypass');
+    receipt={requestId:body.requestId,action:'closeout',status,message:'Synthetic '+status,sourceResult:status==='verified'?{closeout:{...noPhotos,status:field('8','Completed')}}:undefined};
+    await new Promise(resolve=>setTimeout(resolve,100));
+    await route.fulfill({json:{receipt}});
+  });
+  await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();
+  await expect(page.getByText('Photos are optional for OpsCenter closeout.',{exact:true})).toBeVisible();
+  await page.getByRole('radio',{name:'Completed',exact:true}).check();
+  if(category==='Estimate'){
+    await page.getByLabel('Final appointment category').selectOption('Estimate');
+    await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
+    await expect(page.getByText('Choose why this remained an estimate and add the outcome notes before closing it.',{exact:true})).toBeVisible();
+    await page.getByLabel('Why did this remain an estimate?').selectOption('Other');
+    await page.getByLabel('Outcome notes',{exact:true}).fill('Synthetic outcome');
+    await page.getByLabel('Why was no discount offered?').fill('Synthetic reason');
+  }
+  await page.getByRole('button',{name:'Review Closeout',exact:true}).click();assert.equal(submitted,0);
+  await page.getByRole('button',{name:`Confirm ${category} Closeout in JunkWare`,exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
+  await expect(page.getByText('Synthetic '+status,{exact:true})).toBeVisible();assert.equal(submitted,1,'Double click only submits once');
+  if(status==='failed'){
+    await expect(page.getByRole('textbox',{name:'Load price',exact:true})).toHaveValue('1200');
+    await page.getByRole('button',{name:'Review Closeout',exact:true}).click();assert.equal(submitted,1,'Failure retains draft for review without replay');
+  }
+  await page.reload();await page.getByText('Appointment Closeout',{exact:true}).click();
+  if(status==='uncertain'){
+    await expect(page.getByRole('button',{name:'Review Closeout',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Check Saved Result',exact:true}).first().click();
+    await expect(page.getByText('Synthetic uncertain',{exact:true})).toBeVisible();
+  }
+  assert.equal(submitted,1,'Navigation/reload/read-back never resubmits');await page.close();
+ }
+ const waypoint=await browser.newPage();
+ await waypoint.route('**/api/desktop/schedule/closeout*',route=>route.fulfill({json:{closeout:{...fixture,photoEvidence:{appointmentId:'1234',urls:[]}},sourceVersion:'a'.repeat(64),canWrite:true}}));
+ await waypoint.goto(url+'?waypoint');await waypoint.getByText('Appointment Closeout',{exact:true}).click();
+ await waypoint.getByRole('button',{name:'Review Closeout',exact:true}).click();
+ await expect(waypoint.getByRole('button',{name:'Submit checkout',exact:true})).toHaveCount(0);
+ await expect(waypoint.getByText('Upload at least one job photo before closing this job. Photos must be saved to this appointment in JunkWare.',{exact:true}).first()).toBeVisible();
+ await waypoint.close();
+ console.log('PASS: OpsCenter zero-photo Job/Estimate review/save, double-click, failure draft, uncertain receipt and navigation at 390/1280px; Waypoint zero-photo UI remains blocked.');
  assert.equal(posts,0,'Review, edits, reload and assignment verification must never submit a closeout');console.log('Closeout UI passed at 390px and 1280px: payment review, validation, reload resets, earlier move blocker and safe verified-move reload, no overflow or save requests.');
  }finally{await browser.close();await new Promise<void>(r=>server.close(()=>r()));}
 }

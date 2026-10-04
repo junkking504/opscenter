@@ -3,7 +3,7 @@ import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
-import { junkwareJobCloseout, JunkwareCloseoutError } from '@/lib/junkware-job-closeout';
+import { junkwareJobCloseout, opscenterJobCloseout, JunkwareCloseoutError } from '@/lib/junkware-job-closeout';
 import { parseClassificationChange, recordAppointmentClassification } from '@/lib/appointment-classification';
 import { updateVerifiedCloseoutLoad } from '@/lib/truck-load-closeouts';
 export { GET } from '../closeout/route';
@@ -19,7 +19,9 @@ export async function POST(request: Request) {
     const appointmentId = String(body.appointmentId || ''), date = String(body.date || '');
     if (!/^\d{1,12}$/.test(appointmentId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('A valid date and appointment are required.');
     validated = true;
-    const result = await withJunkwareAppointmentSyncLock(appointmentId,()=>junkwareJobCloseout(appointmentId,change,'classify'));
+    // Only estimate completion is closeout; unrelated classification keeps its policy.
+    const writer = change.completeEstimate ? opscenterJobCloseout : junkwareJobCloseout;
+    const result = await withJunkwareAppointmentSyncLock(appointmentId,()=>writer(appointmentId,change,'classify'));
     recordAppointmentClassification(date,{appointmentId,appointmentType:result.closeout.appointmentType.label,status:result.closeout.status.label,verifiedAt:result.verifiedAt,...(change.truck ? {truck:change.truck} : {})});
     const truckLoadStatus = updateVerifiedCloseoutLoad(date, appointmentId, result.closeout, result.verifiedAt, actor.email);
     return Response.json({...result,truckLoadStatus},{headers:{'Cache-Control':'no-store'}});

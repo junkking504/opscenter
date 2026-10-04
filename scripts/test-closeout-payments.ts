@@ -5,6 +5,7 @@ import { capture, applyCloseout } from './sync-junkware-job-closeout';
 import { captureCloseoutSource } from './junkware-closeout-source';
 import { verifyCloseoutFields, closeoutSourceVersion } from '../lib/desktop-closeout-contract';
 import { validateCloseoutPayment } from '../lib/closeout-payment';
+import { requireCloseoutPhotos } from '../lib/closeout-photo-policy';
 import { saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 
 const methods = [{value:'1',label:'Billed'}, {value:'2',label:'Cash'}, {value:'3',label:'Credit Card'}, {value:'4',label:'Check'}];
@@ -13,6 +14,7 @@ type Payment = {description:string;amount:string};
 let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0, truckPosts = 0;
 let lockedSchedule = false;
 let outcomeSaves = 0;
+let hasPhotos = true;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
@@ -20,7 +22,7 @@ function html(fields:URLSearchParams) {
   const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}" ${['StatusDD','AppointmentTypeDD','TruckDD','PaymentMethodDD'].includes(key)?`onchange="this.form.elements.namedItem('__EVENTTARGET').value=this.name;this.form.submit()"`:""}>${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
   const status = value('StatusDD');
-  return `<!doctype html><html><body>JKTEST1234<a href="https://junkware.junk-king.com/system/aspnet/local/media/before-1234-test.jpg">Uploaded job photo</a><form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
+  return `<!doctype html><html><body>JKTEST1234${hasPhotos ? '<a href="https://junkware.junk-king.com/system/aspnet/local/media/before-1234-test.jpg">Uploaded job photo</a>' : ''}<form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
   ${select('StatusDD',[{value:'1',label:'Confirmed'},{value:'8',label:'Completed'}])}
   ${select('AppointmentTypeDD',[{value:'2',label:'Job'},{value:'1',label:'Estimate'}])}
   <div>${select('TruckDD',[{value:'',label:''},{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}])}${status==='1' ? 'Assigned: '+(persisted.get('ctl00$Content$TruckDD')==='u'?'Truck# 6':'Truck# 1') : ''}</div>
@@ -81,6 +83,30 @@ async function main() {
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
     }
+    // Real writer + native form/read-back fixture: office policy is independent
+    // of photo presence; Waypoint/default rejects before touching any controls.
+    for (const photos of [false,true]) for (const category of ['Job','Estimate']) {
+      hasPhotos=photos;
+      persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':category==='Job'?'2':'1','ctl00$Content$LoadSizeTruckQtyTB':'1','ctl00$Content$BillingAmountTB':'1200.00'});
+      payments=[];saves=0;adds=0;outcomeSaves=0;
+      await page.goto(url);
+      const before=await captureCloseoutSource(page,capture);
+      const request={...input,appointmentType:category,...(category==='Estimate'?{estimateOutcome:{reason:'Date/Time' as const,explanation:'Fixture outcome',noDiscountReason:'Fixture reason'}}:{})};
+      if(!photos) {
+        await assert.rejects(applyCloseout(page,request,before),/Upload at least one/);
+        assert.equal(saves,0);assert.equal(adds,0);
+      }
+      const result=await saveAndVerifyCloseout(before,()=>applyCloseout(page,request,before,'opscenter'),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>{
+        requireCloseoutPhotos(result,'8','1234','opscenter');
+        verifyCloseoutFields(result,request,before);
+      });
+      assert.equal(result.status.value,'8');assert.equal(saves,1);assert.equal(adds,0);
+      assert.equal(outcomeSaves,category==='Estimate'?1:0);
+      assert.deepEqual(result.photoEvidence,before.photoEvidence,'Existing photo evidence is preserved');
+      assert.deepEqual(result.appointmentWindow,before.appointmentWindow,'Scheduling is preserved');
+      assert.throws(()=>verifyCloseoutFields({...result,loadPrice:'1'},request,before),/loadPrice/,'Office policy never weakens financial read-back');
+    }
+    hasPhotos=true;
     for (const targetStatus of ['1', '8'] as const) {
       persisted = new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$BillingAmountTB':'1200.00','ctl00$Content$StartTimeTB':'09:00 AM','ctl00$Content$AppointmentDateTB':'09/12/2026'});
       payments=[]; adds=0; saves=0;

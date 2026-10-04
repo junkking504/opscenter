@@ -1,3 +1,4 @@
+import type { CloseoutApplication } from './closeout-photo-policy';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -14,9 +15,19 @@ export function classifyCloseoutFailure(error: unknown): JunkwareCloseoutError {
   } catch { /* Unclassified failures may have followed a source write. */ }
   return new JunkwareCloseoutError('JunkWare could not confirm the closeout result. Inspect the source before retrying.', 'uncertain');
 }
+// Default remains photo-required for Waypoint and every non-office caller.
 export async function junkwareJobCloseout(appointmentId: string, payload?: Record<string, unknown>, mode?: 'classify') {
+  return runCloseout(appointmentId, payload, mode, 'waypoint');
+}
+
+/** Only authenticated, role-authorized OpsCenter routes may select this writer. */
+export async function opscenterJobCloseout(appointmentId: string, payload: Record<string, unknown>, mode?: 'classify') {
+  return runCloseout(appointmentId, payload, mode, 'opscenter');
+}
+
+async function runCloseout(appointmentId: string, payload: Record<string, unknown> | undefined, mode: 'classify' | undefined, application: CloseoutApplication) {
   if (!/^\d{1,12}$/.test(appointmentId)) throw new JunkwareCloseoutError('The JunkWare appointment ID is unavailable.', 'preflight');
-  const args = ['--import', 'tsx', path.join(process.cwd(), 'scripts', 'sync-junkware-job-closeout.ts'), '--appointment', appointmentId, '--mode', mode || (payload ? 'write' : 'read')];
+  const args = ['--import', 'tsx', path.join(process.cwd(), 'scripts', 'sync-junkware-job-closeout.ts'), '--application', application, '--appointment', appointmentId, '--mode', mode || (payload ? 'write' : 'read')];
   if (payload) args.push('--payload-base64', Buffer.from(JSON.stringify(payload)).toString('base64url'));
   try {
     const { stdout } = await execFileAsync(process.execPath, args, { cwd: process.cwd(), encoding: 'utf8', timeout: 180_000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env } });

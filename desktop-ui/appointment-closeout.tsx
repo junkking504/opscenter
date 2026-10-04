@@ -360,7 +360,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       return;
     }
     const completing = targetStatus === '8';
-    if (completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) && !(transport?.prepare && photoSteps?.hasPhotos)) {
+    if (crewMode && completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) && !(transport?.prepare && photoSteps?.hasPhotos)) {
       setError(transport?.prepare?'Add job photos before submitting checkout. They upload after final confirmation.':CLOSEOUT_PHOTOS_REQUIRED); return;
     }
     if ((completing || live.truck) && !truck) {
@@ -523,7 +523,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
         {draftNotice && <p role="status">{draftNotice}</p>}
-        {live && !photoSteps && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : CLOSEOUT_PHOTOS_REQUIRED}</p>}
+        {live && !photoSteps && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : crewMode ? CLOSEOUT_PHOTOS_REQUIRED : 'Photos are optional for OpsCenter closeout.'}</p>}
         {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-label={label} aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span><span className="mobile-closeout-step-label">{label.replace(' photos','')}</span></button>)}</nav>}
         {live && photoSteps && <div hidden={!currentPhotoCategory || reviewing || Boolean(receipt && receipt.status!=='failed')} className="closeout-photo-step">{photoSteps.render(mobileStep>=2?'after':'before')}</div>}
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}

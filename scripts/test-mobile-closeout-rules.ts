@@ -21,6 +21,8 @@ async function main() {
   for(const source of [{}, {photoCount:3}, {photoEvidence:{appointmentId:id,urls:[]}}, {photoEvidence:{appointmentId:'900003',urls:[photo]}}]) {
     assert.throws(()=>requireCloseoutPhotos(source,'8',id),/Upload at least one/);
   }
+  requireCloseoutPhotos({},'8',id,'opscenter');
+  assert.throws(()=>requireCloseoutPhotos({application:'opscenter',requirePhotos:false},'8',id),/Upload at least one/,'Payload cannot select office policy');
   requireCloseoutPhotos({},'1',id);
   requireCloseoutPhotos({photoEvidence:evidence},'8',id);
 
@@ -54,6 +56,10 @@ async function main() {
   const input={targetStatus:'8' as const,driverId:'d',navigatorIds:[],loadQuantity:'0',loadSize:'',loadPrice:'400',bedloadQuantity:'',bedloadSize:'',bedloadPrice:'',otherChargesToAdd:[],discount:'',tip:'',jobCategoryId:'',actualStartHour:'10',actualStartMinute:'00',actualEndHour:'11',actualEndMinute:'00'};
   await assert.rejects(applyCloseout(page,input,{status:{value:'1'},photoEvidence:closeoutPhotoEvidence(id,[])}),/Upload at least one/);
   assert.equal(touched,false,'No source controls touched without photos');
+  await assert.rejects(applyCloseout(page,{...input,application:'opscenter'} as typeof input,{status:{value:'1'}}),/Upload at least one/);
+  assert.equal(touched,false,'A payload application cannot bypass the writer default');
+  await assert.rejects(applyCloseout(page,input,{status:{value:'1'}},'opscenter'),/Source mutation reached/);
+  assert.equal(touched,true,'Trusted office policy allows zero-photo validation to proceed');
   await assert.rejects(applyCloseout(page,input,{status:{value:'1'},photoEvidence:evidence}),/Source mutation reached/);
   assert.equal(touched,true,'Verified source photos allow existing write validation to proceed');
   console.log('PASS: exact-appointment photo requirement, write-adapter preflight, verified completion gate, dispatch release gate, no future-data projection, unavailable-source handling. No browser or live writes.');

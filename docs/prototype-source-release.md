@@ -666,3 +666,29 @@ not. Ordinary page navigation remains available. Desktop presentation and
 mouse/pen behavior retain the existing implementation. Extremely unbounded
 concurrency cannot guarantee both legible individual markers and a fixed phone
 viewport; do not hide records to claim a fit.
+
+## Mobile overview appointment moves
+
+The full mobile overview keeps normal taps for appointment details and native
+page scrolling. Tap **Move** to enter a deliberate move mode, then drag an
+appointment marker onto a truck's timeline. A vertical move keeps the exact
+booked window; horizontal movement shifts that booked window and snaps to the
+same supported hourly windows as the existing desktop controls. Recorded visit
+positions and the 15-minute visual minimum do not redefine booked times.
+
+Release opens a review showing the appointment, original and proposed truck/time,
+and any overlapping appointments. **Confirm Move** uses the existing JunkWare
+write-through and background verification workflow. Canceling review or a gesture,
+dropping on a truck label or outside the timeline, losing pointer capture,
+resizing, or leaving the page submits nothing. Canceled appointments, unverified
+assignments, unsupported retiming, and changed source versions remain blocked.
+**Done** exits move mode. Blank timeline space remains available for page scrolling
+even while move mode is enabled. For very small markers, tap the truck to select
+an appointment from its larger details list and use the existing move controls.
+Desktop dragging retains its existing behavior.
+
+Fixture validation: `node scripts/test-mobile-schedule-drag-browser.mjs` and
+`node scripts/test-mobile-full-overview-browser.mjs`; all source reads and writes
+are mocked in memory. Chromium exercises native touch dragging; WebKit exercises
+pointer dragging and native taps. These checks do not constitute physical-iPhone
+or authenticated production acceptance.

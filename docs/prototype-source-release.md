@@ -407,10 +407,10 @@ Mouse or pen dragging can begin anywhere on the appointment block. Pointer captu
 and temporary selection suppression prevent native text selection; drop still
 uses the existing review and verified JunkWare write. Clicks after a drag are
 suppressed, and Escape, pointer cancellation, blur, or unmount clean up the gesture.
-Touch gestures scroll the timeline horizontally or the page vertically and do
-not start appointment moves. Stationary taps open details, where assignment and
-time changes remain available. Mobile timeline overscroll chains vertically to
-the page so the last truck and appointment list remain reachable.
+Touch gestures navigate the page without starting appointment moves. Phone
+boards use the full-day overview below; the schedule itself does not scroll.
+Taps open details, where assignment and time changes remain available. Desktop
+mouse/pen behavior remains unchanged.
 
 Unavailable route labels distinguish an unverified appointment address from a
 missing provider estimate. Coordinates remain subject to the existing strict
@@ -648,9 +648,21 @@ so today and tomorrow do not evict one another. Entries retain the existing
 Hidden tabs suppress arrival-triggered reads and Schedule/route polling. Becoming
 visible immediately requests current data, rather than replaying missed hints.
 
-Phone truck schedules keep the pinned route column at 88px. Stacked truck/load
-labels contribute their combined height to each band; long load labels use one
-line with ellipsis and retain full wording in the accessible description/title.
-Phone travel-time labels use an 18px box in a separate compact gutter, without
-changing 44px appointment cards, genuine overlap lanes or desktop geometry.
-Their actual vertical footprints reserve space against facility icons.
+Phone truck schedules use a dedicated full-day overview at widths up to 900px.
+A 72px truck column and a flexible timeline show every truck and the complete
+source time extent together, without an internal horizontal or vertical scroller.
+The axis includes its final endpoint. Overlaps, return visits, untimed jobs,
+HQ and dump evidence retain individual markers; source records are not altered.
+Territory fills, cancellation hatching, closed marks and on-site outlines carry
+status at overview scale. Marker rows use discrete 16/12/10px spacing based on
+viewport height and actual overlap density; labels remain readable instead of
+scaling a desktop board. Very short visits use the fifteen-minute display minimum
+and retain exact source times in accessible labels and details.
+
+Tap an appointment for its full record, or a truck for its complete appointment
+list with at least 44px targets, load notes, facility times and travel-time
+estimates. Details may scroll independently; the full schedule overview does
+not. Ordinary page navigation remains available. Desktop presentation and
+mouse/pen behavior retain the existing implementation. Extremely unbounded
+concurrency cannot guarantee both legible individual markers and a fixed phone
+viewport; do not hide records to claim a fit.

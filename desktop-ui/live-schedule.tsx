@@ -1,3 +1,4 @@
+import MobileScheduleOverview from './mobile-schedule-overview';
 import { useRouteEstimate } from './lib/use-route-estimate';
 import EstimateBooking from './estimate-booking';
 import {ScheduleCrewRoster} from './schedule-crew-roster';
@@ -526,7 +527,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         </aside>
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleRecordedSequence jobs={jobs} stops={snapshot.operationalStops || []} trucks={truckNames} now={now.getTime()} select={selectAppointment} /><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
-        <p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
+        <>{mobileTimeline ? <MobileScheduleOverview snapshot={snapshot} jobs={jobs} trucks={truckNames} range={range} legs={displayLegs} now={now.getTime()} selected={selectedId} select={setDrawerId} /> : <><p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
@@ -557,7 +558,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             </div></div>;
           })}
           <ScheduleColocatedVisitConnectors refreshKey={`${snapshot.observedAt || ''}:${now.getTime()}:${truckNames.join(',')}`} appointments={jobs} trucks={snapshot.fleet.isToday?snapshot.fleet.trucks:[]} now={now.getTime()} />
-        </div></div>
+        </div></div></>}</>
       </div>}
       {dragNotice && <div className="schedule-drag-notice" role="status"><span>{dragNotice}</span><button type="button" aria-label="Dismiss drag notice" onClick={() => setDragNotice('')}>×</button></div>}
       {rescheduleNotice && <section className="schedule-change-receipt sync-verified" role="status"><header><strong>{rescheduleNotice.jk} rescheduled to {rescheduleNotice.date} · Verified in JunkWare</strong></header><footer>{onOpenDate && <Button onClick={() => onOpenDate(rescheduleNotice.date)}>View Rescheduled Day →</Button>}<Button variant="outline" onClick={() => setRescheduleNotice(null)}>Dismiss</Button></footer></section>}

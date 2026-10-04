@@ -75,6 +75,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshSourceDate = useRef('');
   const [backgroundMoves, setBackgroundMoves] = useState<Record<string, BackgroundScheduleMove>>({});
+  const pendingMoveRecords=useRef(new Set<string>());
   const [rescheduleNotice,setRescheduleNotice]=useState<{date:string;jk:string}|null>(null);
   const refresh = () => setRefreshKey(value => value + 1);
   const [error, setError] = useState('');
@@ -281,6 +282,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const source = snapshot.appointments.find(job => job.recordId === recordId);
         if (move.phase === 'verified' && source && sourceMatchesBackgroundScheduleMove(source, move)) {
           delete next[recordId];
+          pendingMoveRecords.current.delete(recordId);
           changed = true;
         }
       }
@@ -345,7 +347,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const finishBackgroundMove = (move: BackgroundScheduleMove, receipt: Receipt) => {
     if (receipt.status === 'verified') {
       setBackgroundMoves(previous => previous[move.recordId]
-        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verified' } }
+        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verified', verificationMessage:undefined } }
         : previous);
       setDragNotice(`${jobs.find(job => job.recordId === move.recordId)?.jkNumber || 'Appointment'} move verified in JunkWare.`);
       refreshSourceDate.current = date;
@@ -353,6 +355,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       return true;
     }
     if (receipt.status === 'failed' || receipt.status === 'reconciled' || receipt.sourceResult?.assignmentReconciled === true) {
+      pendingMoveRecords.current.delete(move.recordId);
       setBackgroundMoves(previous => {
         if (!previous[move.recordId]) return previous;
         const next = { ...previous };
@@ -364,8 +367,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       refresh();
       return true;
     }
+    if(receipt.status==='uncertain'){
+      setDragNotice(`Move verification required. No retry was sent. ${receipt.message}`);
+      refreshSourceDate.current=date;refresh();
+    }
     setBackgroundMoves(previous => previous[move.recordId]
-      ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying' } }
+      ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying', verificationMessage: receipt.status==='uncertain'?receipt.message:undefined } }
       : previous);
     return false;
   };
@@ -421,15 +428,16 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   };
   const commitScheduleMove = (proposal: Parameters<typeof backgroundScheduleMove>[0]) => {
     const window = scheduleMoveWindow(proposal.job, proposal.start);
-    if (!window.supported || assignmentNeedsVerification(proposal.job) || backgroundMoves[proposal.job.recordId]) {
+    if (!window.supported || assignmentNeedsVerification(proposal.job) || backgroundMoves[proposal.job.recordId] || pendingMoveRecords.current.has(proposal.job.recordId)) {
       if (!window.supported) setDragNotice('This appointment window cannot be moved through JunkWare. Keep its current time or choose a supported hourly window.');
       return;
     }
+    pendingMoveRecords.current.add(proposal.job.recordId);
     const requestId = crypto.randomUUID();
     const move = backgroundScheduleMove(proposal, requestId);
     setBackgroundMoves(previous => ({ ...previous, [move.recordId]: move }));
     setDrawerId(null);
-    setDragNotice(`${proposal.job.jkNumber} moved to ${truckDisplayText(proposal.truck)} · ${move.label}. JunkWare verification is running in the background.`);
+    setDragNotice(`${proposal.job.jkNumber}: saving to ${truckDisplayText(proposal.truck)} · ${move.label}. JunkWare verification is running in the background.`);
     void sendScheduleChange(
       proposal.job,
       date,
@@ -444,6 +452,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       // appointment. The rejected new UUID was never submitted, so restore the
       // source-backed row and continue checking only that durable receipt.
       if (receipt.requestId !== move.requestId) {
+        pendingMoveRecords.current.delete(move.recordId);
         setBackgroundMoves(previous => {
           if (!previous[move.recordId]) return previous;
           const next = { ...previous };
@@ -460,9 +469,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       if (!finishBackgroundMove(move, receipt)) pollBackgroundMove(move);
     }).catch(failure => {
       setBackgroundMoves(previous => previous[move.recordId]
-        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying' } }
+        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying', verificationMessage:'Save result unavailable; verification is still running.' } }
         : previous);
-      setDragNotice(failure instanceof Error ? `${proposal.job.jkNumber} moved in OpsCenter. ${failure.message}` : `${proposal.job.jkNumber} moved in OpsCenter. JunkWare verification is still running.`);
+      setDragNotice(`${proposal.job.jkNumber}: save result unavailable. Checking the saved request; no retry was sent.${failure instanceof Error?` ${failure.message}`:''}`);
+      refreshSourceDate.current=date;refresh();
       pollBackgroundMove(move);
     });
   };
@@ -527,7 +537,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         </aside>
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleRecordedSequence jobs={jobs} stops={snapshot.operationalStops || []} trucks={truckNames} now={now.getTime()} select={selectAppointment} /><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
-        <>{mobileTimeline ? <MobileScheduleOverview snapshot={snapshot} jobs={jobs} trucks={truckNames} range={range} legs={displayLegs} now={now.getTime()} selected={selectedId} select={setDrawerId} busy={operationBusy} onMove={commitScheduleMove} /> : <><p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
+        <>{mobileTimeline ? <MobileScheduleOverview snapshot={snapshot} jobs={jobs} trucks={truckNames} range={range} legs={displayLegs} now={now.getTime()} selected={selectedId} select={setDrawerId} busy={operationBusy} onMove={commitScheduleMove} onBlocked={setDragNotice} /> : <><p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
             const rowJobs = scheduleBoardJobs(jobs,truck,now.getTime()).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));

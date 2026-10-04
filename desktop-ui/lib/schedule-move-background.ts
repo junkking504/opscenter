@@ -13,6 +13,7 @@ export type BackgroundScheduleMove = {
   end: number | null;
   label: string;
   phase: 'submitting' | 'verifying' | 'verified';
+  verificationMessage?: string;
 };
 
 export function backgroundScheduleMove(move: MoveProposal, requestId: string): BackgroundScheduleMove {
@@ -44,7 +45,7 @@ export function applyBackgroundScheduleMove(job: ScheduleAppointment, move: Back
     appointmentTime: move.label,
     hasScheduledTime: move.start !== null && move.end !== null,
     junkwareSyncStatus: 'pending',
-    junkwareSyncError: '',
+    junkwareSyncError: move.verificationMessage || '',
   };
 }
 

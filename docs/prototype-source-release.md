@@ -671,17 +671,22 @@ viewport; do not hide records to claim a fit.
 
 The full mobile overview keeps normal taps for appointment details and native
 page scrolling. Tap **Move** to enter a deliberate move mode, then drag an
-appointment marker onto a truck's timeline. A vertical move keeps the exact
+appointment marker onto a truck's timeline and release to save. A vertical move keeps the exact
 booked window; horizontal movement shifts that booked window and snaps to the
 same supported hourly windows as the existing desktop controls. Recorded visit
 positions and the 15-minute visual minimum do not redefine booked times.
 
-Release opens a review showing the appointment, original and proposed truck/time,
-and any overlapping appointments. **Confirm Move** uses the existing JunkWare
-write-through and background verification workflow. Canceling review or a gesture,
+A deliberate valid drop uses the existing JunkWare write-through and background
+verification workflow immediately, without a confirmation sheet. The drag preview
+shows the proposed truck/time and any overlaps. Canceling a gesture,
 dropping on a truck label or outside the timeline, losing pointer capture,
-resizing, or leaving the page submits nothing. Canceled appointments, unverified
-assignments, unsupported retiming, and changed source versions remain blocked.
+resizing, or leaving the page before a drop submits nothing. Canceled appointments,
+unverified assignments, unsupported retiming, and changed source versions remain
+blocked. A no-op drop also submits nothing. Each intentional save receives one
+request ID; the synchronous per-record guard prevents a second submission before
+React updates. Saving, verified, and failed states are shown; an uncertain result
+keeps the appointment blocked while the durable request is checked and the source
+is refreshed. Neither a lost response nor day navigation replays the POST.
 **Done** exits move mode. Blank timeline space remains available for page scrolling
 even while move mode is enabled. For very small markers, tap the truck to select
 an appointment from its larger details list and use the existing move controls.

@@ -6,9 +6,10 @@ const base=process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3156';
 try {
   const page=await browser.newPage({viewport:{width:588,height:1100}});
   await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&result=held`);
-  const source=page.locator('[data-schedule-truck="Truck 8"] [data-schedule-appointment][aria-label^="JK1001001"]');
-  const target=page.locator('[data-schedule-truck="Truck 6"] .live-truck-timeline');
+  const source=page.locator('[data-overview-truck="Truck 8"] [data-schedule-appointment][aria-label^="JK1001001"]');
+  const target=page.locator('[data-overview-truck="Truck 6"] .mobile-schedule-track');
   await source.waitFor();
+  await page.locator('.mobile-schedule-guide button').click();
   await target.scrollIntoViewIfNeeded();
   const from=await source.boundingBox(),to=await target.boundingBox();
   assert(from&&to,'Synthetic source and destination must be visible');
@@ -19,9 +20,9 @@ try {
 
   assert.equal(await page.getByRole('dialog',{name:'Confirm schedule move',exact:true}).count(),0,'Drag/drop does not open a confirmation sheet');
   await page.getByText(/JunkWare verification is running in the background/).waitFor();
-  await page.locator('[data-schedule-truck="Truck 6"] [data-schedule-appointment][aria-label^="JK1001001"]').waitFor();
+  await page.locator('[data-overview-truck="Truck 6"] [data-schedule-appointment][aria-label^="JK1001001"]').waitFor();
   await page.waitForFunction(()=>document.querySelector('#fixture-writes')?.textContent?.startsWith('Writes: 1'));
-  assert.equal(await page.locator('[data-schedule-truck="Truck 8"] [data-schedule-appointment][aria-label^="JK1001001"]').count(),0,'The appointment leaves its old lane immediately');
+  assert.equal(await page.locator('[data-overview-truck="Truck 8"] [data-schedule-appointment][aria-label^="JK1001001"]').count(),0,'The appointment leaves its old lane immediately');
 
   await page.getByRole('button',{name:'Release Verified Receipt'}).click();
   await page.getByText(/move verified in JunkWare/i).waitFor();

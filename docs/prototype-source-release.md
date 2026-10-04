@@ -647,3 +647,10 @@ so today and tomorrow do not evict one another. Entries retain the existing
 30-second expiry, and selected-day evidence is read on every request.
 Hidden tabs suppress arrival-triggered reads and Schedule/route polling. Becoming
 visible immediately requests current data, rather than replaying missed hints.
+
+Phone truck schedules keep the pinned route column at 88px. Stacked truck/load
+labels contribute their combined height to each band; long load labels use one
+line with ellipsis and retain full wording in the accessible description/title.
+Phone travel-time labels use an 18px box in a separate compact gutter, without
+changing 44px appointment cards, genuine overlap lanes or desktop geometry.
+Their actual vertical footprints reserve space against facility icons.

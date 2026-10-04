@@ -326,9 +326,10 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { --schedule-route-width: 88px; min-width: 808px; }
   .ops-live .live-schedule.schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 13; background: var(--surface, #fff); }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { z-index: 10; background: var(--surface, #fff); }
-  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 11px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 11px; white-space: nowrap; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell .schedule-truck-load { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ops-live .live-schedule.schedule-dispatch .schedule-appointment[aria-roledescription] { touch-action: pan-x pan-y pinch-zoom; }
-  .ops-live .live-schedule.schedule-dispatch .route-connector-label { height: 44px; font-size: 11px; line-height: 44px; border: 1px solid #d8e2dc; border-radius: 5px; }
+  .ops-live .live-schedule.schedule-dispatch .route-connector-label { height: 18px; font-size: 11px; line-height: 16px; border: 1px solid #d8e2dc; border-radius: 5px; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-miles { display: none; }
   .ops-live .live-schedule.schedule-dispatch .route-connector-tooltip { display: none; }
 }

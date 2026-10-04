@@ -170,7 +170,8 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   // cards. Their readable pixel width must not depend on a tiny time gap.
   const labelRows: Array<Array<{left:number;right:number}>> = [];
   const labelWidth = Math.min(1, (mobile ? 44 : 96) / (timelineWidth || 640));
-  const labelBase = Math.max(1, lanes.length) * laneStep + 2;
+  const labelStep = 22;
+  const labelBase = rowHeight + 4;
   const readableConnectors = connectors.map(connector => {
     const center = connector.left + connector.width / 2;
     const left = Math.max(0, Math.min(1-labelWidth, center-labelWidth/2));
@@ -178,12 +179,19 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     let row = labelRows.findIndex(intervals => intervals.every(interval => right <= interval.left || left >= interval.right));
     if (row < 0) row = labelRows.length;
     (labelRows[row] ||= []).push({left,right});
-    return {...connector, labelLeft:left, labelWidth, labelTop:labelBase + row*laneStep - connector.top};
+    return {...connector, labelLeft:left, labelWidth, labelTop:labelBase + row*labelStep - connector.top};
   });
-  // Desktop reserves whole label rows. Compact mobile labels reserve only their
-  // actual footprint so facility pills can share the remaining space.
-  const occupiedLanes = [...lanes, ...(mobile ? labelRows : labelRows.map(()=>[{left:0,right:1}]))];
-  if (labelRows.length) rowHeight = labelBase + (labelRows.length-1)*laneStep + (mobile ? 46 : 30);
+  // Reserve each label in the appointment lanes it actually crosses. Labels
+  // have a smaller row step; their array index is not a facility-lane index.
+  const occupiedLanes = lanes.map(lane => [...lane]);
+  readableConnectors.forEach(connector => {
+    const top = connector.top + connector.labelTop;
+    const first = Math.floor((top - 2) / laneStep);
+    const last = Math.floor((top + 18 - 2 - .001) / laneStep);
+    for (let lane = first; lane <= last; lane++)
+      (occupiedLanes[lane] ||= []).push({left:connector.labelLeft,right:connector.labelLeft+connector.labelWidth});
+  });
+  if (labelRows.length) rowHeight = labelBase + (labelRows.length-1)*labelStep + 20;
   return { placed, laneStep, rowHeight, connectors:readableConnectors, laneCount: lanes.length, occupiedLanes };
 }
 export type TimelineConnector = ReturnType<typeof scheduleTravelLayout>['connectors'][number];

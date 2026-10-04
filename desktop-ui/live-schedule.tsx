@@ -155,7 +155,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const cell = row.querySelector<HTMLElement>('.schedule-truck-cell')!;
         const style = getComputedStyle(cell);
         const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
-        return Math.ceil(Math.max(20, ...content.map(label => label.offsetHeight)) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
+        const contentHeight = window.innerWidth <= 900
+          ? content.reduce((height, label) => height + label.offsetHeight, 0) + Math.max(0, content.length - 1) * parseFloat(style.rowGap || '0')
+          : Math.max(20, ...content.map(label => label.offsetHeight));
+        return Math.ceil(contentHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
       });
       const shell = board.querySelector<HTMLElement>('.schedule-board-shell');
       const titleHeight = shell?.querySelector<HTMLElement>(':scope > .section-title')?.offsetHeight || 30;
@@ -171,12 +174,17 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         row.removeAttribute('data-condensed');
       });
     };
-    const observer = new ResizeObserver(fit);
+    let fitFrame = 0;
+    const scheduleFit = () => {
+      cancelAnimationFrame(fitFrame);
+      fitFrame = requestAnimationFrame(fit);
+    };
+    const observer = new ResizeObserver(scheduleFit);
     document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
     board.querySelectorAll('.live-truck-timeline').forEach(element => observer.observe(element));
-    window.addEventListener('resize', fit);
+    window.addEventListener('resize', scheduleFit);
     fit();
-    return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
+    return () => { observer.disconnect(); cancelAnimationFrame(fitFrame); window.removeEventListener('resize', scheduleFit); };
   }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
@@ -534,7 +542,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
-            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={totalRowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${totalRowHeight}px)`, '--schedule-row-min-height': `${totalRowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
+            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={totalRowHeight} data-operational-lanes={stopLayout.laneCount} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${totalRowHeight}px)`, '--schedule-row-min-height': `${totalRowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truckDisplayText(truck)} on map`} aria-describedby={load ? `schedule-load-${date}-${index}` : undefined} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truckDisplayText(truck)}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small id={`schedule-load-${date}-${index}`} className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={[load.label, load.note].filter(Boolean).join(' · ')}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
               <div className="schedule-timeline-content">{placed.flatMap(({ job, position, segmentLanes, gapLanes }) => [
                 ...position.gapSegments.flatMap((segment,gapIndex)=>position.gaps[gapIndex].kind==='dump' && rowStops.some(stop=>stop.kind==='dump' && stop.startMinutes>=position.gaps[gapIndex].start && stop.startMinutes<=position.gaps[gapIndex].end) ? [] : <ScheduleVisitGap key={`${job.recordId}:gap:${gapIndex}`} job={job} truck={truck} position={position} gapIndex={gapIndex} top={gapLanes[gapIndex]*laneStep+2} />),

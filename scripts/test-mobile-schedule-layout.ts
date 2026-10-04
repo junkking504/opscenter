@@ -20,4 +20,15 @@ assert.ok(overlap.occupiedLanes.slice(overlap.laneCount).every(l=>l.every(i=>i.r
 const stop={id:'warehouse',truck:'Truck 3',name:'HQ',kind:'hq',startMinutes:900,endMinutes:915} as ScheduleOperationalStop;
 const stops=scheduleOperationalStopLayout([stop],range,720,overlap.occupiedLanes);
 assert.ok(stops.placements[0].lane<overlap.occupiedLanes.length,'Facility stops reuse available space');
+
+const noTravel=scheduleTravelLayout(jobs,[],range,'Truck 3',0,720,true,true);
+assert.ok(overlap.rowHeight-noTravel.rowHeight<48*overlap.connectors.length,'Time labels use a compact gutter rather than another appointment-height lane');
+for(const c of overlap.connectors) {
+  const top=c.top+c.labelTop;
+  assert.ok(top>=noTravel.rowHeight,'Travel labels stay below appointment cards');
+  const atLabel={...stop,id:`stop-${c.leg.toAppointmentId}`,startMinutes:range.start+c.labelLeft*range.duration};
+  const placement=scheduleOperationalStopLayout([atLabel],range,720,overlap.occupiedLanes).placements[0];
+  const stopTop=placement.lane*overlap.laneStep+2;
+  assert.ok(stopTop+22<=top || stopTop>=top+18,'A facility icon cannot overlap a compact travel label');
+}
 console.log('Mobile schedule layout PASS: real overlaps, immutable inputs, touch geometry, compact reservations and unchanged desktop defaults.');

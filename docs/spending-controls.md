@@ -241,3 +241,21 @@ instead of competing exact premises; it does not accept those suggestions.
 Only that module pin changes. The checker, Geocodio transport, all paid limits,
 other hostnames and dependencies remain unchanged. Back up the installed pair,
 record checksums and preserve read-only permissions when installing approval.
+
+## Local resale photo decoder — approved October 5, 2026
+
+The user approved declaring the already-transitive `sharp` library directly for
+resale image validation, orientation and metadata removal. The direct dependency
+is pinned to **0.35.3**, the version already resolved through Next.js 16.3.0. The
+lockfile retains the same package versions, registry integrity and native image
+components; no new resolved package is introduced. Sharp is Apache-2.0 licensed
+and processes bytes locally. Uploads use bounded file sizes and decoded pixels.
+No external endpoint, credentials, metered request, paid service, quota or budget
+change is authorized. This approval does not authorize a deployment.
+
+The supported dependency review adds only `sharp` to the approved dependency
+inventory, with review metadata. Preserve the unchanged checker, host inventory
+and all protected-file hashes. Back up the installed checker/inventory pair,
+install the reviewed pair with read-only permissions, and record both SHA256
+checksums and the approval source in the external installation record. Then run
+both repository and installed gates plus the normal build and regressions.

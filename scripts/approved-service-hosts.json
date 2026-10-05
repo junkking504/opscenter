@@ -1,6 +1,6 @@
 {
-  "reviewedAt": "2026-10-03",
-  "note": "Existing endpoint inventory; no blanket billing authorization. Maintenance diagnosis and address investigation retain their shared $10 monthly ledger. Ask OpsBot is separately approved for GPT-6 Luna, 50 total questions, $0.20 reserved per question, and a $10 calendar-month cap, with no web search or file uploads. Explicit user approval September 24, 2026. Employee-performance tool approved October 3, 2026: anonymized operational metrics, local identity resolution, unchanged GPT-6 Luna model, 50-question and $10 caps.",
+  "reviewedAt": "2026-10-05",
+  "note": "Existing endpoint inventory; no blanket billing authorization. Maintenance diagnosis and address investigation retain their shared $10 monthly ledger. Ask OpsBot is separately approved for GPT-6 Luna, 50 total questions, $0.20 reserved per question, and a $10 calendar-month cap, with no web search or file uploads. Explicit user approval September 24, 2026. Employee-performance tool approved October 3, 2026: anonymized operational metrics, local identity resolution, unchanged GPT-6 Luna model, 50-question and $10 caps. Sharp 0.35.3 direct dependency approved October 5, 2026 for local resale photo decoding; already resolved through Next.js. No new provider, hostname, paid usage or budget change.",
   "hosts": [
     "127.0.0.1",
     "api.geocod.io",
@@ -55,6 +55,7 @@
     "postcss",
     "react",
     "react-dom",
+    "sharp",
     "tailwindcss",
     "typescript"
   ],

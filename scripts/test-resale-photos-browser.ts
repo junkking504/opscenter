@@ -37,6 +37,8 @@ async function main() {
       if (mode === 'lost-photo') { mode = ''; await route.abort('failed'); return; }
     } else if (url.pathname.startsWith('/api/resale-items/photos/')) {
       response = await routes.view.GET(input, { params: Promise.resolve({ photoId: url.pathname.split('/').at(-1)! }) });
+    } else if (url.pathname === '/api/desktop/ask-opsbot' && method === 'GET') {
+      response = Response.json({ available: false, remaining: 0, limit: 0, reason: 'Synthetic fixture; paid services disabled.' });
     } else throw new Error(`Unexpected fixture request ${url.pathname}`);
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
   };
@@ -54,6 +56,37 @@ async function main() {
   async function screenshot(name: string, target: Page = page) { await target.evaluate(async () => { await Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))); }); await target.screenshot({ path: path.join(evidence, name) }); }
   try {
     await page.goto(base);
+    // The shared header uses display:contents, so its search/alert descendants
+    // must be covered by the drawer or its backdrop at every responsive width.
+    for (const width of [390, 320, 430, 600, 760, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.getByRole('button', { name: 'Add item', exact: true }).click();
+      await page.evaluate(async () => { await Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))); });
+      if (width === 390) await screenshot('mobile-drawer-layer.png');
+      if (width === 1440) await screenshot('desktop-drawer-layer.png');
+      for (const selector of ['.live-search-below-day .global-search', '.notification-trigger']) {
+        const coverage = await page.locator(selector).evaluate(element => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return { covered: Boolean(hit?.closest('.record-drawer, .record-drawer-backdrop')), hit: hit?.outerHTML.slice(0, 160) };
+        });
+        assert(coverage.covered, `${width}px: ${selector} must be covered by resale drawer/backdrop; hit ${coverage.hit}`);
+      }
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px must fit without horizontal overflow`);
+      await page.getByRole('button', { name: 'Take photo', exact: true }).click({ trial: true });
+      await page.getByRole('button', { name: 'Choose photos', exact: true }).click({ trial: true });
+      await page.getByRole('button', { name: 'Close', exact: true }).click();
+      await closed();
+      await page.locator('.notification-trigger').click();
+      await page.getByRole('dialog', { name: 'Alerts', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog', { name: 'Alerts', exact: true }).waitFor({ state: 'hidden' });
+      await page.keyboard.press('/');
+      await page.getByRole('dialog', { name: 'OpsCenter launcher', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog', { name: 'OpsCenter launcher', exact: true }).waitFor({ state: 'hidden' });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await create('No photo chair'); await page.getByRole('button', { name: 'Save Inventory Record', exact: true }).click(); await closed(); assert.equal(row('No photo chair').photos?.length, 0);
     await create('Desktop cabinet');
     await page.getByLabel('Choose resale photos').setInputFiles({ name: 'bad.heic', mimeType: 'image/heic', buffer: Buffer.from('bad') });

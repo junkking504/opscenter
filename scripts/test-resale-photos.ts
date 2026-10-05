@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
+import { attachResalePhoto, readResalePhotoForm, resalePhotoPath } from '../lib/resale-photos';
+import { MAX_RESALE_PHOTO_BYTES, MAX_RESALE_PHOTOS } from '../lib/resale-photo-limits';
+import { readResaleStore, upsertResaleItem, deleteResaleItem, mutateResaleStore } from '../lib/resale-items';
+import { resaleTestRoutes } from './resale-photo-test-support';
+
+async function main() {
+  const original = process.cwd(), directory = fs.mkdtempSync(path.join(os.tmpdir(), 'resale-upload-test-'));
+  const routes = resaleTestRoutes(); process.chdir(directory);
+  const base = 'http://localhost/api/resale-items/photos';
+  const bytes = await sharp({ create: { width: 32, height: 24, channels: 3, background: '#ac8561' } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
+  const file = new File([new Uint8Array(bytes)], 'chair.jpg', { type: 'image/jpeg' });
+  const seed = (itemId: string) => upsertResaleItem({ itemId, itemName: 'Fixture chair', acquiredDate: '2026-10-05', source: 'Synthetic QA', cost: 0, askingPrice: 40, soldPrice: 0, status: 'to_list', marketplace: '', notes: '' })!;
+  const form = (itemId = 'one', photo = file) => { const body = new FormData(); body.set('itemId', itemId); body.set('photo', photo); return body; };
+  const send = (itemId = 'one', photo = file, origin = 'http://localhost') => routes.upload.POST(new Request(base, { method: 'POST', headers: { origin }, body: form(itemId, photo) }));
+  try {
+    const item = seed('one'); seed('two');
+    routes.session.signedIn = false; assert.equal((await send()).status, 401);
+    routes.session.signedIn = true; routes.session.role = 'operator'; assert.equal((await send()).status, 403);
+    routes.session.role = 'manager'; assert.equal((await send('one', file, 'https://other.invalid')).status, 403);
+    assert.equal(readResaleStore().items[0].photos?.length, 0);
+    assert.equal((await send('missing')).status, 404);
+    assert.equal((await send('one', new File(['not an image'], 'fake.png', { type: 'image/png' }))).status, 400);
+    assert.equal((await send('one', new File([new Uint8Array(bytes)], 'fake.png', { type: 'image/png' }))).status, 400);
+    assert.equal((await send('one', new File(['<svg/>'], 'x.svg', { type: 'image/svg+xml' }))).status, 415);
+    assert.equal((await send('one', new File([], 'empty.jpg', { type: 'image/jpeg' }))).status, 413);
+    assert.equal((await send('one', new File([new Uint8Array(MAX_RESALE_PHOTO_BYTES + 1)], 'large.jpg', { type: 'image/jpeg' }))).status, 413);
+    const huge = await sharp({ create: { width: 6500, height: 6500, channels: 3, background: 'white' } }).png().toBuffer();
+    assert.equal((await send('one', new File([new Uint8Array(huge)], 'pixels.png', { type: 'image/png' }))).status, 400);
+    let canceled = false;
+    const stream = new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(1024 * 1024)); }, cancel() { canceled = true; } });
+    await assert.rejects(readResalePhotoForm(new Request(base, { method: 'POST', body: stream, duplex: 'half', headers: { 'content-type': 'multipart/form-data; boundary=fixture' } } as RequestInit)), /10 MB/);
+    assert(canceled, 'Unknown-length oversized stream is canceled');
+    const first = await send(); assert.equal(first.status, 200); const { photo } = await first.json();
+    const target = resalePhotoPath(photo.photoId, photo.mimeType);
+    const metadata = await sharp(target).metadata(); assert.equal(metadata.width, 24); assert.equal(metadata.height, 32); assert.equal(metadata.exif, undefined);
+    assert.equal(fs.statSync(target).mode & 0o777, 0o600);
+    const inventory = fs.readFileSync('data/finance/resale_items.json', 'utf8');
+    await Promise.all([send(), send(), send()]);
+    assert.equal(fs.readFileSync('data/finance/resale_items.json', 'utf8'), inventory, 'Lost-response/concurrent retries leave one unchanged association');
+    fs.unlinkSync(target); await send(); assert(fs.existsSync(target), 'Retry repairs missing file without another association');
+    const other = await send('two'); assert.notEqual((await other.json()).photo.photoId, photo.photoId);
+    upsertResaleItem({ ...item, photos: [], itemName: 'Edited chair', status: 'sold', soldPrice: 20, notes: 'Fixture receipt' });
+    assert.equal(readResaleStore().items.find(row => row.itemId === 'one')?.photos?.length, 1);
+    const png = await sharp(bytes).png().toBuffer(); assert.equal((await send('one', new File([new Uint8Array(png)], 'chair.png', { type: 'image/png' }))).status, 200);
+    const view = () => routes.view.GET(new Request(base), { params: Promise.resolve({ photoId: photo.photoId }) });
+    assert.equal((await view()).status, 200); routes.session.signedIn = false; assert.equal((await view()).status, 401); routes.session.signedIn = true;
+    mutateResaleStore(store => { store.items.find(row => row.itemId === 'one')!.photos = Array.from({ length: MAX_RESALE_PHOTOS }, (_, i) => ({ ...photo, photoId: i ? i.toString(16).padStart(64, '0') : photo.photoId })); });
+    assert.equal((await send()).status, 200, 'Retry succeeds at capacity');
+    assert.equal((await send('one', new File([new Uint8Array(png)], 'new.png', { type: 'image/png' }))).status, 409);
+    deleteResaleItem('one'); assert.equal((await view()).status, 404); assert.equal((await send()).status, 404);
+    seed('interrupted-write');
+    const rename = fs.renameSync;
+    fs.renameSync = ((from, to) => { if (String(to).endsWith('resale_items.json')) throw new Error('Fixture interrupted inventory publish'); return rename(from, to); }) as typeof fs.renameSync;
+    try { assert.equal((await send('interrupted-write')).status, 503); } finally { fs.renameSync = rename; }
+    assert.equal(readResaleStore().items.find(row => row.itemId === 'interrupted-write')?.photos?.length, 0);
+    assert.equal((await send('interrupted-write')).status, 200);
+    assert.equal(readResaleStore().items.find(row => row.itemId === 'interrupted-write')?.photos?.length, 1, 'Interrupted publication retries the same association');
+    const lock = 'data/finance/resale_items.json.lock'; fs.writeFileSync(lock, 'fixture');
+    await assert.rejects(attachResalePhoto('two', file), /busy/); fs.unlinkSync(lock);
+    fs.writeFileSync('data/finance/resale_items.json', '{broken'); assert.equal((await send('two')).status, 503);
+    assert.equal(fs.readFileSync('data/finance/resale_items.json', 'utf8'), '{broken');
+    console.log('PASS: route auth/role/origin, bounded streams, type/size/pixel validation, camera orientation/privacy, PNG/JPEG, atomic persistence, retries, item identity, legacy editing, missing items, capacity, locks and corruption.');
+  } finally { process.chdir(original); fs.rmSync(directory, { recursive: true, force: true }); }
+}
+void main().catch(error => { console.error(error); process.exitCode = 1; });

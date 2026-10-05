@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { readResaleStore } from '@/lib/resale-items';
-import { resalePhotoPath } from '@/lib/whatsapp-resale';
+import { resalePhotoPath } from '@/lib/resale-photos';
 export const runtime = 'nodejs';
 export async function GET(_request: Request, context: { params: Promise<{ photoId: string }> }) {
   const headers = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' };

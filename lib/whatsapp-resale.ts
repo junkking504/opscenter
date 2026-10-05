@@ -1,3 +1,5 @@
+import { resalePhotoPath } from '@/lib/resale-photos';
+export { resalePhotoPath } from '@/lib/resale-photos';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -52,11 +54,6 @@ export function ingestResaleText(message: WhatsAppTextMessage, reply = true): Re
   });
   if (reply) enqueueOpsBotReply(message, result.reply, 'resale');
   return result;
-}
-
-export function resalePhotoPath(photoId: string, mimeType: string): string {
-  if (!/^[a-f0-9]{64}$/.test(photoId) || !['image/jpeg', 'image/png'].includes(mimeType)) throw new Error('Invalid resale photo.');
-  return path.join(process.cwd(), 'data', 'finance', 'resale-photos', `${photoId}.${mimeType === 'image/png' ? 'png' : 'jpg'}`);
 }
 
 // Resolve the context captured at enqueue time, never a newer sender session.

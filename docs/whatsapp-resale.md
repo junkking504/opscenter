@@ -56,3 +56,30 @@ per photo. The receipt confirms the inventory record, not completion of an album
 Validation: `npm run verify:whatsapp-resale`, existing WhatsApp parser/media
 regressions, desktop build and production build. Use isolated fixture data and
 mock media downloads; never send test messages to real recipients.
+
+## Upload from OpsCenter
+
+Capital → Resale → Add item or Review item accepts optional JPEG/PNG photos
+(up to 10 MB each, 40 megapixels, 25 per item). Choose photos opens the device
+library/file picker; Take photo requests the rear camera on supported phones.
+HEIC must be exported as JPEG. Selected previews can be removed before saving.
+The existing versioned Finance save is verified first, then photos upload one
+at a time with visible progress. A failure retains selections and confirms how
+many finished; retry continues with the same item/save identity. If the browser
+is closed, reopen the saved item and reselect any missing files. Confirmed photos
+survive reload; unsubmitted selections are not persisted in the browser.
+
+`POST /api/resale-items/photos` uses the existing manager `sensitive.write`
+permission and trusted-origin check. It bounds streamed multipart bytes before
+parsing, fully decodes images with the already installed Sharp library, applies
+camera orientation, and strips EXIF/GPS metadata. Photos use the existing local
+`data/finance/resale-photos` storage and authenticated membership-checked viewer.
+An item-and-file hash deduplicates retries, including a lost upload response.
+The shared resale lock serializes attachment with WhatsApp and inventory edits;
+files are published atomically before inventory membership. A failed attachment
+may leave an unreferenced private file, which is never served; retry repairs it.
+No new provider, credentials, polling, or external upload is used.
+
+Validation: `npm run verify:resale-photos`, `npm run verify:resale-photos:browser`
+(with the isolated Vite fixture server), and `npm run verify:whatsapp-resale`.
+The browser fixture uses synthetic local data only.

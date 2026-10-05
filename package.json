@@ -162,7 +162,9 @@
     "verify:payment-crosscheck": "node --import tsx scripts/test-payment-crosscheck.ts && node --import tsx scripts/test-payment-crosscheck-browser.ts",
     "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts",
     "verify:closest-truck": "node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
-    "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs"
+    "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs",
+    "verify:resale-photos": "node --import tsx scripts/test-resale-photos.ts",
+    "verify:resale-photos:browser": "node --import tsx scripts/test-resale-photos-browser.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",
@@ -178,6 +180,7 @@
     "postcss": "^8.5.26",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "sharp": "^0.35.3",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.3"
   },

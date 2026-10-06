@@ -18,6 +18,7 @@ assert.deepEqual(scheduleBoardJobs([canceled], 'Unassigned'), [canceled], 'Cance
 assert.deepEqual(timelineWindow(canceled, 'Unassigned'), {
   actual: false, start: 840, end: 960,
   intervals: [{ start: 840, end: 960, ongoing: false, complete: false }],
+  gaps: [],
   label: 'Planned · booked window',
 });
 assert.equal(scheduleDragScrollStep(350,0,700),0,'Dragging in the middle must not scroll');

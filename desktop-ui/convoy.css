@@ -124,3 +124,133 @@
 .convoy-workspace .convoy-inspection-findings { display: grid; gap: 12px; margin: 14px 0; }
 .convoy-workspace .convoy-inspection-findings dt { font-weight: 650; font-size: 12px; }
 .convoy-workspace .convoy-inspection-findings dd { margin: 3px 0 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Convoy dashboard: the approved Figma content, integrated with the shared shell. */
+@font-face {font-family:ConvoyInter;src:url('/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
+.ops-live .convoy-mode {max-width:1600px;font-family:ConvoyInter,Inter,system-ui,sans-serif}
+.ops-live .convoy-mode > .workspace-heading {align-items:flex-start;flex-direction:column;gap:18px;margin-bottom:18px}
+.ops-live .convoy-mode .workspace-heading h1 {font-size:32px;line-height:1.34}
+.ops-live .convoy-mode .workspace-heading p {font-size:14px;line-height:1.5}
+.ops-live .convoy-mode .workspace-tabs.convoy-tabs {background:transparent;border:0;padding:0;gap:8px}
+.ops-live .convoy-mode .convoy-tabs > button {border-radius:8px;background:#ecefec;padding:11px 16px;font-size:13px}
+.ops-live .convoy-mode .convoy-tabs > button.active {background:#255e4c;color:white;box-shadow:none}
+.convoy-workspace {--convoy-ink:#171a1d;--convoy-muted:#69716e;--convoy-line:#d7dbd7;color:var(--convoy-ink);font-family:ConvoyInter,Inter,system-ui,sans-serif}
+.ops-live .convoy-workspace {gap:18px}
+.convoy-workspace .convoy-primary {background:#255e4c;color:#fff;border-color:#255e4c}
+.convoy-workspace .convoy-primary:hover {background:#1b493b}
+.convoy-workspace .convoy-top-actions {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.convoy-top-actions > span {font-size:12px;color:var(--convoy-muted)}
+.convoy-workspace button[data-slot=button] {font-size:13px;min-height:38px;padding:9px 14px;border-radius:8px}
+.convoy-dashboard {display:grid;gap:20px}
+.convoy-dashboard :is(h2,h3) {font-size:18px;font-weight:600;line-height:1.35}
+.convoy-dashboard :is(p,dd,button,select) {font-size:13px;line-height:1.5}
+.convoy-dashboard :is(small,dt) {font-size:12px;line-height:1.45;color:var(--convoy-muted)}
+.convoy-metrics {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.convoy-workspace .convoy-metric {background:white;border:1px solid var(--convoy-line);border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;min-height:128px;min-width:0;color:var(--convoy-ink)}
+.convoy-metric > strong {font-size:32px;line-height:1.34;font-weight:600;font-variant-numeric:tabular-nums}
+.convoy-metric > span {font-size:14px;font-weight:600}
+button.convoy-metric:hover {border-color:#255e4c;background:#f9fcfa}
+.convoy-dashboard-grid {display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:24px;align-items:start}
+.convoy-dash-panel {background:white;border:1px solid var(--convoy-line);border-radius:8px;min-width:0;overflow:hidden}
+.convoy-dash-panel > header {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 20px}
+.convoy-dash-panel > header p {margin-top:8px;color:var(--convoy-muted)}
+.convoy-side-stack {display:grid;gap:20px;min-width:0}
+.convoy-table-tools {display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 16px 18px}
+.convoy-table-tools > div {display:flex;gap:8px}
+.convoy-table-tools button {border:1px solid var(--convoy-line);background:white;border-radius:8px;padding:10px 14px;font-weight:600}
+.convoy-table-tools button[aria-pressed=true] {background:#ecefec}
+.convoy-search {display:flex;align-items:center;gap:6px;color:var(--convoy-muted);max-width:200px}
+.convoy-search input {min-width:0;width:100%;font-size:13px;padding:8px 0;background:transparent}
+.convoy-table-wrap {max-width:100%;overflow-x:auto}
+.convoy-data-table {width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+.convoy-data-table th {background:#ecefec;font-size:10px;font-weight:500;color:#69716e;text-transform:uppercase;padding:14px 16px;white-space:nowrap}
+.convoy-data-table td {padding:14px 16px;border-bottom:1px solid #e6eae6;vertical-align:middle;line-height:1.5}
+.convoy-data-table tr:last-child td {border-bottom:0}
+.convoy-data-table tr:hover td {background:#eaf3ef}
+.convoy-data-table td small {display:block;margin-top:4px}
+.convoy-data-table td > strong {display:block;font-size:13px}
+.convoy-mileage strong {font-weight:500;font-size:13px;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.convoy-mileage small {display:block;margin-top:4px}
+.convoy-truck-link {display:flex;gap:8px;align-items:center;white-space:nowrap;font-weight:600}
+.convoy-truck-link > svg:last-child {color:#255e4c}
+.convoy-next-action {display:flex;gap:8px;align-items:center;text-align:left;color:#255e4c}
+.convoy-next-action svg {flex-shrink:0}
+.convoy-workspace .convoy-text-button {color:#255e4c;text-decoration:underline;text-underline-offset:3px;display:block;margin-top:8px;text-align:left;font-size:12px}
+.convoy-attention {padding:24px;display:grid;gap:16px}
+.convoy-attention > p {color:var(--convoy-muted)}
+.convoy-attention > button:not([data-slot]) {display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:12px;padding:20px 0 0;border-top:1px solid var(--convoy-line)}
+.convoy-attention > button > span:not(.convoy-badge) {color:var(--convoy-muted)}
+.convoy-attention > button[data-slot] {justify-self:start}
+.convoy-badge {display:inline-flex;align-items:center;font-size:11px;line-height:1.4;padding:4px 8px;border-radius:4px;background:#ecefec;color:#59615e;font-weight:400}
+.convoy-badge.warning {background:#fff1d6;color:#8b5a12}
+.convoy-coverage {background:#eaf3ef;color:#255e4c;border-radius:8px;padding:24px;display:grid;gap:16px}
+.convoy-coverage small {color:#255e4c}
+.convoy-coverage hr {border:0;border-top:1px solid #d7dbd7;margin:0}
+.convoy-coverage ol {padding-left:18px;margin:0;font-size:13px;line-height:1.7}
+.convoy-coverage .convoy-mileage > strong {font-size:32px;font-weight:600}
+.convoy-coverage button {justify-self:start}
+.convoy-workspace .convoy-muted {color:var(--convoy-muted);font-size:13px;line-height:1.5}
+.convoy-planning-date {padding:20px;background:white;border:1px solid var(--convoy-line);border-radius:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px}
+.convoy-planning-date span {color:var(--convoy-muted)}
+.convoy-scheduled {padding:22px 24px;border-top:1px solid var(--convoy-line);display:flex;align-items:center;justify-content:space-between;gap:16px}
+.convoy-scheduled > div {display:grid;gap:12px}
+.convoy-scheduled h3 {font-size:15px}
+.convoy-scheduled p {color:var(--convoy-muted)}
+.convoy-scheduled button {flex-shrink:0}
+.convoy-scheduled .convoy-badge {justify-self:start}
+.convoy-planner-truck {display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600}
+.convoy-planner-truck select,.convoy-form-context select {padding:10px 12px;background:white;border:1px solid var(--convoy-line);border-radius:8px}
+.convoy-plan-table {min-width:600px}
+.convoy-plan-table td {vertical-align:top}
+.convoy-detail-title {display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.convoy-detail-title h2 {font-size:24px}
+.convoy-detail-title p {color:var(--convoy-muted);margin-top:4px}
+.convoy-detail-title > button:last-child {margin-left:auto}
+.convoy-metric .convoy-mileage > strong {font-size:24px;font-weight:600;white-space:normal}
+.convoy-attention dl {display:grid;gap:4px}
+.convoy-attention dt:not(:first-child) {margin-top:10px}
+.convoy-workspace .convoy-service-dialog {position:fixed;top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(580px,calc(100vw - 32px));height:auto;max-height:calc(100dvh - 40px);border:1px solid #d7dbd7;border-radius:12px;box-shadow:0 20px 70px #10141833;overflow-y:auto}
+.convoy-service-dialog .record-drawer-body {overflow:visible;padding:24px;gap:20px}
+.convoy-service-dialog .record-drawer-header {position:sticky;top:0;z-index:1;background:white;padding:20px 24px}
+.convoy-service-dialog .record-drawer-header h2 {font-size:22px;line-height:1.35}
+.convoy-service-dialog .fleet-form-grid {gap:16px;margin-block:20px}
+.convoy-service-dialog .fleet-form-grid input {height:40px;background:white}
+.convoy-service-dialog .fleet-form-grid label > span {font-size:13px;color:#171a1d}
+.convoy-form-context {display:flex;align-items:center;justify-content:space-between;gap:16px;background:#f1f3f1;padding:16px;border-radius:8px}
+.convoy-form-context label {display:grid;gap:6px;font-size:13px}
+.convoy-form-context .convoy-mileage {text-align:right}
+.convoy-form-footer {display:flex;justify-content:flex-end;gap:8px;margin-top:24px;padding-top:18px;border-top:1px solid #d7dbd7}
+.convoy-workspace button:focus-visible,.convoy-workspace input:focus-visible,.convoy-workspace select:focus-visible {outline:2px solid #255e4c;outline-offset:3px}
+@media(max-width:1200px) {.convoy-dashboard-grid{grid-template-columns:minmax(0,1fr) 290px;gap:16px}.convoy-data-table td,.convoy-data-table th{padding:12px}.convoy-metrics{gap:12px}.convoy-workspace .convoy-metric{padding:16px}}
+@media(max-width:1050px) {.convoy-dashboard-grid{grid-template-columns:1fr}.convoy-dashboard-grid > aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px) {.convoy-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.convoy-dashboard-grid > aside{grid-template-columns:1fr}.convoy-data-table{min-width:640px}.convoy-dash-panel > header,.convoy-scheduled{flex-wrap:wrap}.convoy-workspace .convoy-metric{min-height:120px}.convoy-planner-truck{flex-wrap:wrap}.convoy-service-dialog .fleet-form-grid{grid-template-columns:1fr}.convoy-form-context{align-items:flex-start;flex-direction:column}.convoy-form-context .convoy-mileage{text-align:left}.convoy-detail-title > button:last-child{margin-left:0}}
+.ops-live .convoy-mode {position:relative}
+.ops-live .convoy-mode .convoy-top-actions {position:absolute;right:0;top:28px;justify-content:flex-end}
+.ops-live .convoy-mode .workspace-heading > div:first-child {padding-right:275px}
+@media(max-width:900px){.ops-live .convoy-mode .convoy-top-actions{position:static;margin-bottom:0}.ops-live .convoy-mode .workspace-heading > div:first-child{padding-right:0}}
+.convoy-overview-mileage {font-size:12px;white-space:nowrap}
+.convoy-overview-mileage strong {font-weight:400}
+.convoy-overview-mileage > span {color:var(--convoy-muted)}
+.convoy-data-table:not(.convoy-plan-table) td {padding-block:10px}
+.fleet-view-overview .convoy-data-table:not(.convoy-plan-table) td:nth-child(3) > small {display:inline;margin-left:6px;white-space:nowrap}
+.ops-live .convoy-mode .convoy-top-actions {right:16px}
+.convoy-service-dialog .fleet-form-grid label > span {text-transform:none;letter-spacing:normal;font-weight:600}
+.convoy-coverage ol {list-style:decimal}
+@media(max-width:680px){
+ .convoy-data-table,.convoy-plan-table {min-width:0;display:block}
+ .convoy-data-table thead {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .convoy-data-table tbody {display:block}
+ .convoy-data-table tr {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:14px 6px;border-bottom:1px solid var(--convoy-line);gap:10px 0}
+ .convoy-data-table tr:last-child {border-bottom:0}
+ .convoy-data-table td {display:block;border:0;padding:4px 12px!important}
+ .convoy-data-table td::before {display:block;font-size:10px;color:#69716e;line-height:1.5;margin-bottom:6px}
+ .convoy-data-table td:nth-child(2)::before {content:'LinxUp mileage'}
+ .convoy-data-table td:nth-child(3)::before {content:'Reading status'}
+ .convoy-data-table td:nth-child(4)::before {content:'Next action'}
+ .convoy-plan-table td:nth-child(1)::before {content:'Service / interval'}
+ .convoy-plan-table td:nth-child(2)::before {content:'Last completed'}
+ .convoy-plan-table td:nth-child(3)::before {content:'Next target'}
+ .convoy-plan-table td:nth-child(4)::before {content:'Status / action'}
+ .convoy-overview-mileage{white-space:normal}
+ .convoy-truck-link{font-size:15px!important}
+}

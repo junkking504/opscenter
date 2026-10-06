@@ -4308,13 +4308,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} openRequest={opsBotOpenRequest} /></div>}
         </div>
 
-        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : 'workspace'}>
+        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{workspaceLabel(activeNav)}</h1>
+              <h1>{activeNav==='Fleet'&&live?(fleetView==='overview'?'Fleet overview':fleetView==='service'?'Service planner':fleetView==='maintenance'?'Inspections & Repairs':fleetView==='scores'?'Driving':'History & Costs'):workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
@@ -4324,9 +4324,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     : kreweView === 'payperiod' ? 'Reconcile hours, production, earnings, and exceptions across the current pay period.'
                       : 'Review monthly labor, production, payroll, and individual performance.'
                 : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Driving activity, scores, and the records behind them.' : fleetView === 'overview'
-                  ? 'Condition, load, inspections, and activity for every truck.'
+                  ? 'Your trucks, maintenance priorities, and next steps in one place.'
                   : fleetView === 'maintenance' ? 'Submitted inspections, reported problems, and repair updates.'
-                    : fleetView === 'service' ? 'Schedule upcoming service or record completed work.'
+                    : fleetView === 'service' ? 'Plan preventive maintenance and keep completed work separate from scheduled visits.'
                       : 'Truck history, recorded costs, downtime, and monthly activity.'
                 : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'

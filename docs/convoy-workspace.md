@@ -62,3 +62,55 @@ receipt tests, inspection/score regressions, CSS architecture, both TypeScript
 projects, full production build, synthetic browser saves, and authenticated
 acceptance of every live tab. The isolated UI fixture is
 `desktop-ui/tests/convoy.html`; its mocked writes never touch runtime records.
+
+## Fleet dashboard and recurring service (October 2026)
+
+The desktop Overview now leads with fleet counts, active repair priorities,
+latest LinxUp mileage, a searchable/filterable truck table, and a needs-attention
+panel. Click a metric to filter its trucks, a truck to open its service detail,
+or a next action to open the owning repair/service view. All existing route keys,
+phone inspection links, load controls, driving evidence, history, and cost reports
+remain available. The shared desktop shell and operating-day controls remain.
+
+Mileage comes from `readLatestLinxupVehicleInventory`, independently of the GPS
+map for the selected operating day. A future planning day therefore retains the
+latest available odometer with its report and retrieval times. It does not invent
+future or historical GPS. Field precedence is true, virtual, estimated. Without
+true mileage, virtual/estimated disagreement exceeding both 1,000 miles and 5%
+of the estimated value is flagged for verification. Duplicate vehicle mappings,
+estimated-only readings, missing times, future timestamps beyond five minutes,
+and readings or retrievals older than 24 hours cannot establish mileage-based
+service status. This maintenance freshness rule does not change GPS freshness,
+arrival, parked-state, or dispatch logic. Values are read from existing local
+collector files; no additional LinxUp requests or collectors are introduced.
+
+Recurring intervals live outside Git in `data/fleet/service_intervals.json`, one
+record per truck and service type. Operators can set miles, months, both, or pause
+an interval. No manufacturer intervals are prepopulated. The most recent completed
+service of the same type on/before the planning day supplies its baseline. Monthly
+targets clamp to the last valid day of the target month. Explicit next targets on
+a completed service override the corresponding recurring target. Due means either
+known limit is reached; due soon means within 30 days or 1,000 miles. Scheduled
+visits never supply a completed-service baseline or hide a reached target. Missing
+baselines/intervals and unusable mileage remain explicit; a known overdue date is
+still actionable when mileage cannot be checked. A paused rule stops recurring
+calculations; a separately recorded one-time target remains visible.
+
+Use Record service for actual completed work, with its actual date and mileage.
+Latest mileage is shown for reference but never copied into a past service.
+Schedule service creates a separate planned record. Review a scheduled record to
+correct its description or record actual completion, date, mileage and cost.
+Unknown costs remain blank; a recorded zero stays zero. Future completed dates,
+invalid targets, and negative costs/mileage are rejected before a write.
+
+The `fleet.interval` action uses the existing authenticated operations permission,
+shared write lock, record version, request ID receipt, and read-back verification.
+Successful service/interval saves close the form after read-back to avoid duplicate
+submissions. Corrupt maintenance or interval stores fail closed rather than
+replacing existing history. Dashboard test fixtures use only synthetic records.
+
+Validation: `scripts/test-convoy-dashboard.ts` covers independent future-date
+mileage, source precedence and conflicts, month-end arithmetic, time/mileage due
+status, null/zero handling, schedule separation, interval persistence, replay,
+stale-version rejection, input validation and corrupt-store protection. Existing
+fleet action, inspection and desktop receipt tests remain applicable.

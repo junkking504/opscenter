@@ -158,17 +158,19 @@ export function readFleetMaintenanceStore(): FleetMaintenanceStore {
     const filePath = fleetMaintenanceStorePath();
     if (!fs.existsSync(filePath)) return { version: 1, updatedAt: "", records: [] };
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    const rawRecords = Array.isArray(parsed?.records) ? parsed.records : [];
+    if (!Array.isArray(parsed?.records)) throw new Error("Maintenance records are unavailable.");
+    const rawRecords = parsed.records;
     const records = rawRecords
       .map((record: unknown) => record && typeof record === "object" ? parseRecord(record as Record<string, unknown>) : null)
       .filter(Boolean) as FleetMaintenanceRecord[];
+    if (records.length !== rawRecords.length) throw new Error("Maintenance records need review.");
     return {
       version: 1,
       updatedAt: String(parsed?.updatedAt || ""),
       records: sortRecords(records),
     };
   } catch {
-    return { version: 1, updatedAt: "", records: [] };
+    throw new Error("Maintenance records are unavailable. Existing records have not been changed.");
   }
 }
 

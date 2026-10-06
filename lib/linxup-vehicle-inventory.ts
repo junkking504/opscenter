@@ -10,6 +10,8 @@ export type LinxupVehicleProfile = {
   licensePlate: string;
   odometer: number | null;
   odometerSource: LinxupOdometerSource;
+  estimatedOdometer?: number | null;
+  odometerConflict?: boolean;
   make: string;
   model: string;
   year: string;
@@ -112,6 +114,8 @@ export function readLatestLinxupVehicleInventory(): LinxupVehicleInventory {
           licensePlate: stringValue(row.licensePlate),
           odometer: odometer.value,
           odometerSource: odometer.source,
+          estimatedOdometer: finiteNumber(row.estimatedOdo),
+          odometerConflict: odometer.source === "virtual" && finiteNumber(row.estimatedOdo) !== null && Math.abs(odometer.value! - finiteNumber(row.estimatedOdo)!) > Math.max(1000, finiteNumber(row.estimatedOdo)! * 0.05),
           make: stringValue(row.make || row.personMisc6),
           model: stringValue(row.model || row.personMisc5),
           year: stringValue(row.year || row.personMisc7),

@@ -53,7 +53,10 @@ assert.equal(assignmentNeedsVerification({ junkwareSyncStatus: 'manual_correctio
 console.log('Schedule interaction contracts passed: full windows, source duration, hourly constraints, independent identity, conflicts, and unverified-assignment safety.');
 
 const route = { fromAppointmentId: job.recordId, toAppointmentId: sharedJk.recordId } as Parameters<typeof unavailableRoute>[0];
-assert.match(unavailableRoute(route, [job, sharedJk]).detail, /verified coordinates/);
+assert.deepEqual(unavailableRoute(route, [job, sharedJk]), {
+  label: 'Location pending',
+  detail: 'Address verification failed for JK1234567 and JK1234567. Dispatch owns recovery; unresolved locations require escalation.',
+});
 assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, { ...sharedJk, location: { latitude: 30.1, longitude: -90.1 } }]).label, "ETA Unavailable");
 assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Location pending");
 
@@ -73,10 +76,10 @@ assert.equal(scheduleStatusTone({ status: 'Estimate Closed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Cancelled' }), 'canceled');
 assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');
 assert.deepEqual(addressResolutionCopy('No Exact Geocodio Premises Match'), {
-  title: 'Precise pin required',
-  detail: 'The address may be real but is not mapped to an exact premises point. Get a customer or crew location pin before dispatch.',
+  title: 'Locating automatically…',
+  detail: 'The map providers have not returned this exact property yet. OpsCenter will retry automatically.',
 });
-assert.equal(addressResolutionCopy('Precise Service Location Unavailable').title, 'Precise pin required');
+assert.equal(addressResolutionCopy('Precise Service Location Unavailable').title, 'Locating automatically…');
 assert.equal(addressResolutionCopy('Multiple Address Matches').title, 'Address needs confirmation');
 assert.equal(addressResolutionCopy('Address Provider Temporarily Unavailable').title, 'Location check delayed');
 assert.equal(addressResolutionCopy().title, 'Address needs correction');

@@ -15,7 +15,7 @@ assert.equal(overlap.laneStep,48,'44px cards have separation');
 assert.ok(overlap.connectors.every(c=>Math.abs(c.labelWidth*720-44)<.01));
 const desktop=scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true);
 assert.deepEqual(desktop,scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true,false),'Desktop defaults remain unchanged');
-assert.ok(desktop.occupiedLanes.slice(desktop.laneCount).every(l=>l[0].left===0&&l[0].right===1));
+assert.ok(desktop.occupiedLanes.slice(desktop.laneCount).every(l=>l.every(i=>i.right-i.left<1)),'Desktop travel labels reserve only their footprint');
 assert.ok(overlap.occupiedLanes.slice(overlap.laneCount).every(l=>l.every(i=>i.right-i.left<1)),'Mobile travel labels reserve their footprint instead of a whole row');
 const stop={id:'warehouse',truck:'Truck 3',name:'HQ',kind:'hq',startMinutes:900,endMinutes:915} as ScheduleOperationalStop;
 const stops=scheduleOperationalStopLayout([stop],range,720,overlap.occupiedLanes);

@@ -156,20 +156,10 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const b = gapEnd > gapStart ? gapEnd : to.position.left + to.position.width / 2;
     return { ...pair, reverse, left: Math.min(a, b), width: Math.abs(b - a), top: rowHeight - 16, height: 15, labelTop: 2 };
   });
-  if (!mobile) {
-    // Time-only labels use the existing gutter beneath their source lane.
-    // Route estimates must not change appointment packing or truck height.
-    const labelWidth = Math.min(1, 36 / (timelineWidth || 640));
-    return { placed, laneStep, rowHeight, laneCount: lanes.length, occupiedLanes: lanes,
-      connectors: connectors.map(c => ({...c,
-        labelLeft: Math.max(0, Math.min(1-labelWidth, c.left+c.width/2-labelWidth/2)),
-        labelWidth, labelTop: c.from.lane*laneStep+25-c.top,
-      })) };
-  }
   // Travel labels have their own collision-packed rows beneath appointment
   // cards. Their readable pixel width must not depend on a tiny time gap.
   const labelRows: Array<Array<{left:number;right:number}>> = [];
-  const labelWidth = Math.min(1, (mobile ? 44 : 96) / (timelineWidth || 640));
+  const labelWidth = Math.min(1, (mobile ? 44 : 36) / (timelineWidth || 640));
   const labelStep = 22;
   const labelBase = rowHeight + 4;
   const readableConnectors = connectors.map(connector => {

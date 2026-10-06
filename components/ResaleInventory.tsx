@@ -136,24 +136,6 @@ export default function ResaleInventory({ initialItems }: { initialItems: Resale
     }
   }
 
-  async function removeItem(item: ResaleItem) {
-    if (!window.confirm(`Remove ${item.itemName} from the resale list?`)) return;
-    setSaving(true);
-    setMessage("");
-    try {
-      const response = await fetch(`/api/resale-items?itemId=${encodeURIComponent(item.itemId)}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Unable to remove the item.");
-      setItems((current) => current.filter((entry) => entry.itemId !== item.itemId));
-      if (draft?.itemId === item.itemId) setDraft(null);
-      setMessage(`${item.itemName} removed.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to remove the item.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <div className="ops-resale-section">
@@ -284,7 +266,7 @@ export default function ResaleInventory({ initialItems }: { initialItems: Resale
                   <td className="ops-money">{item.status === "sold" ? money(item.soldPrice - item.cost) : "—"}</td>
                   <td className="ops-resale-row-actions">
                     <button type="button" onClick={() => setDraft(draftFromItem(item))}>Edit</button>
-                    <button type="button" className="is-remove" disabled={saving} onClick={() => removeItem(item)}>Remove</button>
+                    <a href="/desktop?workspace=Finance&financeView=resale">Delete in Capital</a>
                   </td>
                 </tr>
               ))}

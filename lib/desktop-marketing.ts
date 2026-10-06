@@ -36,7 +36,7 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
     jobChange: comparisonAvailable ? `Matched appointments: last 7 days ${recent} · prior 7 days ${previous}` : 'Prior 7-day comparison unavailable' };
 }
 /** Registered local action definitions: writes retain attribution and immutable receipts. */
-export const COMMERCIAL_ACTIONS = { 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'recycling.save': 'sensitive.write', 'recycling.receipt.record': 'sensitive.write' } as const;
+export const COMMERCIAL_ACTIONS = { 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'resale.delete': 'sensitive.write', 'resale.restore': 'sensitive.write', 'recycling.save': 'sensitive.write', 'recycling.receipt.record': 'sensitive.write' } as const;
 export function parseCommercialOperation(body: unknown): CommercialOperation {
   if (!body || typeof body !== 'object') throw new CommercialActionError('A typed change is required.');
   const value = body as CommercialOperation;

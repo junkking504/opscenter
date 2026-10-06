@@ -34,7 +34,7 @@ export function ingestResaleText(message: WhatsAppTextMessage, reply = true): Re
     if ('error' in parsed) return remember({ status: 'review', reply: parsed.error });
     const requestedNumber = /^(?:#?\d+|RS-\d+)$/i.test(parsed.item)
       ? `RS-${String(Number(parsed.item.replace(/^(?:RS-|#)/i, ''))).padStart(4, '0')}` : null;
-    const matches = store.items.filter(item => requestedNumber ? item.itemNumber === requestedNumber : identity(item.itemName) === identity(parsed.item));
+    const matches = store.items.filter(item => !item.deletedAt).filter(item => requestedNumber ? item.itemNumber === requestedNumber : identity(item.itemName) === identity(parsed.item));
     const candidates = requestedNumber ? matches : parsed.sold ? matches.filter(item => item.status !== 'sold') : [];
     if (candidates.length > 1) return remember({ status: 'review', reply: `More than one item matches ${parsed.item}. Send its item number:\n${candidates.map(item => `${item.itemNumber} · ${item.itemName}`).join('\n')}` });
     let item: ResaleItem | undefined = candidates[0];
@@ -73,12 +73,12 @@ export async function processResaleImage(message: WhatsAppImageMessage, download
   const mimeType = original.endsWith('.png') ? 'image/png' : 'image/jpeg';
   const photoId = key(`${message.phoneNumberId}:${message.messageId}`);
   const target = resalePhotoPath(photoId, mimeType);
-  fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-  const temporary = `${target}.${crypto.randomUUID()}.tmp`;
-  fs.copyFileSync(original, temporary); fs.chmodSync(temporary, 0o600); fs.renameSync(temporary, target);
   const saved = mutateResaleStore(store => {
     const item = store.items.find(item => item.itemId === result.itemId);
-    if (!item) return false;
+    if (!item || item.deletedAt) return false;
+    fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    const temporary = `${target}.${crypto.randomUUID()}.tmp`;
+    fs.copyFileSync(original, temporary); fs.chmodSync(temporary, 0o600); fs.renameSync(temporary, target);
     item.photos ||= [];
     if (!item.photos.some(photo => photo.photoId === photoId)) {
       item.photos.push({ photoId, mimeType, receivedAt: message.receivedAt });

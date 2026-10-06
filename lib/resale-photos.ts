@@ -53,7 +53,7 @@ export async function attachResalePhoto(itemId: string, file: File): Promise<Res
   const photoId = createHash('sha256').update(itemId).update('\0').update(original).digest('hex');
   return mutateResaleStore(store => {
     const item = store.items.find(row => row.itemId === itemId);
-    if (!item) throw new ResalePhotoError('Item no longer exists. Reopen the current inventory before uploading.', 404);
+    if (!item || item.deletedAt) throw new ResalePhotoError('Item no longer exists. Reopen the current inventory before uploading.', 404);
     const existing = item.photos?.find(photo => photo.photoId === photoId);
     if (!existing && (item.photos?.length || 0) >= MAX_RESALE_PHOTOS) throw new ResalePhotoError(`An item can have up to ${MAX_RESALE_PHOTOS} photos.`, 409);
     const target = resalePhotoPath(photoId, file.type);

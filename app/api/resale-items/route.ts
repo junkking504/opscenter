@@ -1,8 +1,9 @@
+import { opsRoleCan } from '@/lib/ops-roles';
+import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import {
-  deleteResaleItem,
   readResaleStore,
   type ResaleItemInput,
   upsertResaleItem,
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || "");
+  if (!actor || !opsRoleCan(actor.role, 'sensitive.write') || !isDesktopWriteOriginAllowed(request)) return NextResponse.json({ error: 'Manager access and same-origin request required.' }, { status: 403, headers: noStoreHeaders });
   const body = await request.json().catch(() => null);
   const item = body && typeof body === "object"
     ? upsertResaleItem(body as ResaleItemInput)
@@ -60,10 +63,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const itemId = new URL(request.url).searchParams.get("itemId") || "";
-  const deleted = deleteResaleItem(itemId);
-  return NextResponse.json(
-    { ok: deleted },
-    { status: deleted ? 200 : 404, headers: noStoreHeaders },
-  );
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || "");
+  if (!actor || !opsRoleCan(actor.role, 'sensitive.write') || !isDesktopWriteOriginAllowed(request)) return NextResponse.json({ error: 'Manager access and same-origin request required.' }, { status: 403, headers: noStoreHeaders });
+  return NextResponse.json({ error: 'Open Capital → Resale to delete with confirmation and restore support.' }, { status: 409, headers: noStoreHeaders });
 }

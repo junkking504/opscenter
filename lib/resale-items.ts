@@ -7,6 +7,8 @@ export const RESALE_STATUSES = ["to_list", "listed", "sold"] as const;
 export type ResaleStatus = (typeof RESALE_STATUSES)[number];
 
 export type ResaleItem = {
+  deletedAt?: string;
+  deletedBy?: string;
   itemId: string;
   itemNumber?: string;
   photos?: ResalePhoto[];
@@ -27,6 +29,7 @@ export type ResalePhoto = { photoId: string; mimeType: string; receivedAt: strin
 export type ResaleReceipt = { status: "saved" | "sold" | "review"; itemId?: string; reply: string };
 
 export type ResaleStore = {
+  lifecycleReceipts?: Record<string, import("../desktop-ui/lib/commercial-contract").CommercialReceipt>;
   nextItemNumber?: number;
   messages?: Record<string, ResaleReceipt>;
   version: 1;
@@ -65,8 +68,10 @@ function safeDate(value: unknown): string {
 function normalizeItem(value: Record<string, unknown>): ResaleItem | null {
   const itemName = String(value.itemName || "").trim();
   if (!itemName) return null;
+  if (value.deletedAt !== undefined && (typeof value.deletedAt !== "string" || !Number.isFinite(Date.parse(value.deletedAt)))) throw new Error("Resale deletion state requires recovery.");
 
   return {
+    ...(value.deletedAt ? { deletedAt: String(value.deletedAt), deletedBy: String(value.deletedBy || "") } : {}),
     itemId: String(value.itemId || randomUUID()).trim(),
     itemNumber: /^RS-\d{4,}$/.test(String(value.itemNumber)) ? String(value.itemNumber) : undefined,
     photos: Array.isArray(value.photos) ? value.photos.filter((photo): photo is ResalePhoto => Boolean(photo && /^[a-f0-9]{64}$/.test(photo.photoId) && ["image/jpeg", "image/png"].includes(photo.mimeType))) : [],
@@ -101,6 +106,7 @@ function readRawResaleStore(): ResaleStore {
     if (!fs.existsSync(filePath)) return { version: 1, updatedAt: "", items: [] };
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
     if (parsed?.version !== 1 || !Array.isArray(parsed.items)) throw new Error("Resale inventory requires recovery.");
+    if (parsed.lifecycleReceipts !== undefined && (!parsed.lifecycleReceipts || typeof parsed.lifecycleReceipts !== "object" || Array.isArray(parsed.lifecycleReceipts))) throw new Error("Resale lifecycle receipts require recovery.");
     const items = Array.isArray(parsed?.items)
       ? parsed.items
           .map((item: Record<string, unknown>) => normalizeItem(item))
@@ -110,6 +116,7 @@ function readRawResaleStore(): ResaleStore {
     if (items.length !== parsed.items.length) throw new Error("Resale inventory contains an invalid item and requires recovery.");
     return {
       version: 1,
+      lifecycleReceipts: parsed.lifecycleReceipts || {},
       nextItemNumber: Number(parsed.nextItemNumber) || 1,
       messages: parsed.messages || {},
       updatedAt: String(parsed?.updatedAt || ""),
@@ -136,7 +143,7 @@ function writeResaleStore(store: ResaleStore): void {
 }
 
 // All web and worker mutations share this lock and one atomic snapshot.
-export function mutateResaleStore<T>(change: (store: ResaleStore) => T): T {
+export function mutateResaleStore<T>(change: (store: ResaleStore) => T, repairNumbers = true): T {
   const lock = `${storePath()}.lock`;
   fs.mkdirSync(path.dirname(lock), { recursive: true });
   let descriptor: number | undefined;
@@ -151,11 +158,13 @@ export function mutateResaleStore<T>(change: (store: ResaleStore) => T): T {
   try {
     const store = readRawResaleStore();
     const before = JSON.stringify(store);
-    store.nextItemNumber = Math.max(store.nextItemNumber || 1, ...store.items.map(item => Number(item.itemNumber?.slice(3) || 0) + 1));
-    const seen = new Set<string>();
-    for (const item of store.items) {
-      if (!item.itemNumber || seen.has(item.itemNumber)) item.itemNumber = allocateResaleNumber(store);
-      seen.add(item.itemNumber);
+    if (repairNumbers) {
+      store.nextItemNumber = Math.max(store.nextItemNumber || 1, ...store.items.map(item => Number(item.itemNumber?.slice(3) || 0) + 1));
+      const seen = new Set<string>();
+      for (const item of store.items) {
+        if (!item.itemNumber || seen.has(item.itemNumber)) item.itemNumber = allocateResaleNumber(store);
+        seen.add(item.itemNumber);
+      }
     }
     store.messages ||= {};
     const result = change(store);
@@ -173,10 +182,11 @@ export function allocateResaleNumber(store: ResaleStore): string {
   return `RS-${String(number).padStart(4, "0")}`;
 }
 
-export function readResaleStore(): ResaleStore {
+export function readResaleStore(includeDeleted = false): ResaleStore {
   // Reading must work on a read-only standby and must not migrate inventory.
   // Number allocation and legacy repair remain inside the mutation lock.
-  return readRawResaleStore();
+  const store = readRawResaleStore();
+  return includeDeleted ? store : { ...store, items: store.items.filter(item => !item.deletedAt) };
 }
 
 export function upsertResaleItem(input: ResaleItemInput): ResaleItem | null {
@@ -185,8 +195,11 @@ export function upsertResaleItem(input: ResaleItemInput): ResaleItem | null {
   return mutateResaleStore(store => {
     const now = new Date().toISOString();
     const existing = store.items.find(item => item.itemId === input.itemId);
+    if (existing?.deletedAt) throw new Error("Restore the deleted item before editing it.");
     const saved: ResaleItem = {
       ...normalized,
+      deletedAt: undefined,
+      deletedBy: undefined,
       itemId: existing?.itemId || input.itemId || randomUUID(),
       itemNumber: existing?.itemNumber || allocateResaleNumber(store),
       photos: existing?.photos || [],
@@ -198,10 +211,13 @@ export function upsertResaleItem(input: ResaleItemInput): ResaleItem | null {
   });
 }
 
+/** Internal compatibility helper; interactive deletion uses the versioned lifecycle action. */
 export function deleteResaleItem(itemId: string): boolean {
   return mutateResaleStore(store => {
-    const before = store.items.length;
-    store.items = store.items.filter(item => item.itemId !== itemId);
-    return store.items.length !== before;
+    const item = store.items.find(item => item.itemId === itemId);
+    if (!item || item.deletedAt) return false;
+    item.deletedAt = item.updatedAt = new Date().toISOString();
+    item.deletedBy = "system";
+    return true;
   });
 }

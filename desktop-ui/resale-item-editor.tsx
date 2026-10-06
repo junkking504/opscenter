@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- Authenticated private photos and local blob previews bypass the public image optimizer. */
+import { ResaleLifecycleAction } from './resale-lifecycle-action';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, X } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -7,7 +8,8 @@ import { MAX_RESALE_PHOTO_BYTES, MAX_RESALE_PHOTOS, RESALE_PHOTO_TYPES } from '.
 import './resale-photos.css';
 
 type SelectedPhoto = { id: string; file: File; preview: string };
-export function ResaleItemEditor({ initial, date, onBusyChange, onSaved }: { initial: ResaleRecord; date: string; onBusyChange: (busy: boolean) => void; onSaved: () => void }) {
+export function ResaleItemEditor({ initial, existing, date, onBusyChange, onSaved }: { initial: ResaleRecord; existing: boolean; date: string; onBusyChange: (busy: boolean) => void; onSaved: (message?: string) => void }) {
+  const [confirmDeletion, setConfirmDeletion] = useState(false);
   const [draft, setDraft] = useState(initial);
   const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
   const [uploaded, setUploaded] = useState<string[]>([]);
@@ -62,6 +64,12 @@ export function ResaleItemEditor({ initial, date, onBusyChange, onSaved }: { ini
       setError(`${failure instanceof Error ? failure.message : 'Connection interrupted.'} Your selected photos remain here. Retry to continue safely, or close and reopen the item to inspect saved photos.`);
     } finally { active.current = false; setBusy(false); onBusyChange(false); setProgress(''); }
   }
+  if (confirmDeletion) return <ResaleLifecycleAction item={initial} date={date} onBusyChange={onBusyChange} onCancel={() => setConfirmDeletion(false)} onSaved={onSaved}/>;
+  if (initial.deletedAt) return <div className="record-drawer-body">
+    <p>Deleted {new Date(initial.deletedAt).toLocaleString()}. Photos and evidence are retained.</p>
+    <p>{initial.itemNumber} · {initial.source}</p><p>{initial.notes}</p>
+    <Button type="button" variant="outline" onClick={() => setConfirmDeletion(true)}>Restore item</Button>
+  </div>;
   return <form onSubmit={event => { event.preventDefault(); void save(); }}>
     <div className="record-drawer-body appointment-create-grid">
       <p>{draft.itemNumber || 'Item number assigned when saved'}</p>
@@ -84,6 +92,6 @@ export function ResaleItemEditor({ initial, date, onBusyChange, onSaved }: { ini
       {progress && <p role="status" aria-live="polite">{progress}</p>}
       {error && <p role="alert" className="resale-photo-error">{error}</p>}
     </div>
-    <footer className="record-drawer-actions"><Button type="submit" disabled={busy}>{busy ? progress : itemSaved ? 'Retry remaining photos' : locked ? 'Check saved item & retry' : photos.length ? 'Save item & upload photos' : 'Save Inventory Record'}</Button></footer>
+    <footer className="record-drawer-actions">{existing && <Button type="button" variant="destructive" disabled={busy || locked} onClick={() => setConfirmDeletion(true)}>Delete item</Button>}<Button type="submit" disabled={busy}>{busy ? progress : itemSaved ? 'Retry remaining photos' : locked ? 'Check saved item & retry' : photos.length ? 'Save item & upload photos' : 'Save Inventory Record'}</Button></footer>
   </form>;
 }

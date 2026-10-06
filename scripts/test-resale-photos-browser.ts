@@ -25,7 +25,7 @@ async function main() {
     const input = new Request(request.url(), { method, headers: request.headers(), ...(body ? { body: new Uint8Array(body) } : {}) });
     let response: Response;
     if (url.pathname === '/api/desktop/finance' && method === 'GET') {
-      const store = readResaleStore();
+      const store = readResaleStore(true);
       response = Response.json({ date: '2026-10-05', available: false, generatedAt: null, daily: { revenue: 0, costs: 0, profit: 0, recyclingIncome: 0 }, month: { label: 'October', missingDates: [] }, territories: [], costs: [], trends: [], reconciliation: { status: 'not_collected', generatedAt: null, merchantCenterAvailable: false, merchantCenterFresh: false, summary: {}, paymentsByJob: [], exceptions: [] }, resale: store.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: store.updatedAt, recycling: [], recyclingVersion: '', recyclingIncomeRows: [] });
     } else if (url.pathname === '/api/desktop/finance' && method === 'POST') {
       savePosts++; response = await routes.finance.POST(input);

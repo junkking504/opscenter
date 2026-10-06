@@ -164,6 +164,8 @@
     "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts",
     "verify:closest-truck": "node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
     "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs",
+    "verify:resale-delete": "node --import tsx scripts/test-resale-delete.ts",
+    "verify:resale-delete:browser": "node --import tsx scripts/test-resale-delete-browser.ts",
     "verify:resale-photos": "node --import tsx scripts/test-resale-photos.ts",
     "verify:resale-photos:browser": "node --import tsx scripts/test-resale-photos-browser.ts"
   },

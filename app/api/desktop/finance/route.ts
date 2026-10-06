@@ -1,3 +1,4 @@
+import { readResaleStore } from '@/lib/resale-items';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   if (!validCommercialDate(date)) return Response.json({ error: 'A valid operating date is required.' }, { status: 400, headers });
   try {
     const receiptId = params.get('receipt');
-    if (receiptId) { const receipt = readCommercialReceipt(receiptId); if (!receipt || receipt.actor !== actor.email || !opsRoleCan(actor.role, COMMERCIAL_ACTIONS[receipt.action])) return Response.json({ error: 'Receipt unavailable.' }, { status: 404, headers }); return Response.json({ receipt }, { headers }); }
+    if (receiptId) { const receipt = readCommercialReceipt(receiptId) || readResaleStore(true).lifecycleReceipts?.[receiptId]; if (!receipt || receipt.actor !== actor.email || !opsRoleCan(actor.role, COMMERCIAL_ACTIONS[receipt.action])) return Response.json({ error: 'Receipt unavailable.' }, { status: 404, headers }); return Response.json({ receipt }, { headers }); }
     return Response.json(readDesktopFinance(date), { headers });
   } catch { return Response.json({ error: 'Finance source unavailable.' }, { status: 503, headers }); }
 }

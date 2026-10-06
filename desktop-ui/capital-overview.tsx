@@ -13,7 +13,7 @@ export function CapitalOverview({ data, date, dailySummary, onViewChange }: {
   const verification = verifiedPayments(data.reconciliation);
   const history = capitalRevenueHistory(data.trends, date);
   const chartMax = Math.max(1, ...history.map(month => month.revenue ?? 0));
-  const toList = data.resale.filter(item => item.status === 'to_list').length;
+  const toList = data.resale.filter(item => !item.deletedAt && item.status === 'to_list').length;
   const unpaidRuns = data.recycling.filter(item => item.date <= date && item.status !== 'Paid').length;
   const missing = data.month.missingDates.length;
   const openPayments = verification.available ? verification.unresolvedCount : null;
@@ -55,7 +55,7 @@ export function CapitalOverview({ data, date, dailySummary, onViewChange }: {
     <section className="capital-destinations" aria-label="Financial workspaces">{[
       { title: 'Accounting & reports', detail: 'QuickBooks books and accountant statements', icon: BookOpen, view: 'accounting' as const },
       { title: 'Operating expenses', detail: 'Disposal, fuel cards and reconciliation', icon: Fuel, view: 'expenses' as const },
-      { title: 'Resale inventory', detail: `${data.resale.filter(item => item.status !== 'sold').length} recorded items on hand`, icon: Package, view: 'resale' as const },
+      { title: 'Resale inventory', detail: `${data.resale.filter(item => !item.deletedAt && item.status !== 'sold').length} recorded items on hand`, icon: Package, view: 'resale' as const },
       { title: 'Recycling income', detail: `${unpaidRuns} deliveries awaiting payment evidence`, icon: Recycle, view: 'recycling' as const },
     ].map(item => <button key={item.view} onClick={() => onViewChange(item.view)}><item.icon size={19} /><span><strong>{item.title}</strong><small>{item.detail}</small></span><ArrowUpRight size={16} /></button>)}</section>
     <p className="capital-source-note"><CircleAlert size={14} /> Operational profit, recorded payments and accounting income have separate sources and reporting periods.</p>

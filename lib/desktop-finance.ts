@@ -1,3 +1,4 @@
+import { changeResaleLifecycle } from './resale-lifecycle';
 import { readFuelReconciliation } from './fuel-reconciliation';
 import { readPredictionDataset } from './prediction-data';
 import { operatingTrendsSnapshot } from './operating-trends';
@@ -64,7 +65,7 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   });
   const resaleFile = path.join(process.cwd(), 'data', 'finance', 'resale_items.json');
   if (fs.existsSync(resaleFile)) { const payload = JSON.parse(fs.readFileSync(resaleFile, 'utf8')); if (payload.version !== 1 || !Array.isArray(payload.items)) throw new CommercialActionError('Resale source needs recovery.'); }
-  const resale = readResaleStore();
+  const resale = readResaleStore(true);
   const recycling = readRecycling();
   const markets = [...new Set(monthly.entries.flatMap(entry => [...Object.keys(entry.metrics.revenue_by_market || {}), ...Object.keys(entry.metrics.jobs_by_market || {})]))];
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
@@ -102,6 +103,7 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
 function text(value: unknown, maximum = 500): string { if (typeof value !== 'string' || value.length > maximum) throw new CommercialActionError('A valid text value is required.'); return value.trim(); }
 function amount(value: unknown): number { if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1000000 || Math.abs(value * 100 - Math.round(value * 100)) > .0001) throw new CommercialActionError('Enter a nonnegative amount with at most two decimal places.'); return value; }
 export function updateDesktopFinance(operation: CommercialOperation, actor: { email: string; role: InteractiveOpsRole }) {
+  if (operation.action === 'resale.delete' || operation.action === 'resale.restore') return changeResaleLifecycle(operation, actor);
   if (operation.action === 'recycling.receipt.record') return recordReviewedRecyclingReceipt(operation, actor);
   const values = operation.values;
   if (operation.action === 'resale.save') {

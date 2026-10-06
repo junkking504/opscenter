@@ -41,7 +41,7 @@ No AI/provider SDK, paid routing or new polling service is introduced.
 
 `data/finance/resale_items.json` stores inventory, a persistent number counter,
 and message receipts atomically under a shared web/worker lock. Existing items
-receive numbers on first read; numbers survive edits and are never reused after
+receive numbers on first mutation; numbers survive edits and are never reused after
 deletions. Message receipts prevent webhook and worker retries from repeating
 sales or creating items. Corrupt inventory fails closed. An orphaned `.lock`
 requires checking the writer before recovery; it is never removed based on age.
@@ -83,3 +83,42 @@ No new provider, credentials, polling, or external upload is used.
 Validation: `npm run verify:resale-photos`, `npm run verify:resale-photos:browser`
 (with the isolated Vite fixture server), and `npm run verify:whatsapp-resale`.
 The browser fixture uses synthetic local data only.
+
+## Delete and restore in Capital
+
+Review an item in Capital → Resale and choose **Delete item**. Confirm the
+specific item name and number to move it to **Deleted**. Use that filter,
+**Review deleted item**, then **Restore item** to return its original disposition.
+Cancel makes no request. Repeated clicks are blocked while a request is running;
+a failed or lost response retains its request identity for safe retry. Closing
+and refreshing shows the persisted item in All items or Deleted.
+
+Deletion is reversible: the inventory row, permanent number, photos, source
+references, original cost, sale amount, notes and WhatsApp message receipts stay
+in the existing version-1 store. On-hand/asking/ready-to-list counts exclude
+deleted items. Retained cost and recorded-sale totals include them; deletion
+does not void a sale, change a payment, post to accounting or remove photo files.
+Photo viewing and edits resume after restoration. Pending web photo uploads and
+WhatsApp number-based updates cannot modify a deleted item.
+
+The manager/admin-only `resale.delete` and `resale.restore` Finance actions use
+the existing session and trusted-origin checks. Each requires a request ID and
+expected item version. The shared resale lock checks that version and commits
+state plus an attributed lifecycle receipt in one atomic snapshot. Receipt
+replay does not repeat a transition, including after a later restoration.
+Receipts retain the actor, item identity, action, time and prior version and are
+available via the existing Finance receipt read-back route. Corrupt or locked
+storage fails closed. No schema migration or background job is required.
+The legacy unversioned DELETE endpoint now refuses writes and directs callers
+to Capital; it can no longer permanently remove inventory.
+
+Validation: `npm run verify:resale-delete`, `npm run verify:resale-delete:browser`,
+the resale photo and WhatsApp regressions, both TypeScript projects, full lint
+and the production build. Browser tests use synthetic inventory and intercepted
+API calls backed by an isolated temporary store, never live operational data.
+
+Deployment must use the standard controller with the loaded WhatsApp photo
+worker restart enabled (the default). An older worker normalizes inventory
+without the new lifecycle fields and must not remain an active writer after
+this release. Do not use the worker-preservation override for this feature.
+No worker or production record is changed during fixture verification.

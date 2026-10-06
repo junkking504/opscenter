@@ -68,7 +68,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
   const counts = new Map<string, number>();
   for (const row of rows) counts.set(row.appointmentId, (counts.get(row.appointmentId) || 0) + 1);
   const overrides = deps.overrides(date);
-  const current = deps.dispatch(phone.truck).current;
+  const dispatch = deps.dispatch(phone.truck), current = dispatch.current;
   const eligible = rows.flatMap(row => {
     const override = overrides.get(`appt:${row.appointmentId}`);
     const verifiedAt=Date.parse(override?.junkwareVerifiedAt || '');
@@ -93,6 +93,13 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
         ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
+      // Draft identity follows the appointment, never its current/queued slot.
+      // Aliases are migration hints only; request scope checks are unchanged.
+      draftScope: `appointment:${date}:${row.appointmentId}:${reset?.token || 'original'}`,
+      draftAssignmentIds: [...new Set([
+        crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
+        ...[dispatch.current,dispatch.queued].flatMap(item=>item?.date===date && item.appointmentId===row.appointmentId && item.assignmentId!==reset?.priorAssignmentId?[item.assignmentId]:[]),
+      ])],
       assignmentId: current?.date === date && current.appointmentId === row.appointmentId
         ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
       ...(reset?{resetAt:reset.resetAt,resetPriorAssignmentId:reset.priorAssignmentId}:{}),

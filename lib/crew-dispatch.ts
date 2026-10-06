@@ -3,6 +3,7 @@ export type CrewAssignment = { assignmentId: string; appointmentId: string; date
 export type CrewDispatch = { truck: string; version: number; current: CrewAssignment | null; queued: CrewAssignment | null };
 export type CrewCurrentJob = {
   assignmentId: string; appointmentId: string; date: string; jkNumber: string;
+  draftScope?: string; draftAssignmentIds?: string[];
   customerName: string; phone: string; address: string; appointmentTime: string;
   junkItems: string[]; appointmentNotes: string[]; driver: string; navigator: string;
 };

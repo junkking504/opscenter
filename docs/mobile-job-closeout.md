@@ -783,3 +783,50 @@ closeout gates still apply. New Slack output uses the source label while channel
 IDs, URLs and delivery identities stay stable. Validation uses synthetic messages and sends no Slack messages. Existing
 notification identities remain stable, so the normal publisher updates a saved
 message instead of duplicating it when its displayed label changes.
+
+
+## Active closeout and draft continuity — October 6, 2026
+
+Background receipt completion and assignment polling must not replace an open
+appointment, closeout, crew editor, or truck-switch view. List/session responses
+carry a view generation so an older response cannot overwrite a newer view.
+Deferred refresh runs after the user leaves the protected view. Submitting a
+closeout returns that appointment to Assignments only when the server returns a
+pending or verified receipt; pending acceptance is explicitly distinct from
+JunkWare verification. A different appointment's active editor stays open.
+Validation failures retain the editable values. Unknown results keep the draft
+visible and locked behind Check Saved Result, retaining the immutable request
+ID/body and original assignment authority across reloads.
+
+Unsubmitted forms and photos use device + service date + appointment + explicit
+reset epoch for storage. Dispatch current/queued promotion does not change this
+identity. Server-provided legacy assignment aliases are migration hints only;
+all existing server assignment, source version, crew, photo, and payment checks
+remain authoritative. If promotion changes the assignment while a form is open,
+submission checks the fresh scope and accepts it only with equivalent source
+fields and crew version. A concurrent source edit blocks submission for review.
+Saved requests are never rewritten to a new assignment ID.
+
+Migration copies legacy form/photo data and leaves the original bytes intact.
+An existing canonical draft or photo list wins over late legacy copies, including
+an intentionally emptied photo list. Conflicting photo bytes fail closed. An
+acknowledged or unknown old photo is never converted into a fresh upload; its
+receipt is checked under its original assignment. Explicit server resets archive
+retired handoffs before removing them from active recovery and select a new draft
+epoch. Other appointment drafts and photos are not reset.
+
+These retention rules supersede the earlier cleanup descriptions in this
+historical document: authentication failures do not clear drafts, and reading
+photos no longer expires stored bytes. Form auto-restore remains limited to
+24-hour compatible source/crew snapshots. Expired, malformed, and incompatible
+forms are preserved before replacement and can be downloaded from the form for
+review; they are never silently applied to a changed source. Receipt locks do
+not expire with the form's auto-restore window. Photos and preserved drafts stay
+on the original browser origin until explicitly removed or the phone is
+intentionally disconnected. A read-only source failure/offline reload keeps the
+stored draft for a later load. Storage/quota failures block unsafe replacement
+or submission. Browser storage remains device/origin-local, not a server backup.
+
+Validation uses synthetic sources and isolated Chromium contexts, never real
+closeouts or payments: `npm run verify:waypoint-drafts`, the full closeout and
+crew-dispatch suites, and the existing desktop/mobile payment UI checks.

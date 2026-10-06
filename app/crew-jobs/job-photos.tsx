@@ -5,10 +5,10 @@ import { readPhotoResponse } from './photo-response';
 import {MAX_CHECKOUT_PHOTOS} from '@/lib/crew-photo-limits';
 
 import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
-import {storedPhotos as stored} from './photo-storage';
+import {storedPhotos as stored, migratePhotoDraft} from './photo-storage';
 export {clearCrewPhotoDrafts} from './photo-storage';
 export type PhotoProgress = {ready:boolean;count:number;verified:number};
-export type PhotoCheckoutHandle = {ready:()=>boolean;submit:(progress:(message:string)=>void)=>Promise<string[]>};
+export type PhotoCheckoutHandle = {ready:(assignmentId?:string)=>boolean;submit:(progress:(message:string)=>void)=>Promise<string[]>};
 async function photoImage(file:File):Promise<string> {
   if(!file.type.startsWith('image/') || file.size>25*1024*1024)throw new Error('Choose an image smaller than 25 MB.');
   const url=URL.createObjectURL(file);
@@ -24,11 +24,12 @@ async function photoImage(file:File):Promise<string> {
     return result;
   }finally{URL.revokeObjectURL(url);}
 }
-export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:visibleCategory,onProgress,deferred=false,locked=false,dryRun=false,ref}:{deviceId:string;assignmentId:string;onBusyChange:(busy:boolean)=>void;category?:'before'|'after';onProgress?:(progress:PhotoProgress)=>void;deferred?:boolean;locked?:boolean;dryRun?:boolean;ref?:Ref<PhotoCheckoutHandle>}) {
+export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:visibleCategory,onProgress,deferred=false,locked=false,dryRun=false,storageKey,storageAliases,ref}:{deviceId:string;assignmentId:string;storageKey?:string;storageAliases?:string[];onBusyChange:(busy:boolean)=>void;category?:'before'|'after';onProgress?:(progress:PhotoProgress)=>void;deferred?:boolean;locked?:boolean;dryRun?:boolean;ref?:Ref<PhotoCheckoutHandle>}) {
   const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
   const [previews,setPreviews]=useState<Array<{url:string;category:'before'|'after'}>>([]),[preparing,setPreparing]=useState('');
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
-  const key=`${deviceId}:${assignmentId}`;
+  const key=storageKey || `${deviceId}:${assignmentId}`;
+  const aliasesKey=JSON.stringify(storageAliases || []);
   const save=useCallback(async(next:Photo[])=>{const unique=[...new Map(next.map(row=>[row.requestId,row])).values()];await stored(key,unique);rows.current=unique;setPhotos(unique);},[key]);
   useEffect(()=>{
     let canceled=false;
@@ -36,7 +37,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
       try{
         setError('');setReady(false);
         let local:Photo[];
-        try { local=await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
+        try { if(storageKey)await migratePhotoDraft(key,JSON.parse(aliasesKey));local=await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
         const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}`,{cache:'no-store'});
         const body=await readPhotoResponse(response);if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
         if(!Array.isArray(body.photos))throw new Error('Photo history could not be checked. Try again.');
@@ -46,7 +47,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         if(canceled)return;await save(merged);setReady(true);
       }catch(error){if(!canceled)setError(error instanceof Error?error.message:'Photo history unavailable.');}
     })();return()=>{canceled=true;};
-  },[key,assignmentId,save,reload]);
+  },[key,assignmentId,save,reload,storageKey,aliasesKey]);
   useEffect(()=>{
     onProgress?.({ready,count:photos.length,verified:photos.filter(row=>row.status==='verified').length});
   },[photos,ready,onProgress]);
@@ -90,7 +91,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     }catch(error){const uncertain={...row,status:'uncertain' as const};await save(rows.current.map(item=>item.requestId===row.requestId?uncertain:item));if(deferred)return uncertain;throw error;}
   }
   async function check(row:Photo) {
-    const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}&requestId=${encodeURIComponent(row.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
+    const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(row.assignmentId || assignmentId)}&requestId=${encodeURIComponent(row.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
     const body=await readPhotoResponse(response);
     if(response.status===404 && row.image){
       // No source write is retried here. The next explicit upload reuses this UUID;
@@ -101,7 +102,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     const result={...row,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})};
     await save(rows.current.map(item=>item.requestId===row.requestId?result:item));return result;
   }
-  useImperativeHandle(ref,()=>({ready:()=>ready&&!inFlight.current,submit:async(progress)=>{
+  useImperativeHandle(ref,()=>({ready:(targetAssignment=assignmentId)=>{if(rows.current.some(row=>row.assignmentId && row.assignmentId!==targetAssignment && !['selected','verified'].includes(row.status)))throw new Error('A photo from the earlier assignment needs verification. Use Check saved photo before submitting.');return ready&&!inFlight.current;},submit:async(progress)=>{
     if(!ready || inFlight.current)throw new Error('Photos are still loading. Wait a moment, then submit checkout.');
     inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try {return await stageCheckoutPhotos([...rows.current],{upload,check,progress});}
@@ -123,13 +124,13 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {row.image && <img src={row.image} alt={`${category} job photo selected for upload`}/>}
         <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Finishing in background':deferred?'Check the saved result before checkout':'Verification required · do not upload again'}</p>
-        {row.status==='selected'?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>save(rows.current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:!deferred && row.status!=='verified'?<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(async()=>{await check(row);})}>Check saved photo</button>:null}
+        {row.status==='selected'?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>save(rows.current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:row.status!=='verified'?<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(async()=>{await check(row);})}>Check saved photo</button>:null}
       </div>)}
       </div>
     </div>)}
     {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint stays on the closeout until the server has the photos and checkout, then returns to Assignments and is safe to close. Unsubmitted photo drafts expire after 24 hours.':'Selected photos stay on this phone for 24 hours. Uploads start only when you tap Upload photo.'}</p>
+    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint stays on the closeout until the server has the photos and checkout, then returns to Assignments and is safe to close. Unsubmitted photos remain on this phone until removed or the phone is disconnected.':'Selected photos stay on this phone until removed or disconnected. Uploads start only when you tap Upload photo.'}</p>
   </section>;
 }

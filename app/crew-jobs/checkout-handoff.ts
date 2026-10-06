@@ -4,6 +4,7 @@ import { crewCloseoutKey, writeCloseoutLocal } from '../../desktop-ui/lib/closeo
 import { storedPhotos } from './photo-storage';
 
 export type CheckoutHandoff = {
+  draftKey?: string; photoKey?: string;
   deviceId: string; assignmentId: string; requestId: string; createdAt: number;
   phase: 'transferring' | 'submitting' | 'accepted' | 'attention';
   payload: Record<string, unknown> & { requestId: string };
@@ -17,6 +18,13 @@ export function saveHandoff(value: CheckoutHandoff) {
   localStorage.setItem(keyFor(value.deviceId, value.assignmentId), JSON.stringify(value));
   window.dispatchEvent(new CustomEvent(HANDOFF_EVENT, { detail: value }));
 }
+/** A server-declared reset retires the intent without deleting its evidence. */
+export function retireHandoff(deviceId:string,assignmentId:string) {
+  const key=keyFor(deviceId,assignmentId),raw=localStorage.getItem(key);
+  if(raw===null)return;
+  localStorage.setItem(`${key}:retired:${Date.now()}:${crypto.randomUUID()}`,raw);
+  localStorage.removeItem(key);
+}
 export function readHandoffs(deviceId: string): CheckoutHandoff[] {
   const prefix = `${crewCloseoutKey(deviceId, '')}`;
   return Object.keys(localStorage).filter(key => key.startsWith(prefix) && key.endsWith(':handoff')).flatMap(key => {
@@ -25,6 +33,10 @@ export function readHandoffs(deviceId: string): CheckoutHandoff[] {
       return value?.deviceId === deviceId && value.requestId && Array.isArray(value.photoIds) ? [value] : [];
     } catch { return []; }
   });
+}
+export function draftHandoff(deviceId:string,draftKey:string,assignmentIds:string[]) {
+  const matches=readHandoffs(deviceId).filter(value=>value.draftKey===draftKey || assignmentIds.includes(value.assignmentId)).sort((a,b)=>b.createdAt-a.createdAt);
+  return matches.find(value=>!value.receipt || !['failed','reconciled'].includes(value.receipt.status)) || matches[0];
 }
 export function reopenAttentionHandoff(value: CheckoutHandoff): CheckoutHandoff | null {
   if (value.phase !== 'attention' || value.receipt) return null;
@@ -38,18 +50,19 @@ export function retryAttentionHandoff(value: CheckoutHandoff) {
   saveHandoff(reopened);
   return resumeHandoff(reopened);
 }
-export async function createHandoff(deviceId: string, assignmentId: string, payload: CheckoutHandoff['payload']) {
+export async function createHandoff(deviceId: string, assignmentId: string, payload: CheckoutHandoff['payload'], storage?:{draftKey:string;photoKey:string;assignmentIds:string[]}) {
   const saved = readHandoffs(deviceId);
   if (saved.some(value => value.assignmentId !== assignmentId && (['transferring', 'submitting'].includes(value.phase) || value.receipt?.status === 'pending'))) {
     throw new Error('Another checkout is still finishing. You can view other assignments while its saved submission completes.');
   }
-  const prior = saved.find(value => value.assignmentId === assignmentId);
-  if (prior && (['transferring', 'submitting'].includes(prior.phase) || prior.receipt && !['failed', 'reconciled'].includes(prior.receipt.status))) {
+  const matching=saved.filter(value=>value.assignmentId===assignmentId || Boolean(storage && (value.draftKey===storage.draftKey || storage.assignmentIds.includes(value.assignmentId))));
+  if(matching.some(value=>!value.receipt || !['failed','reconciled'].includes(value.receipt.status))){
     throw new Error('This checkout already has a saved submission. Resume or check its saved result; do not submit another payment.');
   }
-  const photos = await storedPhotos(`${deviceId}:${assignmentId}`);
+  const photos = await storedPhotos(storage?.photoKey || `${deviceId}:${assignmentId}`);
+  if(photos.some(photo=>photo.assignmentId && photo.assignmentId!==assignmentId && photo.status!=='verified' && photo.status!=='selected'))throw new Error('A photo from the earlier assignment still needs verification. Check its saved result before submitting.');
   const value: CheckoutHandoff = { deviceId, assignmentId, requestId: payload.requestId,
-    createdAt: Date.now(), payload, phase: 'transferring',
+    createdAt: Date.now(), payload, ...(storage?{draftKey:storage.draftKey,photoKey:storage.photoKey}:{}), phase: 'transferring',
     photoIds: photos.filter(photo => photo.status !== 'verified').map(photo => photo.requestId),
     acceptedPhotos: {}, message: 'Securing photos and checkout on OpsCenter. Stay on this screen until the server confirms the save.' };
   saveHandoff(value);
@@ -135,7 +148,7 @@ export function resumeHandoff(handoff: CheckoutHandoff) {
   const key = keyFor(handoff.deviceId, handoff.assignmentId);
   const prior = running.get(key);
   if (prior) return prior;
-  const work = transferCheckout(handoff, { fetch: (...args) => fetch(...args), photos: () => storedPhotos(`${handoff.deviceId}:${handoff.assignmentId}`), save: saveHandoff,
+  const work = transferCheckout(handoff, { fetch: (...args) => fetch(...args), photos: () => storedPhotos(handoff.photoKey || `${handoff.deviceId}:${handoff.assignmentId}`), save: saveHandoff,
     keepReceipt: receipt => writeCloseoutLocal(`${crewCloseoutKey(handoff.deviceId, handoff.assignmentId)}:receipt`, receipt) }).finally(() => running.delete(key));
   running.set(key, work);
   return work;

@@ -10,6 +10,13 @@ const overrides=new Map();
 let resetToken:string|null=null;
 const deps={snapshot:()=>snapshot,rows:()=>[],overrides:()=>overrides,dispatch:()=>({truck:'Truck 1',version:1,current:{assignmentId:'released-100',appointmentId:'100',date,releasedAt:new Date(now).toISOString()},queued:null}),reset:(truck:string,resetDate:string,id:string)=>resetToken&&id==='101'?{appointmentId:id,date:resetDate,truck,priorAssignmentId:crewScheduleAssignmentId(truck,resetDate,id),token:resetToken,resetAt:new Date(now).toISOString(),actor:'test'}:null};
 const result=crewAssignedDay(phone,date,deps,now);
+const beforePromotion=result.jobs!.find(job=>job.appointmentId==='101')!;
+const afterPromotion=crewAssignedDay(phone,date,{...deps,dispatch:()=>({truck:'Truck 1',version:2,current:{assignmentId:'promoted-101',appointmentId:'101',date,releasedAt:new Date(now).toISOString()},queued:null})},now).jobs!.find(job=>job.appointmentId==='101')!;
+assert.notEqual(beforePromotion.assignmentId,afterPromotion.assignmentId);
+assert.equal(beforePromotion.draftScope,afterPromotion.draftScope,'Dispatch promotion never changes appointment draft identity');
+assert.ok(afterPromotion.draftAssignmentIds!.includes(beforePromotion.assignmentId!),'Legacy schedule alias is available after promotion');
+assert.ok(afterPromotion.draftAssignmentIds!.includes('promoted-101'));
+
 assert.equal(result.state,'assigned');
 assert.deepEqual(result.jobs?.map(job=>job.appointmentId),['100','101','103'],'All truck jobs are visible without a separate release, including completed work');
 assert.equal(result.job?.assignmentId,'released-100');
@@ -18,6 +25,7 @@ assert.equal(result.jobs?.find(job=>job.appointmentId==='101')?.assignmentId,cre
 assert.equal(crewScheduleAssignmentId('Truck 1',date,'101'),crewScheduleAssignmentId('Truck #1',date,'101'),'Truck label variants retain one closeout scope');
 resetToken='11111111-1111-4111-8111-111111111111';
 const reset=crewAssignedDay(phone,date,deps,now).jobs?.find(job=>job.appointmentId==='101');
+assert.notEqual(reset?.draftScope,beforePromotion.draftScope,'Explicit reset uses a separate draft epoch without deleting the old draft');
 assert.notEqual(reset?.assignmentId,crewScheduleAssignmentId('Truck 1',date,'101'),'A reset rotates only the appointment closeout scope');
 assert.equal(reset?.resetPriorAssignmentId,crewScheduleAssignmentId('Truck 1',date,'101'));
 resetToken=null;

@@ -38,13 +38,14 @@ try {
   assert.ok(updateChecks>=1,'The visible assignment list checks the local update token.');
   assert.ok(currentReads>=2,'A changed token reloads the full assignment once.');
   await expect(page.getByText('Dispatch changed. Refresh your assignment.',{exact:true})).toHaveCount(0);
-  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'A refresh clears a retired assignment even after its reset marker was recorded.');
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'Retired intent is no longer an active submission.');
+  assert.ok(await page.evaluate(key=>Object.keys(localStorage).some(name=>name.startsWith(`${key}:retired:`)),staleKey),'Retired intent bytes remain archived for recovery.');
   await page.evaluate(({stale,staleKey})=>{
     localStorage.setItem(staleKey,JSON.stringify(stale));
     window.dispatchEvent(new CustomEvent('waypoint-checkout-handoff',{detail:stale}));
   },{stale,staleKey});
   await expect(page.getByText('Dispatch changed. Refresh your assignment.',{exact:true})).toHaveCount(0);
-  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'A late retired handoff cannot restore its warning after refresh.');
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),staleKey),null,'A late retired handoff is archived without restoring its warning.');
   const currentHandoff={...stale,assignmentId:job.assignmentId,requestId:'00000000-0000-4000-8000-000000000005',message:'Current checkout needs review.'};
   await page.evaluate(value=>window.dispatchEvent(new CustomEvent('waypoint-checkout-handoff',{detail:value})),currentHandoff);
   await expect(page.getByText('Current checkout needs review.',{exact:true})).toBeVisible();

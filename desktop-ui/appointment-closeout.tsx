@@ -8,7 +8,7 @@ import { automaticSizePrice } from '../lib/closeout-load-price';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
-import { readCloseoutLocal, writeCloseoutLocal } from './lib/closeout-drafts';
+import { readCloseoutLocal, writeCloseoutLocal, preserveCloseoutDraft, preservedCloseoutDrafts } from './lib/closeout-drafts';
 import { createPortal } from 'react-dom';
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
@@ -149,22 +149,22 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
 
   useEffect(()=>{
-    if(crewMode && addPayment && paymentAmountAuto){
+    if(crewMode && addPayment && paymentAmountAuto && (!receipt || receipt.status==='failed')){
       const next=amountToMarkPaid.toFixed(2);
       if(paymentAmount!==next)setPaymentAmount(next);
     }
-  },[crewMode,addPayment,paymentAmountAuto,amountToMarkPaid,paymentAmount]);
+  },[crewMode,addPayment,paymentAmountAuto,amountToMarkPaid,paymentAmount,receipt]);
 
   useEffect(()=>{
     if(!draftKey || !draftReady.current || !live || loading)return;
     try {
-      if(receipt && receipt.status!=='failed'){localStorage.removeItem(`${draftKey}:draft`);return;}
+      if(receipt && receipt.status!=='failed')return;
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
+      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
-  },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,mobileStep,photoWorkflow]);
+  },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow]);
 
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
@@ -223,10 +223,15 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setReviewing(false);
       setPendingOtherCharges([]);
       setPendingOtherChargeRemovals([]);
+      setOtherChargeType('');setOtherChargeQuantity('1');setOtherChargePrice('');
       setMessage(payload.message || '');
-      if(draftKey && !payload.pendingReceipt && payload.canWrite){
+      const lockedDraft=payload.pendingReceipt && ['pending','uncertain'].includes(payload.pendingReceipt.status);
+      if(draftKey && ((!payload.pendingReceipt && payload.canWrite) || lockedDraft)){
+        // A stored draft is evidence even when it is too old or incompatible.
+        // Archive first; quota/storage failure must stop replacement, not erase it.
+        preserveCloseoutDraft(draftKey);
         const draft=readCloseoutLocal<Record<string,unknown>>(`${draftKey}:draft`);
-        if(draft && (draft.sourceVersion===payload.sourceVersion || (photoWorkflow && draft.sourceFields===checkoutFieldsKey(source))) && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)){
+        if(draft && (lockedDraft || ((draft.sourceVersion===payload.sourceVersion || (photoWorkflow && draft.sourceFields===checkoutFieldsKey(source))) && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)))){
           try {
             const fields=draft.fields as Record<string,string>;
             const restored={...withTimes};
@@ -243,10 +248,12 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             setAddPayment(draft.addPayment===true);setPaymentMethod(String(draft.paymentMethod || ''));setPaymentAmount(String(draft.paymentAmount || ''));setPaymentAmountAuto(draft.paymentAmountAuto===true);setPaymentReference(String(draft.paymentReference || ''));
             if(Array.isArray(draft.pendingOtherCharges) && draft.pendingOtherCharges.every(row=>row && ['clientId','typeValue','quantity','price','label','total'].every(key=>typeof row[key]==='string')))setPendingOtherCharges(draft.pendingOtherCharges);
             if(Array.isArray(draft.pendingOtherChargeRemovals) && draft.pendingOtherChargeRemovals.every(id=>typeof id==='string') && draft.pendingOtherChargeRemovals.every(id=>source.otherCharges.some(charge=>charge.id===id)))setPendingOtherChargeRemovals(draft.pendingOtherChargeRemovals);
+            setOtherChargeType(String(draft.otherChargeType || ''));setOtherChargeQuantity(String(draft.otherChargeQuantity || '1'));setOtherChargePrice(String(draft.otherChargePrice || ''));
             if(Number.isInteger(draft.mobileStep) && Number(draft.mobileStep)>=0 && Number(draft.mobileStep)<=(photoSteps?3:2) && Boolean(draft.photoWorkflow)===Boolean(photoSteps))setMobileStep(Number(draft.mobileStep));
-            setDraftNotice('Draft restored against the current JunkWare record. Review before saving.');
+            setDraftNotice(lockedDraft?'Your saved draft is shown for reference. The submission is pending or unknown; check its saved result before another payment.':'Draft restored against the current JunkWare record. Review before saving.');
           }catch {setDraftNotice('The stored draft could not be restored. The current source is shown.');}
-        }else if(draft){localStorage.removeItem(`${draftKey}:draft`);setDraftNotice('JunkWare or today’s crew changed since this draft. Current values are shown; review before entering a payment.');}
+        }else if(draft){setDraftNotice('JunkWare or today’s crew changed. Your earlier draft is preserved on this phone. Current values are shown; compare before entering a payment.');}
+        else if(localStorage.getItem(`${draftKey}:draft`))setDraftNotice('The earlier draft could not be restored automatically. It is preserved on this phone for review.');
       }
       draftReady.current=true;
     } catch (loadError) {
@@ -484,7 +491,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     try {
       const result = await (transport?transport.check(receipt.requestId):checkScheduleChange(receipt.requestId));
       setReceipt(result);
-      if (result.status === 'verified' || result.status === 'failed' || result.status === 'reconciled') {
+      if(result.status==='failed'){setReviewing(false);setDifferenceReviewed(false);setDraftNotice('The saved submission failed. Your entered values remain here for review.');return;}
+      if (result.status === 'verified' || result.status === 'reconciled') {
         if (result.status === 'reconciled' || result.action && result.action !== 'closeout') {
           setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false);
           await load(true);
@@ -522,7 +530,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     <details ref={panel} data-photo-workflow={photoSteps ? true : undefined} data-mobile-step={mobile ? reviewing ? "review" : mobileStep : undefined} className={`appointment-closeout-panel${mobile ? " mobile-closeout-panel" : ""}`} data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { setExpanded(event.currentTarget.open); if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
-        {draftNotice && <p role="status">{draftNotice}</p>}
+        {draftNotice && <p role="status">{draftNotice}{draftKey && <button type="button" className="ops-button subtle" onClick={()=>{
+          try{const blob=new Blob([JSON.stringify(preservedCloseoutDrafts(draftKey),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='preserved-closeout-drafts.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setDraftNotice('Saved draft storage is unavailable. Keep this page open and contact the office.');}
+        }}>Download preserved drafts</button>}</p>}
         {live && !photoSteps && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : crewMode ? CLOSEOUT_PHOTOS_REQUIRED : 'Photos are optional for OpsCenter closeout.'}</p>}
         {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-label={label} aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span><span className="mobile-closeout-step-label">{label.replace(' photos','')}</span></button>)}</nav>}
         {live && photoSteps && <div hidden={!currentPhotoCategory || reviewing || Boolean(receipt && receipt.status!=='failed')} className="closeout-photo-step">{photoSteps.render(mobileStep>=2?'after':'before')}</div>}

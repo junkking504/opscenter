@@ -12,6 +12,17 @@ import '../workspace-density.css';
 window.EventSource = class extends EventTarget { close() {} } as unknown as typeof EventSource;
 const injectedSnapshot = (window as unknown as {scheduleFixture?:{appointments:ScheduleAppointment[];operationalStops:unknown[];legs:unknown[];truckLoads?:unknown[]}}).scheduleFixture;
 const scenario=new URLSearchParams(location.search).get('scenario') || 'unassigned';
+// Opt-in deterministic wall clock for the current-time regression fixture.
+const clockParameter = new URLSearchParams(location.search).get('clock');
+let fixtureClock = clockParameter ? Date.parse(clockParameter) : NaN;
+if (Number.isFinite(fixtureClock)) {
+  const RealDate = Date;
+  window.Date = new Proxy(RealDate, {
+    construct(target, args) { return Reflect.construct(target, args.length ? args : [fixtureClock]); },
+    apply() { return new RealDate(fixtureClock).toString(); },
+    get(target, key) { return key === 'now' ? () => fixtureClock : Reflect.get(target, key); },
+  });
+}
 const recoveryStartedAt = Date.now();
 const recoveryMessage = 'The assignment stopped before a JunkWare move was submitted. Schedule now shows its saved assignment: Truck 8, 11:00 AM–12:00 PM.';
 const progressEnabled=new URLSearchParams(location.search).has('progress');
@@ -40,6 +51,10 @@ const applySavedMove=(body:typeof writes[number])=>{pendingFixtureMoves.delete(b
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
   if (injectedSnapshot) return injectedSnapshot.appointments;
+  if (scenario === 'clock-contact') return [
+    {...baseStackJob(date,1001),customerName:'Synthetic contact example',address:'100 Example St, Covington, LA 70433',phone:'(555) 010-1001',junkItems:['Chair', 'Table']},
+    {...baseStackJob(date,1002),customerName:'Synthetic empty contact',truck:'Truck 8'},
+  ];
   if (scenario === 'current-stop-stack') return [
     {...baseStackJob(date,1001),customerName:'Current appointment',appointmentStartMinutes:480,appointmentEndMinutes:540,truckOnSite:true,onsiteTruck:'Truck 4',truckVisits:[{truck:'Truck 4',arrival:`${date}T14:10:00Z`,departure:null,observedThrough:`${date}T14:30:00Z`}]},
     {...baseStackJob(date,1002),customerName:'Next appointment',stopOrder:0},
@@ -122,11 +137,11 @@ window.fetch=async(input,init)=>{
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});
 };
 function Fixture(){
-  const [day,setDay]=useState<'today'|'tomorrow'>('tomorrow');
+  const [day,setDay]=useState<'today'|'tomorrow'>(scenario==='clock-contact'?'today':'tomorrow');
   const [showSchedule,setShowSchedule]=useState(true);
   const [,setVersion]=useState(0);
   useEffect(()=>{const update=()=>setVersion(value=>value+1);window.addEventListener('fixture-write',update);return()=>window.removeEventListener('fixture-write',update);},[]);
-  return <main className="ops-live" style={{padding:12}}><h1 style={{fontSize:16}}>Dispatch check · synthetic {scenario} day · synthetic GPS only</h1><p id="fixture-writes" role="status">Writes: {writes.length}{writes.length?` · ${writes.at(-1)!.date} · ${writes.at(-1)!.recordId} → ${writes.at(-1)!.values.truck || 'Unassigned'}`:''}</p>{releaseVerification && <button onClick={()=>{releaseVerification?.();releaseVerification=undefined;}}>Release Verified Receipt</button>}<>{progressEnabled && <><button onClick={()=>{progressStage='closer';}}>Move truck closer</button><button onClick={()=>{progressStage='onsite';}}>Truck arrives</button><button onClick={()=>{progressStage='stale';}}>GPS stops reporting</button><button onClick={()=>{progressStage='parked';}}>Truck parked 30 minutes</button><button onClick={()=>{progressStage='parked-overdue';}}>Parked report overdue</button></>}</><div className="workspace"><div className="workspace-heading schedule-workspace-heading"><div><span className="eyebrow">Synthetic preview</span><h1>Schedule</h1></div><div className="schedule-heading-actions"><div className="schedule-view-switcher workspace-tabs" role="group" aria-label="Schedule views"><button className="active">Board</button><button>Calendar</button><button>Follow-Up</button><button>History</button></div></div></div></div><button type="button" onClick={()=>setShowSchedule(value=>!value)}>{showSchedule?'Leave fixture schedule':'Return to fixture schedule'}</button>{showSchedule&&<LiveSchedule baseDate="2026-09-07" day={day} onDayChange={setDay} report={()=>{}}/>}</main>;
+  return <main className="ops-live" style={{padding:12}}><h1 style={{fontSize:16}}>Dispatch check · synthetic {scenario} day · synthetic GPS only</h1><p id="fixture-writes" role="status">Writes: {writes.length}{writes.length?` · ${writes.at(-1)!.date} · ${writes.at(-1)!.recordId} → ${writes.at(-1)!.values.truck || 'Unassigned'}`:''}</p>{releaseVerification && <button onClick={()=>{releaseVerification?.();releaseVerification=undefined;}}>Release Verified Receipt</button>}<>{Number.isFinite(fixtureClock)&&<button onClick={()=>{fixtureClock+=60000;}}>Advance fixture clock one minute</button>}{progressEnabled && <><button onClick={()=>{progressStage='closer';}}>Move truck closer</button><button onClick={()=>{progressStage='onsite';}}>Truck arrives</button><button onClick={()=>{progressStage='stale';}}>GPS stops reporting</button><button onClick={()=>{progressStage='parked';}}>Truck parked 30 minutes</button><button onClick={()=>{progressStage='parked-overdue';}}>Parked report overdue</button></>}</><div className="workspace"><div className="workspace-heading schedule-workspace-heading"><div><span className="eyebrow">Synthetic preview</span><h1>Schedule</h1></div><div className="schedule-heading-actions"><div className="schedule-view-switcher workspace-tabs" role="group" aria-label="Schedule views"><button className="active">Board</button><button>Calendar</button><button>Follow-Up</button><button>History</button></div></div></div></div><button type="button" onClick={()=>setShowSchedule(value=>!value)}>{showSchedule?'Leave fixture schedule':'Return to fixture schedule'}</button>{showSchedule&&<LiveSchedule baseDate={scenario==='clock-contact'?(new URLSearchParams(location.search).get('date')||'2026-09-08'):'2026-09-07'} day={day} onDayChange={setDay} report={()=>{}}/>}</main>;
 }
 const root=createRoot(document.getElementById('root')!);
 root.render(<Fixture/>);

@@ -1068,3 +1068,23 @@ empty success. Last-known GPS eligibility remains unchanged.
 Validation: `verify:closest-truck`, `verify:closest-truck:browser` against the
 isolated schedule fixture, truck-progress regression, both TypeScript projects,
 targeted lint, production build and authenticated live Schedule acceptance.
+
+
+### Mobile current time and drawer contact fields
+
+The phone overview and desktop schedule share the Chicago current-time calculation.
+A red line appears only for the current operating date while the clock is inside
+the displayed range; the existing 15-second schedule clock updates both views.
+Phone tracks retain normal page scrolling and appointment hit targets beneath the
+noninteractive line. The phone ruler labels the current time.
+
+Appointment drawer facts preserve React contact links instead of converting them
+to strings. Address formatting uses the same service-address helper as the register;
+missing contacts keep their explicit unavailable labels. No source record changes
+are required for either display correction.
+
+Regression: `node --import tsx scripts/test-schedule-clock-contact.ts` and the
+isolated `schedule-destinations.html?scenario=clock-contact&clock=2026-09-08T17:18:00Z`
+fixture. Its advance-clock control changes only the synthetic wall clock; the
+normal schedule interval must refresh the marker. The fixture's day controls,
+empty contact record, and leave/return controls cover date and drawer navigation.

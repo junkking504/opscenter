@@ -50,3 +50,7 @@
 .ops-live .move-mode .mobile-schedule-visit,.ops-live .move-mode .mobile-schedule-untimed { touch-action:none; -webkit-touch-callout:none; user-select:none; }
 .ops-live .mobile-schedule-row[data-drop-target] { outline:2px solid #174b34; outline-offset:-2px; }
 .ops-live .mobile-schedule-drag-status { position:fixed; top:8px; left:8px; right:8px; padding:10px; background:#173e2b; color:white; z-index:200; pointer-events:none; font-size:13px; }
+
+.ops-live .mobile-schedule-now-line { position: absolute; top: 0; bottom: -1px; width: 2px; z-index: 5; background: var(--ops-brand-red); box-shadow: 0 0 0 1px rgb(255 255 255 / 58%); pointer-events: none; }
+.ops-live .mobile-schedule-now-label { position: absolute; top: 2px; z-index: 5; pointer-events: none; }
+.ops-live .mobile-schedule-now-label span { display: block; padding: 1px 3px; border-radius: 3px; background: var(--ops-brand-red); color: white; font: 700 9px/14px system-ui; white-space: nowrap; }

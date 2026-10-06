@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {useWorkspaceRefresh} from './workspace-freshness';
 import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
-import { payForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
+import { payForDays, creditedRevenueForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
 import './live-krewe-hours.css';
 import './crew-navigation.css';
 import { recordedPayrollClock } from './lib/payroll-review';
@@ -82,7 +82,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
         const periodPay = payForDays(days, snapshot.start, snapshot.end);
         return <article className="hours-employee-card" ref={employeeCard} key={employee.id} id={`payroll-source-${employee.id}`} tabIndex={-1} aria-label={employee.name}>
           <header><h3>{employee.name}</h3><span>Pay-Period Totals · {dayLabel(snapshot.start)} – {dayLabel(snapshot.end)}</span></header>
-          <div className="hours-total-grid"><Fact label="Total Hours" note={`${hours(employee.weeks.reduce((sum, week) => sum + week.regular, 0))} regular · ${hours(employee.weeks.reduce((sum, week) => sum + week.overtime, 0))} OT`}>{hours(employee.total)}</Fact>{payroll && <PayFacts pay={periodPay} />}</div>
+          <div className="hours-total-grid"><Fact label="Total Hours" note={`${hours(employee.weeks.reduce((sum, week) => sum + week.regular, 0))} regular · ${hours(employee.weeks.reduce((sum, week) => sum + week.overtime, 0))} OT`}>{hours(employee.total)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, snapshot.start, snapshot.end))}</Fact>{payroll && <PayFacts pay={periodPay} />}</div>
           {payroll && <PayWarning pay={periodPay} />}
           <nav className="crew-week-nav" aria-label={`${employee.name} weeks`}>{employee.weeks.map((week, index) => {
             const selectedWeek = weekIndex ?? Math.max(0, employee.weeks.findIndex(candidate => selectedDate >= candidate.start && selectedDate <= candidate.end));
@@ -94,14 +94,14 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
             const weekPay = payForDays(days, week.start, week.end);
             return <section className="crew-selected-week" key={week.start} aria-label={`Week ${index + 1}`}>
 
-              <div className="hours-week-content"><h4>Week {index + 1} Totals</h4><div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
+              <div className="hours-week-content"><h4>Week {index + 1} Totals</h4><div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, week.start, week.end))}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
                 <h4>Daily Totals</h4><div className="hours-daily-records" aria-label={`Week ${index + 1} daily breakdowns`}>{week.days.map(day => {
                   const pay = payForDays(days, day.date, day.date);
                   const evidence = days.find(record => record.date === day.date);
                   return <section className="hours-day-card" key={day.date} aria-label={`${day.date} daily totals`}>
                     <header className="crew-day-header"><div><strong>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</strong><small>{day.status}{day.corrected ? ' · Corrected' : ''}</small></div><span>{hours(day.hours)}</span>{payroll && <strong>{money(pay.totalPay)}</strong>}{payroll?.canWrite && <button type="button" aria-label={`Edit hours for ${employee.name} on ${day.date}`} onClick={() => setEditing({date:day.date,name:employee.name,action:'correction'})}>Edit hours</button>}</header>
                     <details className="crew-day-details"><summary>Pay breakdown & source details{evidence?.issue ? ' · Needs attention' : ''}</summary><div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{recordedPayrollClock(day.clockIn) || recordedPayrollClock(evidence?.clockIn) || day.clockIn || '—'}</Fact><Fact label="Clock Out">{recordedPayrollClock(day.clockOut) || recordedPayrollClock(evidence?.clockOut) || day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{truckDisplayText(day.truck)}</Fact>
-                      <Fact label="Jobs">{day.jobs ?? '—'}</Fact><Fact label="Job Revenue Worked">{money(day.jobRevenueWorked)}</Fact>{payroll && <PayFacts pay={pay} />}
+                      </div><div className="hours-day-grid hours-day-production-grid"><Fact label="Jobs">{day.jobs ?? '—'}</Fact><Fact label="Job Revenue Worked">{money(day.jobRevenueWorked)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, day.date, day.date))}</Fact>{payroll && <PayFacts pay={pay} />}
                     </div>{payroll && day.status !== 'Upcoming' && day.status !== 'No Record' && <PayWarning pay={pay} />}
                   {evidence && <div className="hours-day-evidence">{evidence.issue && <p className="hours-record-warning">{evidence.issue}</p>}<p>{evidence.payNote || 'Recorded daily payroll'}{evidence.sourceAt ? ` · Source observed ${evidence.sourceAt}` : ' · Source time unavailable'}</p>{evidence.hourlyRate != null && <p>Shift rate: {money(evidence.hourlyRate)}</p>}{evidence.correctionNote && <p>Correction: {evidence.correctionNote} · {evidence.correctionBy || 'Actor unavailable'} · JunkWare {evidence.syncStatus || 'not verified'}</p>}{evidence.manualBonuses?.map(bonus => <p key={bonus.entryId}>Manual bonus: {money(bonus.amount)} · {bonus.note}</p>)}</div>}
                   {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'bonus'})}>Add bonus</button></div>}

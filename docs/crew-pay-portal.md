@@ -219,3 +219,11 @@ uploader authentication. This command is an external write, not a read or test.
 The selector neither creates credentials/access nor changes credential handling.
 Do not run `--all` to repair one month. Check the month-specific sync receipt and
 remote read-back separately from the actual authenticated served payroll view.
+
+### Desktop pay-period credited revenue
+
+Crew → Pay period → Pay & hours displays employee Credited Revenue in the
+pay-period totals, selected-week totals, and daily breakdown alongside Job Revenue
+Worked. It sums the existing daily employee-attributed revenue for the selected
+dates, independently of earnings. Missing revenue remains unavailable (—); a
+confirmed zero displays $0.00. Existing missing-source notices still apply.

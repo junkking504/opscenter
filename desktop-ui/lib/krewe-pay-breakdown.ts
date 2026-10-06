@@ -15,3 +15,8 @@ export function payBreakdownDifference(pay: PayBreakdown): number | null {
   const parts = sumObserved([pay.labor, pay.tips, pay.bonuses, pay.supplemental]);
   return parts === null || pay.totalPay === null ? null : Math.round((pay.totalPay - parts) * 100) / 100;
 }
+
+/** Employee-attributed revenue, separate from earnings and full job value. */
+export function creditedRevenueForDays(days: DesktopCrewMember['days'], start: string, end: string): number | null {
+  return sumObserved(days.filter(day => day.date >= start && day.date <= end).map(day => day.revenue ?? null));
+}

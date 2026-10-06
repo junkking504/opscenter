@@ -77,8 +77,8 @@ console.log('Truck visit blocks passed: per-truck intervals, split trips, active
 // A tracker may create several short observations of a single appointment.
 // Their minimum-width cards must pack independently on a narrow desktop board.
 const fragmented={...job,truckVisits:[
-  {truck:'Truck 8',arrival:'2026-09-14T16:16:00Z',observedThrough:'2026-09-14T16:31:00Z'},
-  {truck:'Truck 8',arrival:'2026-09-14T16:36:00Z',observedThrough:'2026-09-14T16:48:00Z'},
+  {truck:'Truck 8',arrival:'2026-09-14T16:16:00Z',observedThrough:'2026-09-14T16:21:00Z'},
+  {truck:'Truck 8',arrival:'2026-09-14T16:26:00Z',observedThrough:'2026-09-14T16:38:00Z'},
   {truck:'Truck 8',arrival:'2026-09-14T17:48:00Z',observedThrough:'2026-09-14T17:48:00Z'},
 ]} as ScheduleAppointment;
 const fragmentedLayout=scheduleTravelLayout([fragmented],[],range,'Truck 8',now,450,true);

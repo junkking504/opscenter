@@ -82,13 +82,13 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     // Cancellations stay below every active appointment, even at different times.
     if (separateCanceled && isCanceled(job)) canceledLaneStart ??= lanes.length;
     const firstLane = canceledLaneStart ?? 0;
-    // Unassigned windows can share a lane at touching edges; there is no travel
-    // connector between them that needs the extra horizontal gutter.
-    // Render and pack the same fifteen-minute minimum footprint.
+    // Pack the rendered footprint only, so back-to-back appointments can
+    // share a lane. Travel labels reserve their own space below the blocks.
+    // Preserve the fifteen-minute minimum for short visit blocks.
     const minimumFraction = scheduleBlockMinimumWidth(range.duration);
     const footprints = position.segments.map(segment => ({
       left: segment.left,
-      right: segment.left + Math.max(segment.width, minimumFraction) + (timelineWidth && !separateCanceled ? 8/timelineWidth : 0),
+      right: segment.left + Math.max(segment.width, minimumFraction),
     }));
     // Pack every segment, including segments belonging to the same job.
     const segmentLanes = footprints.map(footprint => {

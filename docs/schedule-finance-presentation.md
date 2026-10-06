@@ -1040,6 +1040,11 @@ dwell time. HQ and dump visits use standalone home and tipping-truck icons at
 arrival, with interval details retained in their tooltips and recorded sequence.
 Appointment minimum width equals fifteen minutes on the timeline ruler; lane
 packing uses that same footprint.
+Back-to-back appointment blocks share a lane when their rendered edges touch;
+lane packing adds no invisible travel gutter. After simultaneous windows end,
+the next appointment returns to the first available lane. Genuine overlaps and
+overlapping fifteen-minute minimum footprints still stack. Travel labels retain
+their independently packed space below appointments.
 
 Validate with `scripts/test-schedule-recorded-sequence.ts`,
 `scripts/test-schedule-operational-stops.ts`, and

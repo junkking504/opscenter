@@ -18,6 +18,17 @@ const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).conn
 assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
 console.log('Travel layout passed: shared/adjacent/gapped windows, direction, bounds and preserved appointment placement.');
+
+// Two simultaneous windows stack, but a stop starting at their shared end
+// returns to the first lane at every viewport width, with or without routes.
+const touchingStack = [job('first-4pm',960,1020),job('second-4pm',960,1020),job('next-5pm',1020,1080)].map(item=>({...item,truck:'Truck 4'}));
+const touchingLegs = [leg('first-4pm','second-4pm',-60),leg('second-4pm','next-5pm',0)];
+for (const mobile of [false,true]) for (const width of [190,320,720,1280]) for (const routes of [[],touchingLegs]) {
+  const drawn = scheduleTravelLayout(touchingStack,routes,timelineRange(touchingStack),'Truck 4',0,width,!mobile,mobile);
+  assert.deepEqual(drawn.placed.map(p=>p.lane),[0,1,0],'Touching windows reuse the top lane; real overlaps still stack');
+  const overlap = [touchingStack[0],{...job('still-overlapping',1019,1080),truck:'Truck 4'}];
+  assert.equal(scheduleTravelLayout(overlap,[],timelineRange(overlap),'Truck 4',0,width,!mobile,mobile).laneCount,2,'Even a one-minute overlap needs separate lanes');
+}
 // Source row order can differ from the stable same-window route proposal.
 const tiedJobs=['a','b','c','d'].map(id=>job(id,480,540));
 const tiedLegs=[leg('a','b',-60),leg('b','c',-60),leg('c','d',-60)];

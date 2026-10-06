@@ -108,6 +108,7 @@ assert.equal(
   "due",
   "zero is a real explicit target",
 );
+assert.equal(servicePlan('Oil change', {...rule, months:null}, [record], {...reading,value:1000}, '2026-10-06', now).status, 'unknown', 'mileage below a completed-service baseline cannot establish current status');
 const cwd = process.cwd(),
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "convoy-dashboard-"));
 const oldHome = process.env.HOME;

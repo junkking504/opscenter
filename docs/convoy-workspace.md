@@ -80,7 +80,8 @@ true mileage, virtual/estimated disagreement exceeding both 1,000 miles and 5%
 of the estimated value is flagged for verification. Duplicate vehicle mappings,
 estimated-only readings, missing times, future timestamps beyond five minutes,
 and readings or retrievals older than 24 hours cannot establish mileage-based
-service status. This maintenance freshness rule does not change GPS freshness,
+service status. Mileage below the completed-service baseline also requires
+verification instead of showing an inflated remaining-mileage figure. This maintenance freshness rule does not change GPS freshness,
 arrival, parked-state, or dispatch logic. Values are read from existing local
 collector files; no additional LinxUp requests or collectors are introduced.
 

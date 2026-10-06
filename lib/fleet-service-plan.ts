@@ -96,7 +96,7 @@ export function servicePlan(
     ? (completed.nextServiceOdometer ??
       (rule?.miles && completed.odometer !== null ? completed.odometer + rule.miles : null))
     : null;
-  const usable = mileageQuality(reading, now) === "current";
+  const usable = mileageQuality(reading, now) === "current" && (completed?.odometer == null || reading!.value! >= completed.odometer);
   const milesRemaining = nextMiles !== null && usable ? nextMiles - reading!.value! : null;
   const daysRemaining = nextDate
     ? Math.round((Date.parse(nextDate + "T12:00:00Z") - Date.parse(date + "T12:00:00Z")) / 86400000)

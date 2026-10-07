@@ -36,6 +36,7 @@ export type ScheduleAppointment = {
   recordId: string;
   version: string;
   stopOrder?: number;
+  visitOrder?: number;
   routeOrder?: number;
   routeAfterAppointmentId?: string;
   routeAfterLabel?: string;

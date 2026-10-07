@@ -12,7 +12,7 @@ assert.equal(overlap.placed.length,4);
 assert.equal(JSON.stringify(jobs),copy,'Packing never mutates appointment data');
 assert.equal(scheduleBlockMinimumWidth(720),15/720,'Appointment minimum width represents fifteen minutes');
 assert.equal(overlap.laneStep,48,'44px cards have separation');
-assert.ok(overlap.connectors.every(c=>Math.abs(c.labelWidth*720-44)<.01));
+assert.ok(overlap.connectors.every(c=>c.labelWidth*720>=220),'Travel cards have room for both endpoint names');
 const desktop=scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true);
 assert.deepEqual(desktop,scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true,false),'Desktop defaults remain unchanged');
 assert.ok(desktop.occupiedLanes.slice(desktop.laneCount).every(l=>l.every(i=>i.right-i.left<1)),'Desktop travel labels reserve only their footprint');

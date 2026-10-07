@@ -1,13 +1,13 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import { useEffect, useRef, useState } from 'react';
-import { stopGroupsForTruck, stopGroupKey, stopOrderSourceKey } from '../lib/schedule-stop-order';
+import { orderGroups, orderGroupKey, orderSourceKey, stopTruck } from '../lib/schedule-stop-order';
 import type { ScheduleAppointment, ScheduleRouteLeg, ScheduleSnapshot } from './lib/schedule-contract';
 import './schedule-stop-order.css';
 
-export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,busy,saved,onBusyChange}: {snapshot: ScheduleSnapshot; truck: string | null; selectedAppointmentId: string | null; busy: boolean; saved: (snapshot: ScheduleSnapshot)=>void; onBusyChange: (busy: boolean)=>void}) {
+export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChange}: {snapshot: ScheduleSnapshot; truck: string | null; selectedAppointmentId: string | null; busy: boolean; saved: (snapshot: ScheduleSnapshot)=>void; onBusyChange: (busy: boolean)=>void}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const groups = stopGroupsForTruck(snapshot.appointments,truck,selectedAppointmentId);
+  const groups = orderGroups(snapshot.appointments,'remaining').filter(group=>truck && stopTruck(group[0].truck) === stopTruck(truck));
   const [group,setGroup] = useState<ScheduleAppointment[] | null>(null);
   const [ids,setIds] = useState<string[]>([]);
   const [legs,setLegs] = useState<ScheduleRouteLeg[]>([]);
@@ -18,12 +18,12 @@ export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,
   const saving = useRef(false);
   const previewTimer = useRef<number | null>(null);
   const cancelPreview = () => { if (previewTimer.current !== null) window.clearTimeout(previewTimer.current); previewTimer.current = null; };
-  const sourceKey = group ? stopOrderSourceKey(group) : '';
-  const groupKey = group ? stopGroupKey(group[0]) : '';
-  const current = groups.find(group=>stopGroupKey(group[0]) === groupKey);
-  const stale = Boolean(group && (!current || stopOrderSourceKey(current) !== sourceKey));
+  const sourceKey = group ? orderSourceKey(group,'remaining') : '';
+  const groupKey = group ? orderGroupKey(group[0],'remaining') : '';
+  const current = groups.find(group=>orderGroupKey(group[0],'remaining') === groupKey);
+  const stale = Boolean(group && (!current || orderSourceKey(current,'remaining') !== sourceKey));
   const draftKey = JSON.stringify(ids);
-  const changed = Boolean(group && draftKey !== JSON.stringify(group.map(job=>job.recordId)));
+  const changed = Boolean(group && (draftKey !== JSON.stringify(group.map(job=>job.recordId)) || group.some(job=>job.visitOrder === undefined)));
   const choose = (next: ScheduleAppointment[]) => { if (saving.current) return; cancelPreview(); active.current?.abort(); setGroup(next); setIds(next.map(job=>job.recordId)); setLegs([]); setMessage(''); setRefresh(n=>n+1); };
   const close = () => { if (saving.current) return; cancelPreview(); active.current?.abort(); dialog.current?.close(); setGroup(null); setWorking(''); };
   const request = async (action: 'preview'|'nearest'|'save') => {
@@ -36,7 +36,7 @@ export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,
     if (action !== 'save') setLegs([]);
     if (action === 'save') { saving.current = true; onBusyChange(true); }
     try {
-      const response = await fetch('/api/desktop/schedule/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:snapshot.date,groupKey,sourceKey,ids,action}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60_000)])});
+      const response = await fetch('/api/desktop/schedule/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:snapshot.date,scope:'remaining',groupKey,sourceKey,ids,action}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60_000)])});
       const body = await response.json().catch(()=>{throw new Error('The server response was unavailable. Try again after the schedule refreshes.');});
       if (!response.ok) throw new Error(body.error || 'Stop order unavailable.');
       if (abort.signal.aborted) return;
@@ -63,17 +63,17 @@ export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,
     <button type="button" className="schedule-stop-order-trigger" disabled={busy || !truck} title={truckDisplayText(truck ? `Order stops for ${truck}` : "Select a truck or an assigned appointment first")} onClick={()=>{if(groups[0])choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
       <header><h2 id="stop-order-title">{truckDisplayText(truck)} · Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
-      <p>Order appointments in the same time slot. Move stops up or down. Times and truck assignments stay the same. Save to update the schedule and travel estimates.</p>
-      {!group && <><p>No same-time appointments to reorder on {truckDisplayText(truck)}.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
+      <p>Set the visit order for remaining appointments, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
+      {!group && <><p>No remaining appointments to reorder on {truckDisplayText(truck)}.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
       {group && <>
-        <label>Time slot<select aria-label="Stop order time slot" value={groupKey} disabled={working === 'save'} onChange={event=>{const next=groups.find(group=>stopGroupKey(group[0]) === event.target.value);if(next)choose(next);}}>{groups.map(group=><option key={stopGroupKey(group[0])} value={stopGroupKey(group[0])}>{truckDisplayText(group[0].truck)} · {group[0].appointmentTime} · {group.length} stops</option>)}</select></label>
+        <p><strong>{group.length} remaining stops</strong> · Completed and canceled appointments stay in history.</p>
         {stale && <p role="alert">The schedule or saved order changed. <button disabled={working === 'save'} onClick={()=>{if(current)choose(current);else close();}}>Refresh stops</button></p>}
         <ol>{ids.map((id,index)=>{
           const job=group.find(job=>job.recordId === id)!;
           const leg=legs.find(leg=>leg.toAppointmentId === id && leg.fromAppointmentId === ids[index-1]);
           return <li key={id}>
             {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !job.location || !group.find(job=>job.recordId === ids[index-1])?.location ? 'Location pending · automatic lookup' : 'Travel estimate unavailable'}</small>}
-            <div className="stop-order-row"><b>{index+1}</b><div><strong>{job.jkNumber} · {job.customerName}</strong><span>{appointmentServiceAddress(job)}</span><small>{job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
+            <div className="stop-order-row"><b>{index+1}</b><div><strong>{job.jkNumber} · {job.customerName}</strong><span>{appointmentServiceAddress(job)}</span><small>Booked: {job.appointmentTime || 'Time unavailable'} · {job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
           </li>;
         })}</ol>
         <button type="button" disabled={stale || working === 'save' || working === 'nearest' || ids.length>12 || group.some(job=>!job.location)} onClick={()=>void request('nearest')}>{working === 'nearest' ? 'Finding nearest stops…' : 'Suggest nearest after first stop'}</button>

@@ -1,30 +1,11 @@
-.ops-live .schedule-route-connector { position: absolute; z-index: 3; pointer-events: none; container-type: inline-size; color: #406751; }
-.ops-live .schedule-route-connector.unavailable { color: #895b08; }
-.ops-live .route-connector-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ops-live .route-connector-path polyline { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
-.ops-live .route-connector-hit-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.ops-live .route-connector-hit-path polyline { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: help; }
-.ops-live .route-connector-line { position: absolute; inset: 0; border-top: 2px dotted currentColor; }
-.ops-live .route-connector-hover-target { position: absolute; pointer-events: auto; cursor: help; }
-.ops-live .schedule-route-connector.horizontal .route-connector-hover-target { inset: -6px 0 auto; height: 14px; }
-.ops-live .schedule-route-connector.vertical .route-connector-hover-target { inset: 0 -6px 0 auto; width: 18px; }
-.ops-live .route-connector-arrow { position: absolute; right: -1px; top: -8px; font: 700 12px/14px sans-serif; background: #fff; }
-.ops-live .route-connector-label { position: absolute; inset-inline: 2px; height: 20px; min-height: 0; min-width: 0; padding: 0 1px; border: 0; border-radius: 2px; background: #fffffff2; color: inherit; font: 650 10px/20px sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; }
-.ops-live .route-connector-label:focus-visible { outline: 2px solid #273d4b; outline-offset: 1px; }
-.ops-live .schedule-route-connector.vertical .route-connector-line { inset: 0 3px 0 auto; width: 6px; border: 0; border-right: 2px dotted currentColor; border-block: 1px solid currentColor; }
-.ops-live .schedule-route-connector.vertical .route-connector-arrow { top: auto; bottom: 1px; right: 0; font-size: 10px; background: transparent; }
-.ops-live .schedule-route-connector.vertical.reverse .route-connector-arrow { top: 1px; bottom: auto; }
-.ops-live .schedule-route-connector.horizontal.reverse .route-connector-arrow { left: -1px; right: auto; }
-.ops-live .schedule-route-connector.vertical .route-connector-label { right: 10px; }
-
-.ops-live .route-connector-tooltip { position: absolute; z-index: 5; width: max-content; max-width: 150px; padding: 5px 8px; border: 1px solid #406751; border-radius: 5px; background: #fff; color: #26372e; box-shadow: 0 3px 12px #17212b35; font: 700 11px/1.25 sans-serif; white-space: nowrap; opacity: 0; visibility: hidden; transform: translate(-50%, -100%); transition: opacity .1s ease; pointer-events: none; }
-.ops-live .route-connector-tooltip strong { color: #406751; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
-.ops-live .schedule-route-connector.horizontal .route-connector-tooltip { left: 50%; top: -8px; }
-.ops-live .schedule-route-connector.vertical .route-connector-tooltip { right: 14px; top: 50%; transform: translateY(-50%); }
-.ops-live .route-connector-hit-path:hover ~ .route-connector-tooltip,
-.ops-live .route-connector-hover-target:hover ~ .route-connector-tooltip,
-.ops-live .route-connector-label:hover ~ .route-connector-tooltip,
-.ops-live .route-connector-label:focus-visible ~ .route-connector-tooltip { opacity: 1; visibility: visible; }
+.ops-live .schedule-route-connector.travel-sequence-item { position: absolute; z-index: 3; color: #406751; }
+.ops-live .schedule-route-connector.travel-sequence-item.unavailable { color: #895b08; }
+.ops-live .live-schedule.schedule-dispatch .travel-sequence-item .route-connector-label { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 100%; height: 38px; min-height: 0; min-width: 0; padding: 3px 6px; border: 1px solid #c2d1c7; border-radius: 4px; background: #fffffff5; color: inherit; text-align: left; font: 500 10px/13px sans-serif; cursor: pointer; }
+.ops-live .travel-sequence-endpoints { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-live .travel-sequence-estimate { display: block; width: 100%; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-live .travel-sequence-estimate b { font-size: 11px; }
+.ops-live .travel-sequence-item .route-connector-label:hover { background: #eff7f2; border-color: #406751; }
+.ops-live .travel-sequence-item .route-connector-label:focus-visible { outline: 2px solid #273d4b; outline-offset: 1px; }
 .ops-live .schedule-route-popover { position: fixed; inset: 0; margin: auto; width: min(340px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 12px; border: 1px solid #bac6bf; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; background: white; color: #26372e; font-size: 12px; }
 .ops-live .schedule-route-popover header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ops-live .schedule-route-popover h3 { margin: 0; font-size: 14px; }

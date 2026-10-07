@@ -2,7 +2,6 @@ import { compareStops, stopGroupKey, stopTruck } from '../../lib/schedule-stop-o
 import { scheduleStatusTone, timelinePlacement, truckLabel, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
-type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
 
 export const scheduleBlockMinimumWidth = (rangeDuration: number) => 15 / rangeDuration;
 
@@ -13,7 +12,7 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
   });
   const bySavedWindow = new Map<string, typeof positioned>();
   for (const item of positioned) {
-    if (item.job.stopOrder === undefined || !item.job.truck || truck && stopTruck(item.job.truck) !== stopTruck(truck)) continue;
+    if ((item.job.stopOrder === undefined && item.job.visitOrder === undefined) || !item.job.truck || truck && stopTruck(item.job.truck) !== stopTruck(truck)) continue;
     const key = stopGroupKey(item.job);
     bySavedWindow.set(key, [...(bySavedWindow.get(key) || []), item]);
   }
@@ -51,7 +50,7 @@ function stackOrderedPlacements(jobs: ScheduleAppointment[], range: Range, truck
   // may be seconds after a booked start, but that must not push finished work
   // below future stops. Keep explicit same-window order together as one unit.
   const recorded = (unit: typeof positioned) => unit.some(({position}) =>
-    position.actual && position.intervals.some(interval => interval.complete && interval.end > interval.start));
+    position.actual && position.intervals.some(interval => interval.end > interval.start));
   const ordered = [...units.values()]
     .map(unit => unit.sort((a,b)=>compareStops(a.job,b.job)))
     .sort((a,b)=>Number(recorded(b))-Number(recorded(a)) || Math.min(...a.map(item=>item.position.start))-Math.min(...b.map(item=>item.position.start)) || compareStops(a[0].job,b[0].job))
@@ -121,67 +120,31 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   });
   const laneStep = mobile ? 48 : 22;
   const cardHeight = mobile ? 46 : 24;
-  const centerY = mobile ? 24 : 13;
   let rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + cardHeight : mobile ? 44 : compact ? 28 : 32;
-  const connectors = pairs.map((pair): typeof pair & ConnectorGeometry => {
-    const { from, to, vertical } = pair;
-    const reverse = vertical ? from.lane > to.lane : from.position.left > to.position.left;
-    if (vertical) {
-      const left = Math.max(from.position.left, to.position.left);
-      const right = Math.min(from.position.left + from.position.width, to.position.left + to.position.width);
-      const top = Math.min(from.lane, to.lane) * laneStep + centerY;
-      const labelY = (reverse ? from.lane : from.lane + 1) * laneStep - 13;
-      return { ...pair, reverse, left, width: right - left, top, height: Math.abs(from.lane - to.lane) * laneStep, labelTop: labelY - top };
-    }
-    // A gap joins the actual source and destination lanes. Using the row's
-    // bottom gutter would falsely point at the last appointment in a stack.
-    const sourceEdge = reverse ? from.position.left : from.position.left + from.position.width;
-    const targetEdge = reverse ? to.position.left + to.position.width : to.position.left;
-    if (reverse ? sourceEdge > targetEdge : targetEdge > sourceEdge) {
-      const sourceY = from.lane * laneStep + centerY;
-      const targetY = to.lane * laneStep + centerY;
-      const top = Math.min(sourceY, targetY);
-      const height = Math.max(1, Math.abs(targetY - sourceY));
-      const startX = reverse ? 100 : 0;
-      const endX = reverse ? 0 : 100;
-      return { ...pair, reverse, left: Math.min(sourceEdge, targetEdge), width: Math.abs(targetEdge - sourceEdge), top, height,
-        path: `${startX},${sourceY-top} 50,${sourceY-top} 50,${targetY-top} ${endX},${targetY-top}`,
-        arrowTop: targetY - top - 7, labelTop: targetY - top + 2 };
-    }
-    // Adjacent windows use the space beneath their centers, so zero gap
-    // does not hide required travel.
-    const gapStart = from.position.left + from.position.width;
-    const gapEnd = to.position.left;
-    const a = gapEnd > gapStart ? gapStart : from.position.left + from.position.width / 2;
-    const b = gapEnd > gapStart ? gapEnd : to.position.left + to.position.width / 2;
-    return { ...pair, reverse, left: Math.min(a, b), width: Math.abs(b - a), top: rowHeight - 16, height: 15, labelTop: 2 };
-  });
-  // Travel labels have their own collision-packed rows beneath appointment
-  // cards. Their readable pixel width must not depend on a tiny time gap.
-  const labelRows: Array<Array<{left:number;right:number}>> = [];
-  const labelWidth = Math.min(1, (mobile ? 44 : 36) / (timelineWidth || 640));
-  const labelStep = 22;
-  const labelBase = rowHeight + 4;
-  const readableConnectors = connectors.map(connector => {
-    const center = connector.left + connector.width / 2;
-    const left = Math.max(0, Math.min(1-labelWidth, center-labelWidth/2));
-    const right = left + labelWidth;
-    let row = labelRows.findIndex(intervals => intervals.every(interval => right <= interval.left || left >= interval.right));
-    if (row < 0) row = labelRows.length;
-    (labelRows[row] ||= []).push({left,right});
-    return {...connector, labelLeft:left, labelWidth, labelTop:labelBase + row*labelStep - connector.top};
-  });
+  const connectors = pairs;
+  // Travel is an ordered, named sequence beneath the time grid. Its cards
+  // describe endpoints explicitly: a planned sequence is not a time interval.
+  const availableWidth = timelineWidth || 640;
+  const columns = Math.max(1, Math.floor(availableWidth / 220));
+  const labelWidth = 1 / columns - 6 / availableWidth;
+  const labelStep = 42;
+  const labelBase = rowHeight + 6;
+  const readableConnectors = connectors.map((connector,index) => ({...connector,
+    labelLeft: (index % columns) / columns, labelWidth,
+    top: 0, labelTop: labelBase + Math.floor(index / columns) * labelStep,
+    sequence: index + 1,
+  }));
   // Reserve each label in the appointment lanes it actually crosses. Labels
   // have a smaller row step; their array index is not a facility-lane index.
   const occupiedLanes = lanes.map(lane => [...lane]);
   readableConnectors.forEach(connector => {
     const top = connector.top + connector.labelTop;
     const first = Math.floor((top - 2) / laneStep);
-    const last = Math.floor((top + 18 - 2 - .001) / laneStep);
+    const last = Math.floor((top + 38 - 2 - .001) / laneStep);
     for (let lane = first; lane <= last; lane++)
       (occupiedLanes[lane] ||= []).push({left:connector.labelLeft,right:connector.labelLeft+connector.labelWidth});
   });
-  if (labelRows.length) rowHeight = labelBase + (labelRows.length-1)*labelStep + 20;
+  if (connectors.length) rowHeight = labelBase + Math.ceil(connectors.length / columns)*labelStep;
   return { placed, laneStep, rowHeight, connectors:readableConnectors, laneCount: lanes.length, occupiedLanes };
 }
 export type TimelineConnector = ReturnType<typeof scheduleTravelLayout>['connectors'][number];

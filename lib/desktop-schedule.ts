@@ -2,7 +2,7 @@ import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
-import { compareStops } from './schedule-stop-order';
+import { compareStops, stopIsFinished } from './schedule-stop-order';
 import { applyStopOrders } from './desktop-stop-order-store';
 import {osmTravelMatrix} from './osm-travel-matrix';
 import { readSourceEstimates } from './schedule-source-estimate';
@@ -26,7 +26,7 @@ import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalS
 import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
 import { readTruckGpsRoute } from './desktop-gps-route';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -130,13 +130,31 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
   }
   return [...trucks.entries()].flatMap(([truck, jobs]) => {
     // Use the saved stack order; stable identity order is the default.
-    jobs.sort((a,b) => (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity) || compareStops(a,b));
+    jobs.sort((a,b) => {
+      // Completed work cannot be interleaved with the remaining dispatch plan.
+      const finished = Number(stopIsFinished(b)) - Number(stopIsFinished(a));
+      if (finished) return finished;
+      if (stopIsFinished(a) && stopIsFinished(b)) {
+        const arrival = (job: DesktopAppointment) => job.truckVisits?.filter(visit=>visit.truck.replace(/^truck\s*#?\s*(\d+)$/i,'Truck $1') === truck).map(visit=>Date.parse(visit.arrival)).filter(Number.isFinite).sort((x,y)=>x-y)[0] ?? Date.parse(job.onsiteTime?.arrival || '');
+        const first = arrival(a), second = arrival(b);
+        const minutes = (at: number, fallback: number | null) => {
+          if (!Number.isFinite(at)) return fallback ?? Infinity;
+          const parts = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(at);
+          const part = (name: string) => Number(parts.find(p=>p.type===name)?.value || 0);
+          return part('hour')*60+part('minute')+part('second')/60;
+        };
+        const difference = minutes(first,a.appointmentStartMinutes)-minutes(second,b.appointmentStartMinutes);
+        if (difference) return difference;
+      }
+      if (a.visitOrder !== undefined || b.visitOrder !== undefined) return compareStops(a,b);
+      return (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity) || compareStops(a,b);
+    });
     return jobs.slice(1).map((to, index) => {
       const from = jobs[index];
       return {
         truck, fromAppointmentId: from.recordId, toAppointmentId: to.recordId,
         fromJk: from.jkNumber, toJk: to.jkNumber,
-        gapMinutes: to.routeAfterAppointmentId === from.appointmentId
+        gapMinutes: to.routeAfterAppointmentId === from.appointmentId || from.visitOrder !== undefined || to.visitOrder !== undefined || stopIsFinished(from) || stopIsFinished(to)
           ? null
           : to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
         travelMinutes: null, miles: null, bufferMinutes: null, source: 'unavailable' as const,
@@ -232,11 +250,11 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   const snapshot = await readVerifiedDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
-  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.routeOrder, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
+  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
   // Last-known coordinates remain eligible until a newer valid report replaces
   // them. The timestamp stays in the cache identity and response for confidence.
   const now = Date.now();
   const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
-  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.junkwareSyncStatus,j.location,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
+  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.visitOrder,j.junkwareSyncStatus,j.location,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
   return { date, truckProgress: progress.data, calculatedAt: legs.calculatedAt, closestCalculatedAt: closest?.calculatedAt || null, appointmentId: target?.recordId || null, legs: legs.data, closest: closest?.data || [] };
 }

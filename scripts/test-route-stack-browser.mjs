@@ -1,43 +1,38 @@
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
-
-const browser = await chromium.launch({ headless: true });
-try {
-  const page = await browser.newPage();
-  for (const [width,height] of [[1440,900],[1024,768],[390,1000]]) {
-    await page.setViewportSize({width,height});
-    await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?scenario=route-stack');
-    const row = page.locator('[data-schedule-truck="Truck 9"]');
-    const incoming = row.locator('.schedule-route-connector').filter({has: page.getByRole('button',{name:/31m/})});
-    await incoming.waitFor();
-    const sourceId = await incoming.getAttribute('data-route-from');
-    const targetId = await incoming.getAttribute('data-route-to');
-    const source = row.locator(`[data-schedule-appointment="${sourceId}"]`);
-    const target = row.locator(`[data-schedule-appointment="${targetId}"]`);
-    const next = row.locator('.schedule-route-connector.vertical');
-    assert.equal(await next.getAttribute('data-route-from'), targetId, 'The next leg starts at the incoming destination');
-    const lower = row.locator(`[data-schedule-appointment="${await next.getAttribute('data-route-to')}"]`);
-    const [a,b,c,arrow] = await Promise.all([source.boundingBox(),target.boundingBox(),lower.boundingBox(),incoming.locator('.route-connector-arrow').boundingBox()]);
-    assert.ok(b.y<c.y, 'Saved first stop is above the second stop');
-    assert.ok(Math.abs(arrow.y+arrow.height/2-(b.y+b.height/2))<1.5, '31-minute arrow aligns with the first appointment center');
-    assert.ok(Math.abs(arrow.x+arrow.width-b.x)<3, 'Arrow tip reaches the first appointment left edge');
-    const path = incoming.locator('.route-connector-path');
-    const pathBox = await path.boundingBox();
-    assert.ok(Math.abs(pathBox.y-(a.y+a.height/2))<1.5, 'Travel line leaves the completed source appointment');
-    await incoming.getByRole('button').click();
-    const details = page.getByRole('dialog',{name:'Travel · Truck# 9',exact:true});
-    await details.waitFor();
-    assert.match(await details.innerText(), /JK1001001[\s\S]*JK1001002[\s\S]*31m/);
-    await details.getByRole('button',{name:'Close travel details'}).click();
-    await target.press('Enter');
-    await page.locator('.schedule-appointment-summary').waitFor();
-    const selectedArrow = await incoming.locator('.route-connector-arrow').boundingBox();
-    const selectedTarget = await target.boundingBox();
-    assert.ok(Math.abs(selectedArrow.y+selectedArrow.height/2-selectedTarget.y-selectedTarget.height/2)<1.5, 'Opening details preserves the arrow target');
-    assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
-    if(width===1440) await row.screenshot({path:'/tmp/route-stack-fixed.png'});
+import {chromium,webkit} from 'playwright';
+const base=process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3156';
+for(const engine of [chromium,webkit]) {
+ const browser=await engine.launch({headless:true});
+ try {
+  const page=await browser.newPage();
+  for(const [width,height] of [[1813,1000],[1280,900],[1024,768]]) {
+   await page.setViewportSize({width,height});
+   await page.goto(`${base}/tests/schedule-destinations.html?scenario=travel-order&clock=2026-09-08T17:30:00Z`);
+   const row=page.locator('[data-schedule-truck="Truck 9"]');
+   await row.locator('.travel-sequence-item').first().waitFor();
+   const completed=row.locator('[data-schedule-appointment$=":1002"]');
+   const planned=row.locator('[data-schedule-appointment$=":1003"]');
+   assert.ok((await completed.boundingBox()).y<(await planned.boundingBox()).y,'Unconfirmed departure remains above planned stops');
+   const boxes=await row.locator('.route-connector-label').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,text:e.textContent};}));
+   assert.equal(boxes.length,5);
+   boxes.forEach((box,i)=>{
+    assert.ok(box.bottom-box.top>=38 && box.text.includes('→'),'Each readable card names its endpoints');
+    boxes.slice(i+1).forEach(other=>assert.ok(box.right<=other.left||box.left>=other.right||box.bottom<=other.top||box.top>=other.bottom,'No travel cards overlap'));
+   });
+   await row.locator('.route-connector-label').first().click();
+   assert.match(await page.getByRole('dialog',{name:'Travel · Truck# 9'}).innerText(),/JK1001[\s\S]*Earlier visit[\s\S]*JK1002[\s\S]*Just completed/);
+   await page.getByRole('button',{name:'Close travel details'}).click();
+   await page.getByRole('button',{name:'Select Truck# 9 on map',exact:true}).click();
+   await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+   await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
+   await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
+   await page.getByRole('button',{name:'Save Order',exact:true}).click();
+   await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+   const modal=page.getByRole('dialog');
+   assert.match(await modal.locator('.stop-order-row').first().innerText(),/JK1005[\s\S]*Booked: 2:00 PM/);
+   assert.equal(await modal.locator('.stop-order-row').count(),4);
+   assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0 · Local order saves: 1');
   }
-  console.log('Stack route arrows PASS: source -> first stacked stop -> second stop, responsive geometry, exact travel popover, selection, zero writes.');
-} finally {
-  await browser.close();
+ } finally {await browser.close();}
 }
+console.log('Travel sequence and day order: readable named routes, no overlap, recorded priority, cross-window persistence and unchanged bookings.');

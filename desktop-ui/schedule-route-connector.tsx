@@ -10,20 +10,20 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
   const unavailable = unavailableRoute(leg, jobs);
   const estimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes}m`;
   const hoverEstimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes} min`;
-  const orderLabel = c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
+  const completed = /complet|closed/i.test(c.from.job.status || '') && /complet|closed/i.test(c.to.job.status || '');
+  const orderLabel = completed ? 'Completed stops' : c.from.job.visitOrder !== undefined || c.to.job.visitOrder !== undefined || c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
   const label = `${leg.fromJk} → ${leg.toJk}: ${estimate} · ${orderLabel}`;
   return <>
-    <div className={`schedule-route-connector ${c.vertical ? 'vertical' : 'horizontal'}${c.reverse ? ' reverse' : ''}${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${Math.max(c.width,.0001) * 100}%`, top: c.top, height: c.height }}>
-      {c.path ? <><svg className="route-connector-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg><svg className="route-connector-hit-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg></> : <><i className="route-connector-line" aria-hidden="true" /><i className="route-connector-hover-target" aria-hidden="true" /></>}<i className="route-connector-arrow" style={c.path ? { top: c.arrowTop } : undefined} aria-hidden="true">{c.vertical ? c.reverse ? '↑' : '↓' : c.reverse ? '←' : '→'}</i>
-      <button type="button" className="route-connector-label" style={{ top: c.labelTop, left: `${(c.labelLeft-c.left)*100 / Math.max(c.width, .0001)}%`, width: `${c.labelWidth*100 / Math.max(c.width, .0001)}%`, right: 'auto' }} popoverTarget={id} title={label} aria-label={label} aria-describedby={`${id}-tooltip`}>
-        {leg.travelMinutes === null ? <span>ETA ?</span> : <><span>{leg.travelMinutes}m</span></>}
+    <div className={`schedule-route-connector travel-sequence-item${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.labelLeft * 100}%`, width: `${c.labelWidth * 100}%`, top: c.top+c.labelTop, height: 38 }}>
+      <button type="button" className="route-connector-label" popoverTarget={id} title={`${c.from.job.customerName || leg.fromJk} → ${c.to.job.customerName || leg.toJk}: ${hoverEstimate} · ${orderLabel}`} aria-label={label}>
+        <span className="travel-sequence-endpoints">{c.from.job.customerName || leg.fromJk} → {c.to.job.customerName || leg.toJk}</span>
+        <span className="travel-sequence-estimate"><b>{leg.travelMinutes === null ? 'ETA unavailable' : `${leg.travelMinutes} min`}</b> · {orderLabel}</span>
       </button>
-      <span id={`${id}-tooltip`} className="route-connector-tooltip" role="tooltip"><strong>Travel</strong> {hoverEstimate}</span>
     </div>
     <div id={id} popover="auto" className="schedule-route-popover" role="dialog" aria-labelledby={`${id}-title`}>
       <header><h3 id={`${id}-title`}>Travel · {truckDisplayText(leg.truck)}</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close travel details">×</button></header>
-      <div className="route-connector-records">{[c.from, c.to].map((item, index) => <div key={item.job.recordId}><span>{index + 1}</span><button type="button" onClick={event => { event.currentTarget.closest<HTMLElement>('[popover]')?.hidePopover(); select(item.job.recordId); }}>{item.job.jkNumber}</button><small>{item.job.appointmentTime}</small></div>)}</div>
-      <strong>{estimate}</strong><p>{orderLabel} · {c.vertical ? 'Overlapping appointment windows' : leg.gapMinutes === 0 ? 'Adjacent appointment windows' : 'Between appointment windows'}.</p>
+      <div className="route-connector-records">{[c.from, c.to].map((item, index) => <div key={item.job.recordId}><span>{index + 1}</span><button type="button" onClick={event => { event.currentTarget.closest<HTMLElement>('[popover]')?.hidePopover(); select(item.job.recordId); }}>{item.job.jkNumber}</button><small>{item.job.customerName}<br />{item.job.appointmentTime}</small></div>)}</div>
+      <strong>{estimate}</strong><p>{orderLabel}. Customer appointment windows remain as booked.</p>
       <p>{leg.travelMinutes === null ? unavailable.detail : 'Estimated road travel without live traffic. Appointment windows do not establish service duration or available buffer time.'}</p>
     </div>
   </>;

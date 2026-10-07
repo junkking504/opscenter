@@ -9,54 +9,16 @@ const range = timelineRange(jobs);
 const layout = scheduleTravelLayout(jobs,[leg('a','b',0),leg('b','c',0),leg('c','d',-60),leg('d','e',-60)],range);
 assert.equal(layout.connectors.length,4,'Adjacent and overlapping legs must all appear');
 assert.deepEqual(layout.connectors.map(c=>c.vertical),[false,false,true,true]);
-assert.ok(layout.connectors.every(c=>c.width>0 && c.top>=0 && c.top+c.height<=layout.rowHeight));
 assert.ok(layout.placed.every(p=>p.position.left===(p.job.appointmentStartMinutes!-range.start)/range.duration),'Preserve booked horizontal position');
-const reverse = scheduleTravelLayout(jobs,[leg('e','c',-60)],range).connectors[0];
-assert.equal(reverse.reverse,true,'Arrow follows route order even if stack order differs');
-assert.ok(reverse.top+reverse.labelTop>=scheduleTravelLayout(jobs,[],range).rowHeight,'Reverse travel labels stay below every appointment lane');
-const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).connectors[0];
-assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
-console.log('Travel layout passed: shared/adjacent/gapped windows, direction, bounds and preserved appointment placement.');
-
-// Two simultaneous windows stack, but a stop starting at their shared end
-// returns to the first lane at every viewport width, with or without routes.
-const touchingStack = [job('first-4pm',960,1020),job('second-4pm',960,1020),job('next-5pm',1020,1080)].map(item=>({...item,truck:'Truck 4'}));
-const touchingLegs = [leg('first-4pm','second-4pm',-60),leg('second-4pm','next-5pm',0)];
-for (const mobile of [false,true]) for (const width of [190,320,720,1280]) for (const routes of [[],touchingLegs]) {
-  const drawn = scheduleTravelLayout(touchingStack,routes,timelineRange(touchingStack),'Truck 4',0,width,!mobile,mobile);
-  assert.deepEqual(drawn.placed.map(p=>p.lane),[0,1,0],'Touching windows reuse the top lane; real overlaps still stack');
-  const overlap = [touchingStack[0],{...job('still-overlapping',1019,1080),truck:'Truck 4'}];
-  assert.equal(scheduleTravelLayout(overlap,[],timelineRange(overlap),'Truck 4',0,width,!mobile,mobile).laneCount,2,'Even a one-minute overlap needs separate lanes');
-}
-// Source row order can differ from the stable same-window route proposal.
 const tiedJobs=['a','b','c','d'].map(id=>job(id,480,540));
 const tiedLegs=[leg('a','b',-60),leg('b','c',-60),leg('c','d',-60)];
-const tied=scheduleTravelLayout([tiedJobs[2],tiedJobs[0],tiedJobs[3],tiedJobs[1]],tiedLegs,timelineRange(tiedJobs));
-assert.deepEqual(tied.placed.map(p=>p.job.recordId),['a','b','c','d']);
-assert.equal(new Set(tied.connectors.map(c=>c.top+c.labelTop)).size,3,'Each overlapping ETA must have its own clickable row');
-
-// Completed stop -> first stop in a later stack: the arrow must not use the
-// bottom of the truck row (which visually points at the second stacked stop).
-const stacked=[job('prior',540,600),{...job('first',660,720),stopOrder:0},{...job('second',660,720),stopOrder:1}];
-for (const reverseInput of [false,true]) {
-  const drawn=scheduleTravelLayout(reverseInput?[...stacked].reverse():stacked,[leg('prior','first',60),leg('first','second',-60)],timelineRange(stacked));
-  const incoming=drawn.connectors[0];
-  assert.equal(incoming.to.job.recordId,'first');
-  assert.equal(incoming.top+incoming.arrowTop!+7,drawn.placed.find(p=>p.job.recordId==='first')!.lane*drawn.laneStep+13,'Incoming arrow lands at first stop center');
-  assert.equal(incoming.top,13,'Stack height cannot move the incoming line to the row footer');
-  assert.equal(drawn.connectors[1].reverse,false,'Then travel continues down to the second stop');
+for (const mobile of [false,true]) for (const width of [190,320,720,1280]) {
+  const input=[job('first',960,1020),job('second',960,1020),job('next',1020,1080)];
+  const drawn=scheduleTravelLayout(input,[leg('second','first',-60),leg('first','next',0)],timelineRange(input),undefined,0,width,false,mobile);
+  assert.deepEqual(drawn.placed.map(p=>p.lane),[0,1,0],'Touching windows reuse the top lane, overlapping windows stack');
+  assert.deepEqual(drawn.connectors.map(c=>[c.from.job.recordId,c.to.job.recordId]),[['second','first'],['first','next']],'Named travel items follow route order, including reverse/overlapping windows');
 }
-// Different source/target lanes need an elbow in the empty time gap.
-const crossing=[job('early1',480,540),job('early2',480,540),job('later1',600,660),job('later2',600,660)];
-for(const [from,to] of [['early2','later1'],['early1','later2'],['later1','early2']]) {
-  const drawn=scheduleTravelLayout(crossing,[leg(from,to,60)],timelineRange(crossing));
-  const c=drawn.connectors[0];
-  assert.ok(c.path);
-  assert.equal(c.top+c.arrowTop!+7,c.to.lane*drawn.laneStep+13,'Arrow ends on the destination lane in either direction');
-  assert.equal(Number(c.path!.split(' ')[0].split(',')[1])+c.top,c.from.lane*drawn.laneStep+13,'Path starts on the source lane');
-}
-console.log('Gapped arrows follow source and destination lanes, including incoming stacked stops and reverse travel.');
 
 // The displayed start can differ from the booked window once GPS evidence is
 // available. A saved Stop Order still owns the vertical order when those two
@@ -127,10 +89,10 @@ for (const mobile of [false,true]) for (const width of [190,320,720,1280]) {
   const drawn=scheduleTravelLayout(tiedJobs,routes,range,undefined,0,width,true,mobile);
   const bare=scheduleTravelLayout(tiedJobs,[],range,undefined,0,width,true,mobile);
   assert.deepEqual(drawn.placed,bare.placed,'Label packing preserves appointment geometry');
-  const boxes=drawn.connectors.map(c=>({left:c.labelLeft,right:c.labelLeft+c.labelWidth,top:c.top+c.labelTop,bottom:c.top+c.labelTop+18}));
+  const boxes=drawn.connectors.map(c=>({left:c.labelLeft,right:c.labelLeft+c.labelWidth,top:c.top+c.labelTop,bottom:c.top+c.labelTop+38}));
   boxes.forEach((box,index)=>{
     assert.ok(box.left>=0 && box.right<=1 && box.top>=bare.rowHeight && box.bottom<=drawn.rowHeight,'Labels are inside the truck row and below all appointments');
-    assert.ok(Math.abs((box.right-box.left)*width-(mobile?44:36))<.01,'Readable label widths survive narrow time gaps');
+    assert.ok((box.right-box.left)*width >= Math.min(184,width-6),'Named travel items retain room for endpoint names');
     for(const other of boxes.slice(index+1)) assert.ok(box.right<=other.left || box.left>=other.right || box.bottom<=other.top || box.top>=other.bottom,'Every travel label has its own non-overlapping hit area');
     const stop={id:`label-${index}`,truck:'Truck 3',name:'HQ',kind:'hq',startMinutes:range.start+box.left*range.duration,endMinutes:range.start+box.left*range.duration+1} as ScheduleOperationalStop;
     const packed=scheduleOperationalStopLayout([stop],range,width,drawn.occupiedLanes).placements[0];

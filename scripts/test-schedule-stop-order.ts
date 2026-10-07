@@ -39,7 +39,7 @@ async function main() {
     assert.deepEqual(legs.map(leg=>[leg.fromAppointmentId,leg.toAppointmentId]),[[ids[0],ids[3]],[ids[3],ids[1]],[ids[1],ids[2]]]);
     const layout=scheduleTravelLayout(ordered as ScheduleAppointment[],legs,timelineRange(ordered as ScheduleAppointment[]));
     assert.deepEqual(layout.placed.map(row=>row.job.recordId),input.ids);
-    assert.equal(new Set(layout.connectors.map(c=>c.top+c.labelTop)).size,3,'Every ETA remains separately clickable');
+    assert.equal(new Set(layout.connectors.map(c=>`${c.labelLeft}:${c.top+c.labelTop}`)).size,3,'Every ETA remains separately clickable');
     assert.equal(stopGroups(read().map(job=>({...job,truck:'Unassigned'}))).length,0);
     assert.equal(stopGroups(read().map(job=>({...job,status:'Canceled'}))).length,0);
     assert.equal(applyStopOrders('2026-09-10',jobs)[0].stopOrder,undefined,'Order cannot leak into another day');

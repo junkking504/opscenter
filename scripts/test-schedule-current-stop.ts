@@ -17,10 +17,17 @@ for (const mobile of [false,true]) {
   assert.equal(JSON.stringify(input),before,'Visual priority never changes assignments, bookings or saved stop order');
 }
 const historical={...currentVisit,truckOnSite:false,truckVisits:currentVisit.truckVisits!.map(v=>({...v,currentUntil:undefined})),lastSeenOnsiteTruck:'Truck 4'};
-assert.equal(scheduleTravelLayout([...upcoming,historical],[],timelineRange([...upcoming,historical]),'Truck 4',currentNow).placed[0].job.recordId,'next','Last-reported presence is not a current visit');
+assert.equal(scheduleTravelLayout([...upcoming,historical],[],timelineRange([...upcoming,historical]),'Truck 4',currentNow).placed[0].job.recordId,historical.recordId,'A recorded visit with an unconfirmed departure stays above planned windows');
 const elsewhere={...currentVisit,truckOnSite:true,onsiteTruck:'Truck 9',truckVisits:undefined,appointmentStartMinutes:550,appointmentEndMinutes:570};
 assert.equal(scheduleTravelLayout([...upcoming,elsewhere],[],timelineRange([...upcoming,elsewhere]),'Truck 4',currentNow).placed[0].job.recordId,'next','Presence on another truck must not promote this assignment');
 const atJob={...elsewhere,truckOnSite:false,truckAtJob:true,atJobTruck:'Truck 4'};
 assert.equal(scheduleTravelLayout([...upcoming,atJob],[],timelineRange([...upcoming,atJob]),'Truck 4',currentNow).placed[0].job.recordId,atJob.recordId,'Current parked location also takes the top lane');
 console.log('Current appointments take the top lane on desktop/mobile while upcoming order, times and source data remain intact.');
 
+
+const joanne={...historical,status:'Completed',recordId:'2026-10-03:appointment:just-finished'};
+for (const mobile of [false,true]) {
+ const drawn=scheduleTravelLayout([...upcoming,joanne],[],timelineRange([...upcoming,joanne]),'Truck 4',currentNow,mobile?320:720,false,mobile);
+ assert.equal(drawn.placed[0].job.recordId,joanne.recordId,'Just-completed visit retains top lane after current presence clears');
+ assert.equal(drawn.placed[0].position.intervals[0].complete,false,'Layout cannot invent a confirmed departure');
+}

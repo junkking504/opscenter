@@ -1,10 +1,11 @@
 // Shared by routing and timeline placement: a saved stack order never changes
 // the truck or the booked start/end of an appointment.
-export type OrderedStop = { recordId: string; version: string; truck: string; status: string; address: string; appointmentStartMinutes: number | null; appointmentEndMinutes: number | null; stopOrder?: number };
+export type OrderedStop = { recordId: string; version: string; truck: string; status: string; address: string; appointmentStartMinutes: number | null; appointmentEndMinutes: number | null; stopOrder?: number; visitOrder?: number };
 export const stopTruck = (value: string) => value.trim().replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
 export const stopGroupKey = (job: OrderedStop) => JSON.stringify([stopTruck(job.truck), job.appointmentStartMinutes, job.appointmentEndMinutes]);
-export function compareStops(a: Pick<OrderedStop,'recordId'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'>, b: Pick<OrderedStop,'recordId'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'>) {
-  return ((a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity) || 0)
+export function compareStops(a: Pick<OrderedStop,'recordId'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'|'visitOrder'>, b: Pick<OrderedStop,'recordId'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'|'visitOrder'>) {
+  return ((a.visitOrder ?? Infinity) - (b.visitOrder ?? Infinity) || 0)
+    || ((a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity) || 0)
     || ((a.appointmentEndMinutes ?? Infinity) - (b.appointmentEndMinutes ?? Infinity) || 0)
     || ((a.stopOrder ?? Infinity) - (b.stopOrder ?? Infinity) || 0)
     || a.recordId.localeCompare(b.recordId, undefined, { numeric: true });
@@ -32,4 +33,24 @@ export function stopOrderSourceKey(jobs: OrderedStop[]) {
 }
 export function isStopPermutation(jobs: OrderedStop[], ids: unknown): ids is string[] {
   return Array.isArray(ids) && ids.length === jobs.length && new Set(ids).size === ids.length && ids.every(id=>typeof id === 'string' && jobs.some(job=>job.recordId === id));
+}
+
+// A day-wide dispatch sequence is separate from the legacy same-window order.
+export type StopOrderScope = 'window' | 'remaining';
+export const orderGroupKey = (job: OrderedStop, scope: StopOrderScope = 'window') => scope === 'remaining'
+  ? JSON.stringify([stopTruck(job.truck), 'remaining']) : stopGroupKey(job);
+export const stopIsFinished = (job: Pick<OrderedStop,'status'>) => /complet|closed|cancel/i.test(job.status);
+export function orderGroups<T extends OrderedStop>(jobs: T[], scope: StopOrderScope = 'window'): T[][] {
+  if (scope === 'window') return stopGroups(jobs);
+  const groups = new Map<string,T[]>();
+  for (const job of jobs) {
+    if (!job.recordId.includes(':appointment:') || !/^Truck [1-9]\d*$/.test(stopTruck(job.truck || '')) || stopIsFinished(job)) continue;
+    const key = orderGroupKey(job,scope);
+    groups.set(key,[...(groups.get(key) || []),job]);
+  }
+  return [...groups.values()].map(group=>group.sort(compareStops));
+}
+export function orderSourceKey(jobs: OrderedStop[], scope: StopOrderScope = 'window') {
+  return scope === 'window' ? stopOrderSourceKey(jobs) : JSON.stringify([stopOrderSourceKey(jobs),
+    [...jobs].sort((a,b)=>a.recordId.localeCompare(b.recordId)).map(job=>[job.recordId,stopIsFinished(job),job.visitOrder ?? null])]);
 }

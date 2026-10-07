@@ -133,7 +133,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   };
   const [now, setNow] = useState(new Date());
   const snapshot = snapshots[date];
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.atJobGpsAt, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.atJobGpsAt, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
   const [routing, setRouting] = useState<ScheduleRouting | null>(null);
   const closestJob = snapshot?.appointments.find(job => job.recordId === selectedId);
   const closestIdentity = JSON.stringify([closestJob?.recordId, closestJob?.location, closestJob?.status]);
@@ -564,7 +564,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
                 ...position.segments.map((segment, segmentIndex) => <ScheduleVisitBlock key={`${job.recordId}:${segmentIndex}`} job={job} truck={truck} position={position} segmentIndex={segmentIndex} mobile={mobileTimeline} top={segmentLanes[segmentIndex]*laneStep+2} selected={selectedId===job.recordId} muted={filtered && !match(job)} matched={filtered && match(job)} dragging={drag.preview?.job.recordId===job.recordId} busy={operationBusy} onPointerDown={event=>drag.begin(event,job)} onSelect={()=>{if (!drag.suppressClick.current) selectAppointment(job.recordId);}} />),
               ])}
 
-              {connectors.filter(connector=>!groupedStops.some(stop=>stop.startMinutes>=connector.from.position.end && stop.endMinutes<=connector.to.position.start)).map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
+              {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {stopLayout.placements.map(({stop,lane})=><ScheduleOperationalStopBlock key={stop.id} stop={stop} range={range} top={lane*laneStep+2} />)}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
             </div>

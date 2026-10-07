@@ -5,7 +5,7 @@ import { validGpsCoordinates } from './gps-presence-policy';
 import { onsiteGpsMaxAge } from './parked-onsite-presence';
 import { truckGpsStatus } from './truck-gps-status';
 
-type Stop = Pick<ScheduleAppointment,'recordId'|'truck'|'status'|'appointmentType'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'|'junkwareSyncStatus'|'truckOnSite'|'onsiteTruck'|'truckAtJob'|'atJobTruck'|'lastSeenOnsiteTruck'|'onsiteTime'|'location'>;
+type Stop = Pick<ScheduleAppointment,'recordId'|'truck'|'status'|'appointmentType'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'|'visitOrder'|'junkwareSyncStatus'|'truckOnSite'|'onsiteTruck'|'truckAtJob'|'atJobTruck'|'lastSeenOnsiteTruck'|'onsiteTime'|'location'>;
 export function nextTruckStop<T extends Stop>(jobs:T[], truck:string, isToday:boolean, now=Date.now()) {
   if (!isToday || !/^Truck [1-9]\d*$/.test(truckLabel(truck))) return null;
   const same=(value:string)=>truckLabel(value)===truckLabel(truck);

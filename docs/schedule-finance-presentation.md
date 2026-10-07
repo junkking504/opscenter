@@ -230,11 +230,37 @@ Holding a drag near the visible page or panel edge scrolls at bounded speed;
 release, cancellation, Escape, and date changes stop scrolling with the drag.
 Moves still require the existing confirmation and verified JunkWare receipt.
 
-Route connectors use the existing proposed route order. Overlapping windows use
-vertical connectors between lanes; adjacent windows use a horizontal connector
-beneath the blocks. Clicking the estimate opens both appointments and the full
-minutes/miles. Booked windows are not moved, and traffic time is not described as
-verified visit order, service duration, or available buffer.
+Travel estimates appear as a left-to-right, wrapping sequence of named
+`from → to` cards below each truck's appointment blocks. Each card contains its
+own readable minutes and opens the two appointments and full estimate details.
+The sequence is separate from the time axis: booked positions and GPS timestamps
+are preserved. Cards reserve their full footprints against each other and
+facility icons. Travel remains an estimated road journey, not observed driving
+or an available service buffer.
+
+Stop Order operates on all remaining appointments for the selected truck and
+operating date, across time windows and including untimed stops. Up/down buttons
+set a local `visitOrder`; booked times and truck assignments are never written to
+JunkWare. Completed and canceled records leave the editable list. New stops
+append to an existing sequence; reassigned stops do not inherit another truck's
+rank. Saves revalidate full membership, source inputs and current order inside
+the existing per-group lock, then return an independently read snapshot. A
+completion or source change while editing requires review of the refreshed list.
+The older same-window API/storage remains compatible, but the day-wide order
+takes precedence for remaining routes and the next-stop indicator.
+
+Completed stops precede the remaining route, using recorded arrival times where
+available and booked times as the fallback. This is a display ordering, not proof
+of a driven trip. Current physical presence retains top-lane priority. Recorded
+visits with nonzero duration reserve lanes above planned windows even when their
+departure is still unconfirmed; layout never invents a departure timestamp.
+Saved remaining order does not rewrite observed history.
+
+Validation includes `scripts/test-day-stop-order.ts`, the existing stop-order
+store/API tests, travel layout and current-stop regressions. The synthetic
+`travel-order` browser fixture covers a recently completed unconfirmed departure,
+overlapping planned stops, named travel cards, and cross-window saves with zero
+appointment writes.
 
 ## Duplicate Booking Review (retained module, not shown on Schedule)
 

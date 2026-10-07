@@ -86,7 +86,7 @@ const fragments=fragmentedLayout.placed[0];
 assert.notEqual(fragments.segmentLanes[0],fragments.segmentLanes[1],'Same-job GPS cards cannot overlap at their rendered minimum width');
 const leg={truck:'Truck 8',fromAppointmentId:job.recordId,toAppointmentId:job.recordId,fromJk:'JK1',toJk:'JK1',travelMinutes:10,miles:4.4,gapMinutes:0} as Parameters<typeof scheduleTravelLayout>[1][number];
 const travel=scheduleTravelLayout([fragmented],[leg,{...leg}],range,'Truck 8',now,450,true);
-assert.notEqual(travel.connectors[0].labelTop,travel.connectors[1].labelTop,'Overlapping travel labels use separate rows');
+assert.notDeepEqual([travel.connectors[0].labelLeft,travel.connectors[0].labelTop],[travel.connectors[1].labelLeft,travel.connectors[1].labelTop],'Every named travel card occupies its own slot');
 assert.ok(travel.connectors.every(c=>c.top+c.labelTop>=travel.laneCount*travel.laneStep),'Travel labels sit below all appointment lanes');
 console.log('Fragmented same-job visits and crowded travel labels use independent collision lanes.');
 

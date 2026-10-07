@@ -1,6 +1,7 @@
 import { historyEntries } from './lib/convoy-records';
 import { ConvoyRecords } from './convoy-records';
-import {ConvoyDashboard,ConvoyService} from './convoy-dashboard';
+import {ConvoyDashboard} from './convoy-dashboard';
+import {ConvoyService} from './convoy-service';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { ConvoyRepairs } from './convoy-repairs';
 import { Button } from './components/ui/button';
@@ -25,7 +26,7 @@ export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open,now,onVie
   const visible = trucks.filter(truck => !truckId || truck.id === truckId);
   const scopedRepairs = snapshot.issues.filter(row => !truckId || sameTruck(row.truck, truckId));
   return <>
-    {view!=='overview'&&view!=='reports'&&<div className="convoy-toolbar"><label>Truck<select value={truckId} onChange={event=>onTruck(event.target.value)}><option value="">All trucks</option>{trucks.map(truck=><option key={truck.id} value={truck.id}>{truck.label.replace(/Truck\s*#\s*/,'Truck ')}</option>)}{truckId&&!trucks.some(truck=>truck.id===truckId)&&<option value={truckId}>{truckId} · unavailable on this day</option>}</select></label><span>{truckId ? 'Showing this truck across Convoy. Choose All trucks to see the whole fleet.' : `${trucks.length} trucks in the fleet`}</span><a href={`/fleet-inspections?date=${encodeURIComponent(snapshot.date)}`}>Truck phone inspections</a></div>}
+    {view==='scores'&&<div className="convoy-toolbar"><label>Truck<select value={truckId} onChange={event=>onTruck(event.target.value)}><option value="">All trucks</option>{trucks.map(truck=><option key={truck.id} value={truck.id}>{truck.label.replace(/Truck\s*#\s*/,'Truck ')}</option>)}{truckId&&!trucks.some(truck=>truck.id===truckId)&&<option value={truckId}>{truckId} · unavailable on this day</option>}</select></label><span>{truckId ? 'Showing this truck across Convoy. Choose All trucks to see the whole fleet.' : `${trucks.length} trucks in the fleet`}</span><a href={`/fleet-inspections?date=${encodeURIComponent(snapshot.date)}`}>Truck phone inspections</a></div>}
     {truckId&&!visible.length&&<p className="convoy-empty">This truck is not available in this day’s records. Choose another truck or All trucks.</p>}
     {view==='overview'&&<ConvoyDashboard {...{snapshot,trucks,truckId,onTruck,open,now,onView}}/>}
     {view==='maintenance'&&<ConvoyRepairs snapshot={snapshot} trucks={trucks} truckId={truckId} onTruck={onTruck} open={open}/>}

@@ -436,3 +436,65 @@ button.convoy-metric:hover {border-color:#255e4c;background:#f9fcfa}
  .convoy-detail-switch {gap:12px}
  .convoy-detail-switch button {font-size:13px}
 }
+
+/* Shared inspection and maintenance journals use the records library navigation. */
+.convoy-library-link {display:inline-flex;align-items:center;gap:6px;color:#245c48;font-size:13px;text-decoration:underline;min-height:36px}
+.convoy-library-results {display:flex;align-items:center;justify-content:space-between;gap:12px;color:#607167;font-size:12px;line-height:1.6;padding:10px 0 14px}
+.convoy-library-results button {color:#245c48;text-decoration:underline;white-space:nowrap;min-height:32px}
+.convoy-mobile-filter {display:none}
+.convoy-inspection-visit {border-bottom:1px solid #dfe7e1;min-width:0}
+.convoy-inspection-visit>summary {display:grid;grid-template-columns:38px minmax(0,1fr) auto 18px;gap:12px;align-items:center;list-style:none;padding:16px 6px;cursor:pointer;border-radius:5px}
+.convoy-inspection-visit>summary::-webkit-details-marker,.convoy-work-row>summary::-webkit-details-marker {display:none}
+.convoy-inspection-visit>summary:hover,.convoy-work-row>summary:hover {background:#f1f7f3}
+.convoy-inspection-visit[open] {background:#f5faf7;border:1px solid #b7d6c6;border-radius:6px;margin:4px 0}
+.convoy-inspection-visit[open]>summary>.convoy-disclosure,.convoy-work-row[open]>summary>.convoy-disclosure {transform:rotate(90deg)}
+.convoy-inspection-visit .convoy-visit-metadata {display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.convoy-inspection-body {padding:4px 20px 18px 56px;min-width:0}
+.convoy-inspection-review {padding:2px 0 18px;border-bottom:1px solid #d8e5dd;margin-bottom:14px}
+.convoy-inspection-review h3 {display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:12px;color:#28543e}
+.convoy-inspection-review>p,.convoy-work-row-body>p,.convoy-inspection-body>p {font-size:14px;line-height:1.7;white-space:pre-line;overflow-wrap:anywhere;margin:8px 0}
+.convoy-inspection-review>small {display:block;color:#65776c;font-size:12px;margin-top:12px}
+.convoy-inspection-body>.convoy-heading h3 {font-size:14px}
+.convoy-work-row {border-top:1px solid #dce6df}
+.convoy-work-row>summary {display:grid;grid-template-columns:16px minmax(0,1fr) auto 16px;align-items:center;gap:10px;padding:14px 0;list-style:none;cursor:pointer;color:#31543e}
+.convoy-work-row>summary>span:nth-child(2) {display:grid;gap:5px;min-width:0}
+.convoy-work-row strong {font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.convoy-work-row small {font-size:11px;color:#67766c;font-weight:400;line-height:1.6}
+.convoy-work-row-body {padding:0 0 18px 26px}
+.convoy-work-facts {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}
+.convoy-work-facts dt {font-size:11px;color:#607167;margin-bottom:6px}
+.convoy-work-facts dd {font-size:14px;margin:0;line-height:1.6;color:#283f30;overflow-wrap:anywhere}
+.convoy-work-facts dd small {display:block;color:#64746b;font-size:12px;font-weight:400}
+.convoy-resolved-list {margin-top:18px;color:#5c6d62;font-size:13px}
+.convoy-resolved-list>summary {padding:8px 0;cursor:pointer}
+.convoy-library-switch {margin-bottom:16px;flex-wrap:wrap;gap:18px}
+.convoy-library-switch button {font-size:13px}
+.convoy-journal .convoy-journal-month {font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#617168;padding:16px 0 8px}
+.convoy-plan-reading {padding:14px;background:#edf4ef;border-radius:6px;margin:14px 0}
+.convoy-plan-reading h4 {font-size:12px;color:#48634f;margin-bottom:8px}
+.convoy-past-filter {display:flex;gap:8px;align-items:flex-start;padding:8px 0 18px;font-size:13px;color:#48634f;line-height:1.5}
+.convoy-past-filter input {margin-top:3px;accent-color:#245c48}
+.fleet-view-maintenance>.convoy-orientation,.fleet-view-service>.convoy-orientation {margin-top:8px}
+.fleet-view-maintenance>.convoy-orientation>p,.fleet-view-service>.convoy-orientation>p {display:none}
+.convoy-inspection-visit>summary:focus-visible,.convoy-work-row>summary:focus-visible {outline:2px solid #235b47;outline-offset:3px}
+@media(max-width:1100px) {
+ .convoy-inspection-visit>summary {grid-template-columns:minmax(0,1fr) auto 16px;gap:10px}
+ .convoy-inspection-body {padding:4px 16px 18px}
+}
+@media(max-width:760px) {
+ .convoy-inspection-visit>summary {grid-template-columns:minmax(0,1fr) 16px;padding:14px 8px;gap:8px}
+ .convoy-inspection-visit>summary>:is(.convoy-status,.convoy-badge) {grid-column:1;grid-row:2;justify-self:start}
+ .convoy-inspection-visit>summary>.convoy-disclosure {grid-column:2;grid-row:1}
+ .convoy-inspection-body {padding:4px 12px 16px}
+ .convoy-mobile-filter {display:flex;align-items:center;gap:10px;font-size:12px;color:#52665a;width:100%}
+ .convoy-mobile-filter select {min-width:0;flex:1;min-height:40px;border:1px solid #cbd6cf;background:white;border-radius:5px;padding:6px;font-size:13px}
+ .convoy-work-row>summary {grid-template-columns:16px minmax(0,1fr) 16px}
+ .convoy-work-row>summary>.convoy-status {grid-row:2;grid-column:2;justify-self:start}
+ .convoy-work-row>summary>.convoy-disclosure {grid-row:1;grid-column:3}
+ .convoy-work-facts {grid-template-columns:1fr;gap:12px}
+ .convoy-work-facts>div {display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px}
+ .convoy-work-row-body {padding-left:0}
+ .convoy-library-switch {gap:12px}
+ .convoy-library-switch button {font-size:12px;gap:5px}
+ .convoy-journal-header {flex-wrap:wrap}
+}

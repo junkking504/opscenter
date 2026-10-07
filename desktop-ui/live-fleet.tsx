@@ -66,10 +66,10 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
     {!snapshot.sourceAvailable&&view!=='service'&&view!=='overview'&&<p className="convoy-source-alert">GPS source unavailable for this viewing day. Stored inspections and repairs remain visible.</p>}
     {snapshot.warnings.filter(warning=>warning.startsWith('Repair source')).map(warning=><p className="convoy-source-alert" key={warning}>{warning}</p>)}
 
-    {view!=='reports'&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
+    {!['reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
     <div className="convoy-top-actions"><span>{serviceTruck?truckDisplayText(serviceTruck):'All trucks'} · {view==='reports'?'History includes all dates':'Choose a truck to see its details'}</span><div className="convoy-actions"><Button variant="outline" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'issue',truck});}}>Report a problem</Button><Button className="convoy-primary" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'maintenance',truck,initialStatus:'completed'});}}>Record service</Button></div></div>
     <ConvoyViews now={freshness.now} onView={onViewChange} snapshot={snapshot} trucks={trucks} view={view} truckId={serviceTruck} onTruck={setServiceTruck} open={open}/>
-    {view==='reports'&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
+    {['reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.mileageRetrievedAt||snapshot.sourceUpdatedAt} sourceLabel={snapshot.mileageRetrievedAt?'Tracking feed retrieved':'GPS observed'} budgetMinutes={snapshot.mileageRetrievedAt?1440:3}/>
     {view === 'reports' && <details className="convoy-monthly-report"><summary>Truck usage & fuel charts</summary><LiveAnalytics date={date} scope="fleet" /></details>}
     {convoyWarnings(snapshot.warnings,view,serviceTruck).length>0&&<details className="convoy-source-details"><summary>Source details · {convoyWarnings(snapshot.warnings,view,serviceTruck).length} notes</summary>{convoyWarnings(snapshot.warnings,view,serviceTruck).map(warning=><p key={warning}>{truckDisplayText(warning)}</p>)}</details>}

@@ -13,12 +13,16 @@ Ready describes inspection/repair evidence; it does not establish current GPS.
 Load notes are expandable and do not repeat above unrelated tabs. Missing repair
 or GPS sources remain explicitly visible.
 
-Inspections & Repairs starts with a compact truck grid, sorted with out-of-service
-trucks first. Count filters show all trucks, attention needed, out-of-service trucks,
-and missing inspections. Opening a truck brings its inspection and active repairs
-together, with direct report, checklist and add/update controls. Resolved repairs
-are hidden until requested. Back to trucks restores the overview filter.
-Truck cards preview the actual inspection section and inspector notes; the selected
+Repairs & inspections uses the same persistent truck navigation and expandable
+journal as Records & invoices. Sidebar counts show active repairs; condition
+filters show matching trucks. Out-of-service trucks sort first. Search covers
+truck, finding, repair, shop and resolution text. Selecting a truck expands its
+inspection without losing the fleet navigation. Inspection & photos opens the
+original report separately; checklist and repair actions retain their existing
+editors. Repair rows expose owner, planned date, status, cost and resolution.
+Resolved repairs remain collapsed until requested. On phones, trucks scroll
+horizontally and a condition selector replaces the sidebar condition filters.
+Truck rows preview the actual inspection notes; the expanded
 truck shows all findings from the same report used for its inspection status, plus
 general notes and the original report link. A later clear report cannot hide an
 earlier stop/problem report. When no phone report exists, daily checklist attention
@@ -161,12 +165,17 @@ Update repair. Report a problem has an explicit truck selector. Service work and
 notes use multiline fields. The dialog keyboard trap includes visible disclosures
 and returns focus to the original opener after closing.
 
-Maintenance starts with all trucks and their configured targets. Selecting a truck
-opens its recurring plan. The primary plan shows configured rules and explicit
-targets; other service categories are optional, behind an expansion. Setup counts
-mean no enabled rules or missing baselines for enabled rules, not missing history
-for every possible service category. The oil interval settings are unchanged.
-Completed visit counts use grouped invoices rather than every category entry.
+Maintenance uses the same truck navigation, search and expandable rows. Service
+plan lists tracked intervals and explicit targets, with last service, next date
+and mileage target, original reading evidence and editing actions inside each
+row. Sidebar counts and filters refer to service targets, not trucks. The default
+list uses tracked categories, or Oil & filter as a setup entry when none exist;
+other categories remain optional. Selecting a truck also exposes Add interval.
+Scheduled visits is a separate view with a past-date review filter and the
+existing Schedule service / Review service record workflows. Completed work
+opens Records & invoices while retaining truck selection. Missing readings stay
+unknown; older inspection evidence retains its date. No interval values, source
+precedence, due calculations or saved maintenance records change in this layout.
 
 Overview mileage also compares the latest reading to completed service mileage.
 A lower reading displays Needs verification with the recorded service mileage.

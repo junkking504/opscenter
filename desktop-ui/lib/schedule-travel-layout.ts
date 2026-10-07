@@ -121,30 +121,60 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   const laneStep = mobile ? 48 : 22;
   const cardHeight = mobile ? 46 : 24;
   let rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + cardHeight : mobile ? 44 : compact ? 28 : 32;
-  const connectors = pairs;
-  // Travel is an ordered, named sequence beneath the time grid. Its cards
-  // describe endpoints explicitly: a planned sequence is not a time interval.
+  // Keep minutes attached to a continuous line between the rendered blocks.
+  // Wide gaps use the appointment lane; tight/overlapping windows use compact
+  // tracks below the blocks so neither labels nor appointment targets collide.
   const availableWidth = timelineWidth || 640;
-  const columns = Math.max(1, Math.floor(availableWidth / 220));
-  const labelWidth = 1 / columns - 6 / availableWidth;
-  const labelStep = 42;
-  const labelBase = rowHeight + 6;
-  const readableConnectors = connectors.map((connector,index) => ({...connector,
-    labelLeft: (index % columns) / columns, labelWidth,
-    top: 0, labelTop: labelBase + Math.floor(index / columns) * labelStep,
-    sequence: index + 1,
-  }));
-  // Reserve each label in the appointment lanes it actually crosses. Labels
-  // have a smaller row step; their array index is not a facility-lane index.
+  const labelWidth = Math.min(1, 32 / availableWidth);
+  const labelHeight = 14;
+  const trackStep = 18;
+  const trackBase = rowHeight + 10;
+  const tracks: Array<Array<{left:number;right:number}>> = [];
   const occupiedLanes = lanes.map(lane => [...lane]);
-  readableConnectors.forEach(connector => {
-    const top = connector.top + connector.labelTop;
-    const first = Math.floor((top - 2) / laneStep);
-    const last = Math.floor((top + 38 - 2 - .001) / laneStep);
-    for (let lane = first; lane <= last; lane++)
-      (occupiedLanes[lane] ||= []).push({left:connector.labelLeft,right:connector.labelLeft+connector.labelWidth});
+  const readableConnectors = pairs.map(pair => {
+    const {from,to} = pair;
+    const last = from.position.segments.length - 1;
+    const source = from.position.segments[last];
+    const target = to.position.segments[0];
+    const sourceLane = from.segmentLanes[last] ?? from.lane;
+    const targetLane = to.segmentLanes[0] ?? to.lane;
+    const sourceRight = source.left + Math.max(source.width, scheduleBlockMinimumWidth(range.duration));
+    const targetRight = target.left + Math.max(target.width, scheduleBlockMinimumWidth(range.duration));
+    const forwardGap = target.left >= sourceRight;
+    const reverseGap = source.left >= targetRight;
+    const separated = forwardGap || reverseGap;
+    const sourceX = forwardGap ? sourceRight : reverseGap ? source.left : (source.left + sourceRight)/2;
+    const targetX = forwardGap ? target.left : reverseGap ? targetRight : (target.left + targetRight)/2;
+    const sourceY = sourceLane*laneStep + (separated ? 13 : cardHeight);
+    const targetY = targetLane*laneStep + (separated ? 13 : cardHeight);
+    const labelLeft = Math.max(0,Math.min(1-labelWidth,(sourceX+targetX-labelWidth)/2));
+    const footprint = {left:Math.min(sourceX,targetX,labelLeft),right:Math.max(sourceX,targetX,labelLeft+labelWidth)};
+    const clearGap = separated && sourceLane === targetLane
+      && Math.abs(targetX-sourceX)*availableWidth >= 40
+      && lanes[sourceLane].every(interval => interval.right <= footprint.left+1e-9 || interval.left >= footprint.right-1e-9);
+    let railY = sourceY;
+    if (!clearGap) {
+      let track = tracks.findIndex(items => items.every(item => footprint.right+4/availableWidth <= item.left || footprint.left >= item.right+4/availableWidth));
+      if (track < 0) track = tracks.length;
+      (tracks[track] ||= []).push(footprint);
+      railY = trackBase+track*trackStep;
+    }
+    const left = footprint.left;
+    const width = Math.max(footprint.right-left,.0001);
+    const top = Math.min(sourceY,targetY,railY-labelHeight/2);
+    const height = Math.max(sourceY,targetY,railY+labelHeight/2)-top;
+    const x = (value:number) => (value-left)*100/width;
+    const path = `${x(sourceX)},${sourceY-top} ${x(sourceX)},${railY-top} ${x(targetX)},${railY-top} ${x(targetX)},${targetY-top}`;
+    const labelTop = railY-labelHeight/2-top;
+    // Reserve the rail against facility markers, including its minute label.
+    const first = Math.max(0,Math.floor((railY-labelHeight/2-2)/laneStep));
+    const lastLane = Math.floor((railY+labelHeight/2-2-.001)/laneStep);
+    for(let lane=first;lane<=lastLane;lane++) (occupiedLanes[lane] ||= []).push(footprint);
+    return {...pair,left,width,top,height,path,labelLeft,labelWidth,labelTop,
+      arrowLeft:x(targetX),arrowTop:targetY-top,
+      arrow:clearGap ? (forwardGap ? '→' : '←') : '↑'};
   });
-  if (connectors.length) rowHeight = labelBase + Math.ceil(connectors.length / columns)*labelStep;
+  if(tracks.length) rowHeight = trackBase+(tracks.length-1)*trackStep+labelHeight/2+3;
   return { placed, laneStep, rowHeight, connectors:readableConnectors, laneCount: lanes.length, occupiedLanes };
 }
 export type TimelineConnector = ReturnType<typeof scheduleTravelLayout>['connectors'][number];

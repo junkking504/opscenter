@@ -14,10 +14,11 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
   const orderLabel = completed ? 'Completed stops' : c.from.job.visitOrder !== undefined || c.to.job.visitOrder !== undefined || c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
   const label = `${leg.fromJk} → ${leg.toJk}: ${estimate} · ${orderLabel}`;
   return <>
-    <div className={`schedule-route-connector travel-sequence-item${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.labelLeft * 100}%`, width: `${c.labelWidth * 100}%`, top: c.top+c.labelTop, height: 38 }}>
-      <button type="button" className="route-connector-label" popoverTarget={id} title={`${c.from.job.customerName || leg.fromJk} → ${c.to.job.customerName || leg.toJk}: ${hoverEstimate} · ${orderLabel}`} aria-label={label}>
-        <span className="travel-sequence-endpoints">{c.from.job.customerName || leg.fromJk} → {c.to.job.customerName || leg.toJk}</span>
-        <span className="travel-sequence-estimate"><b>{leg.travelMinutes === null ? 'ETA unavailable' : `${leg.travelMinutes} min`}</b> · {orderLabel}</span>
+    <div className={`schedule-route-connector compact-travel${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${c.width * 100}%`, top: c.top, height: c.height }}>
+      <svg className="route-connector-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg>
+      <i className="route-connector-arrow" style={{left:`${c.arrowLeft}%`,top:c.arrowTop}} aria-hidden="true">{c.arrow}</i>
+      <button type="button" className="route-connector-label" style={{top:c.labelTop,left:`${(c.labelLeft-c.left)*100/c.width}%`,width:`${c.labelWidth*100/c.width}%`}} popoverTarget={id} title={`${c.from.job.customerName || leg.fromJk} → ${c.to.job.customerName || leg.toJk}: ${hoverEstimate} · ${orderLabel}`} aria-label={label}>
+        {leg.travelMinutes === null ? 'ETA ?' : `${leg.travelMinutes}m`}
       </button>
     </div>
     <div id={id} popover="auto" className="schedule-route-popover" role="dialog" aria-labelledby={`${id}-title`}>

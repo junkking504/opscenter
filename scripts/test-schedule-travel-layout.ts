@@ -17,7 +17,7 @@ for (const mobile of [false,true]) for (const width of [190,320,720,1280]) {
   const input=[job('first',960,1020),job('second',960,1020),job('next',1020,1080)];
   const drawn=scheduleTravelLayout(input,[leg('second','first',-60),leg('first','next',0)],timelineRange(input),undefined,0,width,false,mobile);
   assert.deepEqual(drawn.placed.map(p=>p.lane),[0,1,0],'Touching windows reuse the top lane, overlapping windows stack');
-  assert.deepEqual(drawn.connectors.map(c=>[c.from.job.recordId,c.to.job.recordId]),[['second','first'],['first','next']],'Named travel items follow route order, including reverse/overlapping windows');
+  assert.deepEqual(drawn.connectors.map(c=>[c.from.job.recordId,c.to.job.recordId]),[['second','first'],['first','next']],'Travel connectors follow route order, including reverse/overlapping windows');
 }
 
 // The displayed start can differ from the booked window once GPS evidence is
@@ -89,10 +89,10 @@ for (const mobile of [false,true]) for (const width of [190,320,720,1280]) {
   const drawn=scheduleTravelLayout(tiedJobs,routes,range,undefined,0,width,true,mobile);
   const bare=scheduleTravelLayout(tiedJobs,[],range,undefined,0,width,true,mobile);
   assert.deepEqual(drawn.placed,bare.placed,'Label packing preserves appointment geometry');
-  const boxes=drawn.connectors.map(c=>({left:c.labelLeft,right:c.labelLeft+c.labelWidth,top:c.top+c.labelTop,bottom:c.top+c.labelTop+38}));
+  const boxes=drawn.connectors.map(c=>({left:c.labelLeft,right:c.labelLeft+c.labelWidth,top:c.top+c.labelTop,bottom:c.top+c.labelTop+14}));
   boxes.forEach((box,index)=>{
     assert.ok(box.left>=0 && box.right<=1 && box.top>=bare.rowHeight && box.bottom<=drawn.rowHeight,'Labels are inside the truck row and below all appointments');
-    assert.ok((box.right-box.left)*width >= Math.min(184,width-6),'Named travel items retain room for endpoint names');
+    assert.ok(Math.abs((box.right-box.left)*width - 32)<.001,'Compact labels keep a readable fixed width');
     for(const other of boxes.slice(index+1)) assert.ok(box.right<=other.left || box.left>=other.right || box.bottom<=other.top || box.top>=other.bottom,'Every travel label has its own non-overlapping hit area');
     const stop={id:`label-${index}`,truck:'Truck 3',name:'HQ',kind:'hq',startMinutes:range.start+box.left*range.duration,endMinutes:range.start+box.left*range.duration+1} as ScheduleOperationalStop;
     const packed=scheduleOperationalStopLayout([stop],range,width,drawn.occupiedLanes).placements[0];
@@ -103,3 +103,10 @@ for (const mobile of [false,true]) for (const width of [190,320,720,1280]) {
 const separated=scheduleTravelLayout([job('one',480,510),job('two',570,600),job('three',660,690)],[leg('one','two',60),leg('two','three',60)],range,undefined,0,1280);
 assert.equal(separated.connectors[0].top+separated.connectors[0].labelTop,separated.connectors[1].top+separated.connectors[1].labelTop,'Non-overlapping labels reuse a compact row');
 console.log('Travel labels remain readable, bounded, collision-free and reserved against facility icons at phone and desktop widths.');
+
+assert.equal(separated.rowHeight,scheduleTravelLayout([job('one',480,510),job('two',570,600),job('three',660,690)],[],range,undefined,0,1280).rowHeight,'Wide gaps keep travel labels directly between appointments without inflating rows');
+for (const c of layout.connectors) {
+  const points=c.path.split(' ').map(p=>p.split(',').map(Number));
+  assert.equal(points[1][1],c.labelTop+7,'The minute label is centered on its connector line');
+  assert.equal(points[2][1],c.labelTop+7,'A continuous line carries the label to the destination');
+}

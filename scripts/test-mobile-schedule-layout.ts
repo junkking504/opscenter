@@ -12,7 +12,7 @@ assert.equal(overlap.placed.length,4);
 assert.equal(JSON.stringify(jobs),copy,'Packing never mutates appointment data');
 assert.equal(scheduleBlockMinimumWidth(720),15/720,'Appointment minimum width represents fifteen minutes');
 assert.equal(overlap.laneStep,48,'44px cards have separation');
-assert.ok(overlap.connectors.every(c=>c.labelWidth*720>=220),'Travel cards have room for both endpoint names');
+assert.ok(overlap.connectors.every(c=>Math.abs(c.labelWidth*720-32)<.001),'Travel labels retain compact minute-only geometry');
 const desktop=scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true);
 assert.deepEqual(desktop,scheduleTravelLayout(jobs,legs,range,'Truck 3',0,720,true,false),'Desktop defaults remain unchanged');
 assert.ok(desktop.occupiedLanes.slice(desktop.laneCount).every(l=>l.every(i=>i.right-i.left<1)),'Desktop travel labels reserve only their footprint');
@@ -29,6 +29,6 @@ for(const c of overlap.connectors) {
   const atLabel={...stop,id:`stop-${c.leg.toAppointmentId}`,startMinutes:range.start+c.labelLeft*range.duration};
   const placement=scheduleOperationalStopLayout([atLabel],range,720,overlap.occupiedLanes).placements[0];
   const stopTop=placement.lane*overlap.laneStep+2;
-  assert.ok(stopTop+22<=top || stopTop>=top+18,'A facility icon cannot overlap a compact travel label');
+  assert.ok(stopTop+22<=top || stopTop>=top+14,'A facility icon cannot overlap a compact travel label');
 }
 console.log('Mobile schedule layout PASS: real overlaps, immutable inputs, touch geometry, compact reservations and unchanged desktop defaults.');

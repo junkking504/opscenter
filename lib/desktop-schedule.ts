@@ -135,6 +135,9 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
       const finished = Number(stopIsFinished(b)) - Number(stopIsFinished(a));
       if (finished) return finished;
       if (stopIsFinished(a) && stopIsFinished(b)) {
+        // Explicit history corrections also cover visits with no GPS arrival.
+        const confirmedOrder = (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity);
+        if (confirmedOrder) return confirmedOrder;
         const arrival = (job: DesktopAppointment) => job.truckVisits?.filter(visit=>visit.truck.replace(/^truck\s*#?\s*(\d+)$/i,'Truck $1') === truck).map(visit=>Date.parse(visit.arrival)).filter(Number.isFinite).sort((x,y)=>x-y)[0] ?? Date.parse(job.onsiteTime?.arrival || '');
         const first = arrival(a), second = arrival(b);
         const minutes = (at: number, fallback: number | null) => {

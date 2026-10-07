@@ -1,11 +1,11 @@
-.ops-live .schedule-route-connector.travel-sequence-item { position: absolute; z-index: 3; color: #406751; }
-.ops-live .schedule-route-connector.travel-sequence-item.unavailable { color: #895b08; }
-.ops-live .live-schedule.schedule-dispatch .travel-sequence-item .route-connector-label { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 100%; height: 38px; min-height: 0; min-width: 0; padding: 3px 6px; border: 1px solid #c2d1c7; border-radius: 4px; background: #fffffff5; color: inherit; text-align: left; font: 500 10px/13px sans-serif; cursor: pointer; }
-.ops-live .travel-sequence-endpoints { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ops-live .travel-sequence-estimate { display: block; width: 100%; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ops-live .travel-sequence-estimate b { font-size: 11px; }
-.ops-live .travel-sequence-item .route-connector-label:hover { background: #eff7f2; border-color: #406751; }
-.ops-live .travel-sequence-item .route-connector-label:focus-visible { outline: 2px solid #273d4b; outline-offset: 1px; }
+.ops-live .schedule-route-connector.compact-travel { position: absolute; z-index: 3; color: #406751; pointer-events: none; }
+.ops-live .schedule-route-connector.unavailable { color: #895b08; }
+.ops-live .compact-travel .route-connector-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ops-live .compact-travel .route-connector-path polyline { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.ops-live .compact-travel .route-connector-arrow { position: absolute; transform: translate(-50%,-50%); font: 700 10px/12px sans-serif; background: #fff; font-style: normal; }
+.ops-live .live-schedule.schedule-dispatch .compact-travel .route-connector-label { position: absolute; display: block; height: 14px; min-height: 0; min-width: 0; padding: 0; border: 0; border-radius: 2px; background: #fffffff2; color: inherit; text-align: center; font: 650 9px/14px sans-serif; white-space: nowrap; pointer-events: auto; cursor: pointer; }
+.ops-live .compact-travel:has(.route-connector-label:hover) { color: #173c26; z-index: 4; }
+.ops-live .compact-travel .route-connector-label:focus-visible { outline: 2px solid #273d4b; outline-offset: 1px; }
 .ops-live .schedule-route-popover { position: fixed; inset: 0; margin: auto; width: min(340px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 12px; border: 1px solid #bac6bf; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; background: white; color: #26372e; font-size: 12px; }
 .ops-live .schedule-route-popover header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ops-live .schedule-route-popover h3 { margin: 0; font-size: 14px; }

@@ -230,13 +230,14 @@ Holding a drag near the visible page or panel edge scrolls at bounded speed;
 release, cancellation, Escape, and date changes stop scrolling with the drag.
 Moves still require the existing confirmation and verified JunkWare receipt.
 
-Travel estimates appear as a left-to-right, wrapping sequence of named
-`from → to` cards below each truck's appointment blocks. Each card contains its
-own readable minutes and opens the two appointments and full estimate details.
-The sequence is separate from the time axis: booked positions and GPS timestamps
-are preserved. Cards reserve their full footprints against each other and
-facility icons. Travel remains an estimated road journey, not observed driving
-or an available service buffer.
+Travel estimates appear as compact minute labels on dotted lines connecting
+appointment blocks. Wide gaps keep the line and minutes between the blocks;
+tight or overlapping windows use collision-packed 18px tracks beneath them,
+with continuous elbows back to both appointments. Labels are 32 × 14px and show
+only the time; customer names and order context remain in the click-through
+popover. Booked positions, GPS timestamps and appointment lane packing stay
+unchanged. Travel remains an estimated road journey, not observed driving or an
+available service buffer.
 
 Stop Order operates on all remaining appointments for the selected truck and
 operating date, across time windows and including untimed stops. Up/down buttons
@@ -259,7 +260,7 @@ Saved remaining order does not rewrite observed history.
 Validation includes `scripts/test-day-stop-order.ts`, the existing stop-order
 store/API tests, travel layout and current-stop regressions. The synthetic
 `travel-order` browser fixture covers a recently completed unconfirmed departure,
-overlapping planned stops, named travel cards, and cross-window saves with zero
+overlapping planned stops, compact connected travel labels, and cross-window saves with zero
 appointment writes.
 
 ## Duplicate Booking Review (retained module, not shown on Schedule)

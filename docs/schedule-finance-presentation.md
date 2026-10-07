@@ -421,6 +421,24 @@ Appointment alerts show pertinent note details: removal items, access constraint
 ## Saved order within a time slot
 
 Truck Schedule's **Stop Order** control edits one truck and exact booked window.
+On mobile, tapping a truck or appointment establishes the same selection used
+by desktop Stop Order while still opening its existing details. Closing details
+retains the selection so Stop Order is available. Reorder arrows have 44px touch
+targets. Selecting or viewing details never saves an order; Save Order remains
+the explicit commit.
+
+Regression coverage: `scripts/test-mobile-stop-order-browser.mjs` checks mobile
+truck/appointment entry, repeated taps, cancellation and navigation in Chromium
+and WebKit at 320–1280px. `scripts/test-stop-order-touch-browser.mjs` checks
+synthetic save/read-back, delayed and rejected saves, and interrupted suggestions.
+Run the fixture, then run both scripts in another terminal:
+
+```sh
+OPSCENTER_FIXTURE_CACHE_DIR=/tmp/opscenter-stop-order-vite node desktop-ui/node_modules/vite/bin/vite.js --config desktop-ui/tests/schedule-destinations.vite.config.ts --port 3167
+```
+
+These are emulation checks, not physical iPhone acceptance.
+
 Arrows change the draft sequence; **Suggest nearest after first stop** keeps the
 chosen first stop and greedily follows the shortest verified road distances.
 Road-table requests allow up to 15 seconds for the existing provider to respond;

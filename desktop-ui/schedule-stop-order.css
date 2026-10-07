@@ -15,3 +15,9 @@
 .ops-live .stop-order-arrows { display: flex; gap: 4px; }
 .ops-live .stop-order-travel { display: block; margin: 6px 0 6px 28px; color: #406751; font-size: 11px; }
 .ops-live .schedule-stop-order footer { justify-content: flex-end; border-top: 1px solid #d5dfd9; padding-top: 12px; }
+
+@media (max-width: 680px), (pointer: coarse) {
+  .ops-live .schedule-stop-order button { min-width: 44px; min-height: 44px; touch-action: manipulation; }
+  .ops-live .stop-order-arrows { flex: 0 0 auto; flex-direction: column; gap: 6px; }
+  .ops-live .schedule-stop-order select { min-height: 44px; font-size: 16px; }
+}

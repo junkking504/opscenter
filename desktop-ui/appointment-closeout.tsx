@@ -64,7 +64,7 @@ export type CloseoutTransport = {
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
-export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false }: { job: CloseoutJob; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean; photoSteps?:{render:(category:'before'|'after')=>ReactNode;hasPhotos:boolean;busy:boolean} }) {
+export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false }: { job: CloseoutJob; date: string; saved: (verified?: boolean) => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean; photoSteps?:{render:(category:'before'|'after')=>ReactNode;hasPhotos:boolean;busy:boolean} }) {
   const crewMode=Boolean(transport);
   const [arrival,setArrival]=useState<string|null>(null);
   const arrivalLabel=arrival?new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(arrival)):'Awaiting confirmed truck arrival';
@@ -459,7 +459,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         } } : {}),
       }, requestId).catch(() => ({ requestId, status: 'uncertain', message: 'The closeout result could not be confirmed. Check Saved Result before another change.' } as Receipt));
       setReceipt(result);
-      if(result.dryRun){setMessage(result.message || 'Dry run complete. Nothing was saved to JunkWare.');saved();return;}
+      if(result.dryRun){setMessage(result.message || 'Dry run complete. Nothing was saved to JunkWare.');saved(false);return;}
       if (result.status === 'failed') { setReviewing(false); setDifferenceReviewed(false); }
       if (result.status !== 'verified' || !result.sourceResult?.closeout) return;
       const payload = result.sourceResult as { closeout: LiveCloseout; truckLoadStatus?: { updated?: boolean; status?: { truck?: string; currentLoadLabel?: string }; reason?: string } };
@@ -501,7 +501,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           setLive(source); setTargetStatus(source.status.value); setTruck(source.truck || '');
         }
         setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentAmountAuto(false); setPaymentReference(''); setPendingOtherCharges([]); setPendingOtherChargeRemovals([]);
-        saved();
+        saved(result.status === 'verified');
       }
     }
     catch (checkError) { setError(checkError instanceof Error ? checkError.message : 'Saved result unavailable. Do not repeat this closeout.'); }

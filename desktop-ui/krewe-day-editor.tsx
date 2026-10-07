@@ -17,7 +17,7 @@ const clockDisplay = (value: string) => {
 const money = (amount: number) => amount.toLocaleString('en-US', {style:'currency',currency:'USD'});
 
 export default function KreweDayEditor({ date, periodDate, name, action, onClose, onSaved }: {
-  date: string; periodDate: string; name: string; action: Action; onClose: () => void; onSaved: () => Promise<void>;
+  date: string; periodDate: string; name: string; action: Action; onClose: () => void; onSaved: (message: string) => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const busy = useRef(false);
@@ -53,9 +53,9 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
     setDraft(previous => ({...previous,amount:'',bonusNote:'',note:''}));
     clearRequest();
     setRecord(null);
-    setMessage(`${saved.action === 'bonus' ? 'Bonus saved in OpsCenter' : 'Times and shift rate verified in JunkWare'} for ${date}.`);
-    try { await load(); await onSaved(); }
-    catch { setMessage(`Saved and verified for ${date}. Refresh the records to see updated hours and published pay.`); }
+    const confirmation = `${saved.action === 'bonus' ? 'Bonus saved in OpsCenter' : 'Times and shift rate verified in JunkWare'} for ${date}.`;
+    onClose();
+    await onSaved(confirmation);
   }
   async function save(selectedAction: Action) {
     if (busy.current || request || !record?.canWrite) return;

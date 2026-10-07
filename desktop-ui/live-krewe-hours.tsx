@@ -36,6 +36,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
   const sharedHours = payroll?.date === selectedDate ? payroll.hoursSnapshot : undefined;
   const snapshot = sharedHours || legacySnapshot;
   const [error, setError] = useState('');
+  const [savedMessage, setSavedMessage] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [search, setSearch] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -62,6 +63,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
   const selectedEmployee = employees.find(employee => employee.id === employeeId) || employees[0];
   const payMembers = new Map((payroll?.date === selectedDate ? payroll.members : []).map(member => [member.id, member]));
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours and Pay">
+    {savedMessage && <p className="drawer-action-feedback" role="status">{savedMessage}</p>}
     <header><div><h2>Pay-Period Hours and Pay</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours and Earnings'}</p></div><div className="hours-period-controls"><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" disabled={Boolean(editing)} value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading || Boolean(editing)} onClick={() => { if (!sharedHours) setRefresh(value => value + 1); void Promise.resolve(onRefresh?.()).then(() => setError('')).catch(failure => setError(failure instanceof Error ? failure.message : 'Payroll could not refresh.')); }}>Refresh</button></div></header>
     <div className="hours-toolbar"><label>Find Employee<input type="search" value={search} placeholder="Search employees" onChange={event => setSearch(event.target.value)} /></label><a href={`/crew?section=pay-period&date=${selectedDate}`} target="_self" rel="noopener noreferrer">Open Full Pay-Period Records</a></div>
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
@@ -117,6 +119,6 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
       </div>
       <footer className="hours-source-note">{employees.length} Employees · Hours Updated {new Date(snapshot.generatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })} · Payroll Records and OpsCenter Corrections</footer>
     </>}
-    {editing && <KreweDayEditor {...editing} periodDate={selectedDate} onClose={() => setEditing(null)} onSaved={async () => { await Promise.all([freshness.refresh(), onRefresh?.()]); }} />}
+    {editing && <KreweDayEditor {...editing} periodDate={selectedDate} onClose={() => setEditing(null)} onSaved={async message => { setSavedMessage(message); try { await Promise.all([freshness.refresh(), onRefresh?.()]); } catch { setSavedMessage(`${message} Refresh the records to see updated hours and published pay.`); } }} />}
   </section>;
 }

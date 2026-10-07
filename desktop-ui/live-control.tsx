@@ -120,6 +120,8 @@ export default function LiveControl({ date, report, refresh: onRefresh, view = '
       requestRef.current = null;
       if (body.receipt.itemId === selectedId) setSelectedVersion(body.receipt.evidence.version);
       reportRef.current(body.receipt.summary);
+      setSelectedId(null); setGateId(null); setConfirmation(null); setReason('');
+      originalFocus.current?.focus({ preventScroll: true });
       await refresh();
       await onRefresh?.();
       setGateId(null); setConfirmation(null); setReason('');

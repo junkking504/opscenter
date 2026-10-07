@@ -227,3 +227,12 @@ pay-period totals, selected-week totals, and daily breakdown alongside Job Reven
 Worked. It sums the existing daily employee-attributed revenue for the selected
 dates, independently of earnings. Missing revenue remains unavailable (—); a
 confirmed zero displays $0.00. Existing missing-source notices still apply.
+
+### Return to the workspace after saving
+
+Crew daily corrections, manual bonuses, and pay-period day edits close their
+editor after a verified save or verified saved-result recovery. The main view
+refreshes, and keyboard focus returns to the opening control. Pending, failed,
+or uncertain saves keep the editor open with the existing recovery controls.
+The same confirmed-save behavior applies to appointment, Convoy, and Control
+handoff drawers; Capital inventory and recycling already close after saves.

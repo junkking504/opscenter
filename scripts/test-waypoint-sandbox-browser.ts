@@ -89,7 +89,7 @@ async function main(){
     assert.ok(first && second && Math.abs(first.y-second.y)<2 && second.x>first.x,'Prepared photos stay in a compact two-column grid');
     await capture('05-before-photos');
    }
-   await time(`Job ${i}: open Charges`,async()=>{await page.getByRole('button',{name:'Continue to charges',exact:true}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();});
+   await time(`Job ${i}: open Charges`,async()=>{await page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();});
    await expect(page.getByLabel('Job category',{exact:true})).toHaveCount(0);
    await expect(page.getByLabel('How heard',{exact:true})).toHaveCount(0);
    await expect(page.getByLabel('Load price',{exact:true})).toHaveValue(halfPrice.toFixed(2));
@@ -104,7 +104,6 @@ async function main(){
     await capture('06-charges');
    }
    await page.getByLabel('Other Charges to add').getByRole('button',{name:'Remove',exact:true}).click();
-   await page.getByLabel('Tip',{exact:true}).fill('20');
    await time(`Job ${i}: open After photos`,async()=>{await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await expect(page.getByLabel('Add after photos',{exact:true})).toBeEnabled();});
    await expect(page.getByLabel('Add after photos',{exact:true})).toBeEnabled();
    await page.getByLabel('Add after photos',{exact:true}).setInputFiles(Array.from({length:i===1?13:1},(_,n)=>({name:`test-after-${n}.jpg`,mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')})));
@@ -116,7 +115,8 @@ async function main(){
     await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(13);
     await capture('07-after-photos');
    }
-   await time(`Job ${i}: open Payment`,async()=>{await page.getByRole('button',{name:'Continue to payment',exact:true}).click();await expect(page.getByLabel('Record a collected payment',{exact:true})).toBeVisible();});
+   await time(`Job ${i}: open Payment`,async()=>{await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await expect(page.getByLabel('Record a collected payment',{exact:true})).toBeVisible();});
+   await page.getByLabel('Tip',{exact:true}).fill('20');
    if(i===1)await capture('08-payment');
    await time(`Job ${i}: review closeout`,async()=>{await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();});
    if(i===1)await capture('09-review');

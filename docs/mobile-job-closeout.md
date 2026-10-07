@@ -472,33 +472,38 @@ Rejected submissions explicitly say the checkout was not saved and retain the
 phone-local draft; those draft values are not a server-side receipt.
 
 The company-phone workflow is **Before photos → Charges → After photos →
-Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
-storage. Moving between steps does not upload photos or require upload
-verification. Job details and crew are in Charges; missing GPS times do not
-require manual arrival/departure entry by the crew.
+Payment → Review**. At least one photo in each category must be submitted to
+advance past that photo step. **Submit before photos & continue** and
+**Submit after photos & continue** first persist the photo bytes, original UUIDs,
+assignment scope and explicit submission intent on the phone. A local storage
+failure keeps the crew on that step. The primary action and forward step tabs
+use the same gate; selecting photos alone never starts an upload.
 
-Only **Submit checkout**, after final review, starts the handoff. Waypoint
-first saves the reviewed payload, original request UUID and selected photo IDs
-in an assignment-scoped phone outbox. If browser storage fails, submission is
-blocked before any write. It keeps the checkout open while transferring photos to durable server storage
-and queuing one assignment-scoped closeout receipt, then returns to Assignments
-only after server acceptance. Two photo transfers at a time overlap network
-latency; each retains its own original request ID and receipt check. Progress
-shows the server-acknowledged photo count beside Submit. An interrupted batch
-drains active transfers and preserves their acknowledgments before pausing;
-checkout is queued only after every selected photo is acknowledged. Photo
-history reads time out after 15 seconds with a retry and retained local photos. Queue acceptance performs no JunkWare read: the worker checks
-the original reviewed source-field fingerprint, phone authority and crew after
-photo verification and before any payment/closeout write. The page explicitly distinguishes **Sending / saved on this
-phone**, **Safe to close / server saved, verification pending**, **Verified**, and
-**Needs attention**. Only the server receipt permits the Safe to close message.
-The server then finishes the exact JunkWare
-photo uploads, closeout, payment and source verification in the background. The
-next queued assignment can be viewed immediately, but closeout remains locked
-until the receipt verifies Completed with the required photos; the phone polls
-that receipt read-only and releases the next closeout automatically. Phone
-disconnect, truck switching and crew edits are unavailable during a pending
-checkout; browsing assignments remains available.
+After that local save, the next form step opens immediately. Photo transfers
+and JunkWare verification are background work and do not set the form's busy
+state. Charges, After photos, Payment and Review remain usable while an earlier
+upload is stalled or awaiting verification. Two transfers at a time run outside
+the photo component's lifetime. Transactional draft updates merge late receipts
+without losing photos added on another step. Reopening the draft, returning to
+the foreground, reconnecting, or explicitly resuming checks the original local
+server receipt before resending an identical missing intake. An acknowledged
+provider-uncertain upload is never replayed. Local photo bytes remain available
+until verified, and canonical duplicate-photo receipt IDs are retained separately
+from the original selection ID. Dry runs submit only local intent and never
+start a real transfer. Photo-history reads time out after 15 seconds with a retry.
+
+**Submit checkout**, after final review, remains separate. Both photo categories
+must have been submitted. The reviewed payload and original checkout UUID are
+persisted in the assignment-scoped phone outbox. Existing photo transfers finish
+or pause before the final handoff recovers their receipts; accepted photos are
+not uploaded again. The crew returns to Assignments only after durable server
+acceptance of photos and checkout. The background worker waits for required
+photo verification and rechecks source fields and authority before any
+payment/closeout write. Progress distinguishes phone-local intent, server
+acceptance, provider verification and attention. Only a server receipt permits
+the Safe to close message. Failed or unknown results retain the original
+submission identity and draft. Phone disconnect, truck switching and crew edits
+remain unavailable during a pending checkout.
 
 iOS can suspend a closed/backgrounded browser: the web app does not promise to
 transfer bytes while suspended. Reopening Waypoint, returning to the foreground,

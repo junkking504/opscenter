@@ -5,10 +5,11 @@ import { readPhotoResponse } from './photo-response';
 import {MAX_CHECKOUT_PHOTOS} from '@/lib/crew-photo-limits';
 
 import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
-import {storedPhotos as stored, migratePhotoDraft} from './photo-storage';
+import {submittedPhotoStep,submitPhotoStep,resumePhotoTransfers} from './photo-transfer';
+import {storedPhotos as stored, migratePhotoDraft,updateStoredPhotos,PHOTO_DRAFT_EVENT} from './photo-storage';
 export {clearCrewPhotoDrafts} from './photo-storage';
-export type PhotoProgress = {ready:boolean;count:number;verified:number};
-export type PhotoCheckoutHandle = {ready:(assignmentId?:string)=>boolean;submit:(progress:(message:string)=>void)=>Promise<string[]>};
+export type PhotoProgress = {ready:boolean;count:number;verified:number;transferring?:number;processing?:number;attention?:number};
+export type PhotoCheckoutHandle = {ready:(assignmentId?:string)=>boolean;submitStep:(category:'before'|'after')=>Promise<void>;submitted:()=>Promise<boolean>;submit:(progress:(message:string)=>void)=>Promise<string[]>};
 async function photoImage(file:File):Promise<string> {
   if(!file.type.startsWith('image/') || file.size>25*1024*1024)throw new Error('Choose an image smaller than 25 MB.');
   const url=URL.createObjectURL(file);
@@ -28,30 +29,43 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
   const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
   const [previews,setPreviews]=useState<Array<{url:string;category:'before'|'after'}>>([]),[preparing,setPreparing]=useState('');
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
+  const checking=useRef(new Set<string>());
+  const [checkingIds,setCheckingIds]=useState<string[]>([]);
   const key=storageKey || `${deviceId}:${assignmentId}`;
   const aliasesKey=JSON.stringify(storageAliases || []);
-  const save=useCallback(async(next:Photo[])=>{const unique=[...new Map(next.map(row=>[row.requestId,row])).values()];await stored(key,unique);rows.current=unique;setPhotos(unique);},[key]);
+  const change=useCallback(async(update:(current:Photo[])=>Photo[])=>{const next=await updateStoredPhotos(key,update);rows.current=next;setPhotos(next);return next;},[key]);
   useEffect(()=>{
     let canceled=false;
     void(async()=>{
       try{
         setError('');setReady(false);
-        let local:Photo[];
-        try { if(storageKey)await migratePhotoDraft(key,JSON.parse(aliasesKey));local=await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
+        try { if(storageKey)await migratePhotoDraft(key,JSON.parse(aliasesKey));await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
         const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}`,{cache:'no-store',signal:AbortSignal.timeout(15_000)});
         const body=await readPhotoResponse(response);if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
         if(!Array.isArray(body.photos))throw new Error('Photo history could not be checked. Try again.');
         const remote=body.photos as Photo[];
-        const merged=local.map(row=>{const saved=remote.find(item=>item.requestId===row.requestId);return saved?{...row,...saved,...(saved.status==='verified'?{image:undefined}:{})}:row.status==='pending'?{...row,status:'uncertain' as const}:row;});
-        for(const row of remote)if(!merged.some(item=>item.requestId===row.requestId))merged.push(row);
-        if(canceled)return;await save(merged);setReady(true);
+        if(canceled)return;
+        await change(current=>{
+          const merged=current.map(row=>{const saved=remote.find(item=>item.requestId===(row.receiptId || row.requestId));return saved?{...row,...saved,requestId:row.requestId,receiptId:saved.requestId,status:row.status==='verified'?'verified':saved.status,...(saved.status==='verified'?{image:undefined}:{})}:row;});
+          for(const row of remote)if(!merged.some(item=>item.requestId===row.requestId || item.receiptId===row.requestId))merged.push(row);
+          return merged;
+        });setReady(true);
+        if(!dryRun)void resumePhotoTransfers(key).catch(()=>undefined);
       }catch(error){if(!canceled)setError(error instanceof Error && error.name!=='TimeoutError'?error.message:'Checking saved photos took too long. Check your connection and try again; selected photos stay on this phone.');}
     })();return()=>{canceled=true;};
-  },[key,assignmentId,save,reload,storageKey,aliasesKey]);
+  },[key,assignmentId,change,reload,storageKey,aliasesKey,dryRun]);
   useEffect(()=>{
-    onProgress?.({ready,count:photos.length,verified:photos.filter(row=>row.status==='verified').length});
+    let canceled=false;
+    const sync=()=>{void stored(key).then(next=>{if(!canceled){rows.current=next;setPhotos(next);}}).catch(()=>{if(!canceled)setError('Saved photo storage is unavailable. Keep this phone and retry.');});};
+    const changed=(event:Event)=>{if((event as CustomEvent<{key:string}>).detail.key===key)sync();};
+    const resume=()=>{if(!dryRun && document.visibilityState!=='hidden')void resumePhotoTransfers(key).catch(()=>undefined);};
+    window.addEventListener(PHOTO_DRAFT_EVENT,changed);window.addEventListener('online',resume);document.addEventListener('visibilitychange',resume);
+    return()=>{canceled=true;window.removeEventListener(PHOTO_DRAFT_EVENT,changed);window.removeEventListener('online',resume);document.removeEventListener('visibilitychange',resume);};
+  },[key,dryRun]);
+  useEffect(()=>{
+    onProgress?.({ready,count:photos.length,verified:photos.filter(row=>row.status==='verified').length,transferring:photos.filter(row=>row.submitted && !row.receiptId && row.status!=='verified').length,processing:photos.filter(row=>row.status==='pending').length,attention:photos.filter(row=>row.transferError).length});
   },[photos,ready,onProgress]);
-  async function work(action:()=>Promise<void>) {
+  async function work(action:()=>Promise<unknown>) {
     if(inFlight.current)return;inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try{await action();}catch(error){setError(error instanceof Error?error.message:'Photo result unavailable. Check saved result before retrying.');}
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
@@ -72,7 +86,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
       }
     }finally{
       // Keep successfully prepared photos even if a later file cannot decode.
-      try{if(added.length)await save([...rows.current,...added]);}
+      try{if(added.length)await change(current=>[...current,...added]);}
       finally{setPreviews([]);setPreparing('');selected.forEach(row=>URL.revokeObjectURL(row.url));}
     }
   }
@@ -81,35 +95,41 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     // Until the server acknowledges durable storage, this is NOT pending
     // provider work. A killed browser must check/resend the original intake.
     const pending={...row,status:'uncertain' as const};
-    await save(rows.current.map(item=>item.requestId===row.requestId?pending:item));
+    await change(current=>current.map(item=>item.requestId===row.requestId?pending:item));
     try {
       const response=await fetch('/api/crew-jobs/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:row.requestId,assignmentId,category:row.category,image:row.image}),signal:AbortSignal.timeout(210_000)});
       const body=await readPhotoResponse(response);
       if(!body.receipt)throw new Error(body.error || 'Photo result unavailable. Check saved result.');
       const result={...row,...(body.receipt as Photo),...(['pending','verified'].includes((body.receipt as Photo).status)?{image:undefined}:{})};
-      await save(rows.current.map(item=>item.requestId===row.requestId?result:item));return result;
-    }catch(error){const uncertain={...row,status:'uncertain' as const};await save(rows.current.map(item=>item.requestId===row.requestId?uncertain:item));if(deferred)return uncertain;throw error;}
+      await change(current=>current.map(item=>item.requestId===row.requestId?result:item));return result;
+    }catch(error){const uncertain={...row,status:'uncertain' as const};await change(current=>current.map(item=>item.requestId===row.requestId?uncertain:item));if(deferred)return uncertain;throw error;}
   }
   async function check(row:Photo) {
-    const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(row.assignmentId || assignmentId)}&requestId=${encodeURIComponent(row.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
+    const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(row.assignmentId || assignmentId)}&requestId=${encodeURIComponent(row.receiptId || row.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
     const body=await readPhotoResponse(response);
-    if(response.status===404 && row.image){
+    if(response.status===404 && row.image && !row.receiptId){
       // No source write is retried here. The next explicit upload reuses this UUID;
       // the server returns its durable receipt if the original request is still arriving.
-      const selected={...row,status:'selected' as const};await save(rows.current.map(item=>item.requestId===row.requestId?selected:item));return selected;
+      const selected={...row,status:'selected' as const};await change(current=>current.map(item=>item.requestId===row.requestId?selected:item));return selected;
     }
     if(!response.ok || !body.receipt)throw new Error(body.error || 'Saved photo result unavailable.');
-    const result={...row,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})};
-    await save(rows.current.map(item=>item.requestId===row.requestId?result:item));return result;
+    const result={...row,...(body.receipt as Photo),requestId:row.requestId,receiptId:(body.receipt as Photo).requestId,transferError:undefined,...((body.receipt as Photo).status==='verified'?{image:undefined}:{})};
+    await change(current=>current.map(item=>item.requestId===row.requestId?result:item));return result;
   }
-  useImperativeHandle(ref,()=>({ready:(targetAssignment=assignmentId)=>{if(rows.current.some(row=>row.assignmentId && row.assignmentId!==targetAssignment && !['selected','verified'].includes(row.status)))throw new Error('A photo from the earlier assignment needs verification. Use Check saved photo before submitting.');return ready&&!inFlight.current;},submit:async(progress)=>{
+  async function checkInBackground(row:Photo) {
+    if(checking.current.has(row.requestId))return;
+    checking.current.add(row.requestId);setCheckingIds([...checking.current]);
+    try{await check(row);}catch(error){setError(error instanceof Error?error.message:'Saved photo verification is unavailable.');}
+    finally{checking.current.delete(row.requestId);setCheckingIds([...checking.current]);}
+  }
+  useImperativeHandle(ref,()=>({submitStep:async category=>{if(!ready || inFlight.current)throw new Error('Wait for photo preparation to finish, then submit photos.');await submitPhotoStep(key,assignmentId,category,dryRun);},submitted:async()=>{const current=await stored(key);return submittedPhotoStep(current,'before') && submittedPhotoStep(current,'after');},ready:(targetAssignment=assignmentId)=>{if(rows.current.some(row=>row.assignmentId && row.assignmentId!==targetAssignment && !['selected','verified'].includes(row.status)))throw new Error('A photo from the earlier assignment needs verification. Use Check saved photo before submitting.');return ready&&!inFlight.current;},submit:async(progress)=>{
     if(!ready || inFlight.current)throw new Error('Photos are still loading. Wait a moment, then submit checkout.');
     inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try {return await stageCheckoutPhotos([...rows.current],{upload,check,progress});}
     catch(error){setError(error instanceof Error?error.message:'Photo verification is pending.');throw error;}
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
   }}));
-  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Choose ${visibleCategory || 'job'} photos now. They transfer when you submit the completed checkout.` : 'Upload job photos and check the saved result.'}</p>
+  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Add ${visibleCategory || 'job'} photos, then tap Submit photos & continue. Upload and verification continue while you fill out the next step.` : 'Upload job photos and check the saved result.'}</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
     <p className={styles.muted}>{photos.filter(row=>row.status!=='verified').length} of {MAX_CHECKOUT_PHOTOS} selected · Before and After combined</p>
     {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}>
@@ -123,14 +143,16 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         {/* Local camera/library preview; never sent to an image optimization service. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {row.image && <img src={row.image} alt={`${category} job photo selected for upload`}/>}
-        <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Finishing in background':deferred?'Check the saved result before checkout':'Verification required · do not upload again'}</p>
-        {row.status==='selected'?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>save(rows.current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:row.status!=='verified'?<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(async()=>{await check(row);})}>Check saved photo</button>:null}
+        <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(row.submitted?(dryRun?'Submitted · stays on this phone':'Submitted · upload queued'):deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Finishing in background':deferred?(row.receiptId?'Verification needs attention':row.submitted?'Submitted · transferring in background':'Check the saved result before checkout'):'Verification required · do not upload again'}</p>
+        {row.transferError && <p role="status">{row.transferError}</p>}
+        {row.status==='selected' && !row.submitted?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>change(current=>current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:row.status!=='verified' && (!row.submitted || row.receiptId)?<button className={styles.secondary} disabled={busy || locked || checkingIds.includes(row.requestId)} onClick={()=>void checkInBackground(row)}>{checkingIds.includes(row.requestId)?'Checking saved photo…':'Check saved photo'}</button>:null}
       </div>)}
       </div>
     </div>)}
     {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
+    {photos.some(row=>row.submitted && row.transferError && !row.receiptId) && <button className={styles.secondary} disabled={busy || locked} onClick={()=>void resumePhotoTransfers(key).catch(()=>setError('Photo storage is unavailable. Retry saved photos.'))}>Resume photo transfer</button>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint stays on the closeout until the server has the photos and checkout, then returns to Assignments and is safe to close. Unsubmitted photos remain on this phone until removed or the phone is disconnected.':'Selected photos stay on this phone until removed or disconnected. Uploads start only when you tap Upload photo.'}</p>
+    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Before and After photos are required. Submit each photo step to continue immediately; uploads do not block Charges or Payment. Keep Waypoint open until final checkout confirms the server save.':'Selected photos stay on this phone until removed or disconnected. Uploads start only when you tap Upload photo.'}</p>
   </section>;
 }

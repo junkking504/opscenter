@@ -69,8 +69,23 @@ export async function migratePhotoDraft(key:string,aliases:string[]) {
 /** Never turn an acknowledged or unknown upload back into a fresh selection. */
 export function mergePhotoAlias(prior:CheckoutPhoto|undefined,next:CheckoutPhoto):CheckoutPhoto {
   if(!prior)return next;
-  if(prior.category!==next.category || (prior.image && next.image && prior.image!==next.image) || (prior.assignmentId && next.assignmentId && prior.assignmentId!==next.assignmentId))throw new Error('Conflicting saved photo copies were preserved. Contact the office before submitting.');
+  if(prior.category!==next.category || (prior.image && next.image && prior.image!==next.image) || (prior.assignmentId && next.assignmentId && prior.assignmentId!==next.assignmentId) || (prior.receiptId && next.receiptId && prior.receiptId!==next.receiptId))throw new Error('Conflicting saved photo copies were preserved. Contact the office before submitting.');
   const rank=(photo:CheckoutPhoto)=>photo.status==='verified'?3:photo.status==='selected'?0:2;
   const winner=rank(next)>rank(prior)?next:prior;
-  return {...winner,image:prior.image || next.image,...(winner.status==='pending'?{status:'uncertain'}:{})};
+  return {...winner,...(prior.submitted || next.submitted?{submitted:true}:{}),...(prior.receiptId || next.receiptId?{receiptId:prior.receiptId || next.receiptId}:{}),image:prior.image || next.image,...(winner.status==='pending'?{status:'uncertain'}:{})};
+}
+
+export const PHOTO_DRAFT_EVENT='waypoint-photo-draft-updated';
+/** Read/modify/write in one transaction so background receipts cannot overwrite
+ * photos selected on a later step, or resurrect a removed selection. */
+export async function updateStoredPhotos(key:string,update:(photos:CheckoutPhoto[])=>CheckoutPhoto[]) {
+  const database=await db();
+  let next:CheckoutPhoto[]=[];
+  try {await new Promise<void>((resolve,reject)=>{
+    const transaction=database.transaction('drafts','readwrite'),store=transaction.objectStore('drafts'),request=store.get(key);
+    request.onsuccess=()=>{try{next=update(request.result?.photos || []);store.put({at:Date.now(),photos:next},key);}catch(error){reject(error);transaction.abort();}};
+    transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error);
+  });}finally{database.close();}
+  window.dispatchEvent(new CustomEvent(PHOTO_DRAFT_EVENT,{detail:{key}}));
+  return next;
 }

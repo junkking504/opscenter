@@ -1,4 +1,4 @@
-export type CheckoutPhoto = {requestId:string;category:'before'|'after';status:'selected'|'pending'|'verified'|'uncertain';image?:string;assignmentId?:string};
+export type CheckoutPhoto = {requestId:string;category:'before'|'after';status:'selected'|'pending'|'verified'|'uncertain';image?:string;assignmentId?:string;submitted?:boolean;receiptId?:string;transferError?:string};
 
 /** Final-confirmation only. Transfer each selected image to durable OpsCenter
  * storage, then let the server finish JunkWare upload and verification. */

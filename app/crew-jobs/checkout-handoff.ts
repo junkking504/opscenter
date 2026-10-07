@@ -1,6 +1,7 @@
 import type { CheckoutPhoto } from './photo-checkout';
 import type { Receipt } from '../../desktop-ui/schedule-receipt';
 import { crewCloseoutKey, writeCloseoutLocal } from '../../desktop-ui/lib/closeout-drafts';
+import {waitForPhotoTransfers} from './photo-transfer';
 import { storedPhotos } from './photo-storage';
 
 export type CheckoutHandoff = {
@@ -113,7 +114,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
       const progress = () => update({ message: `Photos saved on server: ${handoff.photoIds.filter(id => handoff.acceptedPhotos[id]).length} of ${handoff.photoIds.length}. Keep Waypoint open while the rest transfer.` });
       progress();
       const transferPhoto = async (id: string) => {
-        let receipt = await read(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(handoff.assignmentId)}&requestId=${encodeURIComponent(id)}&receiptOnly=1`);
+        let receipt = await read(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(handoff.assignmentId)}&requestId=${encodeURIComponent(photos.find(photo=>photo.requestId===id)?.receiptId || id)}&receiptOnly=1`);
         if (failure) return;
         if (!receipt) {
           const photo = photos.find(row => row.requestId === id);
@@ -165,7 +166,7 @@ export function resumeHandoff(handoff: CheckoutHandoff) {
   const key = keyFor(handoff.deviceId, handoff.assignmentId);
   const prior = running.get(key);
   if (prior) return prior;
-  const work = transferCheckout(handoff, { fetch: (...args) => fetch(...args), photos: () => storedPhotos(handoff.photoKey || `${handoff.deviceId}:${handoff.assignmentId}`), save: saveHandoff,
+  const work = transferCheckout(handoff, { fetch: (...args) => fetch(...args), photos: async () => {const photoKey=handoff.photoKey || `${handoff.deviceId}:${handoff.assignmentId}`;await waitForPhotoTransfers(photoKey);return storedPhotos(photoKey);}, save: saveHandoff,
     keepReceipt: receipt => writeCloseoutLocal(`${crewCloseoutKey(handoff.deviceId, handoff.assignmentId)}:receipt`, receipt) }).finally(() => running.delete(key));
   running.set(key, work);
   return work;

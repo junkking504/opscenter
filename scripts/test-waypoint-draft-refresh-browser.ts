@@ -19,7 +19,7 @@ const a={assignmentId:'fixture-A',appointmentId:'900001',date,jkNumber:'FIXTURE-
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aU1cAAAAASUVORK5CYII=';
 async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number}={}){
  const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'}),page=await context.newPage();page.setDefaultTimeout(10000);
- const state={completeA:false,reads:0,posts:[] as any[],photoPosts:0,receipt:null as any,mode:'pending',sourceChanged:false,crewVersion:1,denyReceipt:false,offlineLoads:false,photoReceipt:null as any,photoChecks:[] as string[],allowPhotoUploads:false,photoReceipts:new Map<string,any>(),uploadGates:[] as Array<()=>void>,holdPhotoHistory:false,holdUpdates:false,updateRequested:false,releaseUpdates:()=>{},updateToken:'one',errors:[] as string[]};
+ const state={remotePhotos:[{requestId:'saved-before',category:'before',status:'verified'},{requestId:'saved-after',category:'after',status:'verified'}],completeA:false,reads:0,posts:[] as any[],photoPosts:0,receipt:null as any,mode:'pending',sourceChanged:false,crewVersion:1,denyReceipt:false,offlineLoads:false,photoReceipt:null as any,photoChecks:[] as string[],allowPhotoUploads:false,losePhotoAcknowledgment:false,canonicalPhotos:false,photoReceipts:new Map<string,any>(),uploadGates:[] as Array<()=>void>,holdPhotoHistory:false,holdPhotoVerification:false,verificationGates:[] as Array<()=>void>,holdUpdates:false,updateRequested:false,releaseUpdates:()=>{},updateToken:'one',errors:[] as string[]};
  page.on('pageerror',error=>state.errors.push(error.message));
  const source=()=>({...fixture,loadPrice:state.sourceChanged?'500':'400',photoEvidence:{appointmentId:'900002',urls:['https://junkware.junk-king.com/system/aspnet/local/media/sample-900002-before.jpg']}});
  const receiptA=()=>({requestId:'fixture-request-A',action:'closeout',status:state.completeA?'verified':'pending',message:'Fixture receipt'});
@@ -43,11 +43,11 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
     state.photoPosts++;
     if(!state.allowPhotoUploads)return send({error:'Unexpected photo write'},500);
     const body=req.postDataJSON();await new Promise<void>(resolve=>state.uploadGates.push(resolve));
-    const receipt={requestId:body.requestId,category:body.category,status:'pending'};state.photoReceipts.set(body.requestId,receipt);return send({receipt},202);
+    const receipt={requestId:state.canonicalPhotos?`canonical-${body.requestId}`:body.requestId,category:body.category,status:'pending'};state.photoReceipts.set(body.requestId,receipt);if(state.losePhotoAcknowledgment){state.losePhotoAcknowledgment=false;return route.abort();}return send({receipt},202);
    }
    if(state.holdPhotoHistory && !url.searchParams.has('requestId'))return;
-   if(url.searchParams.has('requestId')){state.photoChecks.push(url.searchParams.get('assignmentId')!);const receipt=state.photoReceipts.get(url.searchParams.get('requestId')!) || state.photoReceipt;return receipt?send({receipt}):send({error:'not found'},404);}
-   return send({photos:[]});
+   if(url.searchParams.has('requestId')){if(state.holdPhotoVerification && url.searchParams.get('receiptOnly')!=='1')await new Promise<void>(resolve=>state.verificationGates.push(resolve));state.photoChecks.push(url.searchParams.get('assignmentId')!);const receipt=state.photoReceipts.get(url.searchParams.get('requestId')!) || [...state.photoReceipts.values()].find(row=>row.requestId===url.searchParams.get('requestId')) || state.photoReceipt;return receipt?send({receipt}):send({error:'not found'},404);}
+   return send({photos:state.remotePhotos});
   }
   if(url.pathname==='/api/crew-jobs/closeout'){
    if(req.method()==='POST'){
@@ -70,8 +70,8 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
  await page.goto(origin);
  await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
  const open=async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(1).click();await page.getByRole('button',{name:/^(Start closeout · Before photos|Check saved checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
- const charges=async()=>{const next=page.getByRole('button',{name:'Continue to charges',exact:true});if(await next.isVisible())await next.click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();};
- const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Continue to payment',exact:true}).click();await page.getByLabel('Record a collected payment',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
+ const charges=async()=>{const next=page.getByRole('button',{name:'Submit before photos & continue',exact:true});if(await next.isVisible())await next.click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();};
+ const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await page.getByLabel('Record a collected payment',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
  const review=async()=>{await payment();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();};
  const done=async()=>{assert.deepEqual(state.errors,[]);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'No horizontal overflow');await context.close();};
  return {context,page,state,open,charges,payment,review,done};
@@ -82,7 +82,7 @@ try{
   const t=await setup({pendingA:true});await t.open();await t.charges();await t.page.getByLabel('Load price',{exact:true}).fill('321');
   if(step===0)await t.page.getByRole('button',{name:'Previous step',exact:true}).click();
   if(step===2||step===3||step==='review')await t.page.getByRole('button',{name:'Continue to after photos',exact:true}).click();
-  if(step===3||step==='review')await t.page.getByRole('button',{name:'Continue to payment',exact:true}).click();
+  if(step===3||step==='review')await t.page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();
   if(step==='review')await t.page.getByRole('button',{name:'Review Closeout',exact:true}).click();
   const reads=t.state.reads;t.state.completeA=true;
   await expect(t.page.getByText('Checkout finished and was verified in JunkWare.',{exact:true})).toBeVisible();
@@ -135,23 +135,44 @@ try{
   if(artifacts && ['pending','failed','unknown'].includes(mode))await t.page.screenshot({path:path.join(artifacts,`${mode}-result.png`),fullPage:true});
   await t.done();console.log(`PASS ${mode} submission, retained values and duplicate prevention`);
  }
- // The sticky Submit area shows durable photo progress during delayed transfers.
+ // Photo submission is required, but unacknowledged uploads cannot block later steps.
  for(const width of [320,390,430]){
-  const t=await setup({width});t.state.allowPhotoUploads=true;
-  await t.page.evaluate(async({photoKey,image})=>(window as any).fixtureStorage.storedPhotos(photoKey,Array.from({length:4},(_,i)=>({requestId:`transfer-${i}`,category:'before',status:'selected',image}))),{photoKey,image});
-  await t.open();await t.review();await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
-  await expect.poll(()=>t.state.uploadGates.length).toBe(2);
-  const progress=t.page.locator('.closeout-footer-slot .closeout-transfer-progress');
-  await expect(progress).toContainText('0 of 4');await expect(progress).toBeInViewport();
-  assert.equal(t.state.posts.length,0,'No checkout before photo acknowledgments');
+  const t=await setup({width});t.state.allowPhotoUploads=true;t.state.remotePhotos=[];t.state.canonicalPhotos=width===430;
+  await t.open();
+  await t.page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
+  await expect(t.page.getByText('Add at least one before photo before continuing.',{exact:true})).toBeVisible();
+  await t.page.getByRole('button',{name:'Charges',exact:true}).click();
+  await expect(t.page.locator('.appointment-closeout-panel')).toHaveAttribute('data-mobile-step','0');
+  const selected=await t.page.evaluate(()=>{const c=document.createElement('canvas');c.width=10;c.height=10;return c.toDataURL('image/jpeg').split(',')[1];});
+  await t.page.getByLabel('Add before photos',{exact:true}).setInputFiles({name:'before.jpg',mimeType:'image/jpeg',buffer:Buffer.from(selected,'base64')});
+  await expect(t.page.getByText('Ready to submit',{exact:true})).toHaveCount(1);
+  assert.equal(t.state.photoPosts,0,'Selection alone cannot upload');
+  await t.page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
+  await expect(t.page.getByLabel('Load price',{exact:true})).toBeVisible();
+  await expect.poll(()=>t.state.uploadGates.length).toBe(1);
+  await t.page.getByLabel('Load price',{exact:true}).fill('321');
+  await t.page.getByRole('button',{name:'Continue to after photos',exact:true}).click();
+  await t.page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();
+  await expect(t.page.getByText('Add at least one after photo before continuing.',{exact:true})).toBeVisible();
+  await t.page.getByRole('button',{name:'Payment',exact:true}).click();
+  await expect(t.page.locator('.appointment-closeout-panel')).toHaveAttribute('data-mobile-step','2');
+  await t.page.getByLabel('Add after photos',{exact:true}).setInputFiles({name:'after.jpg',mimeType:'image/jpeg',buffer:Buffer.from(selected,'base64')});
+  await expect(t.page.getByText('Ready to submit',{exact:true})).toHaveCount(1);
+  await t.page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();
+  await expect(t.page.getByLabel('Record a collected payment',{exact:true})).toBeEnabled();
+  await t.page.getByLabel('Record a collected payment',{exact:true}).check();await t.page.getByRole('radio',{name:'Cash',exact:true}).check();
+  await t.page.getByRole('button',{name:'Review Closeout',exact:true}).click();
+  await expect(t.page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
+  assert.equal(t.state.posts.length,0);assert.equal(t.state.photoReceipts.size,0,'Review reached before any upload acknowledgment');
+  if(artifacts)await t.page.screenshot({path:path.join(artifacts,`nonblocking-photos-${width}.png`)});
   t.state.uploadGates.splice(0).forEach(resolve=>resolve());
-  await expect(progress).toContainText('2 of 4');await expect.poll(()=>t.state.uploadGates.length).toBe(2);
-  await expect(t.page.getByRole('button',{name:'Sending checkout…',exact:true})).toBeDisabled();
-  if(artifacts)await t.page.screenshot({path:path.join(artifacts,`transfer-progress-${width}.png`)});
-  t.state.uploadGates.splice(0).forEach(resolve=>resolve());
+  await expect.poll(()=>t.state.uploadGates.length).toBe(1);t.state.uploadGates.splice(0).forEach(resolve=>resolve());
+  await expect.poll(()=>t.state.photoReceipts.size).toBe(2);
+  // Pending provider receipts do not prevent final server intake, either.
+  await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
   await expect(t.page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
-  assert.equal(t.state.posts.length,1);assert.equal(t.state.photoPosts,4);
-  await t.done();console.log(`PASS visible transfer count, two uploads, durable acceptance at ${width}px`);
+  assert.equal(t.state.posts.length,1);assert.equal(t.state.photoPosts,2,'Final checkout does not resend step uploads');assert.deepEqual(t.state.posts[0].photoRequestIds.sort(),[...t.state.photoReceipts.values()].map(row=>row.requestId).sort(),'Final checkout uses canonical server receipts');
+  await t.done();console.log(`PASS required photos; Charges, Payment and Review before upload acknowledgment; pending verification at ${width}px`);
  }
  {
   const t=await setup();t.state.holdPhotoHistory=true;await t.page.clock.install();await t.open();
@@ -161,6 +182,46 @@ try{
   t.state.holdPhotoHistory=false;await t.page.getByRole('button',{name:'Check saved photos again',exact:true}).click();
   await expect(t.page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
   assert.equal(t.state.photoPosts,0);await t.done();console.log('PASS stalled photo history offers a bounded read-only retry');
+ }
+ // Even an explicit slow provider verification only disables its own check button.
+ {
+  const t=await setup();t.state.holdPhotoVerification=true;
+  t.state.remotePhotos=[{requestId:'verification-before',category:'before',status:'pending'},{requestId:'saved-after',category:'after',status:'verified'}];
+  t.state.photoReceipt={requestId:'verification-before',category:'before',status:'verified'};
+  await t.open();await t.page.getByRole('button',{name:'Check saved photo',exact:true}).click();
+  await expect.poll(()=>t.state.verificationGates.length).toBe(1);
+  await t.page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
+  await expect(t.page.getByLabel('Load price',{exact:true})).toBeEnabled();
+  await t.page.getByLabel('Load price',{exact:true}).fill('333');
+  t.state.verificationGates.splice(0).forEach(resolve=>resolve());
+  await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('333');
+  assert.equal(t.state.photoPosts,0);await t.done();console.log('PASS slow provider verification cannot block the next form step');
+ }
+ // A lost acknowledgment preserves bytes and recovers the original upload on reload.
+ {
+  const t=await setup();t.state.remotePhotos=[];t.state.allowPhotoUploads=true;t.state.losePhotoAcknowledgment=true;
+  await t.page.evaluate(async({photoKey,image})=>(window as any).fixtureStorage.storedPhotos(photoKey,[{requestId:'recover-before',category:'before',status:'selected',image}]),{photoKey,image});
+  await t.open();await t.page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
+  await expect(t.page.getByLabel('Load price',{exact:true})).toBeEnabled();await t.page.getByLabel('Load price',{exact:true}).fill('321');
+  await expect.poll(()=>t.state.uploadGates.length).toBe(1);t.state.uploadGates.splice(0).forEach(resolve=>resolve());
+  await expect(t.page.getByText('A photo transfer needs attention.',{exact:false}).first()).toBeVisible();
+  const before=await t.page.evaluate(async key=>(window as any).fixtureStorage.storedPhotos(key),photoKey);
+  assert.equal(before[0].image,image);assert.equal(before[0].submitted,true);
+  await t.page.reload();await t.open();
+  await expect.poll(async()=>{const rows=await t.page.evaluate(async key=>(window as any).fixtureStorage.storedPhotos(key),photoKey);return rows[0].status;}).toBe('pending');
+  assert.equal(t.state.photoPosts,1,'Receipt recovery never creates a second upload');
+  await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');
+  await t.done();console.log('PASS interrupted photo acknowledgment, retained bytes and original-ID recovery after reload');
+ }
+ // A failed local queue save cannot advance the step or start the upload.
+ {
+  const t=await setup();t.state.remotePhotos=[];
+  await t.page.evaluate(async({photoKey,image})=>(window as any).fixtureStorage.storedPhotos(photoKey,[{requestId:'storage-before',category:'before',status:'selected',image}]),{photoKey,image});
+  await t.open();await t.page.evaluate(()=>{IDBObjectStore.prototype.put=()=>{throw new DOMException('Photo storage full','QuotaExceededError');};});
+  await t.page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
+  await expect(t.page.getByText('Photo storage full',{exact:true})).toBeVisible();
+  await expect(t.page.locator('.appointment-closeout-panel')).toHaveAttribute('data-mobile-step','0');
+  assert.equal(t.state.photoPosts,0);await t.done();console.log('PASS photo-step local storage denial blocks advancement before any network write');
  }
  // Source/crew mismatch preserves exact old bytes without applying them to a new source.
  for(const conflict of ['source','crew','expired','malformed']){
@@ -189,10 +250,10 @@ try{
   t.state.completeA=true;await t.page.reload();await t.open();await t.charges();
   await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');
   const photos=await t.page.evaluate(async({photoKey,oldId,deviceId})=>{const api=(window as any).fixtureStorage;return {next:await api.storedPhotos(photoKey),old:await api.storedPhotos(`${deviceId}:${oldId}`)};},{photoKey,oldId,deviceId:phone.deviceId});
-  assert.deepEqual(photos.next,photos.old);assert.equal(photos.next.length,2);
+  assert.deepEqual(photos.next.filter((row:any)=>row.requestId.startsWith('legacy-')),photos.old);assert.equal(photos.next.length,4);
   assert.equal(await t.page.evaluate(key=>localStorage.getItem(`${key}:draft`),aliasKey),raw);
   await t.page.evaluate(async key=>(window as any).fixtureStorage.storedPhotos(key,[]),photoKey);
-  await t.page.reload();await t.open();assert.deepEqual(await t.page.evaluate(async key=>(window as any).fixtureStorage.storedPhotos(key),photoKey),[]);
+  await t.page.reload();await t.open();assert.equal((await t.page.evaluate(async key=>(window as any).fixtureStorage.storedPhotos(key),photoKey)).filter((row:any)=>row.status!=='verified').length,0);
   await t.done();console.log('PASS legacy draft and before/after photo migration; originals retained; removed photos stay removed');
  }
  // Promotion during review must refresh request authority without replacing entered values.

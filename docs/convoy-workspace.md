@@ -66,24 +66,34 @@ acceptance of every live tab. The isolated UI fixture is
 ## Fleet dashboard and recurring service (October 2026)
 
 The desktop Overview now leads with fleet counts, active repair priorities,
-latest LinxUp mileage, a searchable/filterable truck table, and a needs-attention
+latest reported mileage, a searchable/filterable truck table, and a needs-attention
 panel. Click a metric to filter its trucks, a truck to open its service detail,
 or a next action to open the owning repair/service view. All existing route keys,
 phone inspection links, load controls, driving evidence, history, and cost reports
 remain available. The shared desktop shell and operating-day controls remain.
 
-Mileage comes from `readLatestLinxupVehicleInventory`, independently of the GPS
-map for the selected operating day. A future planning day therefore retains the
-latest available odometer with its report and retrieval times. It does not invent
-future or historical GPS. Field precedence is true, virtual, estimated. Without
-true mileage, virtual/estimated disagreement exceeding both 1,000 miles and 5%
-of the estimated value is flagged for verification. Duplicate vehicle mappings,
-estimated-only readings, missing times, future timestamps beyond five minutes,
-and readings or retrievals older than 24 hours cannot establish mileage-based
-service status. Mileage below the completed-service baseline also requires
-verification instead of showing an inflated remaining-mileage figure. This maintenance freshness rule does not change GPS freshness,
-arrival, parked-state, or dispatch logic. Values are read from existing local
-collector files; no additional LinxUp requests or collectors are introduced.
+Mileage uses the latest saved phone inspection when it reconciles with the
+previous inspection and completed service mileage. Report metadata is read from
+`fleet/truck-inspections/reports` and cached without embedded photos. Regressions,
+nonpositive/invalid readings, future timestamps and jumps exceeding the greater
+of 500 miles or 1,500 miles per elapsed day need verification. A lone inspection
+needs corroborating service mileage. Invalid latest reports stay flagged rather
+than silently selecting a more convenient older reading. Older inconsistent
+reports do not invalidate a subsequent consistent pair.
+
+The original inspection date, receipt time and report link stay visible. This is
+an observed reading, not an estimate of today's odometer. Existing raw reports
+and LinxUp counters are never rewritten. With no inspection, the existing
+`readLatestLinxupVehicleInventory` fallback uses true, virtual, then estimated
+mileage, independently of the selected day's GPS map. Without true mileage,
+virtual/estimated disagreement exceeding both 1,000 miles and 5% is flagged.
+Duplicate mappings, estimated-only readings, missing timestamps and observations
+or retrievals over 24 hours old cannot establish remaining mileage. An older
+consistent inspection can establish an already-passed target, with its date
+shown, if it is on/after the completed service and on/before the planning date.
+It cannot establish positive miles remaining today. Readings below completed
+service mileage stay flagged. No new provider requests or polling are added;
+GPS freshness, arrival, parked-state and dispatch behavior are unchanged.
 
 Recurring intervals live outside Git in `data/fleet/service_intervals.json`, one
 record per truck and service type. Operators can set miles, months, both, or pause

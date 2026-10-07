@@ -27,13 +27,17 @@ export type FleetMileage = {
   estimated: number | null;
   conflicting: boolean;
   duplicate: boolean;
+  inspectionHref?: string;
+  inspectionDate?: string;
+  note?: string;
+  tracking?: { value: number | null; source: string; reportedAt: string };
 };
 export function mileageQuality(
   reading: FleetMileage | undefined,
   now = Date.now(),
 ): "unavailable" | "conflict" | "stale" | "estimated" | "current" {
+  if (reading?.conflicting || reading?.duplicate) return "conflict";
   if (!reading || reading.value === null) return "unavailable";
-  if (reading.conflicting || reading.duplicate) return "conflict";
   const at = Date.parse(reading.reportedAt),
     fetched = Date.parse(reading.retrievedAt);
   if (
@@ -96,8 +100,17 @@ export function servicePlan(
     ? (completed.nextServiceOdometer ??
       (rule?.miles && completed.odometer !== null ? completed.odometer + rule.miles : null))
     : null;
-  const usable = mileageQuality(reading, now) === "current" && (completed?.odometer == null || reading!.value! >= completed.odometer);
-  const milesRemaining = nextMiles !== null && usable ? nextMiles - reading!.value! : null;
+  // An older coherent inspection can establish that a target was already passed,
+  // but cannot establish miles still remaining today. Exclude observations before
+  // the completed service or after the selected planning day.
+  const inspectionDate = reading?.inspectionDate || (reading?.reportedAt ? new Date(reading.reportedAt).toLocaleDateString("en-CA", {timeZone:"America/Chicago"}) : "");
+  const inspectionAt = reading ? Date.parse(reading.reportedAt) : NaN;
+  const inspectionEvidence = reading?.source === "inspection" && !reading.conflicting && !reading.duplicate && reading.value !== null &&
+    Number.isFinite(inspectionAt) && inspectionAt <= now && inspectionDate <= date &&
+    completed && inspectionDate >= completed.serviceDate && (completed.odometer === null || reading.value >= completed.odometer);
+  const usable = mileageQuality(reading, now) === "current" && (completed?.odometer == null || reading!.value! >= completed.odometer) && (reading?.source !== "inspection" || Boolean(inspectionEvidence));
+  const inspectedDue = Boolean(inspectionEvidence && nextMiles !== null && reading!.value! >= nextMiles);
+  const milesRemaining = nextMiles !== null && (usable || inspectedDue) ? nextMiles - reading!.value! : null;
   const daysRemaining = nextDate
     ? Math.round((Date.parse(nextDate + "T12:00:00Z") - Date.parse(date + "T12:00:00Z")) / 86400000)
     : null;
@@ -126,6 +139,7 @@ export function servicePlan(
     nextDate,
     nextMiles,
     milesRemaining,
+    mileageAsOf: reading?.source === "inspection" ? reading.reportedAt : undefined,
     daysRemaining,
     status,
     incomplete,

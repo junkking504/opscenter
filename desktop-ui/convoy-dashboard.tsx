@@ -120,14 +120,16 @@ export function Mileage({
         {q === "conflict"
           ? review.belowService
             ? `Below recorded service mileage: ${miles(review.latest?.odometer)}`
+            : m?.source === "inspection"
+            ? m.note
             : m?.duplicate
             ? "Multiple LinxUp vehicle records"
             : `${miles(m?.value)} virtual / ${miles(m?.estimated)} estimated`
           : q === "unavailable"
-            ? "No LinxUp mileage"
-            : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
+            ? "No mileage reading"
+            : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
       </small>
-      {detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{miles(m?.value)} · {m?.source || "unavailable"} odometer. {review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer."}</small></details></>}
+      {m?.inspectionHref && <a href={m.inspectionHref} target="_blank" rel="noreferrer">View inspection</a>}{detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{m?.note || (review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer.")}</small>{m?.tracking && <small>Original tracking feed: {miles(m.tracking.value)} · {m.tracking.source} · {stamp(m.tracking.reportedAt)}</small>}</details></>}
     </div>
   );
 }
@@ -235,7 +237,7 @@ export function ServiceIntervals({
                   {p.milesRemaining !== null && (
                     <small>
                       {Math.abs(Math.round(p.milesRemaining)).toLocaleString()} mi{" "}
-                      {p.milesRemaining < 0 ? "past target" : "remaining"}
+                      {p.milesRemaining < 0 ? "past target" : "remaining"}{p.mileageAsOf && <small>At inspection {fleetDate(p.mileageAsOf)}</small>}
                     </small>
                   )}
                 </td>
@@ -300,8 +302,7 @@ function Coverage({ snapshot, trucks, now }: Pick<DashboardProps, "snapshot" | "
       <hr />
       <small>Latest LinxUp retrieval: {stamp(snapshot.mileageRetrievedAt)}</small>
       <p>
-        Missing maintenance history stays unknown. Stale or conflicting mileage cannot establish
-        current service status.
+        Missing maintenance history stays unknown. Older inspections can show a target was already passed, but cannot show miles remaining today. Conflicting readings need verification.
       </p>
     </details>
   );
@@ -337,7 +338,7 @@ export function ConvoyDashboard(props: DashboardProps) {
         <Metric
           value={trucks.length}
           title="Fleet trucks"
-          detail={`${trucks.filter((t) => t.mileage?.value != null).length} have LinxUp mileage`}
+          detail={`${trucks.filter((t) => t.mileage?.value != null).length} have reported mileage`}
           onClick={() => setFilter("all")}
         />
         <Metric
@@ -372,7 +373,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                     baseline: "Maintenance setup",
                   }[filter]}
             </h2>
-            <small>Latest LinxUp mileage</small>
+            <small>Latest reported mileage</small>
           </header>
           <div className="convoy-table-tools">
             <div>
@@ -425,6 +426,8 @@ export function ConvoyDashboard(props: DashboardProps) {
                             <small>
                               {review.belowService
                                 ? `Last service: ${miles(review.latest?.odometer)}`
+                                : t.mileage?.source === "inspection"
+                                ? t.mileage.note
                                 : t.mileage?.duplicate
                                 ? "Multiple vehicle records"
                                 : `${Math.round(t.mileage?.value || 0).toLocaleString()} vs ${t.mileage?.estimated?.toLocaleString() || "unavailable"}`}
@@ -439,7 +442,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                           {
                             {
                               current: "Reported",
-                              stale: "Stale",
+                              stale: t.mileage?.source === "inspection" ? "Older inspection" : "Stale",
                               conflict: "Verify reading",
                               unavailable: "Unavailable",
                               estimated: "Estimated",
@@ -453,7 +456,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                                 month: "short",
                                 day: "numeric",
                               })
-                            : "No LinxUp report"}
+                            : "No mileage report"}
                         </small>
                       </td>
                       <td>
@@ -586,7 +589,7 @@ export function ConvoyService(props: DashboardProps) {
       <div className="convoy-planning-date">
         <strong>Planning for {fleetDate(snapshot.date)}</strong>
         <span>
-          Mileage uses the latest available reading · {fleetDate(snapshot.mileageSourceDate || "")}
+          Mileage uses each truck’s latest reported reading; its date is shown below.
         </span>
       </div>
       <div className="convoy-dashboard-grid">
@@ -665,9 +668,9 @@ export function ConvoyService(props: DashboardProps) {
             {truck && (
               <>
                 <hr />
-                <h3>{label(truck)} · latest LinxUp mileage</h3>
+                <h3>{label(truck)} · latest reported mileage</h3>
                 <Mileage truck={truck} now={now} detail records={snapshot.maintenance}/>
-                <p>Today’s mileage does not replace mileage at the time of a past service.</p>
+                <p>A later reading does not replace mileage at the time of service.</p>
                 <Button
                   className="convoy-primary"
                   onClick={() => {
@@ -715,7 +718,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
       <div className="convoy-metrics">
         <div className="convoy-metric">
           <Mileage truck={truck} now={now} records={snapshot.maintenance}/>
-          <span>Latest LinxUp mileage</span>
+          <span>Latest reported mileage</span>
         </div>
         <Metric
           value={truck.mileage?.reportedAt ? fleetDate(truck.mileage.reportedAt) : "—"}

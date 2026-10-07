@@ -42,3 +42,21 @@ export function truckMileageReview(truck: DesktopFleetTruck, records: FleetMaint
   const belowService = truck.mileage?.value != null && latest?.odometer != null && truck.mileage.value < latest.odometer;
   return { quality: belowService ? 'conflict' as const : mileageQuality(truck.mileage, now), belowService, latest };
 }
+
+/** Display-only grouping; retain every line and amount from the recorded description. */
+export function workSections(description: string) {
+  const sections: Array<{ label: string; text: string }> = [];
+  for (const line of description.split('\n').map(line => line.trim()).filter(Boolean)) {
+    if (/^Invoice\s+#\S+\s+[—–-]\s+completed service and repairs$/i.test(line)) continue;
+    const match = line.match(/^([A-Za-z][A-Za-z /&-]{1,30}):\s*(.*)$/);
+    if (match) sections.push({label:match[1],text:match[2]});
+    else if (sections.length) sections[sections.length-1].text += `\n${line}`;
+    else sections.push({label:'Work details',text:line});
+  }
+  return sections;
+}
+export function visitTitle(row: HistoryEntry) {
+  if (row.kind !== 'invoice') return row.title;
+  const categories = row.categories.filter(c => c !== 'Other');
+  return categories.length ? categories.slice(0,3).join(' · ') + (categories.length>3?` +${categories.length-3}`:'') : 'Service visit';
+}

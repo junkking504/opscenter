@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { filterHistory, historyEntries, historyCosts, truckMileageReview } from '../desktop-ui/lib/convoy-records';
+import { filterHistory, historyEntries, historyCosts, truckMileageReview, workSections, visitTitle } from '../desktop-ui/lib/convoy-records';
 import type { FleetMaintenanceRow, FleetIssueRow, DesktopFleetTruck } from '../desktop-ui/lib/people-fleet-contract';
 const base: FleetMaintenanceRow={recordId:'invoice-example-100',truck:'Truck# 2',serviceDate:'2026-07-20',status:'completed',serviceType:'Other',description:'Invoice #100 — completed service and repairs\nBrakes: rear shoes',odometer:130000,cost:500,vendor:'Example Shop',nextServiceDate:'',nextServiceOdometer:null,notes:'VIN: EXAMPLE123',version:'test'};
 const child={...base,recordId:'oil',serviceType:'Oil change',description:'Oil and filter replaced',cost:null,notes:'Linked invoice record: invoice-example-100. Category cost is unallocated.'};
@@ -26,3 +26,9 @@ assert.equal(truckMileageReview(truck,[{...base,status:'scheduled'}],now).qualit
 assert.equal(truckMileageReview(truck,[{...base,serviceDate:'2027-01-01'}],now).quality,'current');
 assert.equal(truckMileageReview(truck,[{...base,truck:'Truck 3'}],now).quality,'current');
 console.log('Convoy records passed: explicit invoice grouping, orphan preservation, filters, null/zero costs and mileage conflict evidence.');
+
+// Display grouping preserves original amounts and continuation lines without inferring work.
+assert.deepEqual(workSections('Invoice #100 — completed service and repairs\nBrakes: Shoes ($500).\nContinued note.\nOil change: Filter and oil.'),[{label:'Brakes',text:'Shoes ($500).\nContinued note.'},{label:'Oil change',text:'Filter and oil.'}]);
+assert.deepEqual(workSections('Complaint: Runs rough.\nDiagnosis pending.'),[{label:'Complaint',text:'Runs rough.\nDiagnosis pending.'}]);
+assert.equal(visitTitle(rows.find(r=>r.kind==='invoice')!),'Oil change');
+assert.equal(visitTitle(rows.find(r=>r.kind==='repair')!),'Mirror');

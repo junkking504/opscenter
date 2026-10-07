@@ -135,8 +135,12 @@ has a short purpose statement. Viewing day governs inspections/driving/planning;
 it does not filter the history list. Existing route keys are unchanged.
 
 **Records & invoices** opens all recorded dates across the selected trucks,
-with text search (work, vendor, VIN/source notes and invoice number), record type,
-service category, and inclusive From/Through dates. Empty results offer a reset.
+with a truck and work-category navigation rail, matching record counts, and a
+month-grouped service journal. Select a visit to expand its work summary, then use
+Open record or Invoice photos. On phones the truck choices scroll horizontally
+and work categories remain available under Filters. Text search covers work,
+vendor, VIN/source notes and invoice number. Filters contains record type, service
+category, and inclusive From/Through dates. Empty results offer a reset.
 CSV exports contain the currently filtered records, with unknown costs blank;
 spreadsheet formula prefixes are escaped. Monthly usage/cost summaries and fuel
 charts remain in labeled expandable sections below the record list.
@@ -149,6 +153,8 @@ allocated cost. Known completed costs and the number of missing totals are shown
 separately; zero remains a recorded value. No records are merged or rewritten.
 Opening a record does not silently change the truck filter. Service details show
 work, dates, mileage, shop, linked categories and authenticated invoice photos.
+Work details and Invoice photos are separate sections; the photo action opens
+the photo section directly. Original pages open at full size in a new tab.
 Editing is explicit; all existing action/version/receipt rules still apply.
 Repair history opens a readable detail; the active repair board retains direct
 Update repair. Report a problem has an explicit truck selector. Service work and

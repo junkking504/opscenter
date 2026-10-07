@@ -4327,7 +4327,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   ? 'Your trucks, maintenance priorities, and next steps in one place.'
                   : fleetView === 'maintenance' ? 'Submitted inspections, reported problems, and repair updates.'
                     : fleetView === 'service' ? 'Plan preventive maintenance and keep completed work separate from scheduled visits.'
-                      : 'Truck history, recorded costs, downtime, and monthly activity.'
+                      : 'Choose a truck. Find a visit. Open its work and photos.'
                 : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'
                   ? 'Performance, payments and financial decisions. All in one place.'

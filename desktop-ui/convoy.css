@@ -336,3 +336,103 @@ button.convoy-metric:hover {border-color:#255e4c;background:#f9fcfa}
  .convoy-record-filters .convoy-record-search {min-width:100%}
  .convoy-invoice-photos img {height:180px}
 }
+
+/* Records library: truck navigation and an expandable visit journal. */
+.convoy-record-browser {display:grid;grid-template-columns:180px minmax(0,1fr);gap:20px;min-width:0;align-items:start}
+.convoy-record-browser.compact {grid-template-columns:minmax(0,1fr)}
+.convoy-record-navigation {background:#f7faf8;border:1px solid #d9e3dd;border-radius:8px;padding:16px 10px;min-width:0}
+.convoy-record-navigation h2 {font-size:14px;margin:0 8px 12px}
+.convoy-record-navigation nav {display:grid;gap:3px}
+.convoy-record-navigation button {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:37px;border-radius:5px;padding:7px 10px;text-align:left;font-size:14px;color:#43564d;background:transparent}
+.convoy-record-navigation button>span:last-child {font-size:12px;font-variant-numeric:tabular-nums;color:#64766b}
+.convoy-record-navigation button:hover {background:#edf3ef}
+.convoy-record-navigation button[aria-pressed=true] {background:#dcefe5;color:#174f3f;font-weight:650}
+.convoy-record-categories {border-top:1px solid #d9e3dd;margin-top:18px;padding-top:18px}
+.convoy-record-navigation .convoy-library-hint {margin:20px 8px 4px;color:#52665a;font-size:12px;line-height:1.65}
+.convoy-journal {background:#fff;border:1px solid #d5e0d9;border-radius:8px;min-width:0;padding:18px 20px}
+.convoy-journal-header {display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
+.convoy-journal-header h2 {font-size:20px;letter-spacing:-.35px}
+.convoy-journal-header>div {display:flex;gap:10px 18px;align-items:baseline;flex-wrap:wrap}
+.convoy-journal-header span {font-size:13px;color:#5c6c62}
+.convoy-journal-tools {display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.convoy-journal-search {flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:1px solid #cbd6cf;border-radius:6px;padding:0 10px;color:#627068;background:#fff}
+.convoy-journal-search input {width:100%;min-width:0;min-height:42px;border:0;background:transparent;font-size:14px;color:#1e3027;outline-offset:0}
+.convoy-journal-search button {display:flex;align-items:center;justify-content:center;min-width:30px;min-height:32px}
+.convoy-journal-tools button[data-slot=button] {min-height:42px;padding:8px 12px;font-size:14px}
+.convoy-filter-count {background:#e2eee7;border-radius:4px;padding:1px 5px;font-size:12px}
+.convoy-journal-filters {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:14px 0}
+.convoy-journal-filters label {display:grid;gap:6px;min-width:0;font-size:12px;font-weight:600}
+.convoy-journal-filters :is(input,select) {min-width:0;max-width:100%;min-height:38px;padding:7px;border:1px solid #ccd7cf;background:white;border-radius:5px;font-size:13px;font-weight:400}
+.convoy-applied-filters {display:flex;gap:12px;align-items:center;justify-content:space-between;color:#315c48;font-size:12px;line-height:1.5;padding:10px 0;overflow-wrap:anywhere}
+.convoy-applied-filters button {display:inline-flex;align-items:center;gap:6px;white-space:nowrap;text-decoration:underline;flex-shrink:0;min-height:32px}
+.convoy-journal-list {margin-top:2px}
+.convoy-journal-list .convoy-journal-month {font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.7px;color:#617168;padding:16px 0 8px}
+.convoy-visit {border-bottom:1px solid #e1e8e3;min-width:0}
+.convoy-visit:last-child {border-bottom-color:#e1e8e3}
+.convoy-visit-toggle {width:100%;display:grid;grid-template-columns:102px 38px minmax(0,1fr) 116px 18px;gap:12px;align-items:center;text-align:left;padding:13px 6px;border-radius:5px;color:#203329;background:transparent}
+.convoy-visit-toggle:hover {background:#f5f9f6}
+.convoy-visit-date {display:flex;flex-direction:column;gap:4px;align-self:start;padding-top:3px;font-size:12px;font-weight:600}
+.convoy-visit-date>span {font-size:11px;color:#65766c;font-weight:400}
+.convoy-visit-icon {display:flex;align-items:center;justify-content:center;background:#e9f4ee;color:#235b47;width:38px;height:40px;border-radius:7px}
+.convoy-visit-label {display:grid;gap:4px;min-width:0}
+.convoy-visit-label>strong {font-size:15px;line-height:1.45;font-weight:650;overflow-wrap:anywhere}
+.convoy-visit-label>span {color:#5b6c61;font-size:12px;line-height:1.5}
+.convoy-visit-label .convoy-visit-metadata {font-size:11px}
+.convoy-visit-cost {display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-variant-numeric:tabular-nums}
+.convoy-visit-cost strong {font-size:14px;font-weight:650}
+.convoy-visit-cost>span {font-size:10px;color:#637369}
+.convoy-visit.is-open {background:#f5faf7;border:1px solid #b7d6c6;border-radius:6px;margin:3px 0}
+.convoy-visit.is-open .convoy-visit-toggle {padding:12px 5px}
+.convoy-visit-expanded {padding:10px 18px 16px 158px;min-width:0}
+.convoy-visit-expanded-heading {display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:8px}
+.convoy-visit-expanded h4 {font-size:13px;font-weight:650}
+.convoy-work-sections {display:grid;gap:14px;margin:0}
+.convoy-work-sections>div {display:grid;gap:4px}
+.convoy-workspace .convoy-work-sections dt {font-size:13px;font-weight:650;color:#315c48}
+.convoy-workspace .convoy-work-sections dd {font-size:14px;font-weight:400;color:#344b3e;white-space:pre-line;line-height:1.7;margin:0;max-width:70ch}
+.convoy-visit-links {display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;border-top:1px solid #dbe7df;padding-top:12px}
+.convoy-visit-links button[data-slot=button] {min-height:38px;font-size:13px;gap:7px}
+.convoy-resolution {margin-top:14px;display:grid;gap:5px}
+.convoy-journal-footer {margin-top:20px;padding-top:14px;border-top:1px solid #e0e7e2;color:#5a6b60;font-size:12px;line-height:1.6}
+.convoy-journal-footer>span {display:block;margin-bottom:5px}
+.convoy-journal-footer summary {padding:4px 0;font-size:12px;color:#315f4b}
+.convoy-journal-footer details p {max-width:72ch;margin-top:6px;line-height:1.7}
+.convoy-detail-switch {display:flex;gap:18px;border-bottom:1px solid #d8e2dc}
+.convoy-detail-switch button {display:flex;align-items:center;gap:7px;min-height:42px;padding:8px 0;border-bottom:2px solid transparent;font-size:14px;color:#52665a}
+.convoy-detail-switch button[aria-pressed=true] {border-color:#235b47;color:#174f3f;font-weight:650}
+.convoy-invoice-photos a>span {display:flex;align-items:center;justify-content:center;gap:8px}
+.convoy-record-browser.compact .convoy-visit-toggle {grid-template-columns:78px minmax(0,1fr) 92px 16px;gap:8px}
+.convoy-record-browser.compact .convoy-visit-icon {display:none}
+.convoy-record-browser.compact .convoy-visit-expanded {padding-left:16px}
+.fleet-view-reports>.convoy-orientation {margin-top:8px}
+.fleet-view-reports>.convoy-orientation>p {display:none}
+@media(max-width:1100px) {
+ .convoy-record-browser {grid-template-columns:154px minmax(0,1fr);gap:12px}
+ .convoy-journal {padding:16px}
+ .convoy-visit-toggle {grid-template-columns:82px minmax(0,1fr) 100px 16px;gap:10px}
+ .convoy-visit-icon {display:none}
+ .convoy-visit-expanded {padding-left:104px}
+ .convoy-journal-filters {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px) {
+ .convoy-record-browser {grid-template-columns:minmax(0,1fr);gap:12px}
+ .convoy-record-navigation {padding:10px 0;background:transparent;border:0;border-radius:0}
+ .convoy-record-navigation h2 {margin:0 0 8px}
+ .convoy-record-navigation .convoy-record-trucks {display:flex;overflow-x:auto;gap:6px;padding:3px 3px 8px}
+ .convoy-record-trucks button {white-space:nowrap;border:1px solid #d4dfd8;min-height:40px;flex-shrink:0}
+ .convoy-record-categories,.convoy-library-hint {display:none}
+ .convoy-journal {padding:14px 12px}
+ .convoy-journal-header {gap:8px}
+ .convoy-journal-header>div {display:grid;gap:3px}
+ .convoy-journal-header h2 {font-size:18px}
+ .convoy-journal-tools {flex-wrap:wrap;gap:8px}
+ .convoy-journal-search {flex-basis:100%}
+ .convoy-journal-filters {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .convoy-visit-toggle,.convoy-record-browser.compact .convoy-visit-toggle {grid-template-columns:minmax(0,1fr) 88px 16px;gap:10px 6px;padding:12px 2px}
+ .convoy-visit-date {grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:0}
+ .convoy-visit-label>strong {font-size:14px}
+ .convoy-visit-cost strong {font-size:13px}
+ .convoy-visit-expanded,.convoy-record-browser.compact .convoy-visit-expanded {padding:8px 12px 14px}
+ .convoy-detail-switch {gap:12px}
+ .convoy-detail-switch button {font-size:13px}
+}

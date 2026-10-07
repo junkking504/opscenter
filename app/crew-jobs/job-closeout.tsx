@@ -9,7 +9,7 @@ import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
 import {sameCheckoutFields} from './photo-checkout';
-import {createHandoff,draftHandoff,readHandoffs,resumeHandoff,retryAttentionHandoff,saveHandoff} from './checkout-handoff';
+import {HANDOFF_EVENT,type CheckoutHandoff,createHandoff,draftHandoff,readHandoffs,resumeHandoff,retryAttentionHandoff,saveHandoff} from './checkout-handoff';
 
 export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext,onAccepted,onHandoffFailed}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void;onAccepted?:(receipt:Receipt,assignmentId:string)=>void;onHandoffFailed?:(message:string)=>void;}) {
   const [completed,setCompleted]=useState(false);
@@ -27,6 +27,14 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   const draftScope=appointmentDraftScope(job);
   const key=crewCloseoutKey(deviceId,draftScope);
   const photoKey=`${deviceId}:${draftScope}`;
+  useEffect(()=>{
+    const changed=(event:Event)=>{
+      const value=(event as CustomEvent<CheckoutHandoff>).detail;
+      if(value.deviceId===deviceId && (value.draftKey===key || value.assignmentId===authorizationId.current))setSubmissionMessage(value.message);
+    };
+    window.addEventListener(HANDOFF_EVENT,changed);
+    return()=>window.removeEventListener(HANDOFF_EVENT,changed);
+  },[deviceId,key]);
   const aliasesJson=JSON.stringify([...new Set([job.assignmentId,...(job.draftAssignmentIds || [])])]);
   const endpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(job.assignmentId)}`;
   const transport=useMemo<CloseoutTransport>(()=>{
@@ -88,6 +96,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
     return {
       async prepare(){
         if(dryRunMode.current){setSubmissionMessage('Checking the dry run. No live results will be posted.');return;}
+        setSubmissionMessage('Checking this assignment before sending. Keep Waypoint open.');
         if(!photoSubmit.current)throw new Error('Photo selection is unavailable. Return to photos before submitting.');
         if(!photoSubmit.current.ready())throw new Error('Photos are still being saved on this phone. Wait a moment before submitting.');
         const assignmentId=await currentAssignment();
@@ -133,7 +142,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
             const latest=readHandoffs(deviceId).find(value=>value.requestId===requestId);
             if(latest && latest.phase!=='attention')receipt=await resumeHandoff(latest);
           }
-          if(!receipt)throw new Error('Transfer paused. Stay on this checkout and tap Submit again to continue the same saved submission.');
+          if(!receipt)throw new Error(readHandoffs(deviceId).find(value=>value.requestId===requestId)?.message || 'Transfer paused. Check Saved Result to continue the same saved submission.');
           return accepted(receipt,true);
         }
         return submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})},photoRequestIds:[],dryRun:true},{endpoint,waitForCompletion:false});
@@ -146,7 +155,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
     <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
-    <AppointmentCloseout dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
+    <AppointmentCloseout submissionStatus={submissionMessage} dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>
     {completed && <div className={styles.card}><h2>{dryRun?'Dry run complete':'Closeout verified'}</h2><p>{dryRun?'Nothing was uploaded or saved to JunkWare. No customer receipt was sent.':'The saved work and payment are confirmed in JunkWare.'}</p>{(!dryRun || test) && <button className={styles.primary} onClick={onNext}>Check next assignment</button>}</div>}
   </div></section>;

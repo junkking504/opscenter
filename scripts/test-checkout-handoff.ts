@@ -56,6 +56,46 @@ async function main(){
   await transferCheckout(saved,{...deps,fetch:async()=>Response.json({error:'revoked'},{status:401})});assert.equal(saved.phase,'attention','Revoked access stops recovery');
   const reopened=reopenAttentionHandoff(saved);assert.equal(reopened?.phase,'transferring');assert.equal(reopened?.requestId,saved.requestId);assert.deepEqual(reopened?.payload,saved.payload);
   assert.equal(reopenAttentionHandoff({...saved,receipt:{requestId:saved.requestId,action:'closeout',status:'pending',message:'accepted'}}),null,'An accepted handoff is never reopened');
+  // Drain in-flight acknowledgments on failure and never queue a partial batch.
+  {
+    const batch={...structuredClone(initial),photoIds:['one','two','three','four']};
+    let latest=structuredClone(batch),active=0,peak=0,posts=0,checkoutPosts=0;
+    let fail=true;
+    const receipts=new Map<string,{requestId:string;status:string}>();
+    const gates:Array<()=>void>=[];
+    const fetchBatch:typeof fetch=async(input,options)=>{
+      const url=new URL(String(input),'https://waypoint.example');
+      if(options?.method!=='POST'){
+        const receipt=receipts.get(url.searchParams.get('requestId')!);
+        return receipt?Response.json({receipt}):Response.json({}, {status:404});
+      }
+      if(url.pathname.endsWith('/photos')){
+        const id=JSON.parse(String(options.body)).requestId;posts++;active++;peak=Math.max(peak,active);
+        await new Promise<void>(resolve=>gates.push(resolve));active--;
+        if(id==='one' && fail)throw new Error('Connection interrupted');
+        const receipt={requestId:id,status:'pending'};receipts.set(id,receipt);return Response.json({receipt},{status:202});
+      }
+      checkoutPosts++;
+      assert.equal(active,0);assert.equal(Object.keys(latest.acceptedPhotos).length,4);
+      assert.deepEqual(JSON.parse(String(options.body)).photoRequestIds,batch.photoIds);
+      return Response.json({receipt:{requestId:batch.requestId,status:'pending',action:'closeout',message:'Saved'}},{status:202});
+    };
+    const depsBatch={fetch:fetchBatch,photos:async()=>batch.photoIds.map(requestId=>({requestId,category:'before' as const,status:'selected' as const,image:'saved'})),save:(value:CheckoutHandoff)=>{latest=structuredClone(value);},keepReceipt:()=>{}};
+    const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+    let finished=false;const first=transferCheckout(batch,depsBatch).then(()=>{finished=true;});
+    while(gates.length<2)await tick();
+    gates.shift()!();await tick();assert.equal(finished,false,'Failure waits for the other active intake');
+    gates.shift()!();await first;
+    assert.equal(posts,2,'Failure prevents starting queued photos');assert.equal(checkoutPosts,0);
+    assert.equal(latest.acceptedPhotos.two,'two','Late acknowledgment survives the pause');
+    assert.match(latest.message,/Transfer paused/);fail=false;
+    const recovered=transferCheckout(latest,depsBatch);
+    while(gates.length<2)await tick();gates.splice(0).forEach(resolve=>resolve());
+    while(!gates.length)await tick();gates.splice(0).forEach(resolve=>resolve());
+    await recovered;
+    assert.equal(peak,2,'At most two phone transfers');assert.equal(posts,5,'Only missing bytes resume');
+    assert.equal(checkoutPosts,1);assert.equal(latest.phase,'accepted');
+  }
   console.log('Checkout handoff passed: interruption, reload, lost acknowledgments, original IDs/payload, local-only receipt checks, provider uncertainty and revocation. No live writes.');
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

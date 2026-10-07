@@ -38,14 +38,14 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         setError('');setReady(false);
         let local:Photo[];
         try { if(storageKey)await migratePhotoDraft(key,JSON.parse(aliasesKey));local=await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
-        const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}`,{cache:'no-store'});
+        const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}`,{cache:'no-store',signal:AbortSignal.timeout(15_000)});
         const body=await readPhotoResponse(response);if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
         if(!Array.isArray(body.photos))throw new Error('Photo history could not be checked. Try again.');
         const remote=body.photos as Photo[];
         const merged=local.map(row=>{const saved=remote.find(item=>item.requestId===row.requestId);return saved?{...row,...saved,...(saved.status==='verified'?{image:undefined}:{})}:row.status==='pending'?{...row,status:'uncertain' as const}:row;});
         for(const row of remote)if(!merged.some(item=>item.requestId===row.requestId))merged.push(row);
         if(canceled)return;await save(merged);setReady(true);
-      }catch(error){if(!canceled)setError(error instanceof Error?error.message:'Photo history unavailable.');}
+      }catch(error){if(!canceled)setError(error instanceof Error && error.name!=='TimeoutError'?error.message:'Checking saved photos took too long. Check your connection and try again; selected photos stay on this phone.');}
     })();return()=>{canceled=true;};
   },[key,assignmentId,save,reload,storageKey,aliasesKey]);
   useEffect(()=>{

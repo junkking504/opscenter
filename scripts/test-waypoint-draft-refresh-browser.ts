@@ -19,7 +19,7 @@ const a={assignmentId:'fixture-A',appointmentId:'900001',date,jkNumber:'FIXTURE-
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aU1cAAAAASUVORK5CYII=';
 async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number}={}){
  const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'}),page=await context.newPage();page.setDefaultTimeout(10000);
- const state={completeA:false,reads:0,posts:[] as any[],photoPosts:0,receipt:null as any,mode:'pending',sourceChanged:false,crewVersion:1,denyReceipt:false,offlineLoads:false,photoReceipt:null as any,photoChecks:[] as string[],holdUpdates:false,updateRequested:false,releaseUpdates:()=>{},updateToken:'one',errors:[] as string[]};
+ const state={completeA:false,reads:0,posts:[] as any[],photoPosts:0,receipt:null as any,mode:'pending',sourceChanged:false,crewVersion:1,denyReceipt:false,offlineLoads:false,photoReceipt:null as any,photoChecks:[] as string[],allowPhotoUploads:false,photoReceipts:new Map<string,any>(),uploadGates:[] as Array<()=>void>,holdPhotoHistory:false,holdUpdates:false,updateRequested:false,releaseUpdates:()=>{},updateToken:'one',errors:[] as string[]};
  page.on('pageerror',error=>state.errors.push(error.message));
  const source=()=>({...fixture,loadPrice:state.sourceChanged?'500':'400',photoEvidence:{appointmentId:'900002',urls:['https://junkware.junk-king.com/system/aspnet/local/media/sample-900002-before.jpg']}});
  const receiptA=()=>({requestId:'fixture-request-A',action:'closeout',status:state.completeA?'verified':'pending',message:'Fixture receipt'});
@@ -39,8 +39,14 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
    return send({updateToken:state.updateToken});
   }
   if(url.pathname==='/api/crew-jobs/photos'){
-   if(req.method()!=='GET'){state.photoPosts++;return send({error:'Unexpected photo write'},500);}
-   if(url.searchParams.has('requestId')){state.photoChecks.push(url.searchParams.get('assignmentId')!);return state.photoReceipt?send({receipt:state.photoReceipt}):send({error:'not found'},404);}
+   if(req.method()!=='GET'){
+    state.photoPosts++;
+    if(!state.allowPhotoUploads)return send({error:'Unexpected photo write'},500);
+    const body=req.postDataJSON();await new Promise<void>(resolve=>state.uploadGates.push(resolve));
+    const receipt={requestId:body.requestId,category:body.category,status:'pending'};state.photoReceipts.set(body.requestId,receipt);return send({receipt},202);
+   }
+   if(state.holdPhotoHistory && !url.searchParams.has('requestId'))return;
+   if(url.searchParams.has('requestId')){state.photoChecks.push(url.searchParams.get('assignmentId')!);const receipt=state.photoReceipts.get(url.searchParams.get('requestId')!) || state.photoReceipt;return receipt?send({receipt}):send({error:'not found'},404);}
    return send({photos:[]});
   }
   if(url.pathname==='/api/crew-jobs/closeout'){
@@ -128,6 +134,33 @@ try{
   if(mode==='unknown')await expect(t.page.getByRole('button',{name:'Resume transfer',exact:true})).toHaveCount(0);
   if(artifacts && ['pending','failed','unknown'].includes(mode))await t.page.screenshot({path:path.join(artifacts,`${mode}-result.png`),fullPage:true});
   await t.done();console.log(`PASS ${mode} submission, retained values and duplicate prevention`);
+ }
+ // The sticky Submit area shows durable photo progress during delayed transfers.
+ for(const width of [320,390,430]){
+  const t=await setup({width});t.state.allowPhotoUploads=true;
+  await t.page.evaluate(async({photoKey,image})=>(window as any).fixtureStorage.storedPhotos(photoKey,Array.from({length:4},(_,i)=>({requestId:`transfer-${i}`,category:'before',status:'selected',image}))),{photoKey,image});
+  await t.open();await t.review();await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
+  await expect.poll(()=>t.state.uploadGates.length).toBe(2);
+  const progress=t.page.locator('.closeout-footer-slot .closeout-transfer-progress');
+  await expect(progress).toContainText('0 of 4');await expect(progress).toBeInViewport();
+  assert.equal(t.state.posts.length,0,'No checkout before photo acknowledgments');
+  t.state.uploadGates.splice(0).forEach(resolve=>resolve());
+  await expect(progress).toContainText('2 of 4');await expect.poll(()=>t.state.uploadGates.length).toBe(2);
+  await expect(t.page.getByRole('button',{name:'Sending checkout…',exact:true})).toBeDisabled();
+  if(artifacts)await t.page.screenshot({path:path.join(artifacts,`transfer-progress-${width}.png`)});
+  t.state.uploadGates.splice(0).forEach(resolve=>resolve());
+  await expect(t.page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
+  assert.equal(t.state.posts.length,1);assert.equal(t.state.photoPosts,4);
+  await t.done();console.log(`PASS visible transfer count, two uploads, durable acceptance at ${width}px`);
+ }
+ {
+  const t=await setup();t.state.holdPhotoHistory=true;await t.page.clock.install();await t.open();
+  await expect(t.page.getByText('Checking saved photos…',{exact:true})).toBeVisible();
+  await t.page.clock.runFor(15_100);
+  await expect(t.page.getByRole('button',{name:'Check saved photos again',exact:true})).toBeVisible();
+  t.state.holdPhotoHistory=false;await t.page.getByRole('button',{name:'Check saved photos again',exact:true}).click();
+  await expect(t.page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
+  assert.equal(t.state.photoPosts,0);await t.done();console.log('PASS stalled photo history offers a bounded read-only retry');
  }
  // Source/crew mismatch preserves exact old bytes without applying them to a new source.
  for(const conflict of ['source','crew','expired','malformed']){

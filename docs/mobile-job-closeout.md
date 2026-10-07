@@ -480,9 +480,14 @@ require manual arrival/departure entry by the crew.
 Only **Submit checkout**, after final review, starts the handoff. Waypoint
 first saves the reviewed payload, original request UUID and selected photo IDs
 in an assignment-scoped phone outbox. If browser storage fails, submission is
-blocked before any write. It immediately returns the crew to Assignments while
-transferring photos to durable server storage and queuing one assignment-scoped
-closeout receipt. Queue acceptance performs no JunkWare read: the worker checks
+blocked before any write. It keeps the checkout open while transferring photos to durable server storage
+and queuing one assignment-scoped closeout receipt, then returns to Assignments
+only after server acceptance. Two photo transfers at a time overlap network
+latency; each retains its own original request ID and receipt check. Progress
+shows the server-acknowledged photo count beside Submit. An interrupted batch
+drains active transfers and preserves their acknowledgments before pausing;
+checkout is queued only after every selected photo is acknowledged. Photo
+history reads time out after 15 seconds with a retry and retained local photos. Queue acceptance performs no JunkWare read: the worker checks
 the original reviewed source-field fingerprint, phone authority and crew after
 photo verification and before any payment/closeout write. The page explicitly distinguishes **Sending / saved on this
 phone**, **Safe to close / server saved, verification pending**, **Verified**, and

@@ -107,10 +107,14 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
     if (handoff.phase === 'attention') return null;
     if (handoff.phase === 'transferring') {
       const photos = await dependencies.photos();
-      for (const [index, id] of handoff.photoIds.entries()) {
-        if (handoff.acceptedPhotos[id]) continue;
-        update({ message: `Securing photo ${index + 1} of ${handoff.photoIds.length} on the server.` });
+      const missing = handoff.photoIds.filter(id => !handoff.acceptedPhotos[id]);
+      let next = 0;
+      let failure: unknown;
+      const progress = () => update({ message: `Photos saved on server: ${handoff.photoIds.filter(id => handoff.acceptedPhotos[id]).length} of ${handoff.photoIds.length}. Keep Waypoint open while the rest transfer.` });
+      progress();
+      const transferPhoto = async (id: string) => {
         let receipt = await read(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(handoff.assignmentId)}&requestId=${encodeURIComponent(id)}&receiptOnly=1`);
+        if (failure) return;
         if (!receipt) {
           const photo = photos.find(row => row.requestId === id);
           if (!photo?.image) throw new NeedsAttention('A photo is missing from this phone and has no server receipt. Reopen the assignment to review the photos. No checkout was submitted.');
@@ -125,8 +129,21 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
         }
         if (!['pending', 'verified'].includes(receipt.status)) throw new NeedsAttention('A photo needs JunkWare verification. Reopen the assignment and check saved photos; do not upload it again.');
         update({ acceptedPhotos: { ...handoff.acceptedPhotos, [id]: receipt.requestId } });
-      }
-      update({ phase: 'submitting', payload: { ...handoff.payload, photoRequestIds: [...new Set(Object.values(handoff.acceptedPhotos))] },
+        progress();
+      };
+      // Two phone-to-server transfers overlap network latency. Provider writes
+      // retain their existing appointment lock. Drain both workers before
+      // returning so a late acknowledgment cannot overwrite a paused handoff.
+      const worker = async () => {
+        while (!failure && next < missing.length) {
+          const id = missing[next++];
+          try { await transferPhoto(id); }
+          catch (error) { if (!failure || error instanceof NeedsAttention) failure = error; }
+        }
+      };
+      await Promise.all([worker(), worker()]);
+      if (failure) throw failure;
+      update({ phase: 'submitting', payload: { ...handoff.payload, photoRequestIds: [...new Set(handoff.photoIds.map(id => handoff.acceptedPhotos[id]))] },
         message: 'Photos are secure. Saving the checkout on the server.' });
     }
     // The immutable body and UUID were persisted above. A lost response is
@@ -139,7 +156,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
     throw new Error('Checkout acceptance has not been confirmed.');
   } catch (error) {
     update({ ...(error instanceof NeedsAttention ? { phase: 'attention' } : {}), message: error instanceof NeedsAttention ? error.message
-      : 'Transfer paused · not yet safe to close. Your submission is saved on this phone. Keep this checkout open and submit again; the same request will continue.' });
+      : 'Transfer paused · not yet safe to close. Your submission is saved on this phone. Keep this checkout open and tap Check Saved Result to continue the same submission.' });
     return null;
   }
 }

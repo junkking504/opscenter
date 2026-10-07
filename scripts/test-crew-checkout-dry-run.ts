@@ -29,7 +29,9 @@ async function main(){
     assert.match(result.receipt.message,/No customer receipt/);
     assert.equal(matchingCrewCompletion(state,{...result.receipt,date,recordId:date+':appointment:900002',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}),false,'Dummy completion never advances the truck queue');
     assert.deepEqual(readCrewDispatch('Truck 6'),state);
-    await assert.rejects(submitCrewCloseout(request('/api/crew-jobs/closeout',body),body),/Live closeout writes are disabled/,'Direct service callers cannot bypass the route simulation');
+    // Inject service dependencies: this isolated policy fixture has no daily
+    // inspection or schedule. The live scope has its own regression coverage.
+    await assert.rejects(submitCrewCloseout(request('/api/crew-jobs/closeout',body),body,{...crewCloseoutDependencies}),/Live closeout writes are disabled/,'Direct service callers cannot bypass the route simulation');
     const photo=await photoPost(request('/api/crew-jobs/photos',{requestId:randomUUID(),assignmentId:current.assignmentId,category:'before',image:'data:image/jpeg;base64,/9j/'}));
     assert.equal(photo.status,409);assert.match((await photo.json()).error,/dry run/,'Photo endpoint rejects before source reads or uploads');
     fs.writeFileSync(process.env.OPS_CREW_CHECKOUT_DRY_RUN_FILE,'{invalid');assert.throws(()=>crewCheckoutDryRun(current,'Truck 6'),/could not be read/);

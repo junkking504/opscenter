@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { convoyTabs, convoyWarnings, duplicateRepair, recordedValue, sameTruck, truckCondition, truckLoadLabel } from '../desktop-ui/lib/convoy-presentation';
 import type { DesktopFleetTruck, FleetIssueRow } from '../desktop-ui/lib/people-fleet-contract';
 
-assert.deepEqual(convoyTabs.map(([key])=>key),['overview','maintenance','service','scores','reports']);
+assert.deepEqual(convoyTabs.map(([key])=>key),['overview','maintenance','service','reports','scores']);
 assert.equal(sameTruck('Truck# 4','Truck 4'),true);
 assert.equal(sameTruck('Truck 4','Truck 14'),false);
 assert.equal(sameTruck('Virtual Truck','Virtual Truck'),false);

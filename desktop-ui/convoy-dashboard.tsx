@@ -1,8 +1,10 @@
+import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
+import type { FleetMaintenanceRow } from './lib/people-fleet-contract';
 import { useState } from "react";
 import { ArrowRight, Truck, Search, Wrench, ChevronLeft } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { sameTruck, recordedValue, truckLoadLabel } from "./lib/convoy-presentation";
-import { fleetServiceTypes, mileageQuality, servicePlan } from "../lib/fleet-service-plan";
+import { fleetServiceTypes, servicePlan } from "../lib/fleet-service-plan";
 import type {
   DesktopFleetSnapshot,
   DesktopFleetTruck,
@@ -66,7 +68,8 @@ function plansFor(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
   );
 }
 function baselineNeeded(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
-  return plansFor(s, t, now).some((p) => p.status === "baseline" || p.status === "unset");
+  const configured = plansFor(s,t,now).filter(p=>p.interval?.enabled);
+  return !configured.length || configured.some(p=>p.status === "baseline");
 }
 function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: string }) {
   return <span className={`convoy-badge ${tone}`}>{children}</span>;
@@ -101,26 +104,30 @@ export function Mileage({
   truck,
   now,
   detail = false,
+  records = [],
 }: {
   truck: DesktopFleetTruck;
   now: number;
   detail?: boolean;
+  records?: FleetMaintenanceRow[];
 }) {
   const m = truck.mileage,
-    q = mileageQuality(m, now);
+    review = truckMileageReview(truck,records,now), q = review.quality;
   return (
     <div className="convoy-mileage">
       <strong>{q === "conflict" ? "Needs verification" : miles(m?.value)}</strong>
       <small>
         {q === "conflict"
-          ? m?.duplicate
+          ? review.belowService
+            ? `Below recorded service mileage: ${miles(review.latest?.odometer)}`
+            : m?.duplicate
             ? "Multiple LinxUp vehicle records"
             : `${miles(m?.value)} virtual / ${miles(m?.estimated)} estimated`
           : q === "unavailable"
             ? "No LinxUp mileage"
             : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
       </small>
-      {detail && <small>Reported {stamp(m?.reportedAt)}</small>}
+      {detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{miles(m?.value)} · {m?.source || "unavailable"} odometer. {review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer."}</small></details></>}
     </div>
   );
 }
@@ -130,7 +137,10 @@ export function ServiceIntervals({
   open,
   now,
 }: Pick<DashboardProps, "snapshot" | "open" | "now"> & { truck: DesktopFleetTruck }) {
-  const plans = plansFor(snapshot, truck, now);
+  const [showOptional,setShowOptional] = useState(false);
+  const allPlans = plansFor(snapshot, truck, now);
+  const tracked = allPlans.filter(p=>p.interval?.enabled || p.nextDate || p.nextMiles!==null);
+  const plans = showOptional ? allPlans : tracked.length ? tracked : allPlans.filter(p=>p.serviceType==="Oil change");
   return (
     <section className="convoy-dash-panel">
       <header>
@@ -154,6 +164,7 @@ export function ServiceIntervals({
           Add interval
         </Button>
       </header>
+      <p className="convoy-plan-hint">Showing tracked maintenance. Other service categories are optional.</p>
       <div className="convoy-table-wrap">
         <table className="convoy-data-table convoy-plan-table">
           <thead>
@@ -268,14 +279,15 @@ export function ServiceIntervals({
           </tbody>
         </table>
       </div>
+      <Button variant="ghost" aria-expanded={showOptional} onClick={()=>setShowOptional(!showOptional)}>{showOptional ? "Show tracked maintenance only" : "Other service history & optional intervals"}</Button>
     </section>
   );
 }
 function Coverage({ snapshot, trucks, now }: Pick<DashboardProps, "snapshot" | "trucks" | "now">) {
-  const count = (q: string) => trucks.filter((t) => mileageQuality(t.mileage, now) === q).length;
+  const count = (q: string) => trucks.filter((t) => truckMileageReview(t,snapshot.maintenance,now).quality === q).length;
   return (
-    <section className="convoy-coverage">
-      <h2>Fleet data coverage</h2>
+    <details className="convoy-coverage">
+      <summary>About fleet mileage</summary>
       <p>
         {count("current")} usable mileage readings
         <br />
@@ -291,18 +303,18 @@ function Coverage({ snapshot, trucks, now }: Pick<DashboardProps, "snapshot" | "
         Missing maintenance history stays unknown. Stale or conflicting mileage cannot establish
         current service status.
       </p>
-    </section>
+    </details>
   );
 }
 export function ConvoyDashboard(props: DashboardProps) {
-  const { snapshot, trucks, truckId, onTruck, open, onView, now } = props;
+  const { snapshot, trucks, truckId, onTruck, onView, now } = props;
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
   const repairs = snapshot.issues.filter((i) => i.status !== "resolved");
   const stop = trucks.filter((t) =>
     repairs.some((i) => sameTruck(i.truck, t.id) && i.severity === "out_of_service"),
   );
-  const review = trucks.filter((t) => mileageQuality(t.mileage, now) !== "current");
+  const review = trucks.filter((t) => truckMileageReview(t,snapshot.maintenance,now).quality !== "current");
   const baseline = trucks.filter((t) => baselineNeeded(snapshot, t, now));
   const scheduled = snapshot.maintenance.filter(
     (r) => r.status === "scheduled" && r.serviceDate < snapshot.date,
@@ -342,8 +354,8 @@ export function ConvoyDashboard(props: DashboardProps) {
         />
         <Metric
           value={baseline.length}
-          title="Service setup needed"
-          detail="Add last service + interval"
+          title="Maintenance setup"
+          detail="For configured maintenance rules"
           onClick={() => setFilter("baseline")}
         />
       </div>
@@ -357,7 +369,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                     mileage: "Mileage review",
                     stop: "Out of service",
                     repairs: "Trucks with repairs",
-                    baseline: "Service setup needed",
+                    baseline: "Maintenance setup",
                   }[filter]}
             </h2>
             <small>Latest LinxUp mileage</small>
@@ -386,7 +398,7 @@ export function ConvoyDashboard(props: DashboardProps) {
               <thead>
                 <tr>
                   <th>Truck</th>
-                  <th>LinxUp mileage</th>
+                  <th>Latest mileage</th>
                   <th>Reading status</th>
                   <th>Repairs / next action</th>
                 </tr>
@@ -394,7 +406,7 @@ export function ConvoyDashboard(props: DashboardProps) {
               <tbody>
                 {visible.map((t) => {
                   const issues = repairs.filter((i) => sameTruck(i.truck, t.id)),
-                    q = mileageQuality(t.mileage, now);
+                    review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
                   return (
                     <tr key={t.id}>
                       <td>
@@ -411,7 +423,9 @@ export function ConvoyDashboard(props: DashboardProps) {
                           </strong>
                           {q === "conflict" ? (
                             <small>
-                              {t.mileage?.duplicate
+                              {review.belowService
+                                ? `Last service: ${miles(review.latest?.odometer)}`
+                                : t.mileage?.duplicate
                                 ? "Multiple vehicle records"
                                 : `${Math.round(t.mileage?.value || 0).toLocaleString()} vs ${t.mileage?.estimated?.toLocaleString() || "unavailable"}`}
                             </small>
@@ -454,7 +468,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                           {issues.length
                             ? `${issues.some((i) => i.severity === "out_of_service") ? "Out of service · " : ""}${issues[0].title}${issues.length > 1 ? ` +${issues.length - 1}` : ""}`
                             : baselineNeeded(snapshot, t, now)
-                              ? "Add service baseline"
+                              ? "Set up maintenance"
                               : "View service plan"}
                           <ArrowRight size={14} />
                         </button>
@@ -530,10 +544,9 @@ export function ConvoyDashboard(props: DashboardProps) {
 }
 export function ConvoyService(props: DashboardProps) {
   const { snapshot, trucks, truckId, onTruck, open, now } = props;
-  const [chosen, setChosen] = useState("");
   const [scheduledFilter, setScheduledFilter] = useState(false);
   const scoped = trucks.filter((t) => !truckId || t.id === truckId),
-    truck = scoped.find((t) => t.id === chosen) || scoped[0];
+    truck = scoped.find((t) => t.id === truckId);
   const records = snapshot.maintenance.filter((r) => scoped.some((t) => sameTruck(r.truck, t.id)));
   const scheduled = records
     .filter((r) => r.status === "scheduled")
@@ -552,9 +565,10 @@ export function ConvoyService(props: DashboardProps) {
           onClick={() => setScheduledFilter(!scheduledFilter)}
         />
         <Metric
-          value={records.filter((r) => r.status === "completed").length}
-          title="Completed service records"
-          detail="Saved maintenance history"
+          value={historyEntries({maintenance:records,issues:[]}).filter(r=>r.status==="completed").length}
+          title="Completed visits"
+          detail="Open records & invoices"
+          onClick={()=>props.onView?.("reports")}
         />
         <Metric
           value={scoped.filter((t) => baselineNeeded(snapshot, t, now)).length}
@@ -588,9 +602,9 @@ export function ConvoyService(props: DashboardProps) {
                 )}
                 <Button
                   variant="outline"
-                  disabled={!truck || !snapshot.canWrite}
+                  disabled={!scoped.length || !snapshot.canWrite}
                   onClick={() =>
-                    truck && open({ kind: "maintenance", truck, initialStatus: "scheduled" })
+                    scoped.length && open({ kind: "maintenance", truck: truck || scoped[0], initialStatus: "scheduled" })
                   }
                 >
                   Schedule service
@@ -633,24 +647,9 @@ export function ConvoyService(props: DashboardProps) {
               </p>
             )}
           </section>
+          {!truckId&&<section className="convoy-dash-panel"><header><div><h2>Maintenance by truck</h2><p>Choose a truck to view its last service, next targets, and recurring intervals.</p></div></header><div className="convoy-maintenance-trucks">{scoped.map(t=>{const tracked=plansFor(snapshot,t,now).filter(p=>p.interval?.enabled);return <button key={t.id} onClick={()=>onTruck(t.id)}><strong>{label(t)}<ArrowRight size={15}/></strong>{tracked.length?tracked.map(plan=><span key={plan.serviceType}><b>{plan.serviceType}</b> · {plan.status==='baseline'?'Last service needed':plan.status==='unknown'?'Verify current mileage':plan.status==='due'?'Due now':plan.status==='soon'?'Due soon':plan.status==='current'?'Within targets':'Set a target'}<small>{plan.nextMiles!==null?`Next: ${miles(plan.nextMiles)}`:plan.nextDate?`Next: ${fleetDate(plan.nextDate)}`:'Add last completed service'}</small></span>):<span>No recurring intervals configured</span>}</button>;})}</div></section>}
           {truck && (
             <>
-              <label className="convoy-planner-truck">
-                Preventive maintenance for
-                <select
-                  value={truck.id}
-                  onChange={(e) => {
-                    setChosen(e.target.value);
-                    if (truckId) onTruck(e.target.value);
-                  }}
-                >
-                  {trucks.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {label(t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
               <ServiceIntervals snapshot={snapshot} truck={truck} open={open} now={now} />
             </>
           )}
@@ -667,7 +666,7 @@ export function ConvoyService(props: DashboardProps) {
               <>
                 <hr />
                 <h3>{label(truck)} · latest LinxUp mileage</h3>
-                <Mileage truck={truck} now={now} detail />
+                <Mileage truck={truck} now={now} detail records={snapshot.maintenance}/>
                 <p>Today’s mileage does not replace mileage at the time of a past service.</p>
                 <Button
                   className="convoy-primary"
@@ -693,6 +692,8 @@ export function ConvoyService(props: DashboardProps) {
 export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetTruck }) {
   const { snapshot, truck, open, onTruck, now } = props;
   const records = recordsFor(snapshot, truck).filter((r) => r.status === "completed");
+  const visits=historyEntries({maintenance:records,issues:[]});
+  const costs=historyCosts(visits);
   return (
     <div className="convoy-dashboard">
       <div className="convoy-detail-title">
@@ -713,7 +714,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
       </div>
       <div className="convoy-metrics">
         <div className="convoy-metric">
-          <Mileage truck={truck} now={now} />
+          <Mileage truck={truck} now={now} records={snapshot.maintenance}/>
           <span>Latest LinxUp mileage</span>
         </div>
         <Metric
@@ -722,24 +723,16 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
           detail={stamp(truck.mileage?.reportedAt)}
         />
         <Metric
-          value={records.length}
-          title="Completed services"
+          value={visits.length}
+          title="Completed visits"
           detail={records.length ? "Recorded service history" : "Last service not recorded"}
         />
         <Metric
           value={
-            records.length && records.every((r) => r.cost !== null)
-              ? records
-                  .reduce((sum, r) => sum + (r.cost || 0), 0)
-                  .toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                    maximumFractionDigits: 0,
-                  })
-              : "—"
+            costs.total===null?'—':costs.total.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})
           }
           title="Recorded service costs"
-          detail="Completed work · all available dates"
+          detail={costs.missing ? `${costs.missing} visits missing a total` : "Completed work · all dates"}
         />
       </div>
       <div className="convoy-dashboard-grid">

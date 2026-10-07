@@ -1,9 +1,9 @@
 # Convoy workspace
 
 The desktop Convoy uses truck cards and direct record controls. Its tabs are
-Trucks, Inspections & Repairs, Service, Driving, and History & Costs. Existing
+Overview, Repairs & inspections, Maintenance, Records & invoices, and Driving. Existing
 `fleetView` route values remain unchanged. A truck selected in the filter or
-opened in a record stays selected when switching tabs; All trucks clears the
+chosen explicitly stays selected when switching tabs; All trucks clears the
 filter. The filter never silently falls back to a different truck.
 
 Trucks combines recorded condition, inspection status, physical load and GPS
@@ -115,3 +115,50 @@ mileage, source precedence and conflicts, month-end arithmetic, time/mileage due
 status, null/zero handling, schedule separation, interval persistence, replay,
 stale-version rejection, input validation and corrupt-store protection. Existing
 fleet action, inspection and desktop receipt tests remain applicable.
+
+
+## Teaching Convoy: October 7 usability update
+
+The permanent **How to use Convoy** guide explains five tasks: check fleet,
+handle repairs, plan maintenance, find past work, and review driving. Each view
+has a short purpose statement. Viewing day governs inspections/driving/planning;
+it does not filter the history list. Existing route keys are unchanged.
+
+**Records & invoices** opens all recorded dates across the selected trucks,
+with text search (work, vendor, VIN/source notes and invoice number), record type,
+service category, and inclusive From/Through dates. Empty results offer a reset.
+CSV exports contain the currently filtered records, with unknown costs blank;
+spreadsheet formula prefixes are escaped. Monthly usage/cost summaries and fuel
+charts remain in labeled expandable sections below the record list.
+
+Invoice summaries and their explicitly linked categories display as one visit.
+Only `Linked invoice record: <recordId>` links to a matching invoice summary on
+the same truck, status and service date collapse categories. Orphans and mismatched
+records stay visible. Invoice totals count once, even when categories have no
+allocated cost. Known completed costs and the number of missing totals are shown
+separately; zero remains a recorded value. No records are merged or rewritten.
+Opening a record does not silently change the truck filter. Service details show
+work, dates, mileage, shop, linked categories and authenticated invoice photos.
+Editing is explicit; all existing action/version/receipt rules still apply.
+Repair history opens a readable detail; the active repair board retains direct
+Update repair. Report a problem has an explicit truck selector. Service work and
+notes use multiline fields. The dialog keyboard trap includes visible disclosures
+and returns focus to the original opener after closing.
+
+Maintenance starts with all trucks and their configured targets. Selecting a truck
+opens its recurring plan. The primary plan shows configured rules and explicit
+targets; other service categories are optional, behind an expansion. Setup counts
+mean no enabled rules or missing baselines for enabled rules, not missing history
+for every possible service category. The oil interval settings are unchanged.
+Completed visit counts use grouped invoices rather than every category entry.
+
+Overview mileage also compares the latest reading to completed service mileage.
+A lower reading displays Needs verification with the recorded service mileage.
+Original source values remain in the mileage detail. This does not change LinxUp
+or substitute an estimated odometer. Existing service calculations already reject
+readings below their completed-service baseline. Records/photos remain in the
+existing private stores; no collectors, paid services, or polling were added.
+
+Validation includes `scripts/test-convoy-records.ts` (grouping, orphan/mismatched
+links, filters, partial costs, null/zero, and mileage evidence), existing Convoy
+and action tests, both type checks, desktop build, and synthetic UI acceptance.

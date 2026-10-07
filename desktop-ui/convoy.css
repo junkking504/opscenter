@@ -254,3 +254,85 @@ button.convoy-metric:hover {border-color:#255e4c;background:#f9fcfa}
  .convoy-overview-mileage{white-space:normal}
  .convoy-truck-link{font-size:15px!important}
 }
+
+/* Task-oriented guidance and readable, all-date record browsing. */
+.convoy-orientation {display:grid;gap:12px}
+.convoy-orientation > p {color:#4b5e55;font-size:14px;line-height:1.6;margin:0}
+.convoy-guide {background:#f7faf8;border:1px solid #cfdbd3;border-radius:8px;padding:12px 16px}
+.convoy-guide > summary {display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:#255e4c;min-height:24px}
+.convoy-guide > summary::after {content:'+';margin-left:auto;font-size:18px}
+.convoy-guide[open] > summary::after {content:'−'}
+.convoy-guide-steps {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0}
+.convoy-guide-steps button {padding:14px;text-align:left;border:1px solid #d7dfda;border-radius:6px;background:white;display:grid;gap:8px;line-height:1.5}
+.convoy-guide-steps strong {display:flex;gap:8px;justify-content:space-between;color:#255e4c}
+.convoy-guide-steps span,.convoy-guide > p {font-size:13px;color:#4b5e55;line-height:1.6}
+.convoy-guide > p + p {margin-top:8px}
+.convoy-records {border:1px solid var(--convoy-line);border-radius:9px;background:white;min-width:0;overflow:hidden}
+.convoy-records-heading {display:flex;gap:16px;align-items:flex-start;justify-content:space-between;padding:22px 20px 16px}
+.convoy-records h2 {font-size:19px;font-weight:650}
+.convoy-records-heading p {color:#52625a;font-size:13px;margin-top:5px}
+.convoy-record-filters {display:flex;flex-wrap:wrap;gap:12px;padding:0 20px 16px;align-items:end}
+.convoy-record-filters label {display:grid;gap:6px;font-size:12px;font-weight:600;min-width:130px;flex:1}
+.convoy-record-filters .convoy-record-search {flex:3;min-width:230px}
+.convoy-record-filters :is(input,select),.convoy-record-search > div {border:1px solid #c9d2cc;border-radius:6px;background:#fff;color:#23352b;min-height:40px;padding:8px 10px;width:100%;min-width:0;font-size:13px;font-weight:400}
+.convoy-record-search > div {display:flex;align-items:center;gap:8px;padding:0 10px}
+.convoy-record-search > div > input {border:0;padding:8px 0}
+.convoy-record-summary {display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px 20px;background:#f1f6f3;font-size:13px;line-height:1.6}
+.convoy-record-note {padding:10px 20px;color:#58685f;font-size:12px;border-bottom:1px solid #e4ebe6}
+.convoy-history-card {display:grid;grid-template-columns:125px minmax(0,1fr) 150px;gap:20px;padding:20px;border-bottom:1px solid #e4ebe6;line-height:1.6}
+.convoy-history-card:last-child {border-bottom:0}
+.convoy-history-date {display:flex;flex-direction:column;gap:4px;font-size:13px}
+.convoy-history-date > span {color:#255e4c;font-weight:600}
+.convoy-history-tags {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:7px;font-size:11px;color:#53675c}
+.convoy-history-tags > span {display:inline-flex;align-items:center;gap:4px}
+.convoy-history-work {min-width:0}
+.convoy-history-work h3 {font-size:16px;font-weight:650;margin:0}
+.convoy-history-work > small {display:block;color:#52625a;font-size:12px;margin-top:7px}
+.convoy-work-preview {white-space:pre-line;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;color:#405449;margin-top:4px;overflow-wrap:anywhere}
+.convoy-category-tags {display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.convoy-category-tags > span {font-size:11px;background:#f0f3f1;color:#4c6054;padding:2px 7px;border-radius:4px}
+.convoy-history-action {display:flex;align-items:flex-end;flex-direction:column;gap:5px}
+.convoy-history-action > strong {font-variant-numeric:tabular-nums;font-size:16px}
+.convoy-history-action > small {font-size:11px;color:#576b5e}
+.convoy-history-action > button {margin-top:8px}
+.convoy-record-detail {display:grid;gap:20px;font-size:14px;line-height:1.6}
+.convoy-record-detail :is(h3,h4) {font-weight:650;margin:0}
+.convoy-record-detail section > p {color:#52625a;font-size:13px;margin:6px 0 12px}
+.convoy-detail-facts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:18px;background:#f1f6f3;border-radius:8px}
+.convoy-detail-facts dt {font-size:12px;color:#52625a}
+.convoy-detail-facts dd {font-size:14px;font-weight:600;margin:3px 0 0;overflow-wrap:anywhere}
+.convoy-full-text {white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+.convoy-linked-services {display:flex;flex-wrap:wrap;gap:8px}
+.convoy-linked-services button {display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid #c9d7ce;border-radius:6px;color:#255e4c;background:#f9fcfa}
+.convoy-invoice-photos {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.convoy-invoice-photos a {display:flex;flex-direction:column;gap:8px;border:1px solid #cad5ce;border-radius:8px;padding:8px;font-size:12px;color:#255e4c;text-align:center}
+.convoy-invoice-photos img {width:100%;height:220px;object-fit:contain;background:#f0f2ef;border-radius:4px}
+.convoy-monthly-report {border:1px solid #cfd9d2;border-radius:8px;background:white;padding:16px;min-width:0}
+.convoy-monthly-report > summary {font-weight:600;cursor:pointer;color:#255e4c;min-height:28px}
+.convoy-monthly-report[open] > summary {margin-bottom:16px}
+.convoy-maintenance-trucks {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 20px 20px}
+.convoy-maintenance-trucks button {display:grid;gap:8px;border:1px solid #d3ddd6;border-radius:7px;padding:16px;text-align:left;background:#fcfdfc}
+.convoy-maintenance-trucks strong {display:flex;align-items:center;justify-content:space-between;color:#255e4c}
+.convoy-maintenance-trucks span {font-size:12px;line-height:1.7}
+.convoy-maintenance-trucks small {display:block}
+.convoy-plan-hint {padding:0 20px 16px;color:#52625a;font-size:12px}
+.convoy-coverage > summary {font-weight:600;cursor:pointer;min-height:26px}
+.convoy-records.compact .convoy-history-card {grid-template-columns:1fr 140px;gap:12px}
+.convoy-records.compact .convoy-history-date {grid-column:1/-1;flex-direction:row;gap:10px}
+.convoy-records.compact .convoy-records-heading {flex-wrap:wrap}
+.convoy-workspace :is(button,a,input,select,summary):focus-visible {outline:2px solid #237858;outline-offset:3px}
+@media(max-width:760px) {
+ .convoy-workspace .convoy-top-actions {flex-wrap:wrap;gap:10px}
+ .convoy-top-actions > .convoy-actions {width:100%;justify-content:flex-start}
+ .convoy-history-card,.convoy-records.compact .convoy-history-card {grid-template-columns:1fr;gap:10px;padding:16px}
+ .convoy-history-date {flex-direction:row;justify-content:space-between;grid-column:auto}
+ .convoy-history-action {flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px;justify-content:space-between}
+ .convoy-history-action > button {margin:0}
+ .convoy-history-action > small {display:none}
+ .convoy-records-heading {padding:18px 16px;flex-wrap:wrap}
+ .convoy-record-filters {padding:0 16px 16px}
+ .convoy-maintenance-trucks {grid-template-columns:1fr}
+ .convoy-record-summary {padding:12px 16px;gap:8px}
+ .convoy-record-filters .convoy-record-search {min-width:100%}
+ .convoy-invoice-photos img {height:180px}
+}

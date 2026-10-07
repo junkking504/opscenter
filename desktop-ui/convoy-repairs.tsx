@@ -36,7 +36,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
       <h3>{issue.title}</h3>
       {issue.description && <p className="convoy-repair-description">{issue.description}</p>}
       {duplicateRepair(issue, snapshot.issues) && <small>Similar repair also recorded. Check both before closing.</small>}
-      <footer><small>Updated {updated(issue.updatedAt)}</small><Button variant="outline" size="sm" onClick={() => open({ kind: 'issue', truck, issue })}>{issue.status === 'resolved' ? 'View repair' : 'Update repair'}<ArrowRight size={14}/></Button></footer>
+      <footer><small>Updated {updated(issue.updatedAt)}</small><Button variant="outline" size="sm" onClick={() => open({ kind: 'issue', truck, issue, mode: issue.status === 'resolved' ? undefined : 'edit' })}>{issue.status === 'resolved' ? 'View repair' : 'Update repair'}<ArrowRight size={14}/></Button></footer>
     </article>;
   }
 

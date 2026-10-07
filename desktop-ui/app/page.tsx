@@ -4314,7 +4314,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{activeNav==='Fleet'&&live?(fleetView==='overview'?'Fleet overview':fleetView==='service'?'Service planner':fleetView==='maintenance'?'Inspections & Repairs':fleetView==='scores'?'Driving':'History & Costs'):workspaceLabel(activeNav)}</h1>
+              <h1>{activeNav==='Fleet'&&live?(fleetView==='overview'?'Fleet overview':fleetView==='service'?'Maintenance planner':fleetView==='maintenance'?'Repairs & inspections':fleetView==='scores'?'Driving':'Records & invoices'):workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'

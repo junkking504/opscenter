@@ -219,3 +219,8 @@ no new polling, paid request, collector or business write is added.
 Validation: `scripts/test-convoy-gauges.ts`, existing inspection/load sequencing
 and service-plan regressions, both TypeScript checks, desktop and production builds,
 synthetic dashboard/inspection/load-save tests, and authenticated live acceptance.
+
+A GPS-advanced estimate retains its reconciled visual inspection baseline. If that
+baseline alone had already crossed the target after the last service, the service
+plan preserves Due now and its original reading timestamp/overdue amount. The GPS
+estimate cannot clear a proved overdue state or establish positive remaining miles.

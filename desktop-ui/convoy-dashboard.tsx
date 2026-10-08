@@ -1,4 +1,4 @@
-import { ConvoyGauge, TruckLevelGauges } from './convoy-gauges';
+import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
 import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
 import type { FleetMaintenanceRow } from './lib/people-fleet-contract';
@@ -73,7 +73,7 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
   const plans = plansFor(snapshot, truck, now).filter(p => p.interval?.enabled || p.nextDate || p.nextMiles !== null);
   const rank: Record<string, number> = {due:0,soon:1,unknown:2,baseline:3,unset:4,current:5};
   const plan = [...plans].sort((a,b) => rank[a.status]-rank[b.status] || (serviceGauge(b) ?? -1)-(serviceGauge(a) ?? -1))[0];
-  const detail = plan ? [plan.serviceType, plan.milesRemaining !== null ? `${Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi ${plan.milesRemaining <= 0 ? 'past target' : 'remaining'}` : plan.nextMiles !== null ? 'Mileage needs verification' : '', plan.daysRemaining !== null ? `${Math.abs(plan.daysRemaining)} days ${plan.daysRemaining <= 0 ? 'past target' : 'remaining'}` : ''].filter(Boolean).join(' · ') : 'Add completed service and a maintenance interval';
+  const detail = plan ? [plan.serviceType, plan.milesRemaining !== null ? `${Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi ${plan.milesRemaining <= 0 ? 'past target' : 'remaining'}` : plan.nextMiles !== null ? 'Mileage needs verification' : '', plan.daysRemaining !== null ? `${Math.abs(plan.daysRemaining)} days ${plan.daysRemaining <= 0 ? 'past target' : 'remaining'}` : '', plan.milesRemaining !== null && plan.mileageAsOf ? `Reading ${gaugeTime(plan.mileageAsOf)}` : ''].filter(Boolean).join(' · ') : 'Add completed service and a maintenance interval';
   const status = plan ? ({due:'Due now',soon:'Due soon',unknown:'Verify mileage',baseline:'Set baseline',unset:'Set interval',current:'On track'}[plan.status]) : 'Set up service';
   return <article className="convoy-truck-dashboard">
     <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>

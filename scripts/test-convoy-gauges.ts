@@ -26,3 +26,14 @@ assert.equal(serviceGauge(plan({...mileage,conflicting:true})),null);
 assert.equal(serviceGauge(servicePlan('Oil change',interval,[],mileage,date,now)),null);
 assert.equal(serviceGauge(servicePlan('Oil change',{...interval,miles:null,months:1},[record],undefined,'2026-10-16',now)),48);
 console.log('PASS Convoy gauges: fill-up policy, latest evidence, zero/unknown, date scope, service progress and unavailable mileage');
+
+const gpsReading={...mileage,source:'estimated',value:109000,inspectionBaseline:{value:106000,reportedAt:'2026-10-06T12:00:00Z'}};
+const overdue=servicePlan('Oil change',interval,[record],gpsReading,date,now);
+assert.equal(overdue.status,'due');
+assert.equal(overdue.milesRemaining,-1000); // visual 106,000, not estimated 109,000
+assert.equal(overdue.mileageAsOf,'2026-10-06T12:00:00Z');
+assert.equal(serviceGauge(overdue),100);
+assert.equal(servicePlan('Oil change',interval,[record],{...gpsReading,inspectionBaseline:{value:104000,reportedAt:'2026-10-06T12:00:00Z'}},date,now).milesRemaining,null);
+assert.equal(servicePlan('Oil change',interval,[record],{...gpsReading,conflicting:true},date,now).status,'unknown');
+assert.equal(servicePlan('Oil change',interval,[record],{...gpsReading,inspectionBaseline:{value:106000,reportedAt:'2026-09-30T12:00:00Z'}},date,now).status,'unknown');
+console.log('PASS: GPS estimates preserve overdue visual baseline evidence without establishing positive remaining miles');

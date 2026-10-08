@@ -706,3 +706,14 @@ record identifiers and supported subviews are preserved. The guard runs after
 host, authentication and role checks and carries refreshed session cookies.
 APIs, phone origins and specialized record pages retain their existing boundaries.
 `/fleet-inspections` opens the report inside the current Convoy shell.
+
+## Map and truck schedule widths
+
+On Control’s desktop board (above 900px), drag the divider between the map
+and Truck Schedule to adjust their widths. The divider also accepts arrow keys
+(Shift for larger steps), Home or double-click to reset, and Escape to cancel
+an active drag. **Swap sizes** exchanges the current widths; **Reset layout**
+restores the original responsive proportions. Each panel keeps a usable minimum
+width. The current layout remains the default on a fresh page load; adjustments
+last within the mounted workspace and do not change appointments or source data.
+Mobile’s stacked layout and Command’s standalone map retain their layouts.

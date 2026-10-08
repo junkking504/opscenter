@@ -7,7 +7,7 @@ import './schedule-stop-order.css';
 
 export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChange}: {snapshot: ScheduleSnapshot; truck: string | null; selectedAppointmentId: string | null; busy: boolean; saved: (snapshot: ScheduleSnapshot)=>void; onBusyChange: (busy: boolean)=>void}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const groups = orderGroups(snapshot.appointments,'remaining').filter(group=>truck && stopTruck(group[0].truck) === stopTruck(truck));
+  const groups = orderGroups(snapshot.appointments,'remaining').sort((a,b)=>stopTruck(a[0].truck).localeCompare(stopTruck(b[0].truck),undefined,{numeric:true}));
   const [group,setGroup] = useState<ScheduleAppointment[] | null>(null);
   const [ids,setIds] = useState<string[]>([]);
   const [legs,setLegs] = useState<ScheduleRouteLeg[]>([]);
@@ -24,6 +24,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
   const stale = Boolean(group && (!current || orderSourceKey(current,'remaining') !== sourceKey));
   const draftKey = JSON.stringify(ids);
   const changed = Boolean(group && (draftKey !== JSON.stringify(group.map(job=>job.recordId)) || group.some(job=>job.visitOrder === undefined)));
+  const moved = Boolean(group && draftKey !== JSON.stringify(group.map(job=>job.recordId)));
   const choose = (next: ScheduleAppointment[]) => { if (saving.current) return; cancelPreview(); active.current?.abort(); setGroup(next); setIds(next.map(job=>job.recordId)); setLegs([]); setMessage(''); setRefresh(n=>n+1); };
   const close = () => { if (saving.current) return; cancelPreview(); active.current?.abort(); dialog.current?.close(); setGroup(null); setWorking(''); };
   const request = async (action: 'preview'|'nearest'|'save') => {
@@ -60,11 +61,13 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
   },[sourceKey,draftKey,stale,refresh]);
   useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
   return <>
-    <button type="button" className="schedule-stop-order-trigger" disabled={busy || !truck} title={truckDisplayText(truck ? `Order stops for ${truck}` : "Select a truck or an assigned appointment first")} onClick={()=>{if(groups[0])choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
+    <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Stop Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
-      <header><h2 id="stop-order-title">{truckDisplayText(truck)} · Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
-      <p>Set the visit order for remaining appointments, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
-      {!group && <><p>No remaining appointments to reorder on {truckDisplayText(truck)}.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
+      <header><h2 id="stop-order-title">Truck Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
+      <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
+      {groups.length>0 && <label>Truck<select aria-label="Truck to reorder" value={groupKey} disabled={working === 'save' || moved} onChange={event=>{const next=groups.find(g=>orderGroupKey(g[0],'remaining')===event.target.value);if(next)choose(next);}}>{groups.map(g=><option key={orderGroupKey(g[0],'remaining')} value={orderGroupKey(g[0],'remaining')}>{truckDisplayText(g[0].truck)} · {g.length} assigned {g.length===1?'stop':'stops'}</option>)}</select></label>}
+      {moved && <p>Save this truck’s order before choosing another truck, or <button type="button" disabled={working === 'save'} onClick={()=>{if(group)choose(group);}}>Reset changes</button>.</p>}
+      {!group && <><p>No assigned open appointments to reorder for this day.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
       {group && <>
         <p><strong>{group.length} remaining stops</strong> · Completed and canceled appointments stay in history.</p>
         {stale && <p role="alert">The schedule or saved order changed. <button disabled={working === 'save'} onClick={()=>{if(current)choose(current);else close();}}>Refresh stops</button></p>}

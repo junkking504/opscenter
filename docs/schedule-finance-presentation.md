@@ -239,6 +239,11 @@ popover. Booked positions, GPS timestamps and appointment lane packing stay
 unchanged. Travel remains an estimated road journey, not observed driving or an
 available service buffer.
 
+The always-available **Stop Order** button beside **Crew roster** opens a truck
+selector with assigned-stop counts; no map selection is required. It uses the
+whole day snapshot, independent of search or territory filters. Save or reset a
+changed draft before switching trucks.
+
 Stop Order operates on all remaining appointments for the selected truck and
 operating date, across time windows and including untimed stops. Up/down buttons
 set a local `visitOrder`; booked times and truck assignments are never written to
@@ -447,10 +452,9 @@ Appointment alerts show pertinent note details: removal items, access constraint
 
 ## Saved order within a time slot
 
-Truck Schedule's **Stop Order** control edits one truck and exact booked window.
-On mobile, tapping a truck or appointment establishes the same selection used
-by desktop Stop Order while still opening its existing details. Closing details
-retains the selection so Stop Order is available. Reorder arrows have 44px touch
+Control's **Stop Order** control edits all remaining assigned stops across the
+truck's booked windows. The truck selector is always available on desktop and
+mobile; a selected truck or appointment only supplies its initial truck. Reorder arrows have 44px touch
 targets. Selecting or viewing details never saves an order; Save Order remains
 the explicit commit.
 

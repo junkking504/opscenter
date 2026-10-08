@@ -9,7 +9,7 @@
 .accounting-review,.accounting-notice,.accounting-receipt { margin:12px 14px; padding:14px; border:1px solid #d7bc78; border-radius:8px; background:#fffaf0; font-size:12px; }
 .accounting-review h4 { margin:0 0 8px; font-size:15px; }
 .accounting-review ul { margin:10px 0; max-height:220px; overflow:auto; }
-.accounting-review .primary { background:#b81034; color:white; }
+.capital-accounting .capital-button-primary:disabled { background:#626b66; border-color:#626b66; color:#fff; opacity:1; }
 .accounting-receipt { border-color:#a6bdb0; background:#f2f7f3; }
 .accounting-receipt small { display:block; }
 .accounting-table { min-width:1000px; }

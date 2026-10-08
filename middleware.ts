@@ -1,3 +1,4 @@
+import { currentWorkspaceUrl } from './lib/legacy-workspace-redirect';
 import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_LOGIN_PATH,
@@ -419,7 +420,18 @@ function withSecurityHeaders(request: NextRequest, response: NextResponse): Next
 }
 
 export async function middleware(request: NextRequest) {
-  return withSecurityHeaders(request, await routeRequest(request));
+  let response=await routeRequest(request);
+  // Redirect only after the existing host, authentication and role checks allow a page.
+  if (['GET','HEAD'].includes(request.method) && response.headers.get('x-middleware-next')==='1') {
+    const destination=currentWorkspaceUrl(new URL(request.url));
+    if(destination) {
+      const redirected=NextResponse.redirect(destination);
+      for(const cookie of response.cookies.getAll())redirected.cookies.set(cookie);
+      redirected.headers.set('Cache-Control','no-store, max-age=0');
+      response=redirected;
+    }
+  }
+  return withSecurityHeaders(request,response);
 }
 
 export const config = {

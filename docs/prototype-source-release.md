@@ -697,3 +697,12 @@ Fixture validation: `node scripts/test-mobile-schedule-drag-browser.mjs` and
 are mocked in memory. Chromium exercises native touch dragging; WebKit exercises
 pointer dragging and native taps. These checks do not constitute physical-iPhone
 or authenticated production acceptance.
+
+## Retired workspace route guard
+
+Authenticated page visits to `/`, `/jobs`, `/fleet`, `/crew`, `/finance`, and
+`/marketing` redirect to their current `/desktop?data=live` workspace. Dates,
+record identifiers and supported subviews are preserved. The guard runs after
+host, authentication and role checks and carries refreshed session cookies.
+APIs, phone origins and specialized record pages retain their existing boundaries.
+`/fleet-inspections` opens the report inside the current Convoy shell.

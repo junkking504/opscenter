@@ -23,7 +23,7 @@ assert.equal(select([report('11111',latest.startedAt),prior]).value,null);
 assert.equal(select([report('1000000',latest.startedAt),prior]).conflicting,true);
 assert.equal(select([report('132700',latest.startedAt),prior]).conflicting,true);
 assert.equal(select([report('140000','2026-10-08T01:00:00Z'),prior]).conflicting,true);
-assert.equal(reconcileFleetMileage('Truck 2',tracking,[latest],[],now).conflicting,true);
+assert.equal(reconcileFleetMileage('Truck 2',tracking,[latest],[],now).value,132782,'A first visual inspection is a valid baseline even when digital tracking disagrees');
 assert.equal(reconcileFleetMileage('Truck 2',tracking,[],[],now),tracking);
 assert.equal(reconcileFleetMileage('Truck 3',tracking,[latest],[],now),tracking);
 assert.equal(mileageQuality(select([report('0',latest.startedAt),prior]),now),'conflict');

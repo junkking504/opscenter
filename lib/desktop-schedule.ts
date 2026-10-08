@@ -157,7 +157,7 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
       return {
         truck, fromAppointmentId: from.recordId, toAppointmentId: to.recordId,
         fromJk: from.jkNumber, toJk: to.jkNumber,
-        gapMinutes: to.routeAfterAppointmentId === from.appointmentId || from.visitOrder !== undefined || to.visitOrder !== undefined || stopIsFinished(from) || stopIsFinished(to)
+        gapMinutes: Boolean(to.routeAfterAppointmentId && to.routeAfterAppointmentId === from.appointmentId) || from.visitOrder !== undefined || to.visitOrder !== undefined || stopIsFinished(from) || stopIsFinished(to)
           ? null
           : to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
         travelMinutes: null, miles: null, bufferMinutes: null, source: 'unavailable' as const,
@@ -250,7 +250,8 @@ export async function readDesktopClosestTrucks(date: string, recordId: string) {
 }
 
 export async function readDesktopScheduleRouting(date: string, recordId: string | null) {
-  const snapshot = await readVerifiedDesktopSchedule(date);
+  // Use already verified pins; unrelated address resolution must not hold up routes.
+  const snapshot = readDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
   const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));

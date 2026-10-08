@@ -16,12 +16,12 @@ export function reconcileFleetMileage(truck: string, tracking: FleetMileage, rep
   if (!/^\d{1,8}$/.test(latest.odometer) || value <= 0 || !Number.isFinite(at) || at > now || !Number.isFinite(Date.parse(latest.receivedAt)) || Date.parse(latest.receivedAt) > now) reason = 'Inspection mileage or date needs correction.';
   else if (service && value < service.odometer!) reason = 'Inspection mileage is below recorded service mileage.';
   else if (previous && (!/^\d{1,8}$/.test(previous.odometer) || Number(previous.odometer) <= 0 || !Number.isFinite(Date.parse(previous.startedAt)) || !plausible(value, Number(previous.odometer), at - Date.parse(previous.startedAt)))) reason = 'Inspection readings disagree. Check the physical odometer.';
-  else if (!previous && !service) reason = 'A second reading or service mileage is needed to check this inspection.';
+
   else if (!previous && service && !plausible(value, service.odometer!, at - Date.parse(service.serviceDate + 'T00:00:00Z'))) reason = 'Inspection mileage does not reconcile with service history.';
   return { value: reason ? null : value, source: 'inspection', reportedAt: latest.startedAt, retrievedAt: latest.receivedAt, estimated: null, conflicting: Boolean(reason), duplicate: false,
     inspectionDate: latest.inspectionDate,
     inspectionHref: `/fleet-inspections?date=${latest.inspectionDate}&report=${encodeURIComponent(`${latest.deviceId}:${latest.requestId}`)}`,
-    note: reason || 'Last reported inspection mileage; not a live odometer.',
+    note: reason || 'Visual inspection odometer is the baseline; LinxUp digital odometer is reference only.',
     tracking: { value: tracking.value, source: tracking.source, reportedAt: tracking.reportedAt },
   };
 }

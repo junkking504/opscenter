@@ -10,8 +10,11 @@ export function osmStreetJson(path:string):Promise<unknown> {
   if(cached && cached.until>Date.now())return Promise.resolve(cached.value);
   const existing=pending.get(key);if(existing)return existing;
   if(pending.size>=12)return Promise.resolve(null);
+  const deadline=Date.now()+20_000;
   const request=queue.then(async()=>{
+    if(Date.now()>=deadline)return null;
     await new Promise(resolve=>setTimeout(resolve,Math.max(0,nextStart-Date.now())));
+    if(Date.now()>=deadline)return null;
     nextStart=Date.now()+1100;
     let value:unknown=null;
     try {
@@ -19,7 +22,7 @@ export function osmStreetJson(path:string):Promise<unknown> {
         headers:{'User-Agent':'OpsCenter/1.0 (https://ops.junk-king.app)'},
         // Road tables can take longer than an individual route even for a few
         // stops. Keep the request bounded without discarding valid tables at 5s.
-        signal:AbortSignal.timeout(path.startsWith('table/')?15000:5000),cache:'no-store',redirect:'error',
+        signal:AbortSignal.timeout(Math.max(1,Math.min(deadline-Date.now(),path.startsWith('table/')?15000:5000))),cache:'no-store',redirect:'error',
       });
       if(response.ok)value=await response.json();
     } catch { /* Keep unavailable road sections disconnected. */ }

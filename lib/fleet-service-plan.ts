@@ -20,6 +20,9 @@ export type FleetServiceInterval = {
   updatedAt: string;
 };
 export type FleetMileage = {
+  gpsIncomplete?: boolean;
+  gpsMiles?: number;
+  inspectionBaseline?: {value:number;reportedAt:string};
   value: number | null;
   source: string;
   reportedAt: string;

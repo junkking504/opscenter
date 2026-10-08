@@ -268,3 +268,24 @@ Inspection report links, including existing `/fleet-inspections` bookmarks and
 receipt links, open inside the current desktop Convoy shell. The date and exact
 report reference survive the redirect; the full read-only report, photos and
 print action remain available beside the current workspace navigation.
+
+## Visual odometer baseline and GPS mileage
+
+The latest valid visual inspection reading takes precedence over a conflicting
+LinxUp digital/virtual odometer. A first visual reading establishes a baseline
+without requiring a second reading. Invalid values or conflicts with earlier
+visual readings/service history still require review.
+
+Convoy recomputes estimated mileage from that baseline plus recorded LinxUp
+travel after the inspection start. Completed trips count once, overlapping GPS
+segments are excluded, and recent GPS segments cover travel not yet represented
+by a completed trip. New visual readings reset the baseline. Impossible jumps,
+long moving gaps and missing days are not filled in; the display flags GPS gaps
+and may understate mileage. The calculation reads existing local telemetry (up
+to 90 days) and adds no external polling. The digital odometer remains visible
+as reference, and the original inspection stays immutable.
+
+Route displays retain their last completed estimate while source refreshes are
+coalesced. Routing uses already verified pins, with a bounded shared-provider
+queue. Failed lookups expose retry; partial truck comparisons disclose missing
+GPS/road estimates and the selected truck's actual GPS timestamp.

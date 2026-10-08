@@ -120,7 +120,7 @@ export function truckInspectionDates(): string[] {
 // Manager corrections overlay immutable submissions; retries still compare the original answers.
 type TruckCorrection = {deviceId:string;requestId:string;originalTruck:string;truck:string;actor:string;reason:string;correctedAt:string};
 export function applyInspectionTruckCorrection<T extends {deviceId:string;requestId:string;truck:string}>(report:T):T & {truckCorrection?:TruckCorrection} {
-  const correction = read<TruckCorrection>(path.join(root(),'truck-corrections',path.basename(reportFile(report.deviceId,report.requestId))));
+  const correction = read<TruckCorrection>(path.join(root(),'truck-corrections',`${hash(`${report.deviceId}:${report.requestId}`)}.json`));
   if (!correction) return report;
   if (correction.deviceId!==report.deviceId || correction.requestId!==report.requestId || correction.originalTruck!==report.truck || !JUNKWARE_DISPATCH_TRUCKS.includes(correction.truck) || !correction.actor || !correction.reason || !Number.isFinite(Date.parse(correction.correctedAt))) throw new Error('Inspection truck correction needs recovery.');
   return {...report,truck:correction.truck,truckCorrection:correction};

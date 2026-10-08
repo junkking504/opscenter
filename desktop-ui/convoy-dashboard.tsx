@@ -127,7 +127,7 @@ export function Mileage({
             : `${miles(m?.value)} virtual / ${miles(m?.estimated)} estimated`
           : q === "unavailable"
             ? "No mileage reading"
-            : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
+            : m?.inspectionBaseline ? `Visual reading + GPS travel${m.gpsIncomplete ? " · GPS gaps" : ""}` : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
       </small>
       {m?.inspectionHref && <a href={m.inspectionHref} target="_blank" rel="noreferrer">View inspection</a>}{detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{m?.note || (review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer.")}</small>{m?.tracking && <small>Original tracking feed: {miles(m.tracking.value)} · {m.tracking.source} · {stamp(m.tracking.reportedAt)}</small>}</details></>}
     </div>
@@ -445,7 +445,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                               stale: t.mileage?.source === "inspection" ? "Older inspection" : "Stale",
                               conflict: "Verify reading",
                               unavailable: "Unavailable",
-                              estimated: "Estimated",
+                              estimated: t.mileage?.gpsIncomplete ? "Estimated · GPS gaps" : "Estimated",
                             }[q]
                           }
                         </Badge>

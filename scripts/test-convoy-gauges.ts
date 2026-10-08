@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { fleetFuelLevel, inspectionLevelPercent, type FuelEvent } from '../lib/fleet-fuel';
+import type { TruckInspectionReport } from '../lib/truck-inspection';
+import { servicePlan } from '../lib/fleet-service-plan';
+import { serviceGauge } from '../desktop-ui/lib/convoy-gauges';
+
+const date='2026-10-08', truck='Truck# 2', now=Date.parse('2026-10-08T22:00:00Z');
+const inspection=(fuel:string,at='2026-10-08T12:00:00Z')=>({truck,fuel,startedAt:at} as TruckInspectionReport);
+const purchase:FuelEvent={truck,at:'2026-10-08T16:00:00Z',percent:100,source:'purchase',detail:'Assumed full after fuel purchase'};
+assert.equal(inspectionLevelPercent('Empty'),0);
+assert.equal(inspectionLevelPercent(undefined),null);
+assert.equal(fleetFuelLevel(date,truck,[inspection('1/4')],[],now)?.percent,25);
+assert.equal(fleetFuelLevel(date,truck,[inspection('1/4')],[purchase],now)?.percent,100);
+assert.equal(fleetFuelLevel(date,truck,[inspection('1/2','2026-10-08T18:00:00Z')],[purchase],now)?.source,'inspection');
+assert.equal(fleetFuelLevel(date,truck,[inspection('Empty')],[{...purchase,truck:'Truck# 3'}],now)?.percent,0);
+assert.equal(fleetFuelLevel(date,truck,[],[{...purchase,at:'2026-10-09T01:00:00Z'}],now),null);
+assert.equal(fleetFuelLevel(date,truck,[inspection('Full','2026-10-07T12:00:00Z')],[],now),null);
+assert.equal(fleetFuelLevel(date,truck,[inspection('1/4',purchase.at)],[purchase],now)?.source,'inspection');
+const record={recordId:'oil',serviceType:'Oil change',status:'completed',serviceDate:'2026-10-01',odometer:100000,nextServiceDate:'',nextServiceOdometer:null};
+const interval={truck,serviceType:'Oil change',miles:5000,months:null,enabled:true,updatedAt:date};
+const mileage={value:103000,source:'true',reportedAt:new Date(now).toISOString(),retrievedAt:new Date(now).toISOString(),estimated:null,conflicting:false,duplicate:false};
+const plan=(reading=mileage)=>servicePlan('Oil change',interval,[record],reading,date,now);
+assert.equal(serviceGauge(plan()),60);
+assert.equal(serviceGauge(plan({...mileage,value:106000})),100);
+assert.equal(serviceGauge(plan({...mileage,conflicting:true})),null);
+assert.equal(serviceGauge(servicePlan('Oil change',interval,[],mileage,date,now)),null);
+assert.equal(serviceGauge(servicePlan('Oil change',{...interval,miles:null,months:1},[record],undefined,'2026-10-16',now)),48);
+console.log('PASS Convoy gauges: fill-up policy, latest evidence, zero/unknown, date scope, service progress and unavailable mileage');

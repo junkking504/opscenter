@@ -1,3 +1,5 @@
+import { ConvoyGauge, TruckLevelGauges } from './convoy-gauges';
+import { serviceGauge } from './lib/convoy-gauges';
 import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
 import type { FleetMaintenanceRow } from './lib/people-fleet-contract';
 import { useState } from "react";
@@ -66,6 +68,22 @@ export function plansFor(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: num
       now,
     ),
   );
+}
+function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: DashboardProps & {truck: DesktopFleetTruck}) {
+  const plans = plansFor(snapshot, truck, now).filter(p => p.interval?.enabled || p.nextDate || p.nextMiles !== null);
+  const rank: Record<string, number> = {due:0,soon:1,unknown:2,baseline:3,unset:4,current:5};
+  const plan = [...plans].sort((a,b) => rank[a.status]-rank[b.status] || (serviceGauge(b) ?? -1)-(serviceGauge(a) ?? -1))[0];
+  const detail = plan ? [plan.serviceType, plan.milesRemaining !== null ? `${Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi ${plan.milesRemaining <= 0 ? 'past target' : 'remaining'}` : plan.nextMiles !== null ? 'Mileage needs verification' : '', plan.daysRemaining !== null ? `${Math.abs(plan.daysRemaining)} days ${plan.daysRemaining <= 0 ? 'past target' : 'remaining'}` : ''].filter(Boolean).join(' · ') : 'Add completed service and a maintenance interval';
+  const status = plan ? ({due:'Due now',soon:'Due soon',unknown:'Verify mileage',baseline:'Set baseline',unset:'Set interval',current:'On track'}[plan.status]) : 'Set up service';
+  return <article className="convoy-truck-dashboard">
+    <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>
+    <p className="convoy-truck-activity">{truck.operatingStatus} · Inspection: {truck.checklist}</p>
+    <div className="convoy-truck-instruments">
+      <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
+      <TruckLevelGauges truck={truck}/>
+    </div>
+    <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('maintenance');}}>Daily inspection</button><button onClick={()=>open({kind:'load',truck})}>Update load</button></footer>
+  </article>;
 }
 function baselineNeeded(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
   const configured = plansFor(s,t,now).filter(p=>p.interval?.enabled);
@@ -181,7 +199,7 @@ export function ServiceIntervals({
             {plans.map((p) => (
               <tr key={p.serviceType}>
                 <td>
-                  <strong>{p.serviceType === "Oil change" ? "Oil & filter" : p.serviceType}</strong>
+                  <ConvoyGauge label={p.serviceType === "Oil change" ? "Oil & filter" : p.serviceType} percent={serviceGauge(p)} tone={p.status === "due" ? "danger" : p.status === "current" ? "good" : "warning"} ends={["Serviced","Due"]}/>
                   <small>
                     {p.interval?.enabled
                       ? [
@@ -360,6 +378,10 @@ export function ConvoyDashboard(props: DashboardProps) {
           onClick={() => setFilter("baseline")}
         />
       </div>
+      <section className="convoy-instrument-board" aria-label="Truck status dashboard">
+        <div className="convoy-instrument-heading"><h2>Truck status dashboard</h2><p>Fuel and load follow recorded activity. Fuel purchases assume a full tank; driving consumption is not measured.</p></div>
+        <div className="convoy-truck-dashboard-grid">{visible.map(truck=><TruckDashboardCard key={truck.id} {...props} truck={truck}/>)}</div>
+      </section>
       <div className="convoy-dashboard-grid">
         <section className="convoy-dash-panel">
           <header>
@@ -568,6 +590,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
           Operations & inspections
         </Button>
       </div>
+      <TruckDashboardCard {...props} truck={truck}/>
       <div className="convoy-metrics">
         <div className="convoy-metric">
           <Mileage truck={truck} now={now} records={snapshot.maintenance}/>

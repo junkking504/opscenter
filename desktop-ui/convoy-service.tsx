@@ -1,3 +1,5 @@
+import { ConvoyGauge } from './convoy-gauges';
+import { serviceGauge } from './lib/convoy-gauges';
 import { useState } from "react";
 import { Search, X, Wrench, CalendarDays, ChevronRight, ArrowRight, Plus } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -279,6 +281,7 @@ export function ConvoyService({
                     </span>
                     <ChevronRight className="convoy-disclosure" size={18} />
                   </summary>
+                  <div className="convoy-service-gauge"><ConvoyGauge label="Service interval used" percent={serviceGauge(p)} tone={p.status === "due" ? "danger" : p.status === "current" ? "good" : "warning"} ends={["Serviced","Due"]}/></div>
                   <div className="convoy-inspection-body">
                     <dl className="convoy-work-facts">
                       <div>

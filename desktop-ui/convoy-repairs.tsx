@@ -1,3 +1,4 @@
+import { TruckLevelGauges } from './convoy-gauges';
 import { useState } from "react";
 import {
   ArrowRight,
@@ -287,7 +288,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
                 </span>
                 <ChevronRight size={18} className="convoy-disclosure" />
               </summary>
-              <div className="convoy-inspection-body">
+              <div className="convoy-inspection-body"><section className="convoy-inspection-levels"><h3>Daily inspection readings</h3><TruckLevelGauges truck={t} inspection/><h3>Latest truck levels</h3><TruckLevelGauges truck={t}/><small>Latest levels include subsequent pickups, verified unloads and fuel purchases.</small></section>
                 <section
                   className="convoy-inspection-review"
                   aria-label={`${label(t.label)} inspection`}

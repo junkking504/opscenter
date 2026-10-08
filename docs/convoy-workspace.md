@@ -187,3 +187,35 @@ existing private stores; no collectors, paid services, or polling were added.
 Validation includes `scripts/test-convoy-records.ts` (grouping, orphan/mismatched
 links, filters, partial costs, null/zero, and mileage evidence), existing Convoy
 and action tests, both type checks, desktop build, and synthetic UI acceptance.
+
+## Truck gauges (October 8, 2026)
+
+Overview leads with per-truck service, fuel and onboard-load dials. Service progress
+uses the completed-service baseline and the existing service plan's usable mileage
+and calendar targets; the earliest reached limit governs. Due/soon/unknown status
+remains textual as well as colored. Missing baselines and unusable mileage never
+render as zero usage. The service planner and truck detail expose individual
+interval gauges. Existing filters, mileage evidence and record actions remain.
+
+Fuel starts with the selected day's timestamped inspection. Per the owner's
+October 8 instruction, a later recorded fuel purchase means an **assumed full tank**.
+The latest inspection or purchase wins; equal-time inspection evidence takes
+precedence. This is labeled with its source and Central-time timestamp, not live
+sensor telemetry. No consumption, range or tank capacity is fabricated, and fuel
+levels do not carry into another day. GPS proximity to a station is insufficient.
+Verified operational fuel expenses and already-attributed posted WEX purchases
+supply fill-ups. Ambiguous/unreconciled expense allocations and unassigned WEX
+transactions do not update a truck. Delayed records take effect after receipt,
+ordered by their original transaction time, never import time. Duplicate purchase
+sources set Full idempotently rather than adding fuel twice.
+
+Load reuses the existing operational projection: inspection/observed baseline,
+completed pickups and verified unloads. Uncertain load has an unfilled gauge with
+Confirm load, and over-capacity estimates keep their actual percentage in text.
+Daily inspection detail separates original fuel/load readings from the latest
+truck gauges. The existing 30-second workspace refresh updates these projections;
+no new polling, paid request, collector or business write is added.
+
+Validation: `scripts/test-convoy-gauges.ts`, existing inspection/load sequencing
+and service-plan regressions, both TypeScript checks, desktop and production builds,
+synthetic dashboard/inspection/load-save tests, and authenticated live acceptance.

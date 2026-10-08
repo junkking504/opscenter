@@ -192,6 +192,7 @@ function distanceMiles(from: Coordinates, to: Coordinates): number {
 }
 
 export type RoadMatrixElement = {
+  geometry?: Coordinates[];
   originIndex?: number;
   destinationIndex?: number;
   distanceMeters?: number;

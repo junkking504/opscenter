@@ -1,5 +1,6 @@
 import type {Coordinates,RoadMatrixElement} from './job-route-proximity';
 import {osmStreetJson} from './osm-street-transport';
+import {roadCoordinates} from './desktop-street-route';
 
 const located=(p:Coordinates)=>Number.isFinite(p.latitude) && Math.abs(p.latitude)<=90 && Number.isFinite(p.longitude) && Math.abs(p.longitude)<=180;
 /** Road-network estimates, without traffic. Reuses the GPS road provider's
@@ -26,12 +27,13 @@ export async function osmTravelMatrix(origins:Coordinates[],destinations:Coordin
 
   for(let originIndex=0;originIndex<origins.length;originIndex++)for(let destinationIndex=0;destinationIndex<destinations.length;destinationIndex++){
     const a=origins[originIndex],b=destinations[destinationIndex];
-    const data=await send(`route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=false&alternatives=false&radiuses=150;150`).catch(()=>null) as {code?:string;routes?:{duration?:unknown;distance?:unknown}[];waypoints?:{distance?:unknown}[]}|null;
+    const data=await send(`route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=full&geometries=geojson&alternatives=false&radiuses=150;150`).catch(()=>null) as {code?:string;routes?:{duration?:unknown;distance?:unknown;geometry?:{coordinates?:unknown}}[];waypoints?:{distance?:unknown}[]}|null;
     const route=data?.routes?.[0],seconds=route?.duration,meters=route?.distance;
     // Reject off-road snaps and malformed/missing provider metrics. Zero is a
     // valid reported route; absence must never be coerced into zero travel.
     if(data?.code!=='Ok' || typeof seconds!=='number' || !Number.isFinite(seconds) || seconds<0 || typeof meters!=='number' || !Number.isFinite(meters) || meters<0 || data.waypoints?.length!==2 || !data.waypoints.every(p=>typeof p.distance==='number' && Number.isFinite(p.distance) && p.distance>=0 && p.distance<=150))continue;
-    result.push({originIndex,destinationIndex,condition:'ROUTE_EXISTS',duration:`${seconds}s`,distanceMeters:meters});
+    const geometry=roadCoordinates(route?.geometry?.coordinates,a,b);
+    result.push({originIndex,destinationIndex,condition:'ROUTE_EXISTS',duration:`${seconds}s`,distanceMeters:meters,...(geometry?{geometry}:{})});
   }
   return result;
 }

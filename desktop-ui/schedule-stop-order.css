@@ -1,7 +1,7 @@
 .ops-live .schedule-board-layout.map-open .schedule-stop-order-trigger { display: inline-flex; align-items: center; }
 .ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid #a9b8b1; border-radius: 4px; background: white; color: #26372e; font-size: 11px; white-space: nowrap; cursor: pointer; }
 .ops-live .schedule-control-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; flex-shrink: 0; background: #225d49; border-color: #225d49; color: white; font-weight: 600; }
-.ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 16px; background: white; color: #26372e; border: 1px solid #a9b8b1; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; font-size: 13px; }
+.ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(1380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 16px; background: white; color: #26372e; border: 1px solid #a9b8b1; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; font-size: 13px; }
 .ops-live .schedule-stop-order::backdrop { background: #182a224a; }
 .ops-live .schedule-stop-order header, .ops-live .schedule-stop-order footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ops-live .schedule-stop-order h2 { font-size: 16px; margin: 0; }
@@ -16,9 +16,28 @@
 .ops-live .stop-order-arrows { display: flex; gap: 4px; }
 .ops-live .stop-order-travel { display: block; margin: 6px 0 6px 28px; color: #406751; font-size: 11px; }
 .ops-live .schedule-stop-order footer { justify-content: flex-end; border-top: 1px solid #d5dfd9; padding-top: 12px; }
+.ops-live .stop-order-workspace { display:grid; grid-template-columns:minmax(300px, 0.8fr) minmax(0, 1.4fr); height:clamp(320px,57dvh,620px); gap:16px; margin-bottom:12px; }
+.ops-live .stop-order-list { overflow:auto; min-height:0; padding-right:6px; }
+.ops-live .stop-order-map-panel { display:flex; flex-direction:column; min-width:0; min-height:0; border:1px solid #d5dfd9; border-radius:6px; overflow:hidden; }
+.ops-live .stop-order-map-panel header { padding:6px 10px; background:#f4f7f5; }
+.ops-live .stop-order-map { flex:1; min-height:140px; width:100%; z-index:0; }
+.ops-live .stop-order-map-status { padding:6px 10px; font-size:11px; line-height:1.5; background:#f4f7f5; }
+.ops-live .stop-order-map-status span { display:block; color:#596b62; }
+.ops-live .stop-order-pin { border:0; background:transparent; }
+.ops-live .stop-order-pin span { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:#225d49; color:white; border:2px solid white; box-shadow:0 1px 5px #17212b66; font-weight:700; font-size:14px; box-sizing:border-box; }
+.ops-live .stop-order-pin.selected span { background:#245fa4; outline:3px solid #70a9e0; }
+.ops-live .live-schedule .schedule-control-actions .schedule-stop-order .stop-order-name, .ops-live .schedule-stop-order .stop-order-name { padding:0; border:0; background:transparent; color:#245fa4; text-align:left; min-height:0; height:auto; }
+.ops-live .stop-order-list li.selected .stop-order-row { border-color:#245fa4; background:#edf5fc; }
+.ops-live .schedule-stop-order .leaflet-control-attribution { font-size:9px; }
 
 @media (max-width: 680px), (pointer: coarse) {
   .ops-live .schedule-stop-order button { min-width: 44px; min-height: 44px; touch-action: manipulation; }
   .ops-live .stop-order-arrows { flex: 0 0 auto; flex-direction: column; gap: 6px; }
   .ops-live .schedule-stop-order select { min-height: 44px; font-size: 16px; }
+}
+@media (max-width: 760px) {
+ .ops-live .schedule-stop-order { padding:12px; }
+ .ops-live .stop-order-workspace { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(180px,1fr) minmax(150px,1fr); height:55dvh; min-height:360px; gap:10px; }
+ .ops-live .stop-order-map-panel { grid-row:1; }
+ .ops-live .stop-order-list { grid-row:2; }
 }

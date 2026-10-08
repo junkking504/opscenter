@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {stopOrderMap} from '../desktop-ui/lib/stop-order-map';
+import type {ScheduleAppointment,ScheduleRouteLeg} from '../desktop-ui/lib/schedule-contract';
+const jobs=[0,1,2].map(n=>({recordId:String(n),location:{latitude:30+n*.01,longitude:-90+n*.01}} as ScheduleAppointment));
+const legs=[0,1].map(n=>({fromAppointmentId:String(n),toAppointmentId:String(n+1),source:'osm_road_estimate',geometry:[jobs[n].location!,jobs[n+1].location!]} as ScheduleRouteLeg));
+const original=stopOrderMap(jobs,legs);assert.equal(original.paths.length,2);assert.deepEqual(original.stops.map(s=>s.number),[1,2,3]);
+const reverse=stopOrderMap([...jobs].reverse(),legs);assert.equal(reverse.paths.length,0,'Old direction routes cannot appear after reorder');assert.equal(reverse.stops[0].job.recordId,'2');assert.equal(reverse.stops[0].number,1);
+const missing=stopOrderMap([jobs[0],{...jobs[1],location:null},jobs[2]],legs);assert.equal(missing.paths.length,0,'Never bridge an appointment without a verified pin');assert.equal(missing.missingPins,1);assert.deepEqual(missing.stops.map(s=>s.number),[1,3]);
+assert.equal(stopOrderMap(jobs,[{...legs[0],source:'unavailable'},legs[1]]).paths.length,1);
+assert.equal(stopOrderMap(jobs,[{...legs[0],geometry:[{latitude:NaN,longitude:-90},jobs[1].location!]}]).paths.length,0);
+console.log('Stop order map: numbering, reversed drafts, missing pins, unavailable routes and malformed geometry passed.');

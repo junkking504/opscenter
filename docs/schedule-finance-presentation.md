@@ -242,7 +242,19 @@ available service buffer.
 The always-available **Stop Order** button beside **Crew roster** opens a truck
 selector with assigned-stop counts; no map selection is required. It uses the
 whole day snapshot, independent of search or territory filters. Save or reset a
-changed draft before switching trucks.
+changed draft before switching trucks. The editor keeps a numbered map next to the
+scrollable stop list on desktop, and above it on narrow screens. Pins keep their
+draft sequence numbers; click a pin or stop name to select the corresponding
+stop. Projected road lines update with the existing debounced travel preview;
+only geometry matching consecutive stops in the current draft is shown. Missing
+pins and unavailable routes remain disconnected. Fit all stops restores the
+route overview. Saving still changes visit order only.
+
+Single-pair road estimates now return bounded, validated GeoJSON geometry in the
+same existing OSM routing request as duration and distance, sharing its rate
+limit and cache. No second route request or new provider is used. Route endpoints
+must match verified pins within the existing 150-meter snap tolerance. These are
+projected roads between appointments, not recorded GPS driving or live traffic.
 
 Stop Order operates on all remaining appointments for the selected truck and
 operating date, across time windows and including untimed stops. Up/down buttons

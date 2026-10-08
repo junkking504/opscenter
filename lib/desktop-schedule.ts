@@ -28,6 +28,7 @@ import { readTruckGpsRoute } from './desktop-gps-route';
 
 export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
+  geometry?: Coordinates[];
   truck: string;
   fromAppointmentId: string;
   toAppointmentId: string;
@@ -184,6 +185,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
       leg.miles = Math.round(meters / 1609.344 * 10) / 10;
       leg.bufferMinutes = leg.gapMinutes === null ? null : leg.gapMinutes - leg.travelMinutes;
       leg.source = 'osm_road_estimate';
+      if (element.geometry) leg.geometry = element.geometry;
     }));
   }
   return legs;

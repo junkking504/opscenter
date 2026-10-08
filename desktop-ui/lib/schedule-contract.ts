@@ -127,6 +127,7 @@ export type ScheduleSnapshot = {
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
 export type ScheduleRouteLeg = {
+  geometry?: Array<{latitude:number;longitude:number}>;
   truck: string; fromAppointmentId: string; toAppointmentId: string;
   fromJk: string; toJk: string; gapMinutes: number | null;
   travelMinutes: number | null; miles: number | null; bufferMinutes: number | null;

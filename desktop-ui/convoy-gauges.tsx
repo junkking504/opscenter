@@ -8,17 +8,14 @@ export function ConvoyGauge({ label, percent, value, detail, tone = 'good', ends
 }) {
   const known = percent !== null && Number.isFinite(percent);
   const amount = known ? Math.min(100, Math.max(0, percent)) : 0;
-  return <div className={`convoy-gauge ${known ? tone : 'unknown'}`}>
-    <span className="convoy-gauge-label">{label}</span>
-    <div className="convoy-gauge-dial" role="img" aria-label={`${label}: ${value || (known ? `${percent}%` : 'Not recorded')}`}>
-      <svg viewBox="0 0 180 108" aria-hidden="true">
-        <path className="convoy-gauge-track" d="M 18 90 A 72 72 0 0 1 162 90" pathLength="100"/>
-        {known && <path className="convoy-gauge-fill" d="M 18 90 A 72 72 0 0 1 162 90" pathLength="100" strokeDasharray={`${amount} 100`}/>}
-        {known && <g transform={`rotate(${amount * 1.8 - 90} 90 90)`}><path className="convoy-gauge-needle" d="M 90 86 L 90 39"/><circle cx="90" cy="90" r="5"/></g>}
-      </svg>
+  return <div className={`convoy-reading ${known ? tone : 'unknown'}`}>
+    <div className="convoy-reading-heading">
+      <span>{label}</span>
       <strong>{value || (known ? `${percent}%` : 'Not recorded')}</strong>
     </div>
-    <div className="convoy-gauge-ends"><span>{ends[0]}</span><span>{ends[1]}</span></div>
+    {known && <div className="convoy-reading-track" aria-hidden="true" title={`${ends[0]} → ${ends[1]}`}>
+      <span style={{ width: `${amount}%` }}/>
+    </div>}
     {detail && <small>{detail}</small>}
   </div>;
 }

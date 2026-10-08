@@ -188,14 +188,18 @@ Validation includes `scripts/test-convoy-records.ts` (grouping, orphan/mismatche
 links, filters, partial costs, null/zero, and mileage evidence), existing Convoy
 and action tests, both type checks, desktop build, and synthetic UI acceptance.
 
-## Truck gauges (October 8, 2026)
+## Compact truck readings (October 8, 2026)
 
-Overview leads with per-truck service, fuel and onboard-load dials. Service progress
+Overview leads with compact per-truck service, fuel and onboard-load readings. Service progress
 uses the completed-service baseline and the existing service plan's usable mileage
 and calendar targets; the earliest reached limit governs. Due/soon/unknown status
 remains textual as well as colored. Missing baselines and unusable mileage never
 render as zero usage. The service planner and truck detail expose individual
-interval gauges. Existing filters, mileage evidence and record actions remain.
+interval readings with thin horizontal bars. Existing filters, mileage evidence and record actions remain.
+
+Readings use text values, short source/timestamp notes and a thin bar only when
+the value is known. Missing values have no empty dial or placeholder bar. Inspection
+and latest readings sit side by side on wide screens and stack on smaller screens.
 
 Fuel starts with the selected day's timestamped inspection. Per the owner's
 October 8 instruction, a later recorded fuel purchase means an **assumed full tank**.
@@ -210,10 +214,10 @@ ordered by their original transaction time, never import time. Duplicate purchas
 sources set Full idempotently rather than adding fuel twice.
 
 Load reuses the existing operational projection: inspection/observed baseline,
-completed pickups and verified unloads. Uncertain load has an unfilled gauge with
+completed pickups and verified unloads. Uncertain load has no capacity bar and displays
 Confirm load, and over-capacity estimates keep their actual percentage in text.
 Daily inspection detail separates original fuel/load readings from the latest
-truck gauges. The existing 30-second workspace refresh updates these projections;
+truck readings. The existing 30-second workspace refresh updates these projections;
 no new polling, paid request, collector or business write is added.
 
 Validation: `scripts/test-convoy-gauges.ts`, existing inspection/load sequencing

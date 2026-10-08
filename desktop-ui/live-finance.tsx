@@ -45,7 +45,7 @@ function DailyReconciliation(props: LiveFinanceProps) {
   const { onBusyChange } = props;
   const onBusy = useCallback((value: boolean) => { setBusy(value); onBusyChange?.(value); }, [onBusyChange]);
   const choose = (value: string) => { if (!busy && isOperatingDay(value) && value <= yesterday) { setDate(value); setDraft(value); } };
-  return <section className="capital-workspace capital-reconciliation" aria-label="Daily reconciliation">
+  return <section className="capital-workspace capital-reconciliation" aria-label="Reconciliation">
     <div className="capital-panel capital-reconciliation-date">
       <div><span className="capital-eyebrow">RECONCILIATION DATE · CENTRAL TIME</span><h2>{operatingDayLabel(date)}</h2><p>Defaults to yesterday, including weekends. This review date is separate from the operating day above.</p></div>
       <form onSubmit={event => { event.preventDefault(); choose(draft); }}>

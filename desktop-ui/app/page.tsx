@@ -1200,7 +1200,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
             ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
-            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'reconciliation' ? 'Daily reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
+            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
       : drawer.fleetIssueId ? `Maintenance · ${drawer.title}`
@@ -4382,7 +4382,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
                 <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Capital views">
-                  {([['overview', 'Overview'], ...(live ? [['reconciliation', 'Daily reconciliation']] as const : []), ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
+                  {([['overview', 'Overview'], ...(live ? [['reconciliation', 'Reconciliation']] as const : []), ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </div>
               </div>
             ) : null}

@@ -37,9 +37,9 @@ Capital follows the shared OpsCenter density scale: 8px section gaps, 68px
 minimum summary cards, 20px metric values and compact rows. Source labels may
 grow a card when needed, so smaller spacing never clips freshness evidence.
 
-## Daily reconciliation
+## Reconciliation
 
-Capital's Daily reconciliation tab and overview shortcut open the previous
+Capital's Reconciliation tab and overview shortcut open the previous
 calendar day in America/Chicago, including weekends. The review has its own
 clearly labeled date picker, with a Yesterday reset and access to older days;
 it does not change the global operating date. Payment sources and the native

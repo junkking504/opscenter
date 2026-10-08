@@ -22,8 +22,9 @@ The dispatch board reserves bottom space for an `All Appointments` jump banner.
 It remains reachable on narrow screens and clears board filters before scrolling
 and focusing the complete register. Empty truck rows use the same base height
 whether load data is present or missing. The current-time line starts beneath
-the hour header. Desktop keeps appointment and lane heights stable and scrolls the grid when
-needed, rather than shrinking blocks as routing data arrives. Empty truck rows use 32px before fitting. The map uses the full same
+the hour header. Desktop fits lane heights to the available space with a 75%
+readability floor, preserving truck labels and live status-strip heights. Denser
+boards scroll within the grid. Empty truck rows use 32px before fitting. The map uses the full same
 height allowance, without the former 600px cap. Duplicate date/introduction
 copy is omitted on desktop, with Schedule and its tabs sharing one row.
 Phones keep natural-height lanes and page scrolling instead of tiny targets.
@@ -793,9 +794,11 @@ out-of-state or conflicting service locations remain unclassified.
 The dispatch board allocates the height below the page controls to appointment
 lanes while keeping the truck-name/load column at its normal text size. Each
 row has a measured label-height floor; only the lane contents scale, with a
-65% lower bound. The timeline's horizontal positions remain aligned with the
+75% lower bound. Live truck-status footers reserve their full 23px separately,
+so scaled appointment lanes cannot overlap them. Per-row rounding is included
+in the height budget. The timeline's horizontal positions remain aligned with the
 hourly grid. When a very short window or unusually dense day cannot fit above
-that floor, the document scrolls normally. The All Appointments jump stays in
+that floor, the desktop grid scrolls vertically. The All Appointments jump stays in
 document flow and never floats over lower truck rows.
 
 All six workspaces share a sidebar sized to the dynamic viewport height. Its

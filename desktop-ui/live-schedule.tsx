@@ -175,7 +175,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const rulerHeight = board.querySelector<HTMLElement>('.schedule-time-row')?.offsetHeight || 30;
       const available = Math.max(0, parseFloat(height) - titleHeight - rulerHeight - 4);
       const layout = window.innerWidth >= 1000
-        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available)
+        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0))
         : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);

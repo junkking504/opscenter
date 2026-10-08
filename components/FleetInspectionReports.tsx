@@ -1,7 +1,7 @@
 "use client";
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useRef, useState } from "react";
-import { INSPECTION_SECTIONS, INSPECTION_STATUSES, inspectionDate, type InspectionDevice, type TruckInspectionReport } from "@/lib/truck-inspection";
+import { INSPECTION_SECTIONS, INSPECTION_STATUSES, inspectionDate, type InspectionDevice, type TruckInspectionReport } from "../lib/truck-inspection";
 import styles from "./truck-inspection.module.css";
 type Snapshot = { date: string; trucks: string[]; reports: TruckInspectionReport[]; devices: InspectionDevice[]; canManage: boolean };
 async function request(body?: unknown, date?: string) {
@@ -10,13 +10,14 @@ async function request(body?: unknown, date?: string) {
 }
 const reportKey = (r: TruckInspectionReport) => `${r.deviceId}:${r.requestId}`;
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" });
-export default function FleetInspectionReports() {
-  const [date, setDate] = useState(inspectionDate());
+export default function FleetInspectionReports({embedded=false, operatingDate}:{embedded?:boolean;operatingDate?:string}) {
+  const [date, setDate] = useState(operatingDate || inspectionDate());
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState(""); const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState(""); const [manageOpen, setManageOpen] = useState(false);
   const generation = useRef(0); const detail = useRef<HTMLElement>(null);
+  useEffect(() => { if(operatingDate)setDate(operatingDate); },[operatingDate]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const linkedDate = params.get("date") || "";
@@ -40,10 +41,10 @@ export default function FleetInspectionReports() {
   const report = chosen?.report;
   function choose(key: string) { setSelected(key); if (window.matchMedia("(max-width: 900px)").matches) requestAnimationFrame(() => { detail.current?.focus(); detail.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }); }
   return <main className={`${styles.app} ${styles.managerApp}`}>
-    <header className={`${styles.brand} ${styles.noPrint}`}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>OPSCENTER · FLEET</b></header>
+    {!embedded && <header className={`${styles.brand} ${styles.noPrint}`}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>OPSCENTER · FLEET</b></header>}
     <div className={styles.manage}>
-      <a href="/desktop?data=live&workspace=Fleet" className={styles.noPrint}>← Back to Fleet</a>
-      <div className={styles.reviewHeader}><div><div className={styles.eyebrow}>COMPANY TRUCK PHONES</div><h1>Morning inspections</h1><p className={styles.muted}>{date} · Times shown in Central time</p></div><button className={styles.noPrint} onClick={() => void refresh()} disabled={busy}>Refresh reports</button></div>
+      <a href={`/desktop?data=live&workspace=Fleet&fleetView=maintenance&date=${date}`} className={styles.noPrint}>← Back to inspections & repairs</a>
+      <div className={styles.reviewHeader}><div><div className={styles.eyebrow}>COMPANY TRUCK PHONES</div><h2>Morning inspections</h2><p className={styles.muted}>{date} · Times shown in Central time</p></div><button className={styles.noPrint} onClick={() => void refresh()} disabled={busy}>Refresh reports</button></div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {!snapshot ? <p>{error ? "Reports could not be loaded. Try Refresh reports." : "Loading inspection reports…"}</p> : <>
         <div className={styles.stats}><span><b>{submitted.size} / {snapshot.trucks.length}</b> inspected</span><span><b>{missing.length}</b> missing</span><span data-status="stop"><b>{snapshot.reports.filter(r => r.status === "stop").length}</b> do not operate reports</span><span data-status="reported"><b>{snapshot.reports.filter(r => r.status === "reported").length}</b> problem reports</span></div>
@@ -59,7 +60,7 @@ export default function FleetInspectionReports() {
               {INSPECTION_SECTIONS.map(s => { const a = report.answers.find(a => a.id === s.id); return <div className={styles.reviewRow} key={s.id}><div><strong>{s.label}</strong><p className={styles.rowStatus} data-status={a?.status === "problem" ? "reported" : "clear"}>{a?.status === "good" ? "✓ Good" : "! Problem"}</p>{a?.notes && <p>{a.notes}</p>}</div></div>; })}
               {report.notes && <p><b>Additional notes:</b> {report.notes}</p>}
               <h3>Photos</h3>{!report.photos.length && <p className={styles.muted}>No photos attached.</p>}<div className={styles.photos}>{report.photos.map((p,i) => <figure key={i}><a href={p.data} download={`${report.truck}-${p.section}-${i+1}.jpg`}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i+1}`} /></a><figcaption>{INSPECTION_SECTIONS.find(s => s.id === p.section)?.label}</figcaption></figure>)}</div>
-              <p className={styles.reference}>Submitted report · Read only<br />Truck, inspector name and initials were entered for this inspection on a shared company phone.<br />Report reference: {report.requestId}</p>
+              <p className={styles.reference}>{report.truckCorrection && <>Truck corrected from {report.truckCorrection.originalTruck} to {report.truck} · {report.truckCorrection.reason}<br /></>}Submitted report · Read only<br />Truck, inspector name and initials were entered for this inspection on a shared company phone.<br />Report reference: {report.requestId}</p>
               <button className={styles.noPrint} onClick={() => window.print()}>Print report</button>
             </>}
           </section>

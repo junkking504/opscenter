@@ -1,3 +1,4 @@
+import FleetInspectionReports from '../components/FleetInspectionReports';
 import { historyEntries } from './lib/convoy-records';
 import { ConvoyRecords } from './convoy-records';
 import {ConvoyDashboard} from './convoy-dashboard';
@@ -23,6 +24,8 @@ export function ConvoyHistory({ snapshot, truck, open }: { snapshot: DesktopFlee
 }
 
 export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open,now,onView}:Props) {
+  const showReports=view==='maintenance' && new URLSearchParams(window.location.search).get('inspectionReports')==='1';
+  if(showReports)return <FleetInspectionReports embedded operatingDate={snapshot.date}/>;
   const visible = trucks.filter(truck => !truckId || truck.id === truckId);
   const scopedRepairs = snapshot.issues.filter(row => !truckId || sameTruck(row.truck, truckId));
   return <>

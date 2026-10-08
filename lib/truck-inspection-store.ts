@@ -1,8 +1,8 @@
+import { JUNKWARE_DISPATCH_TRUCKS } from "./junkware-trucks";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { InspectionError, inspectionDate, validateTruckInspection, type InspectionDevice, type TruckInspectionReport } from "./truck-inspection";
-import { JUNKWARE_DISPATCH_TRUCKS } from "./junkware-trucks";
 
 export const INSPECTION_DEVICE_COOKIE = "ops_truck_inspection";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -78,7 +78,7 @@ export function findTruckInspection(deviceId: string, requestId: string): TruckI
   const file = reportFile(deviceId, requestId);
   const saved = read<TruckInspectionReport>(file);
   if (saved) indexReport(file, saved);
-  return saved;
+  return saved ? applyInspectionTruckCorrection(saved) : null;
 }
 function indexReport(file: string, report: TruckInspectionReport) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(report.inspectionDate)) throw new Error("Invalid stored inspection date.");
@@ -100,7 +100,7 @@ export function submitTruckInspection(raw: unknown, device: InspectionDevice, no
   const previous = validateTruckInspection(saved, new Date(saved.receivedAt), saved.version === 1, true);
   if (JSON.stringify(previous) !== JSON.stringify(input)) throw new InspectionError("This report was already received with different answers. Check the saved result before starting another inspection.", 409);
   indexReport(file, saved);
-  return saved;
+  return applyInspectionTruckCorrection(saved);
 }
 export function listTruckInspections(date: string): TruckInspectionReport[] {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new InspectionError("Choose an inspection date.");
@@ -108,11 +108,30 @@ export function listTruckInspections(date: string): TruckInspectionReport[] {
   if (!fs.existsSync(dateDirectory)) return [];
   return fs.readdirSync(dateDirectory).filter(f => /^[a-f0-9]{64}\.json$/.test(f)).flatMap(f => {
     const r = read<TruckInspectionReport>(path.join(dateDirectory, f));
-    return r?.inspectionDate === date ? [r] : [];
+    return r?.inspectionDate === date ? [applyInspectionTruckCorrection(r)] : [];
   }).sort((a,b) => b.receivedAt.localeCompare(a.receivedAt));
 }
 export function truckInspectionDates(): string[] {
   const dates = path.join(root(), "dates");
   if (!fs.existsSync(dates)) return [];
   return fs.readdirSync(dates).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)).sort();
+}
+
+// Manager corrections overlay immutable submissions; retries still compare the original answers.
+type TruckCorrection = {deviceId:string;requestId:string;originalTruck:string;truck:string;actor:string;reason:string;correctedAt:string};
+export function applyInspectionTruckCorrection<T extends {deviceId:string;requestId:string;truck:string}>(report:T):T & {truckCorrection?:TruckCorrection} {
+  const correction = read<TruckCorrection>(path.join(root(),'truck-corrections',path.basename(reportFile(report.deviceId,report.requestId))));
+  if (!correction) return report;
+  if (correction.deviceId!==report.deviceId || correction.requestId!==report.requestId || correction.originalTruck!==report.truck || !JUNKWARE_DISPATCH_TRUCKS.includes(correction.truck) || !correction.actor || !correction.reason || !Number.isFinite(Date.parse(correction.correctedAt))) throw new Error('Inspection truck correction needs recovery.');
+  return {...report,truck:correction.truck,truckCorrection:correction};
+}
+export function correctInspectionTruck(input:{deviceId:string;requestId:string;expectedTruck:string;truck:string;actor:string;reason:string}, now=new Date()) {
+  const original=read<TruckInspectionReport>(reportFile(input.deviceId,input.requestId));
+  if (!original || original.truck!==input.expectedTruck || !JUNKWARE_DISPATCH_TRUCKS.includes(input.truck) || !input.actor.trim() || !input.reason.trim()) throw new Error('Review the original inspection and correction details.');
+  const correction:TruckCorrection={deviceId:input.deviceId,requestId:input.requestId,originalTruck:original.truck,truck:input.truck,actor:input.actor,reason:input.reason,correctedAt:now.toISOString()};
+  const file=path.join(directory('truck-corrections'),path.basename(reportFile(input.deviceId,input.requestId)));
+  writeOnce(file,correction);
+  const result=applyInspectionTruckCorrection(original);
+  if(result.truck!==input.truck || result.truckCorrection?.actor!==input.actor || result.truckCorrection?.reason!==input.reason) throw new Error('This inspection already has a different correction.');
+  return result;
 }

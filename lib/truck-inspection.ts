@@ -24,6 +24,7 @@ export type TruckInspectionInput = {
   status: InspectionStatus; notes: string; initials: string;
 };
 export type TruckInspectionReport = TruckInspectionInput & {
+  truckCorrection?: {originalTruck:string;truck:string;actor:string;reason:string;correctedAt:string};
   version: 1 | 2; truck: string; deviceId: string; receivedAt: string; inspectionDate: string;
 };
 export type InspectionDevice = { deviceId: string; truck?: string; label: string; expiresAt: string; createdAt: string; selfSelected?: boolean };

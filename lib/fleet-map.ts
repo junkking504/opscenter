@@ -1,3 +1,4 @@
+import { readWaypointFleetCrews } from './fleet-waypoint-crew';
 import { parkedTruckObservation, truckGpsStatus } from './truck-gps-status';
 import { planningLocation } from './planning-geocodes';
 import {lastLinxupAddress} from './linxup-trips';
@@ -40,6 +41,7 @@ export type FleetMapStop = {
 };
 
 export type FleetTruckMapRecord = {
+  crewNote?:string;
   lastKnownAddress?:string|null;
   truck: string;
   trackerId: string | null;
@@ -679,6 +681,12 @@ export function buildFleetMapPayload(date: string, selectedTruckRaw?: string | n
       vehicleMap,
     })
   );
+
+  const waypointCrews = readWaypointFleetCrews(date,trucks);
+  for (const record of truckRecords) {
+    const crew = waypointCrews.get(record.truck);
+    if (crew) Object.assign(record,crew);
+  }
 
   const selectedTruck =
     normalizeTruckLabel(selectedTruckRaw) ||

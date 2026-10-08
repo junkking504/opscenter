@@ -245,3 +245,26 @@ reference: preserve the red gear, gold outline and dark background; replace the
 white wrench with a solid red crown bordered in gold, centered within the ring.
 The crown has no JK lettering, white markings or other interior details.
 The user selected this preview on September 19, 2026.
+
+## Manager truck corrections
+
+An explicitly authorized correction can use `correctInspectionTruck` to append
+an immutable, attributed truck correction with a reason. Original answers,
+truck selection, receipt IDs and submission timestamps remain untouched.
+Report reads, inspection gating, load observations and mileage apply that
+correction; original submission retries still compare the original answers.
+The management report shows the original and corrected truck and reason.
+Daily Waypoint crew changes use a new version of the phone setup, preserving
+its original history. Correcting a mistaken setup does not transfer appointments.
+
+Today's Control and fleet crew display prefers the latest saved daily setup of
+active live Waypoint phones. It includes the same-day inspection receipt state;
+an inspector name alone never establishes a driver or navigator. Conflicting
+phone crews are shown as a conflict with both crews, rather than choosing the
+last phone to save. A phone's latest truck replaces its previous selection.
+Historical appointment attribution remains unchanged. When no phone setup exists, appointment crew remains the fallback; unreadable setup records display unavailable.
+
+Inspection report links, including existing `/fleet-inspections` bookmarks and
+receipt links, open inside the current desktop Convoy shell. The date and exact
+report reference survive the redirect; the full read-only report, photos and
+print action remain available beside the current workspace navigation.

@@ -160,3 +160,12 @@
 
 .ops-live .finance-workspace.capital-workspace > .finance-payment-note { margin:0; padding:5px 8px; font-size:10px; line-height:1.35; }
 .ops-live .finance-workspace.capital-workspace .finance-performance select { min-height:28px; padding:5px 8px; font-size:11px; }
+
+.capital-reconciliation-entry,.capital-reconciliation-date{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px}
+.capital-reconciliation-entry h3,.capital-reconciliation-date h2{margin:4px 0;font-size:18px}
+.capital-reconciliation-entry p,.capital-reconciliation-date p{margin:0;color:var(--muted-foreground);font-size:12px}
+.capital-reconciliation-date form{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.capital-reconciliation-date label{display:grid;gap:4px;font-size:12px}
+.capital-reconciliation-date input{padding:7px;border:1px solid #d8d5d3;border-radius:6px;background:var(--background);color:inherit}
+.capital-reconciliation{display:grid;gap:8px}
+@media(max-width:700px){.capital-reconciliation-entry,.capital-reconciliation-date{align-items:stretch;flex-direction:column}.capital-reconciliation-date form{width:100%}}

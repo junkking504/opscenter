@@ -1,3 +1,4 @@
+import { currentOperatingDay, isOperatingDay, operatingDayLabel, shiftOperatingDay } from './lib/operating-day';
 import { ResaleItemEditor } from './resale-item-editor';
 import { qboTransactionHref, junkwareTransactionHref } from './lib/payment-crosscheck';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -33,8 +34,32 @@ export type LiveFinanceProps = { hideCharts?: boolean; date: string; view?: stri
 type FinanceWithWex = FinanceData & { fuelReconciliation?: FuelReconciliationData; dailyFreshness?: DailyFinanceEvidence; dailyBreakdown?: { revenue: number | null; labor: number | null; dumps: number | null; fuel: number | null; totalCosts: number | null; net: number | null; fuelSource: 'published' | 'wex' | 'unavailable'; wexIncludedSeparately: boolean }; dumpExpenses?: DumpExpenseSummary; wexFuel: { available: boolean; status: 'available' | 'missing' | 'invalid'; importedAt: string | null; sourceFileModifiedAt: string | null; coverageFrom: string | null; coverageThrough: string | null; transactionCount: number; selectedDate: { count: number; gallons: number; netCost: number }; month: { count: number; gallons: number; netCost: number }; transactions: Array<{ transactionId: string; transactionDate: string; transactionTime: string; postedDate: string; truck: string; driver: string; driverPromptId: string; cardLastFive: string; units: number | null; unitOfMeasure: string; gallons: number | null; unitCost: number | null; totalFuelCost: number | null; totalNonFuelCost: number | null; netCost: number; product: string; productDescription: string; merchant: string; city: string; state: string; postalCode: string; odometer: number | null; ticketNumber: string; status: 'posted' }> } };
 const emptyVersion = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 const emptyWex: FinanceWithWex['wexFuel'] = { available: false, status: 'missing', importedAt: null, sourceFileModifiedAt: null, coverageFrom: null, coverageThrough: null, transactionCount: 0, selectedDate: { count: 0, gallons: 0, netCost: 0 }, month: { count: 0, gallons: 0, netCost: 0 }, transactions: [] };
-export function LiveFinance({ date, view, report, onViewChange, onBusyChange, hideCharts }: LiveFinanceProps) {
+export function LiveFinance(props: LiveFinanceProps) {
+  return props.view === 'reconciliation' ? <DailyReconciliation {...props} /> : <FinanceWorkspace {...props} />;
+}
+function DailyReconciliation(props: LiveFinanceProps) {
+  const yesterday = shiftOperatingDay(currentOperatingDay(), -1);
+  const [date, setDate] = useState(yesterday);
+  const [draft, setDraft] = useState(yesterday);
+  const [busy, setBusy] = useState(false);
+  const { onBusyChange } = props;
+  const onBusy = useCallback((value: boolean) => { setBusy(value); onBusyChange?.(value); }, [onBusyChange]);
+  const choose = (value: string) => { if (!busy && isOperatingDay(value) && value <= yesterday) { setDate(value); setDraft(value); } };
+  return <section className="capital-workspace capital-reconciliation" aria-label="Daily reconciliation">
+    <div className="capital-panel capital-reconciliation-date">
+      <div><span className="capital-eyebrow">RECONCILIATION DATE · CENTRAL TIME</span><h2>{operatingDayLabel(date)}</h2><p>Defaults to yesterday, including weekends. This review date is separate from the operating day above.</p></div>
+      <form onSubmit={event => { event.preventDefault(); choose(draft); }}>
+        <label>Review date<input type="date" aria-label="Reconciliation date" required max={yesterday} value={draft} disabled={busy} onChange={event => setDraft(event.target.value)} /></label>
+        <button className="capital-button" disabled={busy || !isOperatingDay(draft) || draft > yesterday || draft === date}>Review day</button>
+        <button type="button" className="capital-button" disabled={busy || date === yesterday} onClick={() => choose(yesterday)}>Yesterday</button>
+      </form>
+    </div>
+    <FinanceWorkspace {...props} key={date} date={date} view="payments" reconciliation onBusyChange={onBusy} />
+  </section>;
+}
+function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hideCharts, reconciliation = false }: LiveFinanceProps & { reconciliation?: boolean }) {
   const [receiptReviewOpen, setReceiptReviewOpen] = useState(false);
+  const [accountingBusy, setAccountingBusy] = useState(false);
   const snapshotKey = `/api/desktop/finance?date=${date}`;
   const [data, setData] = useWorkspaceSnapshot<FinanceWithWex>(snapshotKey);
   const [error, setError] = useState(''), [revision, setRevision] = useState(0), [localView, setLocalView] = useState<FinanceView>('overview');
@@ -47,12 +72,12 @@ export function LiveFinance({ date, view, report, onViewChange, onBusyChange, hi
     if (!signal.aborted) setData(payload);
   }, [snapshotKey, setData]);
   useEffect(() => { if (data) workspaceReady('Finance'); }, [data]);
-  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || receiptReviewOpen || Boolean(resale || recycling || payment),30_000,snapshotKey);
+  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || accountingBusy || receiptReviewOpen || Boolean(resale || recycling || payment),30_000,snapshotKey);
 
   useEffect(() => { const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) { setResale(null); setRecycling(null); setPayment(null); } }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, [busy]);
   useEffect(() => { if (!(resale || recycling || payment)) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="finance-record-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [resale?.itemId, recycling?.id, payment?.jkNumber]);
   useEffect(() => { if (feedback) report?.(feedback); }, [feedback, report]);
-  useEffect(() => { onBusyChange?.(busy || receiptReviewOpen || Boolean(resale || recycling || payment)); return () => onBusyChange?.(false); }, [busy, receiptReviewOpen, Boolean(resale || recycling || payment), onBusyChange]);
+  useEffect(() => { onBusyChange?.(busy || accountingBusy || receiptReviewOpen || Boolean(resale || recycling || payment)); return () => onBusyChange?.(false); }, [busy, accountingBusy, receiptReviewOpen, Boolean(resale || recycling || payment), onBusyChange]);
   const [lastRequest, setLastRequest] = useState('');
   async function checkReceipt() {
     if (!lastRequest || busy) return; setBusy(true); onBusyChange?.(true);
@@ -110,7 +135,7 @@ export function LiveFinance({ date, view, report, onViewChange, onBusyChange, hi
         <footer className="finance-payment-note"><ShieldCheck size={14}/><span>{dailyBreakdown.wexIncludedSeparately ? 'Selected-day WEX net cost fills the missing published fuel expense once.' : 'Published daily fuel is used when present; WEX detail is shown without adding the same fuel expense again.'} Transaction IDs prevent duplicate WEX imports, and pending authorizations are excluded.</span></footer>
       </section>
     </div>}
-    {financeView === 'payments' && <CapitalPayments key={date} data={data} date={date} onReview={setPayment} />}
+    {financeView === 'payments' && <CapitalPayments key={date} data={data} date={date} onReview={setPayment} reconciliation={reconciliation} onBusyChange={setAccountingBusy} />}
     {financeView === 'resale' && <CapitalResale data={data} onAdd={newResale} onReview={setResale} />}
     {financeView === 'recycling' && <RecyclingMonthly key={date.slice(0, 7)} records={data.recycling} date={date} onAdd={newRecycling} onReview={setRecycling} receiptInbox={<RecyclingReceiptReview records={data.recycling} drafts={data.recyclingReceipts || []} busy={busy} onBusyChange={setReceiptReviewOpen} onSave={mutate} />} />}
     {financeView === 'trends' && <FinanceTrends data={data} hideCharts={hideCharts} />}

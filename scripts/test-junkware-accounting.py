@@ -30,6 +30,32 @@ class AccountingTests(unittest.TestCase):
         self.body={'action':'verify','requestId':str(uuid.uuid4()),'rows':[row()]}
     def tearDown(self): self.temp.cleanup()
     def run_action(self): return m.execute(self.source,self.body,'manager@example.invalid')
+    def test_receive_records_manager_without_sync_or_replay(self):
+        self.body['action']='receive'
+        result=self.run_action()
+        self.assertTrue(result['complete']);self.assertEqual(self.source.calls,0);self.assertEqual(self.source.status,'U')
+        mark=m.annotations()[row()['key']]
+        self.assertEqual(mark['actor'],'manager@example.invalid');self.assertFalse(mark['synced']);self.assertTrue(mark['verifiedAt'])
+        self.run_action();m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
+        self.assertEqual(self.source.calls,0)
+    def test_receive_rejects_nonphysical_tenders_and_changed_source(self):
+        self.body['action']='receive'
+        for method in ['Billed','Credit Card x1234']:
+            self.body['rows'][0]['method']=method;self.body['rows'][0]['key']=m.row_key(self.body['rows'][0])
+            with self.assertRaisesRegex(ValueError,'cash and checks'): self.run_action()
+        self.body['rows']=[row()];self.source.changed=True
+        self.assertFalse(self.run_action()['complete']);self.assertEqual(m.annotations(),{});self.assertEqual(self.source.calls,0)
+    def test_receive_synced_and_excluded_without_source_mutation(self):
+        self.body['action']='receive'
+        for status in ['S','E']:
+            self.body['requestId']=str(uuid.uuid4());self.body['rows'][0]['syncStatus']=status;self.source.status=status
+            self.assertTrue(self.run_action()['complete']);self.assertEqual(self.source.calls,0);self.assertEqual(self.source.status,status)
+    def test_receive_recovery_cannot_create_attestation(self):
+        self.body['action']='receive'
+        r={'id':self.body['requestId'],'action':'receive','actor':'manager@example.invalid','createdAt':m.now(),'fingerprint':'test','items':[{'row':row(),'state':'pending'}]}
+        m.save(m.STORE/'receipts'/f"{r['id']}.json",r)
+        recovered=m.execute(self.source,{'requestId':r['id']},'manager@example.invalid',True)
+        self.assertFalse(recovered['complete']);self.assertEqual(m.annotations(),{});self.assertEqual(self.source.calls,0)
     def test_verify_is_native_update_and_replay_never_submits(self):
         result=self.run_action();self.assertTrue(result['complete']);self.assertEqual(self.source.calls,1);self.assertTrue(m.annotations()[row()['key']]['synced'])
         self.run_action();self.assertEqual(self.source.calls,1)

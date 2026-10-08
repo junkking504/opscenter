@@ -11,7 +11,7 @@ async function main() {
  const server=createServer(async(req,res)=>{
   if(req.url==='/api/desktop/accounting') { let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);res.setHeader('Content-Type','application/json');
    if(body.mode==='list') {res.end(JSON.stringify({data:{rows:body.filters.status==='S'?[]:[base,billed],total:body.filters.status==='S'?0:1434,observedAt:new Date().toISOString(),options:{groups:[{value:'A',label:'All'},{value:'399',label:'Fixture franchise'}],methods:[],statuses:[]},verifications:{},pending:[]}}));return;}
-   if(body.mode==='action') {writes++;assert.equal(body.action,'verify');assert.equal(body.rows.length,1);assert.equal(body.rows[0].appointmentId,'123');if(uncertain){res.writeHead(502);res.end('{"error":"Response interrupted"}');return;}res.end(JSON.stringify({data:{id:body.requestId,action:body.action,complete:true,items:[{row:base,state:'verified',message:'JunkWare confirms this record is synced to QuickBooks.'}]}}));return;}
+   if(body.mode==='action') {writes++;assert.ok(['verify','receive'].includes(body.action));assert.equal(body.rows.length,1);assert.equal(body.rows[0].appointmentId,'123');if(uncertain){res.writeHead(502);res.end('{"error":"Response interrupted"}');return;}res.end(JSON.stringify({data:{id:body.requestId,action:body.action,complete:true,items:[{row:base,state:'verified',message:body.action==='receive'?'Manager confirmed cash/check received. QuickBooks sync unchanged.':'JunkWare confirms this record is synced to QuickBooks.'}]}}));return;}
    recoveries++;res.end(JSON.stringify({data:{id:body.requestId,action:'verify',complete:true,items:[{row:base,state:'verified',message:'Saved result verified without replay.'}]}}));return;
   }
   if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}
@@ -28,7 +28,10 @@ async function main() {
    await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(writes,before,'Review or cancel must not submit');
    await page.getByRole('button',{name:'Verify & update QuickBooks',exact:true}).click();await page.getByRole('button',{name:'Confirm verification & update',exact:true}).click();
    await expect(page.getByText('Source update confirmed',{exact:true})).toBeVisible();assert.equal(writes,before+1);
-   await page.getByLabel('Select JK124',{exact:true}).check();await expect(page.getByRole('button',{name:'Verify & update QuickBooks',exact:true})).toBeDisabled();
+   await page.getByLabel('Select JK123',{exact:true}).check();await page.getByRole('button',{name:'Verify cash & checks received',exact:true}).click();
+   await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('mailbox envelopes');await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('does not update QuickBooks');
+   await page.getByRole('button',{name:'Confirm cash/check receipt',exact:true}).click();await expect(page.getByText('Cash/check receipt recorded',{exact:true})).toBeVisible();assert.equal(writes,before+2);
+   await page.getByLabel('Select JK124',{exact:true}).check();await expect(page.getByRole('button',{name:'Verify cash & checks received',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Verify & update QuickBooks',exact:true})).toBeDisabled();
    await page.getByLabel('JunkWare sync status').selectOption('S');await expect(page.getByLabel('Select JK124',{exact:true})).toHaveCount(0);
    await page.getByRole('button',{name:'Refresh register',exact:true}).click();await expect(page.getByText('No records match these source filters.')).toBeVisible();await page.close();
   }

@@ -10,7 +10,7 @@ import { paymentVerification, verifiedPayments } from './lib/payment-verificatio
 import { MerchantPaymentEvidence, MerchantReportSummary } from './merchant-evidence';
 
 type Payment = FinanceData['reconciliation']['paymentsByJob'][number];
-export function CapitalPayments({ data, date, onReview }: { data: FinanceData; date: string; onReview: (payment: Payment) => void }) {
+export function CapitalPayments({ data, date, onReview, reconciliation = false, onBusyChange }: { data: FinanceData; date: string; onReview: (payment: Payment) => void; reconciliation?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const [manualVerifications, setManualVerifications] = useState<Record<string, Verification>>({});
   const [crosscheckFilter, setCrosscheckFilter] = useState<CrosscheckFilter>('all');
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
     return matches && (filter === 'all' || (filter === 'review' ? status(row) === 'Needs verification' : row.tender === 'cash' || row.tender === 'check'));
   });
   return <div className="capital-page capital-payments">
-    <CapitalPageHeader eyebrow={`PAYMENTS & COLLECTIONS · ${commercialDate(date)}`} title="Every payment, accounted for" description="Follow job payments from the recorded tender to card verification and accounting." action={<CapitalSourceLink href="https://qbo.intuit.com/">Open QuickBooks</CapitalSourceLink>}/>
+    <CapitalPageHeader eyebrow={`PAYMENTS & COLLECTIONS · ${commercialDate(date)}`} title={reconciliation ? "Reconcile the day’s payments" : "Every payment, accounted for"} description={reconciliation ? "Review card discrepancies, verify cash and checks, then review the QuickBooks register. An empty queue does not confirm the day is reconciled." : "Follow job payments from the recorded tender to card verification and accounting."} action={<CapitalSourceLink href="https://qbo.intuit.com/">Open QuickBooks</CapitalSourceLink>}/>
     <section className="capital-stat-grid" aria-label="Payment summary">
       <CapitalStat primary icon={Banknote} label="Recorded payments" value={money(recon.recordedPayments?.total ?? (collected ? recon.summary.junkware_total : null))} detail="Card, cash and checks · JunkWare"/>
       <CapitalStat icon={CheckCircle2} label="Verified cards" value={money(verification.available ? verification.total : null)} detail={`${verification.count} verified · QBO or Merchant Center`}/>
@@ -42,7 +42,7 @@ export function CapitalPayments({ data, date, onReview }: { data: FinanceData; d
       <CapitalStat onClick={() => openCrosscheck('cards')} warning={verification.unresolvedCount > 0} icon={CircleAlert} label="Unverified cards" value={money(verification.difference)} detail={verification.available ? `${verification.unresolvedCount} ${verification.unresolvedCount === 1 ? 'card payment needs' : 'card payments need'} verification · Review →` : 'Payment source unavailable'} />
     </section>
     <CapitalPaymentCrosscheck issues={issues} filter={crosscheckFilter} selected={selectedIssue} onFilter={category => {setCrosscheckFilter(category);setSelectedIssue(null);}} onSelect={setSelectedIssue} onReview={onReview} qboFresh={qboUsable} qboObservedAt={recon.merchantCenterCollectedAt || null} processorObservedAt={recon.processor?.collectedAt}/>
-    <CapitalAccounting key={date} date={date} onVerifications={setManualVerifications}/>
+    <CapitalAccounting key={date} date={date} onVerifications={setManualVerifications} lockDate={reconciliation} onBusyChange={onBusyChange}/>
     <section className="capital-panel capital-payment-register" aria-label="Payments by job">
       <header><div><span className="capital-eyebrow">PAYMENT EVIDENCE</span><h3>Payments by job</h3></div><span className="capital-date">{rows.length} of {recon.paymentsByJob.length} records</span></header>
       <div className="capital-toolbar"><div className="capital-filter-group" role="group" aria-label="Filter payments">{([['all','All payments'],['review','Needs verification'],['cash','Cash & checks']] as const).map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{label}</button>)}</div><label className="capital-search"><Search size={15}/><input aria-label="Search payments" placeholder="Search job, customer or reference" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>

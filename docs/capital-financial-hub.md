@@ -36,3 +36,17 @@ layouts. It replaces fetch locally and never contacts a financial provider.
 Capital follows the shared OpsCenter density scale: 8px section gaps, 68px
 minimum summary cards, 20px metric values and compact rows. Source labels may
 grow a card when needed, so smaller spacing never clips freshness evidence.
+
+## Daily reconciliation
+
+Capital's Daily reconciliation tab and overview shortcut open the previous
+calendar day in America/Chicago, including weekends. The review has its own
+clearly labeled date picker, with a Yesterday reset and access to older days;
+it does not change the global operating date. Payment sources and the native
+QuickBooks register use the same review date. Register date fields are locked
+to that date in this area. Changing the review date is blocked during source
+loading, action confirmation/submission and payment evidence review.
+
+This reuses the existing cross-check, cash/check verification, source evidence
+and reviewed QuickBooks actions. Empty queues and missing sources never mark
+a day reconciled. No automatic payment writes or new collectors are added.

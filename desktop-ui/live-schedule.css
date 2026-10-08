@@ -85,7 +85,13 @@
 .live-schedule-map .live-map-pin .map-marker { position: static; transform: none; display: grid; place-items: center; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; pointer-events: auto; cursor: pointer; }
 .live-schedule-map .map-pin-symbol { display: grid; place-items: center; position: relative; pointer-events: none; }
 .live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); border: 2px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: var(--map-locator-font, 10px); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px #17212b80, 0 2px 5px #17212b66; }
-.live-schedule-map .appointment-marker.territory-br .map-pin-symbol { background: #dc2626; color: #fff; }
+/* Saturated location colors stay legible against pale street-map tiles. */
+.live-schedule-map .appointment-marker.territory-no .map-pin-symbol { background: #2563eb; color: #fff; }
+.live-schedule-map .appointment-marker.territory-jp .map-pin-symbol { background: #00cfae; color: #17212b; }
+.live-schedule-map .appointment-marker.territory-ns .map-pin-symbol { background: #7c3aed; color: #fff; }
+.live-schedule-map .appointment-marker.territory-br .map-pin-symbol { background: #ff3547; color: #17212b; }
+.live-schedule-map .appointment-marker.territory-lf .map-pin-symbol { background: #84cc16; color: #17212b; }
+.live-schedule-map .appointment-marker.territory-rp .map-pin-symbol { background: #64748b; color: #fff; }
 .live-schedule-map .completed .map-pin-symbol { border-style: double; border-width: 2px; }
 .live-schedule-map .appointment-marker.status-canceled .map-pin-symbol { background: #9ca3af; color: #374151; opacity: .7; filter: grayscale(1); }
 .live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 22px) * 1.5); height: var(--map-locator-size, 22px); filter: drop-shadow(0 1px 1px #17212b66); }

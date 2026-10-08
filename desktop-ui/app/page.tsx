@@ -238,7 +238,7 @@ type MarketingReview = {
   id: string; customer: string; location: string; stars: number; age: string; excerpt: string;
   selectedAppointment: string; candidates: string[]; status: 'Needs attribution' | 'Attributed';
 };
-type FinanceView = 'overview' | 'payments' | 'resale' | 'recycling' | 'trends' | 'accounting' | 'expenses';
+type FinanceView = 'overview' | 'reconciliation' | 'payments' | 'resale' | 'recycling' | 'trends' | 'accounting' | 'expenses';
 type FinancePaymentStatus = 'Matched' | 'Needs review' | 'Unmatched';
 type FinancePayment = {
   id: string; customer: string; truck: string; jobTotal: number; paymentAmount: number; adjustment: number;
@@ -1146,7 +1146,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(live ? [] : initialMarketingLeads);
   const [marketingReviews, setMarketingReviews] = useState<MarketingReview[]>(live ? [] : initialMarketingReviews);
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
-  const [financeView, setFinanceViewValue] = useState<FinanceView>(() => live ? navigationValue(window.location.search, 'financeView', ['overview', 'payments', 'resale', 'recycling', 'trends', 'accounting', 'expenses'], 'overview') : 'overview');
+  const [financeView, setFinanceViewValue] = useState<FinanceView>(() => live ? navigationValue(window.location.search, 'financeView', ['overview', 'reconciliation', 'payments', 'resale', 'recycling', 'trends', 'accounting', 'expenses'], 'overview') : 'overview');
   const setFinanceView = (value: FinanceView) => { if (!mutationBusyRef.current) setFinanceViewValue(value); };
   const [drilldownLabel, setDrilldownLabel] = useState('');
   const drilldown = commandKpiDestination(drilldownLabel);
@@ -1200,7 +1200,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
             ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
-            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
+            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'reconciliation' ? 'Daily reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
       : drawer.fleetIssueId ? `Maintenance · ${drawer.title}`
@@ -4333,6 +4333,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   ? 'Performance, payments and financial decisions. All in one place.'
                   : financeView === 'accounting' ? 'QuickBooks books, accountant statements and source-backed financial reports.'
                   : financeView === 'expenses' ? 'Review disposal costs, fuel purchases and their source evidence.'
+                  : financeView === 'reconciliation' ? 'Reconcile the previous calendar day’s payments, cash, checks and accounting differences.'
                   : financeView === 'payments' ? 'Review every job payment and reconcile differences without losing source detail.'
                     : financeView === 'resale' ? 'Manage resale custody, listing status, disposition, and realized value.'
                       : financeView === 'recycling' ? 'Track recycling loads, yard tickets, payments, and realized value.'
@@ -4381,7 +4382,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
                 <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Capital views">
-                  {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
+                  {([['overview', 'Overview'], ...(live ? [['reconciliation', 'Daily reconciliation']] as const : []), ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </div>
               </div>
             ) : null}

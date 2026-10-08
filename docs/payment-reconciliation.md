@@ -187,3 +187,17 @@ change either transaction. Ambiguous accounting matches retain every candidate
 and never present the first candidate as a confirmed match. Unknown amounts
 remain unavailable. Review navigation makes no financial writes and leaves the
 existing reviewed accounting-update workflow responsible for source changes.
+
+## Morning mailbox receipt verification
+
+Managers collect cash/check envelopes the following morning. Capital's
+**Verify cash & checks received** action (`finance.verify-payment-received`)
+records the manager's confirmation that the selected envelopes and amounts
+were physically checked. Review lists the exact job, tender/check number and
+amount; **Confirm cash/check receipt** saves actor and timestamp in the existing
+durable accounting receipt store. Card and billed records are rejected.
+Source identity is rechecked before saving. Replays return the saved receipt;
+recovery never creates a new attestation. No native JunkWare write, QBO sync or
+bank deposit is performed. Existing Verify & update QuickBooks remains separate.
+Use the register's Synced or Excluded filter to verify receipts already in those
+source states; receiving an envelope does not alter its accounting state.

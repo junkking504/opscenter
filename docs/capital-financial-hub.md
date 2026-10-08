@@ -50,3 +50,7 @@ loading, action confirmation/submission and payment evidence review.
 This reuses the existing cross-check, cash/check verification, source evidence
 and reviewed QuickBooks actions. Empty queues and missing sources never mark
 a day reconciled. No automatic payment writes or new collectors are added.
+
+Capital navigation uses the same separated, rounded buttons as Convoy: pale
+backgrounds for available views, a solid green selected view, and wrapping on
+narrow screens so every label remains visible.

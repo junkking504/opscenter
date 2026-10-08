@@ -21,19 +21,22 @@ export function advanceInspectionMileage(truck:string, baseline:FleetMileage, da
  const trips=relevant.flatMap(d=>d.trips).filter(t=>key(t.truck)===key(truck)&&t.start>=start&&t.end>t.start&&t.end<=now&&Number.isFinite(t.miles)&&t.miles>=0&&t.miles/(t.end-t.start)*3600000<=100).sort((a,b)=>a.start-b.start||a.end-b.end).filter(t=>{const id=`${t.start}:${t.end}`;if(seen.has(id))return false;seen.add(id);return true;});
  let miles=0,lastEnd=start,incomplete=false,asOf=start;
  const accepted:Trip[]=[];
- for(const trip of trips){if(trip.start<lastEnd){incomplete=true;continue;}accepted.push(trip);miles+=trip.miles;lastEnd=trip.end;asOf=Math.max(asOf,trip.end);}
+ for(const trip of trips){if(trip.start<lastEnd){incomplete=true;continue;}accepted.push(trip);lastEnd=trip.end;asOf=Math.max(asOf,trip.end);}
+ const observedTripMiles=new Map<Trip,number>();
  for(let i=1;i<points.length;i++){
   const a=points[i-1],b=points[i],from=Date.parse(a.timestamp),to=Date.parse(b.timestamp),elapsed=to-from;
   if(elapsed<=0)continue;
-  // Completed provider trips already account for these segments; do not double count.
-  if(accepted.some(t=>from>=t.start&&to<=t.end))continue;
-  if(accepted.some(t=>from<t.end&&to>t.start))continue;
+  const coveringTrip=accepted.find(t=>from>=t.start&&to<=t.end);
+  if(!coveringTrip&&accepted.some(t=>from<t.end&&to>t.start)){incomplete=true;continue;}
   const step=distance(a,b);
-  if(elapsed>300000||step/elapsed*3600000>100){if(step>.05)incomplete=true;continue;}
+  if(elapsed>300000||step/elapsed*3600000>100){if(step>.05&&!coveringTrip)incomplete=true;continue;}
   // Ignore stationary GPS drift; moving segments remain estimates of the observed path.
-  if(step>=.01)miles+=step;
+  if(step>=.01){if(coveringTrip)observedTripMiles.set(coveringTrip,(observedTripMiles.get(coveringTrip)||0)+step);else miles+=step;}
   asOf=Math.max(asOf,to);
  }
+ // A newly closed provider trip must not replace a longer observed GPS path
+ // with a smaller distance. Use one distance per trip, never their sum.
+ for(const trip of accepted){const observed=observedTripMiles.get(trip)||0;if(observed>trip.miles+.1)incomplete=true;miles+=Math.max(trip.miles,observed);}
  if(points.length&&Date.parse(points[0].timestamp)-start>300000&&!accepted.some(t=>t.start<=start+300000))incomplete=true;
  const firstDay=chicagoDateKey(new Date(start)),lastDay=chicagoDateKey(new Date(now));
  for(let day=new Date(`${firstDay}T12:00:00Z`);day.toISOString().slice(0,10)<=lastDay;day=new Date(day.getTime()+86400000))if(!relevant.some(d=>d.date===day.toISOString().slice(0,10)))incomplete=true;

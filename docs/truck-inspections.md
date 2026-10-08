@@ -279,7 +279,9 @@ visual readings/service history still require review.
 Convoy recomputes estimated mileage from that baseline plus recorded LinxUp
 travel after the inspection start. Completed trips count once, overlapping GPS
 segments are excluded, and recent GPS segments cover travel not yet represented
-by a completed trip. New visual readings reset the baseline. Impossible jumps,
+by a completed trip. A completed trip cannot replace a longer observed GPS path
+with a smaller distance: the larger supported distance counts once and the
+disagreement is flagged as incomplete. New visual readings reset the baseline. Impossible jumps,
 long moving gaps and missing days are not filled in; the display flags GPS gaps
 and may understate mileage. The calculation reads existing local telemetry (up
 to 90 days) and adds no external polling. The digital odometer remains visible

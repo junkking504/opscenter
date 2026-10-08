@@ -17,4 +17,9 @@ assert.ok(partial.value!>81013&&partial.value!<81014);assert.equal(partial.gpsIn
 const reset=advanceInspectionMileage('Truck 9',{...baseline,value:82000,reportedAt:t(12)},[day],at+20*60000);assert.equal(reset.value,82000,'New reading resets baseline and excludes earlier trips');
 const overlap=advanceInspectionMileage('Truck 9',{...baseline,reportedAt:t(5)},[day],at+20*60000);assert.ok(overlap.value!<81018,'Trip crossing inspection time is not counted in full');
 assert.equal(advanceInspectionMileage('Truck 9',{...baseline,conflicting:true},[day],at+20*60000).source,'inspection');
+const moving={...day,trips:[],points:[point(1,-90),point(5,-89.95),point(9,-89.9)]};
+const beforeClose=advanceInspectionMileage('Truck 9',baseline,[moving],at+20*60000);
+const afterClose=advanceInspectionMileage('Truck 9',baseline,[{...moving,trips:[{...trip,miles:2}]}],at+20*60000);
+assert.equal(afterClose.value,beforeClose.value,'A short provider trip cannot replace longer observed GPS travel');
+assert.equal(afterClose.gpsIncomplete,true,'Conflicting travel distances stay flagged for visual verification');
 console.log('Visual baseline plus GPS: reset, truck isolation, deduplication, overlapping trips and gaps passed.');

@@ -185,7 +185,8 @@ def execute(source,body,actor,verify_only=False):
             if len({r['key'] for r in rows})!=len(rows): raise ValueError('Duplicate selected records.')
             for row in rows:
                 if row['key']!=row_key(row) or row.get('syncStatus') not in ('U','S','E'): raise ValueError('Refresh the source record before selecting it.')
-                if action in ('verify','receive') and not re.match(r'^(Cash|Check)\b',row['method'],re.I): raise ValueError('Payment verification is for cash and checks only.')
+                if action=='receive' and not re.match(r'^(Cash|Check)\b',row['method'],re.I): raise ValueError('Receipt-only verification is for cash and checks only.')
+                if action=='verify' and not re.match(r'^(Cash|Check|Credit Card)\b',row['method'],re.I): raise ValueError('Verify Payment requires cash, check or card payment. Billed work is a receivable; use Update QuickBooks.')
                 if action=='exclude' and row['syncStatus']!='U': raise ValueError('Only unsynced records can be excluded here.')
                 if action=='update' and row['syncStatus']!='U': raise ValueError('Only unsynced records can be updated here.')
                 if action=='verify' and row['syncStatus']=='E': raise ValueError('This record is excluded in JunkWare. Review it there before updating QuickBooks.')

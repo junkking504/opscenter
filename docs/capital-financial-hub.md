@@ -47,8 +47,9 @@ QuickBooks register use the same review date. Register date fields are locked
 to that date in this area. Changing the review date is blocked during source
 loading, action confirmation/submission and payment evidence review.
 
-This reuses the existing cross-check, cash/check verification, source evidence
-and reviewed QuickBooks actions. Empty queues and missing sources never mark
+Verify Payment confirms selected cash, check or card payments and updates
+QuickBooks in the same reviewed action. Billed work uses Update QuickBooks.
+This reuses the existing cross-check, source evidence and durable accounting actions. Empty queues and missing sources never mark
 a day reconciled. No automatic payment writes or new collectors are added.
 
 Capital navigation uses the same separated, rounded buttons as Convoy: pale

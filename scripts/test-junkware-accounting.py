@@ -71,9 +71,20 @@ class AccountingTests(unittest.TestCase):
         self.assertTrue(recovered['complete']);self.assertEqual(self.source.calls,1)
     def test_changed_source_never_submits_or_verifies(self):
         self.source.changed=True;result=self.run_action();self.assertEqual(result['items'][0]['state'],'failed');self.assertEqual(self.source.calls,0);self.assertEqual(m.annotations(),{})
-    def test_card_not_manual_verification(self):
+    def test_card_verification_updates_quickbooks_once(self):
         self.body['rows'][0]['method']='Credit Card x1234';self.body['rows'][0]['key']=m.row_key(self.body['rows'][0])
-        with self.assertRaisesRegex(ValueError,'cash and checks'): self.run_action()
+        result=self.run_action()
+        self.assertTrue(result['complete']);self.assertEqual(self.source.calls,1)
+        self.assertTrue(m.annotations()[self.body['rows'][0]['key']]['verifiedAt'])
+        self.run_action();m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
+        self.assertEqual(self.source.calls,1)
+    def test_verify_rejects_receivables_unknown_tenders_and_excluded_payments(self):
+        for method in ['Billed','Unknown','Credit']:
+            self.body['rows'][0]['method']=method;self.body['rows'][0]['key']=m.row_key(self.body['rows'][0])
+            with self.assertRaisesRegex(ValueError,'requires cash, check or card'): self.run_action()
+        self.body['rows']=[row()];self.body['rows'][0]['syncStatus']='E'
+        with self.assertRaisesRegex(ValueError,'excluded'): self.run_action()
+        self.assertEqual(self.source.calls,0);self.assertEqual(m.annotations(),{})
     def test_already_synced_verification_does_not_resend(self):
         self.source.status='S';self.body['rows'][0]['syncStatus']='S'
         self.assertTrue(self.run_action()['complete']);self.assertEqual(self.source.calls,0)

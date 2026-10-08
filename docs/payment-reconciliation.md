@@ -125,10 +125,10 @@ payments or included in the separate payment summary.
 Managers select exact records, review their customers, methods and amounts,
 and confirm one of three registered actions: `finance.update-quickbooks`,
 `finance.exclude-from-quickbooks`, or `finance.verify-payment-and-sync`.
-**Verify & update QuickBooks** records the manager's cash/check verification and
+**Verify Payment** records the manager's cash/check/card verification and
 uses JunkWare's native Update QuickBooks action for each unsynced record. An
-already-synced cash/check can be verified without submitting it again. Card
-processor approval, manual cash/check verification, JunkWare sync status, and
+already-synced payment can be verified without submitting it again. Card
+processor approval, manager verification, JunkWare sync status, and
 QBO accounting evidence remain separate. This does not charge a card, deposit
 a check, move money, or create an independent QBO transaction outside JunkWare.
 
@@ -188,16 +188,20 @@ and never present the first candidate as a confirmed match. Unknown amounts
 remain unavailable. Review navigation makes no financial writes and leaves the
 existing reviewed accounting-update workflow responsible for source changes.
 
-## Morning mailbox receipt verification
+## Verify Payment and morning mailbox checks
 
-Managers collect cash/check envelopes the following morning. Capital's
-**Verify cash & checks received** action (`finance.verify-payment-received`)
-records the manager's confirmation that the selected envelopes and amounts
-were physically checked. Review lists the exact job, tender/check number and
-amount; **Confirm cash/check receipt** saves actor and timestamp in the existing
-durable accounting receipt store. Card and billed records are rejected.
-Source identity is rechecked before saving. Replays return the saved receipt;
-recovery never creates a new attestation. No native JunkWare write, QBO sync or
-bank deposit is performed. Existing Verify & update QuickBooks remains separate.
-Use the register's Synced or Excluded filter to verify receipts already in those
-source states; receiving an envelope does not alter its accounting state.
+Managers collect cash/check envelopes the following morning. Select the exact
+jobs and choose **Verify Payment** (`finance.verify-payment-and-sync`) to confirm
+receipt and update QuickBooks together. For cards, review successful processing
+before confirming; this records a manager review without replacing independent
+processor evidence. Billed receivables and excluded jobs cannot use this action.
+The review lists each job, method/check number and amount and explicitly states
+that confirmation also updates QuickBooks. An already-synced payment is not
+submitted again. Verification remains recorded if syncing needs recovery;
+**Check saved result** reads the result without replaying the update.
+
+The former receipt-only action is no longer offered in the UI. Historical
+`finance.verify-payment-received` receipts retain their original meaning and
+remain readable/recoverable; they are not retroactively synced. No card charge
+or bank deposit is performed by Verify Payment. **Update QuickBooks** remains
+available separately for billed work and other accounting-only updates.

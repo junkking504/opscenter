@@ -358,7 +358,7 @@
   --oc-text-neutral-19: #d8c8e7;
   --oc-text-neutral-20: #89918d;
   --oc-text-neutral-21: #78817c;
-  --oc-text-primary: #203746;
+  --oc-text-primary: #243b4d;
   --oc-text-teal-01: #25323a;
   --oc-text-violet-04: #69458f;
   --oc-text-violet-06: #5b3788;
@@ -1193,3 +1193,7 @@
 
 .ops-live[data-css-phase-two="Fleet"] .source-health-list article > div span { font-size: var(--oc-type-10); }
 .ops-live[data-css-phase-two="Fleet"] .source-health-list header span + span { color: var(--oc-text-primary); }
+/* Operational captions need readable ink on every KPI tint. */
+.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-card small { color: var(--oc-text-primary); font-size: var(--oc-type-10); }
+.ops-live[data-css-phase-two="Command"] .crew-alert-heading h2 { font-size: var(--oc-type-20); }
+.ops-live[data-css-phase-two="Command"] .crew-completion-facts .crew-completion-amount dd { font-size: var(--oc-type-16); }

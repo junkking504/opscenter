@@ -40,6 +40,7 @@ import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
+const { Component: SpecOps, preload: loadSpecOps } = preloadableWorkspace(() => import('../specops'));
 const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
@@ -301,6 +302,7 @@ const nav = [
   { label: 'Fleet', icon: Truck, count: 7 },
   { label: 'Finance', icon: CircleDollarSign, count: 3 },
   { label: 'Marketing', icon: Megaphone, count: 16 },
+  { label: 'SpecOps', icon: ShieldCheck, count: 0 },
 ];
 
 const launcherCommands: LauncherCommand[] = [
@@ -963,7 +965,7 @@ const initialAuditEvents: AuditEvent[] = [
   { id: 'AE-1001', workspace: 'Finance', action: 'Resale item received', record: 'RR-204', summary: 'Recovered inventory was added with source-job custody.', previous: 'Not in inventory', next: 'Held for disposition', actor: 'Mission Control', source: 'Truck record', time: '9:31 AM', result: 'Completed', refId: 'RR-204' },
 ];
 
-const preloadWorkspace: Record<string, () => Promise<unknown>> = { Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
+const preloadWorkspace: Record<string, () => Promise<unknown>> = { SpecOps: loadSpecOps, Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
 
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const prototypeReceiptScope = useId();
@@ -982,11 +984,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
     const workspace = new URLSearchParams(window.location.search).get('workspace') || 'Command';
-    return ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', ...(canFinance ? ['Finance'] : [])].includes(workspace) ? workspace : 'Command';
+    return ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', ...(canFinance ? ['Finance', 'SpecOps'] : [])].includes(workspace) ? workspace : 'Command';
   });
   const setActiveNav = (value: string) => {
     if (mutationBusyRef.current) { setActionFeedback('Wait for the current action result before changing workspaces.'); return; }
-    if (live && value === 'Finance' && !canFinance) return;
+    if (live && ['Finance', 'SpecOps'].includes(value) && !canFinance) return;
     if (value === 'Schedule' && value !== activeNav) {
       setScheduleViewValue('board');
       setScheduleDayValue('today');
@@ -1202,6 +1204,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
             ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
+            : activeNav === 'SpecOps' ? 'SpecOps · Storm planning'
             : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
@@ -4218,7 +4221,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         <NavigationDiagnostics />
         <nav className="primary-nav" aria-label="Primary">
           <p className="nav-label">Workspaces</p>
-          {(live ? nav.filter(item => item.label !== 'Finance' || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? activeAlerts.length : 0 })) : nav).map((item) => {
+          {(live ? nav.filter(item => !['Finance', 'SpecOps'].includes(item.label) || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? activeAlerts.length : 0 })) : nav).map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.label} className={activeNav === item.label ? 'nav-item active' : 'nav-item'} onPointerEnter={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onFocus={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onClick={() => setActiveNav(item.label)}>
@@ -4244,7 +4247,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       </aside>
 
       <section className="ops-content">
-        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
+        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => !['Finance', 'SpecOps'].includes(item.label) || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
         <div className={live ? 'live-header-shell' : undefined}>
         {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
         <header className="topbar">
@@ -4330,6 +4333,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : fleetView === 'maintenance' ? 'Choose a truck. Review findings. Follow repairs through to resolution.'
                     : fleetView === 'service' ? 'Choose a truck. Check its next service. Schedule or record the work.'
                       : 'Choose a truck. Find a visit. Open its work and photos.'
+                : activeNav === 'SpecOps' ? 'Plan storm cleanouts, compare capacity and review outage intelligence.'
                 : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'
                   ? 'Performance, payments and financial decisions. All in one place.'
@@ -4743,6 +4747,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Command' && view === 'forecast' && (canFinance ? <LiveAnalytics date={live.snapshot.date} scope="forecast" /> : <p>Manager access is required for financial forecasts.</p>)}
           {live && activeNav === 'Command' && (view === 'today' || view === 'monitor') && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
           <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {workspaceLabel(activeNav)}…</div>}>
+          {live && activeNav === 'SpecOps' && canFinance && <SpecOps navigate={setActiveNav} />}
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}

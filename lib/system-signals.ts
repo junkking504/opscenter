@@ -522,20 +522,24 @@ export function backupSignal(): BackupSignal {
     return { status: "unknown", summary: "Backup status could not be read", lastSuccessAt: null, ageMinutes: null, lastExitCode: null };
   }
   const lastSuccessAt = typeof payload.lastSuccessAt === "string" ? payload.lastSuccessAt : null;
-  const lastExitCode = Number.isFinite(Number(payload.exitCode)) ? Number(payload.exitCode) : null;
+  const lastExitCode = typeof payload.exitCode === "number" && Number.isFinite(payload.exitCode) ? payload.exitCode : null;
   const parsed = lastSuccessAt ? Date.parse(lastSuccessAt) : Number.NaN;
   const ageMinutes = Number.isFinite(parsed) ? Math.round((Date.now() - parsed) / 60_000) : null;
   const maxAgeMinutes = numberFromEnv("OPSCENTER_BACKUP_MAX_AGE_MINUTES", 180);
-  const status: SignalStatus = ageMinutes === null
-    ? "unknown"
-    : ageMinutes > maxAgeMinutes
-      ? "critical"
-      : "ok";
+  const latestFailed = payload.status === "failed";
+  const status: SignalStatus = ageMinutes !== null && ageMinutes > maxAgeMinutes
+    ? "critical"
+    : latestFailed
+      ? "warn"
+      : ageMinutes === null ? "unknown" : "ok";
+  const freshnessSummary = ageMinutes === null
+    ? "Backup has never recorded a success"
+    : `Last successful data backup ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago`;
   return {
     status,
-    summary: ageMinutes === null
-      ? "Backup has never recorded a success"
-      : `Last successful data backup ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago`,
+    summary: latestFailed
+      ? `Latest backup failed${lastExitCode === null ? "" : ` (exit ${lastExitCode})`}. ${freshnessSummary}`
+      : freshnessSummary,
     lastSuccessAt,
     ageMinutes,
     lastExitCode,

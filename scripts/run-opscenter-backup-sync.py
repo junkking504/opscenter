@@ -16,14 +16,22 @@ def main():
     state_dir = data / 'backup-sync'
     state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     if '--background' in sys.argv:
+        # Preserve startup errors too, before the worker can open its own log.
         with (state_dir / 'sync.log').open('ab') as log:
             subprocess.Popen([sys.executable, str(Path(__file__).resolve())],
-                             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=log,
                              start_new_session=True, close_fds=True)
         print('Backup scheduled independently of live collection.', flush=True)
         return 0
 
-    with (state_dir / 'sync.lock').open('a') as lock:
+    # The worker owns logging in both invocation modes; the launcher must not
+    # also redirect stdout here or completion records would be duplicated.
+    with (state_dir / 'sync.log').open('a', buffering=1) as log, \
+            (state_dir / 'sync.lock').open('a') as lock:
+        def report(message):
+            print(message, file=log, flush=True)
+            print(message, flush=True)
+
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -50,7 +58,8 @@ def main():
         try:
             timeout = max(1, int(os.environ.get('OPSCENTER_BACKUP_TIMEOUT_SECONDS', '900')))
             child = subprocess.Popen(['/bin/bash', str(source / 'deploy/vps/sync-data.sh'), 'initial'],
-                                     stdin=subprocess.DEVNULL, start_new_session=True, pass_fds=(lock.fileno(),))
+                                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                                     start_new_session=True, pass_fds=(lock.fileno(),))
             try:
                 code = child.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -70,9 +79,9 @@ def main():
             if code == 0:
                 state['lastSuccessAt'] = state['finishedAt']
             save()
-            print(f"Backup {state['status']} at {state['finishedAt']} (exit {code}).", flush=True)
+            report(f"Backup {state['status']} at {state['finishedAt']} (exit {code}).")
             if not succeeded:
-                print(f"Backup failure is unmonitored elsewhere; exit {code} needs review.", file=sys.stderr, flush=True)
+                report(f"Backup failed; exit {code} needs review. See backup health signal.")
             return code
         except Exception as error:
             if child and child.poll() is None:
@@ -80,6 +89,7 @@ def main():
                 child.wait()
             state.update(status='failed', finishedAt=now(), error=type(error).__name__)
             save()
+            report(f"Backup failed at {state['finishedAt']} (error {type(error).__name__}).")
             raise
 
 

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:backup": "python3 scripts/test-backup-sync.py && node --import tsx scripts/test-backup-signal.ts",
     "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts && node --import tsx scripts/test-crew-publication-months.ts",
     "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",

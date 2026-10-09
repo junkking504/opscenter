@@ -72,3 +72,28 @@ collector is installed by this change.
 
 Operational log/receipt pruning is separate from workspace/release retention.
 Adding its script or plist does not authorize running it or installing its job.
+
+## Backup transfer and latest-attempt evidence
+
+A failed latest backup is a warning even if `lastSuccessAt` is recent. The
+summary includes the exit code when recorded. A success older than
+`OPSCENTER_BACKUP_MAX_AGE_MINUTES` (180 by default) remains critical, including
+when the latest attempt failed. No readable status remains unknown; a recorded
+failure without any success is a warning with the missing success disclosed.
+Rsync exit 24 retains the existing vanished-file treatment and does not advance
+the last fully successful backup time.
+
+Both foreground and background workers append transfer output and exactly one
+completion record to `data/backup-sync/sync.log`; foreground invocations also
+print the completion summary. Inspect that file for transfer diagnostics.
+Worker exceptions are recorded there as an error category. Locking, deadlines
+and preservation of the previous success time apply in both modes.
+
+The initial push and incremental pull exclude lock files/directories and
+`*.tmp`/`*.tmp-*` before broad subtree includes. The main data push excludes the
+same transient patterns. Photo `processing/` records remain included because
+interrupted uploads need that evidence for read-back before retry. Copying live
+queues is not a transactional snapshot; a moved file can still yield exit 24.
+These changes do not change the configured offsite destination or establish
+standby restore readiness. Validation: `npm run verify:backup` uses isolated
+fixtures, real rsync filtering with local transport, and no external writes.

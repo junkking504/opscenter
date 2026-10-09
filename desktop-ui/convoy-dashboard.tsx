@@ -78,6 +78,10 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
   return <article className="convoy-truck-dashboard">
     <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>
     <p className="convoy-truck-activity">{truck.operatingStatus} · Inspection: {truck.checklist}</p>
+    <div className="convoy-truck-identification">
+      <div><span className="convoy-fact-label">VIN</span><TruckVin truck={truck}/></div>
+      <div><span className="convoy-fact-label">Latest mileage</span><Mileage truck={truck} now={now} records={snapshot.maintenance} showReportedAt/></div>
+    </div>
     <div className="convoy-truck-instruments">
       <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
       <TruckLevelGauges truck={truck}/>
@@ -118,16 +122,21 @@ function Metric({
     <div className="convoy-metric">{content}</div>
   );
 }
+function TruckVin({truck}: {truck: DesktopFleetTruck}) {
+  return <div className="convoy-vin"><strong>{truck.vinNeedsVerification ? 'Needs verification' : truck.vin || 'Not recorded'}</strong><small>{truck.vinNeedsVerification ? 'Check the vehicle record' : truck.vin ? 'LinxUp vehicle record' : 'No VIN in the vehicle record'}</small></div>;
+}
 export function Mileage({
   truck,
   now,
   detail = false,
   records = [],
+  showReportedAt = false,
 }: {
   truck: DesktopFleetTruck;
   now: number;
   detail?: boolean;
   records?: FleetMaintenanceRow[];
+  showReportedAt?: boolean;
 }) {
   const m = truck.mileage,
     review = truckMileageReview(truck,records,now), q = review.quality;
@@ -145,8 +154,9 @@ export function Mileage({
             : `${miles(m?.value)} virtual / ${miles(m?.estimated)} estimated`
           : q === "unavailable"
             ? "No mileage reading"
-            : m?.inspectionBaseline ? `Visual reading + GPS travel${m.gpsIncomplete ? " · GPS gaps" : ""}` : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
+            : m?.inspectionBaseline ? `Estimated · inspection + GPS travel${m.gpsIncomplete ? " · GPS gaps" : ""}` : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
       </small>
+      {showReportedAt && q !== "unavailable" && (m?.source !== "inspection" || q === "conflict") && <small>{m?.reportedAt ? `As of ${stamp(m.reportedAt)}` : "Reading time unavailable"}</small>}
       {m?.inspectionHref && <a href={m.inspectionHref} target="_blank" rel="noreferrer">View inspection</a>}{detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{m?.note || (review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer.")}</small>{m?.tracking && <small>Original tracking feed: {miles(m.tracking.value)} · {m.tracking.source} · {stamp(m.tracking.reportedAt)}</small>}</details></>}
     </div>
   );
@@ -348,7 +358,7 @@ export function ConvoyDashboard(props: DashboardProps) {
         (filter === "stop" && stop.includes(t)) ||
         (filter === "repairs" && repairs.some((i) => sameTruck(i.truck, t.id))) ||
         (filter === "baseline" && baseline.includes(t))) &&
-      `${t.label} ${t.vehicle}`.toLowerCase().includes(query.toLowerCase()),
+      `${t.label} ${t.vehicle} ${t.vin || ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <div className="convoy-dashboard">
@@ -410,7 +420,7 @@ export function ConvoyDashboard(props: DashboardProps) {
               <Search size={15} />
               <input
                 aria-label="Search trucks"
-                placeholder="Search trucks…"
+                placeholder="Search trucks or VIN…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -438,6 +448,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                           {label(t)}
                           <ArrowRight size={14} />
                         </button>
+                        <div className="convoy-overview-vin"><span className="convoy-fact-label">VIN</span><TruckVin truck={t}/></div>
                       </td>
                       <td>
                         <div className="convoy-overview-mileage">

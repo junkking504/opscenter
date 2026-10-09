@@ -228,3 +228,14 @@ A GPS-advanced estimate retains its reconciled visual inspection baseline. If th
 baseline alone had already crossed the target after the last service, the service
 plan preserves Due now and its original reading timestamp/overdue amount. The GPS
 estimate cannot clear a proved overdue state or establish positive remaining miles.
+
+## Overview vehicle identity (October 9, 2026)
+
+Each top-level truck entry shows the full selectable VIN and latest mileage next
+to its operational status. VINs come from the existing saved LinxUp vehicle
+inventory, are normalized to uppercase, and remain unavailable when absent.
+Duplicate truck mappings or malformed VINs show Needs verification rather than
+choosing a vehicle identity. The truck list also shows VIN and supports VIN search.
+Mileage retains the existing inspection reconciliation, GPS estimate labels,
+conflict checks and source timestamp; these additions do not change its value or
+maintenance decisions. No new provider requests or runtime record writes occur.

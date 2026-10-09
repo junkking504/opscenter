@@ -516,3 +516,6 @@ button.convoy-metric:hover {border-color:#255e4c;background:#f9fcfa}
 @media(max-width:600px){.convoy-truck-dashboard{padding:14px}.convoy-truck-instruments{grid-template-columns:1fr}.convoy-truck-instruments,.convoy-level-gauges{gap:8px}.convoy-reading{padding:8px 10px}.convoy-truck-dashboard .convoy-truck-link{font-size:16px}}
 @media(max-width:380px){.convoy-level-gauges{grid-template-columns:1fr}}
 .convoy-service-gauge{max-width:320px;padding:12px 24px 0}
+
+.convoy-truck-identification{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 12px}.convoy-truck-identification>div{min-width:0}.convoy-fact-label{display:block;font-size:11px;font-weight:600;color:#526475;margin-bottom:3px}.convoy-vin strong{display:block;font-size:12px;font-weight:600;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;user-select:text}.convoy-vin small{display:block;color:#64748b;font-size:11px;line-height:1.45;margin-top:3px}.convoy-truck-identification .convoy-mileage strong{font-size:14px}.convoy-truck-identification .convoy-mileage small,.convoy-truck-identification .convoy-mileage a{font-size:11px;line-height:1.45}.convoy-overview-vin{margin-top:8px}
+@media(max-width:600px){.convoy-truck-identification{grid-template-columns:1fr;gap:10px}}

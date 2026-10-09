@@ -128,12 +128,13 @@ try {
             locations: [
               {
                 personName: "Truck# 4",
+                vin: "jalc4w164m7000001",
                 trueOdo: 155000,
                 virtualOdo: 155000,
                 estimatedOdo: 140000,
                 date: now,
               },
-              { personName: "Truck# 3", virtualOdo: 31000, estimatedOdo: 143000, date: now },
+              { personName: "Truck# 3", personMisc4: "JALC4W164M7000002", virtualOdo: 31000, estimatedOdo: 143000, date: now },
             ],
           },
         },
@@ -157,6 +158,18 @@ try {
     "conflicting virtual counters are flagged",
   );
   assert.equal(snapshot.trucks.find((t) => t.id === "Truck# 5")?.mileage?.value, null);
+  assert.equal(snapshot.trucks.find(t=>t.id==='Truck# 4')?.vin,'JALC4W164M7000001','VIN is passed from the matched vehicle record and normalized');
+  assert.equal(snapshot.trucks.find(t=>t.id==='Truck# 3')?.vin,'JALC4W164M7000002','legacy VIN field remains supported');
+  assert.equal(snapshot.trucks.find(t=>t.id==='Truck# 5')?.vin,null,'missing identity remains unavailable');
+  const inventoryFile='data/history/linxup/linxup_2026-10-06_raw.json';
+  const inventoryFixture=JSON.parse(fs.readFileSync(inventoryFile,'utf8'));
+  inventoryFixture.responses.locations.data.locations.push({personName:'Truck# 8',vin:'JALC4W164M7000003'},{personName:'Truck# 8',vin:'JALC4W164M7000004'},{personName:'Truck# 9',vin:'not-a-vin'});
+  fs.writeFileSync(inventoryFile,JSON.stringify(inventoryFixture));
+  const identities=readDesktopFleet('2026-10-09','overview','admin');
+  for(const id of ['Truck# 8','Truck# 9']) {
+    assert.equal(identities.trucks.find(t=>t.id===id)?.vin,null,'ambiguous or malformed identity is not published');
+    assert.equal(identities.trucks.find(t=>t.id===id)?.vinNeedsVerification,true);
+  }
   const body = {
     date: "2026-10-06",
     truck: "Truck# 4",

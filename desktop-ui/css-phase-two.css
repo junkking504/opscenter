@@ -801,3 +801,9 @@
 .ops-live[data-css-phase-two="Schedule"] .source-health-list header span + span { color: var(--oc-text-primary); }
 
 .ops-live[data-css-phase-two="Schedule"] .map-operation-summary { top: 64px; }
+
+/* Times and scope counts are operational text, not muted decoration. */
+.ops-live[data-css-phase-two="Schedule"] .schedule-time-row > span { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Schedule"] .map-focus-chip > span { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Schedule"] .schedule-dispatch .section-kicker { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Schedule"] .schedule-dispatch .section-kicker { font-size: var(--oc-type-10); }

@@ -2510,6 +2510,18 @@
       "selector": ".source-health-list header span + span",
       "role": "--oc-text-primary",
       "reason": "Operational reason text uses primary ink; keep muted anchor for secondary labels."
+    },
+    {
+      "selector": ".schedule-time-row > span",
+      "role": "--oc-text-primary"
+    },
+    {
+      "selector": ".map-focus-chip > span",
+      "role": "--oc-text-primary"
+    },
+    {
+      "selector": ".schedule-dispatch .section-kicker",
+      "role": "--oc-text-primary"
     }
   ],
   "layout": [
@@ -2525,6 +2537,10 @@
       "selector": ".source-health-list article > div span",
       "px": 10,
       "reason": "Workspace and source observation values are essential information."
+    },
+    {
+      "selector": ".schedule-dispatch .section-kicker",
+      "px": 10
     }
   ],
   "layoutNotes": [

@@ -2424,9 +2424,9 @@
     },
     "--oc-text-neutral-01": {
       "from": "#78817c",
-      "to": "#687e8e",
+      "to": "#243b4d",
       "kind": "role-neutral",
-      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+      "decision": "V2: small source labels, assistant hints and operational supporting text use primary ink; fixed muted anchor remains #687e8e."
     },
     "--oc-border-neutral-01": {
       "from": "#e5e8e4",

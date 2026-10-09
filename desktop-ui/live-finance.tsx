@@ -116,11 +116,16 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
       <button type="button" className="kpi-card" onClick={() => setFinanceView('expenses')}><span>Dump + Fuel</span><strong>{displayAmount(expenseReading)}</strong><small>{expenseReading.state === 'current' ? `Dumps ${money(dailyDisplay.dumps.value)}${assumedDumpExpense > 0 ? ` incl. ${money(assumedDumpExpense)} assumed` : ''} · Fuel ${money(dailyDisplay.fuel.value)} · ${expenseReading.detail}` : expenseReading.detail}</small></button>
       <button type="button" className={`kpi-card ${dailyDisplay.net.state !== 'current' ? 'warning' : dailyDisplay.net.value! < 0 ? 'critical' : 'healthy'}`} onClick={() => setFinanceView('trends')}><span>Net</span><strong>{displayAmount(dailyDisplay.net)}</strong><small>{dailyDisplay.net.detail}{assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}</small></button>
     </section>);
+  const sourceStatus = `${data.available ? `Published daily metrics · ${date}` : `Daily metrics unavailable for ${date}`} · Payment verification ${verification.status}`;
+  const sourceFreshness = <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Source age shown on each financial card"/>;
+  const sourceDetails = <div className="capital-source-details">
+    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Source details</span></summary>{sourceFreshness}<p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
+    {freshness.error && <p role="alert">Refresh failed. Last retrieved data retained. {freshness.error}</p>}
+  </div>;
   return <section className={`finance-workspace capital-workspace finance-view-${financeView}`}>
-    <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Source age shown on each financial card"/>
-    {financeView === 'overview' && <p className="finance-payment-note" role="status"><ShieldCheck size={14} />{data.available ? `Published daily metrics · ${date}` : `Daily metrics unavailable for ${date}`} · Payment verification {verification.status} · {commercialDate(recon.generatedAt || '')}</p>}
+    {financeView !== 'overview' && sourceFreshness}
     {feedback && <p className="finance-feedback" role="status">{feedback}</p>}{lastRequest && <Button disabled={busy} variant="outline" size="sm" onClick={() => { void checkReceipt(); }}>Check Saved Result</Button>}
-    {financeView === 'overview' && <CapitalOverview data={data} date={date} dailySummary={dailySummary} onViewChange={setFinanceView} />}
+    {financeView === 'overview' && <CapitalOverview data={data} date={date} dailySummary={dailySummary} sourceDetails={sourceDetails} onViewChange={setFinanceView} />}
     {financeView === 'accounting' && <FinancialStatements data={data.statements} date={date} onRefresh={() => setRevision(value => value + 1)} />}
     {financeView === 'expenses' && <div className="capital-page capital-expenses">
       <CapitalPageHeader eyebrow={`OPERATING EXPENSES · ${commercialDate(date)}`} title="Know the cost of the day" description="Recorded and assumed operating costs, disposal visits and fuel purchases with their source evidence." />

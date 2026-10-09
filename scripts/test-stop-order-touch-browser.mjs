@@ -20,7 +20,7 @@ for(const engine of [chromium,webkit]) {
    await route.fulfill({json:body.action==='save'?{snapshot:{date:body.date,observedAt:null,fleet:{isToday:false,trucks:[]},appointments}}:{ids,legs:[]}});
   });
   await page.goto(url);
-  const open=()=>page.getByRole('button',{name:'Stop Order',exact:true}).tap();
+  const open=()=>page.getByRole('button',{name:'Job Order',exact:true}).tap();
   const modal=page.getByRole('dialog');
   await open();
   await modal.getByRole('button',{name:'Move JK3 up',exact:true}).tap();

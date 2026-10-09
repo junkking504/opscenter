@@ -23,11 +23,11 @@ for(const engine of [chromium,webkit]) {
    assert.match(await page.getByRole('dialog',{name:'Travel · Truck# 9'}).innerText(),/JK1001[\s\S]*Earlier visit[\s\S]*JK1002[\s\S]*Just completed/);
    await page.getByRole('button',{name:'Close travel details'}).click();
    await page.getByRole('button',{name:'Select Truck# 9 on map',exact:true}).click();
-   await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+   await page.getByRole('button',{name:'Job Order',exact:true}).click();
    await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
    await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
    await page.getByRole('button',{name:'Save Order',exact:true}).click();
-   await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+   await page.getByRole('button',{name:'Job Order',exact:true}).click();
    const modal=page.getByRole('dialog');
    assert.match(await modal.locator('.stop-order-row').first().innerText(),/JK1005[\s\S]*Booked: 2:00 PM/);
    assert.equal(await modal.locator('.stop-order-row').count(),4);

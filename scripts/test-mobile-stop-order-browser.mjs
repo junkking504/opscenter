@@ -12,16 +12,16 @@ for (const engine of [chromium,webkit]) {
    await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
    const press=locator=>mobile?locator.tap():locator.click();
    await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time`);
-   const trigger=page.getByRole('button',{name:'Stop Order',exact:true});
+   const trigger=page.getByRole('button',{name:'Job Order',exact:true});
    assert.equal(await trigger.isEnabled(),false);
    if(mobile) {
     await press(page.locator('[data-overview-truck="Truck 8"] .mobile-schedule-truck'));
     await page.getByRole('dialog',{name:'Truck schedule details'}).waitFor();
     await press(page.getByRole('button',{name:'Close truck schedule details'}));
    } else await page.getByRole('combobox',{name:'Truck trips',exact:true}).selectOption('Truck 8');
-   assert.equal(await trigger.isEnabled(),true,'Selecting a mobile truck must enable Stop Order');
+   assert.equal(await trigger.isEnabled(),true,'Selecting a mobile truck must enable Job Order');
    await press(trigger);
-   const dialog=page.getByRole('dialog',{name:'Truck# 8 · Stop Order',exact:true});
+   const dialog=page.getByRole('dialog',{name:'Truck Job Order',exact:true});
    await dialog.waitFor();
    const labels=()=>dialog.locator('.stop-order-row strong').allTextContents();
    const original=await labels();assert.equal(original.length,4);
@@ -32,7 +32,7 @@ for (const engine of [chromium,webkit]) {
    if(shot && width===390)await page.screenshot({path:`${shot}/stop-order-${engine.name()}-390.png`});
    await press(dialog.getByRole('button',{name:'Cancel',exact:true}));
    await press(trigger);assert.deepEqual(await labels(),original,'Cancel discards draft');
-   await press(dialog.getByRole('button',{name:'Close stop order',exact:true}));
+   await press(dialog.getByRole('button',{name:'Close job order',exact:true}));
    assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
    await press(page.getByRole('button',{name:'Leave fixture schedule',exact:true}));
    await press(page.getByRole('button',{name:'Return to fixture schedule',exact:true}));
@@ -40,7 +40,7 @@ for (const engine of [chromium,webkit]) {
     await press(page.locator('[data-overview-truck="Truck 8"] [data-schedule-appointment]').first());
     const drawer=page.getByRole('dialog',{name:'JK1001001',exact:true});await drawer.waitFor();
     await press(drawer.getByRole('button',{name:'Close',exact:true}).first());
-    assert.equal(await trigger.isEnabled(),true,'Selecting a mobile appointment must enable Stop Order');
+    assert.equal(await trigger.isEnabled(),true,'Selecting a mobile appointment must enable Job Order');
     await press(trigger);await dialog.waitFor();
     await press(dialog.getByRole('button',{name:'Cancel',exact:true}));
    }

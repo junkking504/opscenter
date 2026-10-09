@@ -16,7 +16,7 @@ try {
   assert.equal(await first.getAttribute('data-time-basis'),'actual');
   assert.equal(await second.getAttribute('data-time-basis'),'booked');
   assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
-  console.log('Stop Order stack browser PASS: saved first stop is above the second across GPS and planned timing, with zero writes.');
+  console.log('Job Order stack browser PASS: saved first stop is above the second across GPS and planned timing, with zero writes.');
 } finally {
   await browser.close();
 }

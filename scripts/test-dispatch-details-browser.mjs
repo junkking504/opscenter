@@ -39,7 +39,7 @@ try {
     if(width===1440||width===390)await page.screenshot({path:`/tmp/schedule-hierarchy-${width}.png`});
     const block=page.locator('[data-schedule-appointment]').first();
     await block.waitFor();
-    const orderButton=page.getByRole('button',{name:'Stop Order',exact:true});
+    const orderButton=page.getByRole('button',{name:'Job Order',exact:true});
     await orderButton.click();
     const orderDialog=page.getByRole('dialog',{name:'Order Same-Time Appointments',exact:true});
     assert.equal(await orderDialog.locator('.stop-order-row').count(),4);

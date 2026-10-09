@@ -19,14 +19,14 @@ try {
   await page.setViewportSize({width,height:800});
   await page.goto(process.env.STOP_ORDER_TEST_URL || 'http://127.0.0.1:3157/tests/stop-order.html');
   await page.addStyleTag({content:fs.readFileSync('desktop-ui/app/globals.css','utf8')});
-  await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+  await page.getByRole('button',{name:'Job Order',exact:true}).click();
   const modal=page.getByRole('dialog');
   await modal.getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
   await modal.getByRole('button',{name:'Move JK3 up',exact:true}).click();
   assert.deepEqual(await modal.locator('.stop-order-row strong').allTextContents(),['JK1 · Example 1','JK3 · Example 3','JK2 · Example 2']);
   await modal.getByRole('button',{name:'Save Order',exact:true}).click();
   await page.getByText('JK1,JK3,JK2',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+  await page.getByRole('button',{name:'Job Order',exact:true}).click();
   await modal.getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
   assert.deepEqual(await modal.locator('.stop-order-row strong').allTextContents(),['JK1 · Example','JK3 · Example','JK2 · Example']);
   await modal.getByRole('button',{name:'Suggest nearest after first stop',exact:true}).click();
@@ -40,7 +40,7 @@ try {
  assert.equal(saves,2);
  saveDelay=900;
  await page.goto(process.env.STOP_ORDER_TEST_URL || 'http://127.0.0.1:3157/tests/stop-order.html');
- await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+ await page.getByRole('button',{name:'Job Order',exact:true}).click();
  await page.getByRole('dialog').getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
  const beforeSave=actions.length;
  await page.getByRole('button',{name:'Move JK3 up',exact:true}).click();

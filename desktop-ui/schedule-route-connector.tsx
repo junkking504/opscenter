@@ -11,7 +11,7 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
   const estimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes}m`;
   const hoverEstimate = leg.travelMinutes === null ? unavailable.label : `${leg.travelMinutes} min`;
   const completed = /complet|closed/i.test(c.from.job.status || '') && /complet|closed/i.test(c.to.job.status || '');
-  const orderLabel = completed ? 'Completed stops' : c.from.job.visitOrder !== undefined || c.to.job.visitOrder !== undefined || c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
+  const orderLabel = completed ? 'Completed stops' : c.from.job.visitOrder !== undefined || c.to.job.visitOrder !== undefined || c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved job order' : 'Proposed order';
   const label = `${leg.fromJk} → ${leg.toJk}: ${estimate} · ${orderLabel}`;
   return <>
     <div className={`schedule-route-connector compact-travel${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${c.width * 100}%`, top: c.top, height: c.height }}>

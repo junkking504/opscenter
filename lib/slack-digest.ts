@@ -771,7 +771,8 @@ export async function fetchSlackDailyDigest(
     observe(context,'refresh',result.status==='unavailable'?'unavailable':result.complete===false?'partial':'complete',diagnostics.now()-started);
     const detail=slackDiagnosticDetail(context.reasons);
     diagnostics.flush();
-    return {...result,reasonCounts:context.reasons,...(detail?{detail}: {})};
+    const visibleDetail=[detail,diagnostics.persistenceUnavailable()?'Diagnostic history unavailable; observation coverage is incomplete.':''].filter(Boolean).join(' ');
+    return {...result,reasonCounts:context.reasons,...(visibleDetail?{detail:visibleDetail}: {})};
   };
   if (!validDate(date)) {
     observe(context,'refresh','invalid_date');

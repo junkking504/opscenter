@@ -400,7 +400,9 @@ is persisted at most every five minutes to the external data directory's
 days; only these new anonymous diagnostic windows expire. Private file permissions,
 an exclusive process-owned lock and atomic replacement serialize writes. The
 reader remains usable if persistence fails; a bounded diagnostic warning reports
-failure. Any existing lock is preserved, including a dead owner; recovery requires an
+failure, and a fixed diagnostic-history warning remains in Source Health detail
+until a later successful save. This warning does not alter readable channel
+coverage. Any existing lock is preserved, including a dead owner; recovery requires an
 operator to verify writers are stopped before removing that specific lock. No
 automatic stale-lock deletion is permitted. Uncertain/corrupt prior history is
 never overwritten as success.
@@ -414,7 +416,7 @@ retroactively identify historical causes.
 
 Acceptance: after a representative operating day, total complete/partial/
 unavailable refreshes and attempts over recorded windows, report partial/total
-with gaps, and list observed bounded causes by history/replies method. Do not
+with gaps, count cooldown as skipped calls (not HTTP attempts), and list observed bounded causes by history/replies method. Do not
 manually refresh or expand polling to collect that sample. Consider thread caching
 only after evidence and separate design for edits/deletions; it is not included.
 

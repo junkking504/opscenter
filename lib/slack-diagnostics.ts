@@ -78,6 +78,7 @@ export function persistSlackWindow(window: SlackDiagnosticWindow, directory = pa
 export function createSlackDiagnostics(options: {now?:()=>number; persist?:(window:SlackDiagnosticWindow)=>boolean} = {}) {
   const now=options.now || Date.now;
   let started=now(), attempted=started;
+  let persistenceUnavailable=false;
   let counters:SlackDiagnosticWindow['counters']={};
   // Private transient credential key: never persisted/logged or returned to the UI.
   const cooldowns=new Map<string,number>();
@@ -109,9 +110,10 @@ export function createSlackDiagnostics(options: {now?:()=>number; persist?:(wind
       if(!options.persist || now()-attempted<INTERVAL)return;
       attempted=now();
       try {
-        if(options.persist({startedAt:new Date(started).toISOString(),finishedAt:new Date(now()).toISOString(),counters})) { counters={};started=now(); }
-      } catch { console.warn('[slack-diagnostics] aggregate persistence unavailable'); }
+        if(options.persist({startedAt:new Date(started).toISOString(),finishedAt:new Date(now()).toISOString(),counters})) { counters={};started=now();persistenceUnavailable=false; }
+      } catch { persistenceUnavailable=true;console.warn('[slack-diagnostics] aggregate persistence unavailable'); }
     },
+    persistenceUnavailable:()=>persistenceUnavailable,
     now,
   };
 }

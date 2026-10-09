@@ -60,6 +60,15 @@ async function main(){
  for(const secret of ['private-token','PRIVATE_CHANNEL','Synthetic operational','1791576000'])assert(!serialized.includes(secret));
  assert(windows[0].counters['refresh:partial']!.count>=4);
  diagnostics.flush();assert.equal(windows.length,1);time+=299_999;diagnostics.flush();assert.equal(windows.length,1);
+ // A storage failure stays visible without changing usable channel coverage.
+ let broken=true;
+ const storageObserver=createSlackDiagnostics({now:()=>time,persist:()=>{if(broken)throw new Error('SECRET private path');return true;}});
+ time+=300_000;
+ const storageOptions={...options,diagnostics:storageObserver,fetchImpl:(async()=>response({ok:true,messages:[]}))as typeof fetch};
+ const realWarn=console.warn;console.warn=()=>{};
+ try{const failedStorage=await fetchSlackDailyDigest('2026-10-09',storageOptions);assert.equal(failedStorage.complete,true);assert.match(failedStorage.detail!,/Diagnostic history unavailable/);assert(!failedStorage.detail!.includes('SECRET'));}finally{console.warn=realWarn;}
+ broken=false;time+=300_000;
+ const recoveredStorage=await fetchSlackDailyDigest('2026-10-09',storageOptions);assert(!recoveredStorage.detail?.includes('Diagnostic history unavailable'));
  // In-flight cache remains shared beyond TTL, then starts a fresh TTL on success.
  let loads=0,resolve!:(value:number)=>void;
  const cache=createSettledPromiseCache<number>(30_000,()=>time);

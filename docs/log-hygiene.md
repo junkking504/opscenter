@@ -37,8 +37,10 @@ runs; concurrent invocations report `busy`.
 
 Copy/truncate retains PostgreSQL/launchd's open writer. It cannot guarantee zero
 loss for bytes written in the small stat-to-truncate interval. If the log grows
-during copying, the helper stops without truncation. A pending archive after any
-failure or crash blocks future rotation for operator review. Do not remove it
+during copying or the path is replaced, the helper stops without truncation,
+removes only its own duplicate pending archive, records `retry` and returns
+nonzero so the next daily run can try again. Other failures or crashes leave a
+pending archive and block future rotation for operator review. Do not remove it
 blindly: inspect whether the live log was truncated, preserve the pending archive
 and existing generations, then make an explicitly reviewed recovery decision.
 Do not switch to rename-only rotation; launchd does not reopen the old descriptor.
@@ -48,7 +50,10 @@ lock file can be created). The daily job uses `--apply`. Failure returns nonzero
 prints a bounded error, and writes `postgres-log-rotation-status.json` where
 possible. Check that receipt, the dedicated LaunchAgent error log and launchd's
 last exit status. A missing/old receipt is unavailable evidence, not success.
-There is no external notification or new paid monitoring service.
+Failed/retry, missing/invalid and over-48-hour receipts also warn in the existing
+Mission Control storage signal. This is an operational warning, not an application
+liveness failure. Preview/VPS do not require the Mac receipt. There is no external
+notification or new paid monitoring service.
 
 After independent review, install the exact committed helper using:
 
@@ -63,7 +68,10 @@ the helper outside releases, and installs
 `com.openclaw.opscenter.postgres-log-rotation` for **02:45 daily, host local time**
 (Central on Mission Control). Installation does not rotate or restart PostgreSQL.
 Before the first apply, record the dry-run receipt and confirm the approved
-log-retention boundary. To suspend, boot out only this LaunchAgent; the database
+log-retention boundary. Attend the first rotation: cause one rejected test login
+and confirm the live log stays small and allocated normally rather than becoming
+a sparse file at the old offset. This proves the launchd writer appends. Stop
+rotation if this fails; native collector rotation requires a separately planned restart. To suspend, boot out only this LaunchAgent; the database
 and application remain running. Keep installed backups and receipts.
 
 ## Anonymous rejected-session summaries

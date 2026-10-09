@@ -1,3 +1,5 @@
+import { readLogRotationHealth } from './log-rotation-health';
+import { getOpsRuntime } from './runtime';
 import fs from "node:fs";
 import path from "node:path";
 
@@ -482,6 +484,7 @@ export function queueSignal(): QueueSignal {
 /* ------------------------------------------------------------------ */
 
 export function storageSignal(): StorageSignal {
+  const rotation = getOpsRuntime() === "MISSION_CONTROL" ? readLogRotationHealth() : null;
   const target = resolveDataPath("data") || process.cwd();
   try {
     const stats = fs.statfsSync(target);
@@ -498,10 +501,11 @@ export function storageSignal(): StorageSignal {
           ? "warn"
           : "ok";
     return {
-      status,
-      summary: usedPercent === null
+      status: status === "ok" && rotation && rotation.status !== "ok" ? "warn" : status,
+      summary: (usedPercent === null
         ? "Disk usage could not be determined"
-        : `Data volume ${usedPercent}% used, ${Math.round(freeBytes / 1_073_741_824)} GB free`,
+        : `Data volume ${usedPercent}% used, ${Math.round(freeBytes / 1_073_741_824)} GB free`)
+        + (rotation && rotation.status !== "ok" ? `; ${rotation.summary}` : ""),
       freeBytes,
       totalBytes,
       usedPercent,

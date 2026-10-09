@@ -69,6 +69,26 @@ class RotationTests(unittest.TestCase):
             with self.assertRaises(OSError):self.run_rotation()
         self.assertEqual(self.log.read_bytes(),before)
         self.assertEqual(gzip.decompress((self.directory/(r.LOG+'.rotation-pending.gz')).read_bytes()),before)
+    def test_abandoned_receipt_temp_does_not_block(self):
+        (self.directory/'.postgres-log-rotation-status.999999.tmp').write_text('partial')
+        self.assertEqual(self.run_rotation()['status'], 'rotated')
+    def test_replaced_log_preserved_and_next_run_recovers(self):
+        before=self.log.read_bytes();read=r.os.read;replaced=False
+        def replace(fd,count):
+            nonlocal replaced
+            value=read(fd,count)
+            if not replaced:
+                replaced=True
+                self.log.rename(self.directory/'original.log')
+                self.log.write_bytes(b'replacement warning'*10)
+            return value
+        with mock.patch.object(r.os,'read',side_effect=replace):
+            result=self.run_rotation()
+        self.assertEqual(result['status'],'retry');self.assertEqual(result['reason'],'log_replaced')
+        self.assertEqual((self.directory/'original.log').read_bytes(),before)
+        self.assertEqual(self.log.read_bytes(),b'replacement warning'*10)
+        self.assertFalse((self.directory/(r.LOG+'.rotation-pending.gz')).exists())
+        self.assertEqual(self.run_rotation()['status'],'rotated')
     def test_growing_log_preserved(self):
         read=r.os.read;grew=False
         def append(fd,count):
@@ -79,7 +99,9 @@ class RotationTests(unittest.TestCase):
                 with self.log.open('ab') as f:f.write(b'concurrent warning')
             return value
         with mock.patch.object(r.os,'read',side_effect=append):
-            with self.assertRaises(RuntimeError):self.run_rotation()
+            self.assertEqual(self.run_rotation()['status'], 'retry')
+        self.assertFalse((self.directory/(r.LOG+'.rotation-pending.gz')).exists())
         self.assertTrue(self.log.read_bytes().endswith(b'concurrent warning'))
+        self.assertEqual(self.run_rotation()['status'], 'rotated')
 
 if __name__=='__main__':unittest.main()

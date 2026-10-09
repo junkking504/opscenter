@@ -44,7 +44,7 @@ def regular(fd, name):
 
 
 def receipt(fd, value):
-    name = '.postgres-log-rotation-status.tmp'
+    name = f'.postgres-log-rotation-status.{os.getpid()}.tmp'
     # O_EXCL leaves uncertain previous writes for review instead of overwriting.
     output = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | FLAGS, 0o600, dir_fd=fd)
     with os.fdopen(output, 'w') as f:
@@ -91,6 +91,7 @@ def rotate(directory, apply=False, threshold=THRESHOLD):
             archive = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | FLAGS, 0o600, dir_fd=fd)
             # Snapshot an exact byte count. Any incomplete copy leaves the live file
             # intact and the pending archive for investigation. Never truncate on error.
+            archive_identity = os.fstat(archive)
             with os.fdopen(archive, 'wb') as output:
                 with gzip.GzipFile(fileobj=output, mode='wb', filename='', mtime=0) as compressed:
                     remaining = opened.st_size
@@ -101,10 +102,18 @@ def rotate(directory, apply=False, threshold=THRESHOLD):
                 output.flush(); os.fsync(output.fileno())
             os.fsync(fd)
             current = regular(fd, LOG)
-            if current is None or (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
-                raise RuntimeError('log replaced while copying; archive retained, no truncation')
-            if os.fstat(log).st_size != opened.st_size:
-                raise RuntimeError('log grew while copying; archive retained, no truncation')
+            changed = current is None or (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino)
+            grew = os.fstat(log).st_size != opened.st_size
+            if changed or grew:
+                own_pending = regular(fd, pending)
+                if own_pending is None or (own_pending.st_dev, own_pending.st_ino) != (archive_identity.st_dev, archive_identity.st_ino):
+                    raise RuntimeError('pending archive identity changed; review required')
+                # No truncation occurred. Remove only this invocation's duplicate
+                # archive, allowing the next daily run to retry normally.
+                os.unlink(pending, dir_fd=fd); os.fsync(fd)
+                result.update(status='retry', reason='log_replaced' if changed else 'log_changed')
+                receipt(fd, result)
+                return result
             # Writer inode/descriptor is retained. A write between the last stat and
             # truncate can still be lost: the documented copy/truncate limitation.
             os.ftruncate(log, 0); os.fsync(log)
@@ -140,7 +149,7 @@ def main():
         print(json.dumps({'status': 'failed', 'error': str(error)}), file=sys.stderr)
         return 1
     print(json.dumps(result))
-    return 0
+    return 1 if result['status'] in ('retry', 'failed') else 0
 
 
 if __name__ == '__main__':

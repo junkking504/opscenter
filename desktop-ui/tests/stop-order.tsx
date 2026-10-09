@@ -13,6 +13,12 @@ if(new URLSearchParams(location.search).has('fleet')) {
   {truck:'Truck 9',latitude:null,longitude:null,lastGpsUpdate:null},
  ] as ScheduleSnapshot['fleet']['trucks']};
 }
+if(new URLSearchParams(location.search).has('collisions')) {
+ initial.fleet={isToday:true,lastUpdatedAt:null,trucks:[2,3,4,6,8,9].map((number,index)=>({
+  truck:`Truck ${number}`,latitude:29.97+(index<2?.00001*index:0),longitude:-90.09+(index<2?.00001*index:0),
+  lastGpsUpdate:new Date(Date.now()-([3,8,9].includes(number)?30*60_000:0)).toISOString(),speed:0,
+ })) as ScheduleSnapshot['fleet']['trucks']};
+}
 if (multi) {
   initial.appointments.push(...initial.appointments.slice(0,2).map((job,index)=>({...job,recordId:`2026-09-09:appointment:${index+4}`,appointmentId:String(index+4),jkNumber:`JK${index+4}`,customerName:`Truck 2 stop ${index+1}`,truck:'Truck 2',appointmentStartMinutes:600+index*120,appointmentEndMinutes:660+index*120,appointmentTime:index===0?'10:00 AM–11:00 AM':'12:00 PM–1:00 PM'})));
   initial.appointments=initial.appointments.map((job,index)=>({...job,location:{latitude:job.truck==='Truck 2'?30.42+(index-3)*.02:29.96+index*.012,longitude:job.truck==='Truck 2'?-91.14+(index-3)*.025:-90.06-index*.018}}));

@@ -49,5 +49,40 @@ try {
  assert.equal(await page.getByRole('dialog').count(),0,'A pending travel preview must never cancel Save Order');
  assert.deepEqual(actions.slice(beforeSave),['save'],'Saving must cancel the queued preview');
  assert.equal(saves,3,'Exactly one save per explicit Save Order click');
+ for(const width of [1280,390]) {
+  await page.setViewportSize({width,height:720});
+  await page.route('https://tile.openstreetmap.org/**',route=>route.fulfill({status:200,contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==','base64')}));
+  await page.goto((process.env.STOP_ORDER_TEST_URL || 'http://127.0.0.1:3157/tests/stop-order.html')+'?multi&fleet&collisions');
+  await page.addStyleTag({content:fs.readFileSync('desktop-ui/app/globals.css','utf8')});
+  await page.getByRole('button',{name:'Job Order',exact:true}).click();
+  await page.getByRole('button',{name:'All trucks',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('.stop-order-truck').length===6);
+  const inspect=async()=>page.locator('.stop-order-truck').evaluateAll(elements=>elements.map(element=>{
+   const badge=element.querySelector('.stop-order-truck-badge'),r=badge.getBoundingClientRect();
+   return {label:badge.textContent,title:element.title,selected:element.classList.contains('selected'),stale:element.classList.contains('stale'),z:Number(element.style.zIndex),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+  }));
+  const assertBadges=async()=>{
+   const badges=await inspect();assert.equal(badges.length,6);
+   const controls=await page.locator('.stop-order-map .leaflet-control').evaluateAll(elements=>elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
+   for(const badge of badges)for(const control of controls)assert(badge.right<=control.left||control.right<=badge.left||badge.bottom<=control.top||control.bottom<=badge.top,'Truck labels must not be hidden by map controls');
+   for(const [index,badge] of badges.entries()) {
+    if(badge.stale)assert.match(badge.label,/Last known/);
+    assert.match(badge.title,/GPS/);
+    for(const other of badges.slice(index+1))assert(badge.right<=other.left||other.right<=badge.left||badge.bottom<=other.top||other.bottom<=badge.top,`Badges overlap at ${width}px: ${JSON.stringify(badges)}`);
+   }
+   const selected=badges.find(badge=>badge.selected);assert(selected);assert(badges.every(badge=>badge.selected||badge.z<selected.z),'Selected truck must stay above every other badge');
+  };
+  await assertBadges();
+  await page.locator('.stop-order-truck').first().click();
+  await page.locator('.leaflet-popup-content').waitFor();
+  await page.waitForTimeout(350);
+  assert.equal(await page.locator('.leaflet-popup-content').count(),1,'A popup must survive its automatic viewport pan');
+  await page.locator('.leaflet-popup-close-button').click();
+  await page.getByRole('button',{name:'Zoom in',exact:true}).click();
+  await page.waitForTimeout(300);
+  await assertBadges();
+  if(process.env.STOP_ORDER_SCREENSHOT_DIR){fs.mkdirSync(process.env.STOP_ORDER_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:`${process.env.STOP_ORDER_SCREENSHOT_DIR}/truck-badges-${width}.png`});}
+  await page.keyboard.press('Escape');
+ }
  console.log('Stop order browser passed at 390px and 1280px: arrows, save/read-back, nearest suggestion, cancel, dialog bounds and delayed save without preview interruption. Synthetic API only.');
 } finally {await browser.close();}

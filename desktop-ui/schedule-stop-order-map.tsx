@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleSnapshot} from './lib/schedule-contract';
 import {truckDisplayLabel} from '../lib/junkware-trucks';
-import {stopOrderMap,stopOrderTrucks} from './lib/stop-order-map';
+import {stopOrderMap,stopOrderTrucks,stopOrderTruckBadges} from './lib/stop-order-map';
 
 export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,selected,onSelect,loading,stale}:{jobs:ScheduleAppointment[];legs:ScheduleRouteLeg[];fleet:ScheduleSnapshot['fleet'];selectedTruck:string;selected:string|null;onSelect:(id:string)=>void;loading:boolean;stale:boolean}) {
  const host=useRef<HTMLDivElement>(null),map=useRef<L.Map|null>(null),layer=useRef<L.LayerGroup|null>(null);
@@ -40,7 +40,17 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
    const marker=L.marker([stop.point.latitude,stop.point.longitude],{icon:L.divIcon({className:`stop-order-pin${selected===stop.job.recordId?' selected':''}`,html:`<span>${stop.number}</span>`,iconSize:[30,30],iconAnchor:[15-offset*22,15]}),title:`Stop ${stop.number}: ${stop.job.customerName} · ${stop.job.jkNumber}`,keyboard:true,zIndexOffset:selected===stop.job.recordId?1000:100}).addTo(overlay);
    const caption=document.createElement('div');caption.textContent=`${stop.number}. ${stop.job.customerName} · ${appointmentServiceAddress(stop.job)}`;marker.bindTooltip(caption);marker.on('click',()=>current.current.onSelect(stop.job.recordId));
   }
-  for(const truck of trucks){
+  const truckOverlay=L.layerGroup().addTo(overlay);
+  const renderedTrucks=new Map<string,{marker:L.Marker;leader:L.Polyline;dot:L.CircleMarker}>();
+  const placeTrucks=()=>{
+   const bounds=view.getContainer().getBoundingClientRect();
+   const blocked=Array.from(view.getContainer().querySelectorAll('.leaflet-control')).map(control=>{const r=control.getBoundingClientRect();return {left:r.left-bounds.left,top:r.top-bounds.top,width:r.width,height:r.height};});
+   const badges=stopOrderTruckBadges(trucks.map(truck=>{
+    const point=view.latLngToContainerPoint([truck.point.latitude,truck.point.longitude]);
+    return {id:truck.label,x:point.x,y:point.y,selected:truck.selected,stale:truck.gps.stale};
+   }),view.getSize(),blocked);
+   for(const truck of trucks){
+   const placement=badges.find(badge=>badge.id===truck.label)!;
    const badge=document.createElement('div');badge.className='stop-order-truck-badge';
    const name=document.createElement('strong');
    // Static truck glyph; source-provided labels are always plain text.
@@ -48,9 +58,19 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
    name.append(document.createTextNode(truck.label));badge.append(name);
    if(truck.gps.stale){const status=document.createElement('small');status.textContent='Last known';badge.append(status);}
    const description=`${truck.label} · ${truck.gps.label} · GPS ${truck.reportedAt}`;
-   const marker=L.marker([truck.point.latitude,truck.point.longitude],{icon:L.divIcon({className:`stop-order-truck${truck.selected?' selected':''}${truck.gps.stale?' stale':''}`,html:badge,iconSize:[94,truck.gps.stale?42:28],iconAnchor:[47,truck.gps.stale?52:38]}),title:description,alt:description,keyboard:true,zIndexOffset:truck.selected?1500:1200}).addTo(overlay);
-   const caption=document.createElement('div');caption.textContent=description;marker.bindPopup(caption);marker.bindTooltip(()=>caption.cloneNode(true) as HTMLElement,{direction:'top',offset:[0,-36]});
-  }
+   const icon=L.divIcon({className:`stop-order-truck${truck.selected?' selected':''}${truck.gps.stale?' stale':''}`,html:badge,iconSize:[placement.width,placement.height],iconAnchor:[placement.x-placement.left,placement.y-placement.top]});
+   const existing=renderedTrucks.get(truck.label);
+   const marker=existing?existing.marker.setIcon(icon):L.marker([truck.point.latitude,truck.point.longitude],{icon,title:description,alt:description,keyboard:true,zIndexOffset:truck.selected?100000:1200}).addTo(truckOverlay);
+   const caption=document.createElement('div');caption.textContent=description;if(!existing)marker.bindPopup(caption);marker.bindTooltip(()=>caption.cloneNode(true) as HTMLElement,{direction:'top',offset:[placement.left+47-placement.x,placement.top-placement.y]});
+   // A leader keeps displaced labels tied to the precise reported position.
+   const edge=view.containerPointToLatLng([Math.max(placement.left,Math.min(placement.left+placement.width,placement.x)),Math.max(placement.top,Math.min(placement.top+placement.height,placement.y))]);
+   const endpoints:[L.LatLngExpression,L.LatLngExpression]=[[truck.point.latitude,truck.point.longitude],edge];
+   const leader=existing?existing.leader.setLatLngs(endpoints):L.polyline(endpoints,{color:truck.selected?'#245fa4':'#334650',weight:1.5,opacity:.8,interactive:false}).addTo(truckOverlay);
+   const dot=existing?.dot||L.circleMarker([truck.point.latitude,truck.point.longitude],{radius:3,color:truck.selected?'#245fa4':'#334650',weight:1,fillOpacity:1,interactive:false}).addTo(truckOverlay);
+   renderedTrucks.set(truck.label,{marker,leader,dot});
+   }
+  };
+  view.on('zoomend moveend resize',placeTrucks);
   fit.current=(allTrucks=false)=>{view.closePopup();const points=model.stops.map(s=>[s.point.latitude,s.point.longitude] as [number,number]);for(const path of model.paths)points.push(...path.points.map(p=>[p.latitude,p.longitude] as [number,number]));for(const truck of trucks)if(allTrucks||truck.selected)points.push([truck.point.latitude,truck.point.longitude]);if(points.length)view.fitBounds(L.latLngBounds(points),{padding:[60,60],maxZoom:15,animate:false});};
   // GPS refreshes update pins without taking away a dispatcher's chosen viewport.
   const key=JSON.stringify([selectedTruck,Boolean(activeTruck),model.stops.map(s=>[s.job.recordId,s.point]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]);
@@ -59,6 +79,8 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
   if(model.paths.length&&routed.current!==routeKey&&!manualView.current){fit.current();routed.current=routeKey;}
   if(selected&&focused.current!==selected){const target=model.stops.find(s=>s.job.recordId===selected);if(target)view.panTo([target.point.latitude,target.point.longitude],{animate:false});}
   focused.current=selected;
+  placeTrucks();
+  return()=>{view.off('zoomend moveend resize',placeTrucks);};
   // The signature covers rendered map content; callbacks use the current ref.
   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[markerSignature]);

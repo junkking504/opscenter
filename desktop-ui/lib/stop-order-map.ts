@@ -25,3 +25,26 @@ export function stopOrderMap(jobs:ScheduleAppointment[],legs:ScheduleRouteLeg[])
  });
  return {stops,paths,missingPins:jobs.length-stops.length,missingRoutes:Math.max(0,jobs.length-1-paths.length)};
 }
+
+export type TruckBadgeRect = {left:number;top:number;width:number;height:number};
+export type TruckBadgePoint = { id:string; x:number; y:number; selected:boolean; stale:boolean };
+/** Screen-only badge placement. GPS points, route geometry and stop pins never move. */
+export function stopOrderTruckBadges(points:TruckBadgePoint[],size:{x:number;y:number},blocked:TruckBadgeRect[]=[],gridOnly=false):Array<TruckBadgePoint & {left:number;top:number;width:number;height:number}> {
+ let needsPacking=false;
+ const placed:TruckBadgeRect[]=[...blocked];
+ const result=[...points].sort((a,b)=>Number(b.selected)-Number(a.selected)||a.id.localeCompare(b.id,undefined,{numeric:true})).map(point=>{
+  const width=94,height=point.stale?40:28,gap=8;
+  const preferred={left:point.x-width/2,top:point.y-height-10,width,height};
+  // Preserve offscreen positions in a dispatcher-chosen viewport.
+  if(point.x<0||point.x>size.x||point.y<0||point.y>size.y)return {...point,...preferred};
+  const candidates=gridOnly?[]:[preferred];
+  for(let top=gap;top+height<=size.y-gap;top+=48)
+   for(let left=gap;left+width<=size.x-gap;left+=102)candidates.push({left,top,width,height});
+  candidates.sort((a,b)=>(a.left-preferred.left)**2+(a.top-preferred.top)**2-((b.left-preferred.left)**2+(b.top-preferred.top)**2));
+  const position=candidates.find(rect=>rect.left>=gap&&rect.top>=gap&&rect.left+width<=size.x-gap&&rect.top+height<=size.y-gap&&placed.every(other=>rect.left>=other.left+other.width+gap||other.left>=rect.left+width+gap||rect.top>=other.top+other.height+gap||other.top>=rect.top+height+gap))||preferred;
+  if(position===preferred&&placed.some(other=>!(position.left>=other.left+other.width+gap||other.left>=position.left+width+gap||position.top>=other.top+other.height+gap||other.top>=position.top+height+gap)))needsPacking=true;
+  placed.push(position);
+  return {...point,...position};
+ });
+ return needsPacking&&!gridOnly?stopOrderTruckBadges(points,size,blocked,true):result;
+}

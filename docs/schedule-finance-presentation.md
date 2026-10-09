@@ -1157,3 +1157,19 @@ isolated `schedule-destinations.html?scenario=clock-contact&clock=2026-09-08T17:
 fixture. Its advance-clock control changes only the synthetic wall clock; the
 normal schedule interval must refresh the marker. The fixture's day controls,
 empty contact record, and leave/return controls cover date and drawer navigation.
+
+### Job Order truck badge collision handling — October 9, 2026
+
+Truck labels use screen-space collision placement on fit, pan, zoom and resize.
+Each retains its own freshness label and tooltip/popup. The selected truck is
+placed first and remains above the others. Leaders and small dots connect
+labels to exact reported GPS positions; stop pins, projected paths and source
+coordinates are unchanged. Offscreen trucks stay offscreen in a manual view.
+Map controls are reserved space, and the mobile map has room for the six-badge
+collision fixture without clipping source status. Existing markers survive
+reflow so opening a popup cannot immediately close it through automatic panning.
+
+Validation: `verify:stop-order-map` covers co-located/nearby trucks, stable order,
+selected priority and offscreen placement. `scripts/test-stop-order-browser.mjs`
+checks actual badge rectangles, controls, stale captions and popup persistence
+at 1280×720 and 390×720, in addition to existing save/order/cancel cases.

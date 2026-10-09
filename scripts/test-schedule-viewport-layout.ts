@@ -23,3 +23,9 @@ assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[100]);
 assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33],'Spare pixels are shared evenly without overflow');
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
 console.log('Schedule vertical fit, label/footer clearance and readable overflow passed.');
+
+const readable=scheduleViewportLayout(natural,labels,320,footers,true);
+assert.equal(readable.scale,1,'Phase 2 preserves natural text and lane height');
+assert.deepEqual(readable.heights,natural);
+assert.equal(readable.fits,false,'Dense Phase 2 boards use their existing scroll area');
+assert.equal(scheduleViewportLayout(natural,labels,1000,footers,true).heights.reduce((a,b)=>a+b,0),1000,'Sparse Phase 2 boards still fill the panel');

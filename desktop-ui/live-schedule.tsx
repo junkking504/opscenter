@@ -40,6 +40,7 @@ import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-
 import ScheduleMap from './schedule-map';
 import ScheduleRouteConnector from './schedule-route-connector';
 import {scheduleViewportLayout} from './lib/schedule-viewport-layout';
+import {cssPhaseTwoWorkspaces} from './lib/css-phase-two';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import { scheduleOperationalStopLayout } from './lib/schedule-operational-stop-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -178,7 +179,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const scroller = board.querySelector<HTMLElement>('.schedule-board-scroll');
       const available = Math.max(0, (scroller?.clientHeight ?? parseFloat(height) - titleHeight - 2) - rulerHeight);
       const layout = window.innerWidth >= 1000
-        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0))
+        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0), cssPhaseTwoWorkspaces.has('Schedule'))
         : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);

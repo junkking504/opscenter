@@ -1,7 +1,7 @@
 /** Fit the overview without shrinking truck labels or the live status footer.
  * Keep at least 75% lane thickness; denser boards retain vertical scrolling.
  */
-export function scheduleViewportLayout(natural: number[], labels: number[], available: number, footers: number[] = []) {
+export function scheduleViewportLayout(natural: number[], labels: number[], available: number, footers: number[] = [], preserveNaturalSize = false) {
   const heightsAt = (scale: number) => natural.map((height, index) => {
     const footer = footers[index] || 0;
     return Math.ceil(Math.max(labels[index] || 20, (height - footer) * scale + footer));
@@ -17,7 +17,7 @@ export function scheduleViewportLayout(natural: number[], labels: number[], avai
       + (index < spare % naturalHeights.length ? 1 : 0));
     return { scale: 1, heights, fits: true };
   }
-  let scale = .75;
+  let scale = preserveNaturalSize ? 1 : .75;
   let upper = 1;
   if (fits(heightsAt(scale))) {
     // Include per-row rounding in the fit, so the final row never loses pixels.

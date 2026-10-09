@@ -47,3 +47,10 @@ Claude review follow-up: Command KPI captions now use 10px primary workbench ink
 raw sizes outside the token inventory; their heading is20px and payment text
 16px under the Command scope. The library's plus/minus map glyph sizing stays
 icon geometry, not operational text.
+Control uses the same reviewed role direction with its own decision record. It
+retains natural timeline lane heights instead of compressing the schedule;
+dense days use the existing scroll area. Map count chips sit below the focus
+label after small-text enlargement. Long synthetic customer names wrap in the
+appointment and Job Order dialogs, with controls still accessible and Escape
+closing Job Order. Leaflet's plus/minus glyphs retain the library's icon sizing;
+they are not operational text or a larger display-text exception.

@@ -33,7 +33,7 @@ css.walkDecls(d=>{
  else if(d.prop.startsWith('--oc-'))assert.equal(d.value,decision.colors[d.prop]?.to);
  else if(d.prop==='font-size')assert(decision.compactExceptions.some(e=>selector.endsWith(` ${e.selector}`)&&d.value==='var(--oc-compact-label)')||decision.typeSelectors?.some(e=>selector.endsWith(` ${e.selector}`)&&scale.has(e.px)&&d.value===`var(--oc-type-${e.px})`));
  else if(d.prop==='color')assert(decision.roleSelectors?.some(e=>selector.endsWith(` ${e.selector}`)&&d.value===`var(${e.role})`));
- else assert(['--background','--foreground','--border','--muted','--muted-foreground','grid-template-areas','padding','justify-self','margin','min-height','min-width','justify-content','height','line-height'].includes(d.prop));
+ else assert(['--background','--foreground','--border','--muted','--muted-foreground','grid-template-areas','padding','justify-self','margin','min-height','min-width','justify-content','height','line-height','top'].includes(d.prop));
 });
 const inventory=JSON.parse(fs.readFileSync(`${directory}/small-text-decisions.json`,'utf8')) as Array<{id:string;file:string;selector:string;classification:string;acceptedMinimumPx:number;targetPx:number}>;
 assert.equal(inventory.length,98);assert.equal(new Set(inventory.map(r=>r.id)).size,98);

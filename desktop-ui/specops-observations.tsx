@@ -28,7 +28,7 @@ export default function SpecOpsObservations({ onStorm, applyStorm }: {
   const storm = conditions?.storm || null, outage = conditions?.outage || null;
   const staleStorm = storm ? stormIsStale(storm, now) : true;
   useEffect(() => { onStorm(storm, staleStorm); }, [storm, staleStorm, onStorm]);
-  const canApply = !!storm && !staleStorm && storm.speedMph >= 5 && storm.speedMph <= 25;
+  const canApply = !!storm && !staleStorm && storm.speedMph >= 5 && storm.speedMph <= 25 && (storm.heading <= 60 || storm.heading >= 270);
   return <section className="specops-observations" aria-label="Observed conditions">
     <div className="specops-observation-heading"><div><strong>Observed conditions</strong><p>Published source snapshots · refresh scheduled every 10 minutes while this chat’s source tabs remain available</p></div>
       <button onClick={() => { setNow(Date.now()); setReload(value => value + 1); }}>Reload saved observations</button></div>

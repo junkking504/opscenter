@@ -41,3 +41,11 @@ and `/tests/css-phase-two-audit.html` for the three viewport/computed-style chec
 All fetches in this fixture are synthetic and writes are blocked. Download the
 audit receipt; before/after captures and deploy evidence belong in the task
 handoff. Current approval/deployment status is recorded there, per workspace.
+
+Control uses the same reviewed role direction with its own decision record. It
+retains natural timeline lane heights instead of compressing the schedule;
+dense days use the existing scroll area. Map count chips sit below the focus
+label after small-text enlargement. Long synthetic customer names wrap in the
+appointment and Job Order dialogs, with controls still accessible and Escape
+closing Job Order. Leaflet's plus/minus glyphs retain the library's icon sizing;
+they are not operational text or a larger display-text exception.

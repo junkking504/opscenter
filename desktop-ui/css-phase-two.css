@@ -2431,3 +2431,5 @@
 .ops-live[data-css-phase-two="Marketing"] .campaign-stage { color: var(--oc-text-primary); }
 
 .ops-live[data-css-phase-two="Command"] .crew-photo-dialog h3 { font-size: var(--oc-type-20); }
+
+.ops-live[data-css-phase-two="Krewe"] .crew-weekly-overview small { color: var(--oc-text-primary); }

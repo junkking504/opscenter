@@ -2535,6 +2535,11 @@
       "selector": ".command-footer",
       "role": "--oc-text-primary",
       "reason": "Source availability guidance must remain readable (Claude V2)."
+    },
+    {
+      "selector": ".crew-weekly-overview small",
+      "role": "--oc-text-primary",
+      "reason": "Claude W1: week date ranges and regular/overtime payroll breakdowns require readable primary ink on header and row surfaces."
     }
   ],
   "layout": [

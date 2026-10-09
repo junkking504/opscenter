@@ -69,12 +69,16 @@ export function plansFor(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: num
     ),
   );
 }
-function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: DashboardProps & {truck: DesktopFleetTruck}) {
+function truckServiceSummary(snapshot: DesktopFleetSnapshot, truck: DesktopFleetTruck, now: number) {
   const plans = plansFor(snapshot, truck, now).filter(p => p.interval?.enabled || p.nextDate || p.nextMiles !== null);
   const rank: Record<string, number> = {due:0,soon:1,unknown:2,baseline:3,unset:4,current:5};
   const plan = [...plans].sort((a,b) => rank[a.status]-rank[b.status] || (serviceGauge(b) ?? -1)-(serviceGauge(a) ?? -1))[0];
   const detail = plan ? [plan.serviceType, plan.milesRemaining !== null ? `${Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi ${plan.milesRemaining <= 0 ? 'past target' : 'remaining'}` : plan.nextMiles !== null ? 'Mileage needs verification' : '', plan.daysRemaining !== null ? `${Math.abs(plan.daysRemaining)} days ${plan.daysRemaining <= 0 ? 'past target' : 'remaining'}` : '', plan.milesRemaining !== null && plan.mileageAsOf ? `Reading ${gaugeTime(plan.mileageAsOf)}` : ''].filter(Boolean).join(' · ') : 'Add completed service and a maintenance interval';
   const status = plan ? ({due:'Due now',soon:'Due soon',unknown:'Verify mileage',baseline:'Set baseline',unset:'Set interval',current:'On track'}[plan.status]) : 'Set up service';
+  return {plans, plan, detail, status};
+}
+function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: DashboardProps & {truck: DesktopFleetTruck}) {
+  const {plans, plan, detail, status} = truckServiceSummary(snapshot, truck, now);
   return <article className="convoy-truck-dashboard">
     <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>
     <p className="convoy-truck-activity">{truck.operatingStatus} · Inspection: {truck.checklist}</p>
@@ -361,7 +365,7 @@ export function ConvoyDashboard(props: DashboardProps) {
       `${t.label} ${t.vehicle} ${t.vin || ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
-    <div className="convoy-dashboard">
+    <div className="convoy-dashboard convoy-compact-overview">
       <div className="convoy-metrics">
         <Metric
           value={trucks.length}
@@ -388,10 +392,6 @@ export function ConvoyDashboard(props: DashboardProps) {
           onClick={() => setFilter("baseline")}
         />
       </div>
-      <section className="convoy-instrument-board" aria-label="Truck status dashboard">
-        <div className="convoy-instrument-heading"><h2>Truck status dashboard</h2><p>Fuel and load follow recorded activity. Fuel purchases assume a full tank; driving consumption is not measured.</p></div>
-        <div className="convoy-truck-dashboard-grid">{visible.map(truck=><TruckDashboardCard key={truck.id} {...props} truck={truck}/>)}</div>
-      </section>
       <div className="convoy-dashboard-grid">
         <section className="convoy-dash-panel">
           <header>
@@ -405,7 +405,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                     baseline: "Maintenance setup",
                   }[filter]}
             </h2>
-            <small>Latest reported mileage</small>
+            <small>Open a truck for details and actions</small>
           </header>
           <div className="convoy-table-tools">
             <div>
@@ -427,92 +427,34 @@ export function ConvoyDashboard(props: DashboardProps) {
             </label>
           </div>
           <div className="convoy-table-wrap">
-            <table className="convoy-data-table">
-              <thead>
-                <tr>
-                  <th>Truck</th>
-                  <th>Latest mileage</th>
-                  <th>Reading status</th>
-                  <th>Repairs / next action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((t) => {
-                  const issues = repairs.filter((i) => sameTruck(i.truck, t.id)),
-                    review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
-                  return (
-                    <tr key={t.id}>
-                      <td>
-                        <button className="convoy-truck-link" onClick={() => onTruck(t.id)}>
-                          <Truck size={16} />
-                          {label(t)}
-                          <ArrowRight size={14} />
-                        </button>
-                        <div className="convoy-overview-vin"><span className="convoy-fact-label">VIN</span><TruckVin truck={t}/></div>
-                      </td>
-                      <td>
-                        <div className="convoy-overview-mileage">
-                          <strong>
-                            {q === "conflict" ? "Needs verification" : miles(t.mileage?.value)}
-                          </strong>
-                          {q === "conflict" ? (
-                            <small>
-                              {review.belowService
-                                ? `Last service: ${miles(review.latest?.odometer)}`
-                                : t.mileage?.source === "inspection"
-                                ? t.mileage.note
-                                : t.mileage?.duplicate
-                                ? "Multiple vehicle records"
-                                : `${Math.round(t.mileage?.value || 0).toLocaleString()} vs ${t.mileage?.estimated?.toLocaleString() || "unavailable"}`}
-                            </small>
-                          ) : (
-                            <span>{t.mileage?.value != null ? ` · ${t.mileage?.source}` : ""}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <Badge tone={q === "current" ? "neutral" : "warning"}>
-                          {
-                            {
-                              current: "Reported",
-                              stale: t.mileage?.source === "inspection" ? "Older inspection" : "Stale",
-                              conflict: "Verify reading",
-                              unavailable: "Unavailable",
-                              estimated: t.mileage?.gpsIncomplete ? "Estimated · GPS gaps" : "Estimated",
-                            }[q]
-                          }
-                        </Badge>
-                        <small title={stamp(t.mileage?.reportedAt)}>
-                          {t.mileage?.reportedAt
-                            ? new Date(t.mileage.reportedAt).toLocaleDateString("en-US", {
-                                timeZone: "America/Chicago",
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "No mileage report"}
-                        </small>
-                      </td>
-                      <td>
-                        <button
-                          className="convoy-next-action"
-                          onClick={() => {
-                            onTruck(t.id);
-                            if (issues.length) onView?.("maintenance");
-                            else onView?.("service");
-                          }}
-                        >
-                          {issues.length
-                            ? `${issues.some((i) => i.severity === "out_of_service") ? "Out of service · " : ""}${issues[0].title}${issues.length > 1 ? ` +${issues.length - 1}` : ""}`
-                            : baselineNeeded(snapshot, t, now)
-                              ? "Set up maintenance"
-                              : "View service plan"}
-                          <ArrowRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+            <table className="convoy-data-table convoy-status-table" aria-label="Truck status overview">
+              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
+              <tbody>{visible.map(t => {
+                const review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
+                const {plan,status,detail} = truckServiceSummary(snapshot,t,now);
+                const issues = repairs.filter(i=>sameTruck(i.truck,t.id));
+                const mileageSource = q === 'unavailable' ? 'No reading' : q === 'conflict' ? 'Check reading' :
+                  [t.mileage?.source === 'estimated' ? 'Estimated' : t.mileage?.source === 'inspection' ? 'Inspection' : t.mileage?.source === 'virtual' ? 'Tracking counter' : 'Reported odometer',
+                    q === 'stale' ? 'Stale' : t.mileage?.gpsIncomplete ? 'GPS gaps' : ''].filter(Boolean).join(' · ');
+                const fuel = t.fuel && Number.isFinite(t.fuel.percent) ? t.fuel : null;
+                const loadKnown = !t.loadNeedsVerification && t.loadPercent !== null && Number.isFinite(t.loadPercent);
+                return <tr key={t.id}>
+                  <td data-label="Truck / VIN"><button className="convoy-truck-link" onClick={()=>onTruck(t.id)}><Truck size={15}/>{label(t)}<ArrowRight size={12}/></button>
+                    <small className="convoy-row-vin" title="VIN · LinxUp vehicle record">{t.vinNeedsVerification ? 'VIN needs verification' : t.vin || 'VIN not recorded'}</small></td>
+                  <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
+                    <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
+                    <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
+                  <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong><small>{mileageSource}</small>
+                    {q !== 'unavailable' && <small>{stamp(t.mileage?.reportedAt)}</small>}</td>
+                  <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
+                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small>{stamp(fuel.at)}</small></>}</td>
+                  <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>
+                    {loadKnown && <><small>Recorded estimate</small><small>{stamp(t.loadUpdatedAt)}</small></>}</td>
+                  <td data-label="Next service"><button className={`convoy-row-service ${plan?.status === 'due' ? 'due' : ''}`} title={detail} onClick={()=>{onTruck(t.id);onView?.('service');}}>{status}<ArrowRight size={12}/></button>
+                    {plan && <small>{plan.serviceType}</small>}
+                    {plan?.milesRemaining != null ? <small>{Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi {plan.milesRemaining <= 0 ? 'past target' : 'remaining'}</small> : plan?.daysRemaining != null ? <small>{Math.abs(plan.daysRemaining)} days {plan.daysRemaining <= 0 ? 'past target' : 'remaining'}</small> : null}</td>
+                </tr>;
+              })}</tbody>
             </table>
             {!visible.length && (
               <p className="convoy-empty">

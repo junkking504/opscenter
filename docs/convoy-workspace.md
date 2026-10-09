@@ -239,3 +239,14 @@ choosing a vehicle identity. The truck list also shows VIN and supports VIN sear
 Mileage retains the existing inspection reconciliation, GPS estimate labels,
 conflict checks and source timestamp; these additions do not change its value or
 maintenance decisions. No new provider requests or runtime record writes occur.
+
+## Compact Overview rows (October 9, 2026)
+
+Overview uses one truck table instead of per-truck dashboard cards followed by a
+duplicate mileage table. Each row keeps VIN, operating/condition/inspection status,
+latest mileage with source/time/uncertainty, fuel, load, and next service visible.
+Truck links open full detail, inspection links open repairs, load values open the
+existing load editor, and service links open maintenance. Full reading notes stay
+in truck detail. Summary tiles are a compact strip; help and maintenance guidance
+follow the fleet list. Tablet/phone rows reflow into labeled fields without page
+overflow. Data sources, missing-value rules and service calculations are unchanged.

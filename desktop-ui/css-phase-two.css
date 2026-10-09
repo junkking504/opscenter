@@ -1611,4 +1611,4 @@
 
 .ops-live[data-css-phase-two="Finance"] .capital-reconciliation-date p { color: var(--oc-text-primary); }
 
-.ops-live[data-css-phase-two="Finance"] .capital-stat-primary > :is(span,small) { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Finance"] .capital-workspace .capital-stat-primary > :is(span,small) { color: var(--oc-text-primary); }

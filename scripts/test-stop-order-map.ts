@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {stopOrderMap,stopOrderTrucks} from '../desktop-ui/lib/stop-order-map';
+import {stopOrderMap,stopOrderTrucks,stopOrderTruckBadges} from '../desktop-ui/lib/stop-order-map';
 import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
 const jobs=[0,1,2].map(n=>({recordId:String(n),location:{latitude:30+n*.01,longitude:-90+n*.01}} as ScheduleAppointment));
 const legs=[0,1].map(n=>({fromAppointmentId:String(n),toAppointmentId:String(n+1),source:'osm_road_estimate',geometry:[jobs[n].location!,jobs[n+1].location!]} as ScheduleRouteLeg));
@@ -25,3 +25,18 @@ assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,latitude:null}]},'Truck
 assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,lastGpsUpdate:null}]},'Truck 2',now)[0].gps.stale,true);
 assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,speed:0,ignition:'OFF',lastGpsUpdate:'2026-10-09T15:30:00Z'}]},'Truck 2',now)[0].gps.label,'Parked · ignition off','Honor existing parked reporting cadence');
 console.log('Job Order fleet: coordinate validation, truck identity, freshness, parked reporting and date boundaries passed.');
+
+for(const size of [{x:680,y:340},{x:330,y:230}]) {
+ const points=[2,3,4,6,8,9].map((id,index)=>({id:`Truck ${id}`,x:size.x/2+(index<2?0:index),y:size.y/2+(index<2?0:index),selected:id===8,stale:id===3||id===8||id===9}));
+ const before=JSON.stringify(points),badges=stopOrderTruckBadges(points,size);
+ assert.equal(badges[0].id,'Truck 8','Selected truck gets first placement');
+ assert.equal(JSON.stringify(points),before,'Layout cannot change observed coordinates');
+ for(const [index,badge] of badges.entries()) {
+  assert(badge.left>=0&&badge.top>=0&&badge.left+badge.width<=size.x&&badge.top+badge.height<=size.y);
+  for(const other of badges.slice(index+1)) assert(badge.left+badge.width<=other.left||other.left+other.width<=badge.left||badge.top+badge.height<=other.top||other.top+other.height<=badge.top,'Every co-located or nearby truck remains readable');
+ }
+ assert.deepEqual(stopOrderTruckBadges([...points].reverse(),size),badges,'Source ordering cannot jitter labels');
+}
+const offscreen=stopOrderTruckBadges([{id:'Truck 2',x:-200,y:50,selected:false,stale:false}],{x:680,y:340})[0];
+assert.equal(offscreen.left,-247,'Never pull an offscreen truck into a manual viewport');
+console.log('Truck badges: co-located and nearby labels, selected priority, immutable positions, resize and offscreen behavior passed.');

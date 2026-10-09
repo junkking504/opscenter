@@ -23,13 +23,12 @@
 .ops-live .stop-order-map-actions { display:flex; gap:6px; flex-shrink:0; }
 .ops-live .stop-order-truck { background:transparent; border:0; }
 .ops-live .stop-order-truck-badge { position:relative; box-sizing:border-box; width:94px; padding:4px; background:#334650; color:white; border:2px solid white; border-radius:5px; box-shadow:0 1px 5px #17212b66; text-align:center; }
-.ops-live .stop-order-truck-badge::after { content:''; position:absolute; left:43px; top:100%; height:10px; border-left:2px solid #334650; }
 .ops-live .stop-order-truck-badge strong { display:flex; justify-content:center; align-items:center; gap:4px; font-size:11px; line-height:16px; white-space:nowrap; }
 .ops-live .stop-order-truck-badge small { display:block; font-size:10px; line-height:12px; }
 .ops-live .stop-order-truck.selected .stop-order-truck-badge { background:#245fa4; outline:3px solid #70a9e0; }
 .ops-live .stop-order-truck.stale .stop-order-truck-badge { border-style:dashed; }
 .ops-live .stop-order-map-status .stop-order-truck-status { color:#26372e; font-weight:600; }
-.ops-live .stop-order-map { flex:1; min-height:140px; width:100%; z-index:0; }
+.ops-live .stop-order-map { flex:1; min-height:190px; width:100%; z-index:0; }
 .ops-live .stop-order-map-status { padding:6px 10px; font-size:11px; line-height:1.5; background:#f4f7f5; }
 .ops-live .stop-order-map-status span { display:block; color:#596b62; }
 .ops-live .stop-order-pin { border:0; background:transparent; }
@@ -46,7 +45,7 @@
 }
 @media (max-width: 760px) {
  .ops-live .schedule-stop-order { padding:12px; }
- .ops-live .stop-order-workspace { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(280px,1.2fr) minmax(150px,1fr); height:55dvh; min-height:440px; gap:10px; }
+ .ops-live .stop-order-workspace { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(350px,1.2fr) minmax(150px,1fr); height:55dvh; min-height:510px; gap:10px; }
  .ops-live .stop-order-map-panel { grid-row:1; }
  .ops-live .stop-order-list { grid-row:2; }
 }

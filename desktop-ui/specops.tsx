@@ -57,7 +57,7 @@ export default function SpecOps({ navigate }: { navigate: (workspace: string) =>
         <button onClick={reset}><RotateCcw size={15} />Reset scenario</button>
       </div>
     </div>
-    <SpecOpsObservations key={revision} onStorm={onStorm} applyStorm={applyStorm} />
+    <SpecOpsObservations key={`observations-${revision}`} onStorm={onStorm} applyStorm={applyStorm} />
     <iframe key={revision} ref={frame} title="Gulf Coast storm cleanout planner" srcDoc={modelDocument}
       sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
       style={{ height }} className="specops-model" />

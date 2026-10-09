@@ -2546,6 +2546,11 @@
       "selector": ".convoy-coverage .convoy-mileage > strong",
       "px": 28,
       "reason": "Use the same approved28px maximum for the alternate mileage detail presentation."
+    },
+    {
+      "selector": ".convoy-mode .workspace-heading h1",
+      "px": 28,
+      "reason": "Claude review completeness: alternate convoy-mode heading also consumes the scoped32\u219228 alias; measured overview heading is already28px."
     }
   ]
 }

@@ -88,7 +88,7 @@
  .ops-live .convoy-status-table .convoy-badge{font-size:var(--oc-type-9);padding:2px 4px}
  .ops-live .convoy-status-table .convoy-row-link{font-size:var(--oc-type-9);margin:0;line-height:1.2}
  .ops-live .convoy-status-table .convoy-row-value{font-size:var(--oc-type-11);line-height:1.2}
- .ops-live .convoy-status-table .convoy-row-service{font-size:var(--oc-type-10)!important}
+ .ops-live .convoy-status-table .convoy-row-service{font-size:var(--oc-type-10)}
  .ops-live .convoy-status-table td:nth-child(n+3)>small{display:inline}
  .ops-live .convoy-status-table td:nth-child(n+3)>small+small::before{content:' · '}
  .ops-live .convoy-status-table td>small.convoy-row-observed{font-size:0}

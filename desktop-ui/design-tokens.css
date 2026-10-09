@@ -3,6 +3,12 @@
  * Workbench semantics use the nearest audited representative; alpha is unchanged.
  * Brand identity remains authoritative in styles/brand-tokens.css. */
 :root {
+  --oc-shadow-alpha-01: #0007;
+  --oc-shadow-alpha-02: #0003;
+  --oc-shadow-alpha-03: #0002;
+  --oc-shadow-alpha-04: #0005;
+  --oc-shadow-alpha-05: #0009;
+
   --oc-accent-amber-01: #e3aa32;
   --oc-accent-amber-02: #d39b25;
   --oc-accent-amber-03: #d9a32f;
@@ -623,6 +629,8 @@
   --oc-text-violet-15: #c4b5d3;
   --oc-text-violet-16: #5e4678;
   --oc-brand: var(--ops-brand-red);
+  --oc-status-critical-ink: var(--ops-brand-red);
+  --oc-status-critical-accent: var(--ops-brand-red);
   /* Preserve every existing integer size. Only the three approved half sizes round. */
   --oc-type-6: 6px;
   --oc-type-7: 7px;

@@ -12,7 +12,7 @@
 .resale-photo-gallery figure { position: relative; min-width: 0; margin: 0; }
 .resale-photo-gallery figcaption { overflow-wrap: anywhere; font-size: var(--oc-type-12); padding-top: 4px; }
 .resale-photo-gallery figcaption span { display: block; font-weight: 600; }
-.resale-photo-gallery figure > button { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--oc-surface-raised); color: var(--oc-text-green-55); box-shadow: 0 1px 4px #0003; }
+.resale-photo-gallery figure > button { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--oc-surface-raised); color: var(--oc-text-green-55); box-shadow: 0 1px 4px var(--oc-shadow-alpha-02); }
 .resale-item-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; min-width: 0; border: 0; padding: 0; }
 .resale-photo-error { grid-column: 1 / -1; padding: 12px; border: 1px solid var(--oc-border-red-04); border-radius: 6px; }
 @media (max-width: 540px) { .resale-item-fields { grid-template-columns: minmax(0, 1fr); } }

@@ -1,4 +1,4 @@
-.krewe-day-editor { margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px; border: 1px solid var(--oc-border-neutral-05); border-radius: 10px; background: var(--oc-surface-raised); color: var(--oc-text-green-13); box-shadow: 0 12px 50px #0003; font-size: var(--oc-type-14); }
+.krewe-day-editor { margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px; border: 1px solid var(--oc-border-neutral-05); border-radius: 10px; background: var(--oc-surface-raised); color: var(--oc-text-green-13); box-shadow: 0 12px 50px var(--oc-shadow-alpha-02); font-size: var(--oc-type-14); }
 .krewe-day-editor::backdrop { background: var(--oc-surface-overlay-05); }
 .krewe-day-editor > header { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .krewe-day-editor h2 { margin: 4px 0; font-size: var(--oc-type-20); }

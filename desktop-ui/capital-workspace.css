@@ -2,8 +2,10 @@
 .ops-live .finance-workspace.capital-workspace { --capital-ink:var(--foreground); --capital-accent:var(--ops-brand-red); --capital-accent-hover:var(--ops-brand-red-hover); --capital-gold:var(--oc-accent-amber-01); --capital-gold-soft:var(--oc-surface-amber-01); --capital-surface:var(--oc-surface-neutral-02); --capital-muted:var(--muted-foreground); --capital-border:var(--border); color:var(--capital-ink); font-variant-numeric:tabular-nums; gap:10px; }
 .capital-page { display:grid; gap:10px; min-width:0; }
 .capital-page-header { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:4px 0 0; }
-.capital-page-header h2 { margin:4px 0 !important; color:var(--capital-ink); font-size:var(--oc-type-18) !important; font-weight:650; letter-spacing:-.045em; line-height:1.2; }
-.capital-page-header p { margin:0 !important; color:var(--capital-muted); font-size:var(--oc-type-12) !important; line-height:1.6; max-width:650px; }
+.capital-page-header h2 { margin:4px 0 !important; color:var(--capital-ink); font-weight:650; letter-spacing:-.045em; line-height:1.2; }
+.capital-workspace .capital-page-header h2 { font-size:var(--oc-type-18); }
+.capital-page-header p { margin:0 !important; color:var(--capital-muted); line-height:1.6; max-width:650px; }
+.capital-workspace .capital-page-header p { font-size:var(--oc-type-12); }
 .capital-page-actions { flex-shrink:0; }
 .capital-workspace .capital-button { min-height:28px; text-decoration:none; font-family:inherit; }
 .capital-workspace .capital-button-primary { color:var(--oc-surface-raised); background:var(--capital-accent); border-color:var(--capital-accent); }
@@ -86,7 +88,7 @@
 .ops-live .finance-workspace.capital-workspace .record-drawer { color:var(--capital-ink); background:var(--capital-surface); }.ops-live .finance-workspace.capital-workspace .record-drawer-header { background:var(--capital-surface); border-color:var(--border); }.ops-live .finance-workspace.capital-workspace .record-drawer-header h2 { letter-spacing:-.025em; }.ops-live .finance-workspace.capital-workspace .record-drawer-actions { background:var(--capital-surface); }.ops-live .finance-workspace.capital-workspace .record-facts > div { background:var(--oc-surface-raised); border-color:var(--border); }.ops-live .finance-workspace.capital-workspace .record-drawer-body :is(input,select,textarea) { background:var(--oc-surface-raised); border-color:var(--border); }
 @media(max-width:1100px) { .capital-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.capital-evidence-grid,.capital-expense-grid,.capital-recycling-review-grid { grid-template-columns:1fr; }.capital-inventory-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.ops-live .finance-workspace.capital-workspace .finance-recovery-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:760px) {
-  .capital-page-header { flex-direction:column; align-items:flex-start; gap:8px; }.capital-page-header h2 { font-size:var(--oc-type-18) !important; }.capital-page-header p { font-size:var(--oc-type-11) !important; }.capital-page-actions { width:100%; }.capital-page-actions .capital-button { width:100%; }
+  .capital-page-header { flex-direction:column; align-items:flex-start; gap:8px; }.capital-page-header h2 { }.capital-workspace .capital-page-header h2 { font-size:var(--oc-type-18); }.capital-page-header p { }.capital-workspace .capital-page-header p { font-size:var(--oc-type-11); }.capital-page-actions { width:100%; }.capital-page-actions .capital-button { width:100%; }
   .capital-toolbar { padding:6px 8px 10px; gap:6px; }.capital-search { max-width:none; flex-basis:100%; }.capital-filter-group { width:100%; }.capital-filter-group > button { flex:1; padding:6px 6px; }
   .capital-payment-table,.capital-payment-table tbody { display:block; width:100%; }.capital-payment-table thead { display:none; }.capital-payment-table tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:10px 8px; border-top:1px solid var(--border); }.capital-payment-table td,.capital-payment-table td:first-child { padding:0; border:0; min-width:0; font-size:var(--oc-type-11); overflow-wrap:anywhere; }.capital-payment-table td:before { content:attr(data-label); display:block; margin-bottom:4px; color:var(--capital-muted); font-size:var(--oc-type-9); font-weight:600; }.capital-payment-table td:last-child { grid-column:1/-1; }.capital-payment-table td:last-child:before { display:none; }.capital-payment-table td .capital-button { width:100%; }
   .ops-live .finance-workspace.capital-workspace .finance-recovery-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }.ops-live .finance-workspace.capital-workspace .finance-recovery-ledger-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }.ops-live .finance-workspace.capital-workspace .finance-wex-summary { grid-template-columns:1fr; }
@@ -120,8 +122,8 @@
 .ops-live .capital-workspace :is(.capital-hub,.capital-page,.capital-main-grid,.capital-secondary-grid,.capital-evidence-grid,.capital-expense-grid,.capital-recycling-review-grid) { gap:var(--ops-section-gap,8px); }
 .ops-live .capital-workspace :is(.capital-metrics,.capital-stat-grid,.statement-kpis,.finance-performance-kpis,.finance-recovery-kpis,.capital-destinations) { gap:6px; }
 .ops-live .capital-workspace :is(.capital-period,.capital-page-header) { padding:0; gap:8px; }
-.ops-live .capital-workspace :is(.capital-period,.capital-page-header) h2 { font-size:var(--oc-type-16) !important; margin:2px 0 !important; line-height:1.25; }
-.ops-live .capital-workspace :is(.capital-period,.capital-page-header) p { font-size:var(--oc-type-10) !important; line-height:1.35; }
+.ops-live .capital-workspace :is(.capital-period,.capital-page-header) h2 { font-size:var(--oc-type-16); margin:2px 0 !important; line-height:1.25; }
+.ops-live .capital-workspace :is(.capital-period,.capital-page-header) p { font-size:var(--oc-type-10); line-height:1.35; }
 .ops-live .capital-workspace .capital-eyebrow { font-size:var(--oc-type-8); }
 .ops-live .finance-workspace.capital-workspace :is(.capital-stat,.statement-kpis article,.finance-performance-kpis article,.finance-recovery-kpis article) { min-height:var(--ops-kpi-height,68px); height:auto; padding:5px 8px; gap:2px; justify-content:center; }
 .ops-live .finance-workspace.capital-workspace :is(.capital-stat,.statement-kpis article,.finance-performance-kpis article,.finance-recovery-kpis article) > strong { font-size:var(--oc-type-20); line-height:1.05; margin:2px 0; }

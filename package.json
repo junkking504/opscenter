@@ -169,7 +169,8 @@
     "verify:resale-delete": "node --import tsx scripts/test-resale-delete.ts",
     "verify:resale-delete:browser": "node --import tsx scripts/test-resale-delete-browser.ts",
     "verify:resale-photos": "node --import tsx scripts/test-resale-photos.ts",
-    "verify:resale-photos:browser": "node --import tsx scripts/test-resale-photos-browser.ts"
+    "verify:resale-photos:browser": "node --import tsx scripts/test-resale-photos-browser.ts",
+    "verify:desktop-tokens:browser": "node scripts/test-desktop-tokens-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

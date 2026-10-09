@@ -3,6 +3,6 @@
 .live-schedule-map .truck-speed-badge { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding: 1px 4px; border-radius: 3px; background: var(--oc-surface-raised); color: var(--oc-text-green-60); border: 1px solid var(--oc-text-green-14); font: 700 var(--oc-type-10)/14px system-ui, sans-serif; white-space: nowrap; pointer-events: none; }
 .live-schedule-map .truck-marker.stale .truck-speed-badge { color: var(--oc-text-amber-02); border-color: var(--oc-border-amber-24); }
 .live-schedule-map .truck-map-view-controls { position: absolute; z-index: 1000; left: 10px; bottom: 24px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 20px); }
-.live-schedule-map .truck-map-view-controls button { padding: 6px 9px; border: 1px solid var(--oc-text-green-08); border-radius: 4px; background: var(--oc-surface-raised); color: var(--oc-text-green-51); font: 600 var(--oc-type-12)/18px system-ui, sans-serif; box-shadow: 0 1px 4px #0002; cursor: pointer; }
+.live-schedule-map .truck-map-view-controls button { padding: 6px 9px; border: 1px solid var(--oc-text-green-08); border-radius: 4px; background: var(--oc-surface-raised); color: var(--oc-text-green-51); font: 600 var(--oc-type-12)/18px system-ui, sans-serif; box-shadow: 0 1px 4px var(--oc-shadow-alpha-03); cursor: pointer; }
 .live-schedule-map .truck-map-view-controls button[aria-pressed="true"] { background: var(--oc-surface-neutral-06); }
 .live-schedule-map .truck-map-view-controls button:focus-visible { outline: 3px solid var(--oc-border-blue-21); outline-offset: 2px; }

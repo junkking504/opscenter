@@ -7,6 +7,19 @@ import subprocess
 import sys
 import tempfile
 import time
+import fcntl
+import importlib.util
+from datetime import datetime, timezone, timedelta
+
+spec = importlib.util.spec_from_file_location('backup_worker', Path(__file__).with_name('run-opscenter-backup-sync.py'))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+at = datetime(2026, 10, 9, tzinfo=timezone.utc)
+for seconds, expected in ((0, True), (300, True), (301, False), (-1, False)):
+    assert module.recent_success({'lastSuccessAt': (at - timedelta(seconds=seconds)).isoformat()}, at) is expected
+for stamp in (None, '', 'invalid', '2026-10-09T00:00:00', 123):
+    assert not module.recent_success({'lastSuccessAt': stamp}, at)
+assert not module.recent_success({}, at)
 
 with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
     root = Path(folder)
@@ -62,8 +75,27 @@ with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
     # both fresh success and a previous real failure byte-for-byte unchanged.
     publisher = dict(env, OPSCENTER_BACKUP_CALLER='continuity-publisher', OPSCENTER_BACKUP_TIMEOUT_SECONDS='1')
     attempt = data / 'backup-sync/publisher-status.json'
+    sync.write_text('echo started >> "$OPSBOT_DATA_DIR/calls"\nexit 0\n')
+    calls = (data / 'calls').read_bytes()
     for prior in ('success', 'failed'):
-        previous = dict(json.loads(state.read_text()), status=prior, exitCode=0 if prior == 'success' else 255)
+        previous = dict(json.loads(state.read_text()), status=prior, exitCode=0 if prior == 'success' else 255,
+                        lastSuccessAt=datetime.now(timezone.utc).isoformat())
+        state.write_text(json.dumps(previous))
+        before = state.read_bytes()
+        result = subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)
+        assert result.returncode == (0 if prior == 'success' else 255)
+        assert state.read_bytes() == before, 'A skip cannot clear failure or advance shared freshness'
+        assert (data / 'calls').read_bytes() == calls, 'Recent success must skip the transfer entirely'
+        receipt = json.loads(attempt.read_text())
+        assert receipt['status'] == 'skipped' and receipt['reason'] == 'recent_success'
+        assert receipt['lastSuccessAt'] == previous['lastSuccessAt'] and receipt['recentSuccessWindowSeconds'] == 300
+        with (data / 'backup-sync/sync.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    subprocess.run([sys.executable, str(worker)], env=env, check=True, capture_output=True)
+    assert (data / 'calls').read_bytes() != calls, 'Collector transfers are never skipped for recent success'
+    for prior in ('success', 'failed'):
+        previous = dict(json.loads(state.read_text()), status=prior, exitCode=0 if prior == 'success' else 255,
+                        lastSuccessAt='2000-01-01T00:00:00+00:00')
         state.write_text(json.dumps(previous))
         before = state.read_bytes()
         sync.write_text('sleep 10\necho unsafe-publisher-write > "$OPSBOT_DATA_DIR/publisher-late"\n')
@@ -73,12 +105,15 @@ with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
         assert receipt['status'] == 'deferred' and receipt['reason'] == 'caller_deadline'
         assert receipt['caller'] == 'continuity-publisher' and receipt['timeoutSeconds'] == 1
         assert not (data / 'publisher-late').exists()
-    # Compatibility with the already-installed publisher (no caller variable).
+    # An unset caller with a reduced timeout is still an ordinary collector.
     legacy = dict(publisher)
     del legacy['OPSCENTER_BACKUP_CALLER']
-    subprocess.run([sys.executable, str(worker)], env=legacy, capture_output=True)
-    assert state.read_bytes() == before
-    assert json.loads(attempt.read_text())['caller'] == 'short-budget'
+    before_attempt = attempt.read_bytes()
+    result = subprocess.run([sys.executable, str(worker)], env=legacy, capture_output=True)
+    assert result.returncode == 124
+    assert json.loads(state.read_text())['status'] == 'failed'
+    assert json.loads(state.read_text())['caller'] == 'collector'
+    assert attempt.read_bytes() == before_attempt, 'Collector timeout cannot become a publisher deferral'
     for code in (23, 255, 12, 10, 124):
         sync.write_text(f'exit {code}\n')
         result = subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)

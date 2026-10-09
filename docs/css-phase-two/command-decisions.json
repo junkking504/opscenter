@@ -2424,9 +2424,9 @@
     },
     "--oc-text-neutral-01": {
       "from": "#78817c",
-      "to": "#687e8e",
+      "to": "#243b4d",
       "kind": "role-neutral",
-      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+      "decision": "Claude V2: operational source/search/notification/calendar labels need primary ink on fixed canvas; hierarchy remains in size and weight. Fixed muted anchor remains unchanged."
     },
     "--oc-border-neutral-01": {
       "from": "#e5e8e4",
@@ -2514,6 +2514,11 @@
     {
       "selector": ".command-metrics .kpi-card small",
       "role": "--oc-text-primary"
+    },
+    {
+      "selector": ".command-footer",
+      "role": "--oc-text-primary",
+      "reason": "Source availability guidance must remain readable (Claude V2)."
     }
   ],
   "layout": [
@@ -2541,6 +2546,11 @@
     {
       "selector": ".crew-completion-facts .crew-completion-amount dd",
       "px": 16
+    },
+    {
+      "selector": ".command-footer",
+      "px": 10,
+      "reason": "Source availability guidance is operational text (Claude V2)."
     }
   ]
 }

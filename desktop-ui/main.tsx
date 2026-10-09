@@ -45,3 +45,5 @@ if (bootstrap.mode === 'reference') {
 import './driving-scores.css';
 
 import './opscenter-brand.css';
+
+import './approved-workbench.css';

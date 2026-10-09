@@ -445,11 +445,11 @@ export function ConvoyDashboard(props: DashboardProps) {
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
                   <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong><small>{mileageSource}</small>
-                    {q !== 'unavailable' && <small>{stamp(t.mileage?.reportedAt)}</small>}</td>
+                    {q !== 'unavailable' && <small className="convoy-row-observed" title={`Mileage observed ${stamp(t.mileage?.reportedAt)}`}>{stamp(t.mileage?.reportedAt)}</small>}</td>
                   <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
-                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small>{stamp(fuel.at)}</small></>}</td>
+                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>
                   <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>
-                    {loadKnown && <><small>Recorded estimate</small><small>{stamp(t.loadUpdatedAt)}</small></>}</td>
+                    {loadKnown && <><small>Recorded estimate</small><small className="convoy-row-observed" title={`Load observed ${stamp(t.loadUpdatedAt)}`}>{stamp(t.loadUpdatedAt)}</small></>}</td>
                   <td data-label="Next service"><button className={`convoy-row-service ${plan?.status === 'due' ? 'due' : ''}`} title={detail} onClick={()=>{onTruck(t.id);onView?.('service');}}>{status}<ArrowRight size={12}/></button>
                     {plan && <small>{plan.serviceType}</small>}
                     {plan?.milesRemaining != null ? <small>{Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi {plan.milesRemaining <= 0 ? 'past target' : 'remaining'}</small> : plan?.daysRemaining != null ? <small>{Math.abs(plan.daysRemaining)} days {plan.daysRemaining <= 0 ? 'past target' : 'remaining'}</small> : null}</td>

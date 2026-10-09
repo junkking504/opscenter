@@ -60,6 +60,8 @@ function Fixture(){
   const [busy,setBusy]=useState(false);
   const [,setVersion]=useState(0);
   useEffect(()=>{const update=()=>setVersion(value=>value+1);window.addEventListener('fixture-write',update);return()=>window.removeEventListener('fixture-write',update);},[]);
-  return <main style={{padding:16,maxWidth:1250,margin:'auto'}}><h1>Krewe local check · synthetic data</h1><p>Scenario: {mode}. Global selected date: {anchor}.</p><nav><button disabled={busy} onClick={()=>setView('today')}>Today</button> · <button disabled={busy} onClick={()=>setView('payperiod')}>Pay Period</button></nav><p role="status">Writes: {requests.length}{requests.length?` · Last action: ${requests.at(-1)!.action} · ${requests.at(-1)!.date}`:''}</p><LiveKrewe date={mode==='holiday'&&view==='today'?'2026-09-07':anchor} view={view} onBusyChange={setBusy}/></main>;
+  return <main className="ops-live" style={{padding:16,maxWidth:1250,margin:'auto'}}><h1>Krewe local check · synthetic data</h1><p>Scenario: {mode}. Global selected date: {anchor}.</p><nav><button disabled={busy} onClick={()=>setView('today')}>Today</button> · <button disabled={busy} onClick={()=>setView('payperiod')}>Pay Period</button></nav><p role="status">Writes: {requests.length}{requests.length?` · Last action: ${requests.at(-1)!.action} · ${requests.at(-1)!.date}`:''}</p><LiveKrewe date={mode==='holiday'&&view==='today'?'2026-09-07':anchor} view={view} onBusyChange={setBusy}/></main>;
 }
 createRoot(document.getElementById('root')!).render(<Fixture/>);
+
+import '../approved-workbench.css';

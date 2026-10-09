@@ -19,8 +19,8 @@ function Pages({ page, pageCount, onPage, disabled }: { page: number; pageCount:
 }
 function Empty({ children }: { children: ReactNode }) { return <div className="campaign-empty">{children}</div>; }
 
-export function CampaignLeads({ leads, draft, locked, onDraft, onReview }: { leads: Lead[]; draft: Lead | null; locked: boolean; onDraft: (lead: Lead | null) => void; onReview: () => void }) {
-  const [filters, setFilters] = useState<LeadFilters>({ ...defaultLeadFilters, queue: 'all' });
+export function CampaignLeads({ leads, draft, locked, onDraft, onReview, initialFilters }: { initialFilters?: LeadFilters; leads: Lead[]; draft: Lead | null; locked: boolean; onDraft: (lead: Lead | null) => void; onReview: () => void }) {
+  const [filters, setFilters] = useState<LeadFilters>(initialFilters || { ...defaultLeadFilters, queue: 'all' });
   const [page, setPage] = useState(1), [selectedId, setSelectedId] = useState(''), [mobileDetail, setMobileDetail] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const result = useMemo(() => browseLeads(leads, filters, page, 8), [leads, filters, page]);
@@ -57,8 +57,8 @@ export function CampaignLeads({ leads, draft, locked, onDraft, onReview }: { lea
   </div>;
 }
 
-export function CampaignReviews({ reviews, canAssign, locked, selections, onSelect, onReview }: { reviews: Review[]; canAssign: boolean; locked: boolean; selections: Record<string, string>; onSelect: (id: string, appointment: string) => void; onReview: (review: Review) => void }) {
-  const [filters, setFilters] = useState<ReviewFilters>(defaultReviewFilters);
+export function CampaignReviews({ reviews, canAssign, locked, selections, onSelect, onReview, initialFilters }: { initialFilters?: ReviewFilters; reviews: Review[]; canAssign: boolean; locked: boolean; selections: Record<string, string>; onSelect: (id: string, appointment: string) => void; onReview: (review: Review) => void }) {
+  const [filters, setFilters] = useState<ReviewFilters>(initialFilters || defaultReviewFilters);
   const [page, setPage] = useState(1), [selectedId, setSelectedId] = useState(''), [mobileDetail, setMobileDetail] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const result = useMemo(() => browseReviews(reviews, filters, page), [reviews, filters, page]);

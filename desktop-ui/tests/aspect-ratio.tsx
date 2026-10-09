@@ -16,7 +16,7 @@ const leads=Array.from({length:12},(_,i)=>({id:String(i),version:'a',customer:`S
 const commandMap = new URLSearchParams(location.search).has('commandMap');
 const mapTrucks = [2,3,4,6,8,9].map((truck,index)=>({truck:`Truck ${truck}`,latitude:29.94+index*.09,longitude:-90.05-index*.15,lastGpsUpdate:stamp,speed:0,ignition:'OFF',operationalStatus:'Parked',driver:'Synthetic driver',navigator:'Synthetic navigator'}));
 if(commandMap) {
-  command.kpis = ['Today’s jobs','Revenue','Labor','Revenue Per Hour (RPH)','Average Job Size (AJS)'].map(label=>({label,value:label==='Today’s jobs'?'18':'$450.00',detail:'Synthetic metric',progress:50,tone:'healthy'}));
+  command.kpis = ['Today’s jobs','Revenue','Labor','Dump + Fuel','Net'].map(label=>({label,value:label==='Today’s jobs'?'18':'$450.00',detail:'Synthetic metric',progress:50,tone:'healthy'}));
   if(command.crewProgress) command.crewProgress.jobs.forEach(row=>{row.updateIds=row.updateIds.flatMap(id=>Array.from({length:5},(_,index)=>`${id}-${index}`));});
   scheduleJobs.forEach((row,index)=>Object.assign(row,{location:{latitude:29.92+(index%6)*.07,longitude:-90.02-Math.floor(index/6)*.18}}));
   command.alerts = Array.from({length:5},(_,index)=>command.alerts.map(row=>({...row,id:`${row.id}-${index}`}))).flat();
@@ -37,3 +37,5 @@ window.fetch=async(input,init)=>{
 class NoEvents {addEventListener(){}close(){}}
 window.EventSource=NoEvents as unknown as typeof EventSource;
 createRoot(document.getElementById('root')!).render(<Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>);
+
+import '../approved-workbench.css';

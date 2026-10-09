@@ -1,3 +1,4 @@
+import { campaignShortcutFilters, campaignShortcutCount, type CampaignShortcut } from './lib/campaign-shortcuts';
 import { CampaignLeads, CampaignResults, CampaignReviews, campaignOutcomes } from './campaign-workspace';
 import { LiveAnalytics } from './live-analytics';
 import { workspaceReady } from './navigation-performance';
@@ -9,7 +10,8 @@ import { Button } from './components/ui/button';
 import { commercialDate, type MarketingData, type MarketingView, type Lead, type Review, type CommercialOperation, type CommercialReceipt } from './lib/commercial-contract';
 
 export type LiveMarketingProps = { date: string; view?: string; report?: (message: string) => void; onBusyChange?: (busy: boolean) => void; onViewChange?: (view: MarketingView) => void };
-export function LiveMarketing({ date, view = 'overview', report, onBusyChange }: LiveMarketingProps) {
+export function LiveMarketing({ date, view = 'overview', report, onBusyChange, onViewChange }: LiveMarketingProps) {
+  const [shortcut, setShortcut] = useState<{key: CampaignShortcut; revision: number} | null>(null);
   const snapshotKey = `/api/desktop/marketing?date=${date}`;
   const [data, setData] = useWorkspaceSnapshot<MarketingData>(snapshotKey);
   const [revision, setRevision] = useState(0);
@@ -76,11 +78,15 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange }:
   if (!data) return <section className="campaign-workspace"><WorkspaceFreshness state={freshness}/><div className="campaign-empty" role="status">{freshness.error || 'Loading Campaign sources…'}</div></section>;
   return <section className="campaign-workspace" aria-label="Campaign">
     <WorkspaceFreshness state={freshness} sourceAt={view === 'reviews' ? data.reviewFetchedAt : data.fetchedAt} budgetMinutes={20}/>
+    <nav className="campaign-kpi-strip" aria-label="Campaign records">{(Object.keys(campaignShortcutFilters) as CampaignShortcut[]).map(key => {
+      const item = campaignShortcutFilters[key]; const count = campaignShortcutCount(data, key);
+      return <button type="button" key={key} disabled={editing || count === null} onClick={() => { setShortcut(current => ({key, revision: (current?.revision || 0) + 1})); onViewChange?.(item.view); }}><strong>{count ?? '—'}</strong><span>{item.label}</span>{count === null && <small>Source unavailable</small>}</button>;
+    })}</nav>
     {actionFeedback && <div className="campaign-save-status" role="status"><span>{actionFeedback}</span>{lastRequest && <Button disabled={busy} variant="outline" size="sm" onClick={() => void checkReceipt()}>Check saved result</Button>}</div>}
     {Object.keys(selections).length > 0 && !confirmation && <div className="campaign-save-status"><span>Job match not saved yet.</span><Button variant="outline" size="sm" disabled={locked} onClick={() => setSelections({})}>Discard match changes</Button></div>}
-    {['overview', 'leads'].includes(view) && ((data.available || data.leads.length > 0) ? <CampaignLeads key={date} leads={data.leads} draft={draft} locked={locked} onDraft={setDraft} onReview={() => { setActionFeedback(''); setConfirmation('lead'); }}/> : <div className="campaign-panel campaign-empty"><h2>Lead source unavailable</h2><p>{data.error || 'SearchKings leads are unavailable for this period.'}</p></div>)}
+    {['overview', 'leads'].includes(view) && ((data.available || data.leads.length > 0) ? <CampaignLeads key={`${date}:${shortcut?.revision || 0}`} initialFilters={shortcut ? campaignShortcutFilters[shortcut.key].leads : undefined} leads={data.leads} draft={draft} locked={locked} onDraft={setDraft} onReview={() => { setActionFeedback(''); setConfirmation('lead'); }}/> : <div className="campaign-panel campaign-empty"><h2>Lead source unavailable</h2><p>{data.error || 'SearchKings leads are unavailable for this period.'}</p></div>)}
     {(view === 'reviews' || view === 'performance') && <LiveAnalytics date={date} scope={view === 'reviews' ? 'reviews' : 'marketing'} />}
-    {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
+    {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews key={`${date}:${shortcut?.revision || 0}`} initialFilters={shortcut ? campaignShortcutFilters[shortcut.key].reviews : undefined} reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
     {view === 'performance' && (data.available ? <CampaignResults data={data}/> : <div className="campaign-panel campaign-empty"><h2>Results unavailable</h2><p>{data.error || 'SearchKings metrics are unavailable for this period. No sample metrics are substituted.'}</p></div>)}
     <footer className="campaign-source-footer"><span>{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings unavailable'}</span><span>{data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable'}</span></footer>
     {confirmation && <dialog ref={confirmationDialog} className="campaign-confirm" aria-labelledby="campaign-confirm-title" onCancel={event => { event.preventDefault(); if (!locked) setConfirmation(null); }}>

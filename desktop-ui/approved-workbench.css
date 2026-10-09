@@ -1,0 +1,107 @@
+/* Approved October 9 workbench: shared visual language, live adapters unchanged. */
+@font-face{font-family:OpsWorkbench;src:url('/desktop-assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
+.ops-live{--background:#f1f6f8;--foreground:#243b4d;--border:#dbe4e9;--muted:#eef3f6;--muted-foreground:#687e8e;--ops-kpi-height:48px;font-family:OpsWorkbench,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--background);color:var(--foreground)}
+.ops-live .ops-content{min-width:0;background:var(--background)}
+.ops-live .ops-sidebar{background:#111b20;padding:22px 14px 14px;color:#dbe4e9}
+.ops-live .nav-item{height:46px;font-size:13px;font-weight:600;color:#a8b5bf}
+.ops-live .nav-item.active{color:#fff;background:#243139;box-shadow:inset 3px 0 var(--ops-brand-red)}
+.ops-live .brand-lockup{padding:0 5px 23px}
+.ops-live .brand-lockup small{font-size:8px;letter-spacing:.15em}
+.ops-live .sidebar-opsbot-card{margin-top:auto;padding:10px 8px;background:transparent;border:0;box-shadow:none}
+.ops-live .sidebar-opsbot-heading small,.ops-live .sidebar-opsbot-card p{display:none}
+.ops-live .sidebar-opsbot-card>button{margin-top:8px;background:#243139;border-color:#3c4d58}
+.ops-live .sidebar-footer{margin-top:12px}
+.ops-live .workspace{padding:12px 24px 20px}
+.ops-live .workspace-heading{justify-content:flex-start;gap:28px;border-bottom:1px solid var(--border);padding-bottom:0;margin-bottom:10px}
+.ops-live .workspace-heading .eyebrow,.ops-live .workspace-heading p{display:none}
+.ops-live .workspace-heading h1{font-size:26px;line-height:1.2;letter-spacing:-.04em;margin:0;padding:0 0 12px;color:#162b3a}
+.ops-live .workspace-tabs{border:0;background:transparent;box-shadow:none;padding:0;border-radius:0;gap:10px;flex-wrap:wrap}
+.ops-live .workspace-tabs button{height:42px;min-height:42px;padding:0 10px;border-radius:0;border:0;border-bottom:2px solid transparent;background:transparent;font-size:11px;color:#607585;box-shadow:none}
+.ops-live .workspace-tabs button.active{border-bottom-color:var(--ops-brand-red);color:#203746;background:transparent;box-shadow:none}
+.ops-live .live-header-shell{background:#fff}
+.ops-live .live-header-shell .viewing-day-context{padding:6px 24px}
+.ops-live .live-header-shell .viewing-day-context>div{display:flex;align-items:center;gap:10px}
+.ops-live .live-header-shell .viewing-day-context strong{font-size:13px;margin:0}
+.ops-live .live-header-shell .viewing-day-context span{font-size:9px}
+.ops-live .live-header-shell .live-chip{margin-block:4px;padding-block:4px;font-size:9px}
+.ops-live .live-header-shell .live-search-below-day{min-height:42px;padding-top:4px;padding-bottom:8px}
+.ops-live .live-header-shell .viewing-day-controls{padding-top:4px;padding-bottom:8px}
+.ops-live .live-header-shell .brain-launch,.ops-live .live-header-shell .notification-center{margin-block:4px}
+.ops-live .global-search-shell,.ops-live .global-search,.ops-live .viewing-day-controls :is(button,input){min-height:34px;height:34px}
+.ops-live :is(.panel,.campaign-panel,.capital-panel,.hours-employee-card,.schedule-map-panel,.schedule-board-shell){border-color:var(--border);border-radius:8px;box-shadow:none}
+.ops-live .metric-strip.command-metrics{width:100%;max-width:none;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;gap:8px}
+.ops-live .command-metrics>button.kpi-card{--measure-accent:#3677b4;--measure-ink:#275e91;--measure-tint:#edf5fd;min-width:0;height:auto;min-height:84px;padding:7px 10px;gap:3px;border:1px solid #d9e5ee;border-top:3px solid var(--measure-accent);border-radius:6px;background:var(--measure-tint);overflow:visible}
+.ops-live .command-metrics>button:nth-child(2){--measure-accent:#239889;--measure-ink:#186f65;--measure-tint:#eaf7f3}
+.ops-live .command-metrics>button:nth-child(3){--measure-accent:#8970be;--measure-ink:#674b9b;--measure-tint:#f3eefb}
+.ops-live .command-metrics>button:nth-child(4){--measure-accent:#cb9538;--measure-ink:#8a611f;--measure-tint:#fff6e7}
+.ops-live .command-metrics>button:nth-child(5){--measure-accent:#54728b;--measure-ink:#34536e;--measure-tint:#eaf1f7}
+.ops-live .command-metrics>button strong,.ops-live .command-metrics .kpi-heading>span:first-child{color:var(--measure-ink)}
+.ops-live .command-metrics>button>small{font-size:9px;line-height:1.25;color:#607181;overflow-wrap:anywhere}
+.ops-live .command-metrics .kpi-secondary{font-size:10px}
+.ops-live .command-metrics .kpi-meter{flex-shrink:0}
+.ops-live .campaign-kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:7px;background:#fff;margin:6px 0 12px;overflow:hidden}
+.ops-live .campaign-kpi-strip>button{display:grid;grid-template-columns:max-content 1fr;align-items:center;gap:3px 9px;min-height:44px;padding:8px 12px;border:0;border-right:1px solid var(--border);background:transparent;text-align:left;color:#243b4d}
+.ops-live .campaign-kpi-strip>button:last-child{border-right:0}
+.ops-live .campaign-kpi-strip strong{font-size:20px;line-height:1.1}.ops-live .campaign-kpi-strip span{font-size:11px}.ops-live .campaign-kpi-strip small{grid-column:1/-1;font-size:9px}
+.ops-live .campaign-kpi-strip>button:hover:not(:disabled){background:#edf5fb}.ops-live .campaign-kpi-strip>button:disabled{cursor:default;opacity:.65}
+.ops-live .campaign-kpi-strip>button:focus-visible{outline:2px solid #275e91;outline-offset:-3px}
+.ops-live .capital-payment-tabs{display:flex;gap:5px;margin:0 0 10px}
+.ops-live .capital-payment-tabs button{min-height:36px;padding:6px 12px;border:1px solid var(--border);border-radius:5px;background:#fff;font-size:11px}
+.ops-live .capital-payment-tabs button[aria-pressed=true]{background:#eaf1f7;border-color:#9cb6c9;color:#275e91}
+.ops-live .capital-stat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ops-live .capital-workspace .capital-stat{padding:8px 11px;border-radius:6px;min-height:60px;gap:3px;background:#fff;color:#243b4d}
+.ops-live .capital-workspace .capital-stat>strong{margin:0;font-size:20px}.ops-live .capital-workspace .capital-stat>span,.ops-live .capital-workspace .capital-stat>small{color:#607181;font-size:10px;line-height:1.3}
+.ops-live .capital-workspace .capital-stat-primary{background:#edf5fd;border-color:#bdd3e6}.ops-live .capital-workspace .capital-stat-warning{border-color:#decda7}
+.ops-live .crew-weekly-overview{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:7px;margin:0 0 12px}
+.ops-live .crew-weekly-overview table{width:100%;border-collapse:collapse;font-size:12px}
+.ops-live .crew-weekly-overview th,.ops-live .crew-weekly-overview td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.ops-live .crew-weekly-overview thead th{font-size:10px;background:#f6f9fb;font-weight:600;white-space:nowrap}
+.ops-live .crew-weekly-overview small{display:block;font-size:9px;line-height:1.4;color:#657c8d;font-weight:400}
+.ops-live .crew-weekly-overview button{min-height:36px;width:100%;padding:3px 0;text-align:left;background:transparent;border:0;color:#275e91}
+.ops-live .crew-weekly-overview button:hover{text-decoration:underline}.ops-live .crew-weekly-overview button:focus-visible{outline:2px solid #275e91;outline-offset:2px}
+.ops-live .crew-weekly-overview tr:last-child :is(th,td){border-bottom:0}
+@media(min-width:1000px){.ops-app.ops-live{grid-template-columns:204px minmax(0,1fr)}}
+@media(max-width:1000px){.ops-live .workspace-heading{gap:12px;flex-wrap:wrap}.ops-live .workspace{padding-inline:14px}.ops-live .command-metrics>button.kpi-card{padding:6px;min-height:88px}.ops-live .command-metrics>button strong{font-size:18px}}
+@media(max-width:760px){.ops-live .workspace{padding:8px}.ops-live .workspace-heading{display:block}.ops-live .workspace-heading h1{padding-bottom:4px;font-size:24px}.ops-live .workspace-tabs{gap:2px}.ops-live .workspace-tabs button{min-height:44px;height:44px;padding-inline:8px}.ops-live .metric-strip.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .command-metrics>button:last-child{grid-column:1/-1}.ops-live .capital-stat-grid,.ops-live .campaign-kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .campaign-kpi-strip>button{min-height:48px}.ops-live .crew-weekly-overview{max-width:100%}.ops-live .crew-weekly-overview :is(th,td){padding:6px 8px}.ops-live .crew-weekly-overview button{min-height:44px}.ops-live .capital-payment-tabs button{min-height:44px}.ops-live .live-header-shell .viewing-day-context{padding:6px 8px}.ops-live .live-header-shell .viewing-day-context>div{display:block}.ops-live .live-header-shell .viewing-day-context strong{font-size:12px}}
+
+.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button:not(.schedule-summary-clear){height:44px;min-height:44px;padding:6px 10px;gap:2px}.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button>strong{font-size:20px}.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button>span{font-size:9px}
+/* Fit the actual Convoy status rows, not only its summary cards. */
+.ops-live .workspace.convoy-mode .workspace-heading{display:flex;align-items:center;flex-direction:row;gap:24px;padding:0;margin-bottom:8px}
+.ops-live .workspace.convoy-mode .workspace-heading>div:first-child{padding-right:0}
+.ops-live .workspace.convoy-mode .workspace-heading h1{font-size:26px;margin:0;padding-bottom:10px}
+.ops-live .workspace.convoy-mode .workspace-tabs button{height:42px;min-height:42px;background:transparent;border-radius:0;border:0;border-bottom:2px solid transparent;color:#607585;padding:0 8px;font-size:11px;box-shadow:none}
+.ops-live .workspace.convoy-mode .workspace-tabs button.active{border-bottom-color:var(--ops-brand-red);color:#203746}
+.ops-live .workspace.convoy-mode .workspace-tabs.convoy-tabs>button.active{background:transparent;color:#203746;box-shadow:none}
+.ops-live .workspace.convoy-mode .convoy-top-actions{position:static;gap:8px;margin:0;min-height:32px;justify-content:space-between}
+.ops-live .convoy-workspace .convoy-compact-overview{gap:8px}
+.ops-live .convoy-workspace .convoy-compact-overview .convoy-metric{padding:6px 10px;min-height:44px;border-radius:6px}
+.ops-live .convoy-workspace .convoy-compact-overview .convoy-metric>strong{font-size:20px}
+.ops-live .convoy-compact-overview .convoy-dash-panel>header{padding:7px 12px}
+.ops-live .convoy-compact-overview .convoy-table-tools{padding:0 12px 6px}
+@media(min-width:1101px){
+ .ops-live .convoy-status-table th{padding:5px 10px;font-size:9px}
+ .ops-live .convoy-status-table td{padding:3px 10px;line-height:1.2;font-size:11px}
+ .ops-live .convoy-status-table td small{font-size:9px;line-height:1.2;margin-top:1px}
+ .ops-live .convoy-status-table td:nth-child(2) small{display:inline;margin-left:4px}
+ .ops-live .convoy-status-table .convoy-row-vin{font-size:8px}
+ .ops-live .convoy-status-table .convoy-truck-link{font-size:12px;min-height:16px}
+ .ops-live .convoy-status-table .convoy-badge{font-size:9px;padding:2px 4px}
+ .ops-live .convoy-status-table .convoy-row-link{font-size:9px;margin:0;line-height:1.2}
+ .ops-live .convoy-status-table .convoy-row-value{font-size:11px;line-height:1.2}
+ .ops-live .convoy-status-table .convoy-row-service{font-size:10px!important}
+ .ops-live .convoy-status-table td:nth-child(n+3)>small{display:inline}
+ .ops-live .convoy-status-table td:nth-child(n+3)>small+small::before{content:' · '}
+ .ops-live .convoy-status-table td>small.convoy-row-observed{font-size:0}
+ .ops-live .convoy-status-table td:nth-child(n+3)>small.convoy-row-observed::before{content:' ◷';font-size:11px}
+ .ops-live .convoy-status-table td:nth-child(2){white-space:nowrap}
+ .ops-live .convoy-status-table .convoy-row-value{display:block}
+}
+@media(min-width:1100px){
+ .ops-live .live-schedule.schedule-dispatch .schedule-control-bar{flex-wrap:nowrap;padding:4px 0;gap:8px}
+ .ops-live .live-schedule.schedule-dispatch .schedule-control-actions{flex-wrap:nowrap;gap:4px}
+ .ops-live .live-schedule.schedule-dispatch .schedule-control-actions>button{padding:5px 7px;font-size:10px;height:32px;min-height:32px;white-space:nowrap}
+ .ops-live .live-schedule.schedule-dispatch .schedule-search-actions{flex:1 1 210px;gap:4px}
+ .ops-live .live-schedule.schedule-dispatch .schedule-search-actions input{flex-basis:80px;height:32px}
+ .ops-live .live-schedule.schedule-dispatch .day-switcher button{font-size:10px;padding:4px 7px}
+}
+@media(max-width:760px){.ops-live .workspace.convoy-mode .workspace-heading{display:block}.ops-live .workspace.convoy-mode .workspace-tabs button{min-height:44px;height:44px}}

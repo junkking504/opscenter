@@ -35,7 +35,14 @@ type FinanceWithWex = FinanceData & { fuelReconciliation?: FuelReconciliationDat
 const emptyVersion = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 const emptyWex: FinanceWithWex['wexFuel'] = { available: false, status: 'missing', importedAt: null, sourceFileModifiedAt: null, coverageFrom: null, coverageThrough: null, transactionCount: 0, selectedDate: { count: 0, gallons: 0, netCost: 0 }, month: { count: 0, gallons: 0, netCost: 0 }, transactions: [] };
 export function LiveFinance(props: LiveFinanceProps) {
-  return props.view === 'reconciliation' ? <DailyReconciliation {...props} /> : <FinanceWorkspace {...props} />;
+  const [busy, setBusy] = useState(false);
+  const { onBusyChange } = props;
+  const onBusy = useCallback((value: boolean) => { setBusy(value); onBusyChange?.(value); }, [onBusyChange]);
+  const payments = props.view === 'payments' || props.view === 'reconciliation';
+  return <>{payments && <nav className="capital-payment-tabs" aria-label="Payments views">
+    <button type="button" aria-pressed={props.view === 'payments'} disabled={busy} onClick={() => props.onViewChange?.('payments')}>Recorded payments</button>
+    <button type="button" aria-pressed={props.view === 'reconciliation'} disabled={busy} onClick={() => props.onViewChange?.('reconciliation')}>Reconciliation</button>
+  </nav>}{props.view === 'reconciliation' ? <DailyReconciliation {...props} onBusyChange={onBusy} /> : <FinanceWorkspace {...props} onBusyChange={onBusy} />}</>;
 }
 function DailyReconciliation(props: LiveFinanceProps) {
   const yesterday = shiftOperatingDay(currentOperatingDay(), -1);

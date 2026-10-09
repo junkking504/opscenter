@@ -74,6 +74,11 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
         setSearch(''); setEmployeeId(id); setWeekIndex(null); setFocusEmployee(true); onShowPay?.();
       }} />}</div>
       <div hidden={panel !== 'pay'}>
+      <div className="crew-weekly-overview" role="region" aria-label="Weekly hours by employee" tabIndex={0}>
+        <table><thead><tr><th scope="col">Crew member</th>{snapshot.employees[0]?.weeks.map((week,index) => <th scope="col" key={week.start}>Week {index + 1}<small>{dayLabel(week.start)} – {dayLabel(week.end)}</small></th>)}<th scope="col">Period hours</th></tr></thead>
+        <tbody>{employees.map(employee => <tr key={employee.id}><th scope="row">{employee.name}</th>{employee.weeks.map((week,index) => <td key={week.start}><button type="button" disabled={isEditing} onClick={() => {setEmployeeId(employee.id);setWeekIndex(index);setFocusEmployee(true);requestAnimationFrame(() => employeeCard.current?.scrollIntoView({block:'nearest'}));}} aria-label={`${employee.name}, Week ${index + 1}: ${hours(week.total)}, open daily records`}><strong>{hours(week.total)}</strong><small>{hours(week.regular)} regular · {hours(week.overtime)} OT{week.incomplete ? ' · incomplete' : ''}</small></button></td>)}<td><strong>{hours(employee.total)}</strong></td></tr>)}</tbody></table>
+        {!employees.length && <p>No employees match this selection.</p>}
+      </div>
       <div className="crew-pay-workspace">
         <aside className="crew-employee-picker" aria-label="Choose employee">
           <h3>Employees <span>{employees.length}</span></h3>

@@ -1,0 +1,6 @@
+import {defineConfig} from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/postcss';
+import {fileURLToPath} from 'node:url';
+import fs from 'node:fs';
+export default defineConfig({root:fileURLToPath(new URL('../',import.meta.url)),plugins:[react(),{name:'synthetic-invoice-photo',configureServer(server){server.middlewares.use('/desktop-assets',(req,res,next)=>{const assets:Record<string,string>={'/opscenter-wordmark.png':'opscenter-wordmark.png','/fonts/InterVariable.woff2':'fonts/InterVariable.woff2'};const path=assets[req.url||''];if(!path){next();return;}res.setHeader('Content-Type',path.endsWith('.png')?'image/png':'font/woff2');res.end(fs.readFileSync(fileURLToPath(new URL('../../public/'+path,import.meta.url))));});server.middlewares.use('/api/fleet-maintenance-photos',(req,res)=>{if(new URL(req.url||'','http://fixture.local').searchParams.get('photoId')!=='fixture-photo'){res.statusCode=404;res.end();return;}res.setHeader('Content-Type','image/svg+xml');res.end(fs.readFileSync(fileURLToPath(new URL('../public/tests/fixture-photo.svg',import.meta.url))));});}}],resolve:{dedupe:['react','react-dom'],alias:{'@':fileURLToPath(new URL('../',import.meta.url))}},css:{postcss:{plugins:[tailwindcss()]}},server:{host:'127.0.0.1',port:3168,strictPort:true}});

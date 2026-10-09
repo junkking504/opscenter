@@ -1,8 +1,9 @@
-/* Phase 1: each opaque replacement is <2 CIELAB Delta E from its original.
- * Role/family variants preserve existing treatments until Phase 2 is approved.
- * Workbench semantics use the nearest audited representative; alpha is unchanged.
+/* Phase 1 anchors are retained except the three approved workbench restorations:
+ * canvas #f1f6f8, border #dbe4e9 and muted ink #687e8e.
+ * Phase 2 workspace profiles live in css-phase-two.css; alpha is unchanged.
  * Brand identity remains authoritative in styles/brand-tokens.css. */
 :root {
+  --oc-compact-label: 8px;
   --oc-shadow-alpha-01: #0007;
   --oc-shadow-alpha-02: #0003;
   --oc-shadow-alpha-03: #0002;
@@ -137,7 +138,7 @@
   --oc-border-blue-37: #87a9c4;
   --oc-border-blue-38: #4d7896;
   --oc-border-blue-39: #2864d7;
-  --oc-border-default: #dce2e8;
+  --oc-border-default: #dbe4e9;
   --oc-border-green-01: #285e3c;
   --oc-border-green-02: #bcd9c8;
   --oc-border-green-03: #3b9363;
@@ -285,7 +286,7 @@
   --oc-surface-blue-19: #1a1f24;
   --oc-surface-blue-20: #30363c;
   --oc-surface-blue-21: #1c2028;
-  --oc-surface-canvas: #f5f9fc;
+  --oc-surface-canvas: #f1f6f8;
   --oc-surface-green-01: #49a36f;
   --oc-surface-green-02: #49c985;
   --oc-surface-green-03: #3f9967;
@@ -583,7 +584,7 @@
   --oc-text-green-85: #365c48;
   --oc-text-green-86: #48534e;
   --oc-text-green-87: #34704d;
-  --oc-text-muted: #657c8c;
+  --oc-text-muted: #687e8e;
   --oc-text-neutral-01: #78817c;
   --oc-text-neutral-02: #68736d;
   --oc-text-neutral-03: #59635e;

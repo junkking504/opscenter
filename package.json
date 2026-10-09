@@ -173,7 +173,8 @@
     "verify:resale-photos:browser": "node --import tsx scripts/test-resale-photos-browser.ts",
     "verify:desktop-tokens:browser": "node scripts/test-desktop-tokens-browser.mjs",
     "verify:log-hygiene": "python3 scripts/test-postgres-log-rotation.py && python3 scripts/test-log-rotation-installer.py && node --import tsx scripts/test-auth-rejection-log.ts && node --import tsx scripts/test-log-rotation-health.ts",
-    "verify:slack-diagnostics": "node --import tsx scripts/test-slack-diagnostics.ts"
+    "verify:slack-diagnostics": "node --import tsx scripts/test-slack-diagnostics.ts",
+    "verify:css-phase-two": "node --import tsx scripts/test-css-phase-two.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

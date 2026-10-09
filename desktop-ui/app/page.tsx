@@ -1,4 +1,6 @@
 'use client';
+import '../css-phase-two.css';
+import { cssPhaseTwoWorkspaces } from '../lib/css-phase-two';
 import { truckDisplayText } from '../../lib/junkware-trucks';
 import TruckAgents from '../truck-agents';
 import AgentHierarchy from '../agent-hierarchy';
@@ -4205,7 +4207,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
 
   return (
-    <main className={live ? 'ops-app ops-live' : 'ops-app'}>
+    <main className={live ? 'ops-app ops-live' : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>

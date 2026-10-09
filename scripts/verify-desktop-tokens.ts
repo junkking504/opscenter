@@ -7,6 +7,11 @@ const tokenFile='desktop-ui/design-tokens.css';
 // Third-party CSS and the shared brand identity live outside this desktop audit.
 // No application literals are exempt; additions need an exact file/value reason.
 const rawHexAllowlist: Record<string, Record<string,string>> = {};
+const phaseTwoFile='desktop-ui/css-phase-two.css';
+const phaseTwoRecords=fs.readdirSync('docs/css-phase-two').filter(name=>name.endsWith('-decisions.json')&&name!=='small-text-decisions.json').map(name=>JSON.parse(fs.readFileSync(`docs/css-phase-two/${name}`,'utf8')));
+const fixedAnchors:Record<string,string>={'--oc-surface-canvas':'#f1f6f8','--oc-border-default':'#dbe4e9','--oc-text-muted':'#687e8e'};
+const phaseOneHold:Record<string,string>={'--oc-surface-canvas':'#f5f9fc','--oc-border-default':'#dce2e8','--oc-text-muted':'#657c8c'};
+rawHexAllowlist[phaseTwoFile]=Object.fromEntries([...Object.values(phaseOneHold),...phaseTwoRecords.flatMap(record=>Object.values(record.colors).map((row)=> (row as {to:string}).to))].map(hex=>[hex,'Reviewed workspace decision; checked separately by verify:css-phase-two']));
 const tokens=postcss.parse(fs.readFileSync(tokenFile,'utf8'));
 const definitions=new Map<string,string>();tokens.walkDecls(d=>{definitions.set(d.prop,d.value);});
 const scale=new Set([6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,30,32,36,42]);
@@ -16,9 +21,10 @@ function validate(file:string,css:string){
  postcss.parse(css).walkDecls(d=>{
   for(const hex of d.value.match(/#[\da-f]{3,8}\b/gi)||[])assert.ok(file===tokenFile||rawHexAllowlist[file]?.[hex],`${file}: raw color ${hex}`);
   for(const [,name] of d.value.matchAll(/var\((--oc-[\w-]+)/g))assert.ok(definitions.has(name),`${file}: undefined ${name}`);
-  if(d.prop==='font-size')assert.ok(/^(var\(--oc-type-\d+\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
+  if(d.prop==='font-size' && d.value==='var(--oc-compact-label)')assert.ok(file===phaseTwoFile&&phaseTwoRecords.some(record=>record.compactExceptions.some((exception:{selector:string})=>(d.parent as postcss.Rule).selector===`.ops-live[data-css-phase-two="${record.workspace}"] ${exception.selector}`)),'Compact exception must name its exact reviewed selector');
+  if(d.prop==='font-size' && d.value!=='var(--oc-compact-label)')assert.ok(/^(var\(--oc-type-\d+\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
   if(d.prop==='font')assert.ok(d.value==='inherit'||/^(?:(?:\d+|normal|bold|italic|oblique|small-caps)\s+)*var\(--oc-type-\d+\)(?:\s|\/)/.test(d.value),`${file}: shorthand size must use a token`);
-  if(d.prop.startsWith('--oc-type-'))assert.ok(file===tokenFile&&scale.has(Number(d.prop.slice(10))),`${file}: off-scale definition ${d.prop}`);
+  if(d.prop.startsWith('--oc-type-'))assert.ok((file===tokenFile&&scale.has(Number(d.prop.slice(10))))||(file===phaseTwoFile&&phaseTwoRecords.some(record=>d.value===`var(--oc-type-${record.typeMap[d.prop.slice(10)]})`)),`${file}: off-scale definition ${d.prop}`);
  });
 }
 let important=0;
@@ -34,5 +40,6 @@ assert.throws(()=>validate('new.css','.new{font:700 1.03125rem/1.4 sans-serif}')
 // Verify each original against its FINAL representative, never a transitive cluster.
 const audit=JSON.parse(fs.readFileSync('scripts/fixtures/css-phase-one.json','utf8')) as {colors:{from:string;to:string;token:string}[]};
 function lab(hex:string){const [r,g,b]=hex.match(/../g)!.map(c=>parseInt(c,16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);const f=(v:number)=>v>.008856?Math.cbrt(v):7.787*v+16/116;const x=f((r*.4124+g*.3576+b*.1805)/.95047),y=f(r*.2126+g*.7152+b*.0722),z=f((r*.0193+g*.1192+b*.9505)/1.08883);return [116*y-16,500*(x-y),200*(y-z)];}
-for(const color of audit.colors){assert.equal(definitions.get(color.token),`#${color.to}`);const a=lab(color.from),b=lab(color.to);assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<2,`${color.from} exceeds Delta E limit`);}
+for(const color of audit.colors){assert.equal(definitions.get(color.token),fixedAnchors[color.token] || `#${color.to}`);const a=lab(color.from),b=lab(color.to);assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<2,`${color.from} exceeds Delta E limit`);}
+for(const [token,value]of Object.entries(fixedAnchors))assert.equal(definitions.get(token),value,'Approved anchors are fixed, never palette-quantized');
 console.log(`Desktop tokens passed: ${files.length} files, ${new Set(audit.colors.map(c=>c.to)).size} opaque anchors, ${scale.size} type sizes, ${important} font-size importance flags.`);

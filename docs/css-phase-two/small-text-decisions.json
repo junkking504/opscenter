@@ -1,0 +1,2271 @@
+[
+  {
+    "id": "small-001",
+    "file": "desktop-ui/schedule-board.css",
+    "line": 122,
+    "selector": ".ops-live .live-schedule.schedule-dispatch .schedule-summary-button span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        16
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-002",
+    "file": "desktop-ui/app/globals.css",
+    "line": 273,
+    "selector": ".alert-workflow-status",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-003",
+    "file": "desktop-ui/app/globals.css",
+    "line": 331,
+    "selector": ".action-queue-filters button span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-004",
+    "file": "desktop-ui/app/globals.css",
+    "line": 339,
+    "selector": ".action-queue-item-heading [data-slot=\"badge\"]",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-005",
+    "file": "desktop-ui/app/globals.css",
+    "line": 340,
+    "selector": ".action-priority",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-006",
+    "file": "desktop-ui/app/globals.css",
+    "line": 344,
+    "selector": ".action-status",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-007",
+    "file": "desktop-ui/app/globals.css",
+    "line": 354,
+    "selector": ".action-queue-context b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-008",
+    "file": "desktop-ui/app/globals.css",
+    "line": 377,
+    "selector": ".control-summary-strip span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-009",
+    "file": "desktop-ui/app/globals.css",
+    "line": 403,
+    "selector": ".start-day-gates > article > header span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-010",
+    "file": "desktop-ui/app/globals.css",
+    "line": 412,
+    "selector": ".start-day-gate-title b em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-011",
+    "file": "desktop-ui/app/globals.css",
+    "line": 483,
+    "selector": ".day-close-gate-count span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-012",
+    "file": "desktop-ui/app/globals.css",
+    "line": 484,
+    "selector": ".day-close-gate-status",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-013",
+    "file": "desktop-ui/app/globals.css",
+    "line": 517,
+    "selector": ".day-close-layout > aside dt",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-014",
+    "file": "desktop-ui/app/globals.css",
+    "line": 531,
+    "selector": ".approval-status",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-015",
+    "file": "desktop-ui/app/globals.css",
+    "line": 541,
+    "selector": ".control-recommendation span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-016",
+    "file": "desktop-ui/app/globals.css",
+    "line": 547,
+    "selector": ".control-action-body dt",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-017",
+    "file": "desktop-ui/app/globals.css",
+    "line": 563,
+    "selector": ".control-route-list > article > header > button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-018",
+    "file": "desktop-ui/app/globals.css",
+    "line": 566,
+    "selector": ".control-route-list > article > div span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-019",
+    "file": "desktop-ui/app/globals.css",
+    "line": 585,
+    "selector": ".control-approval-card > header div span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-020",
+    "file": "desktop-ui/app/globals.css",
+    "line": 587,
+    "selector": ".control-approval-card > header em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-021",
+    "file": "desktop-ui/app/globals.css",
+    "line": 592,
+    "selector": ".control-decision-lifecycle span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-022",
+    "file": "desktop-ui/app/globals.css",
+    "line": 598,
+    "selector": ".control-recommendation-detail > span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-023",
+    "file": "desktop-ui/app/globals.css",
+    "line": 626,
+    "selector": ".verification-requirement-grid span, .action-verification-section > label > span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10,
+        10
+      ],
+      "390 \u00d7 844": [
+        10,
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10,
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-024",
+    "file": "desktop-ui/app/globals.css",
+    "line": 636,
+    "selector": ".verification-failure-receipt span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-025",
+    "file": "desktop-ui/app/globals.css",
+    "line": 655,
+    "selector": ".audit-table-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-026",
+    "file": "desktop-ui/app/globals.css",
+    "line": 671,
+    "selector": ".audit-result",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-027",
+    "file": "desktop-ui/app/globals.css",
+    "line": 725,
+    "selector": ".map-focus-chip span",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-028",
+    "file": "desktop-ui/app/globals.css",
+    "line": 728,
+    "selector": ".route-intelligence-panel > header span",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-029",
+    "file": "desktop-ui/app/globals.css",
+    "line": 728,
+    "selector": ".route-rank",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-030",
+    "file": "desktop-ui/app/globals.css",
+    "line": 728,
+    "selector": ".route-candidate-row small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-031",
+    "file": "desktop-ui/app/globals.css",
+    "line": 728,
+    "selector": ".route-candidate-row em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-032",
+    "file": "desktop-ui/app/globals.css",
+    "line": 728,
+    "selector": ".route-intelligence-panel > footer",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-033",
+    "file": "desktop-ui/app/globals.css",
+    "line": 734,
+    "selector": ".schedule-now-line span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-034",
+    "file": "desktop-ui/app/globals.css",
+    "line": 737,
+    "selector": ".schedule-route-leg strong",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-035",
+    "file": "desktop-ui/app/globals.css",
+    "line": 737,
+    "selector": ".schedule-route-leg small",
+    "originalPx": 6,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-036",
+    "file": "desktop-ui/app/globals.css",
+    "line": 738,
+    "selector": ".schedule-drag-preview small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-037",
+    "file": "desktop-ui/app/globals.css",
+    "line": 742,
+    "selector": ".schedule-move-confirmation > header span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-038",
+    "file": "desktop-ui/app/globals.css",
+    "line": 742,
+    "selector": ".schedule-move-path b",
+    "originalPx": 6,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-039",
+    "file": "desktop-ui/app/globals.css",
+    "line": 749,
+    "selector": ".appointment-territory-toolbar button small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-040",
+    "file": "desktop-ui/app/globals.css",
+    "line": 764,
+    "selector": ".calendar-day > strong em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-041",
+    "file": "desktop-ui/app/globals.css",
+    "line": 764,
+    "selector": ".calendar-day > small i",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-042",
+    "file": "desktop-ui/app/globals.css",
+    "line": 764,
+    "selector": ".calendar-day > small i b",
+    "originalPx": 6,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-043",
+    "file": "desktop-ui/app/globals.css",
+    "line": 765,
+    "selector": ".calendar-selection-metrics small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-044",
+    "file": "desktop-ui/app/globals.css",
+    "line": 765,
+    "selector": ".calendar-territory-summary span b",
+    "originalPx": 6,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-045",
+    "file": "desktop-ui/app/globals.css",
+    "line": 770,
+    "selector": ".followup-record-meta b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-046",
+    "file": "desktop-ui/app/globals.css",
+    "line": 771,
+    "selector": ".history-origin b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-047",
+    "file": "desktop-ui/app/globals.css",
+    "line": 773,
+    "selector": ".history-audit-note span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-048",
+    "file": "desktop-ui/app/globals.css",
+    "line": 775,
+    "selector": ".krewe-table-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-049",
+    "file": "desktop-ui/app/globals.css",
+    "line": 775,
+    "selector": ".krewe-identity small, .krewe-time small, .krewe-assignment small, .krewe-number small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9,
+        9,
+        9,
+        9
+      ],
+      "390 \u00d7 844": [
+        9,
+        9,
+        9,
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9,
+        9,
+        9,
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-050",
+    "file": "desktop-ui/app/globals.css",
+    "line": 775,
+    "selector": ".krewe-status",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-051",
+    "file": "desktop-ui/app/globals.css",
+    "line": 775,
+    "selector": ".krewe-coverage-note span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-052",
+    "file": "desktop-ui/app/globals.css",
+    "line": 808,
+    "selector": ".source-health-list article > div b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-053",
+    "file": "desktop-ui/app/globals.css",
+    "line": 823,
+    "selector": ".appointment-create-context span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-054",
+    "file": "desktop-ui/app/globals.css",
+    "line": 831,
+    "selector": ".krewe-view-switcher span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-055",
+    "file": "desktop-ui/app/globals.css",
+    "line": 835,
+    "selector": ".krewe-kpi-strip span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-056",
+    "file": "desktop-ui/app/globals.css",
+    "line": 839,
+    "selector": ".krewe-live-label",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-057",
+    "file": "desktop-ui/app/globals.css",
+    "line": 841,
+    "selector": ".krewe-snapshot-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-058",
+    "file": "desktop-ui/app/globals.css",
+    "line": 851,
+    "selector": ".snapshot-person small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-059",
+    "file": "desktop-ui/app/globals.css",
+    "line": 853,
+    "selector": ".krewe-performance-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-060",
+    "file": "desktop-ui/app/globals.css",
+    "line": 857,
+    "selector": ".krewe-performance-row > button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-061",
+    "file": "desktop-ui/app/globals.css",
+    "line": 865,
+    "selector": ".krewe-callin-summary span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-062",
+    "file": "desktop-ui/app/globals.css",
+    "line": 882,
+    "selector": ".krewe-callin-metrics small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-063",
+    "file": "desktop-ui/app/globals.css",
+    "line": 886,
+    "selector": ".callin-state",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-064",
+    "file": "desktop-ui/app/globals.css",
+    "line": 896,
+    "selector": ".krewe-period-summary span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-065",
+    "file": "desktop-ui/app/globals.css",
+    "line": 899,
+    "selector": ".krewe-period-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-066",
+    "file": "desktop-ui/app/globals.css",
+    "line": 902,
+    "selector": ".krewe-period-table article small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-067",
+    "file": "desktop-ui/app/globals.css",
+    "line": 903,
+    "selector": ".krewe-period-table article > button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-068",
+    "file": "desktop-ui/app/globals.css",
+    "line": 905,
+    "selector": ".krewe-month-select span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-069",
+    "file": "desktop-ui/app/globals.css",
+    "line": 912,
+    "selector": ".krewe-monthly-kpis span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-070",
+    "file": "desktop-ui/app/globals.css",
+    "line": 916,
+    "selector": ".krewe-month-head",
+    "originalPx": 7,
+    "classification": "compact secondary label",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Readable section/column context, enlarge to 10px; no compact exception.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-071",
+    "file": "desktop-ui/app/globals.css",
+    "line": 919,
+    "selector": ".krewe-monthly-breakdown > article > button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-072",
+    "file": "desktop-ui/app/globals.css",
+    "line": 922,
+    "selector": ".krewe-drawer-details header",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-073",
+    "file": "desktop-ui/app/globals.css",
+    "line": 928,
+    "selector": ".krewe-drawer-details small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-074",
+    "file": "desktop-ui/app/globals.css",
+    "line": 930,
+    "selector": ".krewe-drawer-details em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-075",
+    "file": "desktop-ui/app/globals.css",
+    "line": 933,
+    "selector": ".krewe-bonus-control > div:first-child span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-076",
+    "file": "desktop-ui/app/globals.css",
+    "line": 937,
+    "selector": ".krewe-bonus-control label > span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        9
+      ],
+      "390 \u00d7 844": [
+        9
+      ],
+      "200% at 1280 \u00d7 720": [
+        9
+      ]
+    }
+  },
+  {
+    "id": "small-077",
+    "file": "desktop-ui/app/globals.css",
+    "line": 941,
+    "selector": ".map-operation-summary span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-078",
+    "file": "desktop-ui/app/globals.css",
+    "line": 950,
+    "selector": ".drawer-detail-grid small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-079",
+    "file": "desktop-ui/app/globals.css",
+    "line": 966,
+    "selector": ".job-record-connection-grid em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-080",
+    "file": "desktop-ui/app/globals.css",
+    "line": 974,
+    "selector": ".job-record-finance-grid span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-081",
+    "file": "desktop-ui/app/globals.css",
+    "line": 992,
+    "selector": ".job-record-related-list em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-082",
+    "file": "desktop-ui/app/globals.css",
+    "line": 993,
+    "selector": ".job-record-related-list article > button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-083",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1024,
+    "selector": ".truck-record-appointment-list > button > em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-084",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1036,
+    "selector": ".truck-record-krewe-list > button > em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-085",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1042,
+    "selector": ".truck-record-maintenance-summary span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-086",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1052,
+    "selector": ".territory-record-overview span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-087",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1079,
+    "selector": ".territory-record-appointment-list > button > em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-088",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1089,
+    "selector": ".territory-record-asset-list > button > i",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-089",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1093,
+    "selector": ".territory-record-asset-list em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-090",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1113,
+    "selector": ".area-record-readiness span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-091",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1157,
+    "selector": ".customer-work-list em, .customer-work-list button",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10,
+        10
+      ],
+      "390 \u00d7 844": [
+        10,
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10,
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-092",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1836,
+    "selector": ".appointment-location-summary > div b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-093",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1840,
+    "selector": ".appointment-location-summary > footer small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-094",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1848,
+    "selector": ".appointment-location-result > div small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-095",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1877,
+    "selector": ".appointment-placement-load small",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-096",
+    "file": "desktop-ui/app/globals.css",
+    "line": 1913,
+    "selector": ".appointment-duplicate-list article > p b",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-097",
+    "file": "desktop-ui/app/globals.css",
+    "line": 2322,
+    "selector": ".appointment-closeout-receipt em",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  },
+  {
+    "id": "small-098",
+    "file": "desktop-ui/app/globals.css",
+    "line": 2331,
+    "selector": ".estimate-record-grid span",
+    "originalPx": 7,
+    "classification": "essential information",
+    "acceptedMinimumPx": 9,
+    "targetPx": 10,
+    "decision": "Operational value, status, warning or action context; enlarge base declaration to 10px, retain larger winning rules.",
+    "verification": "Command-scoped selector specimens passed at 1280\u00d7720, 390\u00d7844 and 640\u00d7360 CSS viewport at 2\u00d7; real workspace/dialog acceptance is recorded separately. Not claimed unused.",
+    "computedInCommand": {
+      "1280 \u00d7 720": [
+        10
+      ],
+      "390 \u00d7 844": [
+        10
+      ],
+      "200% at 1280 \u00d7 720": [
+        10
+      ]
+    }
+  }
+]

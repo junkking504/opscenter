@@ -183,6 +183,11 @@
  * full-width hourly ruler even when ten rows share a short screen. */
 .ops-live .schedule-dispatch .schedule-timeline-content {
   position: relative;
+  /* The scaled timeline forms a stacking context. Keep it above the external
+   * now line and cross-truck connectors so those cannot cover appointments. */
+  z-index: 6;
+  /* Empty overlay space must still pass clicks to the truck progress strip. */
+  pointer-events: none;
   width: 100%;
   height: 100%;
   transform: scaleY(var(--schedule-timeline-scale, 1));
@@ -269,7 +274,9 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq { border-color: #3c6f91; background: #e8f5ff; color: #204f70; }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-hq > span { text-transform: none; }
 .ops-live .live-schedule.schedule-dispatch .schedule-operational-stop.is-departure { border-style: dashed; background: #fff; }
-.ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 2; }
+/* Appointment hit targets and status marks take priority over travel arrows,
+ * off-site labels and facility markers, including connector hover states. */
+.ops-live .live-schedule.schedule-dispatch .schedule-appointment { z-index: 6; pointer-events: auto; }
 .ops-live .live-schedule.schedule-dispatch .schedule-visit-duration { color: #24483a; font-size: 8px; font-weight: 850; line-height: 1; letter-spacing: -.02em; }
 .ops-live .live-schedule.schedule-dispatch [data-visit-point] .schedule-visit-duration { display: inline; }
 .ops-live .live-schedule.schedule-dispatch .schedule-colocated-visit-connectors { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; overflow: visible; pointer-events: none; }

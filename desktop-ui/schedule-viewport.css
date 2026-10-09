@@ -5,10 +5,10 @@
   .ops-live .schedule-dispatch .has-selected-job > .schedule-board-layout { grid-column: 1; grid-row: 1; }
   .ops-live .schedule-dispatch .schedule-appointment-summary { height: var(--schedule-available-height); max-height: var(--schedule-available-height); grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; padding: 10px; gap: 10px; overflow: hidden; }
   .ops-live .schedule-dispatch .selected-job-main { min-height: 0; overflow-y: auto; }
-  .ops-live .schedule-dispatch .selected-job-heading h2 { font-size: 17px; }
+  .ops-live .schedule-dispatch .selected-job-heading h2 { font-size: var(--oc-type-17); }
   .ops-live .schedule-dispatch .selected-job-work > span,
   .ops-live .schedule-dispatch .selected-job-note > span { flex-basis: 100%; }
-  .ops-live .schedule-dispatch .selected-job-next { border-left: 0; border-top: 1px solid #e0e7eb; padding: 8px 0 0; }
+  .ops-live .schedule-dispatch .selected-job-next { border-left: 0; border-top: 1px solid var(--oc-border-default); padding: 8px 0 0; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: var(--schedule-available-height); min-height: 0; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { grid-template-columns: minmax(300px,.65fr) minmax(0,1.35fr); gap: 10px; }
@@ -18,10 +18,10 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { min-width: 0; width: 100%; min-height: 100%; height: auto; }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { min-height: var(--schedule-row-height); }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { padding: 2px 5px; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: 11px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell strong { font-size: var(--oc-type-11); }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 100%; min-height: 0; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; }
   .ops-live .live-schedule.schedule-dispatch .schedule-map-canvas { min-height: 0; }
-  .ops-live .schedule-dispatch .route-connector-label { height: 16px; font-size: 10px; line-height: 16px; }
+  .ops-live .schedule-dispatch .route-connector-label { height: 16px; font-size: var(--oc-type-10); line-height: 16px; }
   .ops-live .schedule-dispatch .schedule-visit-duration,
   .ops-live .schedule-dispatch .schedule-visit-gap > span,
   .ops-live .schedule-dispatch .schedule-operational-stop > span,

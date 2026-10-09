@@ -1,13 +1,13 @@
-.ops-live .live-schedule.schedule-dispatch .schedule-recorded-sequence-button { display: inline-flex; align-items: center; white-space: nowrap; min-height: 24px; border: 1px solid #9eb2aa; border-radius: 4px; padding: 4px 8px; background: white; color: #26372e; font-size: 11px; }
-.ops-live .schedule-recorded-sequence { width: min(620px, calc(100vw - 24px)); max-height: 80vh; overflow: auto; inset: 50% auto auto 50%; transform: translate(-50%, -50%); padding: 16px; border: 1px solid #9eb2aa; border-radius: 8px; color: #17212b; background: white; }
-.ops-live .schedule-recorded-sequence::backdrop { background: #17212b45; }
+.ops-live .live-schedule.schedule-dispatch .schedule-recorded-sequence-button { display: inline-flex; align-items: center; white-space: nowrap; min-height: 24px; border: 1px solid var(--oc-border-neutral-18); border-radius: 4px; padding: 4px 8px; background: white; color: var(--oc-text-green-05); font-size: var(--oc-type-11); }
+.ops-live .schedule-recorded-sequence { width: min(620px, calc(100vw - 24px)); max-height: 80vh; overflow: auto; inset: 50% auto auto 50%; transform: translate(-50%, -50%); padding: 16px; border: 1px solid var(--oc-border-neutral-18); border-radius: 8px; color: var(--oc-text-blue-05); background: white; }
+.ops-live .schedule-recorded-sequence::backdrop { background: var(--oc-surface-overlay-11); }
 .ops-live .schedule-recorded-sequence header { display: flex; justify-content: space-between; align-items: center; }
 .ops-live .schedule-recorded-sequence h3, .ops-live .schedule-recorded-sequence h4 { margin: 0; }
-.ops-live .schedule-recorded-sequence header button { border: 0; background: transparent; padding: 8px; font-size: 20px; }
-.ops-live .schedule-recorded-sequence p { font-size: 12px; color: #53645d; }
-.ops-live .schedule-recorded-sequence section { padding: 12px 0; border-top: 1px solid #d8e2dc; }
+.ops-live .schedule-recorded-sequence header button { border: 0; background: transparent; padding: 8px; font-size: var(--oc-type-20); }
+.ops-live .schedule-recorded-sequence p { font-size: var(--oc-type-12); color: var(--oc-text-green-11); }
+.ops-live .schedule-recorded-sequence section { padding: 12px 0; border-top: 1px solid var(--oc-border-neutral-08); }
 .ops-live .schedule-recorded-sequence ol { padding-left: 24px; margin-bottom: 0; }
 .ops-live .schedule-recorded-sequence li { padding: 4px 0; }
-.ops-live .schedule-recorded-sequence li div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; }
-.ops-live .schedule-recorded-sequence li small { display: block; font-size: 11px; color: #53645d; margin: 3px 0; }
-.ops-live .schedule-recorded-sequence li button { border: 0; background: transparent; color: #165782; text-decoration: underline; text-align: left; }
+.ops-live .schedule-recorded-sequence li div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: var(--oc-type-12); }
+.ops-live .schedule-recorded-sequence li small { display: block; font-size: var(--oc-type-11); color: var(--oc-text-green-11); margin: 3px 0; }
+.ops-live .schedule-recorded-sequence li button { border: 0; background: transparent; color: var(--oc-text-blue-41); text-decoration: underline; text-align: left; }

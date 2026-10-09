@@ -1,48 +1,48 @@
 .ops-live .schedule-board-layout.map-open .schedule-stop-order-trigger { display: inline-flex; align-items: center; }
-.ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid #a9b8b1; border-radius: 4px; background: white; color: #26372e; font-size: 11px; white-space: nowrap; cursor: pointer; }
-.ops-live .schedule-control-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; flex-shrink: 0; background: #225d49; border-color: #225d49; color: white; font-weight: 600; }
-.ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(1380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 16px; background: white; color: #26372e; border: 1px solid #a9b8b1; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; font-size: 13px; }
-.ops-live .schedule-stop-order::backdrop { background: #182a224a; }
+.ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid var(--oc-border-neutral-07); border-radius: 4px; background: white; color: var(--oc-text-green-05); font-size: var(--oc-type-11); white-space: nowrap; cursor: pointer; }
+.ops-live .schedule-control-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; flex-shrink: 0; background: var(--oc-text-green-01); border-color: var(--oc-text-green-01); color: white; font-weight: 600; }
+.ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(1380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 16px; background: white; color: var(--oc-text-green-05); border: 1px solid var(--oc-border-neutral-07); border-radius: 8px; box-shadow: 0 8px 35px var(--oc-surface-overlay-10); font-size: var(--oc-type-13); }
+.ops-live .schedule-stop-order::backdrop { background: var(--oc-surface-overlay-14); }
 .ops-live .schedule-stop-order header, .ops-live .schedule-stop-order footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ops-live .schedule-stop-order h2 { font-size: 16px; margin: 0; }
-.ops-live .schedule-stop-order p { font-size: 12px; line-height: 1.5; margin: 10px 0; }
-.ops-live .schedule-stop-order button { padding: 6px 10px; border: 1px solid #a9b8b1; background: #f4f7f5; color: #26372e; border-radius: 4px; cursor: pointer; }
+.ops-live .schedule-stop-order h2 { font-size: var(--oc-type-16); margin: 0; }
+.ops-live .schedule-stop-order p { font-size: var(--oc-type-12); line-height: 1.5; margin: 10px 0; }
+.ops-live .schedule-stop-order button { padding: 6px 10px; border: 1px solid var(--oc-border-neutral-07); background: var(--oc-surface-neutral-02); color: var(--oc-text-green-05); border-radius: 4px; cursor: pointer; }
 .ops-live .schedule-stop-order button:disabled { opacity: .45; cursor: default; }
-.ops-live .schedule-stop-order select { display: block; width: 100%; margin: 5px 0 12px; padding: 7px; border: 1px solid #a9b8b1; background: white; }
+.ops-live .schedule-stop-order select { display: block; width: 100%; margin: 5px 0 12px; padding: 7px; border: 1px solid var(--oc-border-neutral-07); background: white; }
 .ops-live .schedule-stop-order ol { list-style: none; margin: 0 0 14px; padding: 0; }
-.ops-live .stop-order-row { display: flex; align-items: center; gap: 10px; border: 1px solid #d5dfd9; padding: 10px; border-radius: 5px; }
+.ops-live .stop-order-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--oc-border-neutral-04); padding: 10px; border-radius: 5px; }
 .ops-live .stop-order-row > div:not(.stop-order-arrows) { flex: 1; min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
-.ops-live .stop-order-row span, .ops-live .stop-order-row small { font-size: 11px; }
+.ops-live .stop-order-row span, .ops-live .stop-order-row small { font-size: var(--oc-type-11); }
 .ops-live .stop-order-arrows { display: flex; gap: 4px; }
-.ops-live .stop-order-travel { display: block; margin: 6px 0 6px 28px; color: #406751; font-size: 11px; }
-.ops-live .schedule-stop-order footer { justify-content: flex-end; border-top: 1px solid #d5dfd9; padding-top: 12px; }
+.ops-live .stop-order-travel { display: block; margin: 6px 0 6px 28px; color: var(--oc-text-green-29); font-size: var(--oc-type-11); }
+.ops-live .schedule-stop-order footer { justify-content: flex-end; border-top: 1px solid var(--oc-border-neutral-04); padding-top: 12px; }
 .ops-live .stop-order-workspace { display:grid; grid-template-columns:minmax(300px, 0.8fr) minmax(0, 1.4fr); height:clamp(320px,57dvh,620px); gap:16px; margin-bottom:12px; }
 .ops-live .stop-order-list { overflow:auto; min-height:0; padding-right:6px; }
-.ops-live .stop-order-map-panel { display:flex; flex-direction:column; min-width:0; min-height:0; border:1px solid #d5dfd9; border-radius:6px; overflow:hidden; }
-.ops-live .stop-order-map-panel header { padding:6px 10px; background:#f4f7f5; }
+.ops-live .stop-order-map-panel { display:flex; flex-direction:column; min-width:0; min-height:0; border:1px solid var(--oc-border-neutral-04); border-radius:6px; overflow:hidden; }
+.ops-live .stop-order-map-panel header { padding:6px 10px; background:var(--oc-surface-neutral-02); }
 .ops-live .stop-order-map-actions { display:flex; gap:6px; flex-shrink:0; }
 .ops-live .stop-order-truck { background:transparent; border:0; }
-.ops-live .stop-order-truck-badge { position:relative; box-sizing:border-box; width:94px; padding:4px; background:#334650; color:white; border:2px solid white; border-radius:5px; box-shadow:0 1px 5px #17212b66; text-align:center; }
-.ops-live .stop-order-truck-badge::after { content:''; position:absolute; left:43px; top:100%; height:10px; border-left:2px solid #334650; }
-.ops-live .stop-order-truck-badge strong { display:flex; justify-content:center; align-items:center; gap:4px; font-size:11px; line-height:16px; white-space:nowrap; }
-.ops-live .stop-order-truck-badge small { display:block; font-size:10px; line-height:12px; }
-.ops-live .stop-order-truck.selected .stop-order-truck-badge { background:#245fa4; outline:3px solid #70a9e0; }
+.ops-live .stop-order-truck-badge { position:relative; box-sizing:border-box; width:94px; padding:4px; background:var(--oc-border-blue-06); color:white; border:2px solid white; border-radius:5px; box-shadow:0 1px 5px var(--oc-surface-overlay-12); text-align:center; }
+.ops-live .stop-order-truck-badge::after { content:''; position:absolute; left:43px; top:100%; height:10px; border-left:2px solid var(--oc-border-blue-06); }
+.ops-live .stop-order-truck-badge strong { display:flex; justify-content:center; align-items:center; gap:4px; font-size:var(--oc-type-11); line-height:16px; white-space:nowrap; }
+.ops-live .stop-order-truck-badge small { display:block; font-size:var(--oc-type-10); line-height:12px; }
+.ops-live .stop-order-truck.selected .stop-order-truck-badge { background:var(--oc-surface-blue-03); outline:3px solid var(--oc-border-blue-07); }
 .ops-live .stop-order-truck.stale .stop-order-truck-badge { border-style:dashed; }
-.ops-live .stop-order-map-status .stop-order-truck-status { color:#26372e; font-weight:600; }
+.ops-live .stop-order-map-status .stop-order-truck-status { color:var(--oc-text-green-05); font-weight:600; }
 .ops-live .stop-order-map { flex:1; min-height:140px; width:100%; z-index:0; }
-.ops-live .stop-order-map-status { padding:6px 10px; font-size:11px; line-height:1.5; background:#f4f7f5; }
-.ops-live .stop-order-map-status span { display:block; color:#596b62; }
+.ops-live .stop-order-map-status { padding:6px 10px; font-size:var(--oc-type-11); line-height:1.5; background:var(--oc-surface-neutral-02); }
+.ops-live .stop-order-map-status span { display:block; color:var(--oc-text-green-39); }
 .ops-live .stop-order-pin { border:0; background:transparent; }
-.ops-live .stop-order-pin span { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:#225d49; color:white; border:2px solid white; box-shadow:0 1px 5px #17212b66; font-weight:700; font-size:14px; box-sizing:border-box; }
-.ops-live .stop-order-pin.selected span { background:#245fa4; outline:3px solid #70a9e0; }
-.ops-live .live-schedule .schedule-control-actions .schedule-stop-order .stop-order-name, .ops-live .schedule-stop-order .stop-order-name { padding:0; border:0; background:transparent; color:#245fa4; text-align:left; min-height:0; height:auto; }
-.ops-live .stop-order-list li.selected .stop-order-row { border-color:#245fa4; background:#edf5fc; }
-.ops-live .schedule-stop-order .leaflet-control-attribution { font-size:9px; }
+.ops-live .stop-order-pin span { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:var(--oc-text-green-01); color:white; border:2px solid white; box-shadow:0 1px 5px var(--oc-surface-overlay-12); font-weight:700; font-size:var(--oc-type-14); box-sizing:border-box; }
+.ops-live .stop-order-pin.selected span { background:var(--oc-surface-blue-03); outline:3px solid var(--oc-border-blue-07); }
+.ops-live .live-schedule .schedule-control-actions .schedule-stop-order .stop-order-name, .ops-live .schedule-stop-order .stop-order-name { padding:0; border:0; background:transparent; color:var(--oc-surface-blue-03); text-align:left; min-height:0; height:auto; }
+.ops-live .stop-order-list li.selected .stop-order-row { border-color:var(--oc-surface-blue-03); background:var(--oc-status-info-tint); }
+.ops-live .schedule-stop-order .leaflet-control-attribution { font-size:var(--oc-type-9); }
 
 @media (max-width: 680px), (pointer: coarse) {
   .ops-live .schedule-stop-order button { min-width: 44px; min-height: 44px; touch-action: manipulation; }
   .ops-live .stop-order-arrows { flex: 0 0 auto; flex-direction: column; gap: 6px; }
-  .ops-live .schedule-stop-order select { min-height: 44px; font-size: 16px; }
+  .ops-live .schedule-stop-order select { min-height: 44px; font-size: var(--oc-type-16); }
 }
 @media (max-width: 760px) {
  .ops-live .schedule-stop-order { padding:12px; }

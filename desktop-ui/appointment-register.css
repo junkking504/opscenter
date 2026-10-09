@@ -4,48 +4,48 @@
   padding: 16px 20px;
   align-items: start;
 }
-.live-schedule .appointment-register-head { font-size: 11px; color: #46524c; padding-block: 10px; }
-.live-schedule .readable-appointment { min-height: 126px; margin: 3px 6px; border: 1px solid #c2cdd5; border-left: 3px solid #92a6b4; border-radius: 6px; background: #fff; color: #26332d; box-shadow: none; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
-.live-schedule .readable-appointment:nth-of-type(even) { background: #f1f5f8; }
-.live-schedule .readable-appointment.estimate-closed { border-left-color: #8662b1; background: #faf5ff; }
-.live-schedule .readable-appointment.canceled { border-left-color: var(--ops-brand-red); background: #fff3f3; }
-.live-schedule .appointment-register-row.readable-appointment.route-selected { border-color: #477d9f; border-left-color: #174e77; background: #dcecf7; box-shadow: inset 0 0 0 1px #477d9f; }
-.live-schedule .readable-appointment:focus-within { outline: 2px solid #6495b5; outline-offset: -2px; }
+.live-schedule .appointment-register-head { font-size: var(--oc-type-11); color: var(--oc-text-green-09); padding-block: 10px; }
+.live-schedule .readable-appointment { min-height: 126px; margin: 3px 6px; border: 1px solid var(--oc-border-neutral-34); border-left: 3px solid var(--oc-border-blue-22); border-radius: 6px; background: var(--oc-surface-raised); color: var(--oc-text-green-15); box-shadow: none; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.live-schedule .readable-appointment:nth-of-type(even) { background: var(--oc-surface-canvas); }
+.live-schedule .readable-appointment.estimate-closed { border-left-color: var(--oc-border-violet-01); background: var(--oc-surface-neutral-15); }
+.live-schedule .readable-appointment.canceled { border-left-color: var(--ops-brand-red); background: var(--oc-surface-neutral-03); }
+.live-schedule .appointment-register-row.readable-appointment.route-selected { border-color: var(--oc-border-blue-08); border-left-color: var(--oc-border-blue-01); background: var(--oc-surface-neutral-23); box-shadow: inset 0 0 0 1px var(--oc-border-blue-08); }
+.live-schedule .readable-appointment:focus-within { outline: 2px solid var(--oc-border-blue-04); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
-  .live-schedule .appointment-register-row.readable-appointment:hover { background: #e4f1fb; border-block-color: #6899ba; border-right-color: #6899ba; box-shadow: inset 0 0 0 1px #6899ba; }
-  .live-schedule .appointment-register-row.readable-appointment.route-selected:hover { background: #d2e7f6; border-color: #174e77; box-shadow: inset 0 0 0 1px #174e77; }
+  .live-schedule .appointment-register-row.readable-appointment:hover { background: var(--oc-surface-neutral-24); border-block-color: var(--oc-border-blue-04); border-right-color: var(--oc-border-blue-04); box-shadow: inset 0 0 0 1px var(--oc-border-blue-04); }
+  .live-schedule .appointment-register-row.readable-appointment.route-selected:hover { background: var(--oc-surface-blue-12); border-color: var(--oc-border-blue-01); box-shadow: inset 0 0 0 1px var(--oc-border-blue-01); }
 }
 @media (prefers-reduced-motion: reduce) {
   .live-schedule .readable-appointment { transition: none; }
 }
 .live-schedule .readable-appointment > div { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.live-schedule .readable-appointment strong, .live-schedule .readable-appointment button { font-size: 14px; line-height: 1.4; }
-.live-schedule .readable-appointment .jk-record-link { font-size: 14px !important; }
-.live-schedule .readable-appointment small, .live-schedule .readable-appointment .register-payment-detail { color: #506058; font-size: 12px; line-height: 1.5; margin: 0; }
-.live-schedule .readable-appointment .register-customer > strong { font-size: 16px; }
-.live-schedule .readable-appointment .register-address, .live-schedule .readable-appointment .register-work { font-size: 13px; line-height: 1.5; }
-.live-schedule .readable-appointment a { font-size: 12px; color: #245777; line-height: 1.5; margin: 0; }
-.live-schedule .readable-appointment .register-work { color: #46554d; margin-top: 3px; }
-.live-schedule .readable-appointment .register-payment { border-left: 3px solid #bbc8c0; padding: 8px 12px; background: #f5f7f5; border-radius: 5px; }
+.live-schedule .readable-appointment strong, .live-schedule .readable-appointment button { font-size: var(--oc-type-14); line-height: 1.4; }
+.live-schedule .readable-appointment .jk-record-link { font-size: var(--oc-type-14) !important; }
+.live-schedule .readable-appointment small, .live-schedule .readable-appointment .register-payment-detail { color: var(--oc-text-green-11); font-size: var(--oc-type-12); line-height: 1.5; margin: 0; }
+.live-schedule .readable-appointment .register-customer > strong { font-size: var(--oc-type-16); }
+.live-schedule .readable-appointment .register-address, .live-schedule .readable-appointment .register-work { font-size: var(--oc-type-13); line-height: 1.5; }
+.live-schedule .readable-appointment a { font-size: var(--oc-type-12); color: var(--oc-text-blue-38); line-height: 1.5; margin: 0; }
+.live-schedule .readable-appointment .register-work { color: var(--oc-text-green-09); margin-top: 3px; }
+.live-schedule .readable-appointment .register-payment { border-left: 3px solid var(--oc-border-neutral-20); padding: 8px 12px; background: var(--oc-surface-neutral-02); border-radius: 5px; }
 .live-schedule .readable-appointment .payment-paid,
-.live-schedule .readable-appointment .payment-revenue { border-color: #258052; background: #eff8f2; }
-.live-schedule .readable-appointment .payment-due { border-color: #ba790b; background: #fff6e4; }
-.live-schedule .readable-appointment .payment-saved { border-color: #ba790b; background: #fff6e4; }
-.live-schedule .readable-appointment .payment-quote { border-color: #8963ac; background: #f7f2fb; }
-.live-schedule .readable-appointment .register-payment-label { font-size: 12px; font-weight: 700; line-height: 1.4; }
-.live-schedule .readable-appointment .register-payment-amount { color: #163e29; font-size: 23px; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; }
-.live-schedule .readable-appointment .payment-quote .register-payment-amount { color: #60417d; }
-.live-schedule .readable-appointment .payment-saved .register-payment-amount { color: #805000; }
-.live-schedule .readable-appointment .register-payment-balance { font-size: 12px; font-weight: 750; line-height: 1.5; }
-.live-schedule .readable-appointment .payment-due .register-payment-balance { color: #805000; }
-.live-schedule .readable-appointment .appointment-state { font-size: 12px; line-height: 1.4; white-space: normal; padding: 5px 8px; }
-.live-schedule .readable-appointment .register-open { color: #204e71; min-height: 32px; margin-top: 5px; }
+.live-schedule .readable-appointment .payment-revenue { border-color: var(--oc-border-green-16); background: var(--oc-surface-neutral-13); }
+.live-schedule .readable-appointment .payment-due { border-color: var(--oc-border-amber-09); background: var(--oc-status-warn-tint); }
+.live-schedule .readable-appointment .payment-saved { border-color: var(--oc-border-amber-09); background: var(--oc-status-warn-tint); }
+.live-schedule .readable-appointment .payment-quote { border-color: var(--oc-border-violet-05); background: var(--oc-surface-neutral-15); }
+.live-schedule .readable-appointment .register-payment-label { font-size: var(--oc-type-12); font-weight: 700; line-height: 1.4; }
+.live-schedule .readable-appointment .register-payment-amount { color: var(--oc-text-green-61); font-size: var(--oc-type-23); font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.live-schedule .readable-appointment .payment-quote .register-payment-amount { color: var(--oc-text-violet-01); }
+.live-schedule .readable-appointment .payment-saved .register-payment-amount { color: var(--oc-text-amber-06); }
+.live-schedule .readable-appointment .register-payment-balance { font-size: var(--oc-type-12); font-weight: 750; line-height: 1.5; }
+.live-schedule .readable-appointment .payment-due .register-payment-balance { color: var(--oc-text-amber-06); }
+.live-schedule .readable-appointment .appointment-state { font-size: var(--oc-type-12); line-height: 1.4; white-space: normal; padding: 5px 8px; }
+.live-schedule .readable-appointment .register-open { color: var(--oc-text-blue-39); min-height: 32px; margin-top: 5px; }
 .live-schedule .readable-appointment .register-warning { color: var(--ops-brand-red); font-weight: 650; }
-.live-schedule .readable-appointment .register-route { color: #53615a; }
+.live-schedule .readable-appointment .register-route { color: var(--oc-text-green-11); }
 .live-schedule .readable-appointment .register-mobile-label { display: none; }
-.live-schedule .readable-appointment button:focus-visible { outline: 2px solid #1a638d; outline-offset: 4px; }
+.live-schedule .readable-appointment button:focus-visible { outline: 2px solid var(--oc-border-blue-23); outline-offset: 4px; }
 .live-schedule .readable-appointment .register-payment-summary { display: flex; flex-direction: column; gap: 3px; }
-.live-schedule .readable-appointment .register-note-count { font-size: 11px; font-weight: 500; }
+.live-schedule .readable-appointment .register-note-count { font-size: var(--oc-type-11); font-weight: 500; }
 /* Keep six or more appointments in the desktop register's first screen. */
 @media (min-width: 1151px) {
   .live-schedule .appointment-register-title { min-height: 40px; padding: 5px 12px; }
@@ -54,28 +54,28 @@
   .live-schedule .appointment-area-heading { min-height: 22px; padding-block: 2px; }
   .live-schedule .appointment-territory-group + .appointment-territory-group { border-top-width: 3px; }
   .live-schedule .appointment-register-head, .live-schedule .readable-appointment { grid-template-columns: minmax(110px,.9fr) minmax(200px,2fr) minmax(110px,1fr) minmax(185px,1.4fr) minmax(150px,1.25fr); gap: 12px; padding: 6px 12px; }
-  .live-schedule .appointment-register-head { padding-block: 5px; font-size: 10px; }
+  .live-schedule .appointment-register-head { padding-block: 5px; font-size: var(--oc-type-10); }
   .live-schedule .readable-appointment { min-height: 64px; }
   .live-schedule .readable-appointment > div { gap: 2px; }
-  .live-schedule .readable-appointment strong, .live-schedule .readable-appointment button, .live-schedule .readable-appointment .register-customer > strong { font-size: 13px; line-height: 1.25; }
-  .live-schedule .readable-appointment .jk-record-link { font-size: 13px !important; }
-  .live-schedule .readable-appointment small, .live-schedule .readable-appointment a, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-payment-detail, .live-schedule .readable-appointment .register-payment-balance { font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment strong, .live-schedule .readable-appointment button, .live-schedule .readable-appointment .register-customer > strong { font-size: var(--oc-type-13); line-height: 1.25; }
+  .live-schedule .readable-appointment .jk-record-link { font-size: var(--oc-type-13) !important; }
+  .live-schedule .readable-appointment small, .live-schedule .readable-appointment a, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-payment-detail, .live-schedule .readable-appointment .register-payment-balance { font-size: var(--oc-type-12); line-height: 1.25; }
   .live-schedule .readable-appointment .register-customer { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; }
   .live-schedule .readable-appointment .register-customer > strong { grid-column: 1; }
   .live-schedule .readable-appointment .register-customer > a[href^="tel:"] { grid-column: 2; grid-row: 1; }
   .live-schedule .readable-appointment .register-customer > small:not(.register-warning) { display: none; }
   .live-schedule .readable-appointment .register-address, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-warning { grid-column: 1 / -1; }
-  .live-schedule .readable-appointment .register-address { font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-address { font-size: var(--oc-type-12); line-height: 1.25; }
   .live-schedule .readable-appointment .register-work { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0; }
   .live-schedule .readable-appointment .register-payment { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; padding: 4px 7px; }
-  .live-schedule .readable-appointment .register-payment-label { font-size: 11px; line-height: 1.25; }
-  .live-schedule .readable-appointment .register-payment-amount { grid-column: 2; grid-row: 1; font-size: 17px; line-height: 1.15; }
+  .live-schedule .readable-appointment .register-payment-label { font-size: var(--oc-type-11); line-height: 1.25; }
+  .live-schedule .readable-appointment .register-payment-amount { grid-column: 2; grid-row: 1; font-size: var(--oc-type-17); line-height: 1.15; }
   .live-schedule .readable-appointment .register-payment:has(.source-estimate) .register-payment-amount { grid-row: 2; }
-  .live-schedule .readable-appointment .register-payment-summary { grid-column: 1 / -1; display: block; font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-payment-summary { grid-column: 1 / -1; display: block; font-size: var(--oc-type-12); line-height: 1.25; }
   .live-schedule .readable-appointment .register-payment-summary > span + span::before { content: ' · '; }
   .live-schedule .readable-appointment .register-payment .source-estimate { grid-column: 1 / -1; padding: 0; gap: 2px; }
-  .live-schedule .readable-appointment .register-payment .source-estimate > strong { font-size: 12px; }
-  .live-schedule .readable-appointment .appointment-state { font-size: 11px; padding: 2px 6px; }
+  .live-schedule .readable-appointment .register-payment .source-estimate > strong { font-size: var(--oc-type-12); }
+  .live-schedule .readable-appointment .appointment-state { font-size: var(--oc-type-11); padding: 2px 6px; }
   .live-schedule .readable-appointment .register-open { min-height: 24px; margin: 0; white-space: nowrap; }
   .live-schedule .readable-appointment .register-route, .live-schedule .readable-appointment .register-cancellation-reason { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   .live-schedule .readable-appointment .register-cancellation-reason br { display: none; }
@@ -85,7 +85,7 @@
   .live-schedule .appointment-register-head { display: none; }
   .live-schedule .readable-appointment { grid-template-columns: minmax(0,1fr) minmax(0,1.5fr) minmax(0,1.2fr); }
   .live-schedule .readable-appointment .register-payment { grid-column: 3; grid-row: 1 / span 2; }
-  .live-schedule .readable-appointment .register-mobile-label { display: block; font-size: 11px; color: #506058; font-weight: 700; }
+  .live-schedule .readable-appointment .register-mobile-label { display: block; font-size: var(--oc-type-11); color: var(--oc-text-green-11); font-weight: 700; }
 }
 @media (max-width: 650px) {
   .live-schedule .readable-appointment { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; padding: 16px; }

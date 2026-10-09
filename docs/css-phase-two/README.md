@@ -54,3 +54,5 @@ label after small-text enlargement. Long synthetic customer names wrap in the
 appointment and Job Order dialogs, with controls still accessible and Escape
 closing Job Order. Leaflet's plus/minus glyphs retain the library's icon sizing;
 they are not operational text or a larger display-text exception.
+
+Capital keeps source-unavailable states and financial values intact; only its reviewed palette and type profile change. Reconciliation and overview were checked on phone and desktop without submitting a payment action.

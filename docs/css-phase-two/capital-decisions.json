@@ -1,0 +1,2569 @@
+{
+  "workspace": "Finance",
+  "enabled": true,
+  "status": "Capital candidate; pending independent visual review and deployment",
+  "colors": {
+    "--oc-surface-neutral-02": {
+      "from": "#f6f8f5",
+      "to": "#f6f9fb",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-surface-neutral-01": {
+      "from": "#edf0ed",
+      "to": "#f1f6f8",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-neutral-04": {
+      "from": "#707a74",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-border-neutral-04": {
+      "from": "#dce2dc",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-border-neutral-02": {
+      "from": "#d7dbd7",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-neutral-06": {
+      "from": "#626b66",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-blue-02": {
+      "from": "#202529",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-border-neutral-08": {
+      "from": "#d8e4dc",
+      "to": "#e5e8e4",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.423636,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-11": {
+      "from": "#53615a",
+      "to": "#58665e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.106619,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-03": {
+      "from": "#59635e",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-status-critical-tint": {
+      "from": "#fde9eb",
+      "to": "#fff0f1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.777224,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-03": {
+      "from": "#246742",
+      "to": "#276947",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.154968,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-05": {
+      "from": "#4f5954",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-green-08": {
+      "from": "#67766c",
+      "to": "#68736d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.978516,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-status-ok-tint": {
+      "from": "#eaf3ef",
+      "to": "#e8f4ec",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.329801,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-canvas": {
+      "from": "#f5f9fc",
+      "to": "#f1f6f8",
+      "kind": "fixed-anchor",
+      "decision": "restore explicitly approved workbench anchor"
+    },
+    "--oc-border-neutral-11": {
+      "from": "#c9d7ce",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.322463,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-13": {
+      "from": "#f1f8f3",
+      "to": "#e8f4ec",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.989912,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-05": {
+      "from": "#fffdf8",
+      "to": "#ffffff",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.71086,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-23": {
+      "from": "#617168",
+      "to": "#68736d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.022321,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-12": {
+      "from": "#c9cfca",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-surface-muted": {
+      "from": "#edf1f5",
+      "to": "#f6f9fb",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-green-04": {
+      "from": "#252c28",
+      "to": "#29312d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.283158,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-15": {
+      "from": "#26312b",
+      "to": "#29312d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.003148,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-17": {
+      "from": "#303a35",
+      "to": "#29312d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.040716,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-14": {
+      "from": "#52665a",
+      "to": "#58665e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.548906,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-07": {
+      "from": "#fffafb",
+      "to": "#ffffff",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.265445,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-03": {
+      "from": "#d5d9df",
+      "to": "#dce2e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.120197,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-08": {
+      "from": "#69716e",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-surface-neutral-08": {
+      "from": "#fffaf0",
+      "to": "#fff8e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.219607,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-03": {
+      "from": "#3f9967",
+      "to": "#49a36f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.742967,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-27": {
+      "from": "#d3ded7",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.064715,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-13": {
+      "from": "#e2e8f0",
+      "to": "#dce2e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.395039,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-02": {
+      "from": "#3b9b66",
+      "to": "#49a36f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.588709,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-39": {
+      "from": "#5d6c62",
+      "to": "#58665e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.615571,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-12": {
+      "from": "#735516",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.899169,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-02": {
+      "from": "#e9ae3c",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.678917,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-03": {
+      "from": "#fff7df",
+      "to": "#fff8e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.113733,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-14": {
+      "from": "#fff8e4",
+      "to": "#fff8e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.031825,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-04": {
+      "from": "#293136",
+      "to": "#25323a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.699067,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-81": {
+      "from": "#303734",
+      "to": "#29312d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.009419,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-10": {
+      "from": "#315f4b",
+      "to": "#255e4c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.176305,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-06": {
+      "from": "#dddddd",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-surface-neutral-24": {
+      "from": "#e4f1fb",
+      "to": "#edf5fb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.102022,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-15": {
+      "from": "#faf6fd",
+      "to": "#f3eefb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.034542,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-06": {
+      "from": "#fff4d8",
+      "to": "#fff1cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.449138,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-18": {
+      "from": "#17613b",
+      "to": "#276947",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.84234,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-32": {
+      "from": "#20342b",
+      "to": "#26372e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.015193,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-08": {
+      "from": "#233e54",
+      "to": "#173b55",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.448452,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-20": {
+      "from": "#253c31",
+      "to": "#26372e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.272996,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-37": {
+      "from": "#286d47",
+      "to": "#287047",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.193041,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-35": {
+      "from": "#2f6e51",
+      "to": "#276947",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.089162,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-04": {
+      "from": "#2f7650",
+      "to": "#287047",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.214496,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-03": {
+      "from": "#3b9363",
+      "to": "#2f895a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.806276,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-07": {
+      "from": "#775217",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.60122,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-57": {
+      "from": "#7b570e",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.167227,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-10": {
+      "from": "#dddcd5",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.070884,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-14": {
+      "from": "#24292f",
+      "to": "#252b2e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.326117,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-06": {
+      "from": "#328558",
+      "to": "#2f895a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.401194,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-06": {
+      "from": "#334650",
+      "to": "#40515b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.927621,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-13": {
+      "from": "#516672",
+      "to": "#51626b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.602724,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-09": {
+      "from": "#627083",
+      "to": "#64748b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.833281,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-muted": {
+      "from": "#657c8c",
+      "to": "#687e8e",
+      "kind": "fixed-anchor",
+      "decision": "restore explicitly approved workbench anchor"
+    },
+    "--oc-border-amber-01": {
+      "from": "#9b6a13",
+      "to": "#956311",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.339382,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-neutral-04": {
+      "from": "#9ca6a0",
+      "to": "#98a09d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.722437,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-05": {
+      "from": "#a9c7b3",
+      "to": "#a8cdb5",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.646127,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-amber-03": {
+      "from": "#d9a32f",
+      "to": "#d39b25",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.089964,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-09": {
+      "from": "#f0e8f7",
+      "to": "#f3eefb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.360712,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-06": {
+      "from": "#111419",
+      "to": "#171a1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.161476,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-12": {
+      "from": "#202623",
+      "to": "#252b2e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.976546,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-13": {
+      "from": "#202932",
+      "to": "#17212b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.991379,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-primary": {
+      "from": "#243b4d",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-02": {
+      "from": "#2563a5",
+      "to": "#245fa4",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.830409,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-37": {
+      "from": "#273d4c",
+      "to": "#203746",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.745847,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-19": {
+      "from": "#27633b",
+      "to": "#285e3c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.351021,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-51": {
+      "from": "#283f30",
+      "to": "#223d2d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.133552,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-11": {
+      "from": "#314f65",
+      "to": "#365568",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.218223,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-87": {
+      "from": "#34704d",
+      "to": "#397152",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.932304,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-33": {
+      "from": "#35463a",
+      "to": "#37463f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.430761,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-22": {
+      "from": "#356287",
+      "to": "#27638e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.152675,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-25": {
+      "from": "#364e60",
+      "to": "#365568",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.352718,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-82": {
+      "from": "#37413c",
+      "to": "#37463f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.025293,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-04": {
+      "from": "#37784f",
+      "to": "#287047",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.815862,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-78": {
+      "from": "#3f4843",
+      "to": "#37463f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.250555,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-28": {
+      "from": "#3f5c4b",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.864053,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-46": {
+      "from": "#405449",
+      "to": "#45534b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.163237,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-21": {
+      "from": "#405e73",
+      "to": "#365568",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.033417,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-04": {
+      "from": "#4b9d70",
+      "to": "#49a36f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.869399,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-74": {
+      "from": "#4d5b53",
+      "to": "#45534b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.373564,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-blue-05": {
+      "from": "#4d86b4",
+      "to": "#4c88bd",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.106402,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-54": {
+      "from": "#66707d",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.508148,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-05": {
+      "from": "#704805",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.843689,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-20": {
+      "from": "#82908b",
+      "to": "#89918d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.527503,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-49": {
+      "from": "#8c650e",
+      "to": "#8a6210",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.014543,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-43": {
+      "from": "#b7c7bd",
+      "to": "#b4c8bb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.190854,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-21": {
+      "from": "#b9d2c2",
+      "to": "#bcd9c8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.647777,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-30": {
+      "from": "#bbccc0",
+      "to": "#b4c8bb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.097589,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-07": {
+      "from": "#d6a522",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.917342,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-18": {
+      "from": "#dce9f1",
+      "to": "#dce2e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.266454,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-16": {
+      "from": "#dcefe5",
+      "to": "#e8f4ec",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.538304,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-17": {
+      "from": "#e2eee7",
+      "to": "#e8f4ec",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.130244,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-12": {
+      "from": "#faf7f1",
+      "to": "#ffffff",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.205448,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-05": {
+      "from": "#fff0ca",
+      "to": "#fff1cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.121043,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-10": {
+      "from": "#fff0d6",
+      "to": "#fff1cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.051298,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-28": {
+      "from": "#fff7f5",
+      "to": "#fff0f1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.458913,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-22": {
+      "from": "#174f3f",
+      "to": "#174b34",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.980247,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-17": {
+      "from": "#20333f",
+      "to": "#203746",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.736257,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-39": {
+      "from": "#204e71",
+      "to": "#174e77",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.8519,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-16": {
+      "from": "#23374d",
+      "to": "#173b55",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.483236,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-14": {
+      "from": "#24744b",
+      "to": "#287047",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.272155,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-40": {
+      "from": "#254c35",
+      "to": "#174b34",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.748382,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-19": {
+      "from": "#263342",
+      "to": "#203746",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.544069,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-43": {
+      "from": "#285b41",
+      "to": "#315f45",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.411516,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-63": {
+      "from": "#285d3f",
+      "to": "#285e3c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.50147,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-58": {
+      "from": "#285f96",
+      "to": "#275e91",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.550822,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-48": {
+      "from": "#294a5d",
+      "to": "#365568",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.773099,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-55": {
+      "from": "#295f8b",
+      "to": "#27638e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.168464,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-68": {
+      "from": "#2b6342",
+      "to": "#285e3c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.196035,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-36": {
+      "from": "#2b7748",
+      "to": "#287047",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.330088,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-teal-01": {
+      "from": "#30373a",
+      "to": "#25323a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.787521,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-05": {
+      "from": "#315f98",
+      "to": "#275e91",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.528573,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-79": {
+      "from": "#316957",
+      "to": "#255e4c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.503256,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-34": {
+      "from": "#33413a",
+      "to": "#37463f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.152545,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-07": {
+      "from": "#3476a8",
+      "to": "#477aa6",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.57768,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-blue-06": {
+      "from": "#397ca8",
+      "to": "#477aa6",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.408902,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-67": {
+      "from": "#3e4a42",
+      "to": "#37463f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.386436,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-07": {
+      "from": "#3f7656",
+      "to": "#397152",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.063289,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-08": {
+      "from": "#477d9f",
+      "to": "#397aa0",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.300265,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-86": {
+      "from": "#48534e",
+      "to": "#45534b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.340809,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-24": {
+      "from": "#48634f",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.988382,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-21": {
+      "from": "#4b5e55",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.258413,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-47": {
+      "from": "#4c6054",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.800172,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-57": {
+      "from": "#4c6253",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.194227,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-31": {
+      "from": "#526151",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.947239,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-36": {
+      "from": "#555e67",
+      "to": "#51626b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.159711,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-violet-02": {
+      "from": "#65408f",
+      "to": "#69458f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.566639,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-violet-04": {
+      "from": "#68478a",
+      "to": "#69458f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.210005,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-13": {
+      "from": "#6c4b00",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.381905,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-20": {
+      "from": "#70500f",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.610928,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-44": {
+      "from": "#72540d",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.253217,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-11": {
+      "from": "#74828a",
+      "to": "#747a81",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.927953,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-50": {
+      "from": "#7b5b17",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.327093,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-neutral-02": {
+      "from": "#7c8b83",
+      "to": "#78817c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.416291,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-64": {
+      "from": "#805b0d",
+      "to": "#785700",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.205113,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-23": {
+      "from": "#82540d",
+      "to": "#825300",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.562235,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-28": {
+      "from": "#876327",
+      "to": "#805d21",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.507508,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-17": {
+      "from": "#8c9891",
+      "to": "#89918d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.229101,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-43": {
+      "from": "#96610b",
+      "to": "#956311",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.054792,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-10": {
+      "from": "#9bc6aa",
+      "to": "#8dbba0",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.335904,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-17": {
+      "from": "#9daebc",
+      "to": "#9cb5c7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.922923,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-18": {
+      "from": "#9eb2aa",
+      "to": "#a9b8b1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.250793,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-13": {
+      "from": "#a6bdb0",
+      "to": "#b4c8bb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.370703,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-neutral-03": {
+      "from": "#aab1ae",
+      "to": "#a9b8b1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.133921,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-07": {
+      "from": "#bdd9cf",
+      "to": "#bcd9c8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.749547,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-31": {
+      "from": "#cdd5cc",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.211697,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-15": {
+      "from": "#d5dee3",
+      "to": "#dce2e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.040098,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-amber-07": {
+      "from": "#d89b28",
+      "to": "#d39b25",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.353153,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-16": {
+      "from": "#dba022",
+      "to": "#d39b25",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.755005,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-28": {
+      "from": "#dda32c",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.596411,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-15": {
+      "from": "#dec78e",
+      "to": "#ead39c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.520831,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-31": {
+      "from": "#ded0a3",
+      "to": "#ead9ac",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.62452,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-62": {
+      "from": "#e0a728",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.465346,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-23": {
+      "from": "#eaf0e9",
+      "to": "#e8f4ec",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.363622,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-46": {
+      "from": "#f0b338",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.126055,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-21": {
+      "from": "#f4eddd",
+      "to": "#fff8e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.829143,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-04": {
+      "from": "#f7f0d2",
+      "to": "#fff1cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.464776,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-13": {
+      "from": "#111111",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-surface-blue-15": {
+      "from": "#111a22",
+      "to": "#17212b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.709094,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-18": {
+      "from": "#111b20",
+      "to": "#171a1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.254499,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-41": {
+      "from": "#165782",
+      "to": "#174e77",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.011834,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-13": {
+      "from": "#171d1a",
+      "to": "#171a1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.8842,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-33": {
+      "from": "#172334",
+      "to": "#172033",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.376277,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-55": {
+      "from": "#17251c",
+      "to": "#172b20",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.690631,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-75": {
+      "from": "#174b30",
+      "to": "#174b34",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.600673,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-72": {
+      "from": "#174e30",
+      "to": "#174b34",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.685731,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-53": {
+      "from": "#17533a",
+      "to": "#174b34",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.876821,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-60": {
+      "from": "#182b23",
+      "to": "#172b20",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.22282,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-42": {
+      "from": "#183e30",
+      "to": "#223d2d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.649292,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-06": {
+      "from": "#19342b",
+      "to": "#26372e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.305045,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-19": {
+      "from": "#1a1f24",
+      "to": "#171a1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.883554,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-23": {
+      "from": "#1a638d",
+      "to": "#27638e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.140184,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-21": {
+      "from": "#1c2028",
+      "to": "#17212b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.683006,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-62": {
+      "from": "#202b24",
+      "to": "#29312d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.131103,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-73": {
+      "from": "#215536",
+      "to": "#285e3c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.926184,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-46": {
+      "from": "#234b80",
+      "to": "#264f80",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.346688,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-54": {
+      "from": "#235a45",
+      "to": "#255e4c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.601207,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-12": {
+      "from": "#237858",
+      "to": "#087450",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.473984,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-teal-02": {
+      "from": "#239e92",
+      "to": "#239889",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.914408,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-56": {
+      "from": "#24392b",
+      "to": "#223d2d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.007676,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-27": {
+      "from": "#243943",
+      "to": "#203746",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.532291,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-66": {
+      "from": "#24483a",
+      "to": "#1b493b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.882161,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-38": {
+      "from": "#245777",
+      "to": "#205c7e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.610102,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-70": {
+      "from": "#245e36",
+      "to": "#285e3c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.964977,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-44": {
+      "from": "#253f60",
+      "to": "#123e63",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.992547,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-45": {
+      "from": "#255d9d",
+      "to": "#245fa4",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.068198,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-16": {
+      "from": "#258052",
+      "to": "#2f895a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.420462,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-64": {
+      "from": "#266345",
+      "to": "#276947",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.496438,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-teal-01": {
+      "from": "#275d51",
+      "to": "#255e4c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.04262,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-49": {
+      "from": "#28543e",
+      "to": "#31543e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.000427,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-34": {
+      "from": "#294d73",
+      "to": "#174e77",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.477127,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-56": {
+      "from": "#2d3f4a",
+      "to": "#343b42",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.784731,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-20": {
+      "from": "#30363c",
+      "to": "#343b42",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.315806,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-60": {
+      "from": "#315b77",
+      "to": "#205c7e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.549006,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-76": {
+      "from": "#326747",
+      "to": "#276947",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.883837,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-58": {
+      "from": "#335744",
+      "to": "#31543e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.35766,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-83": {
+      "from": "#337554",
+      "to": "#397152",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.342415,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-48": {
+      "from": "#344b3e",
+      "to": "#2c4938",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.933678,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-40": {
+      "from": "#344b55",
+      "to": "#40515b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.65303,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-blue-11": {
+      "from": "#34536e",
+      "to": "#254b64",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.337425,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-49": {
+      "from": "#365a70",
+      "to": "#365568",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.838282,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-85": {
+      "from": "#365c48",
+      "to": "#31543e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.643428,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-status-info-accent": {
+      "from": "#3677b4",
+      "to": "#397bbb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.254423,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-35": {
+      "from": "#374151",
+      "to": "#334155",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.839229,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-53": {
+      "from": "#386889",
+      "to": "#3e6e93",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.408934,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-77": {
+      "from": "#3a694f",
+      "to": "#406751",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.798401,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-violet-09": {
+      "from": "#3c2d4c",
+      "to": "#322544",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.961108,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-24": {
+      "from": "#3c6f91",
+      "to": "#3e6e93",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.190831,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-08": {
+      "from": "#3da36a",
+      "to": "#49a36f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.266435,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-80": {
+      "from": "#3f9165",
+      "to": "#44976b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.250131,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-71": {
+      "from": "#40584a",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.233674,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-52": {
+      "from": "#426457",
+      "to": "#465d4e",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.641185,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-20": {
+      "from": "#42734f",
+      "to": "#397152",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.569835,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-10": {
+      "from": "#44c486",
+      "to": "#49c985",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.486192,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-59": {
+      "from": "#455f71",
+      "to": "#536174",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.510578,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-25": {
+      "from": "#46515a",
+      "to": "#40515b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.302826,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-10": {
+      "from": "#48be82",
+      "to": "#49b879",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.033518,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-57": {
+      "from": "#496675",
+      "to": "#45687a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.438746,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-green-11": {
+      "from": "#4a8270",
+      "to": "#3f806a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.029376,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-24": {
+      "from": "#4b9769",
+      "to": "#44976b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.034124,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-43": {
+      "from": "#4d555b",
+      "to": "#40515b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.67567,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-31": {
+      "from": "#526475",
+      "to": "#536174",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.185301,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-61": {
+      "from": "#526d79",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.508957,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-blue-10": {
+      "from": "#54728b",
+      "to": "#4d7896",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.682422,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-34": {
+      "from": "#594317",
+      "to": "#57451f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.276435,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-23": {
+      "from": "#59616d",
+      "to": "#51626b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.986815,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-violet-06": {
+      "from": "#5d3a88",
+      "to": "#5b3788",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.129489,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-09": {
+      "from": "#5d447d",
+      "to": "#60417d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.883996,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-blue-29": {
+      "from": "#5d707a",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.435033,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-30": {
+      "from": "#60717f",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.913496,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-17": {
+      "from": "#607d8c",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.070728,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-07": {
+      "from": "#634093",
+      "to": "#5b3788",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.765413,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-15": {
+      "from": "#666666",
+      "to": "#60666c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.295312,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-violet-02": {
+      "from": "#674b9b",
+      "to": "#76509f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.514434,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-19": {
+      "from": "#6b8375",
+      "to": "#68796c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.326209,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-61": {
+      "from": "#6f5318",
+      "to": "#674d08",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.300603,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-31": {
+      "from": "#6f808b",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.481309,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-21": {
+      "from": "#718078",
+      "to": "#78817c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.117814,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-green-38": {
+      "from": "#71847a",
+      "to": "#68796c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.696111,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-17": {
+      "from": "#738f7d",
+      "to": "#698974",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.636394,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-violet-07": {
+      "from": "#746881",
+      "to": "#71677a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.696739,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-18": {
+      "from": "#755b18",
+      "to": "#725b1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.875851,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-32": {
+      "from": "#764d06",
+      "to": "#744800",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.613056,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-39": {
+      "from": "#76521e",
+      "to": "#715321",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.483878,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-violet-13": {
+      "from": "#775693",
+      "to": "#71528b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.960611,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-45": {
+      "from": "#77857d",
+      "to": "#78817c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.843342,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-41": {
+      "from": "#79510e",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.374742,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-33": {
+      "from": "#795c2b",
+      "to": "#715321",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.803734,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-52": {
+      "from": "#7a632d",
+      "to": "#766033",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.932253,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-29": {
+      "from": "#7b6125",
+      "to": "#725b1d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.096327,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-violet-05": {
+      "from": "#7d5aa4",
+      "to": "#8662b1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.218903,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-24": {
+      "from": "#804715",
+      "to": "#754510",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.631283,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-40": {
+      "from": "#805710",
+      "to": "#76520a",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.408293,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-65": {
+      "from": "#806119",
+      "to": "#806623",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.036283,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-27": {
+      "from": "#806127",
+      "to": "#805d21",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.868874,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-14": {
+      "from": "#82948d",
+      "to": "#7e9990",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.701767,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-17": {
+      "from": "#865819",
+      "to": "#805014",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.481624,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-67": {
+      "from": "#865d08",
+      "to": "#8a6210",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.085961,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-42": {
+      "from": "#895b08",
+      "to": "#825300",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.278161,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-05": {
+      "from": "#8963ac",
+      "to": "#8060a5",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.441398,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-status-warn-ink": {
+      "from": "#8a611f",
+      "to": "#805d21",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.792296,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-16": {
+      "from": "#8b5316",
+      "to": "#805014",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.475546,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-19": {
+      "from": "#8b5a12",
+      "to": "#825300",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.93049,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-31": {
+      "from": "#8c5700",
+      "to": "#825300",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.999483,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-56": {
+      "from": "#8c5f19",
+      "to": "#8a6210",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.601736,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-10": {
+      "from": "#8c68af",
+      "to": "#8060a5",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.886738,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-16": {
+      "from": "#8f9897",
+      "to": "#89918d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.191166,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-green-13": {
+      "from": "#8fa39a",
+      "to": "#9baa9f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.616769,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-51": {
+      "from": "#91641a",
+      "to": "#8a6210",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.39205,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-15": {
+      "from": "#91a99b",
+      "to": "#9baa9f",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.933967,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-22": {
+      "from": "#92a6b4",
+      "to": "#8ca2b5",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.219537,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-15": {
+      "from": "#966115",
+      "to": "#956311",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.338956,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-11": {
+      "from": "#9bb6cc",
+      "to": "#9cb5c7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.248428,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-17": {
+      "from": "#9ea6a4",
+      "to": "#98a09d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.350592,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-48": {
+      "from": "#a27218",
+      "to": "#a87818",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.201287,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-59": {
+      "from": "#a37a16",
+      "to": "#a87818",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.487089,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-40": {
+      "from": "#a4b5a9",
+      "to": "#a9b8b1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.182492,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-35": {
+      "from": "#a6b7c5",
+      "to": "#9cb5c7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.540125,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-amber-04": {
+      "from": "#a9680e",
+      "to": "#a66b16",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.589616,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-18": {
+      "from": "#ad6c08",
+      "to": "#a66a00",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.582136,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-22": {
+      "from": "#ae7715",
+      "to": "#b88021",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.525216,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-12": {
+      "from": "#aebecb",
+      "to": "#b5c4cc",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.453459,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-20": {
+      "from": "#afc3d1",
+      "to": "#b5c4cc",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.604407,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-29": {
+      "from": "#b6c9df",
+      "to": "#b6cddd",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.735673,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-red-05": {
+      "from": "#b81034",
+      "to": "#c11236",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.343442,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-29": {
+      "from": "#b88b31",
+      "to": "#be8936",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.373351,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-11": {
+      "from": "#b8c1c7",
+      "to": "#b5c4cc",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.412794,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-32": {
+      "from": "#b8c9cf",
+      "to": "#b5c4cc",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.08139,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-green-23": {
+      "from": "#b8d8c4",
+      "to": "#bcd9c8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.060848,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-18": {
+      "from": "#b9c0bf",
+      "to": "#bfc8c2",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.818674,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-red-04": {
+      "from": "#ba3636",
+      "to": "#b33939",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.595783,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-13": {
+      "from": "#bdcdd7",
+      "to": "#b5c4cc",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.407997,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-34": {
+      "from": "#bdd3e6",
+      "to": "#b6cddd",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.819693,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-10": {
+      "from": "#bed0df",
+      "to": "#b6cddd",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.220528,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-34": {
+      "from": "#c2cdd5",
+      "to": "#cbd4df",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.245087,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-10": {
+      "from": "#c2d5ca",
+      "to": "#bcd9c8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.845616,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-11": {
+      "from": "#c5a9df",
+      "to": "#b9a4df",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.339783,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-blue-14": {
+      "from": "#c8d8e8",
+      "to": "#cbd4df",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.603825,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-status-warn-accent": {
+      "from": "#cb9538",
+      "to": "#c4942d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.46628,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-24": {
+      "from": "#cbdccc",
+      "to": "#d3e5d9",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.875377,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-28": {
+      "from": "#cbdcd5",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.953565,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-violet-12": {
+      "from": "#cdbbde",
+      "to": "#c4b5d3",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.789513,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-41": {
+      "from": "#cdd1d4",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.577335,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-29": {
+      "from": "#cdd9e0",
+      "to": "#cbd4df",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.811881,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-19": {
+      "from": "#cfc3dc",
+      "to": "#d8c8e7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.110385,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-06": {
+      "from": "#d4a7aa",
+      "to": "#e2acb0",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.423926,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-amber-09": {
+      "from": "#d6a62f",
+      "to": "#d0a032",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.991249,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-34": {
+      "from": "#d8cba8",
+      "to": "#decda7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.45801,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-39": {
+      "from": "#d8d5d3",
+      "to": "#cfd6d1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.992505,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-accent-amber-11": {
+      "from": "#dabd78",
+      "to": "#d6bd7b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.429213,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-25": {
+      "from": "#dbc183",
+      "to": "#d6bd7b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.660588,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-19": {
+      "from": "#dceadd",
+      "to": "#d3e5d9",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.510793,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-23": {
+      "from": "#dcecf7",
+      "to": "#d2e7f6",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.285236,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-36": {
+      "from": "#dda92e",
+      "to": "#e3aa32",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.399735,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-30": {
+      "from": "#dec893",
+      "to": "#ead39c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.065128,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-36": {
+      "from": "#ded4ef",
+      "to": "#ddd5e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.259711,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-26": {
+      "from": "#ded8c7",
+      "to": "#ddd9cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.75387,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-blue-10": {
+      "from": "#dfedff",
+      "to": "#d2e7f6",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.916985,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-40": {
+      "from": "#e0c16f",
+      "to": "#dfc477",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.382827,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-12": {
+      "from": "#e3a3a9",
+      "to": "#df9da2",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.338271,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-13": {
+      "from": "#e3a7ac",
+      "to": "#e2acb0",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.784689,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-03": {
+      "from": "#e4a7b3",
+      "to": "#e2acb0",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.913546,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-37": {
+      "from": "#e4bc66",
+      "to": "#dcb964",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.663991,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-39": {
+      "from": "#e4c985",
+      "to": "#d6bd7b",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.562345,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-33": {
+      "from": "#e4d4aa",
+      "to": "#ead9ac",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.351014,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-25": {
+      "from": "#e5e1e8",
+      "to": "#dce2e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.594697,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-amber-27": {
+      "from": "#e6cc9d",
+      "to": "#ead39c",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.559527,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-neutral-37": {
+      "from": "#e6e0ef",
+      "to": "#ddd5e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.294328,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-14": {
+      "from": "#e7b7bb",
+      "to": "#e0b5b5",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.014527,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-border-red-11": {
+      "from": "#edc6c9",
+      "to": "#efc2c6",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.544702,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-26": {
+      "from": "#f2f3f3",
+      "to": "#edf5fb",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.884843,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-amber-35": {
+      "from": "#f4dcad",
+      "to": "#ead9ac",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.381725,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-20": {
+      "from": "#f4ddfb",
+      "to": "#f3ddff",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.094915,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-22": {
+      "from": "#f8f2e5",
+      "to": "#fff8e8",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.595399,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-red-02": {
+      "from": "#ffe0e2",
+      "to": "#f2dce2",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 4.461961,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-11": {
+      "from": "#ffedcf",
+      "to": "#fff1cf",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.649281,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-29": {
+      "from": "#ffede7",
+      "to": "#fff0f1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.88925,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-amber-13": {
+      "from": "#fff0bd",
+      "to": "#ffe9b7",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.363856,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-surface-neutral-27": {
+      "from": "#fff0ed",
+      "to": "#fff0f1",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.042237,
+      "decision": "candidate pending contrast and visual checks"
+    },
+    "--oc-text-neutral-01": {
+      "from": "#78817c",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "V2: small source labels, assistant hints and operational supporting text use primary ink; fixed muted anchor remains #687e8e."
+    },
+    "--oc-border-neutral-01": {
+      "from": "#e5e8e4",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-border-neutral-05": {
+      "from": "#cfd6d1",
+      "to": "#dbe4e9",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-neutral-02": {
+      "from": "#68736d",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-text-neutral-07": {
+      "from": "#60666c",
+      "to": "#243b4d",
+      "kind": "role-neutral",
+      "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
+    },
+    "--oc-border-default": {
+      "from": "#dce2e8",
+      "to": "#dbe4e9",
+      "kind": "fixed-anchor",
+      "decision": "restore explicitly approved workbench anchor"
+    }
+  },
+  "rejected": [
+    {
+      "token": "--oc-text-neutral-09",
+      "from": "#828a86",
+      "to": "#89918d",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 2.700538,
+      "decision": "Search shortcut contrast fell from 3.32 to 3.06 on its actual surface; retain original."
+    },
+    {
+      "token": "--oc-text-blue-20",
+      "from": "#607585",
+      "to": "#617681",
+      "kind": "direct-delta-e-merge",
+      "deltaE": 3.006348,
+      "decision": "Inactive tabs and KPI supporting text crossed below 4.5 contrast after candidate merge; retain original token. Inactive tabs use primary ink to compensate for the mandatory fixed canvas anchor."
+    }
+  ],
+  "typeMap": {
+    "6": 10,
+    "7": 10,
+    "8": 9,
+    "15": 16,
+    "17": 16,
+    "18": 20,
+    "19": 20,
+    "21": 20,
+    "22": 24,
+    "23": 24,
+    "25": 24,
+    "26": 28,
+    "27": 28
+  },
+  "compactExceptions": [
+    {
+      "selector": ".brand-lockup small",
+      "px": 8,
+      "reason": "Nonessential brand strapline; brand name remains in the image accessible name."
+    }
+  ],
+  "largeExceptions": "Pending user decision; none introduced.",
+  "roleSelectors": [
+    {
+      "selector": ".workspace-tabs button:not(.active)",
+      "role": "--oc-text-primary",
+      "reason": "Keep small navigation text above 4.5 contrast on the fixed approved canvas."
+    },
+    {
+      "selector": ".source-health-list header span + span",
+      "role": "--oc-text-primary",
+      "reason": "Operational reason text uses primary ink; keep muted anchor for secondary labels."
+    },
+    {
+      "selector": ".command-footer",
+      "role": "--oc-text-primary",
+      "reason": "Source availability guidance must remain readable (Claude V2)."
+    },
+    {
+      "selector": ".capital-reconciliation-entry p",
+      "role": "--oc-text-primary",
+      "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
+    },
+    {
+      "selector": ".capital-reconciliation-date p",
+      "role": "--oc-text-primary",
+      "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
+    },
+    {
+      "selector": ".capital-workspace .capital-stat-primary > :is(span,small)",
+      "role": "--oc-text-primary",
+      "reason": "K1/V2: higher specificity wins the later workbench rule; primary ink for recorded-payment supporting text on pale tint."
+    }
+  ],
+  "layout": [
+    "At <=600px, full rows for search and date controls; OpsWiki and notifications have separate hit targets, >=44px. Scoped to Command only."
+  ],
+  "typeSelectors": [
+    {
+      "selector": ".source-health-list :is(header span,button,em)",
+      "px": 11,
+      "reason": "Operational source reason and actions need readable text; row headings already larger."
+    },
+    {
+      "selector": ".source-health-list article > div span",
+      "px": 10,
+      "reason": "Workspace and source observation values are essential information."
+    },
+    {
+      "selector": ".command-footer",
+      "px": 10,
+      "reason": "Source availability guidance is operational text (Claude V2)."
+    }
+  ],
+  "variableSelectors": [
+    {
+      "selector": ".capital-hub",
+      "property": "--capital-muted",
+      "role": "--oc-text-primary",
+      "reason": "C1: instructions, dates and filter controls lost contrast on fixed canvas; preserve explicit white-on-status/brand overrides and fixed muted anchor."
+    },
+    {
+      "selector": ".finance-workspace.capital-workspace",
+      "property": "--capital-muted",
+      "role": "--oc-text-primary",
+      "reason": "C1: instructions, dates and filter controls lost contrast on fixed canvas; preserve explicit white-on-status/brand overrides and fixed muted anchor."
+    }
+  ]
+}

@@ -2443,3 +2443,6 @@
 .ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-method { color: var(--oc-text-primary); }
 .ops-live[data-css-phase-two="Marketing"] .operating-trends .finance-performance-chart-heading p { color: var(--oc-text-primary); }
 .ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-history p { color: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Marketing"] .operating-trends > p { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-method p { color: var(--oc-text-primary); }

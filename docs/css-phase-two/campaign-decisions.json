@@ -2565,6 +2565,16 @@
       "selector": ".operating-trends .operating-history p",
       "role": "--oc-text-primary",
       "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends > p",
+      "role": "--oc-text-primary",
+      "reason": "Claude R1: set source/disclosure paragraph ink directly because the existing paragraph rule overrides inherited primary ink."
+    },
+    {
+      "selector": ".operating-trends .operating-method p",
+      "role": "--oc-text-primary",
+      "reason": "Claude R1: set source/disclosure paragraph ink directly because the existing paragraph rule overrides inherited primary ink."
     }
   ],
   "layout": [

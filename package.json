@@ -23,6 +23,7 @@
     "verify:service-territory": "node --import tsx scripts/test-service-territory.ts",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "cf-build": "OPSCENTER_BUILD_TARGET=cloudflare opennextjs-cloudflare build",
     "deploy": "npm run cf-build && wrangler deploy",
     "preview": "npm run cf-build && wrangler dev",

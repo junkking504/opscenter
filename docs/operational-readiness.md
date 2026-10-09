@@ -134,3 +134,9 @@ timestamp remain unchanged. A previously recorded real failure is still
 returned to the publisher, even if an earlier full success is recent. Collector
 transfers always run normally. Database and accounting-snapshot publication
 continue on their existing schedule.
+
+## Log operations
+
+See [PostgreSQL and session log operations](log-hygiene.md) for the owning config,
+reload verification, daily log-only rotation, failure receipts and anonymous
+rejection summaries. This policy does not prune business data.

@@ -1,3 +1,4 @@
+import { createAuthRejectionLogger } from './lib/auth-rejection-log';
 import { currentWorkspaceUrl } from './lib/legacy-workspace-redirect';
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -71,15 +72,9 @@ function roleDeniedResponse(request: NextRequest, email: string): NextResponse |
   return NextResponse.redirect(deniedUrl);
 }
 
-function logSessionRejection(request: NextRequest, reason: string, trustedDeviceValid: boolean): void {
-  console.warn("[auth] session rejected", {
-    reason,
-    requestKind: request.nextUrl.pathname.startsWith("/api/") ? "api" : "page",
-    host: request.headers.get("x-forwarded-host") || request.headers.get("host") || null,
-    method: request.method,
-    trustedDeviceValid,
-    requestId: request.headers.get("cf-ray") || null,
-  });
+const rejectionLogger = createAuthRejectionLogger(entry => console.warn('[auth] session rejection', entry));
+function logSessionRejection(request: NextRequest, reason: string): void {
+  rejectionLogger.record({ reason, pathname: request.nextUrl.pathname, method: request.method, headers: request.headers });
 }
 
 function requestHeadersWithSession(request: NextRequest, sessionValue: string): Headers {
@@ -262,7 +257,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const trustedDevice = await verifyTrustedDeviceCookie(trustedDeviceCookie, request);
 
   if (!session && !publicAuthRoute(pathname)) {
-    logSessionRejection(request, sessionInspection.reason || "session_unknown", Boolean(trustedDevice));
+    logSessionRejection(request, sessionInspection.reason || "session_unknown");
   }
 
   if (enforceOpsAccess) {

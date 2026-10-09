@@ -63,6 +63,7 @@ without mixing live runtime data or secrets into Git.
 - [Per-truck operational agents](truck-agents.md)
 - [Truck phone inspections](truck-inspections.md)
 - [Operational readiness](operational-readiness.md)
+- [PostgreSQL and session log operations](log-hygiene.md)
 - [Background maintenance pilot](background-maintenance.md)
 - [Geocodio free address fallback](geocodio-free-fallback.md)
 - [Server continuity recovery](server-continuity.md)

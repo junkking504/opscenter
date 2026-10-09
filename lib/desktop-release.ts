@@ -16,7 +16,7 @@ export function desktopReleaseMode(runtime: string | undefined, enabled: string 
 
 type DesktopManifest = Record<string, { file: string; imports?: string[]; css?: string[] }>;
 export function desktopWorkspacePreloads(manifest: DesktopManifest, workspace: string): string {
-  const entry = ({ Fleet: 'live-fleet.tsx', Krewe: 'live-krewe.tsx', Marketing: 'live-marketing.tsx', Finance: 'live-finance.tsx' } as Record<string,string>)[workspace];
+  const entry = ({ SpecOps: 'specops.tsx', Fleet: 'live-fleet.tsx', Krewe: 'live-krewe.tsx', Marketing: 'live-marketing.tsx', Finance: 'live-finance.tsx' } as Record<string,string>)[workspace];
   const visited = new Set<string>();
   const assets = new Set<string>();
   const visit = (key: string) => {

@@ -55,3 +55,17 @@ a day reconciled. No automatic payment writes or new collectors are added.
 Capital navigation uses the same separated, rounded buttons as Convoy: pale
 backgrounds for available views, a solid green selected view, and wrapping on
 narrow screens so every label remains visible.
+
+
+## Compact overview layout
+
+Capital places its title and view tabs on a shared wrapping row. The overview
+starts with the reporting month, compact Reconcile yesterday and Accounting
+buttons, then the financial cards. Reconciliation keeps its previous-calendar-day
+default and existing payment review flow.
+
+The source/payment status appears directly beneath the cards. Source details
+expands the existing publication/retrieval timestamps and Refresh data control;
+refresh failures remain visible even while details are collapsed. Card-level
+freshness, incomplete-cost labels and unavailable values are preserved. Phone
+tabs and the overview action buttons retain 44 px touch targets.

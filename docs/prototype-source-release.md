@@ -732,6 +732,12 @@ indicators; source quality remains visible and narrow screens retain full dates.
 Truck labels in Control remain buttons that select the truck on the map and open
 its trips and appointment details.
 
+Crowded travel connectors share compact rails by packing their 32px minute labels,
+not by reserving each entire dotted path. Labels shift to the nearest available
+space and retain a continuous connection to both appointments. Another 18px rail
+is added only when the labels themselves cannot fit. Wide-gap inline times,
+appointment geometry, source/status formatting and the 75% lane floor are unchanged.
+
 Capital has one primary Payments tab; Recorded payments and Reconciliation are
 secondary views inside it. Existing reconciliation deep links and the previous-day
 review default remain valid, including busy-state guards during payment writes.

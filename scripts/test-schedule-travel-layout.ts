@@ -104,6 +104,21 @@ const separated=scheduleTravelLayout([job('one',480,510),job('two',570,600),job(
 assert.equal(separated.connectors[0].top+separated.connectors[0].labelTop,separated.connectors[1].top+separated.connectors[1].labelTop,'Non-overlapping labels reuse a compact row');
 console.log('Travel labels remain readable, bounded, collision-free and reserved against facility icons at phone and desktop widths.');
 
+// Several overlapping routes in a small morning cluster must not consume one
+// full-height rail per leg when the rest of the timeline has room for labels.
+const crowdedJobs = [job('visit',495,552),job('short',585,587),job('planned',540,600),job('later',600,660),job('finished',599,635)];
+const crowdedLegs = [leg('visit','finished',0),leg('finished','planned',-95),leg('planned','later',0),leg('later','short',-75)];
+const crowded = scheduleTravelLayout(crowdedJobs,crowdedLegs,range,undefined,0,960);
+const crowdedBare = scheduleTravelLayout(crowdedJobs,[],range,undefined,0,960);
+assert.equal(new Set(crowded.connectors.map(c=>c.top+c.labelTop)).size,1,'Clustered travel labels share one compact rail');
+assert.equal(crowded.rowHeight-crowdedBare.rowHeight,20,'Four overlapping route spans add only one 20px band');
+assert.deepEqual(crowded.placed,crowdedBare.placed,'Compacting travel never moves appointments');
+for (const c of crowded.connectors) {
+  const center = (c.labelLeft+c.labelWidth/2-c.left)*100/c.width;
+  assert.ok(c.path.split(' ').some(p=>Math.abs(Number(p.split(',')[0])-center)<1e-8),'Shifted labels remain attached to their continuous connector');
+}
+console.log('Four crowded routes share one 20px travel band without moving blocks or detaching labels.');
+
 assert.equal(separated.rowHeight,scheduleTravelLayout([job('one',480,510),job('two',570,600),job('three',660,690)],[],range,undefined,0,1280).rowHeight,'Wide gaps keep travel labels directly between appointments without inflating rows');
 for (const c of layout.connectors) {
   const points=c.path.split(' ').map(p=>p.split(',').map(Number));

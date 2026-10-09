@@ -122,8 +122,9 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   const cardHeight = mobile ? 46 : 24;
   let rowHeight = placed.length ? (Math.max(1, lanes.length) - 1) * laneStep + cardHeight : mobile ? 44 : compact ? 28 : 32;
   // Keep minutes attached to a continuous line between the rendered blocks.
-  // Wide gaps use the appointment lane; tight/overlapping windows use compact
-  // tracks below the blocks so neither labels nor appointment targets collide.
+  // Wide gaps use the appointment lane. Below crowded blocks, pack the labels
+  // rather than the full connector spans: overlapping dotted lines must not
+  // create a new row for every leg. Labels can slide along the shared rail.
   const availableWidth = timelineWidth || 640;
   const labelWidth = Math.min(1, 32 / availableWidth);
   const labelHeight = 14;
@@ -147,24 +148,39 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const targetX = forwardGap ? target.left : reverseGap ? targetRight : (target.left + targetRight)/2;
     const sourceY = sourceLane*laneStep + (separated ? 13 : cardHeight);
     const targetY = targetLane*laneStep + (separated ? 13 : cardHeight);
-    const labelLeft = Math.max(0,Math.min(1-labelWidth,(sourceX+targetX-labelWidth)/2));
-    const footprint = {left:Math.min(sourceX,targetX,labelLeft),right:Math.max(sourceX,targetX,labelLeft+labelWidth)};
+    let labelLeft = Math.max(0,Math.min(1-labelWidth,(sourceX+targetX-labelWidth)/2));
+    let footprint = {left:Math.min(sourceX,targetX,labelLeft),right:Math.max(sourceX,targetX,labelLeft+labelWidth)};
     const clearGap = separated && sourceLane === targetLane
       && Math.abs(targetX-sourceX)*availableWidth >= 40
       && lanes[sourceLane].every(interval => interval.right <= footprint.left+1e-9 || interval.left >= footprint.right-1e-9);
     let railY = sourceY;
     if (!clearGap) {
-      let track = tracks.findIndex(items => items.every(item => footprint.right+4/availableWidth <= item.left || footprint.left >= item.right+4/availableWidth));
-      if (track < 0) track = tracks.length;
-      (tracks[track] ||= []).push(footprint);
+      const gap = 4/availableWidth;
+      let track = 0;
+      for (; track < tracks.length; track++) {
+        const items = [...tracks[track]].sort((a,b)=>a.left-b.left);
+        let start = 0;
+        const candidates: number[] = [];
+        for (const item of [...items,{left:1+gap,right:1+gap}]) {
+          const end = item.left-gap;
+          if (end-start >= labelWidth-1e-9) candidates.push(Math.max(start,Math.min(end-labelWidth,labelLeft)));
+          start = item.right+gap;
+        }
+        if (candidates.length) {
+          labelLeft = candidates.sort((a,b)=>Math.abs(a-labelLeft)-Math.abs(b-labelLeft))[0];
+          break;
+        }
+      }
+      (tracks[track] ||= []).push({left:labelLeft,right:labelLeft+labelWidth});
       railY = trackBase+track*trackStep;
+      footprint = {left:Math.min(sourceX,targetX,labelLeft),right:Math.max(sourceX,targetX,labelLeft+labelWidth)};
     }
     const left = footprint.left;
     const width = Math.max(footprint.right-left,.0001);
     const top = Math.min(sourceY,targetY,railY-labelHeight/2);
     const height = Math.max(sourceY,targetY,railY+labelHeight/2)-top;
     const x = (value:number) => (value-left)*100/width;
-    const path = `${x(sourceX)},${sourceY-top} ${x(sourceX)},${railY-top} ${x(targetX)},${railY-top} ${x(targetX)},${targetY-top}`;
+    const path = `${x(sourceX)},${sourceY-top} ${x(sourceX)},${railY-top} ${x(labelLeft+labelWidth/2)},${railY-top} ${x(targetX)},${railY-top} ${x(targetX)},${targetY-top}`;
     const labelTop = railY-labelHeight/2-top;
     // Reserve the rail against facility markers, including its minute label.
     const first = Math.max(0,Math.floor((railY-labelHeight/2-2)/laneStep));

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {stopOrderMap} from '../desktop-ui/lib/stop-order-map';
-import type {ScheduleAppointment,ScheduleRouteLeg} from '../desktop-ui/lib/schedule-contract';
+import {stopOrderMap,stopOrderTrucks} from '../desktop-ui/lib/stop-order-map';
+import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
 const jobs=[0,1,2].map(n=>({recordId:String(n),location:{latitude:30+n*.01,longitude:-90+n*.01}} as ScheduleAppointment));
 const legs=[0,1].map(n=>({fromAppointmentId:String(n),toAppointmentId:String(n+1),source:'osm_road_estimate',geometry:[jobs[n].location!,jobs[n+1].location!]} as ScheduleRouteLeg));
 const original=stopOrderMap(jobs,legs);assert.equal(original.paths.length,2);assert.deepEqual(original.stops.map(s=>s.number),[1,2,3]);
@@ -9,3 +9,19 @@ const missing=stopOrderMap([jobs[0],{...jobs[1],location:null},jobs[2]],legs);as
 assert.equal(stopOrderMap(jobs,[{...legs[0],source:'unavailable'},legs[1]]).paths.length,1);
 assert.equal(stopOrderMap(jobs,[{...legs[0],geometry:[{latitude:NaN,longitude:-90},jobs[1].location!]}]).paths.length,0);
 console.log('Stop order map: numbering, reversed drafts, missing pins, unavailable routes and malformed geometry passed.');
+const now=Date.parse('2026-10-09T16:00:00Z');
+const truck={truck:'Truck# 2',latitude:30.4,longitude:-91.1,lastGpsUpdate:'2026-10-09T15:59:00Z',speed:12} as ScheduleTruck;
+const fleet={isToday:true,lastUpdatedAt:null,trucks:[truck,{...truck,truck:'Truck 3',lastGpsUpdate:'2026-10-09T15:30:00Z'},...[null,NaN,91,Infinity].map(latitude=>({...truck,latitude})),{...truck,longitude:181},{...truck,latitude:0,longitude:0}]};
+const pins=stopOrderTrucks(fleet,'Truck 2',now);
+assert.equal(pins.length,2,'Invalid positions must not become truck markers');
+assert.equal(pins[0].selected,true,'JunkWare and canonical truck labels identify the same truck');
+assert.equal(pins[1].selected,false);
+assert.equal(pins[0].gps.label,'Driving');
+assert.equal(pins[1].gps.stale,true);
+assert.match(pins[1].gps.label,/last known/);
+assert.match(pins[0].reportedAt,/10:59 AM CDT/);
+assert.equal(stopOrderTrucks({...fleet,isToday:false},'Truck 2',now).length,0,'Never show current fleet positions on a historical or future schedule');
+assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,latitude:null}]},'Truck 2',now).length,0,'Unavailable selected truck cannot be guessed');
+assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,lastGpsUpdate:null}]},'Truck 2',now)[0].gps.stale,true);
+assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,speed:0,ignition:'OFF',lastGpsUpdate:'2026-10-09T15:30:00Z'}]},'Truck 2',now)[0].gps.label,'Parked · ignition off','Honor existing parked reporting cadence');
+console.log('Job Order fleet: coordinate validation, truck identity, freshness, parked reporting and date boundaries passed.');

@@ -86,7 +86,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
         })}</ol>
         <button type="button" disabled={stale || working === 'save' || working === 'nearest' || ids.length>12 || group.some(job=>!job.location)} onClick={()=>void request('nearest')}>{working === 'nearest' ? 'Finding nearest stops…' : 'Suggest nearest after first stop'}</button>
         <p>Choose your first stop with the arrows. The suggestion then follows the nearest road distance. Estimates exclude live traffic.</p>
-        </div><ScheduleStopOrderMap jobs={ids.map(id=>group.find(job=>job.recordId===id)!)} legs={legs} selected={selected} onSelect={selectStop} loading={working==='preview'||working==='nearest'} stale={stale}/></div>
+        </div><ScheduleStopOrderMap jobs={ids.map(id=>group.find(job=>job.recordId===id)!)} fleet={snapshot.fleet} selectedTruck={group[0].truck} legs={legs} selected={selected} onSelect={selectStop} loading={working==='preview'||working==='nearest'} stale={stale}/></div>
         {message && <p role="alert">{message}</p>}
         <footer><button type="button" disabled={working === 'save'} onClick={close}>Cancel</button><button type="button" disabled={!changed || stale || working === 'save' || working === 'nearest'} onClick={()=>void request('save')}>{working === 'save' ? 'Saving…' : 'Save Order'}</button></footer>
       </>}

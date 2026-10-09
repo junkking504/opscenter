@@ -1,5 +1,18 @@
-import type {ScheduleAppointment,ScheduleRouteLeg} from './schedule-contract';
+import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleSnapshot} from './schedule-contract';
+import {sameTruck,truckDisplayLabel} from '../../lib/junkware-trucks';
+import {truckGpsStatus} from '../../lib/truck-gps-status';
 export const routePointValid=(p:{latitude:number;longitude:number}|null|undefined):p is {latitude:number;longitude:number}=>Boolean(p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180&&(p.latitude!==0||p.longitude!==0));
+/** Today's reported positions only; a stale fix remains explicitly last known. */
+export function stopOrderTrucks(fleet:ScheduleSnapshot['fleet'],selectedTruck:string,now=Date.now()) {
+ return (fleet.isToday?fleet.trucks:[]).flatMap(truck=>{
+  if(truck.latitude===null||truck.longitude===null)return [];
+  const point={latitude:truck.latitude,longitude:truck.longitude};
+  if(!routePointValid(point))return [];
+  const gps=truckGpsStatus(truck,now),observed=Date.parse(truck.lastGpsUpdate||'');
+  const reportedAt=Number.isFinite(observed)?new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(observed):'Time unavailable';
+  return [{truck,point,gps,reportedAt,label:truckDisplayLabel(truck.truck),selected:sameTruck(truck.truck,selectedTruck)}];
+ });
+}
 /** Only draw road geometry for adjacent stops in the current draft. Missing
  * pins or unavailable legs stay disconnected, never bridged with a guess. */
 export function stopOrderMap(jobs:ScheduleAppointment[],legs:ScheduleRouteLeg[]) {

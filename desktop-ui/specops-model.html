@@ -134,8 +134,8 @@ footer{color:var(--ink-3);font-size:12.5px;display:grid;gap:6px}
     </div>
     <div class="eyebrow">Source snapshot Oct 9, 2026 · Louisiana · Mississippi · Alabama · Florida Panhandle</div>
   </div>
-  <div class="status" id="status"><div class="dot"></div><div><strong>Planning scenario · not a storm advisory</strong><p>Imported model and research from the supplied Claude artifact, October 9, 2026. Storm paths, outage probabilities, store locations, costs and revenue are assumptions. No live weather or store outage feed is connected.</p><div class="links"><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener noreferrer">Official NHC advisories ↗</a><a href="https://claude.ai/artifact/B8QvgHy3z5VtEvRzuzoXTq" target="_blank" rel="noopener noreferrer">Original artifact ↗</a></div></div></div>
-<section class="panel" aria-label="Power outage intelligence"><div class="sec-head"><div><div class="eyebrow">PowerOutage.us</div><h2>Southeast outage intelligence</h2></div><span class="tag">Live feed not connected</span></div><p>Open the source map for current customer outage counts and its update time. The public page is not an authorized data feed; an API or licensed map connection is needed to show live counts here.</p><div class="status links"><a class="btn primary" href="https://poweroutage.us/area/regions/south%20east" target="_blank" rel="noopener noreferrer">Open Southeast outage map ↗</a><a href="https://poweroutage.us/use-our-data" target="_blank" rel="noopener noreferrer">API &amp; map access ↗</a></div><p class="hint">Regional customer outages do not confirm that a particular store has lost power or needs a cleanout. Louisiana and Mississippi coverage must also be checked for Gulf Coast planning.</p></section></header>
+  <div class="status" id="status"><div class="dot"></div><div><strong>Planning scenario · not a storm advisory</strong><p>Imported model and research from the supplied Claude artifact, October 9, 2026. Storm paths, outage probabilities, store locations, costs and revenue are assumptions. Published NHC observations appear above and as a separate blue map marker. Store outages remain unconfirmed.</p><div class="links"><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener noreferrer">Official NHC advisories ↗</a><a href="https://claude.ai/artifact/B8QvgHy3z5VtEvRzuzoXTq" target="_blank" rel="noopener noreferrer">Original artifact ↗</a></div></div></div>
+</header>
 
 <section class="panel scenario" id="scenario">
   <div class="controls">
@@ -194,6 +194,7 @@ footer{color:var(--ink-3);font-size:12.5px;display:grid;gap:6px}
   </div>
   <div class="mapbox">
     <svg id="map" class="map" viewBox="0 0 1000 562" role="img" aria-label="Gulf Coast map with storm footprint and store locations"></svg>
+    <p id="observed-position" class="hint">NHC observed position unavailable.</p>
     <div class="legend">
       <span class="k"><span class="band" style="background:var(--b64);opacity:.55"></span>Hurricane-force (64 kt+) · outage ~95%</span>
       <span class="k"><span class="band" style="background:var(--b50);opacity:.5"></span>50–64 kt · ~75%</span>
@@ -201,7 +202,7 @@ footer{color:var(--ink-3);font-size:12.5px;display:grid;gap:6px}
       <span class="k"><span class="band" style="background:var(--bnear);opacity:.4"></span>Fringe (≤30 mi outside) · ~10%</span>
       <span class="k">▲ landfill · ■ Junk King base · ○ cluster of other grocers (size = store count)</span>
     </div>
-    <p class="hint">Footprint is a parametric wind-swath model (NHC-style 34/50/64-kt radii by category, right-side bias, inland decay). It is a planning proxy for where power goes out, not an NHC product. Replace it with the real cone and wind probabilities once a storm exists.</p>
+    <p class="hint">Footprint is a parametric wind-swath model (NHC-style 34/50/64-kt radii by category, right-side bias, inland decay). It is a planning proxy for where power goes out, not an NHC product. The blue marker is an observed NHC center; the dashed track and colored wind swath are scenario assumptions, not the official cone.</p>
   </div>
 </section>
 
@@ -746,6 +747,32 @@ function renderOthers(){
   const tb=document.querySelector('#others tbody');
   tb.innerHTML=rows.map(o=>`<tr><td>${o.c}</td><td>${o.t}, ${o.s}</td><td class="r">${o.n}</td><td><span class="pill b${o._band}">${o._band==='near'?'fringe':o._band+' kt'}</span></td><td class="r">${o._dark.toFixed(1)}</td><td class="hint">${o.note||''}</td></tr>`).join('')||'<tr><td colspan="6" class="hint">No other grocer clusters in this footprint.</td></tr>';
 }
+// Observations are drawn independently: never treat the observed center as forecast landfall.
+const observedGroup=el('g',{'pointer-events':'none','aria-label':'NHC observed storm center'});
+function showObservation(storm,stale){
+  observedGroup.replaceChildren();
+  const caption=document.getElementById('observed-position');
+  if(!storm||!Number.isFinite(storm.lat)||!Number.isFinite(storm.lon)||!Number.isFinite(Date.parse(storm.observedAt))){caption.textContent='NHC observed position unavailable.';return;}
+  const stamp=new Date(storm.observedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  const inside=storm.lat>=28.4&&storm.lat<=33.2&&storm.lon>=-94.3&&storm.lon<=-83.3;
+  caption.textContent=(stale?'Stale observation · ':'Observed · ')+storm.name+' · '+stamp+(inside?' · blue ring = observed center; black point = planned landfall.':' · Position outside this regional map.');
+  if(!inside)return;
+  const x=px(storm.lon),y=py(storm.lat);
+  el('circle',{cx:x,cy:y,r:12,fill:'white',stroke:'#0369a1','stroke-width':3,'stroke-dasharray':stale?'4 3':'none'},observedGroup);
+  el('circle',{cx:x,cy:y,r:3,fill:'#0369a1'},observedGroup);
+  const label=el('text',{x:x+16,y:y+4,fill:'#0369a1','font-size':12,'font-weight':700,stroke:'white','stroke-width':3,'paint-order':'stroke'},observedGroup);
+  label.textContent='NHC'+(stale?' (stale)':'');
+}
+window.addEventListener('message',event=>{
+  if(event.source!==parent)return;
+  if(event.data?.type==='specops-observation')showObservation(event.data.storm,event.data.stale);
+  if(event.data?.type==='specops-use-storm'){
+    const {cat,heading:direction,speed:motion}=event.data;
+    if(!Number.isInteger(cat)||cat<0||cat>5||!Number.isFinite(direction)||direction<0||direction>360||!Number.isFinite(motion)||motion<5||motion>25)return;
+    S.cat=cat;S.heading=direction;S.speed=motion;
+    segSet('cat',S.cat);heading.value=S.heading<270?S.heading+360:S.heading;speed.value=S.speed;render();saveScenario();
+  }
+});
 // Restore only the validated numeric scenario from the owning OpsCenter frame.
 const exportScenario=()=>({...S,...Object.fromEntries(Object.keys(inputs).map(id=>[id,num(id)]))});
 window.addEventListener('message',event=>{

@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
     sync = root / 'deploy/vps/sync-data.sh'
     sync.write_text('echo started >> "$OPSBOT_DATA_DIR/calls"\nsleep 2\nexit 0\n')
     data = root / 'data'
-    env = dict(os.environ, OPSBOT_DATA_DIR=str(data))
+    env = dict(os.environ, OPSBOT_DATA_DIR=str(data), OPSCENTER_BACKUP_CALLER='collector')
     start = time.monotonic()
     subprocess.run([sys.executable, str(worker), '--background'], env=env, check=True, capture_output=True)
     assert time.monotonic() - start < 1.5, 'Live collection must not wait for the transfer'
@@ -58,6 +58,40 @@ with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
     subprocess.run([sys.executable, str(worker)], env=env, check=True, capture_output=True)
     assert json.loads(state.read_text())['status'] == 'success', 'Lock releases after timeout'
     assert log.read_text().count('(exit 0).') == 2, 'Foreground success logged once too'
+    # Publisher deadlines are separate from the shared backup verdict. Keep
+    # both fresh success and a previous real failure byte-for-byte unchanged.
+    publisher = dict(env, OPSCENTER_BACKUP_CALLER='continuity-publisher', OPSCENTER_BACKUP_TIMEOUT_SECONDS='1')
+    attempt = data / 'backup-sync/publisher-status.json'
+    for prior in ('success', 'failed'):
+        previous = dict(json.loads(state.read_text()), status=prior, exitCode=0 if prior == 'success' else 255)
+        state.write_text(json.dumps(previous))
+        before = state.read_bytes()
+        sync.write_text('sleep 10\necho unsafe-publisher-write > "$OPSBOT_DATA_DIR/publisher-late"\n')
+        result = subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)
+        assert result.returncode == (0 if prior == 'success' else 255) and state.read_bytes() == before
+        receipt = json.loads(attempt.read_text())
+        assert receipt['status'] == 'deferred' and receipt['reason'] == 'caller_deadline'
+        assert receipt['caller'] == 'continuity-publisher' and receipt['timeoutSeconds'] == 1
+        assert not (data / 'publisher-late').exists()
+    # Compatibility with the already-installed publisher (no caller variable).
+    legacy = dict(publisher)
+    del legacy['OPSCENTER_BACKUP_CALLER']
+    subprocess.run([sys.executable, str(worker)], env=legacy, capture_output=True)
+    assert state.read_bytes() == before
+    assert json.loads(attempt.read_text())['caller'] == 'short-budget'
+    for code in (23, 255, 12, 10, 124):
+        sync.write_text(f'exit {code}\n')
+        result = subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)
+        assert result.returncode == code
+        assert json.loads(state.read_text())['status'] == 'failed', 'Actual transfer exit, including 124, must not be hidden'
+        assert json.loads(state.read_text())['exitCode'] == code
+    sync.write_text('exit 0\n')
+    subprocess.run([sys.executable, str(worker)], env=publisher, check=True, capture_output=True)
+    assert json.loads(state.read_text())['status'] == 'success', 'Verified publisher success updates shared backup freshness'
+    state.unlink()
+    sync.write_text('sleep 10\n')
+    subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)
+    assert not state.exists(), 'Publisher deadline cannot invent a first backup result'
     bad = subprocess.run([sys.executable, str(worker)], env=dict(env, OPSCENTER_BACKUP_TIMEOUT_SECONDS='invalid'), capture_output=True)
     assert bad.returncode != 0 and json.loads(state.read_text())['status'] == 'failed'
     assert log.read_text().count('(error ValueError).') == 1, 'Worker errors must be logged'

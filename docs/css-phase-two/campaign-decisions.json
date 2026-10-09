@@ -2515,6 +2515,16 @@
       "selector": ".command-footer",
       "role": "--oc-text-primary",
       "reason": "Source availability guidance must remain readable (Claude V2)."
+    },
+    {
+      "selector": ".analytics-page > [role=\"status\"]",
+      "role": "--oc-text-primary",
+      "reason": "Claude M1: loading and unavailable historical-source messages are operational information."
+    },
+    {
+      "selector": ".campaign-stage",
+      "role": "--oc-text-primary",
+      "reason": "Claude M2: rank numbers remain readable on the Results card surface."
     }
   ],
   "layout": [

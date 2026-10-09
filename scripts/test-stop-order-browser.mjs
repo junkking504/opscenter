@@ -65,6 +65,9 @@ try {
    const badges=await inspect();assert.equal(badges.length,6);
    const controls=await page.locator('.stop-order-map .leaflet-control').evaluateAll(elements=>elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
    for(const badge of badges)for(const control of controls)assert(badge.right<=control.left||control.right<=badge.left||badge.bottom<=control.top||control.bottom<=badge.top,'Truck labels must not be hidden by map controls');
+   const pins=await page.locator('.stop-order-map .stop-order-pin').evaluateAll(elements=>elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
+   assert(pins.length>=2,'Numbered stop markers must participate in the collision fixture');
+   for(const badge of badges)for(const pin of pins)assert(badge.right<=pin.left||pin.right<=badge.left||badge.bottom<=pin.top||pin.bottom<=badge.top,`Truck label covers a numbered stop at ${width}px: ${JSON.stringify({badge,pin})}`);
    for(const [index,badge] of badges.entries()) {
     if(badge.stale)assert.match(badge.label,/Last known/);
     assert.match(badge.title,/GPS/);
@@ -73,6 +76,7 @@ try {
    const selected=badges.find(badge=>badge.selected);assert(selected);assert(badges.every(badge=>badge.selected||badge.z<selected.z),'Selected truck must stay above every other badge');
   };
   await assertBadges();
+  if(process.env.STOP_ORDER_SCREENSHOT_DIR){fs.mkdirSync(process.env.STOP_ORDER_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:`${process.env.STOP_ORDER_SCREENSHOT_DIR}/truck-pins-all-trucks-${width}.png`});}
   await page.locator('.stop-order-truck').first().click();
   await page.locator('.leaflet-popup-content').waitFor();
   await page.waitForTimeout(350);

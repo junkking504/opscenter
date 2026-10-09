@@ -39,4 +39,12 @@ for(const size of [{x:680,y:340},{x:330,y:230}]) {
 }
 const offscreen=stopOrderTruckBadges([{id:'Truck 2',x:-200,y:50,selected:false,stale:false}],{x:680,y:340})[0];
 assert.equal(offscreen.left,-247,'Never pull an offscreen truck into a manual viewport');
+for(const stale of [false,true]) {
+ const point={id:'Truck 8',x:250,y:180,selected:true,stale};
+ const pins=[{left:220,top:140,width:30,height:30},{left:242,top:140,width:30,height:30}];
+ const before=JSON.stringify(pins),[badge]=stopOrderTruckBadges([point],{x:680,y:340},pins);
+ for(const pin of pins)assert(badge.left+badge.width<=pin.left||pin.left+pin.width<=badge.left||badge.top+badge.height<=pin.top||pin.top+pin.height<=badge.top,'Fresh and stale truck labels must clear numbered and offset co-located stop pins');
+ assert.equal(JSON.stringify(pins),before,'Reserved stop rectangles cannot move');
+ assert.equal(badge.x,point.x);assert.equal(badge.y,point.y);
+}
 console.log('Truck badges: co-located and nearby labels, selected priority, immutable positions, resize and offscreen behavior passed.');

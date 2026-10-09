@@ -44,7 +44,8 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
   const renderedTrucks=new Map<string,{marker:L.Marker;leader:L.Polyline;dot:L.CircleMarker}>();
   const placeTrucks=()=>{
    const bounds=view.getContainer().getBoundingClientRect();
-   const blocked=Array.from(view.getContainer().querySelectorAll('.leaflet-control')).map(control=>{const r=control.getBoundingClientRect();return {left:r.left-bounds.left,top:r.top-bounds.top,width:r.width,height:r.height};});
+   // Rendered rectangles include co-located stop offsets and the current zoom.
+   const blocked=Array.from(view.getContainer().querySelectorAll('.leaflet-control, .stop-order-pin')).map(element=>{const r=element.getBoundingClientRect();return {left:r.left-bounds.left,top:r.top-bounds.top,width:r.width,height:r.height};});
    const badges=stopOrderTruckBadges(trucks.map(truck=>{
     const point=view.latLngToContainerPoint([truck.point.latitude,truck.point.longitude]);
     return {id:truck.label,x:point.x,y:point.y,selected:truck.selected,stale:truck.gps.stale};

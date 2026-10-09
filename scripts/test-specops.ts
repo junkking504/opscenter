@@ -12,7 +12,7 @@ assert(!html.includes('LANDFALL TONIGHT'));
 assert(!html.includes('Isaias (Oct 9 fcst)'));
 assert(!/fetch\(|XMLHttpRequest|<script[^>]+src=|<link[^>]+stylesheet/.test(html));
 assert(html.includes("connect-src 'none'"));
-assert(html.includes('Live feed not connected'));
+assert(html.includes('NHC observed position unavailable.'));
 assert(html.includes("STORES.filter(hasLocation)"));
 assert(html.includes("days===null?'No capacity'"));
 assert(html.includes("heading.value=S.heading<270?S.heading+360:S.heading"));

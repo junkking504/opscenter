@@ -23,25 +23,48 @@ No application records or provider credentials enter the model. The authored
 HTML is bundled locally; all Claude runtime/SDK code and external font requests
 are removed. A sandboxed opaque-origin iframe allows scripts and explicit source
 links, not same-origin access. Its CSP denies network requests and forms. Parent
-messages are restricted to bounded height reports and validated numeric scenario
-inputs. Session storage retains the scenario in the current browser tab across
+messages are restricted to bounded height reports, validated numeric scenario
+inputs and public storm observations. The blue observed storm center is distinct
+from modeled landfall; applying observed intensity and motion changes only those
+scenario inputs and never moves the planned landfall. Observations do not alter
+store probabilities automatically. Session storage retains the scenario in the current browser tab across
 workspace navigation and reload; Reset scenario restores the supplied defaults.
 It is not a shared operational record. Zero truck capacity is unavailable, never
 zero days to complete. No metered service, background job or dependency is added.
 
-## PowerOutage connection
+## Published observations
 
 The user-selected [Southeast source page](https://poweroutage.us/area/regions/south%20east)
-is available as a direct external link. Live figures are **not connected**.
-Direct public-page requests returned HTTP 403. PowerOutage lists an enterprise
-API and licensed embeddable maps on its [product page](https://poweroutage.us/use-our-data).
-Connect a licensed feed only after obtaining the actual access specification and
-any necessary explicit spending approval; do not create a scraper or imply that
-a browser refresh imports the figures. Preserve source timestamp, retrieval time,
-coverage, stale/unavailable state and customer counts separately from modeled
-store probabilities when that integration is available. Southeast's displayed
-states do not include Louisiana or Mississippi; those need separate coverage.
+and official NHC position update supply explicitly timestamped public observations.
+The authenticated manager/admin GET `/api/desktop/specops` reads only the runtime
+`data/specops/conditions.json`; it makes no external requests. The desktop rereads
+that local snapshot once per minute. Runtime data stays outside Git and releases.
+The validated snapshot is published atomically using
+`npx tsx scripts/publish-specops-conditions.ts <reviewed-json-file>` with the
+existing `OPSBOT_DATA_DIR`. The publisher does not fetch or scrape any site.
 
-The user's optional Codex browser refresh is separate from deployed OpsCenter.
-It reloads the existing source tab every ten minutes and does not transfer data
-into the app. Regional counts cannot confirm any individual store's power state.
+Schema 1 contains independently nullable `outage` and `storm` observations. Outage
+records carry check time, source-reported age at check, source URL, total customers
+out/tracked and exactly five unique state totals, which must reconcile. Storm
+records carry check time, actual NHC observation time, source URL, name, center
+coordinates, sustained wind mph, movement degrees/mph and pressure mb. Invalid
+records are unavailable, never silently converted to zero. Future timestamps,
+unsafe source links, malformed files and invalid values fail closed. Publication
+refuses to erase or roll back a newer observation.
+
+Outages are stale after 30 minutes including the source age at check. Storm
+observations are stale after 90 minutes from the actual NHC observation time;
+rechecking an unchanged advisory does not reset its age. Stale observations stay
+visible with warnings and a dashed marker; applying stale storm inputs is disabled.
+The source times and check times are shown in America/Chicago. Zero outage is a
+valid observed value; unavailable is distinct. Southeast coverage is AL, FL, GA,
+NC and SC, excluding LA and MS. Customer counts never confirm store-level outages.
+
+The user's Codex heartbeat checks the retained source browser tabs every ten
+minutes, reads the displayed current figures and NHC update, and publishes a
+validated snapshot. It is an external browser-assisted refresh, not an API feed
+or an OpsCenter background collector. If source access or validation fails, the
+last verified snapshot remains and ages visibly. Closed source tabs pause the
+refresh until the user resumes it. No subscription, credentials, metered service,
+direct-page scraper or payment is created. A future provider API integration
+requires its actual access specification and separate spending review.

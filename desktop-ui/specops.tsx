@@ -1,13 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CalendarDays, Truck, Users, RotateCcw } from 'lucide-react';
 import modelDocument from './specops-model.html?raw';
 import { workspaceReady } from './navigation-performance';
 import { specOpsScenario } from './lib/specops-scenario';
+import SpecOpsObservations from './specops-observations';
+import { stormCategory, type StormObservation } from './lib/specops-conditions';
 import './specops.css';
 
 const storageKey = 'opscenter.specops.scenario.v1';
 export default function SpecOps({ navigate }: { navigate: (workspace: string) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const observedStorm = useRef<{ storm: StormObservation | null; stale: boolean }>({ storm: null, stale: true });
+  const onStorm = useCallback((storm: StormObservation | null, stale: boolean) => {
+    observedStorm.current = { storm, stale };
+    frame.current?.contentWindow?.postMessage({ type: 'specops-observation', storm, stale }, '*');
+  }, []);
+  function applyStorm(storm: StormObservation) {
+    frame.current?.contentWindow?.postMessage({ type: 'specops-use-storm', cat: stormCategory(storm.windMph), heading: storm.heading, speed: storm.speedMph }, '*');
+  }
   const [height, setHeight] = useState(2400);
   const [revision, setRevision] = useState(0);
   const [saveStatus, setSaveStatus] = useState('Scenario changes stay in this browser tab.');
@@ -17,6 +27,7 @@ export default function SpecOps({ navigate }: { navigate: (workspace: string) =>
       if (event.data.type === 'specops-height' && Number.isFinite(event.data.height)) {
         setHeight(Math.max(600, Math.min(30000, event.data.height + 4)));
       } else if (event.data.type === 'specops-ready') {
+        frame.current?.contentWindow?.postMessage({ type: 'specops-observation', ...observedStorm.current }, '*');
         try {
           const saved = specOpsScenario(JSON.parse(sessionStorage.getItem(storageKey) || 'null'));
           if (saved) frame.current?.contentWindow?.postMessage({ type: 'specops-restore', scenario: saved }, '*');
@@ -46,6 +57,7 @@ export default function SpecOps({ navigate }: { navigate: (workspace: string) =>
         <button onClick={reset}><RotateCcw size={15} />Reset scenario</button>
       </div>
     </div>
+    <SpecOpsObservations key={revision} onStorm={onStorm} applyStorm={applyStorm} />
     <iframe key={revision} ref={frame} title="Gulf Coast storm cleanout planner" srcDoc={modelDocument}
       sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
       style={{ height }} className="specops-model" />

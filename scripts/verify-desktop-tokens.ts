@@ -10,7 +10,7 @@ const tokenFile='desktop-ui/design-tokens.css';
 // migration. Preserve its exact production stylesheet; any change fails this guard
 // until its owner tokenizes it or explicitly reviews a new baseline. This is not a
 // broad path exclusion, and does not change SpecOps appearance or enable Phase 2 there.
-const preservedSpecOpsSha256 = '3e0c482e2e245de7f144b1a017790378e3a899b812ef527d408555373fe3b61b'; // production036462cf
+const preservedSpecOpsSha256 = '1e7f411d7f2d583eb798daf38816747c5a298e20154713844e62afceb08fcba6'; // production3a0eb7f0 (SpecOps current conditions; separately reviewed preservation)
 const rawHexAllowlist: Record<string, Record<string,string>> = {};
 const phaseTwoFile='desktop-ui/css-phase-two.css';
 const phaseTwoRecords=fs.readdirSync('docs/css-phase-two').filter(name=>name.endsWith('-decisions.json')&&name!=='small-text-decisions.json').map(name=>JSON.parse(fs.readFileSync(`docs/css-phase-two/${name}`,'utf8')));

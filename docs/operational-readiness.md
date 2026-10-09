@@ -114,9 +114,23 @@ termination remain in force. Missing or stale full success remains unknown or
 critical through the normal health signal.
 
 `OPSCENTER_BACKUP_CALLER=continuity-publisher` selects this behavior explicitly.
-For the already-installed publisher, an unset caller with a budget below the
-normal 900 seconds selects `short-budget` with the same behavior. The regular
-collector uses the 900-second default; an explicit `collector` retains ordinary
-failure semantics even with a test deadline. This compatibility path requires
-no edits or restart of installed continuity controls. The publisher source now
-sets its caller for its next separately managed installation.
+An unset caller means `collector`, regardless of the configured timeout. A
+lowered collector deadline therefore remains a real failure, not a deferral.
+Before deploying this worker, refresh the separately installed publisher from
+the already-deployed `deploy/vps/publish-continuity-database.py` source that sets
+this caller. Compare it with the installed copy, preserve the prior file, and
+atomically replace only that script while holding its `database-publish.lock`.
+Do not change its schedule, credentials, target, or service state. Confirm the
+explicit caller is installed before releasing the worker change.
+
+The publisher skips its file transfer when the shared full-success timestamp
+is at most **300 seconds** old. This covers the collector's 180-second interval
+plus 120 seconds of transfer/scheduling headroom; it is not a new freshness SLA.
+Malformed, missing, timezone-less and future timestamps cannot qualify. The
+worker checks under the existing single-flight lock, writes a publisher-only
+`skipped` receipt with `reason: recent_success`, and exits without spawning a
+transfer or holding the lock for its 90-second budget. The shared result and
+timestamp remain unchanged. A previously recorded real failure is still
+returned to the publisher, even if an earlier full success is recent. Collector
+transfers always run normally. Database and accounting-snapshot publication
+continue on their existing schedule.

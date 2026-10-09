@@ -9,6 +9,26 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+PUBLISHER_RECENT_SUCCESS_SECONDS = 300
+
+
+def recent_success(state, at):
+    """Reuse only a dated full-success receipt, never a future/unknown time."""
+    try:
+        stamp = datetime.fromisoformat(state['lastSuccessAt'].replace('Z', '+00:00'))
+        if stamp.tzinfo is None:
+            return False
+        return 0 <= (at - stamp).total_seconds() <= PUBLISHER_RECENT_SUCCESS_SECONDS
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
+def previous_failure_exit(state):
+    if state.get('status') != 'failed':
+        return 0
+    code = state.get('exitCode')
+    return code if type(code) is int and 0 < code < 256 else 1
+
 
 def main():
     source = Path(__file__).resolve().parent.parent
@@ -61,16 +81,22 @@ def main():
         child = None
         try:
             timeout = max(1, int(os.environ.get('OPSCENTER_BACKUP_TIMEOUT_SECONDS', '900')))
-            # The installed continuity publisher predates the explicit caller.
-            # Its short deadline is enough to select the budgeted-attempt record
-            # without modifying installed controls during an application release.
-            caller = os.environ.get('OPSCENTER_BACKUP_CALLER') or ('short-budget' if timeout < 900 else 'collector')
-            if caller not in ('collector', 'short-budget', 'continuity-publisher'):
+            # A deadline alone never changes collector failure semantics.
+            caller = os.environ.get('OPSCENTER_BACKUP_CALLER') or 'collector'
+            if caller not in ('collector', 'continuity-publisher'):
                 raise ValueError('Unknown backup caller')
-            budgeted = caller != 'collector'
+            budgeted = caller == 'continuity-publisher'
             if budgeted:
                 attempt_file = state_dir / 'publisher-status.json'
             state.update(caller=caller, timeoutSeconds=timeout)
+            if budgeted and recent_success(previous, datetime.now(timezone.utc)):
+                # One 180-second collection interval plus 120 seconds of transfer
+                # and scheduling headroom. Release the lock without spawning rsync.
+                state.update(status='skipped', exitCode=0, finishedAt=now(),
+                             reason='recent_success', recentSuccessWindowSeconds=PUBLISHER_RECENT_SUCCESS_SECONDS)
+                save(publish=False)
+                report(f"Backup skipped at {state['finishedAt']} (recent full success; caller {caller}).")
+                return previous_failure_exit(previous)
             save(publish=not budgeted)
             deadline_expired = False
             child = subprocess.Popen(['/bin/bash', str(source / 'deploy/vps/sync-data.sh'), 'initial'],
@@ -98,12 +124,7 @@ def main():
                 # A deferral is a completed scheduling decision, not a failed
                 # transfer. The legacy publisher propagates any nonzero return
                 # into its monitor; freshness still comes only from status.json.
-                if previous.get('status') == 'failed':
-                    prior_code = previous.get('exitCode')
-                    # Keep an unresolved real failure visible to the installed
-                    # publisher too; a deferral cannot clear it.
-                    return prior_code if type(prior_code) is int and 0 < prior_code < 256 else 1
-                return 0
+                return previous_failure_exit(previous)
             succeeded = code in (0, 24)
             state.update(status='success' if succeeded else 'failed', exitCode=code, finishedAt=now())
             if code == 0:

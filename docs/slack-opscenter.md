@@ -365,3 +365,59 @@ message IDs remain attached to the canonical closeout. Estimate outcomes stay
 separate. `verify:closeout-reliability` covers label changes, duplicate closeouts,
 missing closeouts, preserved photos/tips and transaction-level QBO verification.
 This consolidates the display; it does not prove exactly-once external delivery.
+
+
+## Incomplete digest diagnostics and cooldowns
+
+Command's Source Health detail retains aggregate reason counts from each digest
+refresh, including failures from replies, failed channel history, missing/repeated
+pagination cursors, invalid responses, network errors, timeouts and calls skipped
+during cooldown. Successful channels remain available. Incomplete is never
+promoted to current because some messages could be read. No channel identifiers,
+message/user/thread content, token, raw error strings or request URLs enter the
+diagnostics. Existing messages keep their existing authorized display behavior.
+
+A 429 or Slack `ratelimited` response starts the supplied numeric Retry-After
+cooldown for that method and bot credential/workspace; invalid/missing duration
+uses 60 seconds. There is no immediate retry. History and replies are independent;
+a replies cooldown does not suppress readable channel history. The private
+in-memory credential hash is never persisted or returned to clients. At a rare
+64-key capacity limit, a bounded method-wide fallback cools conservatively rather
+than dropping a server cooldown. Cooldowns reset on process restart; restart gaps
+must be included in the observation report. Poll cadence and channel scope are
+unchanged, and there is no thread-reply cache.
+
+The per-date digest cache holds the same pending promise regardless of duration.
+Its normal 30-second TTL starts at settlement. Rejections clear only their own
+entry. At capacity, pending entries are never evicted; a new date waits for a
+pending slot if every entry is in flight.
+
+Naturally occurring reads record method, bounded reason, time and duration into
+aggregate windows. `refresh:attempt`, `refresh:complete`, `refresh:partial` and
+`refresh:unavailable` establish the denominator and outcomes. One bounded summary
+is persisted at most every five minutes to the external data directory's
+`slack/digest-diagnostics/summary.json`. It holds at most 2,016 windows and seven
+days; only these new anonymous diagnostic windows expire. Private file permissions,
+an exclusive process-owned lock and atomic replacement serialize writes. The
+reader remains usable if persistence fails; a bounded diagnostic warning reports
+failure. Any existing lock is preserved, including a dead owner; recovery requires an
+operator to verify writers are stopped before removing that specific lock. No
+automatic stale-lock deletion is permitted. Uncertain/corrupt prior history is
+never overwritten as success.
+
+Flushes occur on normal refresh completion, not a new timer or additional API
+read. The open five-minute window can be lost on restart; no-traffic periods do
+not produce synthetic zero windows. Compare startedAt/finishedAt coverage,
+restart gaps and attempts versus completed outcomes when reporting. A date range
+with no persisted window is unobserved, not zero failures. Diagnostics do not
+retroactively identify historical causes.
+
+Acceptance: after a representative operating day, total complete/partial/
+unavailable refreshes and attempts over recorded windows, report partial/total
+with gaps, and list observed bounded causes by history/replies method. Do not
+manually refresh or expand polling to collect that sample. Consider thread caching
+only after evidence and separate design for edits/deletions; it is not included.
+
+Checks: `verify:slack-diagnostics`, `verify:slack-digest`, root/desktop TypeScript,
+full build/gates and authenticated Source Health detail inspection. All regression
+requests are synthetic; tests do not read Slack credentials or call Slack.

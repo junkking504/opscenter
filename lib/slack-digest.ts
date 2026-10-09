@@ -1,3 +1,5 @@
+import { createSlackDiagnostics, persistSlackWindow, slackDiagnosticDetail, type SlackDiagnostics, type SlackMethod, type SlackReason, type SlackReasonCounts } from './slack-diagnostics';
+import { createSettledPromiseCache } from './settled-promise-cache';
 import { deduplicateOperationalUpdates } from './operational-update-dedup';
 import { isIgnoredOperationalSlackText } from './ignored-operational-alerts';
 import { execFileSync } from "node:child_process";
@@ -139,14 +141,11 @@ export type SlackDailyDigest = {
   detail?: string;
   refreshedAt: string;
   filteredSystemMessages?: number;
+  reasonCounts?: SlackReasonCounts;
 };
 
-type DigestCacheEntry = {
-  expiresAt: number;
-  value: Promise<SlackDailyDigest>;
-};
-
-const digestCache = new Map<string, DigestCacheEntry>();
+const cachedDigest = createSettledPromiseCache<SlackDailyDigest>(CACHE_TTL_MS);
+const productionDiagnostics = createSlackDiagnostics({persist:persistSlackWindow});
 
 function validDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -630,26 +629,38 @@ function digestMessage(
   };
 }
 
+type RefreshObservation = { diagnostics: SlackDiagnostics; reasons: SlackReasonCounts };
+function observe(context:RefreshObservation,method:SlackMethod,reason:SlackReason,duration=0) {
+  context.diagnostics.record(method,reason,duration);
+  if(reason!=='success') { const key=`${method}:${reason}` as const;context.reasons[key]=(context.reasons[key]||0)+1; }
+}
 async function slackGet(
-  method: string,
-  params: Record<string, string>,
-  token: string,
-  fetchImpl: typeof fetch,
+  method: 'conversations.history' | 'conversations.replies',
+  params: Record<string, string>, token: string, fetchImpl: typeof fetch,
+  context: RefreshObservation,
 ): Promise<SlackHistoryResponse> {
-  const url = new URL(`https://slack.com/api/${method}`);
-  for (const [name, value] of Object.entries(params)) {
-    if (value) url.searchParams.set(name, value);
-  }
+  const started=context.diagnostics.now();
+  if(context.diagnostics.cooling(token,method)) { observe(context,method,'cooldown');return {ok:false,error:'cooldown'}; }
+  const url=new URL(`https://slack.com/api/${method}`);
+  for(const [name,value]of Object.entries(params))if(value)url.searchParams.set(name,value);
+  const failed=(reason:SlackReason)=>{observe(context,method,reason,context.diagnostics.now()-started);return {ok:false,error:reason};};
   try {
-    const response = await fetchImpl(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
-    });
-    return await response.json().catch(() => ({ ok: false, error: `http_${response.status}` })) as SlackHistoryResponse;
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Slack request failed" };
-  }
+    const response=await fetchImpl(url,{headers:{Authorization:`Bearer ${token}`},cache:'no-store',signal:AbortSignal.timeout(12_000)});
+    let payload:SlackHistoryResponse;
+    try {payload=await response.json() as SlackHistoryResponse;} catch {
+      if(response.status!==429)return failed(response.ok?'invalid_response':'http_error');
+      payload={ok:false};
+    }
+    if(response.status===429 || payload?.error==='ratelimited') {
+      context.diagnostics.cool(token,method,response.headers.get('Retry-After'));
+      return failed('rate_limited');
+    }
+    if(!response.ok)return failed('http_error');
+    if(!payload || typeof payload!=='object' || typeof payload.ok!=='boolean')return failed('invalid_response');
+    if(!payload.ok)return failed('api_error');
+    if(!Array.isArray(payload.messages) || payload.messages.some(message=>!message || typeof message!=='object') || (payload.response_metadata?.next_cursor!==undefined && typeof payload.response_metadata.next_cursor!=='string') || (payload.response_metadata!==undefined && (!payload.response_metadata || typeof payload.response_metadata!=='object')) || (payload.has_more!==undefined && typeof payload.has_more!=='boolean'))return failed('invalid_response');
+    observe(context,method,'success',context.diagnostics.now()-started);return payload;
+  } catch(error) {return failed(error instanceof Error && ['TimeoutError','AbortError'].includes(error.name)?'timeout':'network_error');}
 }
 
 async function channelMessages(
@@ -661,10 +672,12 @@ async function channelMessages(
   appointments: Map<string, AddOnAppointment>,
   closeouts: Map<string, AnyRecord>,
   date: string,
+  context: RefreshObservation,
 ): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean; filteredSystemMessages: number; complete?: boolean }> {
   const roots: SlackMessagePayload[] = [];
   let complete = true;
   let cursor = "";
+  const historyCursors=new Set<string>();
 
   do {
     const response = await slackGet("conversations.history", {
@@ -674,11 +687,13 @@ async function channelMessages(
       inclusive: "true",
       limit: "200",
       cursor,
-    }, token, fetchImpl);
-    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "ratelimited", filteredSystemMessages: 0 };
+    }, token, fetchImpl, context);
+    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "rate_limited" || response.error === "cooldown", filteredSystemMessages: 0 };
     roots.push(...(response.messages || []));
     cursor = String(response.response_metadata?.next_cursor || "").trim();
-    if (response.has_more && !cursor) complete = false;
+    if (response.has_more && !cursor) {complete=false;observe(context,'conversations.history','missing_cursor');}
+    if(cursor && historyCursors.has(cursor)) {complete=false;observe(context,'conversations.history','cursor_cycle');break;}
+    if(cursor)historyCursors.add(cursor);
   } while (cursor);
 
   let filteredSystemMessages = 0;
@@ -694,6 +709,7 @@ async function channelMessages(
   for (const root of roots) {
     if (!root.ts || !Number(root.reply_count || 0)) continue;
     let replyCursor = "";
+    const replyCursors=new Set<string>();
     do {
       const response = await slackGet("conversations.replies", {
         channel: channelId,
@@ -703,7 +719,7 @@ async function channelMessages(
         inclusive: "true",
         limit: "200",
         cursor: replyCursor,
-      }, token, fetchImpl);
+      }, token, fetchImpl, context);
       if (!response.ok) { complete = false; break; }
       for (const reply of response.messages || []) {
         if (reply.ts === root.ts) continue;
@@ -726,7 +742,9 @@ async function channelMessages(
         if (item) messages.push(item);
       }
       replyCursor = String(response.response_metadata?.next_cursor || "").trim();
-      if (response.has_more && !replyCursor) complete = false;
+      if(response.has_more && !replyCursor){complete=false;observe(context,'conversations.replies','missing_cursor');}
+      if(replyCursor && replyCursors.has(replyCursor)){complete=false;observe(context,'conversations.replies','cursor_cycle');break;}
+      if(replyCursor)replyCursors.add(replyCursor);
     } while (replyCursor);
   }
 
@@ -741,14 +759,27 @@ export async function fetchSlackDailyDigest(
     fetchImpl?: typeof fetch;
     appointments?: AddOnAppointment[];
     completedRows?: AnyRecord[];
+    diagnostics?: SlackDiagnostics;
   },
 ): Promise<SlackDailyDigest> {
-  const refreshedAt = new Date().toISOString();
+  const diagnostics=options.diagnostics || createSlackDiagnostics();
+  const context:RefreshObservation={diagnostics,reasons:{}};
+  const started=diagnostics.now();
+  diagnostics.record('refresh','attempt');
+  const refreshedAt = new Date(started).toISOString();
+  const finish=(result:SlackDailyDigest)=>{
+    observe(context,'refresh',result.status==='unavailable'?'unavailable':result.complete===false?'partial':'complete',diagnostics.now()-started);
+    const detail=slackDiagnosticDetail(context.reasons);
+    diagnostics.flush();
+    return {...result,reasonCounts:context.reasons,...(detail?{detail}: {})};
+  };
   if (!validDate(date)) {
-    return { date, messages: [], status: "unavailable", detail: "The selected date is invalid.", refreshedAt };
+    observe(context,'refresh','invalid_date');
+    return finish({ date, messages: [], status: "unavailable", detail: "The selected date is invalid.", refreshedAt });
   }
-  if (!options.token.startsWith("xoxb-")) {
-    return { date, messages: [], status: "unavailable", detail: "Slack history is not configured.", refreshedAt };
+  if (!options.token.startsWith("xoxb-") || !options.channelIds.length) {
+    observe(context,'refresh','not_configured');
+    return finish({ date, messages: [], status: "unavailable", detail: "Slack history is not configured.", refreshedAt });
   }
 
   const oldest = String(zonedMidnightSeconds(date));
@@ -786,6 +817,7 @@ export async function fetchSlackDailyDigest(
       appointments,
       closeouts,
       date,
+      context,
     );
     if (result.ok) readableChannels += 1;
     if (!result.ok || result.complete === false) complete = false;
@@ -797,27 +829,20 @@ export async function fetchSlackDailyDigest(
   const unique = deduplicateOperationalUpdates(messages);
 
   if (!readableChannels) {
-    return {
+    return finish({
       date,
       messages: [],
       status: "unavailable",
       detail: rateLimited ? "Slack is temporarily rate limited." : "Slack history is temporarily unavailable.",
       refreshedAt,
-    };
+    });
   }
 
-  return { date, messages: unique, status: "ready", complete, refreshedAt, filteredSystemMessages };
+  return finish({ date, messages: unique, status: "ready", complete, refreshedAt, filteredSystemMessages });
 }
 
 export function readSlackDailyDigest(date: string): Promise<SlackDailyDigest> {
-  const cached = digestCache.get(date);
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
-
-  const value = fetchSlackDailyDigest(date, {
-    token: slackToken(),
-    channelIds: slackDigestChannelIds(),
-  });
-  digestCache.set(date, { expiresAt: Date.now() + CACHE_TTL_MS, value });
-  value.catch(() => digestCache.delete(date));
-  return value;
+  return cachedDigest(date,()=>fetchSlackDailyDigest(date,{
+    token:slackToken(),channelIds:slackDigestChannelIds(),diagnostics:productionDiagnostics,
+  }));
 }

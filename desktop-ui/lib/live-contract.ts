@@ -1,4 +1,4 @@
-export type DesktopSourceHealth = { name: string; area: string; workspace: string; action: string; state: string; tone: 'healthy' | 'warning'; observedAt: string | null; maxAgeSeconds: number; href?: string };
+export type DesktopSourceHealth = { detail?: string; reasonCounts?: Record<string, number>; name: string; area: string; workspace: string; action: string; state: string; tone: 'healthy' | 'warning'; observedAt: string | null; maxAgeSeconds: number; href?: string };
 export type DesktopKpi = {
   financeEvidence?: import('../../lib/daily-finance-freshness').FinanceKpiEvidence;
   label: string;

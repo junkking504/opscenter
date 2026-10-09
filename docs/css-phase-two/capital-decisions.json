@@ -2525,6 +2525,11 @@
       "selector": ".capital-reconciliation-date p",
       "role": "--oc-text-primary",
       "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
+    },
+    {
+      "selector": ".capital-workspace .capital-stat-primary > :is(span,small)",
+      "role": "--oc-text-primary",
+      "reason": "K1/V2: higher specificity wins the later workbench rule; primary ink for recorded-payment supporting text on pale tint."
     }
   ],
   "layout": [

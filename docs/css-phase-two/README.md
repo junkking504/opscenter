@@ -56,3 +56,5 @@ closing Job Order. Leaflet's plus/minus glyphs retain the library's icon sizing;
 they are not operational text or a larger display-text exception.
 
 Capital keeps source-unavailable states and financial values intact; only its reviewed palette and type profile change. Reconciliation and overview were checked on phone and desktop without submitting a payment action.
+
+Concurrent SpecOps remains outside the approved six-workspace migration. Its stylesheet is preserved byte-for-byte from production `3a0eb7f0` (SHA-256 `1e7f411d7f2d583eb798daf38816747c5a298e20154713844e62afceb08fcba6`), updating the former `036462cf` baseline after the owner’s conditions release. Any further change fails the token guard until explicitly reviewed or tokenized; Phase 2 stays disabled for SpecOps.

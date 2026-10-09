@@ -2421,3 +2421,5 @@
 .ops-live[data-css-phase-two="Marketing"] .source-health-list header span + span { color: var(--oc-text-primary); }
 
 .ops-live[data-css-phase-two="Marketing"] .command-footer { color: var(--oc-text-primary); font-size: var(--oc-type-10); }
+
+.ops-live[data-css-phase-two="Finance"] .capital-workspace .capital-stat-primary > :is(span,small) { color: var(--oc-text-primary); }

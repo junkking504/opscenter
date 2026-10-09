@@ -1,0 +1,26 @@
+.specops-workspace { min-width: 0; width: 100%; }
+.specops-toolbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px 16px; margin-bottom: 18px; background: var(--surface, #fff); border: 1px solid var(--line, #dedbd4); border-radius: 12px; }
+.specops-toolbar strong { color: var(--ink, #1e252b); font-size: 14px; }
+.specops-toolbar p { margin: 5px 0 0; font-size: 12px; color: var(--ink-2, #535b66); }
+.specops-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.specops-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line, #dedbd4); background: var(--surface, #fff); border-radius: 7px; color: var(--ink, #1e252b); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.specops-actions button:hover { color: var(--ops-brand-red); border-color: var(--ops-brand-red); }
+.specops-model { width: 100%; border: 0; display: block; min-height: 600px; }
+@media (max-width: 900px) { .specops-toolbar { flex-direction: column; align-items: stretch; } }
+.specops-observations { margin-bottom:20px; color:var(--ink,#1e252b); }
+.specops-observation-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:18px 0 12px; }
+.specops-observations p { font-size:12px; line-height:1.55; color:var(--ink-2,#535b66); margin:8px 0; }
+.specops-observations button { padding:9px 12px; border:1px solid var(--line,#dedbd4); background:var(--surface,#fff); border-radius:7px; font-size:12px; cursor:pointer; color:inherit; margin-top:8px; }
+.specops-observations button:disabled { opacity:.45; cursor:default; }
+.specops-observation-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.specops-observation-grid article { padding:20px; border:1px solid var(--line,#dedbd4); border-radius:12px; background:var(--surface,#fff); }
+.specops-observations h2 { font-size:15px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 15px; }
+.specops-observations h2 span { font-size:10px; font-weight:500; padding:4px 8px; border-radius:20px; background:#eceff1; color:#35414a; }
+.specops-observed-total { font-size:26px; font-weight:650; line-height:1.2; }
+.specops-observed-total small { font-size:12px; font-weight:400; display:block; margin-top:5px; }
+.specops-observations dl { margin:14px 0; font-size:12px; }
+.specops-observations dl div { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid var(--line,#dedbd4); }
+.specops-observations dd { margin:0; font-weight:650; text-align:right; }
+.specops-observations a { color:#0369a1; font-size:12px; text-decoration:underline; }
+.specops-observation-note { border-top:1px solid var(--line,#dedbd4); padding-top:12px; }
+@media(max-width:700px) { .specops-observation-grid { grid-template-columns:1fr; } .specops-observation-heading { align-items:stretch; flex-direction:column; } }

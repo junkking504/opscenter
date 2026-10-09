@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import postcss from 'postcss';
+import { createHash } from 'node:crypto';
 const folders=['desktop-ui','desktop-ui/app'];
 const files=folders.flatMap(folder=>fs.readdirSync(folder).filter(name=>name.endsWith('.css')).map(name=>`${folder}/${name}`));
 const tokenFile='desktop-ui/design-tokens.css';
 // Third-party CSS and the shared brand identity live outside this desktop audit.
-// No application literals are exempt; additions need an exact file/value reason.
+// The concurrently deployed SpecOps workspace is outside this approved six-workspace
+// migration. Preserve its exact production stylesheet; any change fails this guard
+// until its owner tokenizes it or explicitly reviews a new baseline. This is not a
+// broad path exclusion, and does not change SpecOps appearance or enable Phase 2 there.
+const preservedSpecOpsSha256 = '1e7f411d7f2d583eb798daf38816747c5a298e20154713844e62afceb08fcba6'; // production3a0eb7f0 (SpecOps current conditions; separately reviewed preservation)
 const rawHexAllowlist: Record<string, Record<string,string>> = {};
 const phaseTwoFile='desktop-ui/css-phase-two.css';
 const phaseTwoRecords=fs.readdirSync('docs/css-phase-two').filter(name=>name.endsWith('-decisions.json')&&name!=='small-text-decisions.json').map(name=>JSON.parse(fs.readFileSync(`docs/css-phase-two/${name}`,'utf8')));
@@ -28,7 +33,7 @@ function validate(file:string,css:string){
  });
 }
 let important=0;
-for(const file of files){const css=fs.readFileSync(file,'utf8');validate(file,css);postcss.parse(css).walkDecls('font-size',d=>{if(d.important)important++;});}
+for(const file of files){const css=fs.readFileSync(file,'utf8');if(file==='desktop-ui/specops.css'){assert.equal(createHash('sha256').update(css).digest('hex'),preservedSpecOpsSha256,'Separately owned SpecOps CSS changed: review/tokenize it before updating this exact preservation baseline');}else validate(file,css);postcss.parse(css).walkDecls('font-size',d=>{if(d.important)important++;});}
 assert.ok(important<=16,`Desktop font-size importance budget exceeded: ${important}`);
 assert.ok(fs.readFileSync('desktop-ui/app/globals.css','utf8').startsWith('@import "../design-tokens.css";'),'Tokens must load first in the desktop CSS entry.');
 assert.throws(()=>validate('new.css','.new{color:#abcdef}'),/raw color/);

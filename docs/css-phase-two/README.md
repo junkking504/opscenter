@@ -28,10 +28,26 @@ workspace overflow and hit-target overlap checks. These are complementary to
 actual component/dialog and authenticated production review, not a replacement.
 The one 8px exception is the nonessential brand strapline, with brand identity
 already in the image's accessible name. Other 8px labels become 9px. The mapped
-base scale is 9/10/11/12/13/14/16/20/24/28. Larger existing display values await
-the separately requested decision; no new large exception is introduced by
-Command's rendered views. Legacy source token names remain during the staged
-rollout and will be retired after all six workspaces are accepted.
+base scale is 9/10/11/12/13/14/16/20/24/28. Scope overrides resolve legacy
+6–27px token references onto that scale. Legacy root definitions and token
+spellings remain for shared and excluded surfaces; they are not a claim that
+all source definitions are on-scale. Do not globally rewrite those compatibility
+values as part of this six-workspace migration.
+
+Expanded views: Capital Trends KPI values resolve to20px and Campaign detail
+heading/Results hero to20/28px, because more-specific existing rules override
+legacy30/36/42px declarations. Convoy truck-detail `.convoy-metric > strong`
+still renders32px; cap-at28 versus named-exception decision is pending. No
+larger exception has been approved by implication. Report audited views by name,
+not as proof that every possible view has been rendered.
+
+Guard boundary: `verify-desktop-tokens` scans top-level `desktop-ui/*.css` and
+`desktop-ui/app/*.css`, not nested components or mobile-closeout. It is a source
+check, not an installed deployment gate. Component-local styles therefore also
+need rendered review: Command explicitly overrides both operational/photo
+headings18→20 and payment text15→16. The separate crew mobile closeout surface
+and concurrently owned SpecOps styling are outside this migration. This is not
+a recursive zero-raw-CSS claim.
 
 Run `verify:css-phase-two`, `verify:css-architecture`, TypeScript and the normal
 build. Start the synthetic fixture with the existing desktop dependencies:

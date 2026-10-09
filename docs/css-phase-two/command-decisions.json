@@ -2551,6 +2551,11 @@
       "selector": ".command-footer",
       "px": 10,
       "reason": "Source availability guidance is operational text (Claude V2)."
+    },
+    {
+      "selector": ".crew-photo-dialog h3",
+      "px": 20,
+      "reason": "Claude S2: component-local raw18px bypassed inherited type tokens; use approved20px heading in the Command photo dialog."
     }
   ]
 }

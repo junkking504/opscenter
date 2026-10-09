@@ -740,7 +740,7 @@
   --oc-text-green-86: #45534b;
   --oc-text-green-87: #397152;
   --oc-text-muted: #687e8e;
-  --oc-text-neutral-01: #687e8e;
+  --oc-text-neutral-01: #243b4d;
   --oc-text-neutral-02: #243b4d;
   --oc-text-neutral-03: #243b4d;
   --oc-text-neutral-04: #243b4d;
@@ -2425,3 +2425,5 @@
 .ops-live[data-css-phase-two="Finance"] .capital-workspace .capital-stat-primary > :is(span,small) { color: var(--oc-text-primary); }
 
 .ops-live[data-css-phase-two="Command"] .command-footer { color: var(--oc-text-primary); font-size: var(--oc-type-10); }
+
+.ops-live[data-css-phase-two="Schedule"] .command-footer { color: var(--oc-text-primary); font-size: var(--oc-type-10); }

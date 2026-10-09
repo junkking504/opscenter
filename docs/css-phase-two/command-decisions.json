@@ -2519,6 +2519,21 @@
       "selector": ".command-footer",
       "role": "--oc-text-primary",
       "reason": "Source availability guidance must remain readable (Claude V2)."
+    },
+    {
+      "selector": ".truck-agent-timing",
+      "role": "--oc-text-primary",
+      "reason": "Claude C2: operational timing, evidence timestamps and KPI supporting values need readable ink on their existing white/tinted backgrounds."
+    },
+    {
+      "selector": ".truck-agent-card small",
+      "role": "--oc-text-primary",
+      "reason": "Claude C2: operational timing, evidence timestamps and KPI supporting values need readable ink on their existing white/tinted backgrounds."
+    },
+    {
+      "selector": ".command-metrics .kpi-secondary",
+      "role": "--oc-text-primary",
+      "reason": "Claude C2: operational timing, evidence timestamps and KPI supporting values need readable ink on their existing white/tinted backgrounds."
     }
   ],
   "layout": [

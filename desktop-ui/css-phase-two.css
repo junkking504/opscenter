@@ -2446,3 +2446,7 @@
 
 .ops-live[data-css-phase-two="Marketing"] .operating-trends > p { color: var(--oc-text-primary); }
 .ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-method p { color: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Command"] .truck-agent-timing { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Command"] .truck-agent-card small { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-secondary { color: var(--oc-text-primary); }

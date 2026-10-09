@@ -7,8 +7,8 @@ import './capital-overview.css';
 
 const compactMoney = new Intl.NumberFormat('en-US', { notation: 'compact', style: 'currency', currency: 'USD', maximumFractionDigits: 1 });
 
-export function CapitalOverview({ data, date, dailySummary, onViewChange }: {
-  data: FinanceData; date: string; dailySummary: ReactNode; onViewChange: (view: FinanceView) => void;
+export function CapitalOverview({ data, date, dailySummary, sourceDetails, onViewChange }: {
+  data: FinanceData; date: string; dailySummary: ReactNode; sourceDetails?: ReactNode; onViewChange: (view: FinanceView) => void;
 }) {
   const verification = verifiedPayments(data.reconciliation);
   const history = capitalRevenueHistory(data.trends, date);
@@ -25,14 +25,14 @@ export function CapitalOverview({ data, date, dailySummary, onViewChange }: {
   ];
   const maxTerritory = Math.max(1, ...data.territories.map(item => item.revenue ?? 0));
   return <div className="capital-hub">
-    <header className="capital-period"><div><span className="capital-eyebrow">BUSINESS PERFORMANCE</span><h2>Your financial picture</h2><p>{data.month.label} · Month to date through {commercialDate(data.month.through)}</p></div><button className="capital-button" onClick={() => onViewChange('accounting')}><BookOpen size={15} /> Accounting & reports <ArrowUpRight size={14} /></button></header>
-    <section className="capital-panel capital-reconciliation-entry" aria-label="Previous day payment reconciliation"><div><span className="capital-eyebrow">RECONCILIATION</span><h3>Reconcile yesterday’s payments</h3><p>Review cards, verify cash and checks, and resolve QuickBooks differences for the previous calendar day.</p></div><button className="capital-button" onClick={() => onViewChange('reconciliation')}>Open reconciliation <ArrowRight size={15} /></button></section>
+    <header className="capital-period"><p><strong>{data.month.label}</strong> · Month to date through {commercialDate(data.month.through)}</p><div className="capital-period-actions"><button className="capital-button" onClick={() => onViewChange('reconciliation')}>Reconcile yesterday <ArrowRight size={15} /></button><button className="capital-button" onClick={() => onViewChange('accounting')}><BookOpen size={15} /> Accounting & reports <ArrowUpRight size={14} /></button></div></header>
     <section className="capital-metrics" aria-label="Month-to-date financial summary">
       <button className="capital-metric capital-metric-primary" onClick={() => onViewChange('trends')}><span><Wallet size={16} /> Revenue <ArrowUpRight size={16} /></span><strong>{money(data.month.revenue)}</strong><small>Published JunkWare revenue</small><div className="capital-metric-footer">{data.month.jobs == null ? 'Job count unavailable' : `${data.month.jobs.toLocaleString()} completed jobs`}</div></button>
       <button className="capital-metric" onClick={() => onViewChange('expenses')}><span><ArrowDownLeft size={16} /> Operating costs <ArrowUpRight size={16} /></span><strong className={data.month.costs == null ? 'capital-unavailable' : ''}>{money(data.month.costs)}</strong><small>{data.month.costs == null ? 'Monthly cost coverage is incomplete' : `${percent(data.month.costs, data.month.revenue)} of revenue`}</small><div className="capital-metric-footer">{data.month.costs == null ? 'Needs review' : 'Payroll, disposal, fuel & other'}</div></button>
       <button className="capital-metric" onClick={() => onViewChange('trends')}><span><BarChart3 size={16} /> Operating profit <ArrowUpRight size={16} /></span><strong className={data.month.profit == null ? 'capital-unavailable' : data.month.profit < 0 ? 'capital-negative' : 'capital-positive'}>{money(data.month.profit)}</strong><small>{data.month.profit == null ? 'Waiting for complete cost inputs' : `${percent(data.month.profit, data.month.revenue)} estimated margin`}</small><div className="capital-metric-footer">Estimate · before accounting close</div></button>
       <button className="capital-metric" onClick={() => onViewChange('trends')}><span><CreditCard size={16} /> Average job <ArrowUpRight size={16} /></span><strong>{money(data.month.jobs && data.month.revenue != null ? data.month.revenue / data.month.jobs : null)}</strong><small>Revenue per completed job</small><div className="capital-metric-footer">Across all territories</div></button>
     </section>
+    {sourceDetails}
     <div className="capital-main-grid">
       <section className="capital-panel capital-performance"><header><div><span className="capital-eyebrow">REVENUE HISTORY</span><h3>See the bigger picture</h3></div><button className="capital-text-button" onClick={() => onViewChange('trends')}>Explore trends <ArrowRight size={14} /></button></header>
         <div className="capital-chart-legend"><span><i /> Reported revenue</span><span><i className="partial" /> Partial month</span><span>USD · last 6 months</span></div>

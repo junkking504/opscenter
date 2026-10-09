@@ -98,6 +98,11 @@ def main():
                 # A deferral is a completed scheduling decision, not a failed
                 # transfer. The legacy publisher propagates any nonzero return
                 # into its monitor; freshness still comes only from status.json.
+                if previous.get('status') == 'failed':
+                    prior_code = previous.get('exitCode')
+                    # Keep an unresolved real failure visible to the installed
+                    # publisher too; a deferral cannot clear it.
+                    return prior_code if type(prior_code) is int and 0 < prior_code < 256 else 1
                 return 0
             succeeded = code in (0, 24)
             state.update(status='success' if succeeded else 'failed', exitCode=code, finishedAt=now())

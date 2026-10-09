@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory(prefix='ops-backup-check-') as folder:
         before = state.read_bytes()
         sync.write_text('sleep 10\necho unsafe-publisher-write > "$OPSBOT_DATA_DIR/publisher-late"\n')
         result = subprocess.run([sys.executable, str(worker)], env=publisher, capture_output=True)
-        assert result.returncode == 0 and state.read_bytes() == before
+        assert result.returncode == (0 if prior == 'success' else 255) and state.read_bytes() == before
         receipt = json.loads(attempt.read_text())
         assert receipt['status'] == 'deferred' and receipt['reason'] == 'caller_deadline'
         assert receipt['caller'] == 'continuity-publisher' and receipt['timeoutSeconds'] == 1

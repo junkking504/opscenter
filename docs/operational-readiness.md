@@ -103,9 +103,10 @@ fixtures, real rsync filtering with local transport, and no external writes.
 The continuity publisher's 90-second file-copy attempt uses
 `backup-sync/publisher-status.json`. Its own deadline records `deferred`, caller,
 budget and underlying exit 124 there, leaving shared `status.json` unchanged.
-The worker returns zero for this scheduling deferral so the installed publisher
-and its monitor do not label it a failed transfer; neither can advance copy
-freshness without the unchanged shared success receipt. It never
+The worker returns zero for this scheduling deferral unless the shared result
+already records a real failure. In that case it returns the prior failure code
+(or 1 when unavailable), so the installed publisher cannot clear that failure.
+Neither consumer can advance freshness without the shared success receipt. It never
 advances freshness on a timeout or clears a prior real failure. Real transfer
 errors (including an explicit child exit 124) and successful copies still publish
 the shared backup result. The shared single-flight lock and process-group

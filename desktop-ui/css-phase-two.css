@@ -1181,6 +1181,7 @@
   --oc-type-25: var(--oc-type-24);
   --oc-type-26: var(--oc-type-28);
   --oc-type-27: var(--oc-type-28);
+  --oc-type-32: var(--oc-type-28);
 }
 .ops-live[data-css-phase-two="Fleet"] .brand-lockup small { font-size: var(--oc-compact-label); }
 

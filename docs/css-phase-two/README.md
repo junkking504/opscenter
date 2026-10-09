@@ -37,8 +37,9 @@ values as part of this six-workspace migration.
 Expanded views: Capital Trends KPI values resolve to20px and Campaign detail
 heading/Results hero to20/28px, because more-specific existing rules override
 legacy30/36/42px declarations. Convoy truck-detail `.convoy-metric > strong`
-still renders32px; cap-at28 versus named-exception decision is pending. No
-larger exception has been approved by implication. Report audited views by name,
+previously rendered32px; its Fleet-only32 token now resolves to28px, following
+the explicitly approved maximum with a before/after detail-view comparison. No
+larger exception is introduced. Report audited views by name,
 not as proof that every possible view has been rendered.
 
 Guard boundary: `verify-desktop-tokens` scans top-level `desktop-ui/*.css` and

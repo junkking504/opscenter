@@ -41,3 +41,9 @@ and `/tests/css-phase-two-audit.html` for the three viewport/computed-style chec
 All fetches in this fixture are synthetic and writes are blocked. Download the
 audit receipt; before/after captures and deploy evidence belong in the task
 handoff. Current approval/deployment status is recorded there, per workspace.
+
+Claude review follow-up: Command KPI captions now use 10px primary workbench ink
+(#243b4d) on all five card tints. Operational updates had two component-local
+raw sizes outside the token inventory; their heading is20px and payment text
+16px under the Command scope. The library's plus/minus map glyph sizing stays
+icon geometry, not operational text.

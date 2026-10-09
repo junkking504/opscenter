@@ -487,9 +487,8 @@
     },
     "--oc-text-primary": {
       "from": "#243b4d",
-      "to": "#203746",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.723809,
+      "to": "#243b4d",
+      "kind": "role-neutral",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-02": {
@@ -2511,6 +2510,10 @@
       "selector": ".source-health-list header span + span",
       "role": "--oc-text-primary",
       "reason": "Operational reason text uses primary ink; keep muted anchor for secondary labels."
+    },
+    {
+      "selector": ".command-metrics .kpi-card small",
+      "role": "--oc-text-primary"
     }
   ],
   "layout": [
@@ -2526,6 +2529,18 @@
       "selector": ".source-health-list article > div span",
       "px": 10,
       "reason": "Workspace and source observation values are essential information."
+    },
+    {
+      "selector": ".command-metrics .kpi-card small",
+      "px": 10
+    },
+    {
+      "selector": ".crew-alert-heading h2",
+      "px": 20
+    },
+    {
+      "selector": ".crew-completion-facts .crew-completion-amount dd",
+      "px": 16
     }
   ]
 }

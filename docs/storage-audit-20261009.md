@@ -23,3 +23,11 @@ Checks: `npm run verify:workspace-retention` passed all 22 cases;
 `npm run verify:production-release-gate` passed. No retention policy or helper
 code changed. A daily read-only disk-space check is configured for 08:00 Central,
 reporting meaningful changes and newly actionable conditions.
+
+The policy run completed successfully at 19:50:48Z: 223 generated directories
+and three superseded releases removed. Four additional cache directories became
+eligible when the apply run refreshed its process-reference scan. The workspace
+measured 42.0 GB afterward; protected files remain above the 30 GB attention
+threshold. Data-volume free space rose from 31.76 GiB before the initial cleanup
+to 166.96 GiB after completion (93% to 62% used). These are live observations,
+not exclusive per-file attribution while other host activity continues.

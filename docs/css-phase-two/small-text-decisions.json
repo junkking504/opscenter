@@ -84,6 +84,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 16,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -141,6 +173,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -258,6 +322,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -315,6 +411,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -432,6 +560,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -489,6 +649,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -606,6 +798,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -663,6 +887,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -780,6 +1036,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -837,6 +1125,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -954,6 +1274,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1011,6 +1363,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -1128,6 +1512,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1185,6 +1601,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -1302,6 +1750,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1359,6 +1839,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -1476,6 +1988,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1533,6 +2077,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -1650,6 +2226,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1707,6 +2315,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -1824,6 +2464,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -1881,6 +2553,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2031,6 +2735,53 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2088,6 +2839,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2205,6 +2988,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2262,6 +3077,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2379,6 +3226,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2436,6 +3315,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2553,6 +3464,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2610,6 +3553,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2727,6 +3702,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2784,6 +3791,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -2901,6 +3940,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -2958,6 +4029,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3075,6 +4178,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3132,6 +4267,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3249,6 +4416,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3306,6 +4505,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3423,6 +4654,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3480,6 +4743,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3597,6 +4892,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3654,6 +4981,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3771,6 +5130,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3828,6 +5219,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -3945,6 +5368,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4002,6 +5457,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -4119,6 +5606,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4176,6 +5695,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -4392,6 +5943,83 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4449,6 +6077,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -4566,6 +6226,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4623,6 +6315,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -4740,6 +6464,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4797,6 +6553,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -4914,6 +6702,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -4971,6 +6791,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5088,6 +6940,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -5145,6 +7029,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5262,6 +7178,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -5319,6 +7267,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5436,6 +7416,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -5493,6 +7505,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5610,6 +7654,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -5667,6 +7743,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5784,6 +7892,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -5841,6 +7981,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -5958,6 +8130,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6015,6 +8219,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -6132,6 +8368,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6189,6 +8457,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -6306,6 +8606,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6363,6 +8695,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -6480,6 +8844,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6537,6 +8933,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -6654,6 +9082,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6711,6 +9171,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 9,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -6828,6 +9320,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6885,6 +9409,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7002,6 +9558,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7059,6 +9647,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7176,6 +9796,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7233,6 +9885,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7350,6 +10034,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "none",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "none",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7407,6 +10123,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7524,6 +10272,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7581,6 +10361,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7698,6 +10510,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "none",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "none",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7755,6 +10599,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "grid",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -7872,6 +10748,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -7929,6 +10837,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -8079,6 +11019,53 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "inline",
+            "visibility": "hidden"
+          },
+          {
+            "fontPx": 10,
+            "display": "inline-flex",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -8136,6 +11123,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -8253,6 +11272,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -8310,6 +11361,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -8427,6 +11510,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -8484,6 +11599,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [
@@ -8601,6 +11748,38 @@
           }
         ]
       }
+    ],
+    "computedInCapital": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
     ]
   },
   {
@@ -8658,6 +11837,38 @@
       }
     ],
     "computedInConvoy": [
+      {
+        "viewport": "1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "390 \u00d7 844",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      },
+      {
+        "viewport": "200% at 1280 \u00d7 720",
+        "computed": [
+          {
+            "fontPx": 10,
+            "display": "block",
+            "visibility": "hidden"
+          }
+        ]
+      }
+    ],
+    "computedInCapital": [
       {
         "viewport": "1280 \u00d7 720",
         "computed": [

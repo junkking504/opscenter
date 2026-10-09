@@ -79,6 +79,6 @@
 @media (max-width: 760px) {
   .ops-live .finance-view-switcher.workspace-tabs { gap: 4px; }
   .ops-live .finance-view-switcher.workspace-tabs > button { min-height: 44px; padding: 7px 10px; }
-  .ops-live .capital-period-actions .capital-button { min-height: 44px; }
+  .ops-live .finance-workspace.capital-workspace .capital-period-actions .capital-button { min-height: 44px; }
   .ops-live .capital-source-details summary { min-height: 44px; }
 }

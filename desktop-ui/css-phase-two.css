@@ -2433,3 +2433,12 @@
 .ops-live[data-css-phase-two="Command"] .crew-photo-dialog h3 { font-size: var(--oc-type-20); }
 
 .ops-live[data-css-phase-two="Krewe"] .crew-weekly-overview small { color: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-chart-heading > span { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-chart-legend { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-chart p { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-chart details { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-data-table :is(th,td) { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-method { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .finance-performance-chart-heading p { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Marketing"] .operating-trends .operating-history p { color: var(--oc-text-primary); }

@@ -2525,6 +2525,46 @@
       "selector": ".campaign-stage",
       "role": "--oc-text-primary",
       "reason": "Claude M2: rank numbers remain readable on the Results card surface."
+    },
+    {
+      "selector": ".operating-trends .operating-chart-heading > span",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-chart-legend",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-chart p",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-chart details",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-data-table :is(th,td)",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-method",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .finance-performance-chart-heading p",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
+    },
+    {
+      "selector": ".operating-trends .operating-history p",
+      "role": "--oc-text-primary",
+      "reason": "Claude M3: historical source labels, dates, values and explanatory text need readable ink; graph series colors and values remain unchanged."
     }
   ],
   "layout": [

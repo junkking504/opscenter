@@ -2502,18 +2502,23 @@
   "largeExceptions": "Pending user decision; none introduced.",
   "roleSelectors": [
     {
-      "selector": ".workspace-tabs button:not(.active)",
+      "selector": ".workspace.convoy-mode .workspace-tabs button:not(.active)",
       "role": "--oc-text-primary",
-      "reason": "Keep small navigation text above 4.5 contrast on the fixed approved canvas."
+      "reason": "Win the existing Convoy-specific selector; inactive text exceeds 4.5 on fixed canvas."
     },
     {
       "selector": ".source-health-list header span + span",
       "role": "--oc-text-primary",
       "reason": "Operational reason text uses primary ink; keep muted anchor for secondary labels."
+    },
+    {
+      "selector": ".command-footer",
+      "role": "--oc-text-primary",
+      "reason": "Source availability guidance must remain readable."
     }
   ],
   "layout": [
-    "At <=600px, full rows for search and date controls; OpsWiki and notifications have separate hit targets, >=44px. Scoped to Command only."
+    "At <=600px, full rows for search and date controls; OpsWiki and notifications have separate hit targets, >=44px. Scoped to Convoy only."
   ],
   "typeSelectors": [
     {
@@ -2525,6 +2530,11 @@
       "selector": ".source-health-list article > div span",
       "px": 10,
       "reason": "Workspace and source observation values are essential information."
+    },
+    {
+      "selector": ".command-footer",
+      "px": 10,
+      "reason": "Source availability guidance is operational text."
     }
   ]
 }

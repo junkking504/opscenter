@@ -1184,7 +1184,7 @@
 }
 .ops-live[data-css-phase-two="Fleet"] .brand-lockup small { font-size: var(--oc-compact-label); }
 
-.ops-live[data-css-phase-two="Fleet"] .workspace-tabs button:not(.active) { color: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Fleet"] .workspace.convoy-mode .workspace-tabs button:not(.active) { color: var(--oc-text-primary); }
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
@@ -1202,3 +1202,5 @@
 
 .ops-live[data-css-phase-two="Fleet"] .source-health-list article > div span { font-size: var(--oc-type-10); }
 .ops-live[data-css-phase-two="Fleet"] .source-health-list header span + span { color: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Fleet"] .command-footer { color: var(--oc-text-primary); font-size: var(--oc-type-10); }

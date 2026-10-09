@@ -375,7 +375,10 @@ pagination cursors, invalid responses, network errors, timeouts and calls skippe
 during cooldown. Successful channels remain available. Incomplete is never
 promoted to current because some messages could be read. No channel identifiers,
 message/user/thread content, token, raw error strings or request URLs enter the
-diagnostics. Existing messages keep their existing authorized display behavior.
+diagnostics. Six exact non-personal API codes (`not_in_channel`,
+`channel_not_found`, `missing_scope`, `invalid_auth`, `account_inactive`,
+`is_archived`) have fixed labels; every other error remains `api_error`. No raw
+response is copied. Existing messages keep their existing authorized display behavior.
 
 A 429 or Slack `ratelimited` response starts the supplied numeric Retry-After
 cooldown for that method and bot credential/workspace; invalid/missing duration

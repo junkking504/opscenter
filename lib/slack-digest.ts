@@ -657,7 +657,11 @@ async function slackGet(
     }
     if(!response.ok)return failed('http_error');
     if(!payload || typeof payload!=='object' || typeof payload.ok!=='boolean')return failed('invalid_response');
-    if(!payload.ok)return failed('api_error');
+    if(!payload.ok){
+      const allowedErrors=['not_in_channel','channel_not_found','missing_scope','invalid_auth','account_inactive','is_archived'] as const;
+      const reason=allowedErrors.find(reason=>payload.error===reason);
+      return failed(reason || 'api_error');
+    }
     if(!Array.isArray(payload.messages) || payload.messages.some(message=>!message || typeof message!=='object') || (payload.response_metadata?.next_cursor!==undefined && typeof payload.response_metadata.next_cursor!=='string') || (payload.response_metadata!==undefined && (!payload.response_metadata || typeof payload.response_metadata!=='object')) || (payload.has_more!==undefined && typeof payload.has_more!=='boolean'))return failed('invalid_response');
     observe(context,method,'success',context.diagnostics.now()-started);return payload;
   } catch(error) {return failed(error instanceof Error && ['TimeoutError','AbortError'].includes(error.name)?'timeout':'network_error');}

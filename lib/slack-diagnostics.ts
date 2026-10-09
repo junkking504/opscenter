@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 export const SLACK_METHODS = ['refresh', 'conversations.history', 'conversations.replies'] as const;
-export const SLACK_REASONS = ['attempt','success','complete','partial','unavailable','rate_limited','cooldown','timeout','network_error','http_error','api_error','invalid_response','missing_cursor','cursor_cycle','invalid_date','not_configured'] as const;
+export const SLACK_REASONS = ['attempt','success','complete','partial','unavailable','rate_limited','cooldown','timeout','network_error','http_error','api_error','invalid_response','missing_cursor','cursor_cycle','invalid_date','not_configured','not_in_channel','channel_not_found','missing_scope','invalid_auth','account_inactive','is_archived'] as const;
 export type SlackMethod = typeof SLACK_METHODS[number];
 export type SlackReason = typeof SLACK_REASONS[number];
 export type SlackReasonCounts = Partial<Record<`${SlackMethod}:${SlackReason}`, number>>;
@@ -119,6 +119,6 @@ export function createSlackDiagnostics(options: {now?:()=>number; persist?:(wind
 }
 export type SlackDiagnostics = ReturnType<typeof createSlackDiagnostics>;
 export function slackDiagnosticDetail(reasons:SlackReasonCounts):string {
-  const labels:Record<string,string>={rate_limited:'rate limited',cooldown:'waiting for rate-limit cooldown',timeout:'timed out',network_error:'network failure',http_error:'HTTP failure',api_error:'Slack API failure',invalid_response:'unreadable response',missing_cursor:'missing pagination cursor',cursor_cycle:'repeated pagination cursor',invalid_date:'invalid date',not_configured:'not configured'};
+  const labels:Record<string,string>={rate_limited:'rate limited',cooldown:'waiting for rate-limit cooldown',timeout:'timed out',network_error:'network failure',http_error:'HTTP failure',api_error:'Slack API failure',invalid_response:'unreadable response',missing_cursor:'missing pagination cursor',cursor_cycle:'repeated pagination cursor',invalid_date:'invalid date',not_configured:'not configured',not_in_channel:'bot is not a channel member',channel_not_found:'channel unavailable',missing_scope:'required permission missing',invalid_auth:'authentication rejected',account_inactive:'bot account inactive',is_archived:'channel archived'};
   return Object.entries(reasons).filter(([key])=>labels[key.split(':')[1]]).map(([key,count])=>{const [method,reason]=key.split(':');return `${method==='conversations.history'?'Channel history':method==='conversations.replies'?'Thread replies':'Refresh'}: ${labels[reason]} (${count})`;}).join('; ');
 }

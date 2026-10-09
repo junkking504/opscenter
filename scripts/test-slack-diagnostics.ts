@@ -48,6 +48,10 @@ async function main(){
   assert.equal(result.reasonCounts?.[reason as keyof NonNullable<typeof result.reasonCounts>],1,scenario);
   if(scenario==='cursor_cycle')assert.equal(pages,2);
  }
+ for(const reason of ['not_in_channel','channel_not_found','missing_scope','invalid_auth','account_inactive','is_archived'] as const){
+  const result=await fetchSlackDailyDigest('2026-10-09',{...options,diagnostics:createSlackDiagnostics(),fetchImpl:(async()=>response({ok:false,error:reason}))as typeof fetch});
+  assert.equal(result.status,'unavailable');assert.equal(result.reasonCounts?.[`conversations.history:${reason}`],1);assert(result.detail);
+ }
  const historyObserver=createSlackDiagnostics({now:()=>time});let historyCalls=0;
  const historyLimited=(async()=>{historyCalls++;return response({ok:false,error:'ratelimited'},200,{'Retry-After':'bad'});})as typeof fetch;
  const historyOptions={...options,diagnostics:historyObserver,channelIds:['A','B','C'],fetchImpl:historyLimited};

@@ -2525,6 +2525,11 @@
       "selector": ".capital-reconciliation-date p",
       "role": "--oc-text-primary",
       "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
+    },
+    {
+      "selector": ".capital-stat-primary > :is(span,small)",
+      "role": "--oc-text-primary",
+      "reason": "V2: recorded-payment label and description on the pale blue summary card need primary ink (4.35 before)."
     }
   ],
   "layout": [

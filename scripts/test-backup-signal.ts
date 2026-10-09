@@ -21,6 +21,10 @@ const check = (payload: object) => {
 };
 try {
   assert.equal(backupSignal().status, "unknown");
+  fs.writeFileSync(path.join(root, "backup-sync/publisher-status.json"), JSON.stringify({
+    status: "deferred", exitCode: 124, caller: "continuity-publisher", timeoutSeconds: 90,
+  }));
+  assert.equal(backupSignal().status, "unknown", "A publisher timeout is not proof of any backup success");
   assert.equal(check({ status: "success", exitCode: 0, lastSuccessAt: recent }).status, "ok");
   for (const exitCode of [23, 124, 255]) {
     const result = check({ status: "failed", exitCode, lastSuccessAt: recent });

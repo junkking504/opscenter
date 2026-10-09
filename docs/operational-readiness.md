@@ -97,3 +97,25 @@ queues is not a transactional snapshot; a moved file can still yield exit 24.
 These changes do not change the configured offsite destination or establish
 standby restore readiness. Validation: `npm run verify:backup` uses isolated
 fixtures, real rsync filtering with local transport, and no external writes.
+
+### Short-budget continuity publication
+
+The continuity publisher's 90-second file-copy attempt uses
+`backup-sync/publisher-status.json`. Its own deadline records `deferred`, caller,
+budget and underlying exit 124 there, leaving shared `status.json` unchanged.
+The worker returns zero for this scheduling deferral so the installed publisher
+and its monitor do not label it a failed transfer; neither can advance copy
+freshness without the unchanged shared success receipt. It never
+advances freshness on a timeout or clears a prior real failure. Real transfer
+errors (including an explicit child exit 124) and successful copies still publish
+the shared backup result. The shared single-flight lock and process-group
+termination remain in force. Missing or stale full success remains unknown or
+critical through the normal health signal.
+
+`OPSCENTER_BACKUP_CALLER=continuity-publisher` selects this behavior explicitly.
+For the already-installed publisher, an unset caller with a budget below the
+normal 900 seconds selects `short-budget` with the same behavior. The regular
+collector uses the 900-second default; an explicit `collector` retains ordinary
+failure semantics even with a test deadline. This compatibility path requires
+no edits or restart of installed continuity controls. The publisher source now
+sets its caller for its next separately managed installation.

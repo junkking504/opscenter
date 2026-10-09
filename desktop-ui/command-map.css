@@ -1,6 +1,6 @@
-.command-map { min-width: 0; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 9px; background: #fff; }
+.command-map { min-width: 0; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--oc-surface-raised); }
 .command-map-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
-.command-map-heading h2 { margin: 2px 0 0; font-size: 16px; }
+.command-map-heading h2 { margin: 2px 0 0; font-size: var(--oc-type-16); }
 .command-map-actions { display: flex; align-items: center; gap: 6px; }
 .command-map-content .schedule-board-layout.map-open { display: block; height: auto; }
 .command-map-content .schedule-board-layout.map-open .schedule-map-panel { height: 340px; min-height: 0; border-radius: 0; border-inline: 0; grid-template-columns: minmax(0, 1fr) 270px; grid-template-rows: auto minmax(0, 1fr); }
@@ -11,9 +11,9 @@
 .command-map-content .schedule-board-layout.map-open .map-status-list span:last-child { grid-column: auto; }
 @media (max-width: 720px) {
   .command-map-heading { padding: 8px 10px; }
-  .command-map-heading h2 { font-size: 14px; }
+  .command-map-heading h2 { font-size: var(--oc-type-14); }
   .command-map-actions { gap: 4px; }
-  .command-map-actions button { padding-inline: 7px; font-size: 10px; }
+  .command-map-actions button { padding-inline: 7px; font-size: var(--oc-type-10); }
   .command-map-content .schedule-board-layout.map-open .schedule-map-panel { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 260px auto; }
   .command-map-content .schedule-board-layout.map-open .schedule-map-canvas { border-right: 0; border-bottom: 1px solid var(--border); }
   .command-map-content .schedule-board-layout.map-open .schedule-map-controls { max-height: 190px; }

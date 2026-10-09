@@ -1,5 +1,5 @@
-.live-schedule .source-estimate { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 10px 0; color: #60417d; }
-.live-schedule .source-estimate > strong { font-size: 16px; line-height: 1.4; color: #60417d; }
-.live-schedule .source-estimate > span, .live-schedule .source-estimate > small, .live-schedule .source-estimate > a { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.live-schedule .record-drawer-body > .source-estimate { padding: 16px; border: 1px solid #d8c8e7; border-radius: 8px; background: #faf6fd; margin-bottom: 16px; }
+.live-schedule .source-estimate { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 10px 0; color: var(--oc-text-violet-01); }
+.live-schedule .source-estimate > strong { font-size: var(--oc-type-16); line-height: 1.4; color: var(--oc-text-violet-01); }
+.live-schedule .source-estimate > span, .live-schedule .source-estimate > small, .live-schedule .source-estimate > a { font-size: var(--oc-type-12); line-height: 1.5; overflow-wrap: anywhere; }
+.live-schedule .record-drawer-body > .source-estimate { padding: 16px; border: 1px solid var(--oc-border-violet-03); border-radius: 8px; background: var(--oc-surface-neutral-15); margin-bottom: 16px; }
 .live-schedule .source-estimate .alert-photo-gallery { width: 100%; }

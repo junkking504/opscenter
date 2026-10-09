@@ -3,5 +3,5 @@
   object-fit: contain;
   border: 0;
   border-radius: 9px;
-  background: #101216;
+  background: var(--oc-surface-blue-06);
 }

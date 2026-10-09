@@ -1602,3 +1602,11 @@
 .ops-live[data-css-phase-two="Finance"] .source-health-list header span + span { color: var(--oc-text-primary); }
 
 .ops-live[data-css-phase-two="Finance"] .command-footer { color: var(--oc-text-primary); font-size: var(--oc-type-10); }
+
+/* Capital secondary operational text needs contrast on the fixed canvas. */
+.ops-live[data-css-phase-two="Finance"] .capital-hub { --capital-muted: var(--oc-text-primary); }
+.ops-live[data-css-phase-two="Finance"] .finance-workspace.capital-workspace { --capital-muted: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Finance"] .capital-reconciliation-entry p { color: var(--oc-text-primary); }
+
+.ops-live[data-css-phase-two="Finance"] .capital-reconciliation-date p { color: var(--oc-text-primary); }

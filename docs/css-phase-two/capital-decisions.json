@@ -2515,6 +2515,16 @@
       "selector": ".command-footer",
       "role": "--oc-text-primary",
       "reason": "Source availability guidance must remain readable (Claude V2)."
+    },
+    {
+      "selector": ".capital-reconciliation-entry p",
+      "role": "--oc-text-primary",
+      "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
+    },
+    {
+      "selector": ".capital-reconciliation-date p",
+      "role": "--oc-text-primary",
+      "reason": "C1: body instructions must remain readable on fixed white/neutral surfaces."
     }
   ],
   "layout": [
@@ -2535,6 +2545,20 @@
       "selector": ".command-footer",
       "px": 10,
       "reason": "Source availability guidance is operational text (Claude V2)."
+    }
+  ],
+  "variableSelectors": [
+    {
+      "selector": ".capital-hub",
+      "property": "--capital-muted",
+      "role": "--oc-text-primary",
+      "reason": "C1: instructions, dates and filter controls lost contrast on fixed canvas; preserve explicit white-on-status/brand overrides and fixed muted anchor."
+    },
+    {
+      "selector": ".finance-workspace.capital-workspace",
+      "property": "--capital-muted",
+      "role": "--oc-text-primary",
+      "reason": "C1: instructions, dates and filter controls lost contrast on fixed canvas; preserve explicit white-on-status/brand overrides and fixed muted anchor."
     }
   ]
 }

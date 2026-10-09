@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import postcss from 'postcss';
 const directory='docs/css-phase-two';
-type Decision={workspace:string;colors:Record<string,{from:string;to:string;kind:string;deltaE?:number}>;rejected:Array<{token:string;decision:string}>;typeMap:Record<string,number>;compactExceptions:Array<{selector:string;px:number;reason:string}>;roleSelectors?:Array<{selector:string;role:string}>;typeSelectors?:Array<{selector:string;px:number}>};
+type Decision={workspace:string;colors:Record<string,{from:string;to:string;kind:string;deltaE?:number}>;rejected:Array<{token:string;decision:string}>;typeMap:Record<string,number>;compactExceptions:Array<{selector:string;px:number;reason:string}>;roleSelectors?:Array<{selector:string;role:string}>;typeSelectors?:Array<{selector:string;px:number}>;variableSelectors?:Array<{selector:string;property:string;role:string}>};
 const decisions:Decision[]=fs.readdirSync(directory).filter(f=>f.endsWith('-decisions.json')&&f!=='small-text-decisions.json').map(f=>JSON.parse(fs.readFileSync(`${directory}/${f}`,'utf8')));
 const candidates=JSON.parse(fs.readFileSync('docs/css-phase-two-palette-candidates.json','utf8')).candidateMerges as Array<{token:string;from:string;to:string;deltaE:number}>;
 const scale=new Set([9,10,11,12,13,14,16,20,24,28]);
@@ -33,6 +33,7 @@ css.walkDecls(d=>{
  else if(d.prop.startsWith('--oc-'))assert.equal(d.value,decision.colors[d.prop]?.to);
  else if(d.prop==='font-size')assert(decision.compactExceptions.some(e=>selector.endsWith(` ${e.selector}`)&&d.value==='var(--oc-compact-label)')||decision.typeSelectors?.some(e=>selector.endsWith(` ${e.selector}`)&&scale.has(e.px)&&d.value===`var(--oc-type-${e.px})`));
  else if(d.prop==='color')assert(decision.roleSelectors?.some(e=>selector.endsWith(` ${e.selector}`)&&d.value===`var(${e.role})`));
+ else if(decision.variableSelectors?.some(e=>selector.endsWith(` ${e.selector}`)&&d.prop===e.property)){assert.equal(d.prop,'--capital-muted');assert.equal(d.value,'var(--oc-text-primary)');}
  else assert(['--background','--foreground','--border','--muted','--muted-foreground','grid-template-areas','padding','justify-self','margin','min-height','min-width','justify-content','height','line-height','top'].includes(d.prop));
 });
 const inventory=JSON.parse(fs.readFileSync(`${directory}/small-text-decisions.json`,'utf8')) as Array<{id:string;file:string;selector:string;classification:string;acceptedMinimumPx:number;targetPx:number}>;

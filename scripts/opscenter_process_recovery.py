@@ -260,7 +260,7 @@ def tick(directory, runtime=None, now=None):
         try:
             started = runtime.start()
             verified = started and runtime.verify()
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, ValueError, AttributeError, subprocess.SubprocessError):
             verified = False
         return save('Process recovery verified: process and login responding; source and workflow checks remain separate'
                     if verified else 'Start outcome unverified; attempt consumed; manual review required')

@@ -111,6 +111,16 @@ class RecoveryTests(unittest.TestCase):
         self.assertTrue(read_state(self.directory)['attempted'])
         self.tick(); self.assertEqual(self.runtime.starts, 1)
 
+    def test_mode_evidence_failure_at_start_preserves_attempt_and_reports_unverified(self):
+        self.tick(); self.tick()
+        with patch.object(self.runtime, 'start', side_effect=ValueError('Mode changed after final inspection')):
+            result = self.tick()
+        self.assertIn('unverified', result['status'])
+        self.assertTrue(result['attempted'])
+        self.assertEqual(len(result['attempts']), 1)
+        self.assertEqual(self.runtime.starts, 0)
+        self.tick(); self.assertEqual(self.runtime.starts, 0)
+
     def test_crash_reservation_persists(self):
         self.tick(); self.tick(); self.runtime.crash = True
         with self.assertRaises(RuntimeError): self.tick()

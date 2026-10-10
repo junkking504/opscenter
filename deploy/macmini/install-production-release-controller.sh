@@ -39,7 +39,7 @@ trap release_install_lock EXIT
 # Subsequent controller changes need a separately reviewed proxy reload plan.
 if [[ -d "$EXPECTED_HOME/opscenter-v2/.release-slots" ]]; then
   installed_mode="$(node "$CONTROLLER_DIR/origin-state.mjs" mode "$EXPECTED_HOME/opscenter-v2/.release-slots")"
-  [[ "$installed_mode" != slots ]] || fail "slot mode is active; a separately reviewed proxy reload plan is required before controller replacement"
+  [[ "$installed_mode" == legacy ]] || fail "slot mode or bootstrap is active; a separately reviewed proxy reload plan is required before controller replacement"
 fi
 
 mkdir -p "$CONTROLLER_DIR"

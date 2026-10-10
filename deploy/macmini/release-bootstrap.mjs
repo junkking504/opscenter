@@ -23,7 +23,12 @@ export class Bootstrap {
   }
   save(j,phase){const next={...j,version:1,ownerPid:this.ownerPid,workerPid:process.pid,phase,updatedAt:new Date().toISOString()};atomicPrivate(this.file,next);this.hooks.phase?.(phase);return next;}
   async prepare(){
-    if(this.read())throw new Error('Bootstrap already journaled; inspect or roll back before another preparation');
+    const previous=this.read();
+    if(previous){
+      if(previous.phase!=='rolled-back')throw new Error('Bootstrap already journaled; inspect or roll back before another preparation');
+      if(previous.slot)await this.hooks.retirePreparedSlot(previous.slot);
+      atomicPrivate(path.join(this.stateDir,`bootstrap-history-${Date.now()}.json`),previous);
+    }
     const sha=this.hooks.linkSha(),release=releasePath(this.root,sha);
     await this.hooks.lineage(sha,sha);
     const legacy=await this.hooks.legacyIdentity();
@@ -45,19 +50,24 @@ export class Bootstrap {
       j=this.save(j,'legacy-stop-intent');await this.hooks.stopLegacy(j.legacy);
       await this.hooks.portFree();j=this.save(j,'listener-free');
       const slot={...j.slot,servedAt:new Date().toISOString()};atomicPrivate(path.join(this.stateDir,'slot-a.json'),slot);
-      atomicPrivate(path.join(this.stateDir,'active.json'),{version:1,generation:1,slot:'a',sha:j.sha});
-      j=this.save({...j,slot},'proxy-start-intent');await this.hooks.startProxy();
+      const activeFile=path.join(this.stateDir,'active.json');
+      const generation=fs.existsSync(activeFile)?readPrivate(activeFile).generation+1:1;
+      if(!Number.isSafeInteger(generation)||generation<1)throw new Error('Bootstrap generation invalid');
+      atomicPrivate(activeFile,{version:1,generation,slot:'a',sha:j.sha});
+      j=this.save({...j,slot,generation},'proxy-start-intent');await this.hooks.startProxy();
       const status=await this.hooks.proxyStatus();
-      if(status.active?.sha!==j.sha||status.active.generation!==1||!status.ledgerHealthy)throw new Error('Bootstrap proxy identity rejected');
+      if(status.active?.sha!==j.sha||status.active.generation!==j.generation||!status.ledgerHealthy)throw new Error('Bootstrap proxy identity rejected');
       await this.hooks.publicProbe(slot);j=this.save(j,'verified');
       atomicPrivate(path.join(this.stateDir,'enabled.json'),{version:1,enabled:true,bootstrapSha:j.sha});
-      j=this.save(j,'complete');await this.hooks.unloadDeadLegacy(j.legacy);return j;
+      j=this.save(j,'complete');
+      try{await this.hooks.unloadDeadLegacy(j.legacy);}catch{j=this.save({...j,legacyCleanupDeferred:true},'complete');}
+      return j;
     }catch(error){await this.rollback();throw error;}
   }
   async rollback(){
     let j=this.read();if(!j)throw new Error('No bootstrap journal');
     if(this.hooks.linkSha()!==j.sha)throw new Error('Bootstrap rollback cannot undo a later deployment');
-    if(j.phase==='rolled-back')return j;
+    if(j.phase==='rolled-back'){try{await this.hooks.retirePreparedSlot(j.slot);}catch{}return j;}
     // Keep the warmed slot alive while a submitted proxy request finishes.
     j=this.save(j,'rollback-intent');
     await this.hooks.stopProxy(j.sha);await this.hooks.portFreeOrLegacy(j.legacy);
@@ -95,46 +105,75 @@ async function realHooks(ownerPid,stateDir){
       }
       return releases;
     },
-    async legacyIdentity(){const current=pid(await inspect(old));const owner=await listeners();if(!current||owner.length!==1||owner[0]!==current)throw new Error('Legacy listener identity unavailable');return {pid:current,label:old};},
+    async legacyIdentity(){
+      const sha=base.linkSha(),release=releasePath(DEPLOY_ROOT,sha);
+      if(!fs.readFileSync(path.join(release,'scripts/run_opscenter.sh'),'utf8').includes('legacy-launch-guard.py')||!fs.lstatSync(path.join(release,'scripts/legacy-launch-guard.py')).isFile())throw new Error('Deploy the reviewed legacy launch guard before bootstrap');
+      await probeSlot({sha,release,port:3000,...await base.expected(release)},{strict:false});
+      const current=pid(await inspect(old)),owner=await listeners();if(!current||owner.length!==1||owner[0]!==current)throw new Error('Legacy listener identity unavailable');return {pid:current,label:old};
+    },
     async assertLegacy(identity){if(pid(await inspect(old))!==identity.pid||(await listeners()).join()!==String(identity.pid))throw new Error('Legacy process changed since preparation');},
     async installPlists(){
       const source=path.join(path.dirname(fileURLToPath(import.meta.url)),'production-launchd');
-      const backup=path.join(stateDir,'launchd-backup');fs.mkdirSync(backup,{mode:0o700});privateDirectory(backup);
+      const backup=path.join(stateDir,'launchd-backup');if(!fs.existsSync(backup))fs.mkdirSync(backup,{mode:0o700});privateDirectory(backup);
       const legacyFile=path.join(launchRoot,old+'.plist');
       const legacyStat=fs.lstatSync(legacyFile);if(!legacyStat.isFile()||legacyStat.isSymbolicLink()||legacyStat.uid!==process.getuid())throw new Error('Legacy plist identity unavailable');
-      fs.copyFileSync(legacyFile,path.join(backup,old+'.plist'),fs.constants.COPYFILE_EXCL);fs.chmodSync(path.join(backup,old+'.plist'),0o600);
+      const saved=path.join(backup,old+'.plist');
+      if(fs.existsSync(saved)){if(!fs.readFileSync(saved).equals(fs.readFileSync(legacyFile)))throw new Error('Legacy setup changed since backup');}
+      else{fs.copyFileSync(legacyFile,saved,fs.constants.COPYFILE_EXCL);fs.chmodSync(saved,0o600);}
       for(const label of ['com.openclaw.opscenter.slot-a','com.openclaw.opscenter.slot-b',proxy]){
-        const destination=path.join(launchRoot,label+'.plist');if(fs.existsSync(destination)||await inspect(label))throw new Error('New launch label already exists');
+        const destination=path.join(launchRoot,label+'.plist');if(await inspect(label))throw new Error('New launch label already loaded');
+        const bytes=fs.readFileSync(path.join(source,label+'.plist'));
+        if(fs.existsSync(destination)){const stat=fs.lstatSync(destination);if(!stat.isFile()||stat.isSymbolicLink()||stat.uid!==process.getuid()||!fs.readFileSync(destination).equals(bytes))throw new Error('Launch plist differs from reviewed bundle');await command(['disable',`${domain}/${label}`]);continue;}
         await command(['disable',`${domain}/${label}`]);
-        const bytes=fs.readFileSync(path.join(source,label+'.plist'));const fd=fs.openSync(destination,'wx',0o644);try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+        const fd=fs.openSync(destination,'wx',0o644);try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
       }
     },
-    async stopLegacy(identity){await command(['disable',`${domain}/${old}`]);process.kill(identity.pid,'SIGTERM');},
-    async unloadDeadLegacy(identity){if(!alive(identity.pid)&&await inspect(old))await command(['bootout',`${domain}/${old}`]);},
+    async stopLegacy(identity){
+      atomicPrivate(path.join(stateDir,'legacy-launch.json'),{version:1,blocked:true,sha:base.linkSha()});
+      await command(['disable',`${domain}/${old}`]);process.kill(identity.pid,'SIGTERM');
+    },
+    async unloadDeadLegacy(identity){
+      if(alive(identity.pid))return;
+      const guard=readPrivate(path.join(stateDir,'legacy-launch.json'));if(guard.blocked!==true)throw new Error('Legacy relaunch guard missing');
+      // First observe the old job between guard-only launches. Any later
+      // KeepAlive wrapper is blocked before it can load secrets or bind a port.
+      await waitFor(async()=>!pid(await inspect(old)),'Legacy guard wrapper',5000);
+      if(await inspect(old))await command(['bootout',`${domain}/${old}`]);
+    },
     async startProxy(){await command(['enable',`${domain}/${proxy}`]);await command(['bootstrap',domain,path.join(launchRoot,proxy+'.plist')]);await waitFor(async()=>{try{return (await controlRequest(stateDir,'/status')).ledgerHealthy;}catch{return false;}},'Proxy readiness',30000);},
     proxyStatus:()=>controlRequest(stateDir,'/status'),
     async stopProxy(sha){
       const info=await inspect(proxy);if(!info)return;
       const current=pid(info);if(current){const status=await controlRequest(stateDir,'/status');if(status.active?.sha!==sha)throw new Error('Proxy serves a later release');}
-      await command(['disable',`${domain}/${proxy}`]);if(current)process.kill(current,'SIGTERM');
+      await command(['disable',`${domain}/${proxy}`]);
+      try{await command(['bootout',`${domain}/${proxy}`]);}catch(error){if(!error.killed)throw error;}
       // Graceful proxy exits only after HTTP, submitted work, and tracked after work.
       // Releasing :3000 is enough to restore the legacy listener in the meantime.
     },
     async portFreeOrLegacy(identity){await waitFor(async()=>{const rows=await listeners();return !rows.length||rows.join()===String(identity.pid);},'Port 3000 handback',15000);},
     async restoreLegacy(identity){
+      const guardFile=path.join(stateDir,'legacy-launch.json');
+      const unblock=()=>atomicPrivate(guardFile,{version:1,blocked:false,sha:base.linkSha()});
       const current=pid(await inspect(old));
-      if(current&&current!==identity.pid)throw new Error('Unexpected legacy process; no stop or replacement authorized');
-      if(current===identity.pid&&(await listeners()).join()===String(identity.pid)){await command(['enable',`${domain}/${old}`]);return;}
+      if(current&&(await listeners()).join()===String(current)){
+        const release=releasePath(DEPLOY_ROOT,base.linkSha());
+        await probeSlot({sha:base.linkSha(),release,port:3000,...await base.expected(release)},{strict:false});
+        unblock();await command(['enable',`${domain}/${old}`]);return;
+      }
       await waitFor(()=>!alive(identity.pid),'Original app drain');
+      const guard=fs.existsSync(guardFile)?readPrivate(guardFile):null;
+      if(current&&current!==identity.pid&&guard?.blocked!==true)throw new Error('Unexpected legacy process; no stop or replacement authorized');
+      await waitFor(async()=>!pid(await inspect(old)),'Legacy guard-only relaunch',5000);
       if(await inspect(old))await command(['bootout',`${domain}/${old}`]);
       const file=path.join(launchRoot,old+'.plist'),backup=path.join(stateDir,'launchd-backup',old+'.plist');
       if(!fs.readFileSync(file).equals(fs.readFileSync(backup)))throw new Error('Legacy plist differs from backed-up setup');
-      await command(['enable',`${domain}/${old}`]);await command(['bootstrap',domain,file]);
+      unblock();await command(['enable',`${domain}/${old}`]);await command(['bootstrap',domain,file]);
     },
     async verifyLegacy(sha){const release=releasePath(DEPLOY_ROOT,sha), slot={sha,release,port:3000,...await base.expected(release)};await waitReady(slot);await base.publicProbe(slot);},
     async retirePreparedSlot(slot){
-      const proxyPid=pid(await inspect(proxy));if(alive(proxyPid))throw new Error('Proxy still draining');
-      const health=await probeSlot(slot,{strict:false,assets:false});if(health.release.pending!==0||health.release.instance!==slot.instance)throw new Error('Slot still has work');
+      const runtimeFile=path.join(stateDir,'proxy-runtime.json');
+      const proxyPid=fs.existsSync(runtimeFile)?readPrivate(runtimeFile).pid:pid(await inspect(proxy));if(alive(proxyPid))throw new Error('Proxy still draining');
+      if(await base.running(slot)){const health=await probeSlot(slot,{strict:false,assets:false});if(health.release.pending!==0)throw new Error('Slot still has work');}
       await base.stop(slot);atomicPrivate(path.join(stateDir,`slot-${slot.id}.json`),{...slot,retiredAt:new Date().toISOString()});
       if(await inspect(proxy))await command(['bootout',`${domain}/${proxy}`]);
     },

@@ -53,8 +53,8 @@ A graceful proxy stop releases :3000 first and stays alive until submitted upstr
 work and tracked background work finish. It never erases uncertain-outcome records.
 
 Before retirement, known proxy requests must be zero and live app pending work
-must be zero. The controller then uses native graceful SIGTERM and proves the
-launchd PID has exited before writing the retirement proof and clearing the
+must be zero. The controller then uses `launchctl bootout` with the slot's loaded `ExitTimeOut=0` policy,
+which sends graceful SIGTERM, and proves the held slot-lock PID has exited before writing the retirement proof and clearing the
 proxy's unverified-work reference. A pending-zero health sample alone does not
 prove that HTTP requests lost during a proxy crash ended: native shutdown must
 finish those too. A stopped or replaced process does not keep an obsolete release
@@ -104,7 +104,7 @@ independent branch approval, then live verification after each production step.
    controller, then changes one `controller-current` symlink. Public entry points
    resolve through that pointer. `controller-previous` and bundle `installation.json`
    preserve rollback hashes. Spending checker/allowlist and protected environments
-   are neither copied nor modified. Installation itself starts no app or collector. Once slot mode is active, the installer refuses a
+   are neither copied nor modified. Installation itself starts no app or collector. Once slot mode or incomplete bootstrap is active, the installer refuses a
    controller replacement pending a separately reviewed proxy reload plan; proxy
    `/status` includes the loaded proxy/state-module SHA-256.
 4. Under the installed deployment-control directory, run
@@ -115,10 +115,16 @@ independent branch approval, then live verification after each production step.
    inventories. An incomplete bootstrap blocks routine deployment.
 5. In the permitted time window, run `node release-bootstrap.mjs activate` from
    that installed directory. It repeats lineage/readiness and old PID checks,
-   disables legacy relaunch, sends graceful SIGTERM, waits for :3000 to be released,
+   writes the private legacy launch block before sending graceful SIGTERM, waits
+   for :3000 to be released,
    then starts the stable proxy. It verifies acknowledgement/public served SHA and
    enables slot mode. The old process may finish outstanding work while the proxy
-   serves; never force it off. A failed activation invokes the rollback below.
+   serves; never force it off. `launchctl disable` does **not** reliably stop
+   KeepAlive relaunches on this host. The deployed `run_opscenter.sh` therefore
+   checks `legacy-launch-guard.py` before secrets, PID locks or server startup.
+   A blocked relaunch exits without serving; only after the original app PID
+   exits is the guard-only legacy job unloaded. Bootstrap refuses a release
+   without this guard. A failed activation invokes the rollback below.
 6. Verify :3000, active slot, preview :3100, public ingress, relay readiness and
    authenticated desktop separately. Run `verify-coexistence.sh` and
    `verify-release-slots.mjs`. Have Claude independently check production.
@@ -136,9 +142,10 @@ independent branch approval, then live verification after each production step.
 ## Tested return to the original single-process setup
 
 For the first bootstrap only, before any subsequent release, use the installed
-`node release-bootstrap.mjs rollback`. It refuses a later active SHA. It disables
-proxy relaunch and requests graceful shutdown, while preserving the slot for any
+`node release-bootstrap.mjs rollback`. It refuses a later active SHA. It removes the
+proxy job with `bootout` under its loaded `ExitTimeOut=0` policy, requesting graceful shutdown, while preserving the slot for any
 submitted work. Once :3000 is free and the original old process has drained, it
+clears the legacy launch block only after the old job is safely unloaded, then
 re-enables and starts the unchanged backed-up single-process plist at the same
 release. It verifies full/public readiness before disabling slot mode. Slot/proxy
 cleanup is deferred if work remains. It does not restart collectors, rewind Git,
@@ -150,6 +157,10 @@ rollback` after that original PID drains; it resumes the journaled handback.
 Do not start a competing legacy process or force-kill the draining owner. Remain
 present for the first migration; this failure mode is excluded from the routine
 zero-downtime claim.
+
+A rolled-back bootstrap can be prepared again: it first finishes any deferred
+slot cleanup, archives the previous journal without deletion, and reuses only
+byte-identical reviewed plists. Generation numbers continue increasing.
 
 After a hard bootstrap crash, the installed bootstrap rollback command can reclaim
 only its demonstrably dead journaled lock, preserving it as evidence. Inspect

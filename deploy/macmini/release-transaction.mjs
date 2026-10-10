@@ -199,12 +199,31 @@ function requireOwner(ownerPid){
   const owner=fs.readFileSync(path.join(DEPLOY_ROOT,'.deploy-lock/owner'),'utf8');
   if(!owner.split('\n').includes(`pid=${ownerPid}`))throw new Error('Global deployment lock not owned');process.kill(ownerPid,0);
 }
+export function slotProcessOwner(stateDir,id){
+  if(!['a','b'].includes(id))throw new Error('Invalid slot owner lookup');
+  privateDirectory(stateDir);
+  let fd;try{fd=fs.openSync(path.join(stateDir,`slot-${id}.lock`),fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);}
+  catch(error){if(error.code==='ENOENT')return null;throw error;}
+  try{
+    const stat=fs.fstatSync(fd);
+    if(!stat.isFile()||stat.uid!==process.getuid()||stat.nlink!==1||(stat.mode&0o077)!==0||stat.size>4096)throw new Error('Slot lock ownership invalid');
+    const text=fs.readFileSync(fd,'utf8'),match=text.match(/^pid=([1-9][0-9]*)\nsha=([a-f0-9]{40})\n$/);
+    if(!match||!Number.isSafeInteger(Number(match[1]))||Number(match[1])<2)throw new Error('Slot lock identity invalid');
+    let alive=true;try{process.kill(Number(match[1]),0);}catch(error){if(error.code!=='ESRCH')throw error;alive=false;}
+    return {pid:Number(match[1]),sha:match[2],alive};
+  }finally{fs.closeSync(fd);}
+}
 export async function productionHooks(ownerPid){
   requireOwner(ownerPid);
   const stateDir=path.join(DEPLOY_ROOT,'.release-slots'),target=id=>`gui/${process.getuid()}/com.openclaw.opscenter.slot-${id}`;
   const command=async(args,timeout=25000)=>exec('/bin/launchctl',args,{timeout,maxBuffer:1024*1024});
   const inspect=async slot=>{try{return(await command(['print',target(slot.id)])).stdout;}catch(error){if(error.code===113)return '';throw error;}};
-  const running=async slot=>/^\s*pid = [1-9][0-9]*\s*$/m.test(await inspect(slot));
+  const labelPid=info=>Number(info.match(/^\s*pid = ([1-9][0-9]*)\s*$/m)?.[1]||0);
+  const running=async slot=>{
+    const pid=labelPid(await inspect(slot)),owner=slotProcessOwner(stateDir,slot.id);
+    if(!pid&&!owner&&slot.servedAt&&!slot.retiredAt)throw new Error('Served slot has no process ownership evidence');
+    return Boolean(pid||owner?.alive);
+  };
   return {
     control:(endpoint,input)=>controlRequest(stateDir,endpoint,input),probe:probeSlot,ready:slot=>waitReady(slot),running,
     linkSha:()=>path.basename(fs.realpathSync(path.join(DEPLOY_ROOT,'opscenter'))),
@@ -221,16 +240,22 @@ export async function productionHooks(ownerPid){
       await command(['bootstrap',`gui/${process.getuid()}`,path.join('/Users/missioncontrol/Library/LaunchAgents',`com.openclaw.opscenter.slot-${slot.id}.plist`)]);
     },
     async stop(slot){
-      const info=await inspect(slot);if(!info)return;
+      const info=await inspect(slot),owner=slotProcessOwner(stateDir,slot.id);
+      if(owner?.alive&&(owner.pid!==labelPid(info)||owner.sha!==slot.sha))throw new Error('Unexpected or orphaned slot process; no signal sent');
+      if(!info){if(slot.servedAt&&!slot.retiredAt&&!owner)throw new Error('Slot exit is unverified');return;}
       const match=info.match(/^\s*pid = ([1-9][0-9]*)\s*$/m);
       await command(['disable',target(slot.id)]);
+      // The slot plist has ExitTimeOut=0. bootout removes KeepAlive ownership
+      // and requests graceful SIGTERM without ever authorizing SIGKILL.
+      try{await command(['bootout',target(slot.id)]);}
+      catch(error){if(!error.killed)throw error;}
       if(match){
-        const pid=Number(match[1]);process.kill(pid,'SIGTERM');
+        const pid=Number(match[1]);
         const deadline=Date.now()+20000;let alive=true;
         while(alive&&Date.now()<deadline){try{process.kill(pid,0);await sleep(250);}catch(error){if(error.code!=='ESRCH')throw error;alive=false;}}
         if(alive)throw new Error('Slot is still gracefully draining; no forced stop');
       }
-      await command(['bootout',target(slot.id)]);
+      if(await inspect(slot)||slotProcessOwner(stateDir,slot.id)?.alive)throw new Error('Slot ownership or process remains; no forced stop');
     },
     async services(slot){
       await new Promise((resolve,reject)=>{

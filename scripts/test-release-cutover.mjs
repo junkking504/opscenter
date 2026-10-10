@@ -9,7 +9,7 @@ import test from 'node:test';
 import {createOriginProxy,startOriginProxy,endToEnd} from '../deploy/macmini/origin-proxy.mjs';
 import {atomicPrivate,readPrivate,validateSlot,validHealth,waitReady,inventoryAssets,staticPath,sleep} from '../deploy/macmini/origin-state.mjs';
 import {probeSlot} from '../deploy/macmini/origin-state.mjs';
-import {ReleaseTransaction,recoverDeadActivationLock,controlRequest} from '../deploy/macmini/release-transaction.mjs';
+import {ReleaseTransaction,recoverDeadActivationLock,controlRequest,slotProcessOwner} from '../deploy/macmini/release-transaction.mjs';
 
 const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve(server.address().port)));
 const close=server=>new Promise(resolve=>{server.closeAllConnections();server.close(()=>resolve());});
@@ -172,7 +172,7 @@ test('bootstrap is gated by Central time and restores the original single proces
     const hooks={linkSha:()=>f.slots.a.sha,lineage:async()=>{},legacyIdentity:async()=>({pid:123,label:'com.openclaw.opscenter'}),installPlists:async()=>{},
       expected:async()=>({database:'synthetic',migration:'0001_kernel.sql'}),start:async()=>{},ready:async slot=>health(slot),
       outsideDispatch:()=>true,assertLegacy:async()=>{},stopLegacy:async()=>{legacy=false;},portFree:async()=>{},
-      startProxy:async()=>{proxy=true;},proxyStatus:async()=>({active:{sha:f.slots.a.sha,generation:1},ledgerHealthy:true}),
+      startProxy:async()=>{proxy=true;},proxyStatus:async()=>({active:readPrivate(path.join(f.stateDir,'active.json')),ledgerHealthy:true}),
       publicProbe:async()=>{},unloadDeadLegacy:async()=>{},stopProxy:async()=>{proxy=false;},portFreeOrLegacy:async()=>{},
       restoreLegacy:async()=>{legacy=true;},verifyLegacy:async()=>{assert.equal(legacy,true);},retirePreparedSlot:async()=>{assert.equal(legacy,true);retired=true;}};
     if(failure!=='none'){const actual=hooks[failure];hooks[failure]=async(...args)=>{await actual(...args);throw new Error('Synthetic bootstrap failure');};}
@@ -293,4 +293,22 @@ test('real listener startup binds private control and rejects a live duplicate b
     assert.equal(fs.readFileSync(path.join(f.stateDir,'proxy-runtime.json'),'utf8'),before);
     await started.shutdown();started=null;
   }finally{if(started){await close(started.server);await close(started.control);}await f.cleanup();}
+});
+
+test('kernel lock PID remains evidence even when launchd loses the label',async()=>{
+  const f=await fixture(),file=path.join(f.stateDir,'slot-a.lock');
+  try{
+    fs.writeFileSync(file,`pid=${process.pid}\nsha=${f.slots.a.sha}\n`,{mode:0o600});
+    assert.equal(slotProcessOwner(f.stateDir,'a').alive,true);assert.equal(slotProcessOwner(f.stateDir,'a').pid,process.pid);
+    fs.writeFileSync(file,`pid=-1\nsha=${f.slots.a.sha}\n`);assert.throws(()=>slotProcessOwner(f.stateDir,'a'),/identity invalid/);
+    fs.unlinkSync(file);fs.symlinkSync('/dev/null',file);assert.throws(()=>slotProcessOwner(f.stateDir,'a'));
+  }finally{await f.cleanup();}
+});
+
+test('bootstrap rollback can be retried after an original process finishes draining',async()=>{
+  const {Bootstrap}=await import('../deploy/macmini/release-bootstrap.mjs'),f=await fixture();let draining=true,restored=false;
+  const slot=f.slots.a;atomicPrivate(path.join(f.stateDir,'bootstrap.json'),{version:1,phase:'rollback-intent',sha:slot.sha,slot,legacy:{pid:123,label:'com.openclaw.opscenter'}});
+  const run=new Bootstrap({root:f.root,stateDir:f.stateDir,ports:f.ports,ownerPid:process.pid,hooks:{linkSha:()=>slot.sha,stopProxy:async()=>{},portFreeOrLegacy:async()=>{},restoreLegacy:async()=>{if(draining)throw new Error('Original app drain remains busy');restored=true;},verifyLegacy:async()=>{assert.equal(restored,true);},retirePreparedSlot:async()=>{}}});
+  try{await assert.rejects(run.rollback(),/drain remains/);assert.equal(run.read().phase,'rollback-intent');draining=false;await run.rollback();assert.equal(run.read().phase,'rolled-back');assert.equal(restored,true);}
+  finally{await f.cleanup();}
 });

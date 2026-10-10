@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import https from 'node:https';
-import {execFile} from 'node:child_process';
+import {execFile,execFileSync} from 'node:child_process';
 import {promisify} from 'node:util';
 import {pathToFileURL} from 'node:url';
 import {DEPLOY_ROOT,SLOT_PORTS,SHA,privateDirectory,readPrivate,atomicPrivate,readSlot,releasePath,inventoryAssets,probeSlot,waitReady,validHealth,sleep} from './origin-state.mjs';
@@ -61,7 +61,7 @@ export class ReleaseTransaction {
       await this.hooks.stop(slot);
       if(await this.hooks.running(slot))return false;
       const processStoppedAt=new Date().toISOString();
-      atomicPrivate(path.join(this.stateDir,`slot-${slot.id}.json`),{...proven,retirementProof:{...proven.retirementProof,processStoppedAt},retiredAt:processStoppedAt});
+      atomicPrivate(path.join(this.stateDir,`slot-${slot.id}.json`),{...proven,launchBlocked:true,retirementProof:{...proven.retirementProof,processStoppedAt},retiredAt:processStoppedAt});
       await this.hooks.control('/confirm-retired',{sha:slot.sha});return true;
     }catch{return false;}
   }
@@ -210,7 +210,15 @@ export function slotProcessOwner(stateDir,id){
     const text=fs.readFileSync(fd,'utf8'),match=text.match(/^pid=([1-9][0-9]*)\nsha=([a-f0-9]{40})\n$/);
     if(!match||!Number.isSafeInteger(Number(match[1]))||Number(match[1])<2)throw new Error('Slot lock identity invalid');
     let alive=true;try{process.kill(Number(match[1]),0);}catch(error){if(error.code!=='ESRCH')throw error;alive=false;}
-    return {pid:Number(match[1]),sha:match[2],alive};
+    const held=execFileSync('/usr/bin/python3',['-c',`import fcntl
+try:
+ fcntl.flock(3,fcntl.LOCK_EX|fcntl.LOCK_NB)
+ print('free')
+ fcntl.flock(3,fcntl.LOCK_UN)
+except BlockingIOError:print('held')`],{stdio:['ignore','pipe','pipe',fd],encoding:'utf8',timeout:5000}).trim()==='held';
+    if(alive&&!held)throw new Error('Live slot PID does not hold its lock; identity unverified');
+    if(!alive&&held)throw new Error('Slot lock remains held by an unverified owner');
+    return {pid:Number(match[1]),sha:match[2],alive,held};
   }finally{fs.closeSync(fd);}
 }
 export async function productionHooks(ownerPid){
@@ -244,18 +252,22 @@ export async function productionHooks(ownerPid){
       if(owner?.alive&&(owner.pid!==labelPid(info)||owner.sha!==slot.sha))throw new Error('Unexpected or orphaned slot process; no signal sent');
       if(!info){if(slot.servedAt&&!slot.retiredAt&&!owner)throw new Error('Slot exit is unverified');return;}
       const match=info.match(/^\s*pid = ([1-9][0-9]*)\s*$/m);
+      const pinned=readSlot(stateDir,slot.id);if(pinned.sha!==slot.sha)throw new Error('Slot pin changed before stop');
+      atomicPrivate(path.join(stateDir,`slot-${slot.id}.json`),{...pinned,launchBlocked:true});
       await command(['disable',target(slot.id)]);
-      // The slot plist has ExitTimeOut=0. bootout removes KeepAlive ownership
-      // and requests graceful SIGTERM without ever authorizing SIGKILL.
-      try{await command(['bootout',target(slot.id)]);}
-      catch(error){if(!error.killed)throw error;}
       if(match){
-        const pid=Number(match[1]);
+        const pid=Number(match[1]);process.kill(pid,'SIGTERM');
         const deadline=Date.now()+20000;let alive=true;
         while(alive&&Date.now()<deadline){try{process.kill(pid,0);await sleep(250);}catch(error){if(error.code!=='ESRCH')throw error;alive=false;}}
         if(alive)throw new Error('Slot is still gracefully draining; no forced stop');
       }
-      if(await inspect(slot)||slotProcessOwner(stateDir,slot.id)?.alive)throw new Error('Slot ownership or process remains; no forced stop');
+      if(slotProcessOwner(stateDir,slot.id)?.alive)throw new Error('Slot process remains or changed; no forced stop');
+      const until=Date.now()+5000;
+      while(labelPid(await inspect(slot))&&Date.now()<until)await sleep(100);
+      if(labelPid(await inspect(slot)))throw new Error('Slot guard wrapper remains active; cleanup deferred');
+      // A future launch is blocked before secrets/server startup. bootout is
+      // deliberately never used on a business-serving PID on this macOS host.
+      if(await inspect(slot))await command(['bootout',target(slot.id)]);
     },
     async services(slot){
       await new Promise((resolve,reject)=>{

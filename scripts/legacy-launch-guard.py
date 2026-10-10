@@ -30,7 +30,6 @@ def allowed(directory=STATE):
 if __name__=='__main__':
     try:
         if not allowed():
-            print('[run_opscenter] legacy launch blocked by reviewed proxy handover',file=sys.stderr)
             sys.exit(75)
     except Exception:
         print('[run_opscenter] legacy launch guard unavailable; refusing startup',file=sys.stderr)

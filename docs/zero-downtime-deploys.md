@@ -53,8 +53,11 @@ A graceful proxy stop releases :3000 first and stays alive until submitted upstr
 work and tracked background work finish. It never erases uncertain-outcome records.
 
 Before retirement, known proxy requests must be zero and live app pending work
-must be zero. The controller then uses `launchctl bootout` with the slot's loaded `ExitTimeOut=0` policy,
-which sends graceful SIGTERM, and proves the held slot-lock PID has exited before writing the retirement proof and clearing the
+must be zero. The controller atomically blocks subsequent launches before sending
+SIGTERM directly to the verified process. It verifies the private slot lock is
+actually held, waits for the original PID to exit, and only then unloads the
+guard-only launchd job. The launch block remains on retired slots. Only proven
+process exit allows writing the retirement proof and clearing the
 proxy's unverified-work reference. A pending-zero health sample alone does not
 prove that HTTP requests lost during a proxy crash ended: native shutdown must
 finish those too. A stopped or replaced process does not keep an obsolete release
@@ -64,10 +67,13 @@ no URL values, bodies, headers or personal identifiers. Retirement never deletes
 that evidence. At 16 MiB the ledger reports failure and requires a separately
 reviewed archival decision; this installer does not authorize data deletion.
 
-`ExitTimeOut=0` deliberately prevents launchd from escalating graceful shutdown
-to SIGKILL. Long-running work can therefore delay a Mac shutdown or software
-update indefinitely. Investigate the work and outcome; do not force shutdown as
-a deployment workaround.
+Host testing found that `disable` alone did not suppress KeepAlive relaunch, and
+`bootout` ended a live dummy immediately even with `ExitTimeOut=0`. Therefore no
+deployment path uses `bootout` on a business-serving process. All three launchers
+check a private fail-closed guard before secrets, locks or listeners. Expected
+blocked launches are silent and throttled by launchd. The plist timeout is not
+relied on as a safety guarantee. A Mac shutdown or software update still needs
+separate supervised quiescence; do not use either to force deployment drainage.
 
 The next deployment reconciles a nonterminal activation journal under the global
 lock. A dead journaled owner can have its lock **renamed and preserved** only when
@@ -142,8 +148,8 @@ independent branch approval, then live verification after each production step.
 ## Tested return to the original single-process setup
 
 For the first bootstrap only, before any subsequent release, use the installed
-`node release-bootstrap.mjs rollback`. It refuses a later active SHA. It removes the
-proxy job with `bootout` under its loaded `ExitTimeOut=0` policy, requesting graceful shutdown, while preserving the slot for any
+`node release-bootstrap.mjs rollback`. It refuses a later active SHA. It blocks future
+proxy launches and sends SIGTERM directly to its verified PID, preserving the slot for any
 submitted work. Once :3000 is free and the original old process has drained, it
 clears the legacy launch block only after the old job is safely unloaded, then
 re-enables and starts the unchanged backed-up single-process plist at the same

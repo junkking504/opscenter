@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import net from 'node:net';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawn} from 'node:child_process';
 import test from 'node:test';
 import {createOriginProxy,startOriginProxy,endToEnd} from '../deploy/macmini/origin-proxy.mjs';
-import {atomicPrivate,readPrivate,validateSlot,validHealth,waitReady,inventoryAssets,staticPath,sleep} from '../deploy/macmini/origin-state.mjs';
+import {atomicPrivate,readPrivate,validateSlot,validHealth,waitReady,inventoryAssets,staticPath,sleep,requireLaunchAllowed,readSlot} from '../deploy/macmini/origin-state.mjs';
 import {probeSlot} from '../deploy/macmini/origin-state.mjs';
 import {ReleaseTransaction,recoverDeadActivationLock,controlRequest,slotProcessOwner} from '../deploy/macmini/release-transaction.mjs';
 
@@ -296,13 +296,20 @@ test('real listener startup binds private control and rejects a live duplicate b
 });
 
 test('kernel lock PID remains evidence even when launchd loses the label',async()=>{
-  const f=await fixture(),file=path.join(f.stateDir,'slot-a.lock');
+  const f=await fixture(),file=path.join(f.stateDir,'slot-a.lock');let worker;
   try{
     fs.writeFileSync(file,`pid=${process.pid}\nsha=${f.slots.a.sha}\n`,{mode:0o600});
-    assert.equal(slotProcessOwner(f.stateDir,'a').alive,true);assert.equal(slotProcessOwner(f.stateDir,'a').pid,process.pid);
+    assert.throws(()=>slotProcessOwner(f.stateDir,'a'),/does not hold/);
+    worker=spawn('/usr/bin/python3',['-c',`import fcntl,os,sys,time
+f=open(sys.argv[1],'w');os.chmod(sys.argv[1],0o600);fcntl.flock(f,fcntl.LOCK_EX)
+f.write('pid=%s\\nsha=%s\\n'%(os.getpid(),sys.argv[2]));f.flush();print('ready',flush=True);time.sleep(30)`,file,f.slots.a.sha]);
+    await new Promise((resolve,reject)=>{worker.stdout.once('data',resolve);worker.once('error',reject);});
+    assert.equal(slotProcessOwner(f.stateDir,'a').held,true);assert.equal(slotProcessOwner(f.stateDir,'a').pid,worker.pid);
+    const exited=new Promise(resolve=>worker.once('exit',resolve));worker.kill('SIGTERM');await exited;
+    assert.equal(slotProcessOwner(f.stateDir,'a').alive,false);assert.equal(slotProcessOwner(f.stateDir,'a').held,false);
     fs.writeFileSync(file,`pid=-1\nsha=${f.slots.a.sha}\n`);assert.throws(()=>slotProcessOwner(f.stateDir,'a'),/identity invalid/);
     fs.unlinkSync(file);fs.symlinkSync('/dev/null',file);assert.throws(()=>slotProcessOwner(f.stateDir,'a'));
-  }finally{await f.cleanup();}
+  }finally{if(worker&&worker.exitCode===null)worker.kill('SIGTERM');await f.cleanup();}
 });
 
 test('bootstrap rollback can be retried after an original process finishes draining',async()=>{
@@ -311,4 +318,32 @@ test('bootstrap rollback can be retried after an original process finishes drain
   const run=new Bootstrap({root:f.root,stateDir:f.stateDir,ports:f.ports,ownerPid:process.pid,hooks:{linkSha:()=>slot.sha,stopProxy:async()=>{},portFreeOrLegacy:async()=>{},restoreLegacy:async()=>{if(draining)throw new Error('Original app drain remains busy');restored=true;},verifyLegacy:async()=>{assert.equal(restored,true);},retirePreparedSlot:async()=>{}}});
   try{await assert.rejects(run.rollback(),/drain remains/);assert.equal(run.read().phase,'rollback-intent');draining=false;await run.rollback();assert.equal(run.read().phase,'rolled-back');assert.equal(restored,true);}
   finally{await f.cleanup();}
+});
+
+
+test('private proxy guard refuses startup before listener or ledger mutation',async()=>{
+  const f=await fixture(),guard=path.join(f.stateDir,'proxy-launch.json');
+  try{
+    requireLaunchAllowed(guard);
+    atomicPrivate(guard,{version:1,blocked:true});
+    const before=fs.readFileSync(path.join(f.stateDir,'proxy-runtime.json'),'utf8');
+    await assert.rejects(startOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports,listenPort:0}),{code:'LAUNCH_BLOCKED'});
+    assert.equal(fs.readFileSync(path.join(f.stateDir,'proxy-runtime.json'),'utf8'),before);
+    atomicPrivate(guard,{version:1,blocked:false});requireLaunchAllowed(guard);
+    atomicPrivate(guard,{version:1,blocked:'no'});assert.throws(()=>requireLaunchAllowed(guard),/invalid/);
+    fs.unlinkSync(guard);fs.symlinkSync('/dev/null',guard);assert.throws(()=>requireLaunchAllowed(guard));
+  }finally{await f.cleanup();}
+});
+
+test('slot launch block is validated and retirement preserves it',async()=>{
+  const f=await fixture();
+  try{
+    atomicPrivate(path.join(f.stateDir,'slot-b.json'),{...f.slots.b,launchBlocked:'invalid'});
+    assert.throws(()=>readSlot(f.stateDir,'b',{root:f.root,ports:f.ports}),/Invalid slot/);
+    atomicPrivate(path.join(f.stateDir,'slot-b.json'),f.slots.b);
+    const t=transaction(f);await t.run.deploy(f.slots.b.sha);
+    assert.equal(t.run.slot('a').launchBlocked,true);
+    const launcher=fs.readFileSync(new URL('../deploy/macmini/run-release-slot.sh',import.meta.url),'utf8');
+    assert.ok(launcher.indexOf('origin-state.mjs')<launcher.indexOf('source '));
+  }finally{await f.cleanup();}
 });

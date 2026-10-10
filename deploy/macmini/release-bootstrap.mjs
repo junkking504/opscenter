@@ -140,13 +140,13 @@ async function realHooks(ownerPid,stateDir){
       await waitFor(async()=>!pid(await inspect(old)),'Legacy guard wrapper',5000);
       if(await inspect(old))await command(['bootout',`${domain}/${old}`]);
     },
-    async startProxy(){await command(['enable',`${domain}/${proxy}`]);await command(['bootstrap',domain,path.join(launchRoot,proxy+'.plist')]);await waitFor(async()=>{try{return (await controlRequest(stateDir,'/status')).ledgerHealthy;}catch{return false;}},'Proxy readiness',30000);},
+    async startProxy(){atomicPrivate(path.join(stateDir,'proxy-launch.json'),{version:1,blocked:false});await command(['enable',`${domain}/${proxy}`]);await command(['bootstrap',domain,path.join(launchRoot,proxy+'.plist')]);await waitFor(async()=>{try{return (await controlRequest(stateDir,'/status')).ledgerHealthy;}catch{return false;}},'Proxy readiness',30000);},
     proxyStatus:()=>controlRequest(stateDir,'/status'),
     async stopProxy(sha){
       const info=await inspect(proxy);if(!info)return;
       const current=pid(info);if(current){const status=await controlRequest(stateDir,'/status');if(status.active?.sha!==sha)throw new Error('Proxy serves a later release');}
-      await command(['disable',`${domain}/${proxy}`]);
-      try{await command(['bootout',`${domain}/${proxy}`]);}catch(error){if(!error.killed)throw error;}
+      atomicPrivate(path.join(stateDir,'proxy-launch.json'),{version:1,blocked:true});
+      await command(['disable',`${domain}/${proxy}`]);if(current)process.kill(current,'SIGTERM');
       // Graceful proxy exits only after HTTP, submitted work, and tracked after work.
       // Releasing :3000 is enough to restore the legacy listener in the meantime.
     },
@@ -174,7 +174,8 @@ async function realHooks(ownerPid,stateDir){
       const runtimeFile=path.join(stateDir,'proxy-runtime.json');
       const proxyPid=fs.existsSync(runtimeFile)?readPrivate(runtimeFile).pid:pid(await inspect(proxy));if(alive(proxyPid))throw new Error('Proxy still draining');
       if(await base.running(slot)){const health=await probeSlot(slot,{strict:false,assets:false});if(health.release.pending!==0)throw new Error('Slot still has work');}
-      await base.stop(slot);atomicPrivate(path.join(stateDir,`slot-${slot.id}.json`),{...slot,retiredAt:new Date().toISOString()});
+      await base.stop(slot);atomicPrivate(path.join(stateDir,`slot-${slot.id}.json`),{...slot,launchBlocked:true,retiredAt:new Date().toISOString()});
+      await waitFor(async()=>!pid(await inspect(proxy)),'Proxy guard wrapper',5000);
       if(await inspect(proxy))await command(['bootout',`${domain}/${proxy}`]);
     },
   };

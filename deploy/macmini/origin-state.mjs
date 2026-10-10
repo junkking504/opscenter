@@ -17,6 +17,11 @@ export function privateDirectory(directory, create = false) {
     throw new Error('Deployment state directory ownership or mode is invalid');
   }
 }
+export function requireLaunchAllowed(file){
+  let value;try{value=readPrivate(file);}catch(error){if(error.code==='ENOENT')return;throw error;}
+  if(value.version!==1||typeof value.blocked!=='boolean')throw new Error('Launch guard invalid');
+  if(value.blocked){const error=new Error('Launch blocked by graceful handover');error.code='LAUNCH_BLOCKED';throw error;}
+}
 export function readPrivate(file) {
   privateDirectory(path.dirname(file));
   const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
@@ -49,7 +54,7 @@ export function releasePath(root, sha) {
   return release;
 }
 export function validateSlot(value, {root = DEPLOY_ROOT, ports = SLOT_PORTS} = {}) {
-  if (value?.version !== 1 || !Object.hasOwn(ports, value.id) || value.port !== ports[value.id]
+  if ((value?.launchBlocked!==undefined&&typeof value.launchBlocked!=='boolean') || value?.version !== 1 || !Object.hasOwn(ports, value.id) || value.port !== ports[value.id]
       || !SHA.test(value.sha) || value.release !== path.join(root, 'releases', value.sha)
       || !/^[a-zA-Z0-9_]+$/.test(value.database || '') || !/^\d{4}_[a-z0-9_]+\.sql$/.test(value.migration || '')) throw new Error('Invalid slot manifest');
   releasePath(root, value.sha);
@@ -177,5 +182,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   if (command !== 'slot') throw new Error('Usage: origin-state.mjs slot <private-state-directory> <a|b>');
   const slot = readSlot(directory, id);
+  if(slot.launchBlocked===true)process.exit(75);
   console.log(slot.release); console.log(slot.port);
 }

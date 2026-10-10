@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
-import {DEPLOY_ROOT, SLOT_PORTS, privateDirectory, readPrivate, atomicPrivate, validateGeneration, validateSlot, readSlot, probeSlot, staticFile} from './origin-state.mjs';
+import {DEPLOY_ROOT, SLOT_PORTS, privateDirectory, requireLaunchAllowed, readPrivate, atomicPrivate, validateGeneration, validateSlot, readSlot, probeSlot, staticFile} from './origin-state.mjs';
 
 export function endToEnd(headers, upgrade = false) {
   const result = {...headers};
@@ -220,6 +220,7 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
 
 export async function startOriginProxy(options={}){
   const stateDir=options.stateDir||path.join(DEPLOY_ROOT,'.release-slots'),socket=path.join(stateDir,'control.sock');
+  requireLaunchAllowed(path.join(stateDir,'proxy-launch.json'));
   // Never unlink a live or unexpected socket. launchd restart may leave only a
   // dead owned socket; an independently listening control endpoint blocks us.
   if(fs.existsSync(socket)){
@@ -238,7 +239,7 @@ export async function startOriginProxy(options={}){
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
-  const proxy=await startOriginProxy();
+  const proxy=await startOriginProxy().catch(error=>{if(error.code==='LAUNCH_BLOCKED')process.exit(75);throw error;});
   console.log('Origin proxy ready on loopback3000; generation',proxy.status().active.generation);
   for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{void proxy.shutdown().catch(()=>{console.error('Proxy graceful shutdown needs review; process retained.');});});
 }

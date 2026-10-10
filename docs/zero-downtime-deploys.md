@@ -72,8 +72,10 @@ Host testing found that `disable` alone did not suppress KeepAlive relaunch, and
 deployment path uses `bootout` on a business-serving process. All three launchers
 check a private fail-closed guard before secrets, locks or listeners. Expected
 blocked launches are silent and throttled by launchd. The plist timeout is not
-relied on as a safety guarantee. A Mac shutdown or software update still needs
-separate supervised quiescence; do not use either to force deployment drainage.
+relied on for routine deployment safety. The new plists use a bounded positive
+120-second shutdown timeout, which is tested separately on the host. A Mac
+shutdown or software update can still terminate work that exceeds that limit and
+needs separate supervised quiescence; do not use either to force deployment drainage.
 
 The next deployment reconciles a nonterminal activation journal under the global
 lock. A dead journaled owner can have its lock **renamed and preserved** only when

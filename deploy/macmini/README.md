@@ -416,3 +416,9 @@ The schedule-detector installer rechecks PID liveness when `ps` no longer return
 the expected command after `launchctl bootout`. An already-exited detector is a
 successful stop; an unrelated or unidentified live process still blocks the
 release. `scripts/test-detector-restart-race.ts` covers both cases.
+
+## Release slots
+
+See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,
+first proxy bootstrap, graceful rollback, routine activation and retained-slot
+protections. Source deployment alone does not enable slot mode.

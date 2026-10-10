@@ -113,12 +113,12 @@ def checks(inputs, now):
         'Gateway responds and reports the standby ready.' if gateway_ready else 'Recovery gateway is unavailable or has not verified standby readiness.',
         'Inspect the dedicated continuity gateway and its configured origins; preserve write denial and request replay protections.')
     origin = inputs.get('origin') or {}
-    origin_ready = origin.get('runtime') == 'MISSION_CONTROL' and (origin.get('platformKernel') or {}).get('healthy') is True
+    origin_ready = primary_ready(origin)
     add('primary-origin', 'Primary origin through VPS relay', 'ok' if origin_ready else 'warn',
         'Mission Control application/database responds through the VPS relay.' if origin_ready else 'Primary origin is unavailable or its database is unhealthy; recovery may be required.',
         'Check primary health and the owned relay separately. Verify any uncertain business submission before retrying.')
     login, public = inputs.get('login') or {}, inputs.get('public') or {}
-    public_ready = login.get('code') == 200 and login.get('loginForm') is True and public.get('runtime') in ('MISSION_CONTROL', 'VPS') and (public.get('platformKernel') or {}).get('healthy') is True
+    public_ready = login.get('code') == 200 and login.get('loginForm') is True and (primary_ready(public) or (public.get('runtime') == 'VPS' and (public.get('platformKernel') or {}).get('healthy') is True and public.get('assignmentStoreWritable') is False and public.get('operatorStateWritable') is False))
     add('public', 'Public access from VPS', 'ok' if public_ready else 'warn' if login or public else 'unknown',
         ('Public login form and structured database readiness passed from outside Mission Control.' if public_ready else
          'Primary works through the relay, but public access is failing or unverified.' if origin_ready else 'Public login or structured readiness is failing or unavailable.'),
@@ -188,6 +188,17 @@ def exchange():
     print(json.dumps(read_json(ROOT / 'monitor.json')))
 
 
+def primary_ready(value):
+    kernel, release = value.get('platformKernel') or {}, value.get('release') or {}
+    return (value.get('version') == 1 and value.get('ok') is True and value.get('runtime') == 'MISSION_CONTROL'
+            and bool(re.fullmatch('[a-f0-9]{40}', release.get('sha') or '')) and release.get('stopping') is False
+            and kernel.get('runtime') == 'MISSION_CONTROL' and kernel.get('enabled') is True
+            and kernel.get('healthy') is True and kernel.get('status') == 'healthy'
+            and kernel.get('databaseName') == 'opscenter_production'
+            and bool(re.fullmatch(r'\d{4}_[a-z0-9_]+\.sql', kernel.get('migrationVersion') or ''))
+            and value.get('assignmentStoreWritable') is True and value.get('operatorStateWritable') is True)
+
+
 def observe():
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (ROOT / 'observer.lock').open('a') as lock:
@@ -195,8 +206,8 @@ def observe():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return
-        urls = {'gateway': 'http://127.0.0.1:3002/api/continuity/status', 'origin': 'http://127.0.0.1:3000/api/health', 'standby': 'http://127.0.0.1:3001/api/health',
-                'public': 'https://ops.junk-king.app/api/health', 'login': 'https://ops.junk-king.app/login'}
+        urls = {'gateway': 'http://127.0.0.1:3002/api/continuity/status', 'origin': 'http://127.0.0.1:3000/api/health?readiness=primary', 'standby': 'http://127.0.0.1:3001/api/health',
+                'public': 'https://ops.junk-king.app/api/health?readiness=primary', 'login': 'https://ops.junk-king.app/login'}
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
             work = {key: pool.submit(probe, url, key == 'login') for key, url in urls.items()}
             app = pool.submit(inspect_app)

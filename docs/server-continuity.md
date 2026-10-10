@@ -221,3 +221,9 @@ idle with `docker buildx stop opscenter-continuity-bounded`. Its private build
 cache can be pruned with `docker buildx prune --builder
 opscenter-continuity-bounded --force` after the completed image is loaded and
 verified. Never use a global volume/system prune as a substitute.
+
+## Mission Control stable origin
+
+See the [release-slot runbook](zero-downtime-deploys.md) for the separately reviewed installation,
+first proxy bootstrap, graceful rollback, routine activation and retained-slot
+protections. Source deployment alone does not enable slot mode.

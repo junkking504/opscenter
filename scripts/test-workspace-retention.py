@@ -63,6 +63,31 @@ class RetentionTests(unittest.TestCase):
     def engine(self, paths=()):
         return r.Retention(self.root, process_scan=lambda: list(paths), now=self.now)
 
+    def test_slot_drain_and_journal_references_are_all_preserved(self):
+        import json
+        state=self.root/'.release-slots';state.mkdir(mode=0o700)
+        shas=[character*40 for character in 'abcdef']
+        for sha in shas:self.add('releases',sha)
+        manifests={'slot-a.json':dict(sha=shas[0]),'slot-b.json':dict(sha=shas[1]),
+                   'active.json':dict(sha=shas[0]),
+                   'transaction.json':dict(sha=shas[2],previous=dict(sha=shas[1]),candidate=dict(sha=shas[2])),
+                   'retained.json':dict(releases=[dict(sha=shas[3])]),
+                   'proxy-runtime.json':dict(referencedShas=[shas[4]],uncertainShas=[shas[5]])}
+        for name,value in manifests.items():
+            file=state/name;file.write_text(json.dumps(dict(version=1,**value)));file.chmod(0o600)
+        engine=self.engine()
+        for sha in shas:self.assertIn(self.root/'releases'/sha,engine.protected)
+        engine.execute(True,'production')
+        for sha in shas:self.assertTrue((self.root/'releases'/sha).exists())
+
+    def test_invalid_slot_or_symlink_manifest_blocks_cleanup(self):
+        import json
+        state=self.root/'.release-slots';state.mkdir(mode=0o700)
+        file=state/'slot-a.json';file.write_text(json.dumps(dict(version=1,sha='invalid')));file.chmod(0o600)
+        with self.assertRaises(RuntimeError):self.engine()
+        file.unlink();file.symlink_to(self.repo/'package.json')
+        with self.assertRaises(OSError):self.engine()
+
     def test_default_report_never_deletes(self):
         p = self.add('worktrees', 'paused')
         target = self.generated(p)

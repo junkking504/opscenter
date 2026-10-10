@@ -24,7 +24,8 @@ const adapter=load('lib/junkware-job-closeout.ts',{
 });
 const dependencies={
   'next/headers':{cookies:async()=>({get:()=>({value:'fixture'})})},
-  'next/server':{NextResponse:Response,after:()=>{publications++;}},
+  'next/server':{NextResponse:Response},
+  '@/lib/release-after':{trackedAfter:()=>{publications++;}},
   '@/lib/auth':{AUTH_SESSION_COOKIE:'fixture',verifyAuthSessionCookie:async()=>signedIn?{email:'fixture-manager',role}:null},
   '@/lib/ops-roles':{authorizeOpsRequest},
   '@/lib/desktop-request-origin':{isDesktopWriteOriginAllowed:(request:Request)=>request.headers.get('origin')===new URL(request.url).origin},

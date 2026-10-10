@@ -1,7 +1,8 @@
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from "next/headers";
-import { after, NextResponse } from "next/server";
+import {NextResponse} from 'next/server';
+import {trackedAfter as after} from '@/lib/release-after';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout, opscenterJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";

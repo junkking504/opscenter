@@ -36,19 +36,10 @@ release_install_lock() {
 trap release_install_lock EXIT
 
 mkdir -p "$CONTROLLER_DIR"
-for source_name in workspace-retention.py release-lineage.sh deploy-release.sh deploy-preview-release.sh; do
-  destination="$CONTROLLER_DIR/$source_name"
-  temporary="$CONTROLLER_DIR/.${source_name}.new.$$"
-  git -C "$REPOSITORY" show "${commit}:deploy/macmini/$source_name" > "$temporary" \
-    || fail "commit $commit does not contain deploy/macmini/$source_name"
-  if [[ "$source_name" == *.py ]]; then
-    python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "$temporary"
-  else
-    /bin/zsh -n "$temporary"
-  fi
-  /bin/chmod 0555 "$temporary"
-  /bin/mv -f "$temporary" "$destination"
-done
+bundle_installer="$CONTROLLER_DIR/.install-controller-bundle.$$"
+git -C "$REPOSITORY" show "${commit}:deploy/macmini/install-controller-bundle.py" > "$bundle_installer"
+python3 "$bundle_installer" "$REPOSITORY" "$CONTROLLER_DIR" "$commit"
+/bin/rm -f "$bundle_installer"
 
 instructions="$CONTROLLER_DIR/.workspace-lifecycle.new.$$"
 git -C "$REPOSITORY" show "${commit}:deploy/macmini/workspace-lifecycle.md" > "$instructions"

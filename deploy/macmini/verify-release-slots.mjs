@@ -1,0 +1,10 @@
+import path from 'node:path';
+import {DEPLOY_ROOT,readPrivate,readSlot,request,validHealth,probeSlot} from './origin-state.mjs';
+import {controlRequest} from './release-transaction.mjs';
+const directory=path.join(DEPLOY_ROOT,'.release-slots'),status=await controlRequest(directory,'/status');
+const active=readPrivate(path.join(directory,'active.json')),slot=readSlot(directory,active.slot);
+if(!status.ledgerHealthy||status.active.sha!==slot.sha||status.active.generation!==active.generation)throw new Error('Proxy generation mismatch');
+await probeSlot(slot,{strict:false});
+const response=await request(3000,'/api/health?readiness=primary');
+if(response.status!==200||!validHealth(JSON.parse(response.body),slot,false))throw new Error('Stable listener identity mismatch');
+console.log('PASS stable proxy and active pinned slot share the expected release/database identity');

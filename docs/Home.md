@@ -69,6 +69,7 @@ without mixing live runtime data or secrets into Git.
 - [Background maintenance pilot](background-maintenance.md)
 - [Geocodio free address fallback](geocodio-free-fallback.md)
 - [Server continuity recovery](server-continuity.md)
+- [Zero-downtime release slots](zero-downtime-deploys.md)
 
 - [Cloudflare Worker build](cloudflare-build.md)
 

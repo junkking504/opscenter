@@ -17,6 +17,8 @@ import {
 } from "@/lib/linxup-authority";
 import { readLinxupV3StreamState } from "@/lib/linxup-stream-health";
 
+import { releaseIdentity } from '@/lib/release-identity';
+
 export const dynamic = "force-dynamic";
 
 const OPERATOR_STATE_DIRECTORIES = [
@@ -59,7 +61,7 @@ export async function GET(request: Request) {
   // Reported alongside liveness so one call shows both, but deliberately not
   // folded into `ok`: this endpoint is a deploy gate and a container
   // healthcheck, and "a truck is dark" must not restart the web service.
-  const signals = collectSystemSignals();
+  const release = releaseIdentity();
   const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
   const expectedMetricsDate = chicagoDateKey();
   const requestedDate = new URL(request.url).searchParams.get("date") || "";
@@ -109,7 +111,19 @@ export async function GET(request: Request) {
     operatorStateWritable,
     operatorStateUnwritable,
     platformKernel,
+    release,
   };
+  const primaryReady = runtime === 'MISSION_CONTROL' && Boolean(release.sha)
+    && !release.stopping && platformKernel.enabled && platformKernel.healthy
+    && platformKernel.status === 'healthy' && Boolean(platformKernel.migrationVersion)
+    && assignmentStoreWritable && operatorStateWritable;
+  // The relay checks web/database identity, not business-source freshness.
+  // Full /api/health below remains the stricter deployment readiness gate.
+  if (new URL(request.url).searchParams.get('readiness') === 'primary') {
+    return NextResponse.json({ version: 1, ok: primaryReady, runtime, ...assignmentHealth },
+      { status: primaryReady ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
+  }
+  const signals = collectSystemSignals();
 
   if (!metricsFile) {
     return NextResponse.json(

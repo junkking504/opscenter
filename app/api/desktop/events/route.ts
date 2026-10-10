@@ -1,3 +1,4 @@
+import {closeReadOnlyStreamsOnStop} from '@/lib/release-background';
 import {cookies} from 'next/headers';
 import path from 'node:path';
 import {AUTH_SESSION_COOKIE, verifyAuthSessionCookie} from '@/lib/auth';
@@ -18,13 +19,17 @@ export async function GET(request: Request) {
       let closed = false;
       const subscriptions: Array<() => void> = [];
       let heartbeat: ReturnType<typeof setInterval> | undefined;
+      let unregisterStop = () => {};
       const close = () => {
         if (closed) return;
         closed = true; for (const unsubscribe of subscriptions) unsubscribe(); clearInterval(heartbeat);
         request.signal.removeEventListener('abort', close);
+        unregisterStop();
         try { controller.close(); } catch { /* Already canceled by the client. */ }
       };
       cleanup = close;
+      unregisterStop = closeReadOnlyStreamsOnStop(close);
+      if (closed) return;
       const send = (value: string) => { if (!closed) { try { controller.enqueue(encoder.encode(value)); } catch { close(); } } };
       for (const subscribe of [subscribeLinxupUpdates, subscribeWhatsAppPhotoUpdates]) {
         try { subscriptions.push(subscribe(root, () => send('event: change\ndata: {}\n\n'))); }

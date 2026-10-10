@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
-const deployer = fs.readFileSync(path.join(root, "deploy/macmini/deploy-release.sh"), "utf8");
+const deployer = fs.readFileSync(path.join(root, "deploy/macmini/deploy-release.sh"), "utf8") + fs.readFileSync(path.join(root, "deploy/macmini/release-services.sh"), "utf8");
 
 for (const label of [
   "com.openclaw.opsbot.junkware-collector",

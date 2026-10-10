@@ -6,7 +6,9 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -50,6 +52,7 @@ class Retention:
         self.now = now or time.time()
         self.events = []
         self.protected = set()
+        self.protection_reasons = {}
         self.active = None
         self.registry = {}
         for block in git(self.repo, 'worktree', 'list', '--porcelain').split('\n\n'):
@@ -63,6 +66,56 @@ class Retention:
                 raise RuntimeError('Active release link unavailable: ' + str(link))
             self.protected.add(link.resolve())
         self.active = git(self.root / 'opscenter', 'rev-parse', 'HEAD').strip()
+        self.protect_slot_state()
+
+    def protect_slot_state(self):
+        """Any uncertain slot/journal inventory blocks cleanup rather than guessing."""
+        directory = self.root / '.release-slots'
+        if not directory.exists() and not directory.is_symlink():
+            return
+        info = directory.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or directory.resolve() != directory
+                or info.st_uid != os.getuid() or info.st_mode & 0o077):
+            raise RuntimeError('Slot retention directory ownership is invalid')
+
+        def protect(sha):
+            if not isinstance(sha, str) or not re.fullmatch('[a-f0-9]{40}', sha):
+                raise RuntimeError('Slot retention SHA is invalid')
+            target = self.root / 'releases' / sha
+            if not target.is_dir() or target.resolve() != target:
+                raise RuntimeError('Referenced slot release is unavailable')
+            self.protected.add(target)
+            self.protection_reasons[target] = 'referenced by slot, activation, rollback or proxy drain manifest'
+
+        for name in ('slot-a.json', 'slot-b.json', 'active.json', 'transaction.json',
+                     'retained.json', 'proxy-runtime.json', 'bootstrap.json'):
+            file = directory / name
+            if not file.exists() and not file.is_symlink():
+                continue
+            fd = os.open(str(file), os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                info = os.fstat(fd)
+                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                        or info.st_nlink != 1 or info.st_mode & 0o077 or info.st_size > 4 * 1024 * 1024):
+                    raise RuntimeError('Slot retention manifest ownership is invalid')
+                with os.fdopen(os.dup(fd)) as stream:
+                    value = json.load(stream)
+            finally:
+                os.close(fd)
+            if value.get('version') != 1:
+                raise RuntimeError('Slot retention manifest version is invalid')
+            if name in ('slot-a.json', 'slot-b.json', 'active.json', 'bootstrap.json'):
+                protect(value.get('sha'))
+            elif name == 'transaction.json':
+                protect(value.get('sha'))
+                protect(value.get('previous', {}).get('sha'))
+                protect(value.get('candidate', {}).get('sha'))
+            elif name == 'retained.json':
+                for record in value['releases']:
+                    protect(record.get('sha'))
+            else:
+                for sha in value['referencedShas'] + value['uncertainShas']:
+                    protect(sha)
 
     def event(self, path, action, reason):
         self.events.append({'path': str(path), 'action': action, 'reason': reason})
@@ -80,7 +133,7 @@ class Retention:
 
     def busy(self, path, paths):
         if path in self.protected:
-            return 'active release or retained rollback'
+            return self.protection_reasons.get(path, 'active release or retained rollback')
         if any(inside(p, path) for p in paths):
             return 'referenced by a running process'
         return self.identity(path)

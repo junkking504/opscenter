@@ -1,3 +1,4 @@
+import type {AddressMapFallback} from '../../lib/address-map-fallback';
 import {appointmentServiceAddress} from '../../lib/service-address-format';
 export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
 export type ScheduleTruckVisitGap = {
@@ -60,6 +61,7 @@ export type ScheduleAppointment = {
   phone: string;
   address: string;
   mapAddress?: string;
+  mapFallback?: AddressMapFallback | null;
   addressCheckPending?: boolean;
   addressCheckReason?: string;
   territory: string;
@@ -179,6 +181,8 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
   if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }
+export function scheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return job.location || job.mapFallback?.location || null; }
+export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }
 export function addressResolutionCopy(reason?: string) {
   if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };

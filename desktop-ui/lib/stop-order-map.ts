@@ -1,3 +1,4 @@
+import {scheduleMapLocation} from './schedule-contract';
 import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleSnapshot} from './schedule-contract';
 import {sameTruck,truckDisplayLabel} from '../../lib/junkware-trucks';
 import {truckGpsStatus} from '../../lib/truck-gps-status';
@@ -16,7 +17,7 @@ export function stopOrderTrucks(fleet:ScheduleSnapshot['fleet'],selectedTruck:st
 /** Only draw road geometry for adjacent stops in the current draft. Missing
  * pins or unavailable legs stay disconnected, never bridged with a guess. */
 export function stopOrderMap(jobs:ScheduleAppointment[],legs:ScheduleRouteLeg[]) {
- const stops=jobs.flatMap((job,index)=>routePointValid(job.location)?[{job,number:index+1,point:job.location}]:[]);
+ const stops=jobs.flatMap((job,index)=>{const point=scheduleMapLocation(job);return routePointValid(point)?[{job,number:index+1,point}]:[];});
  const paths=jobs.slice(1).flatMap((job,index)=>{
   const from=jobs[index];
   if(!routePointValid(from.location)||!routePointValid(job.location))return [];

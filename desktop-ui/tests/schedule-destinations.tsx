@@ -55,6 +55,11 @@ let orderSaves = 0;
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
   if (injectedSnapshot) return injectedSnapshot.appointments;
+  if (scenario === 'map-fallback') return [
+    {...baseStackJob(date,1001), customerName:'Approximate location example',address:'123 Example Wind Blvd, Mandeville, LA 70471',location:null,
+      mapFallback:{location:{latitude:30.45,longitude:-90.05},matchedAddress:'123 Example Wind Ln, Mandeville, LA 70471',source:'Parish address points',sourceUrl:'https://maps.stpgov.org/',detail:'Possible address correction. Exact service address is not verified.',stale:false}},
+    {...baseStackJob(date,1002),customerName:'Verified location example',address:'100 Example St, Mandeville, LA 70471',location:{latitude:30.44,longitude:-90.07}},
+  ];
   if (scenario === 'travel-order') return Array.from({length:6},(_,i)=>({
     ...baseStackJob(date,1001+i),truck:'Truck 9',customerName:['Earlier visit','Just completed','First planned stop','Second planned stop','Afternoon stop','Evening estimate'][i],
     status:i<2?'Completed':'Confirmed',appointmentStartMinutes:[720,600,720,720,840,1020][i],appointmentEndMinutes:[780,660,780,780,900,1080][i],

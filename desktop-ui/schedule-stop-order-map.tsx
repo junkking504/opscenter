@@ -37,8 +37,8 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
   const seen=new Map<string,number>();
   for(const stop of model.stops){
    const position=`${stop.point.latitude}:${stop.point.longitude}`,offset=seen.get(position)||0;seen.set(position,offset+1);
-   const marker=L.marker([stop.point.latitude,stop.point.longitude],{icon:L.divIcon({className:`stop-order-pin${selected===stop.job.recordId?' selected':''}`,html:`<span>${stop.number}</span>`,iconSize:[30,30],iconAnchor:[15-offset*22,15]}),title:`Stop ${stop.number}: ${stop.job.customerName} · ${stop.job.jkNumber}`,keyboard:true,zIndexOffset:selected===stop.job.recordId?1000:100}).addTo(overlay);
-   const caption=document.createElement('div');caption.textContent=`${stop.number}. ${stop.job.customerName} · ${appointmentServiceAddress(stop.job)}`;marker.bindTooltip(caption);marker.on('click',()=>current.current.onSelect(stop.job.recordId));
+   const marker=L.marker([stop.point.latitude,stop.point.longitude],{icon:L.divIcon({className:`stop-order-pin${!stop.job.location?' approximate-location':''}${selected===stop.job.recordId?' selected':''}`,html:`<span>${stop.number}</span>`,iconSize:[30,30],iconAnchor:[15-offset*22,15]}),title:`${!stop.job.location?'Approximate location · ':''}Stop ${stop.number}: ${stop.job.customerName} · ${stop.job.jkNumber}`,keyboard:true,zIndexOffset:selected===stop.job.recordId?1000:100}).addTo(overlay);
+   const caption=document.createElement('div');caption.textContent=`${stop.number}. ${stop.job.customerName} · ${appointmentServiceAddress(stop.job)}${!stop.job.location?' · Approximate location':''}`;marker.bindTooltip(caption);marker.on('click',()=>current.current.onSelect(stop.job.recordId));
   }
   const truckOverlay=L.layerGroup().addTo(overlay);
   const renderedTrucks=new Map<string,{marker:L.Marker;leader:L.Polyline;dot:L.CircleMarker}>();

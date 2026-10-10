@@ -55,3 +55,5 @@
 .ops-live .selected-job-payment > small { font-size: var(--oc-type-11); line-height: 1.4; color: var(--oc-text-blue-14); }
 .ops-live .selected-job-payment.tone-quote { background: var(--oc-surface-canvas); border-color: var(--oc-border-blue-14); }
 .ops-live .selected-job-payment.tone-due, .ops-live .selected-job-payment.tone-unknown { background: var(--oc-status-warn-tint); border-color: var(--oc-border-amber-17); }
+
+.selected-job-map-evidence{display:grid;gap:4px;padding:8px;border:1px dashed #b77908;border-radius:5px;background:#fff6df;color:#704b00;font-size:12px}.selected-job-map-evidence small{line-height:1.4}.selected-job-map-evidence a{text-decoration:underline}

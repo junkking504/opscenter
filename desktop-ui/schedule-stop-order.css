@@ -49,3 +49,5 @@
  .ops-live .stop-order-map-panel { grid-row:1; }
  .ops-live .stop-order-list { grid-row:2; }
 }
+
+.stop-order-pin.approximate-location{outline:2px dashed #b77908;outline-offset:3px}

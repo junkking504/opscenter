@@ -9,7 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
-import { appointmentColorClass, appointmentStatus, scheduleDisplayTruck, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
+import { scheduleMapLocation, appointmentColorClass, appointmentStatus, scheduleDisplayTruck, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 import {continuousGpsDisplayPaths,gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
@@ -85,13 +85,15 @@ export default function ScheduleMap(props: Props) {
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
-      if (!job.location) return;
-      const coordinate: L.LatLngTuple = [job.location.latitude, job.location.longitude];
+      const location = scheduleMapLocation(job);
+      if (!location) return;
+      const approximate = !job.location;
+      const coordinate: L.LatLngTuple = [location.latitude, location.longitude];
       const assignmentClass = scheduleDisplayTruck(job) === 'Unassigned' ? 'assignment-unassigned' : 'assignment-assigned';
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate,
-        partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
-        className: `appointment-marker ${assignmentClass} status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
+        partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}${approximate ? ` · Approximate: ${job.mapFallback?.matchedAddress}` : ''}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}${approximate ? ", approximate location" : ""}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
+        className: `appointment-marker ${approximate ? "approximate-location" : ""} ${assignmentClass} status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });
     trucks.forEach(truck => {
@@ -290,7 +292,7 @@ export default function ScheduleMap(props: Props) {
   const canFollow = props.selectedTruck && !props.selected
     && props.trucks.some(truck => truckLabel(truck.truck) === props.selectedTruck && truck.latitude != null && truck.longitude != null);
   const viewingRoutes = props.truckMapView === 'route';
-  return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS">
+  return <div ref={host} className="live-schedule-map" aria-label="Appointment map locations and truck GPS">
     {props.selectedTruck && !props.selected && <div className="truck-map-view-controls" role="group" aria-label={`${truckDisplayText(props.selectedTruck)} map view`}>
       {canFollow && <button type="button" className="truck-follow-control" aria-pressed={!viewingRoutes && following}
         onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}

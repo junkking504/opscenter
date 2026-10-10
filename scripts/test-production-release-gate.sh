@@ -69,4 +69,5 @@ if opscenter_require_exact_ref "$fixture_root" "$sibling_commit" refs/heads/prod
   exit 1
 fi
 
-echo "Production release lineage gate tests passed."
+python3 "$SCRIPT_DIR/test-deployment-mode.py"
+echo "Production release lineage and deployment mode gate tests passed."

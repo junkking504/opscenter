@@ -142,8 +142,12 @@ mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
 acquire_deploy_lock
 SLOT_MODE="legacy"
 if [[ -e "$DEPLOY_ROOT/.release-slots" ]]; then
-  SLOT_MODE="$(node "$SCRIPT_DIR/origin-state.mjs" mode "$DEPLOY_ROOT/.release-slots")"
+  SLOT_MODE="$(node "$SCRIPT_DIR/origin-state.mjs" mode "$DEPLOY_ROOT/.release-slots")" || fail "deployment mode unavailable; refusing"
 fi
+case "$SLOT_MODE" in
+  legacy|slots|bootstrap-incomplete) ;;
+  *) fail "deployment mode unreadable; refusing" ;;
+esac
 if [[ "$SLOT_MODE" == slots ]]; then
   node "$SCRIPT_DIR/release-transaction.mjs" recover unused "$$" &
   ACTIVE_DEPLOY_CHILD=$!

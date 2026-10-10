@@ -138,14 +138,33 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.tick()
         self.assertEqual(self.runtime.starts, 1)
 
+    def test_slot_mode_supersedes_legacy_without_resetting_attempts(self):
+        self.outage()
+        previous = read_state(self.directory)
+        root = self.directory.resolve(); slot = root / '.release-slots'; slot.mkdir(mode=0o700)
+        atomic_json(slot / 'enabled.json', {'version': 1, 'enabled': True})
+        runtime = Runtime(root=root)
+        with patch.object(runtime, 'command') as command:
+            self.assertEqual(runtime.inspect()[0], 'superseded')
+            self.assertFalse(runtime.start()); command.assert_not_called()
+        self.runtime = runtime
+        result = self.tick()
+        self.assertIn('superseded', result['status'])
+        self.assertEqual(result['attempts'], previous['attempts'])
+        self.assertEqual(result['attempted'], previous['attempted'])
+        atomic_json(slot / 'enabled.json', {'version': 1, 'enabled': 'true'})
+        self.assertEqual(runtime.inspect()[0], 'blocked')
+        (slot / 'enabled.json').unlink(); (slot / 'enabled.json').symlink_to('/dev/null')
+        self.assertEqual(runtime.inspect()[0], 'blocked')
+
     def test_actual_command_is_start_only_fixed_service(self):
-        runtime = Runtime()
+        runtime = Runtime(root=self.directory.resolve())
         with patch.object(runtime, 'command', return_value=SimpleNamespace(returncode=0)) as command:
             self.assertTrue(runtime.start())
             self.assertEqual(command.call_args.args[0], ['/bin/launchctl', 'kickstart', runtime.target])
 
     def test_actual_service_parser_blocks_disabled_and_unloaded(self):
-        runtime = Runtime()
+        runtime = Runtime(root=self.directory.resolve())
         with patch.object(runtime, 'command', return_value=SimpleNamespace(returncode=1, stdout='')):
             self.assertEqual(runtime.inspect()[0], 'blocked')
         stopped = SimpleNamespace(returncode=0, stdout='state = not running\n' + str(runtime.app / 'scripts/run_opscenter.sh'))
@@ -154,7 +173,7 @@ class RecoveryTests(unittest.TestCase):
                 self.assertEqual(runtime.inspect()[0], 'blocked')
 
     def test_actual_stopped_service_and_occupied_port(self):
-        runtime = Runtime(); runtime.app = self.directory
+        runtime = Runtime(root=self.directory.resolve()); runtime.app = self.directory
         stopped = SimpleNamespace(returncode=0, stdout='state = not running\n' + str(runtime.app / 'scripts/run_opscenter.sh'))
         enabled = SimpleNamespace(returncode=0, stdout='"com.openclaw.opscenter" => enabled')
         processes = SimpleNamespace(returncode=0, stdout='safe unrelated process')
@@ -166,7 +185,7 @@ class RecoveryTests(unittest.TestCase):
             self.assertEqual(runtime.inspect()[0], 'blocked')
 
     def test_verification_requires_three_consecutive_successes(self):
-        runtime = Runtime()
+        runtime = Runtime(root=self.directory.resolve())
         with patch('time.sleep'), patch.object(runtime, 'healthy', side_effect=[False, False, True, True, True]):
             self.assertTrue(runtime.verify())
         with patch('time.sleep'), patch.object(runtime, 'healthy', side_effect=[True, True, False, True, True]):
@@ -182,7 +201,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.runtime.starts, 0)
 
     def test_actual_deployment_lock_does_not_remove_other_owner(self):
-        runtime = Runtime(); runtime.root = self.directory
+        runtime = Runtime(root=self.directory.resolve()); runtime.root = self.directory
         lock = self.directory / '.deploy-lock'; lock.mkdir(); (lock / 'owner').write_text('another deployment')
         with runtime.deployment_guard() as acquired: self.assertFalse(acquired)
         self.assertEqual((lock / 'owner').read_text(), 'another deployment')

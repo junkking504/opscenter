@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 import socket
+import stat
 import subprocess
 import time
 import urllib.request
@@ -62,16 +63,39 @@ def read_state(directory):
 
 
 class Runtime:
-    def __init__(self):
-        self.root = pathlib.Path.home() / 'opscenter-v2'
+    def __init__(self, root=None):
+        self.root = pathlib.Path(root) if root is not None else pathlib.Path.home() / 'opscenter-v2'
         self.app = self.root / 'opscenter'
         self.target = 'gui/%s/%s' % (os.getuid(), LABEL)
 
     def command(self, args):
         return subprocess.run(args, capture_output=True, text=True, timeout=5)
 
+    def slot_mode(self):
+        directory = self.root / '.release-slots'
+        if not directory.exists() and not directory.is_symlink(): return False
+        info = directory.lstat()
+        if not stat.S_ISDIR(info.st_mode) or directory.resolve() != directory or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise ValueError('Slot mode directory is unverified')
+        try: fd = os.open(directory / 'enabled.json', os.O_RDONLY | os.O_NOFOLLOW)
+        except FileNotFoundError: return False
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or info.st_mode & 0o077 or info.st_size > 4096:
+                raise ValueError('Slot mode file is unverified')
+            with os.fdopen(os.dup(fd)) as stream: value = json.load(stream)
+        finally: os.close(fd)
+        if value.get('version') != 1 or type(value.get('enabled')) is not bool:
+            raise ValueError('Slot mode is invalid')
+        return value['enabled']
+
     def inspect(self):
         """Unknown evidence blocks action. A live PID or occupied port always blocks."""
+        try:
+            if self.slot_mode():
+                return 'superseded', 'Legacy process recovery is superseded by slot mode; pinned services manage startup'
+        except (OSError, ValueError, AttributeError):
+            return 'blocked', 'Deployment mode is unverified; no legacy start allowed'
         service = self.command(['/bin/launchctl', 'print', self.target])
         if service.returncode:
             return 'blocked', 'Service is unloaded or unavailable; manual review required'
@@ -146,6 +170,7 @@ class Runtime:
         return str(target)
 
     def start(self):
+        if self.slot_mode(): return False
         # Deliberately no -k: a racing natural launchd recovery must never be killed.
         return self.command(['/bin/launchctl', 'kickstart', self.target]).returncode == 0
 

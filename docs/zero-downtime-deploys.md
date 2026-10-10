@@ -83,6 +83,10 @@ its recorded transaction and singleton child PIDs are also dead. Live, reused, o
 unknown PIDs block recovery. A stale build lock without a matching activation
 journal requires operator investigation; do not remove it or force a deploy.
 Accepted journals reconcile receipts and retirement, never roll back accepted work.
+The old single-process recovery observer reports that it is superseded while the
+private enabled slot-mode manifest is valid. It preserves its attempt history and
+never starts the legacy service in slot mode. Invalid mode evidence blocks action;
+this status does not claim that slot health is good.
 
 The existing legacy process-recovery worker retains its old label scope. It does
 not gain authority over the proxy or slots. Slot/proxy KeepAlive handles process

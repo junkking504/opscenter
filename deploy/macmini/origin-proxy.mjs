@@ -1,6 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {DEPLOY_ROOT, SLOT_PORTS, privateDirectory, readPrivate, atomicPrivate, validateGeneration, validateSlot, readSlot, probeSlot, staticFile} from './origin-state.mjs';
 
@@ -19,6 +20,7 @@ const mime = file => ({'.js':'text/javascript','.css':'text/css','.woff2':'font/
 
 export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.release-slots'), root = DEPLOY_ROOT, ports = SLOT_PORTS, probe = probeSlot} = {}) {
   privateDirectory(stateDir);
+  const bundleSha256=createHash('sha256').update(fs.readFileSync(new URL(import.meta.url))).update(fs.readFileSync(new URL('./origin-state.mjs',import.meta.url))).digest('hex');
   const options = {root, ports};
   const activeFile = path.join(stateDir,'active.json');
   let active = validateGeneration(readPrivate(activeFile), stateDir, options);
@@ -27,42 +29,56 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
   const counts = new Map(), requests = new Set();
   const runtimeFile=path.join(stateDir,'proxy-runtime.json');
   let ledgerHealthy=true;
-  const uncertainShas=new Set();
+  const unverifiedShas=new Set();
   if(fs.existsSync(runtimeFile)){
     const previous=readPrivate(runtimeFile);
-    if(previous.version!==1||!Array.isArray(previous.referencedShas)||!Array.isArray(previous.uncertainShas))throw new Error('Proxy drain ledger invalid');
-    for(const sha of [...(previous.clean===true?[]:previous.referencedShas),...previous.uncertainShas]){
+    if(previous.version!==1||!Array.isArray(previous.referencedShas)||!Array.isArray(previous.unverifiedShas))throw new Error('Proxy drain ledger invalid');
+    for(const sha of [...(previous.clean===true?[]:previous.referencedShas),...previous.unverifiedShas]){
       if(!/^[a-f0-9]{40}$/.test(sha))throw new Error('Proxy drain ledger identity invalid');
-      uncertainShas.add(sha);
+      unverifiedShas.add(sha);
     }
   }
   function persistRuntime(clean=false){
     const referencedShas=[active.sha];
     for(const id of ['a','b']){try{referencedShas.push(readSlot(stateDir,id,options).sha);}catch{/* Candidate may not exist. */}}
-    atomicPrivate(runtimeFile,{version:1,pid:process.pid,clean,referencedShas:[...new Set(referencedShas)],uncertainShas:[...uncertainShas]});
+    atomicPrivate(runtimeFile,{version:1,pid:process.pid,clean,referencedShas:[...new Set(referencedShas)],unverifiedShas:[...unverifiedShas]});
   }
   persistRuntime();
   // Lost proxy accounting is never proof that an old application stopped work.
-  // Restart restores routing but conservatively blocks retirement for old SHAs.
-  for(const sha of uncertainShas)counts.set(sha,{sha,slot:null,inFlight:0,uncertain:1});
+  // Restart restores routing; unverified references require process-exit proof.
+  for(const sha of unverifiedShas)counts.set(sha,{sha,slot:null,inFlight:0,uncertain:0});
   let activation;
   function counter(target) {
     if (!counts.has(target.sha)) counts.set(target.sha,{sha:target.sha,slot:target.id,inFlight:0,uncertain:0});
     return counts.get(target.sha);
   }
-  function track(target) {
+  function recordOutcome(target,req){
+    const raw=req.url?.split('?')[0]||'';
+    // Fixed groups only: never persist URL parameters, IDs, bodies or headers.
+    const route=raw.startsWith('/api/crew-jobs/')?'/api/crew-jobs/*':raw.startsWith('/api/desktop/')?'/api/desktop/*':raw.startsWith('/api/integrations/')?'/api/integrations/*':raw.startsWith('/api/auth/')?'/api/auth/*':raw.startsWith('/api/')?'/api/*':'other';
+    const method=['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'].includes(req.method)?req.method:'OTHER';
+    const file=path.join(stateDir,'uncertain-outcomes.jsonl');
+    const fd=fs.openSync(file,fs.constants.O_WRONLY|fs.constants.O_APPEND|fs.constants.O_CREAT|fs.constants.O_NOFOLLOW,0o600);
+    try{
+      const stat=fs.fstatSync(fd);
+      if(!stat.isFile()||stat.uid!==process.getuid()||stat.nlink!==1||(stat.mode&0o077)!==0||stat.size>16*1024*1024)throw new Error('Outcome ledger unavailable or needs archival review');
+      fs.writeSync(fd,JSON.stringify({at:new Date().toISOString(),method,route,sha:target.sha})+'\n');fs.fsyncSync(fd);
+      const directory=fs.openSync(stateDir,'r');try{fs.fsyncSync(directory);}finally{fs.closeSync(directory);}
+    }finally{fs.closeSync(fd);}
+  }
+  function track(target,req) {
     const stat = counter(target); stat.inFlight++;
     const record = {target,started:Date.now(),finished:false,uncertain:false,safeSse:false,retiring:false};
     requests.add(record);
     record.markUncertain = () => { if (!record.uncertain && !record.retiring) {
-      record.uncertain=true;stat.uncertain++;uncertainShas.add(target.sha);
-      try{persistRuntime();}catch{ledgerHealthy=false;}
+      record.uncertain=true;stat.uncertain++;unverifiedShas.add(target.sha);
+      try{recordOutcome(target,req);persistRuntime();}catch{ledgerHealthy=false;}
     } };
     record.finish = () => { if (!record.finished) {record.finished=true;stat.inFlight--;requests.delete(record);} };
     return record;
   }
   function status() {
-    return {version:1,ledgerHealthy,activating:Boolean(activation),active:{generation:active.generation,slot:active.slot,sha:active.sha},slots:[...counts.values()].map(row=>({...row,overdue:[...requests].filter(r=>r.target.sha===row.sha&&Date.now()-r.started>600000).length}))};
+    return {version:1,bundleSha256,ledgerHealthy,activating:Boolean(activation),active:{generation:active.generation,slot:active.slot,sha:active.sha},slots:[...counts.values()].map(row=>({...row,unverified:unverifiedShas.has(row.sha),overdue:[...requests].filter(r=>r.target.sha===row.sha&&Date.now()-r.started>600000).length}))};
   }
   async function activate(generation, sha) {
     if (activation) throw new Error('Activation already in progress');
@@ -91,6 +107,14 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
     }
     return {ended,...status()};
   }
+  function confirmRetired(sha){
+    if(sha===active.sha||requests.size&&[...requests].some(row=>row.target.sha===sha))throw new Error('Release still serves requests');
+    const slot=['a','b'].map(id=>{try{return readSlot(stateDir,id,options);}catch{return null;}}).find(row=>row?.sha===sha);
+    // Only the locked controller writes this after graceful native shutdown and
+    // proving the launchd PID has exited. Historical outcomes remain untouched.
+    if(!slot?.retiredAt||!slot.retirementProof?.processStoppedAt)throw new Error('No completed process retirement proof');
+    unverifiedShas.delete(sha);persistRuntime();return status();
+  }
   function fallback(raw, current) {
     for (const id of ['a','b']) {
       try { const slot=readSlot(stateDir,id,options); if(slot.sha!==current.sha) {const asset=staticFile(slot,raw);if(asset)return {...asset,sha:slot.sha};} }
@@ -107,7 +131,7 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
   }
   const server = http.createServer((req,res) => {
     if (!req.url?.startsWith('/') || req.url.startsWith('//')) return json(res,400,{error:'Invalid origin path'});
-    const target = active.target, record = track(target);
+    const target = active.target, record = track(target,req);
     const upstream = http.request({hostname:'127.0.0.1',port:target.port,method:req.method,path:req.url,headers:endToEnd(req.headers),agent:false},response=>{
       record.response=response;record.downstream=res;
       record.safeSse=req.method==='GET' && req.url.split('?')[0]==='/api/desktop/events' && response.statusCode===200 && String(response.headers['content-type']).startsWith('text/event-stream');
@@ -144,7 +168,7 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
   server.on('connect',(_req,socket)=>socket.destroy());
   server.on('upgrade',(req,socket,head)=>{
     if(!req.url?.startsWith('/')||req.url.startsWith('//'))return socket.destroy();
-    const target=active.target,record=track(target);
+    const target=active.target,record=track(target,req);
     const upstream=http.request({hostname:'127.0.0.1',port:target.port,method:req.method,path:req.url,headers:endToEnd(req.headers,true),agent:false});
     upstream.on('upgrade',(response,peer,upstreamHead)=>{
       const headers=endToEnd(response.headers,true);
@@ -168,6 +192,7 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
       const input=JSON.parse(body);
       if(req.method==='POST'&&req.url==='/activate')return json(res,200,await activate(input.generation,input.sha));
       if(req.method==='POST'&&req.url==='/retire-streams')return json(res,200,retireStreams(input.sha));
+      if(req.method==='POST'&&req.url==='/confirm-retired')return json(res,200,confirmRetired(input.sha));
       return json(res,404,{error:'Unknown control operation'});
     } catch {json(res,409,{error:'Control operation rejected; current routing retained'});}
   });
@@ -181,7 +206,7 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
     // Graceful proxy maintenance releases the listener immediately but never
     // terminates submitted upstream work or erases an uncertain result.
     while(true){
-      let safe=ledgerHealthy&&[...counts.values()].every(row=>row.inFlight===0&&row.uncertain===0);
+      let safe=ledgerHealthy&&[...counts.values()].every(row=>row.inFlight===0);
       if(safe)for(const id of ['a','b']){
         try{const slot=readSlot(stateDir,id,options);if(slot.retiredAt)continue;const health=await probe(slot,{strict:false,assets:false});if(health.release.pending!==0)safe=false;}
         catch(error){if(error.code!=='ENOENT')safe=false;}
@@ -190,12 +215,11 @@ export async function createOriginProxy({stateDir = path.join(DEPLOY_ROOT,'.rele
       await new Promise(resolve=>setTimeout(resolve,1000));
     }
   }
-  return {server,control,status,activate,retireStreams,shutdown};
+  return {server,control,status,activate,retireStreams,confirmRetired,shutdown};
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
-  const stateDir=path.join(DEPLOY_ROOT,'.release-slots'),socket=path.join(stateDir,'control.sock');
-  const proxy=await createOriginProxy({stateDir});
+export async function startOriginProxy(options={}){
+  const stateDir=options.stateDir||path.join(DEPLOY_ROOT,'.release-slots'),socket=path.join(stateDir,'control.sock');
   // Never unlink a live or unexpected socket. launchd restart may leave only a
   // dead owned socket; an independently listening control endpoint blocks us.
   if(fs.existsSync(socket)){
@@ -204,11 +228,17 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
     const alive=await new Promise(resolve=>{const client=net.createConnection(socket);client.once('connect',()=>{client.destroy();resolve(true);});client.once('error',error=>resolve(error.code!=='ECONNREFUSED'));});
     if(alive)throw new Error('Control socket still live or uncertain');fs.unlinkSync(socket);
   }
+  const proxy=await createOriginProxy({...options,stateDir});
   try{
     await new Promise((resolve,reject)=>{proxy.control.once('error',reject);proxy.control.listen(socket,resolve);});
     fs.chmodSync(socket,0o600);
-    await new Promise((resolve,reject)=>{proxy.server.once('error',reject);proxy.server.listen(3000,'127.0.0.1',resolve);});
-    console.log('Origin proxy ready on loopback3000; generation',proxy.status().active.generation);
-    for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{void proxy.shutdown().catch(()=>{console.error('Proxy graceful shutdown needs review; process retained.');});});
-  }catch(error){console.error('Origin proxy listener failure',error.code||'unknown');proxy.control.close();proxy.server.close();process.exitCode=1;}
+    await new Promise((resolve,reject)=>{proxy.server.once('error',reject);proxy.server.listen(options.listenPort??3000,'127.0.0.1',resolve);});
+    return proxy;
+  }catch(error){proxy.control.close();proxy.server.close();throw error;}
+}
+
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+  const proxy=await startOriginProxy();
+  console.log('Origin proxy ready on loopback3000; generation',proxy.status().active.generation);
+  for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{void proxy.shutdown().catch(()=>{console.error('Proxy graceful shutdown needs review; process retained.');});});
 }

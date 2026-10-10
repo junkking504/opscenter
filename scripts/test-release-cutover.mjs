@@ -6,10 +6,10 @@ import http from 'node:http';
 import net from 'node:net';
 import {execFileSync} from 'node:child_process';
 import test from 'node:test';
-import {createOriginProxy,endToEnd} from '../deploy/macmini/origin-proxy.mjs';
+import {createOriginProxy,startOriginProxy,endToEnd} from '../deploy/macmini/origin-proxy.mjs';
 import {atomicPrivate,readPrivate,validateSlot,validHealth,waitReady,inventoryAssets,staticPath,sleep} from '../deploy/macmini/origin-state.mjs';
 import {probeSlot} from '../deploy/macmini/origin-state.mjs';
-import {ReleaseTransaction,recoverDeadActivationLock} from '../deploy/macmini/release-transaction.mjs';
+import {ReleaseTransaction,recoverDeadActivationLock,controlRequest} from '../deploy/macmini/release-transaction.mjs';
 
 const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve(server.address().port)));
 const close=server=>new Promise(resolve=>{server.closeAllConnections();server.close(()=>resolve());});
@@ -69,7 +69,7 @@ test('lost upstream response remains uncertain and is never retried',async()=>{
   try{const response=await fetch(f.base+'/write',{method:'POST',body:'synthetic'});assert.equal(response.status,502);assert.equal((await response.json()).code,'origin_response_unknown');assert.equal(writes,1);assert.equal(f.proxy.status().slots[0].uncertain,1);assert.equal(f.seen.filter(row=>row.id==='b'&&row.method==='POST').length,0);}
   finally{await f.cleanup();}
 });
-test('truncated upload blocks retirement instead of treating socket close as completion',async()=>{
+test('truncated upload records an unknown outcome and requires a fresh retirement proof',async()=>{
   const f=await fixture();f.handlers.a=req=>req.resume();
   try{const req=http.request(f.base+'/write',{method:'POST',headers:{'content-length':'1000'}});req.on('error',()=>{});req.write('partial');await sleep(30);req.destroy();await sleep(40);assert.equal(f.proxy.status().slots[0].uncertain,1);}
   finally{await f.cleanup();}
@@ -89,7 +89,7 @@ test('invalid active manifest preserves acknowledged traffic; startup rejects it
 });
 test('proxy restart restores pinned generation but does not erase uncertain drain accounting',async()=>{
   const f=await fixture();let restarted;
-  try{await f.activate('b');await close(f.proxy.server);restarted=await createOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports});const port=await listen(restarted.server);assert.equal(await(await fetch(`http://127.0.0.1:${port}`)).text(),'b');assert.ok(restarted.status().slots.every(row=>row.uncertain>0));}
+  try{await f.activate('b');await close(f.proxy.server);restarted=await createOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports});const port=await listen(restarted.server);assert.equal(await(await fetch(`http://127.0.0.1:${port}`)).text(),'b');assert.ok(restarted.status().slots.every(row=>row.unverified===true));}
   finally{if(restarted)await close(restarted.server);await f.cleanup();}
 });
 test('known read-only EventSource can reconnect; arbitrary streams are not forcibly retired',async()=>{
@@ -112,7 +112,7 @@ test('hop-by-hop stripping preserves ordinary authentication and forwarded heade
 function transaction(f,overrides={}){
   let linked=f.slots.a.sha;const running={a:true,b:true},stops=[],services=[];
   const hooks={
-    control:async(endpoint,input)=>endpoint==='/status'?f.proxy.status():endpoint==='/activate'?f.proxy.activate(input.generation,input.sha):f.proxy.retireStreams(input.sha),
+    control:async(endpoint,input)=>endpoint==='/status'?f.proxy.status():endpoint==='/activate'?f.proxy.activate(input.generation,input.sha):endpoint==='/confirm-retired'?f.proxy.confirmRetired(input.sha):f.proxy.retireStreams(input.sha),
     probe:probeSlot,ready:slot=>waitReady(slot,{deadlineMs:250,spacingMs:5,minimumMs:10}),running:async slot=>running[slot.id],
     linkSha:()=>linked,link:slot=>{linked=slot.sha;},expected:async()=>({database:'synthetic',migration:'0001_kernel.sql'}),
     start:async slot=>{running[slot.id]=true;f.slots[slot.id]=slot;},stop:async slot=>{running[slot.id]=false;stops.push(slot.sha);},
@@ -235,4 +235,62 @@ test('corrupt bootstrap PID cannot signal or replace a process',async()=>{
     atomicPrivate(path.join(f.stateDir,'bootstrap.json'),{version:1,sha:f.slots.a.sha,phase:'prepared',legacy:{pid,label:'com.openclaw.opscenter'}});
     await assert.rejects(run.rollback(),/journal identity invalid/);
   }assert.equal(effects,0);}finally{await f.cleanup();}
+});
+
+function extraRelease(f,sha,source){
+  const release=path.join(f.root,'releases',sha);fs.cpSync(source,release,{recursive:true});fs.writeFileSync(path.join(release,'.opscenter-release'),`commit=${sha}\n`);return sha;
+}
+test('partial upload outcome is retained while the next two forward deployments can drain and proceed',async()=>{
+  const f=await fixture();const original=f.slots.a.sha;f.handlers.a=req=>req.resume();
+  try{
+    const req=http.request(f.base+'/api/crew-jobs/photos?private=never-record',{method:'POST',headers:{'content-length':1000}});req.on('error',()=>{});req.write('private body');await sleep(20);req.destroy();await sleep(30);
+    const ledger=path.join(f.stateDir,'uncertain-outcomes.jsonl'),before=fs.readFileSync(ledger,'utf8');
+    assert.equal(before.includes('private'),false);assert.equal(JSON.parse(before).route,'/api/crew-jobs/*');
+    f.handlers.a=null;const t=transaction(f);
+    const c=extraRelease(f,'c'.repeat(40),f.slots.a.release),d=extraRelease(f,'d'.repeat(40),f.slots.b.release);
+    await t.run.deploy(f.slots.b.sha);assert.equal(f.proxy.status().slots.find(row=>row.sha===original).unverified,false);
+    await t.run.deploy(c);await t.run.deploy(d);assert.equal(f.proxy.status().active.sha,d);
+    assert.equal(fs.readFileSync(ledger,'utf8'),before,'operator outcome evidence must not be erased by retirement');
+  }finally{await f.cleanup();}
+});
+
+test('unclean proxy restart recovers routing and permits deployment after graceful process-exit proof',async()=>{
+  const f=await fixture();let restarted;
+  try{
+    await close(f.proxy.server);restarted=await createOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports});await listen(restarted.server);f.proxy=restarted;
+    const t=transaction(f);await t.run.deploy(f.slots.b.sha);assert.equal(t.run.journal().phase,'retired');
+    assert.ok(restarted.status().slots.every(row=>row.unverified===false));
+  }finally{if(restarted)await close(restarted.server);await f.cleanup();}
+});
+
+test('pending HTTP lost from proxy accounting still cannot be force-retired by a pending-zero health sample',async()=>{
+  const f=await fixture();let oldHttpRunning=true;const t=transaction(f);const stop=t.hooks.stop;
+  t.hooks.stop=async slot=>{if(slot.id==='a'&&oldHttpRunning)throw new Error('Native graceful shutdown still waiting for original HTTP');return stop(slot);};
+  try{
+    const result=await t.run.deploy(f.slots.b.sha);assert.equal(result.retirement,'deferred');assert.equal(t.stops.includes('a'.repeat(40)),false);
+    oldHttpRunning=false;await t.run.recover();assert.equal(t.run.journal().phase,'retired');
+  }finally{await f.cleanup();}
+});
+
+test('one public blip is recorded without rollback; three consecutive failures roll back',async()=>{
+  for(const failAlways of [false,true]){
+    const f=await fixture();let calls=0;const t=transaction(f,{publicProbe:async()=>{if(++calls===1||failAlways)throw new Error('Synthetic transient ingress');}});
+    try{
+      if(failAlways){await assert.rejects(t.run.deploy(f.slots.b.sha),/three consecutive/);assert.equal(t.linked,f.slots.a.sha);}
+      else{await t.run.deploy(f.slots.b.sha);assert.equal(t.run.journal().publicBlips.length,1);assert.equal(t.linked,f.slots.b.sha);}
+    }finally{await f.cleanup();}
+  }
+});
+
+test('real listener startup binds private control and rejects a live duplicate before changing its ledger',async()=>{
+  const f=await fixture();let started;
+  try{
+    await close(f.proxy.server);started=await startOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports,listenPort:0});
+    const status=await controlRequest(f.stateDir,'/status');assert.equal(status.active.sha,f.slots.a.sha);assert.match(status.bundleSha256,/^[a-f0-9]{64}$/);
+    assert.equal(fs.statSync(path.join(f.stateDir,'control.sock')).mode&0o777,0o600);
+    const before=fs.readFileSync(path.join(f.stateDir,'proxy-runtime.json'),'utf8');
+    await assert.rejects(startOriginProxy({stateDir:f.stateDir,root:f.root,ports:f.ports,listenPort:0}),/still live/);
+    assert.equal(fs.readFileSync(path.join(f.stateDir,'proxy-runtime.json'),'utf8'),before);
+    await started.shutdown();started=null;
+  }finally{if(started){await close(started.server);await close(started.control);}await f.cleanup();}
 });

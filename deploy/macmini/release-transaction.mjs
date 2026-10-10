@@ -42,11 +42,13 @@ export class ReleaseTransaction {
   async safeToStop(slot){
     const status=await this.status();if(status.active.sha===slot.sha)return false;
     const count=status.slots.find(row=>row.sha===slot.sha);
-    if(count&&(count.inFlight!==0||count.uncertain!==0))return false;
-    if(!await this.hooks.running(slot))return !slot.servedAt || Boolean(slot.retiredAt)
-      || slot.retirementProof?.generation===status.active.generation;
+    if(count&&count.inFlight!==0)return false;
+    if(!await this.hooks.running(slot))return true;
     const health=await this.hooks.probe(slot,{strict:false,assets:false});
-    return health.release.pending===0 && slot.instance===health.release.instance;
+    // A new instance proves the previous process is gone; a live instance is
+    // still stopped only through native graceful shutdown below. That shutdown
+    // waits for HTTP requests lost from proxy accounting as well as after work.
+    return health.release.pending===0;
   }
   async retire(slot){
     try{
@@ -57,7 +59,10 @@ export class ReleaseTransaction {
       const proven={...slot,retirementProof:{generation:status.active.generation,checkedAt:new Date().toISOString()}};
       atomicPrivate(path.join(this.stateDir,`slot-${slot.id}.json`),proven);
       await this.hooks.stop(slot);
-      atomicPrivate(path.join(this.stateDir,`slot-${slot.id}.json`),{...proven,retiredAt:new Date().toISOString()});return true;
+      if(await this.hooks.running(slot))return false;
+      const processStoppedAt=new Date().toISOString();
+      atomicPrivate(path.join(this.stateDir,`slot-${slot.id}.json`),{...proven,retirementProof:{...proven.retirementProof,processStoppedAt},retiredAt:processStoppedAt});
+      await this.hooks.control('/confirm-retired',{sha:slot.sha});return true;
     }catch{return false;}
   }
   remember(slot){
@@ -70,7 +75,7 @@ export class ReleaseTransaction {
     const file=path.join(this.stateDir,'history.json');const previous=fs.existsSync(file)?readPrivate(file):{version:1,receipts:[]};
     if(previous.version!==1||!Array.isArray(previous.receipts))throw new Error('Cutover history invalid');
     if(previous.receipts.some(row=>row.sha===journal.sha&&row.generation===journal.generation&&row.phase===journal.phase))return;
-    atomicPrivate(file,{version:1,receipts:[...previous.receipts,{sha:journal.sha,previousSha:journal.previous.sha,generation:journal.generation,phase:journal.phase,startedAt:journal.startedAt,switchedAt:journal.switchedAt,acceptedAt:journal.acceptedAt,updatedAt:journal.updatedAt}].slice(-100)});
+    atomicPrivate(file,{version:1,receipts:[...previous.receipts,{sha:journal.sha,previousSha:journal.previous.sha,generation:journal.generation,phase:journal.phase,startedAt:journal.startedAt,switchedAt:journal.switchedAt,acceptedAt:journal.acceptedAt,updatedAt:journal.updatedAt,publicBlips:journal.publicBlips||[]}].slice(-100)});
   }
   async switchTo(slot,journal,phase){
     const current=await this.status();const generation=current.active.generation+1;
@@ -143,12 +148,22 @@ export class ReleaseTransaction {
       journal=this.save({...journal,switchedAt:new Date().toISOString()},'switched');
       this.hooks.link(candidate);journal=this.save(journal,'linked');
       await this.hooks.services(candidate);journal=this.save(journal,'services');
-      await this.hooks.ready(candidate);await this.hooks.publicProbe(candidate);
+      await this.hooks.ready(candidate);
+      let publicFailures=0;
+      const samplePublic=async()=>{
+        try{await this.hooks.publicProbe(candidate);publicFailures=0;}
+        catch{
+          publicFailures++;
+          journal=this.save({...journal,publicBlips:[...(journal.publicBlips||[]),{at:new Date().toISOString(),consecutive:publicFailures}].slice(-20)},journal.phase);
+          if(publicFailures>=3)throw new Error('Public readiness failed three consecutive checks');
+        }
+      };
+      do{await samplePublic();if(publicFailures)await sleep(this.intervalMs);}while(publicFailures);
       journal=this.save(journal,'observing');
       const until=Date.now()+this.observationMs;let nextPublic=0;
       while(Date.now()<until){
         await this.hooks.probe(candidate,{strict:false,assets:false});
-        if(Date.now()>=nextPublic){await this.hooks.publicProbe(candidate);nextPublic=Date.now()+30000;}
+        if(Date.now()>=nextPublic){await samplePublic();nextPublic=Date.now()+30000;}
         await sleep(Math.min(this.intervalMs,Math.max(0,until-Date.now())));
       }
       journal=this.save({...journal,acceptedAt:new Date().toISOString()},'accepted');

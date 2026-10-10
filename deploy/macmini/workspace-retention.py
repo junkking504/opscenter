@@ -119,7 +119,7 @@ class Retention:
                 for record in value['releases']:
                     protect(record.get('sha'))
             else:
-                for sha in value['referencedShas'] + value['uncertainShas']:
+                for sha in value['referencedShas'] + value['unverifiedShas']:
                     protect(sha)
 
     def event(self, path, action, reason):

@@ -72,7 +72,7 @@ class RetentionTests(unittest.TestCase):
                    'active.json':dict(sha=shas[0]),
                    'transaction.json':dict(sha=shas[2],previous=dict(sha=shas[1]),candidate=dict(sha=shas[2])),
                    'retained.json':dict(releases=[dict(sha=shas[3])]),
-                   'proxy-runtime.json':dict(referencedShas=[shas[4]],uncertainShas=[shas[5]])}
+                   'proxy-runtime.json':dict(referencedShas=[shas[4]],unverifiedShas=[shas[5]])}
         for name,value in manifests.items():
             file=state/name;file.write_text(json.dumps(dict(version=1,**value)));file.chmod(0o600)
         engine=self.engine()

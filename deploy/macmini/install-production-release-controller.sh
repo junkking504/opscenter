@@ -35,6 +35,13 @@ release_install_lock() {
 }
 trap release_install_lock EXIT
 
+# A running proxy must never silently change code on its next KeepAlive restart.
+# Subsequent controller changes need a separately reviewed proxy reload plan.
+if [[ -d "$EXPECTED_HOME/opscenter-v2/.release-slots" ]]; then
+  installed_mode="$(node "$CONTROLLER_DIR/origin-state.mjs" mode "$EXPECTED_HOME/opscenter-v2/.release-slots")"
+  [[ "$installed_mode" != slots ]] || fail "slot mode is active; a separately reviewed proxy reload plan is required before controller replacement"
+fi
+
 mkdir -p "$CONTROLLER_DIR"
 bundle_installer="$CONTROLLER_DIR/.install-controller-bundle.$$"
 git -C "$REPOSITORY" show "${commit}:deploy/macmini/install-controller-bundle.py" > "$bundle_installer"

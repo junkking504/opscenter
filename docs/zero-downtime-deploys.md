@@ -33,7 +33,8 @@ The activation journal records each durable phase: pin intent, prepared, warmed,
 traffic intent, manifest, acknowledgement, symlink, singleton services, observation,
 acceptance, retirement. Normal bounded singleton restarts and the WhatsApp opt-out
 remain unchanged. Acceptance requires five minutes of slot readiness and repeated
-public checks. A failure before acceptance restores proxy routing, the app symlink
+public checks. A single public blip is recorded; three consecutive public failures
+trigger rollback. Local readiness stays strict. A failure before acceptance restores proxy routing, the app symlink
 and singleton owners to the pinned previous release without rewinding Git.
 
 ## Drain and crash behavior
@@ -41,15 +42,32 @@ and singleton owners to the pinned previous release without rewinding Git.
 The app exposes only SHA, random process instance, stopping state and aggregate
 pending `after()` count. The native Next shutdown stops new accepts and waits for
 HTTP and registered background work. Known read-only `/api/desktop/events` streams
-close gracefully and reconnect. A pending upload, write, unknown upgraded stream,
-interrupted upstream result, or unverified process instance blocks retirement.
+close gracefully and reconnect. A pending upload, write or upgraded stream blocks retirement. Interrupted-result
+records are distinct from proof that local work finished.
 No deadline authorizes killing a write. Retirement deferred after observation also
 blocks reuse of that slot by the next deployment.
 
 Proxy restart validates the durable generation and slot readiness. Lost accounting
-is treated as uncertain; it restores routing but does not infer old work completed.
+is marked unverified; it restores routing but does not infer old work completed.
 A graceful proxy stop releases :3000 first and stays alive until submitted upstream
-work and tracked background work finish. It never clears uncertain results.
+work and tracked background work finish. It never erases uncertain-outcome records.
+
+Before retirement, known proxy requests must be zero and live app pending work
+must be zero. The controller then uses native graceful SIGTERM and proves the
+launchd PID has exited before writing the retirement proof and clearing the
+proxy's unverified-work reference. A pending-zero health sample alone does not
+prove that HTTP requests lost during a proxy crash ended: native shutdown must
+finish those too. A stopped or replaced process does not keep an obsolete release
+pinned forever. Unknown business outcomes remain in an append-only private
+`uncertain-outcomes.jsonl`: time, fixed method, fixed route group and release SHA,
+no URL values, bodies, headers or personal identifiers. Retirement never deletes
+that evidence. At 16 MiB the ledger reports failure and requires a separately
+reviewed archival decision; this installer does not authorize data deletion.
+
+`ExitTimeOut=0` deliberately prevents launchd from escalating graceful shutdown
+to SIGKILL. Long-running work can therefore delay a Mac shutdown or software
+update indefinitely. Investigate the work and outcome; do not force shutdown as
+a deployment workaround.
 
 The next deployment reconciles a nonterminal activation journal under the global
 lock. A dead journaled owner can have its lock **renamed and preserved** only when
@@ -86,7 +104,9 @@ independent branch approval, then live verification after each production step.
    controller, then changes one `controller-current` symlink. Public entry points
    resolve through that pointer. `controller-previous` and bundle `installation.json`
    preserve rollback hashes. Spending checker/allowlist and protected environments
-   are neither copied nor modified. Installation itself starts no app or collector.
+   are neither copied nor modified. Installation itself starts no app or collector. Once slot mode is active, the installer refuses a
+   controller replacement pending a separately reviewed proxy reload plan; proxy
+   `/status` includes the loaded proxy/state-module SHA-256.
 4. Under the installed deployment-control directory, run
    `node release-bootstrap.mjs prepare`. It acquires the same global lock, checks
    current production lineage and legacy listener ownership, backs up the legacy
@@ -123,7 +143,13 @@ re-enables and starts the unchanged backed-up single-process plist at the same
 release. It verifies full/public readiness before disabling slot mode. Slot/proxy
 cleanup is deferred if work remains. It does not restart collectors, rewind Git,
 replay requests, change credentials, or force-kill processes. If the legacy PID
-still has work, rollback stops with that fact and preserves the slot/state.
+still has work after 120 seconds, rollback stops with that fact and preserves the
+slot/state. In this failed-first-bootstrap case :3000 may remain unowned. The
+one-command remedy is to rerun the same installed `node release-bootstrap.mjs
+rollback` after that original PID drains; it resumes the journaled handback.
+Do not start a competing legacy process or force-kill the draining owner. Remain
+present for the first migration; this failure mode is excluded from the routine
+zero-downtime claim.
 
 After a hard bootstrap crash, the installed bootstrap rollback command can reclaim
 only its demonstrably dead journaled lock, preserving it as evidence. Inspect

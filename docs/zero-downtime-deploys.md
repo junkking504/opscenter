@@ -141,6 +141,7 @@ external dated handoff. `history.json` preserves the latest 100 activation recei
 credentials or raw operational logs in Git.
 
 The installed retention helper protects both slot pins, active/rollback journal,
-bootstrap, retained asset inventories and proxy drain/uncertainty references, in
-addition to existing process and lock protections. Invalid state fails cleanup
+incomplete bootstrap, retained asset inventories and proxy drain/uncertainty references, in
+addition to existing process and lock protections. Completed bootstrap history does not pin its first release forever; active slots
+and current rollback inventories supply the live references. Invalid state fails cleanup
 closed. Run only its ordinary policy; never delete a pinned release manually.

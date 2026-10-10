@@ -80,6 +80,20 @@ class RetentionTests(unittest.TestCase):
         engine.execute(True,'production')
         for sha in shas:self.assertTrue((self.root/'releases'/sha).exists())
 
+    def test_completed_bootstrap_history_does_not_pin_its_first_release_forever(self):
+        import json
+        state=self.root/'.release-slots';state.mkdir(mode=0o700)
+        sha='a'*40;old=self.add('releases',sha)
+        file=state/'bootstrap.json'
+        for phase in ('prepared','complete','rolled-back'):
+            file.write_text(json.dumps(dict(version=1,sha=sha,phase=phase)));file.chmod(0o600)
+            engine=self.engine()
+            self.assertEqual(old in engine.protected,phase=='prepared')
+        # Historical terminal metadata remains valid after ordinary retention
+        # eventually removes the no-longer-pinned release.
+        r.git(self.repo,'worktree','remove','--force',str(old))
+        self.engine()
+
     def test_invalid_slot_or_symlink_manifest_blocks_cleanup(self):
         import json
         state=self.root/'.release-slots';state.mkdir(mode=0o700)

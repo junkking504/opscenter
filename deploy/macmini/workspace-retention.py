@@ -104,7 +104,12 @@ class Retention:
                 os.close(fd)
             if value.get('version') != 1:
                 raise RuntimeError('Slot retention manifest version is invalid')
-            if name in ('slot-a.json', 'slot-b.json', 'active.json', 'bootstrap.json'):
+            if name == 'bootstrap.json':
+                if not isinstance(value.get('sha'), str) or not re.fullmatch('[a-f0-9]{40}', value['sha']):
+                    raise RuntimeError('Bootstrap retention SHA is invalid')
+                if value.get('phase') not in ('complete', 'rolled-back'):
+                    protect(value['sha'])
+            elif name in ('slot-a.json', 'slot-b.json', 'active.json'):
                 protect(value.get('sha'))
             elif name == 'transaction.json':
                 protect(value.get('sha'))

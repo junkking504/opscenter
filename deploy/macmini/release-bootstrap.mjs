@@ -4,7 +4,7 @@ import path from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {DEPLOY_ROOT,SLOT_PORTS,privateDirectory,atomicPrivate,readPrivate,readSlot,inventoryAssets,releasePath,waitReady,probeSlot,sleep} from './origin-state.mjs';
+import {DEPLOY_ROOT,SLOT_PORTS,SHA,validateSlot,privateDirectory,atomicPrivate,readPrivate,readSlot,inventoryAssets,releasePath,waitReady,probeSlot,sleep} from './origin-state.mjs';
 import {productionHooks,controlRequest,recoverDeadActivationLock} from './release-transaction.mjs';
 const exec=promisify(execFile);
 export function outsideDispatch(date=new Date()){
@@ -13,7 +13,14 @@ export function outsideDispatch(date=new Date()){
 }
 export class Bootstrap {
   constructor({root,stateDir,hooks,ownerPid,ports=SLOT_PORTS}){Object.assign(this,{root,stateDir,hooks,ownerPid,ports});this.file=path.join(stateDir,'bootstrap.json');}
-  read(){return fs.existsSync(this.file)?readPrivate(this.file):null;}
+  read(){
+    if(!fs.existsSync(this.file))return null;
+    const j=readPrivate(this.file);
+    if(j.version!==1||!SHA.test(j.sha)||!Number.isSafeInteger(j.legacy?.pid)||j.legacy.pid<2||j.legacy.label!=='com.openclaw.opscenter'
+      || !['preparing','prepared','legacy-stop-intent','listener-free','proxy-start-intent','verified','complete','rollback-intent','rolled-back'].includes(j.phase))throw new Error('Bootstrap journal identity invalid');
+    if(j.slot){validateSlot(j.slot,{root:this.root,ports:this.ports});if(j.slot.sha!==j.sha||j.slot.id!=='a')throw new Error('Bootstrap slot identity invalid');}
+    return j;
+  }
   save(j,phase){const next={...j,version:1,ownerPid:this.ownerPid,workerPid:process.pid,phase,updatedAt:new Date().toISOString()};atomicPrivate(this.file,next);this.hooks.phase?.(phase);return next;}
   async prepare(){
     if(this.read())throw new Error('Bootstrap already journaled; inspect or roll back before another preparation');
@@ -116,6 +123,7 @@ async function realHooks(ownerPid,stateDir){
     async portFreeOrLegacy(identity){await waitFor(async()=>{const rows=await listeners();return !rows.length||rows.join()===String(identity.pid);},'Port 3000 handback',15000);},
     async restoreLegacy(identity){
       const current=pid(await inspect(old));
+      if(current&&current!==identity.pid)throw new Error('Unexpected legacy process; no stop or replacement authorized');
       if(current===identity.pid&&(await listeners()).join()===String(identity.pid)){await command(['enable',`${domain}/${old}`]);return;}
       await waitFor(()=>!alive(identity.pid),'Original app drain');
       if(await inspect(old))await command(['bootout',`${domain}/${old}`]);

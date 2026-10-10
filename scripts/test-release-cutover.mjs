@@ -169,7 +169,7 @@ test('bootstrap is gated by Central time and restores the original single proces
   assert.equal(outsideDispatch(new Date('2026-10-09T12:00:00Z')),false);
   for(const failure of ['none','stopLegacy','portFree','startProxy','publicProbe']){
     const f=await fixture();let legacy=true,proxy=false,retired=false;
-    const hooks={linkSha:()=>f.slots.a.sha,lineage:async()=>{},legacyIdentity:async()=>({pid:123,label:'fixture'}),installPlists:async()=>{},
+    const hooks={linkSha:()=>f.slots.a.sha,lineage:async()=>{},legacyIdentity:async()=>({pid:123,label:'com.openclaw.opscenter'}),installPlists:async()=>{},
       expected:async()=>({database:'synthetic',migration:'0001_kernel.sql'}),start:async()=>{},ready:async slot=>health(slot),
       outsideDispatch:()=>true,assertLegacy:async()=>{},stopLegacy:async()=>{legacy=false;},portFree:async()=>{},
       startProxy:async()=>{proxy=true;},proxyStatus:async()=>({active:{sha:f.slots.a.sha,generation:1},ledgerHealthy:true}),
@@ -226,4 +226,13 @@ test('dead activation lock recovery preserves evidence and refuses live owners o
     assert.equal(fs.existsSync(lock),false);const saved=fs.readdirSync(f.root).find(name=>name.startsWith('.deploy-lock.recovered-'));
     assert.equal(fs.readFileSync(path.join(f.root,saved,'owner'),'utf8'),`pid=${dead}\n`);
   }finally{await f.cleanup();}
+});
+
+test('corrupt bootstrap PID cannot signal or replace a process',async()=>{
+  const {Bootstrap}=await import('../deploy/macmini/release-bootstrap.mjs');const f=await fixture();let effects=0;
+  const run=new Bootstrap({root:f.root,stateDir:f.stateDir,ports:f.ports,ownerPid:process.pid,hooks:{linkSha:()=>f.slots.a.sha,stopProxy:async()=>{effects++;}}});
+  try{for(const pid of [-1,0,1,1.5,'123']){
+    atomicPrivate(path.join(f.stateDir,'bootstrap.json'),{version:1,sha:f.slots.a.sha,phase:'prepared',legacy:{pid,label:'com.openclaw.opscenter'}});
+    await assert.rejects(run.rollback(),/journal identity invalid/);
+  }assert.equal(effects,0);}finally{await f.cleanup();}
 });

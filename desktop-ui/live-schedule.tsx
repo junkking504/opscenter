@@ -135,12 +135,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   };
   const [now, setNow] = useState(new Date());
   const snapshot = snapshots[date];
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.location, job.mapFallback, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
   const routeRequest = useRouteEstimate(!mapOnly && routingKey ? `/api/desktop/schedule/routes?${new URLSearchParams({date})}` : null, date, routingKey);
   const routing = routeRequest.data;
   const closestJob = snapshot?.appointments.find(job => job.recordId === selectedId);
-  const closestIdentity = JSON.stringify([closestJob?.recordId, closestJob?.location, closestJob?.status]);
-  const closestUrl = closestJob?.location && snapshot?.fleet.isToday && !isClosed(closestJob)
+  const closestIdentity = JSON.stringify([closestJob?.recordId, closestJob?.location, closestJob?.mapFallback, closestJob?.status]);
+  const closestUrl = closestJob && scheduleMapLocation(closestJob) && snapshot?.fleet.isToday && !isClosed(closestJob)
     ? `/api/desktop/schedule/routes?${new URLSearchParams({ date, appointment: closestJob.recordId, scope: 'closest' })}` : null;
   const closestRequest = useRouteEstimate(closestUrl, closestIdentity);
   const hasSnapshot = Boolean(snapshot);
@@ -479,7 +479,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (snapshot?.fleet.isToday && job.truckAtJob) return `${job.atJobTruck || truckLabel(job.truck)} at job · Parked report ${job.atJobGpsAt ? new Date(job.atJobGpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'time unavailable'} · Arrival and duration unconfirmed`;
     if (snapshot?.fleet.isToday && !isClosed(job) && job.lastSeenOnsiteTruck) return `${job.lastSeenOnsiteTruck} last reported on site · Awaiting fresh GPS`;
     const closest = closestTruckFor(job);
-    if (closest) return `Closest truck${closestRequest.loading || closestRequest.error ? ' (last estimate)' : ' now'}: ${truckLabel(closest.truck)} · ${closest.minutes} min${closestRequest.error ? ' · Refresh failed' : closestRequest.loading ? ' · Updating…' : ''}`;
+    if (closest) return `Closest truck${closestRequest.loading || closestRequest.error ? ' (last estimate)' : ' now'}: ${truckLabel(closest.truck)} · ${closest.minutes} min${closest.approximate ? ' · Approximate' : ''}${closestRequest.error ? ' · Refresh failed' : closestRequest.loading ? ' · Updating…' : ''}`;
     if (closestRequest.loading) return 'Closest truck: checking current distance…';
     return closestRequest.error ? 'Closest truck: lookup failed · Retry in appointment panel' : 'Closest truck: unavailable from the current address/GPS data';
   };
@@ -575,7 +575,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
                 const leg = routeTo(job.recordId);
                 return <AppointmentRegisterRow key={job.recordId} job={job} area={area} selected={selectedId === job.recordId}
                   warning={needsReview ? reason : mismatch ? `JunkWare franchise: ${sourceTerritory} · address-based territory` : undefined}
-                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.travelMinutes} min`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
+                  route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.approximate ? 'Approx. ' : ''}${leg.travelMinutes} min`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
                   proximity={closestTruckText(job)} select={() => selectAppointment(job.recordId)} open={() => setDrawerId(job.recordId)} />;
               })}
             </section>;

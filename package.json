@@ -165,7 +165,7 @@
     "verify:payment-crosscheck": "node --import tsx scripts/test-payment-crosscheck.ts && node --import tsx scripts/test-payment-crosscheck-browser.ts",
     "verify:daily-reconciliation": "node --import tsx scripts/test-daily-reconciliation-browser.ts",
     "verify:accounting": "python3 scripts/test-junkware-accounting.py && node --import tsx scripts/test-accounting-browser.ts",
-    "verify:closest-truck": "node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
+    "verify:closest-truck": "node --import tsx scripts/test-approximate-eta.ts && node --import tsx scripts/test-route-loader.ts && node --import tsx scripts/test-desktop-schedule.ts",
     "verify:closest-truck:browser": "node scripts/test-closest-truck-refresh-browser.mjs",
     "verify:resale-delete": "node --import tsx scripts/test-resale-delete.ts",
     "verify:resale-delete:browser": "node --import tsx scripts/test-resale-delete-browser.ts",

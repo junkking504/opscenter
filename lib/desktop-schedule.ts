@@ -15,7 +15,7 @@ import { buildFleetMapPayload } from '@/lib/fleet-map';
 import { planningLocation } from '@/lib/planning-geocodes';
 import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
-import { needsScheduleAddressVerification, type ClosestTruck, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
+import { scheduleMapLocation, needsScheduleAddressVerification, type ClosestTruck, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
 import { applyScheduleAssignment } from './schedule-assignment-projection';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
@@ -29,6 +29,7 @@ import { readTruckGpsRoute } from './desktop-gps-route';
 
 export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
+  approximate?: boolean;
   geometry?: Coordinates[];
   truck: string;
   fromAppointmentId: string;
@@ -164,6 +165,7 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
           ? null
           : to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
         travelMinutes: null, miles: null, bufferMinutes: null, source: 'unavailable' as const,
+        approximate: Boolean(!from.location && from.mapFallback || !to.location && to.mapFallback),
       };
     });
   });
@@ -172,12 +174,12 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
 export async function calculateDesktopRouteLegs(appointments: DesktopAppointment[], provider: MatrixProvider = osmTravelMatrix): Promise<DesktopRouteLeg[]> {
   const legs = scheduleRoutePairs(appointments);
   const byId = new Map(appointments.map(job => [job.recordId, job]));
-  const located = legs.filter(leg => byId.get(leg.fromAppointmentId)?.location && byId.get(leg.toAppointmentId)?.location);
+  const located = legs.filter(leg => scheduleMapLocation(byId.get(leg.fromAppointmentId)!) && scheduleMapLocation(byId.get(leg.toAppointmentId)!));
   // Only adjacent appointment pairs are needed, not an N x N matrix of
   // unrelated appointments. Request one road leg per pair, using the shared provider rate limit.
   for (let start = 0; start < located.length; start += 4) {
     await Promise.all(located.slice(start, start + 4).map(async leg => {
-      const matrix = await provider([byId.get(leg.fromAppointmentId)!.location!], [byId.get(leg.toAppointmentId)!.location!]).catch(() => null);
+      const matrix = await provider([scheduleMapLocation(byId.get(leg.fromAppointmentId)!)!], [scheduleMapLocation(byId.get(leg.toAppointmentId)!)!]).catch(() => null);
       const element = matrix?.find(row => (row.originIndex ?? 0) === 0 && (row.destinationIndex ?? 0) === 0);
       if (!element) return;
       const seconds = typeof element.duration === 'string' && /^\d+(?:\.\d+)?s$/.test(element.duration) ? Number(element.duration.slice(0, -1)) : NaN;
@@ -195,6 +197,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
 
 export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix): Promise<ClosestTruck[]> {
   if (/cancel/i.test(appointment.status)) return [];
+  const destination = scheduleMapLocation(appointment);
   const rows: ClosestTruck[] = trucks.map(truck => {
     const located = truck.latitude !== null && truck.longitude !== null
       && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude)
@@ -204,7 +207,7 @@ export async function calculateClosestTrucks(appointment: DesktopAppointment, tr
     // therefore remains the truck's location for proximity ranking even when
     // the fallback feed cannot provide an explicit ignition-off field. Keep the
     // real observation time for confidence; age alone must not discard it.
-    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, minutes: null, miles: null, status: !isToday ? 'not_live_day' : !appointment.location ? 'address_unverified' : !located ? 'gps_unavailable' : 'routing_unavailable' };
+    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : 'routing_unavailable' };
   });
   const eligible = rows.filter(row => row.status === 'routing_unavailable');
   for (let offset = 0; offset < eligible.length; offset += 25) {
@@ -212,7 +215,7 @@ export async function calculateClosestTrucks(appointment: DesktopAppointment, tr
     const matrix = await provider(chunk.map(row => {
       const truck = trucks.find(item => item.truck === row.truck)!;
       return { latitude: truck.latitude!, longitude: truck.longitude! };
-    }), [appointment.location!]);
+    }), [destination!]);
     for (const element of matrix || []) {
       if ((element.destinationIndex ?? 0) !== 0) continue;
       const row = chunk[element.originIndex ?? 0];
@@ -248,21 +251,22 @@ export async function readDesktopClosestTrucks(date: string, recordId: string) {
   const snapshot = readDesktopSchedule(date);
   const target = snapshot.appointments.find(job => job.recordId === recordId);
   if (!target) return null;
-  const closest = await cachedRouting(['closest', date, target.recordId, target.location, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday));
+  const closest = await cachedRouting(['closest', date, target.recordId, target.location, target.mapFallback, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday));
   if (closest.data.some(row => row.status === 'routing_unavailable') && !closest.data.some(row => row.status === 'available')) throw new Error('Road estimates unavailable');
   return { date, appointmentId: target.recordId, closest: closest.data, closestCalculatedAt: closest.calculatedAt, calculatedAt: closest.calculatedAt, legs: [] };
 }
 
 export async function readDesktopScheduleRouting(date: string, recordId: string | null) {
-  // Use already verified pins; unrelated address resolution must not hold up routes.
+  // Use available verified or approximate pins for estimates only; never promote
+  // fallback coordinates into the location used by GPS presence and visit tracking.
   const snapshot = readDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
-  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
+  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location, job.mapFallback])], () => calculateDesktopRouteLegs(snapshot.appointments));
   // Last-known coordinates remain eligible until a newer valid report replaces
   // them. The timestamp stays in the cache identity and response for confidence.
   const now = Date.now();
-  const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
-  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.visitOrder,j.junkwareSyncStatus,j.location,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
+  const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, target.mapFallback, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
+  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.visitOrder,j.junkwareSyncStatus,j.location,j.mapFallback,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
   return { date, truckProgress: progress.data, calculatedAt: legs.calculatedAt, closestCalculatedAt: closest?.calculatedAt || null, appointmentId: target?.recordId || null, legs: legs.data, closest: closest?.data || [] };
 }

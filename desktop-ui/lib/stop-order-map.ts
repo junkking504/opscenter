@@ -20,7 +20,7 @@ export function stopOrderMap(jobs:ScheduleAppointment[],legs:ScheduleRouteLeg[])
  const stops=jobs.flatMap((job,index)=>{const point=scheduleMapLocation(job);return routePointValid(point)?[{job,number:index+1,point}]:[];});
  const paths=jobs.slice(1).flatMap((job,index)=>{
   const from=jobs[index];
-  if(!routePointValid(from.location)||!routePointValid(job.location))return [];
+  if(!routePointValid(scheduleMapLocation(from))||!routePointValid(scheduleMapLocation(job)))return [];
   const leg=legs.find(row=>row.fromAppointmentId===from.recordId&&row.toAppointmentId===job.recordId);
   return leg?.source==='osm_road_estimate'&&leg.geometry&&leg.geometry.length>=2&&leg.geometry.every(routePointValid)?[{leg,from:index+1,to:index+2,points:leg.geometry}]:[];
  });

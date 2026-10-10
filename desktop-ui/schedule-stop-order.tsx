@@ -1,3 +1,4 @@
+import {scheduleMapLocation} from './lib/schedule-contract';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import { useEffect, useRef, useState } from 'react';
@@ -80,7 +81,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
           const job=group.find(job=>job.recordId === id)!;
           const leg=legs.find(leg=>leg.toAppointmentId === id && leg.fromAppointmentId === ids[index-1]);
           return <li key={id} data-stop-id={id} className={selected===id?'selected':''}>
-            {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !job.location || !group.find(job=>job.recordId === ids[index-1])?.location ? 'Location pending · automatic lookup' : 'Travel estimate unavailable'}</small>}
+            {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.approximate ? 'Approx. ' : ''}${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !scheduleMapLocation(job) || !scheduleMapLocation(group.find(job=>job.recordId === ids[index-1])!) ? 'Location pending · automatic lookup' : 'Travel estimate unavailable'}</small>}
             <div className="stop-order-row"><b>{index+1}</b><div><button type="button" className="stop-order-name" aria-label={`Show ${job.jkNumber} on route map`} onClick={()=>setSelected(id)}><strong>{job.jkNumber} · {job.customerName}</strong></button><span>{appointmentServiceAddress(job)}</span><small>Booked: {job.appointmentTime || 'Time unavailable'} · {job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);setSelected(id);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
           </li>;
         })}</ol>

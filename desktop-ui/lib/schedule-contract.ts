@@ -129,6 +129,7 @@ export type ScheduleSnapshot = {
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
 export type ScheduleRouteLeg = {
+  approximate?: boolean;
   geometry?: Array<{latitude:number;longitude:number}>;
   truck: string; fromAppointmentId: string; toAppointmentId: string;
   fromJk: string; toJk: string; gapMinutes: number | null;
@@ -136,6 +137,7 @@ export type ScheduleRouteLeg = {
   source: 'google_live_traffic' | 'osm_road_estimate' | 'unavailable';
 };
 export type ClosestTruck = {
+  approximate?: boolean;
   truck: string; gpsUpdatedAt: string | null; minutes: number | null; miles: number | null;
   status: 'available' | 'stale_gps' | 'gps_unavailable' | 'address_unverified' | 'routing_unavailable' | 'not_live_day';
 };
@@ -144,7 +146,7 @@ export type ScheduleRouting = { closestCalculatedAt?: string | null; truckProgre
 export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointment[]) {
   const missing = [leg.fromAppointmentId, leg.toAppointmentId]
     .map(id => jobs.find(job => job.recordId === id))
-    .filter(job => !job?.location);
+    .filter(job => !job || !scheduleMapLocation(job));
   return missing.length
     ? { label: 'Location pending', detail: `Address verification failed for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}. Dispatch owns recovery; unresolved locations require escalation.` }
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
@@ -181,6 +183,8 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
   if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }
+// Coordinates for map display and labeled travel estimates only. Presence and
+// visit detection must continue to use the verified job.location.
 export function scheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return job.location || job.mapFallback?.location || null; }
 export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }

@@ -1,6 +1,6 @@
 import { nextTruckStop, currentOnsiteTruckGps, truckProgressGpsState, type TruckProgress } from './schedule-next-stop';
 import { osmTravelMatrix } from './osm-travel-matrix';
-import { truckLabel, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
+import { scheduleMapLocation, truckLabel, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import type { DesktopAppointment } from './desktop-schedule';
 
 export async function calculateTruckProgress(jobs:DesktopAppointment[], trucks:ScheduleTruck[], isToday:boolean, provider= osmTravelMatrix, now=Date.now()):Promise<TruckProgress[]> {
@@ -13,13 +13,14 @@ export async function calculateTruckProgress(jobs:DesktopAppointment[], trucks:S
     const plan=nextTruckStop(jobs,name,true,now);
     if (!plan) continue;
     const truck=trucks.find(t=>truckLabel(t.truck)===name);
+    const destination=scheduleMapLocation(plan.job);
     let status=plan.state;
     if (status==='on_site' && !currentOnsiteTruckGps(truck,now)) status='last_seen';
     const gpsState=truckProgressGpsState(truck,now);
-    if (status==='next') status=gpsState!=='fresh' ? gpsState : !plan.job.location ? 'address_unverified' : 'routing_unavailable';
-    const row:TruckProgress={truck:name,appointmentId:plan.job.recordId,appointmentVersion:plan.job.version,status,minutes:null,miles:null,gpsAt:truck?.lastGpsUpdate || null,calculatedAt:new Date(now).toISOString(),arrivalAt:null};
-    if (status==='routing_unavailable' && truck && plan.job.location) {
-      const elements=await provider([{latitude:truck.latitude!,longitude:truck.longitude!}],[plan.job.location]).catch(()=>null);
+    if (status==='next') status=gpsState!=='fresh' ? gpsState : !destination ? 'address_unverified' : 'routing_unavailable';
+    const row:TruckProgress={truck:name,appointmentId:plan.job.recordId,appointmentVersion:plan.job.version,status,approximate:Boolean(!plan.job.location && plan.job.mapFallback),minutes:null,miles:null,gpsAt:truck?.lastGpsUpdate || null,calculatedAt:new Date(now).toISOString(),arrivalAt:null};
+    if (status==='routing_unavailable' && truck && destination) {
+      const elements=await provider([{latitude:truck.latitude!,longitude:truck.longitude!}],[destination]).catch(()=>null);
       const e=elements?.find(e=>(e.originIndex??0)===0 && (e.destinationIndex??0)===0);
       const seconds=typeof e?.duration==='string' && /^\d+(?:\.\d+)?s$/.test(e.duration)?Number(e.duration.slice(0,-1)):NaN;
       if (!e?.status?.code && e?.condition==='ROUTE_EXISTS' && Number.isFinite(seconds) && seconds>=0 && typeof e.distanceMeters==='number' && Number.isFinite(e.distanceMeters) && e.distanceMeters>=0) {

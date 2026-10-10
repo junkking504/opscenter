@@ -31,7 +31,7 @@ export default function ScheduleStopOrderMap({jobs,legs,fleet,selectedTruck,sele
   const colors=['#245fa4','#8c3daa','#087f73','#b7611b'];
   for(const path of model.paths){
    const line=L.polyline(path.points.map(p=>[p.latitude,p.longitude] as [number,number]),{color:colors[(path.from-1)%colors.length],weight:5,opacity:.85}).addTo(overlay);
-   const caption=document.createElement('span');caption.textContent=`${path.from} → ${path.to}${path.leg.travelMinutes===null?'':` · ${path.leg.travelMinutes} min · ${path.leg.miles} mi`}`;line.bindTooltip(caption,{sticky:true});
+   const caption=document.createElement('span');caption.textContent=`${path.from} → ${path.to}${path.leg.travelMinutes===null?'':` · ${path.leg.approximate ? 'Approx. ' : ''}${path.leg.travelMinutes} min · ${path.leg.miles} mi`}`;line.bindTooltip(caption,{sticky:true});
   }
   // Offset colocated pin badges so each remains selectable; locations stay exact.
   const seen=new Map<string,number>();

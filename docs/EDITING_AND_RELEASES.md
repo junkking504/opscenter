@@ -33,6 +33,12 @@ build in a release is not an editable checkout.
 7. Verify release marker, the `com.openclaw.opscenter` LaunchAgent, local health,
    and the changed authenticated public behavior.
 
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run lint`, `npm run
+typecheck`, and every script listed in `scripts/ci-verify-scripts.txt` on each
+pull request and on pushes to `production` and `main`. That list holds only
+`verify:*` scripts that pass with no credentials, network services, or Mission
+Control runtime paths. CI is evidence for review only; it never deploys.
+
 Do not restart collectors, tunnels, databases, the WhatsApp worker, or unrelated
 services as a side effect of an application-only change.
 

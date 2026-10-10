@@ -181,7 +181,8 @@ async function realHooks(ownerPid,stateDir){
   };
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+if(process.argv[1]&&import.meta.url===pathToFileURL(fs.realpathSync(process.argv[1])).href){
+  if(process.argv[2]==='--help'){console.log('OpsCenter release-bootstrap CLI');process.exit(0);}
   const operation=process.argv[2];if(!['prepare','activate','rollback'].includes(operation))throw new Error('Use prepare, activate or rollback');
   if(process.env.HOME!=='/Users/missioncontrol')throw new Error('Mission Control only');
   const lock=path.join(DEPLOY_ROOT,'.deploy-lock');

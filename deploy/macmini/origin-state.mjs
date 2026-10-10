@@ -168,7 +168,8 @@ export function staticFile(slot, raw) {
   } catch { return null; }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  if(process.argv[2]==='--help'){console.log('OpsCenter origin-state CLI');process.exit(0);}
   const [command, directory, id] = process.argv.slice(2);
   if(command==='mode'){
     privateDirectory(directory);

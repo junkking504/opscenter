@@ -238,7 +238,8 @@ export async function startOriginProxy(options={}){
   }catch(error){proxy.control.close();proxy.server.close();throw error;}
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+if(process.argv[1]&&import.meta.url===pathToFileURL(fs.realpathSync(process.argv[1])).href){
+  if(process.argv[2]==='--help'){console.log('OpsCenter origin-proxy CLI');process.exit(0);}
   const proxy=await startOriginProxy().catch(error=>{if(error.code==='LAUNCH_BLOCKED')process.exit(75);throw error;});
   console.log('Origin proxy ready on loopback3000; generation',proxy.status().active.generation);
   for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{void proxy.shutdown().catch(()=>{console.error('Proxy graceful shutdown needs review; process retained.');});});

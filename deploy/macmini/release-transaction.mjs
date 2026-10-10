@@ -295,7 +295,8 @@ export async function productionHooks(ownerPid){
   };
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+if(process.argv[1]&&import.meta.url===pathToFileURL(fs.realpathSync(process.argv[1])).href){
+  if(process.argv[2]==='--help'){console.log('OpsCenter release-transaction CLI');process.exit(0);}
   const [operation,value,owner]=process.argv.slice(2);
   if(operation==='recover-lock'){recoverDeadActivationLock(DEPLOY_ROOT);}
   else{

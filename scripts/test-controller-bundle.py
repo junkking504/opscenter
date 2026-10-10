@@ -37,4 +37,15 @@ class BundleTests(unittest.TestCase):
         (self.control/'deploy-release.sh').unlink();(self.control/'deploy-release.sh').symlink_to(self.root/'elsewhere')
         with self.assertRaises(RuntimeError):b.install(self.repo,self.control,self.sha,False)
         self.assertFalse((self.control/'controller-current').exists())
+    def test_installed_real_symlink_entrypoints_execute_cli(self):
+        for name in b.FILES:
+            (self.repo/'deploy/macmini'/name).write_bytes((source.parent/name).read_bytes())
+        sha=self.commit();b.install(self.repo,self.control,sha,False)
+        for name in ('origin-state','origin-proxy','release-transaction','release-bootstrap'):
+            result=subprocess.run(['node',str(self.control/(name+'.mjs')),'--help'],capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(result.stdout.strip(),'OpsCenter '+name+' CLI')
+        state=self.root/'state';state.mkdir(mode=0o700)
+        result=subprocess.run(['node',str(self.control/'origin-state.mjs'),'mode',str(state)],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'legacy')
 if __name__=='__main__':unittest.main()

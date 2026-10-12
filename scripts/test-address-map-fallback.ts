@@ -65,10 +65,33 @@ try {
  save(parishFile,{expires:now+60000,payload:{spatialReference:{wkid:4326},exceededTransferLimit:true,features:units.slice(0,2)}});
  assert.deepEqual(readAddressMapFallback(unitAddress,now)?.location,{latitude:30.45,longitude:-90.052},'A partial parish response can provide a complex entrance when the requested unit is absent');
  assert.equal(readAddressMapFallback('123 Example Wind Blvd Bldg 26 Mandeville, LA 70471',now)?.location.longitude,-90.052,'Explicit buildings may use a display-only complex pin');
+ const unitQuery=geocodioAddressQuery(unitAddress)!;
+ save(process.env.GEOCODIO_FREE_STATE_FILE!,{schema:1,cache:{[hash(normalizeServiceAddress(unitQuery))]:{expires:now+60000,payload:{results:[{address_components:{number:'123',formatted_street:'Example Wind Blvd',unit_number:'26107',city:'Mandeville',state_province:'LA',postal_code:'70471',country:'US'},location:{lat:30.451,lng:-90.053},accuracy_type:'rooftop'}]}}}});
+ assert.equal(readAddressMapFallback(unitAddress,now)?.source,'Geocodio','An explicitly matching provider unit ranks ahead of an available parish clubhouse');
+ assert.match(readAddressMapFallback(unitAddress,now)?.matchedAddress||'',/Unit 26107/,'Read Geocodio unit_number instead of discarding its unit evidence');
  const ebrAddress='123 Example Wind Blvd, Baton Rouge, LA 70802';
  const ebrQuery=parishAddressQuery(ebrAddress)!;
  save(path.join(root,'cache/parish-address-lookups',hash(ebrQuery.url)+'.json'),{expires:now+60000,payload:{spatialReference:{wkid:4326},features:[{attributes:{ADDRESS_ID:1,FULL_ADDRESS:'123 EXAMPLE WIND BLVD',CITY:'BATON ROUGE',STATE:'LA',ZIP:70802},geometry:{x:-91.15,y:30.4}}]}});
  assert.equal(readAddressMapFallback(ebrAddress,now)?.source,'East Baton Rouge Parish');
  save(osmFile,{expires:now+60000,payload:[null]});assert.equal(readAddressMapFallback(outside,now),null,'Corrupt evidence fails without breaking schedule');
+ const streetAddress='123 Example St Lacombe, LA 70445';
+ const streetParams=new URLSearchParams({q:osmServiceAddressQuery(streetAddress)!,format:'jsonv2',addressdetails:'1',limit:'5',countrycodes:'us'});
+ const streetFile=path.join(process.env.OSM_ADDRESS_CACHE_DIR!,hash('search?'+streetParams)+'.json');
+ const streetPoint={osm_type:'way',osm_id:20,lat:'30.3178',lon:'-89.9477',category:'highway',addresstype:'road',boundingbox:['30.3166','30.3186','-89.9485','-89.9471'],address:{road:'Example Street',town:'Lacombe',state:'Louisiana','ISO3166-2-lvl4':'US-LA',postcode:'70445',country_code:'us'}};
+ const saveStreet=(rows:unknown[])=>save(streetFile,{expires:now+60000,payload:rows});
+ saveStreet([streetPoint]);
+ const streetPin=readAddressMapFallback(streetAddress,now)!;
+ assert.deepEqual(streetPin.location,{latitude:30.3178,longitude:-89.9477},'A bounded matching street supplies a pin when the provider lacks the house');
+ assert.equal(streetPin.matchedAddress,'Example Street, Lacombe, LA 70445','Do not attach the unlocated house number to provider evidence');
+ assert.match(streetPin.detail,/Approximate street location; house number not located/);
+ assert.equal(planningLocation(streetAddress,{}),null,'Street-level display evidence cannot confirm a GPS visit');
+ for(const patch of [{address:{...streetPoint.address,road:'Other Street'}},{address:{...streetPoint.address,road:'N Example Street'}},{address:{...streetPoint.address,road:'Example Lane'}},{address:{...streetPoint.address,town:'Slidell'}},{address:{...streetPoint.address,postcode:'70458'}},{address:{...streetPoint.address,'ISO3166-2-lvl4':'US-MS'}},{category:'place'},{osm_id:null},{boundingbox:null},{boundingbox:['29','32','-91','-89']},{boundingbox:['bad','30.3186','-89.9485','-89.9471']},{lat:'30.4'}]) {
+  saveStreet([{...streetPoint,...patch}]);assert.equal(readAddressMapFallback(streetAddress,now),null,'Reject unrelated roads, locality points and unusable road bounds');
+ }
+ const premisesPoint={...streetPoint,category:'building',lat:'30.318',address:{...streetPoint.address,house_number:'123'}};
+ saveStreet([streetPoint,premisesPoint]);
+ assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Matching house evidence outranks a street-only point');
+ saveStreet([premisesPoint,streetPoint]);
+ assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Provider order does not change premises precedence');
  console.log('Map fallback: coverage, approximation, geography, ambiguity, stale evidence and verification isolation passed.');
 } finally {process.env=old;fs.rmSync(root,{recursive:true,force:true});}

@@ -55,9 +55,10 @@ let orderSaves = 0;
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
   if (injectedSnapshot) return injectedSnapshot.appointments;
+  const streetPin=new URLSearchParams(location.search).get('pin')==='street';
   if (scenario === 'map-fallback') return [
-    {...baseStackJob(date,1001), customerName:'Approximate location example',address:'123 Example Wind Blvd 26-107 Mandeville, LA 70471',location:null,addressCheckReason:'Multiple Address Matches',
-      mapFallback:{location:{latitude:30.45,longitude:-90.05},matchedAddress:'123 Example Wind Blvd Unit 26107, Mandeville, LA 70471',source:'Parish address points',sourceUrl:'https://maps.stpgov.org/',detail:'Best available address match. Parish address point.',stale:false}},
+    {...baseStackJob(date,1001), customerName:'Approximate location example',address:streetPin?'123 Example St Lacombe, LA 70445':'123 Example Wind Blvd 26-107 Mandeville, LA 70471',location:null,addressCheckReason:streetPin?'No Exact Building Match':'Multiple Address Matches',
+      mapFallback:streetPin?{location:{latitude:30.3178,longitude:-89.9477},matchedAddress:'Example Street, Lacombe, LA 70445',source:'OpenStreetMap',sourceUrl:'https://www.openstreetmap.org/',detail:'Best available address match. Approximate street location; house number not located.',stale:false}:{location:{latitude:30.45,longitude:-90.05},matchedAddress:'123 Example Wind Blvd Unit 26107, Mandeville, LA 70471',source:'Parish address points',sourceUrl:'https://maps.stpgov.org/',detail:'Best available address match. Parish address point.',stale:false}},
     {...baseStackJob(date,1002),customerName:'Verified location example',address:'100 Example St, Mandeville, LA 70471',location:{latitude:30.44,longitude:-90.07}},
   ];
   if (scenario === 'travel-order') return Array.from({length:6},(_,i)=>({

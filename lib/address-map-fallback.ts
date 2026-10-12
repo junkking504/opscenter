@@ -23,7 +23,7 @@ type Candidate = {house:string;street:string;city:string;state:string;zip:string
 type CachedCandidate = Candidate & {stale:boolean};
 const normalize=normalizeServiceAddress;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
-const suffix=/ (ST|RD|AVE|DR|LN|CT|BLVD|PL|PKWY|TER|CIR|TRL|SQ|WAY|LOOP)$/;
+const suffix=/ (ST|RD|AVE|DR|LN|CT|BLVD|PL|PKWY|TER|CIR|TRL|TRCE|SQ|WAY|LOOP)$/;
 // These are display-only interpretations. Keep the original unit on the job,
 // and never loosen the exact-property verifier to accommodate a guessed pin.
 const bareMapUnit=/(\b(?:ST|STREET|RD|ROAD|AVE|AVENUE|DR|DRIVE|LN|LANE|CT|COURT|BLVD|BOULEVARD|PL|PLACE|PKWY|PARKWAY|TER|TERRACE|CIR|CIRCLE|TRL|TRAIL)\.?)\s+(\d{1,4}-\d{1,4}[A-Z]?)(?=[,\s]+[A-Z]|$)/ig;

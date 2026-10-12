@@ -93,6 +93,10 @@ try {
  assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Matching house evidence outranks a street-only point');
  saveStreet([premisesPoint,streetPoint]);
  assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Provider order does not change premises precedence');
+ const traceAddress='105 Example Trace, Covington, 70435';
+ const traceQuery=parishAddressQuery(traceAddress)!;
+ save(path.join(root,'cache/parish-address-lookups',hash(traceQuery.url)+'.json'),{expires:now+60000,payload:{spatialReference:{wkid:4326},features:[{attributes:{OBJECTID:99,ADDRESS:'105 EXAMPLE TRCE',CITY_L:'COVINGTON',ZIP_CODE:70435},geometry:{x:-90.1,y:30.5}}]}});
+ assert.equal(readAddressMapFallback(traceAddress,now)?.location.latitude,30.5,'Trace and its postal abbreviation produce a matching provider pin');
  const suffixed='110A Example Cr, Slidell, 70458';
  const suffixQuery=geocodioAddressQuery('110A Example Cir, Slidell, 70458')!;
  const base={address_components:{number:'110',formatted_street:'Example Cir',city:'Slidell',state_province:'LA',postal_code:'70458',country:'US'},location:{lat:30.22,lng:-89.82},accuracy_type:'rooftop'};

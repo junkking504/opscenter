@@ -36,3 +36,6 @@ async function main() {
  } finally {process.env=before.env;globalThis.fetch=before.fetch;Date.now=before.now;fs.rmSync(root,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
+
+assert.equal(osmServiceAddressQuery('105 Example Trace, Covington, 70435'),'105 Example Trace, Covington','Trace is a street type and must reach the free provider');
+assert.equal(osmServiceAddressQuery('105 Example Trce, Covington, 70435'),'105 Example Trce, Covington');

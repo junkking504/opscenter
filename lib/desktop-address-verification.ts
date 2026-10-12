@@ -4,7 +4,8 @@ import { cleanJunkwareAddressText, cleanServiceAddressForVerification } from './
 import { cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { verifyParishAddressFallback } from './parish-service-address';
-import { verifyGeocodioAddressFallback } from './geocodio-service-address';
+import { geocodioAddressQuery, verifyGeocodioAddressFallback } from './geocodio-service-address';
+import { approximateMapAddressQuery } from './address-map-query';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
@@ -176,8 +177,13 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
     if (!verified.location) {
       // An independent exact premises point can resolve Census ambiguity.
       // No new wall-clock budget, AI call, or paid-provider allowance.
-      const geocodio = await verifyGeocodioAddressFallback(address, Math.max(0, 27_000 - (Date.now() - started)));
-      if (geocodio) verified = geocodio;
+      const mapQuery = approximateMapAddressQuery(address);
+      const displayOnly = !geocodioAddressQuery(address) && mapQuery !== address;
+      const geocodio = await verifyGeocodioAddressFallback(displayOnly ? mapQuery : address, Math.max(0, 27_000 - (Date.now() - started)));
+      // Refresh display evidence through the same single bounded free lookup.
+      // A guessed road suffix must never verify the original service address.
+      if (geocodio && !displayOnly) verified = geocodio;
+      else if (displayOnly && geocodio?.retryAfterMs) verified = {...verified,retryAfterMs:geocodio.retryAfterMs};
     }
     if (!verified.location && parish?.retryAfterMs) verified = {...verified,retryAfterMs:Math.max(60_000,parish.retryAfterMs)};
     if (!verified.location && transientFailure) verified = {...verified, reason:'Address Provider Temporarily Unavailable', retryAfterMs:Math.max(60_000, verified.retryAfterMs || 0)};

@@ -27,7 +27,8 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const minutes=interval.end-interval.start;
   const time=sequenced ? `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` : position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
-  const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time} · ${state}${position.actual && position.intervals.length>1?` · GPS segment ${segmentIndex+1} of ${position.intervals.length} for this appointment`:''}${assignment}${partner?` · ${partner.name}`:''}`;
+  const approximate=job.truckVisits?.some(visit=>visit.approximate && visit.truck===truck);
+  const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time}${approximate ? ' · Approximate pin' : ''} · ${state}${position.actual && position.intervals.length>1?` · GPS segment ${segmentIndex+1} of ${position.intervals.length} for this appointment`:''}${assignment}${partner?` · ${partner.name}`:''}`;
   const minimumWidth=scheduleBlockMinimumWidth(position.rangeDuration);
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
     style={{left:`${segment.left*100}%`,width:`${Math.max(minimumWidth,segment.width)*100}%`,top,height:mobile?44:22}}
@@ -41,7 +42,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
     {movable && <GripVertical className="schedule-grip" size={9} aria-hidden="true"/>}
     <em title={state} style={partner?{paddingLeft:12,boxSizing:"border-box"}:undefined} className={`schedule-block-status status-${tone}`}>
       {tone==='completed'?<Check size={12} strokeWidth={3} aria-hidden="true"/>:tone==='canceled'?<X size={12} strokeWidth={3} aria-hidden="true"/>:tone==='visited'?<b aria-hidden="true">?</b>:null}
-      {position.actual && <span className="schedule-visit-duration" aria-hidden="true">{duration(minutes)}</span>}
+      {position.actual && <span className="schedule-visit-duration" aria-hidden="true">{approximate ? '≈' : ''}{duration(minutes)}</span>}
     </em>
   </div>;
 }

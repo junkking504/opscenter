@@ -66,19 +66,21 @@ export function readDesktopSchedule(date: string) {
     const job = applyScheduleAssignment(source, override);
     const addressCheck = cachedAddressVerification(job.address);
     const location = planningLocation(job.address, pins) || addressCheck?.location || null;
+    const mapFallback=location ? null : readAddressMapFallback(job.address);
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
-    ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead, ...scheduleVisitState({ ...job, location }, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : [], Date.now(), tracked.visits),
+    ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead,
     version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentType, job.appointmentNotes, job.cancellationReason, callAhead, job.closeout, job.driver, job.navigator, job.additionalCrew])).digest('hex'),
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.
     recordId: job.appointmentId ? `${date}:appointment:${job.appointmentId}` : `${date}:unverified:${index}`,
     location,
-    mapFallback: location ? null : readAddressMapFallback(job.address),
+    mapFallback,
     mapAddress: addressCheck && 'matchedAddress' in addressCheck ? addressCheck.matchedAddress : undefined,
     addressCheckPending: addressCheck?.reason === 'Automatic Address Check Pending',
     addressCheckReason: addressCheck?.reason,
   }; });
+  for (const job of appointments) Object.assign(job,scheduleVisitState(job,visits.visits,visits.observedAt,fleet.isToday ? fleet.trucks : [],Date.now(),tracked.visits,appointments));
   dedupeLinkedAppointmentVisitState(appointments);
   // Reconcile against the current effective address/time, including a pending
   // dispatch move, without modifying JunkWare or inventing a ledger event.

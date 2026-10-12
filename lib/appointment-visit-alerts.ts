@@ -22,7 +22,7 @@ export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[
   const candidates = new Map((tracked || trackAppointmentVisits(date,visits,now)).filter(visit=>visit.kind === 'appointment').map(visit=>[
     JSON.stringify([visit.appointmentId,visit.jobNumber,truckKey(visit.truck),visit.enteredAt]),
     {reference:visit.jobNumber!,truck:truckKey(visit.truck),appointment:visit.appointmentId!,start:visit.enteredAt!,end:visit.departedAt,
-      operational:visit.arrivalSource === 'operational_confirmation',conflict:!!visit.conflict,bounds:visit.departureBounds,supersededAt:visit.supersededAt},
+      pin:visit.visitPin,operational:visit.arrivalSource === 'operational_confirmation',conflict:!!visit.conflict,bounds:visit.departureBounds,supersededAt:visit.supersededAt},
   ]));
   const sources = consolidateConfirmedVisitAlerts(input, [...candidates.values()].filter(visit=>!visit.operational && !visit.conflict && !visit.bounds && !visit.supersededAt).map(visit=>({
     appointment_id:visit.appointment,jk_number:visit.reference,truck_number:visit.truck,match_confidence:'confirmed',visit_count:1,
@@ -57,12 +57,13 @@ export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[
       title:`Truck ${visit.truck} - ${visit.reference}${job?.customerName ? ` · ${job.customerName}` : ''}`,
       detected:clock(timestamp),needsAction:false,
       facts:[
+        ...(visit.pin?.approximate ? [{label:'Map pin',value:`Approximate · ${visit.pin.source || 'cached map evidence'} · ${visit.pin.matchedAddress || ''}. ${visit.pin.detail || ''}`}] : []),
         ...(end ? [
         {label:'Time on site',value:visit.bounds ? 'Unavailable · departure bounded by GPS' : visit.operational ? 'Unavailable · GPS coverage gap' : duration(Date.parse(end)-Date.parse(visit.start))}] : []),
         {label:'Arrived',value:time(visit.start)},
         {label:'Departed',value:visit.supersededAt ? 'Earlier GPS segment; departure time unavailable' : visit.bounds ? `After ${time(visit.bounds.after)} · by ${time(visit.bounds.by)}` : end ? time(end) : visit.conflict ? 'Awaiting verification · conflicting records' : 'Awaiting confirmed departure'},
         ...(job?.address ? [{label:'Location',value:job.address}] : []),
-        ...(visit.bounds ? [{label:'Departure source',value:'Two later GPS positions outside the verified appointment location; exact exit time unavailable'}] : []),
+        ...(visit.bounds ? [{label:'Departure source',value:'Two later GPS positions outside the appointment visit pin; exact exit time unavailable'}] : []),
         ...(visit.operational ? [{label:'Visit verification',value:'Operationally confirmed; precise GPS visit timing is unavailable.'}] : [])],
       next:visit.supersededAt ? 'A later GPS visit segment was recorded. Departure from this earlier segment is unconfirmed.' : end ? 'Visit recorded. Appointment closeout is tracked separately.' : 'Arrival recorded; this alert updates when departure is confirmed.',
       href:`/desktop?workspace=Schedule&date=${encodeURIComponent(date)}&appointment=${encodeURIComponent(visit.appointment)}`,

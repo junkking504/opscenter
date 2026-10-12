@@ -1,9 +1,11 @@
+import type {VisitPin} from './appointment-visit-pin';
 import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-presence-policy';
 import {createHash} from 'node:crypto';
 
 export const VISIT_TRACKING_AGENT = 'visit-tracking' as const;
 export type VisitEvidence = 'native_geofence' | 'live_position' | 'later_facility' | 'later_position' | 'confirmed_appointment' | 'operational_confirmation';
 export type TrackedVisit = {
+  visitPin?: VisitPin;
   agentId: typeof VISIT_TRACKING_AGENT;
   id: string; kind: 'geofence' | 'appointment'; truck: string; name: string;
   enteredAt: string | null; departedAt: string | null; lastSeenAt: string;
@@ -111,6 +113,7 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
 }
 
 export type AppointmentVisitSource = {
+  visit_pin?: VisitPin;
   appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string;
   truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean;
   first_arrival?: string; final_departure?: string; visit_count?: number; source_timestamps?: string[];
@@ -145,6 +148,7 @@ export function trackAppointmentVisits(date: string, visits: AppointmentVisitSou
       const operational = !!visit.operational_confirmation || previous?.arrivalSource === 'operational_confirmation';
       const source = operational ? 'operational_confirmation' : 'confirmed_appointment';
       candidates.set(key,{agentId:VISIT_TRACKING_AGENT,id:`appointment-visit-${createHash('sha256').update(key).digest('hex').slice(0,24)}`,
+        visitPin:previous?.visitPin || visit.visit_pin,
         kind:'appointment',truck:`Truck ${truck}`,name:reference,appointmentId:appointment,jobNumber:reference,
         firstObservedAt:start,enteredAt:start,departedAt:conflict ? null : departedAt,lastSeenAt:new Date(lastSeen).toISOString(),entryIds:[],
         arrivalSource:source,departureSource:!conflict && departedAt ? source : null,departureBounds:null,conflict,

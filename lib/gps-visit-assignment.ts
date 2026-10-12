@@ -7,7 +7,7 @@ import {syncJunkwareTruckAssignment} from './junkware-truck-assignment';
 
 export function visitedAssignmentTruck(job: DesktopAppointment, date: string, now = Date.now()): string | null {
   if (!/^\d{1,12}$/.test(job.appointmentId) || job.recordId !== `${date}:appointment:${job.appointmentId}`
-    || truckLabel(job.truck) !== 'Unassigned' || !job.location || /cancel/i.test(job.status)
+    || truckLabel(job.truck) !== 'Unassigned' || !job.location || job.truckVisits?.some(visit=>visit.approximate) || /cancel/i.test(job.status)
     || job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') return null;
   const day=(stamp:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(stamp));
   const trucks = new Set((job.truckVisits || []).filter(visit=>Number.isFinite(Date.parse(visit.arrival)) && Date.parse(visit.arrival)<=now && day(visit.arrival)===date)

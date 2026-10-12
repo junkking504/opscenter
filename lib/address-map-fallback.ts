@@ -9,8 +9,8 @@ import {osmMapAddressQuery} from './osm-service-address';
 import {geocodioAddressQuery} from './geocodio-service-address';
 import {approximateMapAddressQuery} from './address-map-query';
 
-/** Display evidence only. Never pass this point to visit detection or publish it
- * as a verified geocode. The source address remains the customer's instruction. */
+/** Approximate map evidence. Visit detection may use it with explicit provenance
+ * and ambiguity guards; never publish it as a verified geocode. */
 export type AddressMapFallback = {
   location: {latitude:number;longitude:number};
   matchedAddress:string;

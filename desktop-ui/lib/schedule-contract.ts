@@ -1,6 +1,6 @@
 import type {AddressMapFallback} from '../../lib/address-map-fallback';
 import {appointmentServiceAddress} from '../../lib/service-address-format';
-export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
+export type ScheduleTruckVisit = { approximate?: boolean; truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
 export type ScheduleTruckVisitGap = {
   truck: string;
   departedAt: string;
@@ -271,7 +271,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
       const start = Math.max(0,local(visit.arrival));
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
-      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start || visit.approximate && end===start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
     if (!intervals.length) {
       // GPS history belongs to the truck that physically visited the address. It

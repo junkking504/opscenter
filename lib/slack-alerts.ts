@@ -1095,7 +1095,7 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
       return interval?.departure_confirmed !== false
         && Number.isFinite(Date.parse(arrival))
         && Number.isFinite(Date.parse(departure))
-        && Date.parse(departure) > Date.parse(arrival)
+        && (Date.parse(departure) > Date.parse(arrival) || row.visit_pin?.approximate && interval.departure_confirmed === true && Date.parse(departure) === Date.parse(arrival))
         && Date.parse(departure) <= Date.now()
         ? [{ occurredAt: departure, visitStartedAt: arrival }]
         : [];
@@ -1122,6 +1122,7 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
         slackEscape(customerName),
         slackPhoneLink(phone),
         slackEscape(address),
+        ...(row.visit_pin?.approximate ? [`*Map pin:* Approximate · ${slackEscape(row.visit_pin.source || "cached map evidence")} · ${slackEscape(row.visit_pin.matchedAddress || "")}`] : []),
         ...(kind === "truck_departure" ? onsiteTimeFacts(appointmentOnsiteTime({appointmentId,truck},[{...row,visit_intervals:intervals.filter((interval: AnyRecord) => firstText(interval,["arrival"]) === event.visitStartedAt)}])).filter(f=>f.label==='On-site time').map(f=>`*${f.label}:* ${slackEscape(f.value)}`) : []),
       ].filter(Boolean).join("\n");
       notifications.push({

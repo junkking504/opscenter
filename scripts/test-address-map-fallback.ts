@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -61,10 +62,12 @@ try {
  const units=[unitFeature('UNIT 12101',-90.051),unitFeature('CLUBHOUSE',-90.052),unitFeature('UNIT 26107',-90.053)];
  parish(units);
  assert.deepEqual(readAddressMapFallback(unitAddress,now)?.location,{latitude:30.45,longitude:-90.053},'Bare building-unit notation ranks its matching parish unit first');
- assert.equal(planningLocation(unitAddress,{}),null,'Unit guesses never become verified GPS visit locations');
+ assert.equal(planningLocation(unitAddress,{}),null,'Unit guesses never become verified locations');
  save(parishFile,{expires:now+60000,payload:{spatialReference:{wkid:4326},exceededTransferLimit:true,features:units.slice(0,2)}});
  assert.deepEqual(readAddressMapFallback(unitAddress,now)?.location,{latitude:30.45,longitude:-90.052},'A partial parish response can provide a complex entrance when the requested unit is absent');
  assert.equal(readAddressMapFallback('123 Example Wind Blvd Bldg 26 Mandeville, LA 70471',now)?.location.longitude,-90.052,'Explicit buildings may use a display-only complex pin');
+ const bridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify([unitAddress]),encoding:'utf8',env:process.env}));
+ assert.deepEqual(bridge[unitAddress].location,readAddressMapFallback(unitAddress,now)?.location,'Matcher bridge uses the same cached bare-unit fallback as the UI');
  const unitQuery=geocodioAddressQuery(unitAddress)!;
  save(process.env.GEOCODIO_FREE_STATE_FILE!,{schema:1,cache:{[hash(normalizeServiceAddress(unitQuery))]:{expires:now+60000,payload:{results:[{address_components:{number:'123',formatted_street:'Example Wind Blvd',unit_number:'26107',city:'Mandeville',state_province:'LA',postal_code:'70471',country:'US'},location:{lat:30.451,lng:-90.053},accuracy_type:'rooftop'}]}}}});
  assert.equal(readAddressMapFallback(unitAddress,now)?.source,'Geocodio','An explicitly matching provider unit ranks ahead of an available parish clubhouse');

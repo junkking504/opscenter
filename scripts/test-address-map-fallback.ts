@@ -93,5 +93,23 @@ try {
  assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Matching house evidence outranks a street-only point');
  saveStreet([premisesPoint,streetPoint]);
  assert.equal(readAddressMapFallback(streetAddress,now)?.location.latitude,30.318,'Provider order does not change premises precedence');
+ const suffixed='110A Example Cr, Slidell, 70458';
+ const suffixQuery=geocodioAddressQuery('110A Example Cir, Slidell, 70458')!;
+ const base={address_components:{number:'110',formatted_street:'Example Cir',city:'Slidell',state_province:'LA',postal_code:'70458',country:'US'},location:{lat:30.22,lng:-89.82},accuracy_type:'rooftop'};
+ const saveSuffix=(rows:unknown[])=>save(process.env.GEOCODIO_FREE_STATE_FILE!,{schema:1,cache:{[hash(normalizeServiceAddress(suffixQuery))]:{expires:now+60000,payload:{results:rows}}}});
+ saveSuffix([base]);
+ const building=readAddressMapFallback(suffixed,now)!;
+ assert.deepEqual(building.location,{latitude:30.22,longitude:-89.82});
+ assert.equal(building.matchedAddress,'110 Example Cir, Slidell, LA 70458');
+ assert.match(building.detail,/suffix A is unconfirmed/);
+ assert.equal(planningLocation(suffixed,{}),null,'A base building cannot verify an alphanumeric house');
+ for(const patch of [{number:'111'},{number:'110B'},{unit_number:'B'},{formatted_street:'N Example Cir'},{formatted_street:'Example Ct'},{city:'Lacombe'},{postal_code:'70460'},{state_province:'MS'}]) {
+  saveSuffix([{...base,address_components:{...base.address_components,...patch}}]);
+  assert.equal(readAddressMapFallback('state_province' in patch ? suffixed.replace('Slidell,','Slidell, LA') : suffixed,now),null,'Base building fallback preserves house, explicit suffix, road, direction and locality');
+ }
+ const exactHouse={...base,address_components:{...base.address_components,number:'110A'},location:{lat:30.221,lng:-89.821}};
+ const exactUnit={...base,address_components:{...base.address_components,unit_number:'A'},location:{lat:30.222,lng:-89.822}};
+ saveSuffix([base,exactHouse]);assert.deepEqual(readAddressMapFallback(suffixed,now)?.location,exactHouse.location&&{latitude:30.221,longitude:-89.821},'Full house identifier wins over a base building');
+ saveSuffix([base,exactUnit]);assert.deepEqual(readAddressMapFallback(suffixed,now)?.location,{latitude:30.222,longitude:-89.822},'Matching explicit unit wins over an unsuffixed building');
  console.log('Map fallback: coverage, approximation, geography, ambiguity, stale evidence and verification isolation passed.');
 } finally {process.env=old;fs.rmSync(root,{recursive:true,force:true});}

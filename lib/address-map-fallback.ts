@@ -37,12 +37,23 @@ function comparableStreet(value:string,city:string) {
   const prefix=normalize(city)+' ';
   return stem.startsWith(prefix)?stem.slice(prefix.length):stem;
 }
+// A provider may publish a shared building without the source house's letter.
+// This is an approximate building, never a replacement for the source suffix.
+function omittedHouseSuffix(address:string,candidate:Candidate) {
+  const parsed=serviceHouseAndStreet(cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address)))));
+  const parts=parsed && normalizeHouseNumber(parsed.house).match(/^(\d+)([A-Z])$/);
+  if(!parts || normalizeHouseNumber(candidate.house)!==parts[1])return '';
+  const unit=mapUnit(candidate.street),sourceUnit=mapUnit(address);
+  if(unit && unit!==parts[2] || sourceUnit && sourceUnit!==parts[2])return '';
+  return parts[2];
+}
 export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(serviceStreetCandidates(mapAddress(address)).length!==1)return false;
   if(typeof candidate.house!=='string'||![candidate.street,candidate.city,candidate.state,candidate.zip].every(value=>typeof value==='string'&&value.length>0))return false;
   const full=cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address))));
   const parsed=serviceHouseAndStreet(full);
-  if(!parsed || (candidate.streetOnly ? candidate.house!=='' : !candidate.house||normalizeHouseNumber(parsed.house)!==normalizeHouseNumber(candidate.house)))return false;
+  const missingSuffix=omittedHouseSuffix(address,candidate);
+  if(!parsed || (candidate.streetOnly ? candidate.house!=='' : !candidate.house||normalizeHouseNumber(parsed.house)!==normalizeHouseNumber(candidate.house) && !missingSuffix))return false;
   if(!candidate.street||!candidate.city||!candidate.zip||!candidate.state)return false;
   // A locality must be present in the requested field. Allow duplicate locality
   // text and an omitted state, but never substitute another city or direction.
@@ -57,18 +68,18 @@ export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(comparableStreet(tail,candidate.city)!==comparableStreet(candidate.street,candidate.city))return false;
   // With no premises evidence, require the complete road name and ZIP rather
   // than guessing between similarly named roads in the same locality.
-  if(candidate.streetOnly && (normalize(mapStreet(tail))!==normalize(mapStreet(candidate.street))||sourceZip!==candidate.zip))return false;
+  if((candidate.streetOnly || missingSuffix) && (normalize(mapStreet(tail))!==normalize(mapStreet(candidate.street))||sourceZip!==candidate.zip))return false;
   return Number.isFinite(candidate.latitude)&&Number.isFinite(candidate.longitude)
     &&candidate.latitude>=24&&candidate.latitude<=50&&candidate.longitude>=-125&&candidate.longitude<=-66;
 }
 function candidateScore(address:string,row:CachedCandidate) {
   const source=normalize(withoutServiceUnit(mapAddress(address)));
-  const sourceUnit=mapUnit(address),unit=mapUnit(row.street);
+  const sourceUnit=mapUnit(address)||omittedHouseSuffix(address,row),unit=mapUnit(row.street);
   const street=normalize(mapStreet(row.street));
   const zip=address.match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
   // Favor the requested unit; otherwise a premises/entrance pin is more useful
   // than an arbitrary neighboring apartment. Ties use a stable identity below.
-  return (!row.streetOnly ? 10000 : 0)
+  return (row.streetOnly ? 0 : omittedHouseSuffix(address,row) ? 10000 : 20000)
     + (sourceUnit && sourceUnit===unit ? 1000 : !unit ? 100 : 0)
     + (source.includes(` ${street} `) ? 200 : 0)
     + (zip===row.zip ? 80 : 0)
@@ -84,8 +95,9 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const row=matches[0];
   if(!row)return null;
   const matchedAddress=`${[row.house,row.street].filter(Boolean).join(' ')}, ${row.city}, ${row.state} ${row.zip}`;
+  const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
-    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.`};
+    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
 function cacheUsable(value:any,now:number) {return value&&Number.isFinite(value.expires)&&value.expires>now-7*86400_000;}

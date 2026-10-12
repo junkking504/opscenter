@@ -22,8 +22,8 @@ try {
   await page.getByRole('button',{name:'Refresh day',exact:true}).click();
   const block=page.locator('[data-schedule-appointment$=":appointment:1001"]');
   await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment$=":appointment:1001"]')?.getAttribute('aria-label')?.includes('Canceled'));
-  const verify=page.getByRole('button',{name:/Location pending/}).first();
-  assert.match(await verify.innerText(),/3/,'Only the three active unverified appointments count');
+  const verify=page.getByRole('button',{name:/No pin/}).first();
+  assert.match(await verify.innerText(),/4/,'Map coverage includes the canceled appointment, which also has no pin');
   await block.click();
   const summary=page.getByRole('region',{name:'Selected job JK1001001',exact:true});
   assert.match(await summary.innerText(),/Canceled/);
@@ -32,7 +32,7 @@ try {
   await summary.getByRole('button',{name:'Full details for JK1001001',exact:true}).click();
   await page.locator('.record-drawer').waitFor();
   assert.match(await page.locator('#fixture-writes').innerText(),/Writes: 0/);
-  console.log('Canceled address browser passed: cancellation renders while routes hang, active-only address count, canceled summary and details remain usable, zero writes.');
+  console.log('Canceled address browser passed: cancellation renders while routes hang, all-appointment map coverage, canceled summary and details remain usable, zero writes.');
 } finally {
   await browser.close();
 }

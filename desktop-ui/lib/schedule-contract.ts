@@ -148,7 +148,7 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
     .map(id => jobs.find(job => job.recordId === id))
     .filter(job => !job || !scheduleMapLocation(job));
   return missing.length
-    ? { label: 'Location pending', detail: `Address verification failed for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}. Dispatch owns recovery; unresolved locations require escalation.` }
+    ? { label: 'Pin unavailable', detail: `No map result is available yet for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
 }
 
@@ -189,11 +189,8 @@ export function scheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 
 export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }
 export function addressResolutionCopy(reason?: string) {
-  if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };
-  if (/provider|temporarily unavailable|usage guard/i.test(reason || '')) return { title: 'Location check delayed', detail: 'The verified-address sources are unavailable; OpsCenter will retry automatically.' };
-  if (/multiple|conflicting/i.test(reason || '')) return { title: 'Address needs confirmation', detail: 'More than one premises matches. Confirm the complete service address before dispatch.' };
-  if (/no exact .*premises match|precise service location unavailable/i.test(reason || '')) return { title: 'Locating automatically…', detail: 'The map providers have not returned this exact property yet. OpsCenter will retry automatically.' };
-  return { title: 'Address needs correction', detail: 'The house number and street could not be verified. Confirm the service address before dispatch.' };
+  if (reason && /checking|pending/i.test(reason)) return { title: 'Finding a pin…', detail: 'OpsCenter is selecting the best available address match.' };
+  return { title: 'Pin unavailable', detail: 'No map result is available yet. OpsCenter will retry automatically.' };
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }

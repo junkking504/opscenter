@@ -54,11 +54,11 @@ console.log('Schedule interaction contracts passed: full windows, source duratio
 
 const route = { fromAppointmentId: job.recordId, toAppointmentId: sharedJk.recordId } as Parameters<typeof unavailableRoute>[0];
 assert.deepEqual(unavailableRoute(route, [job, sharedJk]), {
-  label: 'Location pending',
-  detail: 'Address verification failed for JK1234567 and JK1234567. Dispatch owns recovery; unresolved locations require escalation.',
+  label: 'Pin unavailable',
+  detail: 'No map result is available yet for JK1234567 and JK1234567.',
 });
 assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, { ...sharedJk, location: { latitude: 30.1, longitude: -90.1 } }]).label, "ETA Unavailable");
-assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Location pending");
+assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Pin unavailable");
 
 assert.equal(scheduleMoveRestriction(job), null);
 assert.equal(scheduleMoveRestriction({ ...job, appointmentType: "Job", status: "Completed" }), null);
@@ -76,10 +76,10 @@ assert.equal(scheduleStatusTone({ status: 'Estimate Closed' }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Cancelled' }), 'canceled');
 assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');
 assert.deepEqual(addressResolutionCopy('No Exact Geocodio Premises Match'), {
-  title: 'Locating automatically…',
-  detail: 'The map providers have not returned this exact property yet. OpsCenter will retry automatically.',
+  title: 'Pin unavailable',
+  detail: 'No map result is available yet. OpsCenter will retry automatically.',
 });
-assert.equal(addressResolutionCopy('Precise Service Location Unavailable').title, 'Locating automatically…');
-assert.equal(addressResolutionCopy('Multiple Address Matches').title, 'Address needs confirmation');
-assert.equal(addressResolutionCopy('Address Provider Temporarily Unavailable').title, 'Location check delayed');
-assert.equal(addressResolutionCopy().title, 'Address needs correction');
+assert.equal(addressResolutionCopy('Precise Service Location Unavailable').title, 'Pin unavailable');
+assert.equal(addressResolutionCopy('Multiple Address Matches').title, 'Pin unavailable');
+assert.equal(addressResolutionCopy('Address Provider Temporarily Unavailable').title, 'Pin unavailable');
+assert.equal(addressResolutionCopy().title, 'Pin unavailable');

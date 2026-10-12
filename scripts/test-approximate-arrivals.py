@@ -6,6 +6,7 @@ import importlib.util
 import json
 import runpy
 import sys
+import subprocess
 import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -59,6 +60,32 @@ with tempfile.TemporaryDirectory() as directory:
     assert run([point(1),point(6,30.003),point(7,30.003)])[0]['final_departure'] is None, '400m exit buffer'
     assert run([point(1),point(6,30.01),point(15,30.01)])[0]['final_departure'] is None, 'Sparse GPS cannot corroborate exit'
     assert run([point(1),point(6,30.01),point(6),point(7,30.01)])[0]['final_departure'] is None, 'Conflicting same-stamp GPS cannot corroborate exit'
+    # The provider push is followed by a slightly different V2 derivative at
+    # the same instant. Reconciliation must not erase the original arrival.
+    def sourced(minute, lat=30., source='v3_position_push', stamp=None):
+        return {**point(minute,lat,stamp), 'delivery_source':source}
+    push=sourced(1)
+    derivative=sourced(1,30.00008,'v2_poll', '2026-09-08T15:01:00.000Z')
+    enriched=[push,derivative,sourced(2,30.00002,'v2_poll')]
+    stages=[run([push])[0],run(enriched)[0],run(enriched+enriched)[0],run(list(reversed(enriched)))[0]]
+    assert {row['first_arrival'] for row in stages}=={point(1)['timestamp']}, 'V2 enrichment must preserve authoritative V3 arrival and notice identity'
+    assert all(row['visit_count']==1 and row['final_departure'] is None for row in stages)
+    exits=enriched+[sourced(6,30.01),sourced(6,30.,'v2_poll'),sourced(7,30.01),sourced(7,30.,'v2_poll')]
+    departed=run(exits)[0]
+    assert departed['first_arrival']==point(1)['timestamp'] and departed['final_departure']==point(2)['timestamp']
+    assert departed==run(exits+exits)[0], 'Enriched departure is idempotent'
+    # Lower-authority outside reports cannot override authoritative inside fixes.
+    assert run(enriched+[sourced(6),sourced(6,30.01,'v2_poll'),sourced(7),sourced(7,30.01,'v2_poll')])[0]['final_departure'] is None
+    # Equal-authority conflicts remain unusable, regardless of input order.
+    for source in ['v3_position_push','v2_poll']:
+        conflict=[sourced(1,source=source),sourced(6,30.01,source),sourced(6,30.,source),sourced(7,30.01,source)]
+        assert run(conflict)[0]['final_departure'] is None
+        assert run(list(reversed(conflict)))[0]['final_departure'] is None
+    assert run([sourced(1,30.01),sourced(1,30.,'v2_poll')])[0]['visit_count']==0, 'V2 cannot fabricate arrival against V3 outside'
+    result=subprocess.run(['node','--import','tsx','scripts/test-approximate-enrichment-notices.ts'],
+        cwd=Path(__file__).resolve().parent.parent,input=json.dumps({'stages':stages,'departed':departed}),text=True,capture_output=True)
+    assert result.returncode==0, result.stdout+result.stderr
+    print(result.stdout.strip())
     single=run([point(1),point(6,30.01),point(7,30.01)])[0]
     assert single['final_departure']==single['first_arrival'] and single['onsite_minutes']==0
     assert run([point(1,stamp='2099-09-08T15:01:00Z')])[0]['visit_count']==0

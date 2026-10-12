@@ -148,8 +148,10 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
     module.resolve_visit_pins = resolve
 
     def approximate_visits(points, lat, lon, radius, dwell, count, grace):
-        # Retries at one timestamp are one observation; conflicting coordinates
-        # cannot corroborate an exit. Invalid coordinates are not evidence.
+        # Reconcile one observation per instant before visit matching. V2 may
+        # later add rounded/derived coordinates for an authoritative V3 fix;
+        # that enrichment must not erase the arrival or change its notice key.
+        # Conflicts at the selected authority still cannot corroborate an exit.
         grouped = {}
         for point in points:
             stamp = module.parse_timestamp(point.get('timestamp'))
@@ -157,6 +159,8 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
                 grouped.setdefault(stamp, []).append(point)
         clean = []
         for stamp, samples in sorted(grouped.items()):
+            authoritative = [p for p in samples if p.get('delivery_source') == 'v3_position_push']
+            samples = authoritative or samples
             positions = {(p['latitude'], p['longitude']) for p in samples}
             if len(positions) == 1:
                 clean.append(samples[0])

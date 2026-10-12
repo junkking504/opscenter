@@ -118,3 +118,30 @@ Retain this unpushed worktree until publishing/activation is approved and
 verified. Only then follow `docs/workspace-retention.md` from outside the
 worktree. No temporary server was started by this task. Dependency symlinks
 reuse the base release's installed packages and must not be committed.
+
+## Source reconciliation and notice stability
+
+Approximate matching selects one observation per source timestamp before
+calculating arrival and departure. An authoritative `v3_position_push` wins over
+same-timestamp V2 derived or rounded coordinates. Different timestamp spellings
+of the same instant are grouped together. Conflicting coordinates among the
+selected authority remain excluded, and repeated samples cannot corroborate a
+departure. The two distinct outside observations, distance buffer, time gap and
+ambiguity safeguards remain in force.
+
+The synthetic matcher regression processes push-only, V2-enriched, duplicated
+and reordered snapshots sequentially, then feeds their rows into the actual
+pure Slack message builders. The arrival timestamp and notice fingerprint must
+remain unchanged; departure needs corroboration and gets one stable identity.
+The regression also verifies authoritative-inside versus V2-outside conflicts,
+equal-authority conflicts, and verified/approximate nearby-stop ambiguity.
+Existing delivered-message receipts remain authoritative: correcting a visit
+back to its original source-backed start reuses that arrival receipt. Deployment
+does not delete prior messages or change the prospective activation cutoff.
+
+If an approximate departure was already sent before source reconciliation
+restores an earlier arrival, publication reuses that receipt only when its
+appointment, truck and date agree and its earlier visit-start identity is an
+actual source timestamp inside the corrected interval. A different stop, truck,
+return visit, or inferred timestamp cannot alias the receipt. Existing message
+synchronization may correct its content without posting a second departure.

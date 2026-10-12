@@ -1061,7 +1061,7 @@ export function slackPhoneLink(value: string): string {
   return `<tel:${phoneNumber}${extension ? `;ext=${extension}` : ""}|${slackEscape(label)}>`;
 }
 
-function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind: "truck_arrival" | "truck_departure"): SlackOpsAlert[] {
+function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind: "truck_arrival" | "truck_departure", deliveredFingerprints: readonly string[] = []): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
   const appointmentDetails = readTruckArrivalAppointmentDetails(date);
@@ -1103,13 +1103,19 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
 
     for (const event of events) {
       if (!Number.isFinite(Date.parse(event.occurredAt))) continue;
-      const fingerprint = [
-        kind,
-        date,
-        truckArrivalKeyPart(appointmentId),
-        truckArrivalKeyPart(truck),
-        event.visitStartedAt,
-      ].join(":");
+      const prefix = [kind, date, truckArrivalKeyPart(appointmentId), truckArrivalKeyPart(truck)].join(":") + ":";
+      let fingerprint = prefix + event.visitStartedAt;
+      if (kind === "truck_departure" && row.visit_pin?.approximate && !deliveredFingerprints.includes(fingerprint)) {
+        // Source reconciliation can restore an earlier arrival after a departure
+        // was already delivered. Reuse that receipt only when its prior start
+        // is actual GPS evidence inside this same appointment/truck interval.
+        const interval = intervals.find((item: AnyRecord) => firstText(item, ["arrival"]) === event.visitStartedAt);
+        const start = Date.parse(event.visitStartedAt), end = Date.parse(event.occurredAt);
+        const sourceTimes = new Set<number>((Array.isArray(interval?.source_timestamps) ? interval.source_timestamps : [])
+          .map((value: string) => Date.parse(value)).filter((time: number) => Number.isFinite(time) && time >= start && time <= end));
+        const prior = deliveredFingerprints.filter(key => key.startsWith(prefix) && sourceTimes.has(Date.parse(key.slice(prefix.length)))).sort();
+        if (prior.length) fingerprint = prior[0];
+      }
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
       const truckNumber = normalizeSlackTruckNumber(truck);
@@ -1146,15 +1152,15 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   return buildTruckVisitSlackNotifications(date, rows, "truck_arrival");
 }
-export function buildTruckDepartureSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
-  return buildTruckVisitSlackNotifications(date, rows, "truck_departure");
+export function buildTruckDepartureSlackNotifications(date: string, rows: AnyRecord[], deliveredFingerprints: readonly string[] = []): SlackOpsAlert[] {
+  return buildTruckVisitSlackNotifications(date, rows, "truck_departure", deliveredFingerprints);
 }
 function allTruckVisitNotifications(date: string, state: SlackAlertState): SlackOpsAlert[] {
   // Delayed GPS pushes still reconcile historical visits, but those visits
   // must never become new field alerts when an old day is processed again.
   if (date !== chicagoDateKey()) return [];
   const rows = readTruckArrivalVisitRows(date);
-  const departures = buildTruckDepartureSlackNotifications(date, rows);
+  const departures = buildTruckDepartureSlackNotifications(date, rows, state.deliveredTruckArrivalsByDate[date] || []);
   if (!state.truckDepartureNotificationsInitializedAt) {
     state.truckDepartureNotificationsInitializedAt = new Date().toISOString();
     state.deliveredTruckArrivalsByDate[date] = [...(state.deliveredTruckArrivalsByDate[date] || []), ...departures.map(alert => alert.fingerprint)];

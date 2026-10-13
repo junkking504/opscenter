@@ -95,3 +95,6 @@
 }
 
 .live-schedule .readable-appointment .register-onsite-time { font-weight: 500; }
+
+.live-schedule .readable-appointment .register-attendance { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; min-height: 22px; padding: 0; margin: 0; border: 0; background: none; color: var(--oc-text-green-11); font-size: var(--oc-type-12); text-align: left; cursor: pointer; }
+.live-schedule .readable-appointment .register-attendance b { font-size: inherit; font-weight: 650; font-variant-numeric: tabular-nums; }

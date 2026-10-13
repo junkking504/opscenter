@@ -1,7 +1,10 @@
 # Appointment minimum charge
 
-Control appointment details include a manager-only planning calculator. The list's
-Minimum charge button opens the appointment. It never changes a quote, payment,
+Control appointment details include a manager-only planning calculator. Each appointment card shows To attend directly beneath the quoted or paid
+amount; clicking it opens the breakdown. This uses the same attendance subtotal
+as the drawer, with calculating/unavailable states and manager access retained.
+Board totals share one source snapshot and at most two concurrent calculations.
+They refresh with the schedule snapshot and after saving cost assumptions. It never changes a quote, payment,
 truck, appointment time, payroll, or accounting entry.
 
 Fuel is allocated road miles / MPG × price per gallon. MPG starts at 10. Labor
@@ -9,7 +12,11 @@ is total crew hourly cost × (allocated travel + on-site work minutes) / 60.
 Overhead starts at $109 per appointment, explicitly provisional: the owner recalled
 this figure on October 13 but its original inclusions could not be recovered.
 Attendance cost includes overhead, travel labor and fuel; full break-even requires
-explicit on-site minutes and disposal, including an explicit zero when applicable.
+on-site minutes and disposal, including an explicit zero when applicable.
+Confirmed on-site time for the assigned truck fills labor automatically; a saved
+manual override takes precedence. Shared travel legs use recorded departure-to-
+arrival time when continuous GPS coverage spans both confirmed same-truck visits
+and no known facility stop intervenes. Otherwise the road estimate remains labeled.
 Other costs and revenue-based fees support payroll burden, royalties, bonuses and
 card costs. Break-even = fixed dollar costs / (1 - revenue fee fraction).
 The minimum whole-dollar charge is strictly above break-even; target margin uses

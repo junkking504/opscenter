@@ -3,7 +3,7 @@ import {AUTH_SESSION_COOKIE,verifyAuthSessionCookie} from '@/lib/auth';
 import {isDesktopWriteOriginAllowed} from '@/lib/desktop-request-origin';
 import {opsRoleCan} from '@/lib/ops-roles';
 import {validRosterDate} from '@/lib/schedule-crew-roster';
-import {readAppointmentCostEstimate} from '@/lib/appointment-cost';
+import {readAppointmentCostEstimate,readAppointmentAttendanceCosts} from '@/lib/appointment-cost';
 import {saveAppointmentCost,AppointmentCostError} from '@/lib/appointment-cost-store';
 import {readDesktopSchedule} from '@/lib/desktop-schedule';
 export const dynamic='force-dynamic';
@@ -13,7 +13,7 @@ function failure(error:unknown){return Response.json({error:error instanceof App
 export async function GET(request:Request){
  const actor=await session();if(!actor)return Response.json({error:'Authentication required.'},{status:401,headers});
  if(!opsRoleCan(actor.role,'finance.read'))return Response.json({error:'Manager access is required for cost estimates.'},{status:403,headers});
- try{const p=new URL(request.url).searchParams,date=p.get('date')||'',id=p.get('id')||'';if(!validRosterDate(date)||!id||id.length>250)throw new AppointmentCostError('Choose an appointment and valid date.');return Response.json(await readAppointmentCostEstimate(date,id),{headers});}catch(e){return failure(e);}
+ try{const p=new URL(request.url).searchParams,date=p.get('date')||'',id=p.get('id')||'';if(validRosterDate(date)&&p.get('scope')==='attendance')return Response.json(await readAppointmentAttendanceCosts(date),{headers});if(!validRosterDate(date)||!id||id.length>250)throw new AppointmentCostError('Choose an appointment and valid date.');return Response.json(await readAppointmentCostEstimate(date,id),{headers});}catch(e){return failure(e);}
 }
 export async function POST(request:Request){
  const actor=await session();if(!actor)return Response.json({error:'Authentication required.'},{status:401,headers});

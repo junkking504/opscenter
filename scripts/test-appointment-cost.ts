@@ -46,3 +46,17 @@ assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('10:00:00','25:0
 assert.equal(parseWexPriceMessage({...msg,sourceUrl:'https://untrusted.example/'}),null);
 
 assert.equal(defaultCostWarehouse('Baton Rouge'),'BRHQ');assert.equal(defaultCostWarehouse('BR'),'BRHQ');assert.equal(defaultCostWarehouse('New Orleans'),'NOHQ');
+
+// Recorded labor needs confirmed same-truck visits and continuous transfer coverage.
+import {costOnsiteMinutes,recordedCostTransfer} from '../lib/appointment-cost-recorded';
+const onsite={minutes:47.4,truck:'Truck 6',arrival:'2026-10-12T15:31:42Z',departure:'2026-10-12T16:19:07Z',label:'47.4 min'};
+assert.equal(costOnsiteMinutes(onsite,'Truck# 6'),47.4);
+assert.equal(costOnsiteMinutes(onsite,'Truck 4'),null);
+assert.equal(costOnsiteMinutes({...onsite,departure:null},'Truck 6'),null);
+assert.ok(Math.abs(calculateAppointmentCost({...inputs,onsiteMinutes:47.4},travel,4,33).onsiteLabor!-26.07)<1e-8);
+const before={...onsite,arrival:'2026-10-12T14:50:00Z',departure:'2026-10-12T15:14:00Z'};
+const gps={date:'2026-10-12',truck:'Truck 6',status:'available' as const,observedAt:null,coveredThrough:null,points:[],paths:[[{timestamp:before.departure,latitude:30,longitude:-90},{timestamp:onsite.arrival,latitude:30,longitude:-90}]],gaps:0,rejected:0};
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[]),17.7);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',{...gps,paths:[]},[]),null);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 4',gps,[]),null);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[{id:'dump',truck:'Truck 6',name:'Dump',facility:'dump',kind:'dump',label:'Dump',enteredAt:'2026-10-12T15:20:00Z',departedAt:'2026-10-12T15:25:00Z',observedThrough:'2026-10-12T15:25:00Z',startMinutes:620,endMinutes:625,ongoing:false}]),null);

@@ -1,5 +1,5 @@
 import {readDesktopSchedule,scheduleRoutePairs} from './desktop-schedule';
-import {scheduleMapLocation} from '../desktop-ui/lib/schedule-contract';
+import {scheduleMapLocation,displayedOnsiteTime} from '../desktop-ui/lib/schedule-contract';
 import {truckNumber,sameTruck} from './junkware-trucks';
 import {osmTravelMatrix} from './osm-travel-matrix';
 import fs from 'node:fs';
@@ -13,10 +13,15 @@ import {readWexRealtimePrice} from './wex-realtime-prices';
 import {calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,type CostTravel} from './appointment-cost-model';
 import {chicagoDateKey,addDays} from './report-dates';
 import {chicagoClockToDate} from './live-pay';
+import {readTruckGpsRoute} from './desktop-gps-route';
+import {costOnsiteMinutes,recordedCostTransfer} from './appointment-cost-recorded';
+import type {TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import type {Coordinates} from './job-route-proximity';
-export async function readAppointmentCostEstimate(date:string,id:string){
- const snapshot=readDesktopSchedule(date),job=snapshot.appointments.find(row=>row.recordId===id);
+export async function readAppointmentCostEstimate(date:string,id:string,snapshot=readDesktopSchedule(date),gpsRoutes=new Map<string,TruckGpsRoute>()){
+ const job=snapshot.appointments.find(row=>row.recordId===id);
  if(!job)throw new AppointmentCostError('Appointment is absent from the selected day.',404);
+ const sourceRoot=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
+ const sourceOnsiteMinutes=costOnsiteMinutes(displayedOnsiteTime(job),job.truck);
  const key=`${date}:${job.appointmentId||job.recordId}`;
  const routeJobs=snapshot.appointments.filter(row=>sameTruck(row.truck,job.truck)&&!/cancel/i.test(row.status));
  const pairs=scheduleRoutePairs(routeJobs);
@@ -30,7 +35,16 @@ export async function readAppointmentCostEstimate(date:string,id:string){
  if(truckNumber(job.truck)&&!/cancel/i.test(job.status)&&point&&origin&&destination&&job.junkwareSyncStatus!=='pending'){
   const leg=async(a:Coordinates,b:Coordinates)=>{const result=await osmTravelMatrix([a],[b]);const row=result?.[0];const seconds=typeof row?.duration==='string'&&/^\d+(?:\.\d+)?s$/.test(row.duration)?Number(row.duration.slice(0,-1)):NaN;return row?.condition==='ROUTE_EXISTS'&&!row.status?.code&&typeof row.distanceMeters==='number'&&row.distanceMeters>=0&&Number.isFinite(row.distanceMeters)&&Number.isFinite(seconds)&&seconds>=0?{miles:row.distanceMeters/1609.344,minutes:seconds/60}:null;};
   const [incoming,outgoing]=await Promise.all([leg(origin,point),leg(point,destination)]);
-  if(incoming&&outgoing){Object.assign(travel,allocateAppointmentTravel(incoming,outgoing,Boolean(previous),Boolean(next)));}
+  if(incoming&&outgoing){
+   const truck=`Truck ${truckNumber(job.truck)}`;
+   if(!gpsRoutes.has(truck))gpsRoutes.set(truck,readTruckGpsRoute(date,truck,sourceRoot));
+   const gps=gpsRoutes.get(truck)!;
+   const inboundRecorded=previous?recordedCostTransfer(displayedOnsiteTime(previous),displayedOnsiteTime(job),truck,gps,snapshot.operationalStops||[]):null;
+   const outboundRecorded=next?recordedCostTransfer(displayedOnsiteTime(job),displayedOnsiteTime(next),truck,gps,snapshot.operationalStops||[]):null;
+   if(inboundRecorded!==null)incoming.minutes=inboundRecorded;
+   if(outboundRecorded!==null)outgoing.minutes=outboundRecorded;
+   travel.note+=` Travel time: inbound ${inboundRecorded===null?'road estimate':'recorded transfer'}, outbound ${outboundRecorded===null?'road estimate':'recorded transfer'}. Recorded transfers include elapsed time between confirmed stops.`;
+   Object.assign(travel,allocateAppointmentTravel(incoming,outgoing,Boolean(previous),Boolean(next)));}
  }else travel.note=!truckNumber(job.truck)?'Assign a truck to calculate its route share.':/cancel/i.test(job.status)?'Canceled appointment: no planned attendance.':'Route pin or verified assignment unavailable.';
  const meaningful=(name:string)=>name&&name!=='—'&&!/unassigned|unknown|not recorded|multiple/i.test(name);
  const explicitNames=[job.driver,job.navigator,...(job.additionalCrew||[])].filter(meaningful);
@@ -40,7 +54,7 @@ export async function readAppointmentCostEstimate(date:string,id:string){
  const planned=readScheduleCrewRoster(date).entries.filter(row=>row.status==='scheduled'&&sameTruck(row.truck,job.truck)).map(row=>row.name);
  const names=[...new Map((explicitNames.length?explicitNames:planned.length?planned:conflict?[]:fleetNames).map(name=>[employeeKey(name),name])).values()];
  const crewSource=explicitNames.length?'Appointment crew':planned.length?'Dated planned roster':conflict?'Conflicting truck crew assignments':'Assigned truck crew snapshot';
- const sourceRoot=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
+
  const crewRates=names.map(name=>{const last=date>chicagoDateKey()?chicagoDateKey():date;for(let days=0;days<14;days++){const day=addDays(last,-days);const correction=appliedPayrollCorrectionForEmployee(day,name);if(correction?.hourlyRate&&correction.hourlyRate>0)return {rate:correction.hourlyRate,date:day};try{const [headers,...rows]=parseCsv(fs.readFileSync(path.join(sourceRoot,'history','junkware',`junkware_employee_rates_${day}.csv`),'utf8'));const found=rows.map(row=>Object.fromEntries(headers.map((h,i)=>[h,row[i]]))).filter(row=>employeeKey(row.normalized_name||row.employee_name||row.name||'')===employeeKey(name));if(found.length===1){const rate=Number(found[0].hourly_rate);const observed=found[0].collected_at;const sourceDate=observed&&Number.isFinite(Date.parse(observed))?chicagoDateKey(new Date(observed)):day;if(rate>0&&Number.isFinite(rate)&&sourceDate>=addDays(last,-14)&&sourceDate<=last)return {rate,date:sourceDate};}}catch{/* Missing dated rate is not zero pay. */}}return null;});
  const sourceCrewHourly=names.length>0&&crewRates.every(Boolean)?crewRates.reduce((sum,row)=>sum+row!.rate,0):null;
  const reference=date<chicagoDateKey()?chicagoClockToDate(addDays(date,1),'12:00 AM')!.getTime()-1:Date.now();
@@ -48,5 +62,22 @@ export async function readAppointmentCostEstimate(date:string,id:string){
  const priceIsRecent=fuel.price!==null&&reference-Date.parse(fuel.price.at)<=7*86400000;
  const fuelPrice=record.inputs.fuelPrice??(priceIsRecent?fuel.price!.price:null);
  const crewHourly=record.inputs.crewHourly??sourceCrewHourly;
- return {key,record,travel,fuel,priceIsRecent,sourceCrewHourly,crewSource,crewCount:names.length,crewRateDates:[...new Set(crewRates.filter(Boolean).map(row=>row!.date))],fuelPrice,crewHourly,result:calculateAppointmentCost(record.inputs,travel,fuelPrice,crewHourly),observedAt:snapshot.observedAt};
+ return {key,record,sourceOnsiteMinutes,travel,fuel,priceIsRecent,sourceCrewHourly,crewSource,crewCount:names.length,crewRateDates:[...new Set(crewRates.filter(Boolean).map(row=>row!.date))],fuelPrice,crewHourly,result:calculateAppointmentCost({...record.inputs,onsiteMinutes:record.inputs.onsiteMinutes??sourceOnsiteMinutes},travel,fuelPrice,crewHourly),observedAt:snapshot.observedAt};
+}
+
+// One source snapshot per board request; bound simultaneous road lookups.
+export async function readAppointmentAttendanceCosts(date:string){
+ const snapshot=readDesktopSchedule(date);
+ const rows:Record<string,number|null>={};
+ const gpsRoutes=new Map<string,TruckGpsRoute>();
+ let cursor=0;
+ async function worker(){
+  while(cursor<snapshot.appointments.length){
+   const job=snapshot.appointments[cursor++];
+   try{rows[job.recordId]=(await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes)).result.attendance;}
+   catch{rows[job.recordId]=null;}
+  }
+ }
+ await Promise.all([worker(),worker()]);
+ return {date,rows};
 }

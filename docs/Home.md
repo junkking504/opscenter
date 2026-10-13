@@ -31,7 +31,6 @@ without mixing live runtime data or secrets into Git.
 
 ## Integrations and operating areas
 
-- [SpecOps storm planning](specops.md)
 
 - [Krewe Pay Portal](crew-pay-portal.md)
 - [Crew call-in plan](crew-call-in-plan.md)

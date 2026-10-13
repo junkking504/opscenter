@@ -6,7 +6,8 @@ costs and entered revenue fees; To attend uses only fuel, travel labor and
 overhead. Clicking either opens appointment info. The breakdown and editable assumptions
 are available in Cost details, a compact section below the record facts that
 starts collapsed. Cost details are loaded only when first expanded. When only disposal is missing, the card shows the break-even subtotal as a dollar
-amount followed by “+ disposal”. This subtotal includes on-site labor, other entered
+amount only, as requested by the owner. Disposal remains excluded while missing;
+its status is available in Cost details and the amount tooltip. This subtotal includes on-site labor, other entered
 costs and revenue fees; disposal and any fees on it remain to be added. The full
 break-even and minimum charge remain incomplete until disposal is entered. Other
 missing inputs stay unavailable. Manager access remains

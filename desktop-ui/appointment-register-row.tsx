@@ -19,7 +19,7 @@ export function AppointmentRegisterRow({ job, selected, area, warning, route, pr
   const costLabel=payment.amount||priorQuote?'Break-even':'To attend';
   const disposalPending=costLabel==='Break-even'&&attendance?.summary?.breakEven==null&&attendance?.summary?.missing.length===1&&attendance.summary.missing[0].startsWith('Disposal');
   const costAmount=(costLabel==='Break-even'?(attendance?.summary?.breakEven??(disposalPending?attendance?.summary?.breakEvenBeforeDisposal:null)):attendance?.summary?.attendance)??null;
-  const costText=attendance?.loading?'Calculating…':costAmount!==null?`${new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount)}${disposalPending?' + disposal':''}`:'Unavailable';
+  const costText=attendance?.loading?'Calculating…':costAmount!==null?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount):'Unavailable';
   const costLine=attendance&&<button className="register-attendance" aria-label={`${costLabel} for ${job.jkNumber}: ${costText}`} title={costAmount===null?attendance.summary?.missing.join(' · '):disposalPending?'Fuel, travel and on-site labor, overhead, other entered costs and fees. Disposal and any fees on disposal are still to be added.':costLabel==='Break-even'?'Full modeled job cost including labor, disposal and entered fees. Open appointment info.':'Estimated fuel, travel labor and overhead. Open appointment info.'} onClick={open}><span>{costLabel}</span><b>{costText}</b></button>;
 
   const displayTime = displayedOnsiteTime(job);

@@ -46,8 +46,7 @@ Guard boundary: `verify-desktop-tokens` scans top-level `desktop-ui/*.css` and
 `desktop-ui/app/*.css`, not nested components or mobile-closeout. It is a source
 check, not an installed deployment gate. Component-local styles therefore also
 need rendered review: Command explicitly overrides both operational/photo
-headings18→20 and payment text15→16. The separate crew mobile closeout surface
-and concurrently owned SpecOps styling are outside this migration. This is not
+headings18→20 and payment text15→16. The separate crew mobile closeout surface is outside this migration. This is not
 a recursive zero-raw-CSS claim.
 
 Run `verify:css-phase-two`, `verify:css-architecture`, TypeScript and the normal
@@ -73,5 +72,3 @@ closing Job Order. Leaflet's plus/minus glyphs retain the library's icon sizing;
 they are not operational text or a larger display-text exception.
 
 Capital keeps source-unavailable states and financial values intact; only its reviewed palette and type profile change. Reconciliation and overview were checked on phone and desktop without submitting a payment action.
-
-Concurrent SpecOps remains outside the approved six-workspace migration. Its stylesheet is preserved byte-for-byte from production `3a0eb7f0` (SHA-256 `1e7f411d7f2d583eb798daf38816747c5a298e20154713844e62afceb08fcba6`), updating the former `036462cf` baseline after the owner’s conditions release. Any further change fails the token guard until explicitly reviewed or tokenized; Phase 2 stays disabled for SpecOps.

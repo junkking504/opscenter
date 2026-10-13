@@ -40,3 +40,5 @@ export function allocateAppointmentTravel(incoming:{miles:number;minutes:number}
 }
 
 export const defaultCostWarehouse=(territory:string):CostInputs['warehouse']=>/^(BR|Baton Rouge)$/i.test(territory)?'BRHQ':'NOHQ';
+
+export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;missing:string[]};

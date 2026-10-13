@@ -10,7 +10,7 @@ import {readScheduleCrewRoster} from './schedule-crew-roster';
 import {appliedPayrollCorrectionForEmployee} from './applied-payroll-corrections';
 import {readAppointmentCost,AppointmentCostError} from './appointment-cost-store';
 import {readWexRealtimePrice} from './wex-realtime-prices';
-import {calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,type CostTravel} from './appointment-cost-model';
+import {calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,type CostTravel,type AppointmentCostSummary} from './appointment-cost-model';
 import {chicagoDateKey,addDays} from './report-dates';
 import {chicagoClockToDate} from './live-pay';
 import {readTruckGpsRoute} from './desktop-gps-route';
@@ -68,14 +68,14 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
 // One source snapshot per board request; bound simultaneous road lookups.
 export async function readAppointmentAttendanceCosts(date:string){
  const snapshot=readDesktopSchedule(date);
- const rows:Record<string,number|null>={};
+ const rows:Record<string,AppointmentCostSummary>={};
  const gpsRoutes=new Map<string,TruckGpsRoute>();
  let cursor=0;
  async function worker(){
   while(cursor<snapshot.appointments.length){
    const job=snapshot.appointments[cursor++];
-   try{rows[job.recordId]=(await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes)).result.attendance;}
-   catch{rows[job.recordId]=null;}
+   try{const {attendance,breakEven,missing}=(await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes)).result;rows[job.recordId]={attendance,breakEven,missing};}
+   catch{rows[job.recordId]={attendance:null,breakEven:null,missing:['Cost sources unavailable']};}
   }
  }
  await Promise.all([worker(),worker()]);

@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
+import type {AppointmentCostSummary} from '../../lib/appointment-cost-model';
 
-type AttendanceState={key:string;rows:Record<string,number|null>;loading:boolean;denied:boolean};
+type AttendanceState={key:string;rows:Record<string,AppointmentCostSummary>;loading:boolean;denied:boolean};
 export function useAppointmentAttendance(date:string,refreshKey:string,enabled:boolean):Omit<AttendanceState,'key'>{
  const key=JSON.stringify([date,refreshKey,enabled]);
  const [state,setState]=useState<AttendanceState|null>(null);

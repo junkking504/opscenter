@@ -577,7 +577,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
               <div className="appointment-area-heading"><div><button onClick={() => focusTerritory(`${group.code}:${areaCode}`)}>{areaCode}</button><button className="area-record-link" onClick={() => focusTerritory(`${group.code}:${areaCode}`)}>{areaJobs[0].area}<ArrowRight size={10} /></button></div><span>{areaJobs.length} Appointments</span></div>
               {areaJobs.map(({ job, area, mismatch, needsReview, reason, sourceTerritory }) => {
                 const leg = routeTo(job.recordId);
-                return <AppointmentRegisterRow key={job.recordId} job={job} area={area} attendance={attendance.denied?undefined:{amount:attendance.rows[job.recordId]??null,loading:attendance.loading}} selected={selectedId === job.recordId}
+                return <AppointmentRegisterRow key={job.recordId} job={job} area={area} attendance={attendance.denied?undefined:{summary:attendance.rows[job.recordId]??null,loading:attendance.loading}} selected={selectedId === job.recordId}
                   warning={needsReview ? reason : mismatch ? `JunkWare franchise: ${sourceTerritory} · address-based territory` : undefined}
                   route={leg ? `${leg.travelMinutes === null ? unavailableRoute(leg, jobs).label : `${leg.approximate ? 'Approx. ' : ''}${leg.travelMinutes} min`} from ${leg.fromJk}${leg.bufferMinutes !== null && leg.bufferMinutes < 0 ? ` · ${Math.abs(leg.bufferMinutes)}m short` : ''}` : undefined}
                   proximity={closestTruckText(job)} select={() => selectAppointment(job.recordId)} open={() => setDrawerId(job.recordId)} />;

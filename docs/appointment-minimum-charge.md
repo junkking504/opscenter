@@ -1,8 +1,11 @@
 # Appointment minimum charge
 
-Control appointment details include a manager-only planning calculator. Each appointment card shows To attend directly beneath the quoted or paid
-amount; clicking it opens the breakdown. This uses the same attendance subtotal
-as the drawer, with calculating/unavailable states and manager access retained.
+Control appointment details include a manager-only planning calculator. Each appointment card shows Break-even beneath its quoted or paid amount;
+without a quoted or paid amount it shows To attend. Break-even uses all modeled
+costs and entered revenue fees; To attend uses only fuel, travel labor and
+overhead. Clicking either opens the breakdown. Missing disposal is labeled
+Needs disposal; other missing inputs stay unavailable. Manager access remains
+required.
 Board totals share one source snapshot and at most two concurrent calculations.
 They refresh with the schedule snapshot and after saving cost assumptions. It never changes a quote, payment,
 truck, appointment time, payroll, or accounting entry.

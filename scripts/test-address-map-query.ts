@@ -39,3 +39,6 @@ main().catch(error=>{console.error(error);process.exitCode=1;});
 
 assert.equal(osmServiceAddressQuery('105 Example Trace, Covington, 70435'),'105 Example Trace, Covington','Trace is a street type and must reach the free provider');
 assert.equal(osmServiceAddressQuery('105 Example Trce, Covington, 70435'),'105 Example Trce, Covington');
+
+assert.equal(approximateMapAddressQuery('230 A Example Ave, Mandeville, 70471'),'230A Example Ave, Mandeville, 70471');
+for(const source of ['230 N Example Ave, Mandeville, 70471','230 S Example Ave, Mandeville, 70471','230 E Example Ave, Mandeville, 70471','230 W Example Ave, Mandeville, 70471','230 A St, Mandeville, 70471']) assert.equal(approximateMapAddressQuery(source),source,'Directions and single-letter street names cannot become house suffixes');

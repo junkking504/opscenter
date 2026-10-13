@@ -108,6 +108,7 @@ try {
  const building=readAddressMapFallback(suffixed,now)!;
  assert.deepEqual(building.location,{latitude:30.22,longitude:-89.82});
  assert.equal(building.matchedAddress,'110 Example Cir, Slidell, LA 70458');
+ assert.deepEqual(readAddressMapFallback('110 A Example Cr, Slidell, 70458',now)?.location,building.location,'Separated house letter can use the same labeled base building, without claiming unit verification');
  assert.match(building.detail,/suffix A is unconfirmed/);
  assert.equal(planningLocation(suffixed,{}),null,'A base building cannot verify an alphanumeric house');
  for(const patch of [{number:'111'},{number:'110B'},{unit_number:'B'},{formatted_street:'N Example Cir'},{formatted_street:'Example Ct'},{city:'Lacombe'},{postal_code:'70460'},{state_province:'MS'}]) {

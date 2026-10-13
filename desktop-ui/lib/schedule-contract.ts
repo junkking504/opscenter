@@ -1,3 +1,4 @@
+import {territoryMapCenters} from './schedule-map-layout';
 import type {AddressMapFallback} from '../../lib/address-map-fallback';
 import {appointmentServiceAddress} from '../../lib/service-address-format';
 export type ScheduleTruckVisit = { approximate?: boolean; truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
@@ -186,6 +187,19 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
 // Coordinates for map display and labeled travel estimates only. Presence and
 // visit detection must continue to use the verified job.location.
 export function scheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return job.location || job.mapFallback?.location || null; }
+/** A display locator always exists. Area markers are never routing/visit evidence. */
+export function scheduleDisplayLocator(job: ScheduleAppointment) {
+  const point = scheduleMapLocation(job);
+  if (point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
+      && Math.abs(point.latitude)<=90 && Math.abs(point.longitude)<=180 && (point.latitude!==0 || point.longitude!==0))
+    return {location:point, kind:job.location ? 'verified' as const : 'approximate' as const,
+      label:job.location ? 'Verified location' : 'Approximate location', detail:job.mapFallback?.detail || ''};
+  const region=appointmentRegion({...job,address:job.address || '',territory:job.territory || ''}), center=territoryMapCenters[region.code];
+  return {location:{latitude:center?.[0] ?? 30.14,longitude:center?.[1] ?? -90.5},kind:'area' as const,
+    label: 'Area locator · address pending',
+    detail:center ? `Shown at the ${territoryLabels[region.code]} map center. The property has not been located. Address lookup continues automatically.`
+      : 'Shown in the operating-area overview. The address and territory have not been located. Address lookup continues automatically.'};
+}
 export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }
 export function addressResolutionCopy(reason?: string) {

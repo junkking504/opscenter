@@ -9,7 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
-import { scheduleMapLocation, appointmentColorClass, appointmentStatus, scheduleDisplayTruck, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
+import { scheduleDisplayLocator, appointmentColorClass, appointmentStatus, scheduleDisplayTruck, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 import {continuousGpsDisplayPaths,gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
@@ -81,19 +81,19 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; area?: boolean; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
-      const location = scheduleMapLocation(job);
-      if (!location) return;
+      const locator = scheduleDisplayLocator(job);
+      const location = locator.location;
       const approximate = !job.location;
       const coordinate: L.LatLngTuple = [location.latitude, location.longitude];
       const assignmentClass = scheduleDisplayTruck(job) === 'Unassigned' ? 'assignment-unassigned' : 'assignment-assigned';
       appointmentBounds.push(coordinate);
-      pins.push({ id: `appointment:${job.recordId}`, coordinate,
-        partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}${approximate ? ` · Approximate: ${job.mapFallback?.matchedAddress}` : ''}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}${approximate ? ", approximate location" : ""}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
-        className: `appointment-marker ${approximate ? "approximate-location" : ""} ${assignmentClass} status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
+      pins.push({ id: `appointment:${job.recordId}`, coordinate, area:locator.kind==='area',
+        partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}${locator.kind==='area' ? ` · ${locator.label}: ${locator.detail}` : approximate ? ` · Approximate: ${job.mapFallback?.matchedAddress}` : ''}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}${locator.kind==='area' ? ", area locator, property not located" : approximate ? ", approximate location" : ""}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
+        className: `appointment-marker ${locator.kind==='area' ? "area-locator" : ""} ${approximate ? "approximate-location" : ""} ${assignmentClass} status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });
     trucks.forEach(truck => {
@@ -139,10 +139,10 @@ export default function ScheduleMap(props: Props) {
       fitted.current = fitKey;
     }
     const focusKey = selected ? `appointment:${selected}` : selectedTruck ? `truck:${selectedTruck}` : '';
-    const focusVersion = `${focusKey}:${resetKey}`;
+    const focusVersion = `${focusKey}:${resetKey}:${selected ? JSON.stringify(pins.find(pin=>pin.id===focusKey)?.coordinate) : ''}`;
     if (focusKey && focused.current !== focusVersion && (selected || current.current.truckMapView !== 'route')) {
       const pin = pins.find(pin => pin.id === focusKey);
-      if (pin) view.setView(pin.coordinate, selectedTruck ? (current.current.truckMapView === 'location' ? 19 : 15) : Math.max(view.getZoom(), 12), { animate: false });
+      if (pin) view.setView(pin.coordinate, selectedTruck ? (current.current.truckMapView === 'location' ? 19 : 15) : pin.area ? 10 : Math.max(view.getZoom(), 12), { animate: false });
     }
     focused.current = focusVersion;
     // Follow only received fixes. Never extrapolate motion between GPS reports.
@@ -191,6 +191,7 @@ export default function ScheduleMap(props: Props) {
           symbol.querySelector('svg')!.append(number);
         } else symbol.textContent = pin.text;
         button.append(symbol);
+        if(pin.area) {const badge=document.createElement('span');badge.className='truck-speed-badge';badge.textContent='Area';button.append(badge);}
         if (pin.speed) { const speed = document.createElement('span'); speed.className = 'truck-speed-badge'; speed.textContent = pin.speed; speed.setAttribute('aria-hidden', 'true'); button.append(speed); }
         if (pin.partner) { const badge = document.createElement('span'); badge.className = 'map-partner-badge'; badge.textContent = pin.partner; badge.setAttribute('aria-hidden', 'true'); button.append(badge); }
         button.dataset.mapPin = pin.id;
@@ -214,9 +215,13 @@ export default function ScheduleMap(props: Props) {
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        // The visible icon center is always its exact source coordinate.
+        // Property/GPS icons stay on source coordinates; area-only badges may fan out on screen.
         const tooltipOffset = L.point(0, -size / 2 - 6);
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2, iconSize[1] / 2] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
+        const peers=pin.area ? pins.filter(other=>other.area && other.coordinate[0]===pin.coordinate[0] && other.coordinate[1]===pin.coordinate[1]).sort((a,b)=>a.id.localeCompare(b.id)) : [];
+        const slot=peers.findIndex(other=>other.id===pin.id);
+        const dx=peers.length>1 ? ((slot%5)-(Math.min(peers.length,5)-1)/2)*48 : 0;
+        const dy=peers.length>1 ? Math.floor(slot/5)*48 : 0;
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2-dx, iconSize[1] / 2-dy] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => marker.closeTooltip();
         marker.on('tooltipopen', () => {

@@ -3,7 +3,7 @@ import {appointmentServiceAddress} from '../lib/service-address-format';
 import { completedOnsiteClockRange } from '../lib/appointment-onsite-time';
 import { ArrowRight, MapPin, Phone, Clock3, Truck, X } from 'lucide-react';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
-import { scheduleMapLocation, addressResolutionCopy, appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, displayedOnsiteTime, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, scheduleDisplayTruck, scheduleTruckMismatch, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
+import { scheduleDisplayLocator, scheduleMapLocation, addressResolutionCopy, appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, displayedOnsiteTime, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, scheduleDisplayTruck, scheduleTruckMismatch, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
 import { schedulePayment } from './lib/schedule-payment';
 import './schedule-appointment-summary.css';
 
@@ -29,7 +29,8 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
   const payment = schedulePayment(job);
   const completed = isClosed(job) && status !== 'Canceled';
   const photos = new Set([...(job.photos || []), ...(job.sourceEstimate?.photos || [])].map(photo => photo.url.split('?')[0])).size;
-  const addressCopy = addressResolutionCopy(job.addressCheckReason);
+  const locator=scheduleDisplayLocator(job);
+  const addressCopy = locator.kind==='area' ? {title:locator.label,detail:locator.detail+' Travel estimates will appear when a street or property pin is available.'} : addressResolutionCopy(job.addressCheckReason);
   return <section className={`schedule-appointment-summary ${appointmentColorClass(job)}`} aria-label={`Selected job ${job.jkNumber}`}>
     <div className="selected-job-main">
       <span className="selected-job-area">{appointmentRegion(job).area}</span>
@@ -39,6 +40,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
       {(job.truckVisits?.length || 0)>1 && <p className="selected-job-warning">One appointment · {job.truckVisits!.length} GPS visit segments shown on the timeline.</p>}
       <div className="selected-job-contact">{job.address ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))}`} target="_blank" rel="noopener noreferrer"><MapPin size={14} />{appointmentServiceAddress(job)}</a> : <span>Address unavailable</span>}{phone.length >= 7 && <a href={`tel:+${phone.length === 10 ? '1' : ''}${phone}`}><Phone size={14} />{job.phone}</a>}</div>
 
+      {locator.kind==='area' && <div className="selected-job-map-evidence"><strong>{locator.label}</strong><small>{locator.detail}</small></div>}
       {!job.location && job.mapFallback && <div className="selected-job-map-evidence"><div><span>Approximate</span><a href={`https://www.google.com/maps/search/?api=1&query=${job.mapFallback.location.latitude},${job.mapFallback.location.longitude}`} target="_blank" rel="noopener noreferrer">Open pin</a></div><details><summary>Pin details</summary><span>{job.mapFallback.matchedAddress}</span><small>{job.mapFallback.detail}</small><a href={job.mapFallback.sourceUrl} target="_blank" rel="noopener noreferrer">{job.mapFallback.source}</a></details></div>}
       <div className="selected-job-work"><b>Work</b><span>{items ? excerpt(items,220) : 'Work not recorded'}</span>{items.length>220&&<button onClick={open} disabled={busy}>Read full description</button>}</div>
       {note && <div className="selected-job-note"><b>{status === 'Canceled' ? 'Canceled' : 'Source note'}</b><span>{excerpt(note,180)}</span><button onClick={open} disabled={busy}>{notes.length>1?`All ${notes.length} notes`:'Read note'}</button></div>}

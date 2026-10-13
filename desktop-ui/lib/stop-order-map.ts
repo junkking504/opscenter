@@ -1,4 +1,4 @@
-import {scheduleMapLocation} from './schedule-contract';
+import {scheduleMapLocation,scheduleDisplayLocator} from './schedule-contract';
 import type {ScheduleAppointment,ScheduleRouteLeg,ScheduleSnapshot} from './schedule-contract';
 import {sameTruck,truckDisplayLabel} from '../../lib/junkware-trucks';
 import {truckGpsStatus} from '../../lib/truck-gps-status';
@@ -17,14 +17,14 @@ export function stopOrderTrucks(fleet:ScheduleSnapshot['fleet'],selectedTruck:st
 /** Only draw road geometry for adjacent stops in the current draft. Missing
  * pins or unavailable legs stay disconnected, never bridged with a guess. */
 export function stopOrderMap(jobs:ScheduleAppointment[],legs:ScheduleRouteLeg[]) {
- const stops=jobs.flatMap((job,index)=>{const point=scheduleMapLocation(job);return routePointValid(point)?[{job,number:index+1,point}]:[];});
+ const stops=jobs.flatMap((job,index)=>{const locator=scheduleDisplayLocator(job);return [{job,number:index+1,point:locator.location,locator}];});
  const paths=jobs.slice(1).flatMap((job,index)=>{
   const from=jobs[index];
   if(!routePointValid(scheduleMapLocation(from))||!routePointValid(scheduleMapLocation(job)))return [];
   const leg=legs.find(row=>row.fromAppointmentId===from.recordId&&row.toAppointmentId===job.recordId);
   return leg?.source==='osm_road_estimate'&&leg.geometry&&leg.geometry.length>=2&&leg.geometry.every(routePointValid)?[{leg,from:index+1,to:index+2,points:leg.geometry}]:[];
  });
- return {stops,paths,missingPins:jobs.length-stops.length,missingRoutes:Math.max(0,jobs.length-1-paths.length)};
+ return {stops,paths,missingPins:stops.filter(stop=>stop.locator.kind==='area').length,missingRoutes:Math.max(0,jobs.length-1-paths.length)};
 }
 
 export type TruckBadgeRect = {left:number;top:number;width:number;height:number};

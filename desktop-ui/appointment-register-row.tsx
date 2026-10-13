@@ -17,9 +17,10 @@ export function AppointmentRegisterRow({ job, selected, area, warning, route, pr
   const payment = schedulePayment(job);
   const priorQuote=Boolean(/^\d+$/.test(job.sourceEstimateAppointmentId||'')&&job.sourceEstimate?.total!=null&&Number.isFinite(job.sourceEstimate.total));
   const costLabel=payment.amount||priorQuote?'Break-even':'To attend';
-  const costAmount=(costLabel==='Break-even'?attendance?.summary?.breakEven:attendance?.summary?.attendance)??null;
-  const costText=attendance?.loading?'Calculating…':costAmount!==null?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount):costLabel==='Break-even'&&attendance?.summary?.missing.length===1&&attendance.summary.missing[0].startsWith('Disposal')?'Needs disposal':'Unavailable';
-  const costLine=attendance&&<button className="register-attendance" aria-label={`${costLabel} for ${job.jkNumber}`} title={costAmount===null?attendance.summary?.missing.join(' · '):costLabel==='Break-even'?'Full modeled job cost including labor, disposal and entered fees. Open the breakdown.':'Estimated fuel, travel labor and overhead. Open the breakdown.'} onClick={open}><span>{costLabel}</span><b>{costText}</b></button>;
+  const disposalPending=costLabel==='Break-even'&&attendance?.summary?.breakEven==null&&attendance?.summary?.missing.length===1&&attendance.summary.missing[0].startsWith('Disposal');
+  const costAmount=(costLabel==='Break-even'?(attendance?.summary?.breakEven??(disposalPending?attendance?.summary?.breakEvenBeforeDisposal:null)):attendance?.summary?.attendance)??null;
+  const costText=attendance?.loading?'Calculating…':costAmount!==null?`${new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount)}${disposalPending?' + disposal':''}`:'Unavailable';
+  const costLine=attendance&&<button className="register-attendance" aria-label={`${costLabel} for ${job.jkNumber}: ${costText}`} title={costAmount===null?attendance.summary?.missing.join(' · '):disposalPending?'Fuel, travel and on-site labor, overhead, other entered costs and fees. Disposal and any fees on disposal are still to be added.':costLabel==='Break-even'?'Full modeled job cost including labor, disposal and entered fees. Open appointment info.':'Estimated fuel, travel labor and overhead. Open appointment info.'} onClick={open}><span>{costLabel}</span><b>{costText}</b></button>;
 
   const displayTime = displayedOnsiteTime(job);
   const onsiteMinutes = displayTime?.minutes;

@@ -74,8 +74,8 @@ export async function readAppointmentAttendanceCosts(date:string){
  async function worker(){
   while(cursor<snapshot.appointments.length){
    const job=snapshot.appointments[cursor++];
-   try{const {attendance,breakEven,missing}=(await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes)).result;rows[job.recordId]={attendance,breakEven,missing};}
-   catch{rows[job.recordId]={attendance:null,breakEven:null,missing:['Cost sources unavailable']};}
+   try{const {attendance,breakEven,breakEvenBeforeDisposal,missing}=(await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes)).result;rows[job.recordId]={attendance,breakEven,breakEvenBeforeDisposal,missing};}
+   catch{rows[job.recordId]={attendance:null,breakEven:null,breakEvenBeforeDisposal:null,missing:['Cost sources unavailable']};}
   }
  }
  await Promise.all([worker(),worker()]);

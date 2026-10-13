@@ -25,3 +25,11 @@ export default function AppointmentCost({date,id,busy=false,onSaved}:{date:strin
  {error&&<p role="alert">{error} <button disabled={saving} onClick={()=>setRevision(n=>n+1)}>Reload saved values</button></p>}{notice&&<p role="status">{notice}</p>}{data.record.savedAt&&<small>Saved and verified {new Date(data.record.savedAt).toLocaleString()} · {data.record.actor}</small>}
  </section>;
 }
+
+export function AppointmentCostDetails(props:{date:string;id:string;busy?:boolean;onSaved?:()=>void}){
+ const [hasOpened,setHasOpened]=useState(false);
+ return <details className="appointment-cost-details" onToggle={event=>{if(event.currentTarget.open)setHasOpened(true);}}>
+  <summary>Cost details</summary>
+  {hasOpened&&<AppointmentCost {...props}/>}
+ </details>;
+}

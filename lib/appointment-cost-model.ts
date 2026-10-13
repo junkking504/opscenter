@@ -16,7 +16,7 @@ export function validCostInputs(value:unknown):value is CostInputs {
 const nonnegative=(v:number|null):v is number=>v!==null&&Number.isFinite(v)&&v>=0;
 export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fuelPrice:number|null,crewHourly:number|null){
  const missing:string[]=[];
- if(!validCostInputs(inputs))return {fuel:null,travelLabor:null,onsiteLabor:null,attendance:null,total:null,breakEven:null,minimumCharge:null,targetCharge:null,missing:['Valid cost assumptions']};
+ if(!validCostInputs(inputs))return {fuel:null,travelLabor:null,onsiteLabor:null,attendance:null,total:null,breakEven:null,breakEvenBeforeDisposal:null,minimumCharge:null,targetCharge:null,missing:['Valid cost assumptions']};
  const fuel=nonnegative(travel.miles)&&fuelPrice!==null&&fuelPrice>0&&Number.isFinite(fuelPrice)?travel.miles/inputs.mpg*fuelPrice:null;
  const rate=crewHourly!==null&&crewHourly>0&&Number.isFinite(crewHourly)?crewHourly:null;
  const travelLabor=nonnegative(travel.minutes)&&rate!==null?travel.minutes/60*rate:null;
@@ -27,11 +27,12 @@ export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fue
  if(inputs.disposal===null)missing.push('Disposal cost (enter 0 if none)');
  const attendance=fuel!==null&&travelLabor!==null?fuel+travelLabor+inputs.overhead:null;
  const total=attendance!==null&&onsiteLabor!==null&&inputs.disposal!==null?attendance+onsiteLabor+inputs.disposal+inputs.extraCosts:null;
+ const breakEvenBeforeDisposal=attendance!==null&&onsiteLabor!==null?(attendance+onsiteLabor+inputs.extraCosts)/(1-inputs.revenueFeePercent/100):null;
  const breakEven=total!==null?total/(1-inputs.revenueFeePercent/100):null;
  // Small tolerance prevents floating-point noise from adding an extra dollar.
  const minimumCharge=breakEven!==null?Math.floor(breakEven+1e-8)+1:null;
  const targetCharge=total!==null&&minimumCharge!==null?Math.max(minimumCharge,Math.ceil(total/(1-(inputs.revenueFeePercent+inputs.marginPercent)/100)-1e-8)):null;
- return {fuel,travelLabor,onsiteLabor,attendance,total,breakEven,minimumCharge,targetCharge,missing};
+ return {fuel,travelLabor,onsiteLabor,attendance,total,breakEven,breakEvenBeforeDisposal,minimumCharge,targetCharge,missing};
 }
 
 export function allocateAppointmentTravel(incoming:{miles:number;minutes:number},outgoing:{miles:number;minutes:number},hasPrevious:boolean,hasNext:boolean){
@@ -41,4 +42,4 @@ export function allocateAppointmentTravel(incoming:{miles:number;minutes:number}
 
 export const defaultCostWarehouse=(territory:string):CostInputs['warehouse']=>/^(BR|Baton Rouge)$/i.test(territory)?'BRHQ':'NOHQ';
 
-export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;missing:string[]};
+export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[]};

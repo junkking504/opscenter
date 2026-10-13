@@ -60,3 +60,13 @@ assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[]),17.7);
 assert.equal(recordedCostTransfer(before,onsite,'Truck 6',{...gps,paths:[]},[]),null);
 assert.equal(recordedCostTransfer(before,onsite,'Truck 4',gps,[]),null);
 assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[{id:'dump',truck:'Truck 6',name:'Dump',facility:'dump',kind:'dump',label:'Dump',enteredAt:'2026-10-12T15:20:00Z',departedAt:'2026-10-12T15:25:00Z',observedThrough:'2026-10-12T15:25:00Z',startMinutes:620,endMinutes:625,ongoing:false}]),null);
+
+// A visible subtotal must include on-site labor and fees without treating missing disposal as zero.
+const pendingDisposal=calculateAppointmentCost({...inputs,disposal:null,extraCosts:15,revenueFeePercent:20},travel,4,40);
+assert.equal(pendingDisposal.breakEvenBeforeDisposal,275);
+assert.equal(pendingDisposal.breakEven,null);
+assert.equal(pendingDisposal.minimumCharge,null);
+assert.deepEqual(pendingDisposal.missing,['Disposal cost (enter 0 if none)']);
+assert.equal(calculateAppointmentCost({...inputs,disposal:null,onsiteMinutes:null},travel,4,40).breakEvenBeforeDisposal,null);
+assert.equal(calculateAppointmentCost({...inputs,disposal:null},travel,null,40).breakEvenBeforeDisposal,null);
+assert.equal(calculateAppointmentCost({...inputs,disposal:0},travel,4,40).breakEven,205);

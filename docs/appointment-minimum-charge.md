@@ -3,8 +3,13 @@
 Control appointment details include a manager-only planning calculator. Each appointment card shows Break-even beneath its quoted or paid amount;
 without a quoted or paid amount it shows To attend. Break-even uses all modeled
 costs and entered revenue fees; To attend uses only fuel, travel labor and
-overhead. Clicking either opens the breakdown. Missing disposal is labeled
-Needs disposal; other missing inputs stay unavailable. Manager access remains
+overhead. Clicking either opens appointment info. The breakdown and editable assumptions
+are available in Cost details, a compact section below the record facts that
+starts collapsed. Cost details are loaded only when first expanded. When only disposal is missing, the card shows the break-even subtotal as a dollar
+amount followed by “+ disposal”. This subtotal includes on-site labor, other entered
+costs and revenue fees; disposal and any fees on it remain to be added. The full
+break-even and minimum charge remain incomplete until disposal is entered. Other
+missing inputs stay unavailable. Manager access remains
 required.
 Board totals share one source snapshot and at most two concurrent calculations.
 They refresh with the schedule snapshot and after saving cost assumptions. It never changes a quote, payment,

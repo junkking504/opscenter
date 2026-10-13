@@ -67,10 +67,9 @@
   .live-schedule .readable-appointment .register-address, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-warning { grid-column: 1 / -1; }
   .live-schedule .readable-appointment .register-address { font-size: var(--oc-type-12); line-height: 1.25; }
   .live-schedule .readable-appointment .register-work { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0; }
-  .live-schedule .readable-appointment .register-payment { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; padding: 4px 7px; }
+  .live-schedule .readable-appointment .register-payment { display: grid; grid-template-columns: minmax(0,1fr); gap: 2px 8px; padding: 4px 7px; }
   .live-schedule .readable-appointment .register-payment-label { font-size: var(--oc-type-11); line-height: 1.25; }
-  .live-schedule .readable-appointment .register-payment-amount { grid-column: 2; grid-row: 1; font-size: var(--oc-type-17); line-height: 1.15; }
-  .live-schedule .readable-appointment .register-payment:has(.source-estimate) .register-payment-amount { grid-row: 2; }
+  .live-schedule .readable-appointment .register-payment-amount { grid-column: 1; font-size: var(--oc-type-17); line-height: 1.15; }
   .live-schedule .readable-appointment .register-payment-summary { grid-column: 1 / -1; display: block; font-size: var(--oc-type-12); line-height: 1.25; }
   .live-schedule .readable-appointment .register-payment-summary > span + span::before { content: ' · '; }
   .live-schedule .readable-appointment .register-payment .source-estimate { grid-column: 1 / -1; padding: 0; gap: 2px; }
@@ -96,5 +95,5 @@
 
 .live-schedule .readable-appointment .register-onsite-time { font-weight: 500; }
 
-.live-schedule .readable-appointment .register-attendance { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; min-height: 22px; padding: 0; margin: 0; border: 0; background: none; color: var(--oc-text-green-11); font-size: var(--oc-type-12); text-align: left; cursor: pointer; }
+.live-schedule .readable-appointment .register-attendance { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: flex-start; gap: 8px; width: 100%; min-height: 22px; padding: 0; margin: 0; border: 0; background: none; color: var(--oc-text-green-11); font-size: var(--oc-type-12); text-align: left; cursor: pointer; }
 .live-schedule .readable-appointment .register-attendance b { font-size: inherit; font-weight: 650; font-variant-numeric: tabular-nums; }

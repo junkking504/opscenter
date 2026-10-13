@@ -1,6 +1,7 @@
 # Appointment minimum charge
 
-Control appointment details include a manager-only planning calculator. Each appointment card shows Break-even beneath its quoted or paid amount;
+Control appointment details include a manager-only planning calculator. Each appointment card places the cost dollar amount first, left-aligned directly
+beneath its quoted or paid amount, with Break-even beside the cost;
 without a quoted or paid amount it shows To attend. Break-even uses all modeled
 costs and entered revenue fees; To attend uses only fuel, travel labor and
 overhead. Clicking either opens appointment info. The breakdown and editable assumptions

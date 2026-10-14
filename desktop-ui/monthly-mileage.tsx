@@ -7,8 +7,8 @@ export function MonthlyMileage({ mileage, date, compact = false }: { mileage?: M
   return <div className="convoy-monthly-mileage">
     <span className="convoy-fact-label">{compact ? label : `Monthly mileage · ${label}`}</span>
     <strong>{mileage?.recordedMiles == null ? 'Unavailable' : `${mileage.recordedMiles.toLocaleString('en-US', { maximumFractionDigits: 1 })} mi recorded`}</strong>
-    <small>{mileage ? `${mileage.tripDays}/${mileage.expectedDays} days with trips · ${mileage.status === 'partial' ? 'Partial coverage' : 'No usable trip mileage'}` : 'Mileage source unavailable'}</small>
     {!compact && <details><summary>Mileage coverage</summary>
+      <small>{mileage ? `${mileage.tripDays}/${mileage.expectedDays} days with trips · ${mileage.status === 'partial' ? 'Partial coverage' : 'No usable trip mileage'}` : 'Mileage source unavailable'}</small>
       <small>Saved LinxUp closed trips in America/Chicago through {mileage?.throughDate || date}. Missing days are not zero; recorded miles are not a complete monthly total.</small>
       {mileage && <small>{mileage.archiveDays}/{mileage.expectedDays} daily archives available. {mileage.excludedTrips} trips excluded; {mileage.duplicateTrips} duplicates removed.</small>}
       <small>Latest included trip: {mileage?.latestTripAt ? stamp(mileage.latestTripAt) : 'Unavailable'}</small>

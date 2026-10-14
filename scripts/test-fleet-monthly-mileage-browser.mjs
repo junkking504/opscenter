@@ -21,11 +21,17 @@ try {
  assert.match(await rows.nth(0).innerText(),/0 mi recorded/);
  assert.match(await rows.nth(1).innerText(),/123.5 mi recorded/);
  assert.match(await rows.nth(6).locator('.convoy-monthly-mileage').innerText(),/Unavailable/);
+ assert.equal(await rows.locator('[data-label="Mileage"] small').count(),0);
+ assert.equal(await rows.locator('.convoy-monthly-mileage small').count(),0);
+ assert.match(await rows.nth(1).locator('.convoy-monthly-mileage').innerText(),/Oct 2026/);
  await page.screenshot({path:path.join(output,'mileage-desktop.png'),fullPage:true});
  await rows.nth(1).locator('.convoy-truck-link').click();
  await page.getByRole('button',{name:'Operations & inspections'}).waitFor();
  assert.equal(await page.locator('.convoy-truck-dashboard').count(),1);
- await page.locator('.convoy-truck-dashboard').getByText('Mileage coverage',{exact:true}).click();
+ const coverage=page.locator('.convoy-truck-dashboard .convoy-monthly-mileage details');
+ assert.equal(await coverage.getByText(/days with trips/).isVisible(),false);
+ await coverage.getByText('Mileage coverage',{exact:true}).click();
+ assert.equal(await coverage.getByText(/days with trips.*Partial coverage/).isVisible(),true);
  assert.match(await page.locator('.convoy-truck-dashboard').innerText(),/Latest included trip: Oct 8/);
  assert.match(await page.locator('.convoy-truck-dashboard').innerText(),/Monthly mileage · Oct 2026/);
  await page.getByRole('button',{name:'Operations & inspections'}).click();

@@ -117,3 +117,34 @@ and spending gates are unchanged. Dispatch ZIP/territory classification is
 not geocoding evidence. Run `npm run verify:service-addresses` for synthetic
 cache-only regression coverage, including the matcher bridge and false-pin
 guards. This code change requires normal separately approved deployment.
+
+
+## Reviewed approximate address navigation
+
+A manually reviewed address-associated map destination may be useful for navigation
+without establishing the exact property or entrance. These records live outside
+Git in `cache/service-address-navigation` and are separate from verified
+`service-address-reviews`. They retain the full original address (including ZIP
+and unit), matched address, coordinates, HTTPS source, reviewer and review time.
+Only a ZIP discrepancy within the same postal prefix may differ from the matched
+address; house, unit, street direction and locality must match.
+
+`readAddressMapFallback` prefers this reviewed address point over provider display
+fallbacks. Verified premises still take priority through `planningLocation`.
+Reviewed navigation always returns `visitEligible: false`; it cannot establish
+live presence or feed the Python arrival/departure matcher. The UI labels it
+Approximate address location with an unconfirmed-entrance disclosure. Source
+customer fields and exact verification remain unchanged. Existing map/ETA/cost
+consumers use the new point as approximate, with location in their cache identity.
+
+`import-address-navigation.ts RECORD --directory=/absolute/data/root` validates
+a private record and dry-runs by default. After approval, `--apply` creates it
+atomically, never overwriting an existing conflicting review. Invalid records
+are ignored by readers; a changed original address no longer matches. Records
+persist across releases; withdrawal/correction requires a separately reviewed
+record change. No automatic provider lookup or billing is added.
+
+Control's selected appointment has an explicit Directions to address action,
+using the original source address in a Google Maps URL. This is separate from
+View approximate pin, which opens OpsCenter's stored coordinates. Maps URLs
+require no API key; they do not import a Google geocode into OpsCenter.

@@ -92,3 +92,28 @@ Control and Job Order use a total display-locator function: verified property, e
 Policy 17 recognizes interstate road names (`I-10`, `I 10`, `Interstate 10`) within a complete street expression. It keeps the original house, highway number, road suffix and directions and invalidates prior failures for the existing bounded worker. It prevents the highway number from becoming the source house. Original source text and units remain unchanged; providers, rate limits and spending caps are unchanged.
 
 A separated non-directional house letter before a complete named road (for example `230 A Example Ave`) can reuse a cached base-building candidate as a labeled approximate building. Cardinal directions and single-letter road names are excluded. The letter and original address remain unconfirmed; this adds no request and never verifies the premises or unit.
+
+## Corroborated street with a conflicting ZIP — October 14, 2026
+
+A source ZIP conflict must not hide an otherwise usable street estimate when
+fresh existing OSM and Geocodio caches agree. The fallback requires one bounded
+OSM road with the complete source road name, direction, locality and state, a
+single Geocodio street-center result with the same road/locality/state/provider
+ZIP, and both points within the OSM bounds and 150 metres of each other. Source
+and provider ZIPs must share their first three digits. Geocodio must have no
+house/unit and an accuracy score of at least 0.5. Stale evidence, competing
+roads/centers, different street suffixes/directions, locality centroids, large
+road bounds and invalid coordinates cannot qualify. Geocodio alone does not
+supply this pin. Agreement identifies a street only; it does not establish
+independent property evidence.
+
+The map/ETA fallback keeps the OSM street point, names the provider ZIP, says
+“house number not located” and “Source ZIP differs”, and sets
+`visitEligible: false`. Both live presence and the Python matcher bridge exclude
+it from arrival/departure evidence. Matching-house candidates and verified
+coordinates retain precedence. Existing same-ZIP street policy is unchanged.
+The source customer address, exact verifier, verified cache, request volume
+and spending gates are unchanged. Dispatch ZIP/territory classification is
+not geocoding evidence. Run `npm run verify:service-addresses` for synthetic
+cache-only regression coverage, including the matcher bridge and false-pin
+guards. This code change requires normal separately approved deployment.

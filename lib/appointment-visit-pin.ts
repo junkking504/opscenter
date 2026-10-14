@@ -7,7 +7,7 @@ export type VisitPinJob = {appointmentId:string; status?:string; location?:Visit
 export function appointmentVisitPin(job: Pick<VisitPinJob,'location'|'mapFallback'>): VisitPin|null {
   if(job.location && validGpsCoordinates(job.location))return {location:job.location,approximate:false};
   const fallback=job.mapFallback;
-  return fallback && validGpsCoordinates(fallback.location) ? {...fallback,approximate:true} : null;
+  return fallback && fallback.visitEligible!==false && validGpsCoordinates(fallback.location) ? {...fallback,approximate:true} : null;
 }
 /** Overlapping 200m circles involving an approximate pin cannot identify a stop.
  * Include completed appointments: booking status cannot disambiguate physical GPS.

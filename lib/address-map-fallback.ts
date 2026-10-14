@@ -8,6 +8,7 @@ import {parishAddressQuery} from './parish-service-address';
 import {osmMapAddressQuery} from './osm-service-address';
 import {geocodioAddressQuery} from './geocodio-service-address';
 import {approximateMapAddressQuery} from './address-map-query';
+import {gpsDistanceMeters} from './gps-presence-policy';
 
 /** Approximate map evidence. Visit detection may use it with explicit provenance
  * and ambiguity guards; never publish it as a verified geocode. */
@@ -18,8 +19,10 @@ export type AddressMapFallback = {
   sourceUrl:string;
   detail:string;
   stale:boolean;
+  /** A corroborated street with a conflicting postal code cannot identify a visit. */
+  visitEligible?:false;
 };
-type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;streetOnly?:boolean};
+type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;streetOnly?:boolean;bounds?:number[];streetZipCorroborated?:boolean};
 type CachedCandidate = Candidate & {stale:boolean};
 const normalize=normalizeServiceAddress;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -66,9 +69,13 @@ export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(!tail.endsWith(city))return false;
   do {tail=tail.slice(0,-city.length);} while(tail.endsWith(city));
   if(comparableStreet(tail,candidate.city)!==comparableStreet(candidate.street,candidate.city))return false;
-  // With no premises evidence, require the complete road name and ZIP rather
-  // than guessing between similarly named roads in the same locality.
-  if((candidate.streetOnly || missingSuffix) && (normalize(mapStreet(tail))!==normalize(mapStreet(candidate.street))||sourceZip!==candidate.zip))return false;
+  // With no premises evidence, require the complete road name and ZIP. Only
+  // corroborated, bounded street evidence may relax ZIP equality for display.
+  if((candidate.streetOnly || missingSuffix) && normalize(mapStreet(tail))!==normalize(mapStreet(candidate.street)))return false;
+  if(missingSuffix && sourceZip!==candidate.zip)return false;
+  if(candidate.streetOnly && sourceZip!==candidate.zip && !(candidate.streetZipCorroborated
+    && /^\d{5}$/.test(sourceZip||'') && /^\d{5}$/.test(candidate.zip)
+    && sourceZip!.slice(0,3)===candidate.zip.slice(0,3)))return false;
   return Number.isFinite(candidate.latitude)&&Number.isFinite(candidate.longitude)
     &&candidate.latitude>=24&&candidate.latitude<=50&&candidate.longitude>=-125&&candidate.longitude<=-66;
 }
@@ -97,7 +104,8 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const matchedAddress=`${[row.house,row.street].filter(Boolean).join(' ')}, ${row.city}, ${row.state} ${row.zip}`;
   const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
-    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
+    ...(row.streetZipCorroborated ? {visitEligible:false as const} : {}),
+    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence. Not used for arrival or departure detection.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
 function cacheUsable(value:any,now:number) {return value&&Number.isFinite(value.expires)&&value.expires>now-7*86400_000;}
@@ -116,6 +124,7 @@ function usableOsmStreetPoint(row:any) {
 export function readAddressMapFallback(address:string,now=Date.now()):AddressMapFallback|null {
   const root=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
   const candidates:CachedCandidate[]=[];
+  const streetEvidence:CachedCandidate[]=[];
   const files=new Map<string,any>();
   const cachedFile=(file:string)=>{if(!files.has(file))files.set(file,read(file));return files.get(file);};
   const queries=[...new Set([address,withoutServiceUnit(mapAddress(address))])];
@@ -146,7 +155,7 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
           const streetOnly=!a.house_number&&usableOsmStreetPoint(row);
           if(!a.house_number&&!streetOnly)return [];
           const state=String(a['ISO3166-2-lvl4']||'').replace(/^US-/,'')||({Louisiana:'LA',Mississippi:'MS',Florida:'FL'} as Record<string,string>)[a.state]||a.state;
-          return [{house:a.house_number||'',street:[a.road,a.unit?`Unit ${a.unit}`:''].filter(Boolean).join(' '),city:a.city||a.town||a.village||'',state:a.country_code==='us'?state:'',zip:String(a.postcode||'').slice(0,5),latitude:row.lat==null?NaN:Number(row.lat),longitude:row.lon==null?NaN:Number(row.lon),source:'OpenStreetMap',sourceUrl:`https://www.openstreetmap.org/${row.osm_type}/${row.osm_id}`,precision:streetOnly?'Approximate street location; house number not located':'Provider map location',streetOnly}];
+          return [{house:a.house_number||'',street:[a.road,a.unit?`Unit ${a.unit}`:''].filter(Boolean).join(' '),city:a.city||a.town||a.village||'',state:a.country_code==='us'?state:'',zip:String(a.postcode||'').slice(0,5),latitude:row.lat==null?NaN:Number(row.lat),longitude:row.lon==null?NaN:Number(row.lon),source:'OpenStreetMap',sourceUrl:`https://www.openstreetmap.org/${row.osm_type}/${row.osm_id}`,precision:streetOnly?'Approximate street location; house number not located':'Provider map location',streetOnly,bounds:streetOnly?row.boundingbox.map(Number):undefined}];
         });
         candidates.push(...rows.map(row=>({...row,stale:cached.expires<=now})));
       }
@@ -162,7 +171,34 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
           return {house:a.number||'',street:[a.formatted_street,unit?`Unit ${unit}`:''].filter(Boolean).join(' '),city:a.city||'',state:a.country==='US'?a.state_province:'',zip:String(a.postal_code||'').slice(0,5),latitude:row.location?.lat,longitude:row.location?.lng,source:'Geocodio',sourceUrl:'https://api.geocod.io/v2/geocode',precision:row.accuracy_type==='range_interpolation'?'Estimated position along the street':'Provider map location',confidence:row.accuracy};
         });
         candidates.push(...rows.map(row=>({...row,stale:cached.expires<=now})));
+        // A Geocodio street center is corroboration only, never a standalone pin.
+        // It has no house evidence and cannot establish the requested premises.
+        streetEvidence.push(...cached.payload.results.flatMap((raw:any,index:number)=>
+          cached.payload.results.length===1 && raw.accuracy_type==='street_center' && !raw.address_components?.number
+            && !raw.address_components?.unit_number && !raw.address_components?.secondarynumber
+            && Number.isFinite(raw.accuracy) && raw.accuracy>=0.5
+            ? [{...rows[index],streetOnly:true,stale:cached.expires<=now}] : []));
       }
+    }
+  }
+  // Retain the strict single-provider ZIP rule. A conflicting ZIP may supply
+  // a street estimate only when two existing fresh results agree, and just one
+  // bounded OSM road matches the complete source street/locality. Never use the
+  // dispatch territory as evidence of a property location.
+  const roads=candidates.filter(row=>row.streetOnly && !row.stale
+    && mapCandidateMatches(address,{...row,streetZipCorroborated:true}));
+  if(new Set(roads.map(row=>JSON.stringify([row.sourceUrl,row.latitude,row.longitude,row.zip]))).size===1) {
+    for(const road of roads) {
+      const bounds=road.bounds;
+      if(!bounds || mapCandidateMatches(address,road))continue;
+      const corroborated=streetEvidence.some(other=>!other.stale
+        && mapCandidateMatches(address,{...other,streetZipCorroborated:true})
+        && normalize(other.street)===normalize(road.street)
+        && normalize(other.city)===normalize(road.city) && other.state===road.state && other.zip===road.zip
+        && other.latitude>=bounds[0] && other.latitude<=bounds[1]
+        && other.longitude>=bounds[2] && other.longitude<=bounds[3]
+        && gpsDistanceMeters(other,road)<=150);
+      if(corroborated)road.streetZipCorroborated=true;
     }
   }
   return bestCandidate(address,candidates);

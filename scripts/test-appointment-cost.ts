@@ -112,3 +112,20 @@ assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T14:00:00Z')).price,n
 assert.equal(scheduleTruckMismatch({...unassigned,truck:'Truck 8',status:'Cancelled by dispatcher'}),null);
 assert.equal(scheduleTruckMismatch(unassigned)?.gpsTruck,'Truck 8');
 console.log('Provisional labor, automatic source replacement, current fleet fuel and cancellation warnings passed.');
+
+// Closest provisional origin uses road time and valid serviceable GPS, not straight-line proximity.
+import {closestCostTruck} from '../lib/appointment-cost-route';
+import type {ClosestTruck,ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
+const candidate=(truck:string,minutes:number|null,miles:number|null,status:ClosestTruck['status']='available'):ClosestTruck=>({truck,minutes,miles,status,gpsUpdatedAt:'2026-10-14T15:00:00Z'});
+const costFleet=[{truck:'Truck 6',latitude:30.4,longitude:-90.1,serviceStatus:'Unavailable',operationalStatus:'Parked'},{truck:'Truck 8',latitude:30.5,longitude:-90.2,serviceStatus:'Unavailable',operationalStatus:'Idle'}] as ScheduleTruck[];
+const candidates=[candidate('Truck 8',30,9),candidate('Truck 6',20,11)];
+assert.equal(closestCostTruck(candidates,costFleet)?.truck,'Truck 6');
+assert.deepEqual(closestCostTruck(candidates,costFleet)?.position,{latitude:30.4,longitude:-90.1});
+assert.equal(candidates[0].truck,'Truck 8');
+assert.equal(closestCostTruck(candidates,[{...costFleet[0],serviceStatus:'out_of_service'},costFleet[1]])?.truck,'Truck 8');
+assert.equal(closestCostTruck(candidates,[{...costFleet[0],latitude:null},costFleet[1]])?.truck,'Truck 8');
+assert.equal(closestCostTruck([candidate('Truck 6',null,null,'gps_unavailable')],costFleet),null);
+assert.equal(closestCostTruck([candidate('Truck 6',20,11,'not_live_day')],costFleet),null);
+assert.equal(closestCostTruck([candidate('Truck 6',NaN,11)],costFleet),null);
+assert.equal(closestCostTruck([],costFleet),null);
+console.log('Closest-truck cost origin, invalid evidence, service status and source preservation passed.');

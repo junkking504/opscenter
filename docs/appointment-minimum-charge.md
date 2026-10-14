@@ -35,7 +35,7 @@ Cost planning uses the same truck as the appointment card: its booked truck, or 
 Each shared job-to-job leg is split evenly, and first/last warehouse legs count
 in full. The default warehouse is inferred from the first stop's territory and
 is labeled and editable. No live GPS position or booked window is treated as
-actual travel/labor. Missing routes never become zero. Canceled jobs have no planned route estimate or attendance row. Unassigned jobs use the provisional local warehouse round trip. Dump detours are excluded and must be budgeted in costs.
+actual travel/labor. Missing routes never become zero. Canceled jobs have no planned route estimate or attendance row. Unassigned jobs use the closest-truck provisional round trip when live GPS routing is available. Dump detours are excluded and must be budgeted in costs.
 
 Crew rates come from the appointment's named driver, navigator and additional
 crew, then the dated planned roster or an unambiguous current truck crew snapshot,
@@ -45,9 +45,19 @@ overtime; a combined loaded hourly override is available. Missing names/rates us
 
 ## Provisional card estimates
 
-When the truck route is unassigned or verification is pending, estimate a standalone
-round trip from the local warehouse (BRHQ for Baton Rouge, otherwise NOHQ), without
-joining other unassigned appointments into a fictional truck route. Existing source
+When the truck route is unassigned or verification is pending on the live day,
+select the closest truck by the map's road-travel-time ranking. Use a standalone
+road round trip from that truck's last reported GPS location to the appointment
+and back to the same location, plus its crew and fuel evidence when available.
+The basis names the truck, GPS observation time and assumed return. Explicit
+out-of-service trucks and invalid positions are excluded. A parked truck's last
+reported location remains eligible under the map's existing proximity policy.
+This is a planning candidate, not a promise of availability or dispatch assignment.
+The cost refresh key includes truck positions, GPS timestamps and crew data.
+
+If closest-truck evidence is unavailable (including a non-live day), the labeled
+fallback remains a local warehouse round trip (BRHQ for Baton Rouge, otherwise
+NOHQ). No unrelated unassigned jobs are joined into a fictional route. Existing source
 assignments and booking times are unchanged. When named crew rates are unavailable,
 use a provisional two-person crew at $40/hour combined ($20 each). Missing on-site
 work uses 30 minutes for break-even only; attendance excludes on-site work. Saved

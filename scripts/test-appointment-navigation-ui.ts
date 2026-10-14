@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import path from 'node:path';
+import {buildSync} from 'esbuild';
+
+// The desktop has its own React dependency tree. Use that single runtime for
+// both icons and SSR; CSS is irrelevant to these link/provenance assertions.
+const desktopRequire=createRequire(path.resolve('desktop-ui/package.json'));
+const React=desktopRequire('react'),{renderToStaticMarkup}=desktopRequire('react-dom/server');
+const bundle=buildSync({entryPoints:['desktop-ui/schedule-appointment-summary.tsx'],bundle:true,platform:'node',format:'cjs',packages:'external',loader:{'.css':'empty'},jsx:'automatic',write:false}).outputFiles[0].text;
+const exported={exports:{}};
+new Function('require','module','exports',bundle)(desktopRequire,exported,exported.exports);
+const Summary=(exported.exports as {default: Parameters<typeof React.createElement>[0]}).default;
+const address='123 Example Drive, New Orleans, 70126';
+const fallback={location:{latitude:30.05,longitude:-89.95},matchedAddress:'123 Example Dr, New Orleans, LA 70128',source:'Synthetic source',sourceUrl:'https://example.com/map',stale:false,visitEligible:false,navigationReviewed:true,detail:'Approximate address location; entrance unconfirmed. Not used for arrival or departure detection.'};
+const job={recordId:'synthetic',appointmentId:'synthetic',jkNumber:'JK_TEST',customerName:'Synthetic customer',address,territory:'Junk King New Orleans',status:'Confirmed',appointmentType:'Job',appointmentTime:'12:00 PM–1:00 PM',truck:'Truck 8',phone:'',appointmentNotes:[],junkItems:[],photos:[],callAhead:'not_called',location:null,mapFallback:fallback};
+const html=renderToStaticMarkup(React.createElement(Summary,{job,closest:null,loading:false,isToday:false,busy:false,open(){},clear(){}}));
+assert.ok(html.includes(`href="https://www.google.com/maps/dir/?api=1&amp;destination=${encodeURIComponent(address)}"`),'Directions resolves the unchanged source address');
+assert.ok(html.includes('Directions to address'));
+assert.ok(html.includes('href="https://www.google.com/maps/search/?api=1&amp;query=30.05,-89.95"'),'Pin action opens the reviewed coordinates');
+assert.ok(html.includes('View approximate address pin'));
+assert.ok(html.includes('Approximate address location'));
+assert.ok(html.includes('entrance unconfirmed'));
+assert.ok(html.includes('Not used for arrival or departure detection'));
+console.log('Appointment navigation UI PASS: source-address directions, distinct reviewed-pin action and approximation disclosure.');

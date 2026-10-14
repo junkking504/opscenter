@@ -1,3 +1,4 @@
+import {readReviewedAddressNavigation} from './reviewed-address-navigation';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -21,6 +22,7 @@ export type AddressMapFallback = {
   stale:boolean;
   /** A corroborated street with a conflicting postal code cannot identify a visit. */
   visitEligible?:false;
+  navigationReviewed?:true;
 };
 type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;streetOnly?:boolean;bounds?:number[];streetZipCorroborated?:boolean};
 type CachedCandidate = Candidate & {stale:boolean};
@@ -123,6 +125,8 @@ function usableOsmStreetPoint(row:any) {
  * provider calls, credentials, quota, paid requests or inferred coordinates. */
 export function readAddressMapFallback(address:string,now=Date.now()):AddressMapFallback|null {
   const root=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
+  const reviewed=readReviewedAddressNavigation(address,root,now);
+  if(reviewed)return reviewed;
   const candidates:CachedCandidate[]=[];
   const streetEvidence:CachedCandidate[]=[];
   const files=new Map<string,any>();

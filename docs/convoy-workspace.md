@@ -250,3 +250,30 @@ existing load editor, and service links open maintenance. Full reading notes sta
 in truck detail. Summary tiles are a compact strip; help and maintenance guidance
 follow the fleet list. Tablet/phone rows reflow into labeled fields without page
 overflow. Data sources, missing-value rules and service calculations are unchanged.
+
+## Monthly recorded travel
+
+Each truck Overview row, detail card and operations drawer shows recorded trip miles for
+the selected date's calendar month (current month through today), in
+America/Chicago. The saved LinxUp location archive supplies closed trips;
+when it is absent, a saved successful raw daily response with a matching Chicago
+request window may supply partial trip evidence. No provider call is made.
+Detailed miles take precedence over rounded miles. Missing or invalid distance
+never becomes zero. Truck labels must agree with the archive's tracker mapping.
+Only trips starting and ending on the archive day qualify. Open, stale, future,
+cross-midnight and implausible trips are excluded. Equal truck/start/end
+observations count once even when provider UUIDs differ; conflicting distances
+and overlapping trip intervals are excluded. No inspection odometers, daily score defaults, or appointment
+visits supply mileage.
+
+The display labels these as partial recorded miles, with trip days, calendar-day
+denominator, available archives, exclusion counts, latest trip and collection
+time. No-trip days remain unknown, including days with a saved file. The current
+archive validation proves point formatting and request boundaries, not complete
+per-truck coverage; full monthly totals and six-month averages remain unavailable
+until completeness can be independently established. This intentionally avoids
+reusing the legacy fleet-summary coverage flags. No collector or provider
+requests are added.
+
+Validation: `npm run verify:monthly-mileage`; the existing Convoy synthetic
+fixture includes partial, explicit-zero and unavailable monthly travel.

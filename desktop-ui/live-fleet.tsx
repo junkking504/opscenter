@@ -1,3 +1,4 @@
+import { MonthlyMileage } from './monthly-mileage';
 import { ServiceRecordDetails } from './convoy-records';
 import { ConvoyGuide } from './convoy-guide';
 import {fleetServiceTypes} from '../lib/fleet-service-plan';
@@ -77,6 +78,7 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
     {active&&<div><button className="record-drawer-backdrop" aria-label="Close record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}/><aside className={`record-drawer truck-record-drawer ${['interval','maintenance'].includes(active.kind)?'convoy-service-dialog':''}`} role="dialog" aria-modal="true" aria-label={truckDisplayText(`${active.truck.label} ${active.kind}`)} ref={drawer} tabIndex={-1}><header className="record-drawer-header"><div><span>Convoy · {date}</span><h2>{active.kind==='interval'?'Set maintenance interval':active.kind==='maintenance'?(active.record?(active.mode==='edit'?'Edit service record':'Service record'):draft.status==='scheduled'?'Schedule service':'Record completed service'):truckDisplayText(active.issue?.title||active.truck.label)}</h2></div><Button variant="ghost" size="icon" aria-label="Close Fleet record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}><X/></Button></header><div className="record-drawer-body">{['truck','load','checklist'].includes(active.kind)&&<section className="fleet-drawer-overview">{[['Readiness',active.truck.readiness],['Assignment',active.truck.assignment],['GPS coordinates',recordedValue(active.truck.location,'Unavailable')],['GPS observation',active.truck.gpsAt||'Unavailable'],['Vehicle',recordedValue(active.truck.vehicle)],['Inspection',active.truck.checklist]].map(([label,value])=><div key={label}><span>{truckDisplayText(label)}</span><strong>{truckDisplayText(value)}</strong></div>)}</section>}
       {['truck','load','checklist'].includes(active.kind)&&active.truck.inspectionHref&&<a href={active.truck.inspectionHref}>View submitted Five Point Inspection</a>}
       {active.kind==='truck'&&<>
+        <MonthlyMileage mileage={active.truck.monthlyMileage} date={selectedDate}/>
         <TruckAgents date={selectedDate} truck={active.truck.id}/>
         <div className="truck-record-actions">
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'load'})}>Record current load</Button>

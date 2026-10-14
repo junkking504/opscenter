@@ -178,7 +178,9 @@
     "verify:slack-diagnostics": "node --import tsx scripts/test-slack-diagnostics.ts",
     "verify:css-phase-two": "node --import tsx scripts/test-css-phase-two.ts",
     "verify:release-cutover": "node --test scripts/test-release-cutover.mjs && node --import tsx scripts/test-release-background.ts && python3 scripts/test-controller-bundle.py && python3 scripts/test-legacy-launch-guard.py",
-    "verify:appointment-cost": "node --import tsx scripts/test-appointment-cost.ts"
+    "verify:appointment-cost": "node --import tsx scripts/test-appointment-cost.ts",
+    "verify:monthly-mileage": "node --import tsx scripts/test-fleet-monthly-mileage.ts",
+    "verify:monthly-mileage:browser": "node scripts/test-fleet-monthly-mileage-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

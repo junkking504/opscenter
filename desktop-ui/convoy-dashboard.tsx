@@ -1,3 +1,4 @@
+import { MonthlyMileage } from './monthly-mileage';
 import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
 import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
@@ -86,6 +87,7 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
       <div><span className="convoy-fact-label">VIN</span><TruckVin truck={truck}/></div>
       <div><span className="convoy-fact-label">Latest mileage</span><Mileage truck={truck} now={now} records={snapshot.maintenance} showReportedAt/></div>
     </div>
+    <MonthlyMileage mileage={truck.monthlyMileage} date={snapshot.date}/>
     <div className="convoy-truck-instruments">
       <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
       <TruckLevelGauges truck={truck}/>
@@ -428,7 +430,7 @@ export function ConvoyDashboard(props: DashboardProps) {
           </div>
           <div className="convoy-table-wrap">
             <table className="convoy-data-table convoy-status-table" aria-label="Truck status overview">
-              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
+              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Monthly mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
               <tbody>{visible.map(t => {
                 const review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
                 const {plan,status,detail} = truckServiceSummary(snapshot,t,now);
@@ -446,6 +448,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
                   <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong><small>{mileageSource}</small>
                     {q !== 'unavailable' && <small className="convoy-row-observed" title={`Mileage observed ${stamp(t.mileage?.reportedAt)}`}>{stamp(t.mileage?.reportedAt)}</small>}</td>
+                  <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
                   <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
                     {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>
                   <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>

@@ -70,3 +70,62 @@ assert.deepEqual(pendingDisposal.missing,['Disposal cost (enter 0 if none)']);
 assert.equal(calculateAppointmentCost({...inputs,disposal:null,onsiteMinutes:null},travel,4,40).breakEvenBeforeDisposal,null);
 assert.equal(calculateAppointmentCost({...inputs,disposal:null},travel,null,40).breakEvenBeforeDisposal,null);
 assert.equal(calculateAppointmentCost({...inputs,disposal:0},travel,4,40).breakEven,205);
+
+// Cost planning follows the verified card truck, without rewriting booked data.
+import {appointmentCostRoute,appointmentCostOnsite} from '../lib/appointment-cost-route';
+import type {ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
+const unassigned={recordId:'gps-job',truck:'Virtual Truck',status:'Confirmed',driver:'Booked driver',navigator:'',truckVisits:[{truck:'Truck 8'}]} as ScheduleAppointment;
+const [observed]=appointmentCostRoute([unassigned]);
+assert.equal(observed.truck,'Truck 8');
+assert.equal(observed.driver,'Booked driver');
+assert.equal(unassigned.truck,'Virtual Truck');
+assert.equal(unassigned.driver,'Booked driver');
+const [ambiguous]=appointmentCostRoute([{...unassigned,truckVisits:[{truck:'Truck 8'},{truck:'Truck 6'}] as ScheduleAppointment['truckVisits']}]);
+assert.equal(ambiguous.truck,'Unassigned');
+const [completed]=appointmentCostRoute([{...unassigned,truck:'Truck 4',status:'Completed',onsiteTime:{...onsite,truck:'Truck 4'},recordedOnsiteTime:{...onsite,truck:'Truck 8',minutes:20}}]);
+assert.equal(completed.truck,'Truck 8');
+assert.equal(appointmentCostOnsite(completed)?.minutes,20);
+assert.equal(appointmentCostOnsite({...completed,recordedOnsiteTime:undefined}),undefined);
+const [booked]=appointmentCostRoute([{...unassigned,truck:'Truck 6'}]);
+assert.equal(booked.truck,'Truck 6');
+assert.equal(booked.driver,'Booked driver');
+console.log('Verified truck cost projection and matching on-site source tests passed.');
+
+// Provisional labor fills gaps, while real source/explicit settings always take precedence.
+import {appointmentCostLabor} from '../lib/appointment-cost-model';
+import {readWexFleetPlanningPrice} from '../lib/wex-realtime-prices';
+import {scheduleTruckMismatch} from '../desktop-ui/lib/schedule-contract';
+const planning=appointmentCostLabor(defaultCostInputs,null,null);
+assert.equal(planning.crewHourly,40);assert.equal(planning.onsiteMinutes,30);
+assert.equal(planning.attendanceAssumptions.length,1);assert.equal(planning.breakEvenAssumptions.length,2);
+const recovered=appointmentCostLabor(defaultCostInputs,34.5,9.2);
+assert.equal(recovered.crewHourly,34.5);assert.equal(recovered.onsiteMinutes,9.2);
+assert.deepEqual(recovered.breakEvenAssumptions,[]);
+const explicit=appointmentCostLabor({...defaultCostInputs,crewHourly:55,onsiteMinutes:0},34.5,9.2);
+assert.equal(explicit.crewHourly,55);assert.equal(explicit.onsiteMinutes,0);
+assert.deepEqual(explicit.breakEvenAssumptions,[]);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).crewHourly,null);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).onsiteMinutes,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T16:00:00Z')).price?.price,4);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-21T16:00:00Z')).price,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T14:00:00Z')).price,null);
+assert.equal(scheduleTruckMismatch({...unassigned,truck:'Truck 8',status:'Cancelled by dispatcher'}),null);
+assert.equal(scheduleTruckMismatch(unassigned)?.gpsTruck,'Truck 8');
+console.log('Provisional labor, automatic source replacement, current fleet fuel and cancellation warnings passed.');
+
+// Closest provisional origin needs valid GPS but no fleet-wide provider table.
+import {closestCostTruck} from '../lib/appointment-cost-route';
+import type {ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
+const costFleet=[{truck:'Truck 6',latitude:30.4,longitude:-90.1,lastGpsUpdate:'2026-10-14T15:00:00Z',serviceStatus:'Unavailable',operationalStatus:'Parked'},{truck:'Truck 8',latitude:30.5,longitude:-90.2,serviceStatus:'Unavailable',operationalStatus:'Idle'}] as ScheduleTruck[];
+const target={latitude:30.41,longitude:-90.11};
+assert.equal(closestCostTruck(target,costFleet,true)?.truck,'Truck 6');
+assert.deepEqual(closestCostTruck(target,costFleet,true)?.position,{latitude:30.4,longitude:-90.1});
+assert.equal(costFleet[0].truck,'Truck 6');
+assert.equal(closestCostTruck(target,[{...costFleet[0],serviceStatus:'out_of_service'},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:null},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,costFleet,false),null);
+assert.equal(closestCostTruck(null,costFleet,true),null);
+assert.equal(closestCostTruck({latitude:NaN,longitude:0},costFleet,true),null);
+assert.equal(closestCostTruck(target,[],true),null);
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:0,longitude:0}],true),null);
+console.log('Closest GPS cost origin, invalid evidence, service status and source preservation passed.');

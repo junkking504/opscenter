@@ -129,3 +129,23 @@ assert.equal(closestCostTruck({latitude:NaN,longitude:0},costFleet,true),null);
 assert.equal(closestCostTruck(target,[],true),null);
 assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:0,longitude:0}],true),null);
 console.log('Closest GPS cost origin, invalid evidence, service status and source preservation passed.');
+
+// A recorded arrival replaces a made-up warehouse origin, never a past trip
+// with the truck's current position or a nearby/ambiguous visit.
+import {recordedCostArrival} from '../lib/appointment-cost-recorded';
+const arrivalJob={truck:'Truck 6',truckVisits:[{truck:'Truck 6',arrival:'2026-10-12T15:00:00Z'}]};
+const arrivalTrip={id:'local-trip',number:1,departure:'2026-10-12T14:40:00Z',arrival:'2026-10-12T15:02:00Z',from:{latitude:30.42,longitude:-90.04,address:'Prior recorded stop'},to:{latitude:30.4,longitude:-90.1,address:'Appointment'}};
+const arrivalGps={...gps,trips:[arrivalTrip]};
+const arrivalPoint={latitude:30.4,longitude:-90.1};
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps)?.minutes,22);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps)?.label,'Prior recorded stop');
+assert.equal(recordedCostArrival({...arrivalJob,truck:'Truck 8'},arrivalPoint,arrivalGps),null);
+assert.equal(recordedCostArrival({...arrivalJob,truckVisits:[]},arrivalPoint,arrivalGps),null);
+assert.equal(recordedCostArrival(arrivalJob,null,arrivalGps),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[arrivalTrip,{...arrivalTrip,id:'ambiguous'}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,to:{...arrivalTrip.to,latitude:30.5}}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,arrival:'2026-10-12T15:06:00Z'}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,from:arrivalTrip.to}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps,Date.parse('2026-10-12T14:59:00Z')),null);
+assert.deepEqual(calculateAppointmentCost(inputs,{...travel,miles:null,minutes:null},4,40).missing,['Route miles','Travel time']);
+console.log('Recorded arrival origin, timing, truck identity, ambiguous trip and truthful missing inputs passed.');

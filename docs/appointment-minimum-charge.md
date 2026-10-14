@@ -102,3 +102,22 @@ Git, scoped by date and appointment ID. The registered local action
 and verifies saved read-back. GET requires finance.read. Source failures remain
 visible; canceled/missing records do not trigger source writes. Validation uses
 synthetic costs, routing and WEX fixtures, never live purchase writes.
+
+## Refresh continuity and recorded inbound origins
+
+Cost reads coalesce source changes into a single follow-up instead of aborting
+in-flight work. Cards retain the last completed amount during refresh with an
+“updating” label, or “last estimate” if refresh fails. Changing the selected day
+clears the old day's values; access denial clears retained values. Missing route
+locations say “Location unavailable” immediately, rather than appearing to
+calculate indefinitely. Other terminal failures distinguish route and fuel gaps.
+
+For an assigned route's first appointment, a uniquely matching recorded GPS trip
+into that appointment replaces the assumed warehouse origin. It must match the
+truck, first recorded visit arrival within five minutes and destination within
+200 metres, and start at least 400 metres away. Mileage remains road-estimated;
+travel labor uses the recorded trip duration. This does not reuse the truck's
+current location for a past visit. Existing shared job legs retain their allocation.
+When no next job is assigned, the return remains a labeled warehouse assumption,
+not evidence of a return actually driven. Unassigned closest-truck planning is
+unchanged. No source assignment, address or payment is modified.

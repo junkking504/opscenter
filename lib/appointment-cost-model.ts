@@ -21,8 +21,10 @@ export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fue
  const rate=crewHourly!==null&&crewHourly>0&&Number.isFinite(crewHourly)?crewHourly:null;
  const travelLabor=nonnegative(travel.minutes)&&rate!==null?travel.minutes/60*rate:null;
  const onsiteLabor=inputs.onsiteMinutes!==null&&rate!==null?inputs.onsiteMinutes/60*rate:null;
- if(fuel===null)missing.push('Route miles and current fuel price');
- if(travelLabor===null)missing.push('Travel time and crew hourly cost');
+ if(!nonnegative(travel.miles))missing.push('Route miles');
+ if(fuelPrice===null||!Number.isFinite(fuelPrice)||fuelPrice<=0)missing.push('Current fuel price');
+ if(!nonnegative(travel.minutes))missing.push('Travel time');
+ if(rate===null)missing.push('Crew hourly cost');
  if(onsiteLabor===null)missing.push('On-site labor minutes');
  if(inputs.disposal===null)missing.push('Disposal cost (enter 0 if none)');
  const attendance=fuel!==null&&travelLabor!==null?fuel+travelLabor+inputs.overhead:null;
@@ -42,7 +44,7 @@ export function allocateAppointmentTravel(incoming:{miles:number;minutes:number}
 
 export const defaultCostWarehouse=(territory:string):CostInputs['warehouse']=>/^(BR|Baton Rouge)$/i.test(territory)?'BRHQ':'NOHQ';
 
-export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[];attendanceAssumptions?:string[];breakEvenAssumptions?:string[]};
+export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[];unavailableReason?:string;attendanceAssumptions?:string[];breakEvenAssumptions?:string[]};
 
 // Provisional planning defaults, replaced automatically by source values or saved overrides.
 export const planningCrewHourly=40;

@@ -1,22 +1,33 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {AppointmentCostSummary} from '../../lib/appointment-cost-model';
+import {createRouteLoader,type RouteLoadState} from './route-loader';
 
-type AttendanceState={key:string;rows:Record<string,AppointmentCostSummary>;loading:boolean;denied:boolean};
-export function useAppointmentAttendance(date:string,refreshKey:string,enabled:boolean):Omit<AttendanceState,'key'>{
- const key=JSON.stringify([date,refreshKey,enabled]);
- const [state,setState]=useState<AttendanceState|null>(null);
+type AttendanceData={rows:Record<string,AppointmentCostSummary>;denied:boolean};
+export function useAppointmentAttendance(date:string,refreshKey:string,enabled:boolean){
+ const key=JSON.stringify([date,enabled]);
+ const [result,setResult]=useState<{key:string;state:RouteLoadState<AttendanceData>}|null>(null);
+ const loader=useRef<ReturnType<typeof createRouteLoader<AttendanceData>>|null>(null);
  useEffect(()=>{
   if(!enabled)return;
-  const controller=new AbortController();
-  fetch(`/api/desktop/schedule/cost?${new URLSearchParams({date,scope:'attendance'})}`,{cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(60000)])})
-   .then(async response=>{
-    if(response.status===403){if(!controller.signal.aborted)setState({key,rows:{},loading:false,denied:true});return;}
-    if(!response.ok)throw new Error('Attendance costs unavailable');
-    const body=await response.json();
-    if(body.date!==date)throw new Error('Mismatched appointment day');
-    if(!controller.signal.aborted)setState({key,rows:body.rows,loading:false,denied:false});
-   }).catch(()=>{if(!controller.signal.aborted)setState({key,rows:{},loading:false,denied:false});});
-  return()=>controller.abort();
+  const current=createRouteLoader<AttendanceData>(async signal=>{
+   const response=await fetch(`/api/desktop/schedule/cost?${new URLSearchParams({date,scope:'attendance'})}`,{cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(60000)])});
+   // A revoked permission clears previously visible amounts as well.
+   if(response.status===403||response.status===401)return {rows:{},denied:true};
+   if(!response.ok)throw new Error('Attendance costs unavailable');
+   const body=await response.json();
+   if(body.date!==date||!body.rows||typeof body.rows!=='object')throw new Error('Invalid appointment costs');
+   return {rows:body.rows,denied:false};
+  },state=>setResult({key,state}));
+  loader.current=current;
+  void current.refresh();
+  return()=>{current.dispose();loader.current=null;};
  },[date,key,enabled]);
- return state?.key===key?state:{rows:{},loading:enabled,denied:!enabled};
+ const lastRefresh=useRef(refreshKey);
+ useEffect(()=>{
+  if(lastRefresh.current===refreshKey)return;
+  lastRefresh.current=refreshKey;
+  void loader.current?.refresh();
+ },[refreshKey]);
+ const state=result?.key===key?result.state:null;
+ return {rows:state?.data?.rows||{},loading:state?.loading??enabled,error:state?.error??false,denied:!enabled||Boolean(state?.data?.denied)};
 }

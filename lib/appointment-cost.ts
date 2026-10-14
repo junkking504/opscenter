@@ -15,7 +15,7 @@ import {planningCrewHourly,planningOnsiteMinutes,appointmentCostLabor,calculateA
 import {chicagoDateKey,addDays} from './report-dates';
 import {chicagoClockToDate} from './live-pay';
 import {readTruckGpsRoute} from './desktop-gps-route';
-import {costOnsiteMinutes,recordedCostTransfer} from './appointment-cost-recorded';
+import {costOnsiteMinutes,recordedCostTransfer,recordedCostArrival} from './appointment-cost-recorded';
 import type {TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import type {Coordinates} from './job-route-proximity';
 export async function readAppointmentCostEstimate(date:string,id:string,snapshot=readDesktopSchedule(date),gpsRoutes=new Map<string,TruckGpsRoute>()){
@@ -37,22 +37,25 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
  const first=routeJobs.find(row=>!pairs.some(pair=>pair.toAppointmentId===row.recordId));
  const record=readAppointmentCost(key,defaultCostWarehouse(first?.territory||job.territory));
  const hq=record.inputs.warehouse==='BRHQ'?{latitude:30.4191544,longitude:-91.1449730}:{latitude:29.9863006,longitude:-90.0586452};
- const travel:CostTravel={miles:null,minutes:null,inbound:closest?`${closest.truck} GPS location`:previous?.jkNumber||record.inputs.warehouse,outbound:closest?`${closest.truck} GPS location`:next?.jkNumber||record.inputs.warehouse,note:provisionalRoute?routeAssumptions[0]||'No planned attendance.':'Half of each shared job-to-job leg; full warehouse legs. Planned road miles, without traffic or dump detours. Warehouse is a planning assumption.',approximate:!job.location||Boolean(previous&&!previous.location)||Boolean(next&&!next.location)};
- const point=scheduleMapLocation(job),origin=closest?.position||(previous?scheduleMapLocation(previous):hq),destination=closest?.position||(next?scheduleMapLocation(next):hq);
+ const truck=`Truck ${truckNumber(job.truck)}`;
+ if(!canceled&&!provisionalRoute&&!gpsRoutes.has(truck))gpsRoutes.set(truck,readTruckGpsRoute(date,truck,sourceRoot));
+ const gps=gpsRoutes.get(truck);
+ const recordedArrival=!previous&&gps?recordedCostArrival(job,scheduleMapLocation(job),gps):null;
+ if(recordedArrival&&!next)routeAssumptions.push(`Return to ${record.inputs.warehouse} is a planning assumption; the return trip has not been established from this appointment's route.`);
+ const travel:CostTravel={miles:null,minutes:null,inbound:closest?`${closest.truck} GPS location`:previous?.jkNumber||recordedArrival?.label||record.inputs.warehouse,outbound:closest?`${closest.truck} GPS location`:next?.jkNumber||record.inputs.warehouse,note:provisionalRoute?routeAssumptions[0]||'No planned attendance.':'Half of each shared job-to-job leg; full warehouse legs. Planned road miles, without traffic or dump detours. Warehouse is a planning assumption.',approximate:!job.location||Boolean(previous&&!previous.location)||Boolean(next&&!next.location)};
+ const point=scheduleMapLocation(job),origin=closest?.position||recordedArrival?.position||(previous?scheduleMapLocation(previous):hq),destination=closest?.position||(next?scheduleMapLocation(next):hq);
  if(!canceled&&point&&origin&&destination){
   const leg=async(a:Coordinates,b:Coordinates)=>{const result=await osmTravelMatrix([a],[b]);const row=result?.[0];const seconds=typeof row?.duration==='string'&&/^\d+(?:\.\d+)?s$/.test(row.duration)?Number(row.duration.slice(0,-1)):NaN;return row?.condition==='ROUTE_EXISTS'&&!row.status?.code&&typeof row.distanceMeters==='number'&&row.distanceMeters>=0&&Number.isFinite(row.distanceMeters)&&Number.isFinite(seconds)&&seconds>=0?{miles:row.distanceMeters/1609.344,minutes:seconds/60}:null;};
   const [incoming,outgoing]=await Promise.all([leg(origin,point),leg(point,destination)]);
   if(incoming&&outgoing){
-   const truck=`Truck ${truckNumber(job.truck)}`;
-   if(!provisionalRoute&&!gpsRoutes.has(truck))gpsRoutes.set(truck,readTruckGpsRoute(date,truck,sourceRoot));
-   const gps=gpsRoutes.get(truck)!;
-   const inboundRecorded=previous?recordedCostTransfer(appointmentCostOnsite(previous),appointmentCostOnsite(job),truck,gps,snapshot.operationalStops||[]):null;
-   const outboundRecorded=next?recordedCostTransfer(appointmentCostOnsite(job),appointmentCostOnsite(next),truck,gps,snapshot.operationalStops||[]):null;
+   const inboundRecorded=previous&&gps?recordedCostTransfer(appointmentCostOnsite(previous),appointmentCostOnsite(job),truck,gps,snapshot.operationalStops||[]):recordedArrival?.minutes??null;
+   const outboundRecorded=next&&gps?recordedCostTransfer(appointmentCostOnsite(job),appointmentCostOnsite(next),truck,gps,snapshot.operationalStops||[]):null;
    if(inboundRecorded!==null)incoming.minutes=inboundRecorded;
    if(outboundRecorded!==null)outgoing.minutes=outboundRecorded;
+   if(recordedArrival)travel.note=`Inbound from recorded GPS stop ${recordedArrival.label} (${recordedArrival.departure} to ${recordedArrival.arrival}); road-estimated mileage, recorded driving time. ${next?'Half of the outgoing shared job-to-job leg.':`Return to ${record.inputs.warehouse} is assumed, not a recorded return.`}`;
    travel.note+=` Travel time: inbound ${inboundRecorded===null?'road estimate':'recorded transfer'}, outbound ${outboundRecorded===null?'road estimate':'recorded transfer'}. Recorded transfers include elapsed time between confirmed stops.`;
    Object.assign(travel,allocateAppointmentTravel(incoming,outgoing,Boolean(previous),Boolean(next)));}
- }else travel.note=canceled?'Canceled appointment: no planned attendance.':'Route pin unavailable; enter a service address before estimating travel.';
+ }else travel.note=canceled?'Canceled appointment: no planned attendance.':'Location unavailable: the service address has not resolved to a usable route pin. Automatic address lookup continues.';
  const meaningful=(name:string)=>name&&name!=='—'&&!/unassigned|unknown|not recorded|multiple/i.test(name);
  const explicitNames=[job.driver,job.navigator,...(job.additionalCrew||[])].filter(meaningful);
  const fleetCrew=snapshot.fleet.isToday?snapshot.fleet.trucks.find(row=>sameTruck(row.truck,costTruck)):null;
@@ -88,7 +91,7 @@ export async function readAppointmentAttendanceCosts(date:string){
  async function worker(){
   while(cursor<snapshot.appointments.length){
    const job=snapshot.appointments[cursor++];
-   try{const estimate=await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes);const {attendance,breakEven,breakEvenBeforeDisposal,missing}=estimate.result;rows[job.recordId]={attendance,breakEven,breakEvenBeforeDisposal,missing,attendanceAssumptions:estimate.attendanceAssumptions,breakEvenAssumptions:estimate.breakEvenAssumptions};}
+   try{const estimate=await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes);const {attendance,breakEven,breakEvenBeforeDisposal,missing}=estimate.result;rows[job.recordId]={attendance,breakEven,breakEvenBeforeDisposal,missing,...(attendance===null?{unavailableReason:!scheduleMapLocation(job)?'Location unavailable':estimate.travel.miles===null||estimate.travel.minutes===null?'Route unavailable':estimate.fuelPrice===null?'Fuel price unavailable':'Cost unavailable'}:{}),attendanceAssumptions:estimate.attendanceAssumptions,breakEvenAssumptions:estimate.breakEvenAssumptions};}
    catch{rows[job.recordId]={attendance:null,breakEven:null,breakEvenBeforeDisposal:null,missing:['Cost sources unavailable']};}
   }
  }

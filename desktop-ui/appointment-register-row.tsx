@@ -10,7 +10,7 @@ import { SourceEstimateSummary } from './source-estimate';
 
 export function AppointmentRegisterRow({ job, selected, area, warning, route, proximity, attendance, select, open }: {
   job: ScheduleAppointment; selected: boolean; area: string; warning?: string; route?: string; proximity?: string | null;
-  attendance?: {summary:AppointmentCostSummary|null;loading:boolean};
+  attendance?: {summary:AppointmentCostSummary|null;loading:boolean;error?:boolean};
   select: () => void; open: () => void;
 }) {
   const status = appointmentStatus(job);
@@ -19,10 +19,11 @@ export function AppointmentRegisterRow({ job, selected, area, warning, route, pr
   const costLabel=payment.amount||priorQuote?'Break-even':'To attend';
   const disposalPending=costLabel==='Break-even'&&attendance?.summary?.breakEven==null&&attendance?.summary?.missing.length===1&&attendance.summary.missing[0].startsWith('Disposal');
   const costAmount=(costLabel==='Break-even'?(attendance?.summary?.breakEven??(disposalPending?attendance?.summary?.breakEvenBeforeDisposal:null)):attendance?.summary?.attendance)??null;
-  const costText=attendance?.loading?'Calculating…':costAmount!==null?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount):'Unavailable';
+  const costText=costAmount!==null?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(costAmount):!job.location&&!job.mapFallback?'Location unavailable':attendance?.summary?.unavailableReason||(attendance?.loading&&!attendance.summary?'Calculating…':'Unavailable');
+  const costRefresh=attendance?.summary?(attendance.error?' · last estimate':attendance.loading?' · updating':''):'';
   const costAssumptions=(costLabel==='Break-even'?attendance?.summary?.breakEvenAssumptions:attendance?.summary?.attendanceAssumptions)||[];
   const estimated=costAmount!==null&&costAssumptions.length>0;
-  const costLine=attendance&&status!=='Canceled'&&<button className="register-attendance" aria-label={`${costLabel} for ${job.jkNumber}: ${costText}${estimated?' estimated':''}`} title={estimated?`${costAssumptions.join(' ')}${disposalPending?' Disposal remains excluded.':''}`:costAmount===null?attendance.summary?.missing.join(' · '):disposalPending?'Fuel, travel and on-site labor, overhead, other entered costs and fees. Disposal and any fees on disposal are still to be added.':costLabel==='Break-even'?'Full modeled job cost including labor, disposal and entered fees. Open appointment info.':'Estimated fuel, travel labor and overhead. Open appointment info.'} onClick={open}><b>{costText}</b><span>{costLabel}{estimated?' · estimated':''}</span></button>;
+  const costLine=attendance&&status!=='Canceled'&&<button className="register-attendance" aria-label={`${costLabel} for ${job.jkNumber}: ${costText}${estimated?' estimated':''}${costRefresh}`} title={estimated?`${costAssumptions.join(' ')}${disposalPending?' Disposal remains excluded.':''}`:costAmount===null?attendance.summary?.missing.join(' · '):disposalPending?'Fuel, travel and on-site labor, overhead, other entered costs and fees. Disposal and any fees on disposal are still to be added.':costLabel==='Break-even'?'Full modeled job cost including labor, disposal and entered fees. Open appointment info.':'Estimated fuel, travel labor and overhead. Open appointment info.'} onClick={open}><b>{costText}</b><span>{costLabel}{estimated?' · estimated':''}{costRefresh}</span></button>;
 
   const displayTime = displayedOnsiteTime(job);
   const onsiteMinutes = displayTime?.minutes;

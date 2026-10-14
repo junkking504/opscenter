@@ -435,9 +435,6 @@ export function ConvoyDashboard(props: DashboardProps) {
                 const review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
                 const {plan,status,detail} = truckServiceSummary(snapshot,t,now);
                 const issues = repairs.filter(i=>sameTruck(i.truck,t.id));
-                const mileageSource = q === 'unavailable' ? 'No reading' : q === 'conflict' ? 'Check reading' :
-                  [t.mileage?.source === 'estimated' ? 'Estimated' : t.mileage?.source === 'inspection' ? 'Inspection' : t.mileage?.source === 'virtual' ? 'Tracking counter' : 'Reported odometer',
-                    q === 'stale' ? 'Stale' : t.mileage?.gpsIncomplete ? 'GPS gaps' : ''].filter(Boolean).join(' · ');
                 const fuel = t.fuel && Number.isFinite(t.fuel.percent) ? t.fuel : null;
                 const loadKnown = !t.loadNeedsVerification && t.loadPercent !== null && Number.isFinite(t.loadPercent);
                 return <tr key={t.id}>
@@ -446,8 +443,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                   <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
-                  <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong><small>{mileageSource}</small>
-                    {q !== 'unavailable' && <small className="convoy-row-observed" title={`Mileage observed ${stamp(t.mileage?.reportedAt)}`}>{stamp(t.mileage?.reportedAt)}</small>}</td>
+                  <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong></td>
                   <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
                   <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
                     {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>

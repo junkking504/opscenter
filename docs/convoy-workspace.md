@@ -266,9 +266,10 @@ observations count once even when provider UUIDs differ; conflicting distances
 and overlapping trip intervals are excluded. No inspection odometers, daily score defaults, or appointment
 visits supply mileage.
 
-The display labels these as partial recorded miles, with trip days, calendar-day
-denominator, available archives, exclusion counts, latest trip and collection
-time. No-trip days remain unknown, including days with a saved file. The current
+The Overview table shows the month and recorded miles, without the latest-mileage
+source label or timestamp. The detail card and operations drawer retain trip days,
+calendar-day denominator, available archives, exclusion counts, latest trip and
+collection time inside the expandable Mileage coverage disclosure. No-trip days remain unknown, including days with a saved file. The current
 archive validation proves point formatting and request boundaries, not complete
 per-truck coverage; full monthly totals and six-month averages remain unavailable
 until completeness can be independently established. This intentionally avoids

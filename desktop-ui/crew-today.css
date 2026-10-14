@@ -21,6 +21,8 @@
 .crew-today-fact strong { color: var(--oc-text-green-13); font-size: var(--oc-type-16); }
 .crew-today-fact small { color: var(--oc-text-green-08); font-size: var(--oc-type-11); }
 .crew-today-pay strong { color: var(--oc-text-green-18); font-size: var(--oc-type-19); }
+.crew-today-pay .crew-today-row { grid-template-columns: minmax(180px,1.4fr) minmax(110px,.8fr) minmax(150px,1fr) minmax(100px,.7fr) auto; }
+.crew-today-rph strong { overflow-wrap: anywhere; }
 .crew-today-actions { display: flex; gap: 8px; }
 .crew-today-actions button, .crew-today-empty button { min-height: 36px; border: 1px solid var(--oc-border-neutral-14); border-radius: 6px; padding: 8px 11px; background: var(--oc-surface-raised); color: var(--oc-border-green-01); cursor: pointer; white-space: nowrap; font-size: var(--oc-type-12); font-weight: 650; }
 .crew-today-actions .crew-today-edit { background: var(--oc-border-green-01); color: var(--oc-surface-raised); border-color: var(--oc-border-green-01); }
@@ -33,7 +35,7 @@
 .crew-today-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 30px 16px; color: var(--oc-text-green-25); font-size: var(--oc-type-13); }
 .crew-today :is(button,input,select):focus-visible { outline: 2px solid var(--oc-border-green-01); outline-offset: 2px; }
 @media (max-width: 1150px) {
-  .crew-today-row { grid-template-columns: minmax(160px,1.2fr) minmax(130px,1fr) minmax(90px,.7fr); gap: 12px; }
+  .crew-today-row, .crew-today-pay .crew-today-row { grid-template-columns: minmax(160px,1.2fr) minmax(130px,1fr) minmax(90px,.7fr); gap: 12px; }
   .crew-today-actions { grid-column: 1 / -1; justify-content: flex-end; }
   .crew-today-production .crew-today-driving { grid-column: 1 / -1; }
 }
@@ -42,7 +44,7 @@
   .crew-today-heading .crew-section-nav { width: 100%; }
   .crew-today-toolbar { padding: 12px; gap: 10px; }
   .crew-today-toolbar label:first-child { min-width: 100%; }
-  .crew-today-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); padding: 14px 12px; gap: 14px; }
+  .crew-today-row, .crew-today-pay .crew-today-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); padding: 14px 12px; gap: 14px; }
   .crew-today-person { grid-column: 1 / -1; }
   .crew-today-actions { justify-content: stretch; }
   .crew-today-actions button { flex: 1; min-height: 40px; }
@@ -56,3 +58,6 @@
   .crew-today .krewe-kpi-strip article { min-width: 0; }
   .crew-today .krewe-kpi-strip strong { overflow-wrap: anywhere; }
 }
+
+/* RPH coverage labels must stay readable at phone widths. */
+.ops-live .crew-today .krewe-kpi-strip > article { height: auto; min-height: 76px; overflow: visible; }

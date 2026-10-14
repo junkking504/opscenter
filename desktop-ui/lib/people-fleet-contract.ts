@@ -4,7 +4,7 @@ import type { DrivingScore } from './driving-score';
 import { truckGpsStatus } from '../../lib/truck-gps-status';
 import type { KreweHoursSnapshot } from './krewe-hours-contract';
 export type KreweView = 'today' | 'callin' | 'payperiod' | 'monthly';
-export type CrewDayEvidence = { issue?: string; payNote?: string; sourceAt?: string | null; hourlyRate?: number | null; syncStatus?: 'pending' | 'verified' | 'failed' | 'uncertain' | null; correctionNote?: string; correctionBy?: string; manualBonuses?: Array<{ entryId: string; amount: number; note: string }> };
+export type CrewDayEvidence = { clockInAt?: number | null; issue?: string; payNote?: string; sourceAt?: string | null; hourlyRate?: number | null; syncStatus?: 'pending' | 'verified' | 'failed' | 'uncertain' | null; correctionNote?: string; correctionBy?: string; manualBonuses?: Array<{ entryId: string; amount: number; note: string }> };
 export type FleetView = 'scores' | 'overview' | 'maintenance' | 'service' | 'reports';
 export type DesktopWorkspaceProps<V extends string> = { date: string; view: V; report?: string; onViewChange?: (view: V) => void; onBusyChange?: (busy: boolean) => void };
 export type CrewAmounts = { hours: number | null; regularHours: number | null; overtimeHours: number | null; jobs: number | null; revenue: number | null; labor: number | null; tips: number | null; bonuses: number | null; supplemental: number | null; totalPay: number | null };

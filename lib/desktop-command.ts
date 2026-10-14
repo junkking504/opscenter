@@ -1,3 +1,6 @@
+import { readDesktopKrewe } from './desktop-krewe';
+import { crewRph } from '../desktop-ui/lib/crew-rph';
+import type { DesktopKreweSnapshot } from '../desktop-ui/lib/people-fleet-contract';
 import { ageFinanceKpi, dailyFinanceEvidence, combineFinanceEvidence } from './daily-finance-freshness';
 import { withSavedCloseoutTruck } from './command-closeout-truck';
 import { assumedDumpExpenseAlerts, readDumpExpenses } from './dump-expenses';
@@ -35,7 +38,7 @@ const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0): DesktopKpi[] {
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0, krewe: DesktopKreweSnapshot | null = null): DesktopKpi[] {
   const finance = buildDailyFinanceSummary(metrics, wex, assumedDumpExpense);
   const evidence = dailyFinanceEvidence(metrics, finance, date, wex);
   const plan = dailyRevenueTarget();
@@ -52,7 +55,7 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? `Fuel from posted WEX transactions${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : assumedDumpExpense > 0 ? `Includes ${money(assumedDumpExpense)} assumed dump cost` : 'Recorded daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
     { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : assumedDumpExpense > 0 ? 'After recorded and assumed daily costs' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
-  return cards.map((card, index) => {
+  const agedCards = cards.map((card, index) => {
     if (index === 0) return card;
     const field = (['revenue', 'labor', 'dumps', 'net'] as const)[index - 1];
     const recorded = field === 'dumps' ? finance.dumps == null || finance.fuel == null ? null : finance.dumps + finance.fuel : finance[field];
@@ -61,10 +64,22 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     if (field === 'labor' && payrollPercent == null) card.detail = 'Recorded payroll · revenue ratio unavailable';
     return ageFinanceKpi({ ...card, financeEvidence: { date, recorded, evidence: source, currentDetail: card.detail, ratioEvidence: field === 'labor' ? evidence.revenue : undefined } }, now);
   });
+  const rph = crewRph(krewe?.date === date && krewe.view === 'today' ? krewe : null);
+  const rphDetail = rph.value === null ? 'Worked hours or credited revenue unavailable' :
+    `${rph.hours.toLocaleString('en-US', { maximumFractionDigits: 4 })} labor hours · ${rph.included} crew${rph.excluded ? ` · ${rph.excluded} excluded` : ''}`;
+  agedCards.push(ageFinanceKpi({ label: 'RPH', value: rph.value === null ? 'Unavailable' : money(rph.value),
+    secondaryValue: 'Revenue per labor hour', detail: rphDetail, progress: rph.value === null ? 0 : 100,
+    tone: rph.value === null ? 'warning' : 'healthy', financeEvidence: {
+      date, recorded: rph.value, evidence: combineFinanceEvidence(evidence.revenue, evidence.labor), currentDetail: rphDetail,
+    } }, now));
+  return agedCards;
 }
 
 export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
   const metrics = readMetrics(date);
+  // Local reads only. Keep Command usable if the Crew source cannot be read.
+  let krewe: DesktopKreweSnapshot | null = null;
+  try { krewe = readDesktopKrewe(date, 'today', 'operator'); } catch { /* RPH remains unavailable. */ }
   const wexFuel = readWexFuelFinance(date);
   const dumpExpenses = readDumpExpenses(date);
   const map = metrics ? buildCommandMapData(date) : null;
@@ -131,7 +146,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   }
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal),
+    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe),
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',detail:digest.detail,reasonCounts:digest.reasonCounts,workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},

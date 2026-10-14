@@ -1,0 +1,24 @@
+import {createRoot} from 'react-dom/client';
+import Home from '../app/page';
+import LiveKreweHours from '../live-krewe-hours';
+import {fixtureSnapshot} from '../../scripts/fixtures/crew-progress';
+import {crewRph} from '../lib/crew-rph';
+import type {DesktopCrewMember, DesktopKreweSnapshot} from '../lib/people-fleet-contract';
+import '../app/globals.css';
+import '../live-responsive.css';
+import '../workspace-density.css';
+import '../approved-workbench.css';
+const date='2026-10-13';
+const base:DesktopCrewMember={id:'example',name:'Example Crew',initials:'EC',role:'Driver',truck:'Truck 1',working:true,clockIn:'8:00 AM',clockOut:'12:00 PM',clockInAt:Date.parse('2026-10-13T13:00:00Z'),clockOutAt:Date.parse('2026-10-13T17:00:00Z'),hourlyRate:20,status:'Clocked out',issue:'',version:'a',correction:null,days:[],hours:4,regularHours:4,overtimeHours:0,jobs:2,revenue:640,labor:80,tips:10,bonuses:5,supplemental:0,totalPay:95};
+const member={...base,days:[{...base,date:'2026-10-05'}, {...base,date, hours:2,revenue:600}]};
+const missing={...base,id:'missing',name:'Missing Hours',hours:null,revenue:9999};
+const days=Array.from({length:14},(_,i)=>{const day=new Date(Date.UTC(2026,9,5+i)).toISOString().slice(0,10);const amount=member.days.find(d=>d.date===day);return {date:day,hours:amount?.hours??null,regular:amount?.hours??0,overtime:0,clockIn:amount?'8:00 AM':'',clockOut:amount?'12:00 PM':'',corrected:false,role:'Driver',truck:'Truck 1',jobs:amount?.jobs??null,jobRevenueWorked:amount?.revenue??null,status:amount?'Recorded' as const:'No Record' as const};});
+const hoursSnapshot={date,start:'2026-10-05',end:'2026-10-18',generatedAt:new Date().toISOString(),missingDates:[],employees:[{id:member.id,name:member.name,total:6,weeks:[{start:'2026-10-05',end:'2026-10-11',total:4,regular:4,overtime:0,incomplete:false,days:days.slice(0,7)},{start:'2026-10-12',end:'2026-10-18',total:2,regular:2,overtime:0,incomplete:false,days:days.slice(7)}]}]};
+const crew:DesktopKreweSnapshot={date,view:'today',start:date,end:date,sourceUpdatedAt:new Date().toISOString(),missingDates:[],payrollVisible:true,canWrite:false,members:[member,missing],totals:base,callIn:null,hoursSnapshot};
+const command=fixtureSnapshot();command.date=date;
+command.kpis=['Today’s jobs','Revenue','Labor','Dump + Fuel','Net'].map(label=>({label,value:'$100.00',detail:'Synthetic evidence',progress:100,tone:'healthy' as const}));
+command.kpis.push({label:'RPH',value:crewRph(crew).value!.toLocaleString('en-US',{style:'currency',currency:'USD'}),secondaryValue:'Revenue per labor hour',detail:'4 labor hours · 1 crew · 1 excluded',progress:100,tone:'healthy'});
+window.fetch=async(input,init)=>{if(init?.method&&init.method!=='GET')throw Error('Writes forbidden in RPH fixture');const url=new URL(String(input),location.origin);if(url.pathname==='/api/desktop/krewe'){if(url.searchParams.get('date')!==date)throw Error('Selected date lost');return Response.json(crew);}return Response.json({error:'Disabled in synthetic fixture'},{status:503});};
+class NoEvents {addEventListener(){}close(){}}
+window.EventSource=NoEvents as unknown as typeof EventSource;
+createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('period')?<div className="ops-live"><LiveKreweHours date={date} payroll={{...crew,view:'payperiod'}} /></div>:<Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{throw Error('Writes forbidden');}}}/>);

@@ -96,9 +96,9 @@
 }
 .ops-live .schedule-summary-clear:disabled { opacity: .45; }
 
-/* Command keeps its five daily metrics on one row. */
+/* Command keeps its six daily metrics on one row. */
 .ops-live .metric-strip.command-metrics {
-  grid-template-columns: repeat(5, 220px);
+  grid-template-columns: repeat(6, 220px);
   width: max-content; max-width: 100%; overflow-x: auto; padding-bottom: 3px;
 }
 .ops-live .command-metrics > button.kpi-card {

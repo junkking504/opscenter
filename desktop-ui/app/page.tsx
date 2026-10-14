@@ -4398,7 +4398,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </section>}
           {activeNav === 'Command' && view !== 'forecast' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
             {commandKpiRows.map((kpi) => (
-              <button type="button" data-action-hint="Open graph & see data" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
+              <button type="button" data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}

@@ -1,5 +1,5 @@
-import {scheduleDisplayTruck,type ScheduleAppointment,type ScheduleTruck,type ClosestTruck} from '../desktop-ui/lib/schedule-contract';
-import {sameTruck,truckNumber} from './junkware-trucks';
+import {scheduleDisplayTruck,type ScheduleAppointment,type ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
+import {truckNumber} from './junkware-trucks';
 import {costOnsiteMinutes} from './appointment-cost-recorded';
 
 // Project the card's verified truck into cost planning without changing source assignments.
@@ -10,16 +10,17 @@ export function appointmentCostOnsite(job:ScheduleAppointment){
  return [job.onsiteTime,job.recordedOnsiteTime].find(time=>costOnsiteMinutes(time,job.truck)!==null);
 }
 
-// Use the map's road ETA ranking; unknown coordinates and explicit out-of-service trucks cannot be origins.
-export function closestCostTruck(rows:ClosestTruck[],trucks:ScheduleTruck[]){
- const eligible=rows.filter(row=>row.status==='available'&&row.minutes!==null&&Number.isFinite(row.minutes)&&row.minutes>=0&&row.miles!==null&&Number.isFinite(row.miles)&&row.miles>=0)
-  .sort((a,b)=>a.minutes!-b.minutes!||a.miles!-b.miles!||a.truck.localeCompare(b.truck));
- for(const row of eligible){
-  const truck=trucks.find(truck=>sameTruck(truck.truck,row.truck));
-  if(!truck||!truckNumber(truck.truck)||/out[ _-]of[ _-]service/i.test(`${truck.serviceStatus} ${truck.operationalStatus}`))continue;
-  const {latitude,longitude}=truck;
-  if(latitude===null||longitude===null||!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180||(latitude===0&&longitude===0))continue;
-  return {truck:truck.truck,position:{latitude,longitude},gpsUpdatedAt:row.gpsUpdatedAt};
- }
- return null;
+// Select by geographic GPS distance without queuing fleet-wide road tables.
+// The selected truck's two road legs still provide all cost mileage and time.
+export function closestCostTruck(point:{latitude:number;longitude:number}|null,trucks:ScheduleTruck[],isToday:boolean){
+ const valid=(p:{latitude:number|null;longitude:number|null})=>p.latitude!==null&&p.longitude!==null&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180&&!(p.latitude===0&&p.longitude===0);
+ if(!isToday||!point||!valid(point))return null;
+ const radians=(n:number)=>n*Math.PI/180;
+ const distance=(truck:ScheduleTruck)=>{
+  const a=Math.sin(radians(truck.latitude!-point.latitude)/2)**2+Math.cos(radians(point.latitude))*Math.cos(radians(truck.latitude!))*Math.sin(radians(truck.longitude!-point.longitude)/2)**2;
+  return 2*Math.asin(Math.sqrt(Math.min(1,Math.max(0,a))));
+ };
+ const truck=trucks.filter(truck=>truckNumber(truck.truck)&&valid(truck)&&!/out[ _-]of[ _-]service/i.test(`${truck.serviceStatus} ${truck.operationalStatus}`))
+  .sort((a,b)=>distance(a)-distance(b)||a.truck.localeCompare(b.truck))[0];
+ return truck?{truck:truck.truck,position:{latitude:truck.latitude!,longitude:truck.longitude!},gpsUpdatedAt:truck.lastGpsUpdate}:null;
 }

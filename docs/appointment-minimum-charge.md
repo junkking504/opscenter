@@ -46,11 +46,14 @@ overtime; a combined loaded hourly override is available. Missing names/rates us
 ## Provisional card estimates
 
 When the truck route is unassigned or verification is pending on the live day,
-select the closest truck by the map's road-travel-time ranking. Use a standalone
+select the closest truck by geographic distance from its reported GPS position. Use a standalone
 road round trip from that truck's last reported GPS location to the appointment
 and back to the same location, plus its crew and fuel evidence when available.
 The basis names the truck, GPS observation time and assumed return. Explicit
-out-of-service trucks and invalid positions are excluded. A parked truck's last
+out-of-service trucks and invalid positions are excluded. Selection is local and requires no fleet-wide road table; only the selected
+truck's two road legs are requested through the existing shared provider cache
+and rate limit. This avoids a fleet lookup timeout replacing a nearby truck
+with the warehouse fallback. A parked truck's last
 reported location remains eligible under the map's existing proximity policy.
 This is a planning candidate, not a promise of availability or dispatch assignment.
 The cost refresh key includes truck positions, GPS timestamps and crew data.

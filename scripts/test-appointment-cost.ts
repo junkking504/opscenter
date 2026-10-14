@@ -113,19 +113,19 @@ assert.equal(scheduleTruckMismatch({...unassigned,truck:'Truck 8',status:'Cancel
 assert.equal(scheduleTruckMismatch(unassigned)?.gpsTruck,'Truck 8');
 console.log('Provisional labor, automatic source replacement, current fleet fuel and cancellation warnings passed.');
 
-// Closest provisional origin uses road time and valid serviceable GPS, not straight-line proximity.
+// Closest provisional origin needs valid GPS but no fleet-wide provider table.
 import {closestCostTruck} from '../lib/appointment-cost-route';
-import type {ClosestTruck,ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
-const candidate=(truck:string,minutes:number|null,miles:number|null,status:ClosestTruck['status']='available'):ClosestTruck=>({truck,minutes,miles,status,gpsUpdatedAt:'2026-10-14T15:00:00Z'});
-const costFleet=[{truck:'Truck 6',latitude:30.4,longitude:-90.1,serviceStatus:'Unavailable',operationalStatus:'Parked'},{truck:'Truck 8',latitude:30.5,longitude:-90.2,serviceStatus:'Unavailable',operationalStatus:'Idle'}] as ScheduleTruck[];
-const candidates=[candidate('Truck 8',30,9),candidate('Truck 6',20,11)];
-assert.equal(closestCostTruck(candidates,costFleet)?.truck,'Truck 6');
-assert.deepEqual(closestCostTruck(candidates,costFleet)?.position,{latitude:30.4,longitude:-90.1});
-assert.equal(candidates[0].truck,'Truck 8');
-assert.equal(closestCostTruck(candidates,[{...costFleet[0],serviceStatus:'out_of_service'},costFleet[1]])?.truck,'Truck 8');
-assert.equal(closestCostTruck(candidates,[{...costFleet[0],latitude:null},costFleet[1]])?.truck,'Truck 8');
-assert.equal(closestCostTruck([candidate('Truck 6',null,null,'gps_unavailable')],costFleet),null);
-assert.equal(closestCostTruck([candidate('Truck 6',20,11,'not_live_day')],costFleet),null);
-assert.equal(closestCostTruck([candidate('Truck 6',NaN,11)],costFleet),null);
-assert.equal(closestCostTruck([],costFleet),null);
-console.log('Closest-truck cost origin, invalid evidence, service status and source preservation passed.');
+import type {ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
+const costFleet=[{truck:'Truck 6',latitude:30.4,longitude:-90.1,lastGpsUpdate:'2026-10-14T15:00:00Z',serviceStatus:'Unavailable',operationalStatus:'Parked'},{truck:'Truck 8',latitude:30.5,longitude:-90.2,serviceStatus:'Unavailable',operationalStatus:'Idle'}] as ScheduleTruck[];
+const target={latitude:30.41,longitude:-90.11};
+assert.equal(closestCostTruck(target,costFleet,true)?.truck,'Truck 6');
+assert.deepEqual(closestCostTruck(target,costFleet,true)?.position,{latitude:30.4,longitude:-90.1});
+assert.equal(costFleet[0].truck,'Truck 6');
+assert.equal(closestCostTruck(target,[{...costFleet[0],serviceStatus:'out_of_service'},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:null},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,costFleet,false),null);
+assert.equal(closestCostTruck(null,costFleet,true),null);
+assert.equal(closestCostTruck({latitude:NaN,longitude:0},costFleet,true),null);
+assert.equal(closestCostTruck(target,[],true),null);
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:0,longitude:0}],true),null);
+console.log('Closest GPS cost origin, invalid evidence, service status and source preservation passed.');

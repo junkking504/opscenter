@@ -249,7 +249,8 @@ async function cachedRouting<T>(keyParts: unknown, read: () => Promise<T>): Prom
 
 // Selected proximity must not wait for other appointments' address checks,
 // route legs or truck-progress estimates. The board already verifies its pin.
-export async function readDesktopClosestTrucks(date: string, recordId: string, snapshot = readDesktopSchedule(date)) {
+export async function readDesktopClosestTrucks(date: string, recordId: string) {
+  const snapshot = readDesktopSchedule(date);
   const target = snapshot.appointments.find(job => job.recordId === recordId);
   if (!target) return null;
   const closest = await cachedRouting(['closest', date, target.recordId, target.location, target.mapFallback, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday));

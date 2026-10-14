@@ -1,4 +1,4 @@
-import {readDesktopSchedule,scheduleRoutePairs,readDesktopClosestTrucks} from './desktop-schedule';
+import {readDesktopSchedule,scheduleRoutePairs} from './desktop-schedule';
 import {scheduleMapLocation} from '../desktop-ui/lib/schedule-contract';
 import {appointmentCostRoute,appointmentCostOnsite,closestCostTruck} from './appointment-cost-route';
 import {truckNumber,sameTruck} from './junkware-trucks';
@@ -27,10 +27,9 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
  const key=`${date}:${job.appointmentId||job.recordId}`;
  const canceled=/cancel/i.test(job.status);
  const provisionalRoute=!truckNumber(job.truck)||job.junkwareSyncStatus==='pending';
- const proximity=!canceled&&provisionalRoute&&snapshot.fleet.isToday?await readDesktopClosestTrucks(date,id,snapshot).catch(()=>null):null;
- const closest=proximity?closestCostTruck(proximity.closest,snapshot.fleet.trucks):null;
+ const closest=!canceled&&provisionalRoute?closestCostTruck(scheduleMapLocation(job),snapshot.fleet.trucks,snapshot.fleet.isToday):null;
  const costTruck=closest?.truck||job.truck;
- const routeAssumptions:string[]=!canceled&&provisionalRoute?[closest?`Provisional closest-truck round trip from ${closest.truck}'s last reported location (GPS ${closest.gpsUpdatedAt||'time unavailable'}). Selected by road travel time; return to that location is assumed. No dispatch assignment is made.`:'Closest truck unavailable for this day or location; provisional local warehouse round trip.']:[];
+ const routeAssumptions:string[]=!canceled&&provisionalRoute?[closest?`Provisional closest-truck round trip from ${closest.truck}'s last reported location (GPS ${closest.gpsUpdatedAt||'time unavailable'}). Selected by nearest reported GPS position; road mileage and travel time are calculated for this truck; return to that location is assumed. No dispatch assignment is made.`:'Closest truck unavailable for this day or location; provisional local warehouse round trip.']:[];
  const routeJobs=provisionalRoute?[]:costJobs.filter(row=>sameTruck(row.truck,job.truck)&&!/cancel/i.test(row.status));
  const pairs=scheduleRoutePairs(routeJobs);
  const before=pairs.find(row=>row.toAppointmentId===id),after=pairs.find(row=>row.fromAppointmentId===id);

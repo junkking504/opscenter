@@ -32,7 +32,7 @@ card costs. Break-even = fixed dollar costs / (1 - revenue fee fraction).
 The minimum whole-dollar charge is strictly above break-even; target margin uses
 costs / (1 - fees - margin). These are modeled figures, not realized profit.
 
-The assigned truck's existing Schedule route order supplies adjacent jobs.
+Cost planning uses the same truck as the appointment card: its booked truck, or the uniquely GPS-confirmed truck when unassigned, or the recorded truck for a completed appointment. This projection never changes the source assignment. All appointments are projected before selecting route neighbors, so fuel, route allocation and crew use one consistent truck. On-site labor only uses a completed visit matching that truck. Named appointment crew retains precedence; when absent, the dated roster or current crew for the displayed truck supplies labor. The truck's existing Schedule route order supplies adjacent jobs.
 Each shared job-to-job leg is split evenly, and first/last warehouse legs count
 in full. The default warehouse is inferred from the first stop's territory and
 is labeled and editable. No live GPS position or booked window is treated as

@@ -1,5 +1,6 @@
 import {readDesktopSchedule,scheduleRoutePairs} from './desktop-schedule';
-import {scheduleMapLocation,displayedOnsiteTime} from '../desktop-ui/lib/schedule-contract';
+import {scheduleMapLocation} from '../desktop-ui/lib/schedule-contract';
+import {appointmentCostRoute,appointmentCostOnsite} from './appointment-cost-route';
 import {truckNumber,sameTruck} from './junkware-trucks';
 import {osmTravelMatrix} from './osm-travel-matrix';
 import fs from 'node:fs';
@@ -18,12 +19,13 @@ import {costOnsiteMinutes,recordedCostTransfer} from './appointment-cost-recorde
 import type {TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import type {Coordinates} from './job-route-proximity';
 export async function readAppointmentCostEstimate(date:string,id:string,snapshot=readDesktopSchedule(date),gpsRoutes=new Map<string,TruckGpsRoute>()){
- const job=snapshot.appointments.find(row=>row.recordId===id);
+ const costJobs=appointmentCostRoute(snapshot.appointments);
+ const job=costJobs.find(row=>row.recordId===id);
  if(!job)throw new AppointmentCostError('Appointment is absent from the selected day.',404);
  const sourceRoot=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
- const sourceOnsiteMinutes=costOnsiteMinutes(displayedOnsiteTime(job),job.truck);
+ const sourceOnsiteMinutes=costOnsiteMinutes(appointmentCostOnsite(job),job.truck);
  const key=`${date}:${job.appointmentId||job.recordId}`;
- const routeJobs=snapshot.appointments.filter(row=>sameTruck(row.truck,job.truck)&&!/cancel/i.test(row.status));
+ const routeJobs=costJobs.filter(row=>sameTruck(row.truck,job.truck)&&!/cancel/i.test(row.status));
  const pairs=scheduleRoutePairs(routeJobs);
  const before=pairs.find(row=>row.toAppointmentId===id),after=pairs.find(row=>row.fromAppointmentId===id);
  const previous=routeJobs.find(row=>row.recordId===before?.fromAppointmentId),next=routeJobs.find(row=>row.recordId===after?.toAppointmentId);
@@ -39,8 +41,8 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
    const truck=`Truck ${truckNumber(job.truck)}`;
    if(!gpsRoutes.has(truck))gpsRoutes.set(truck,readTruckGpsRoute(date,truck,sourceRoot));
    const gps=gpsRoutes.get(truck)!;
-   const inboundRecorded=previous?recordedCostTransfer(displayedOnsiteTime(previous),displayedOnsiteTime(job),truck,gps,snapshot.operationalStops||[]):null;
-   const outboundRecorded=next?recordedCostTransfer(displayedOnsiteTime(job),displayedOnsiteTime(next),truck,gps,snapshot.operationalStops||[]):null;
+   const inboundRecorded=previous?recordedCostTransfer(appointmentCostOnsite(previous),appointmentCostOnsite(job),truck,gps,snapshot.operationalStops||[]):null;
+   const outboundRecorded=next?recordedCostTransfer(appointmentCostOnsite(job),appointmentCostOnsite(next),truck,gps,snapshot.operationalStops||[]):null;
    if(inboundRecorded!==null)incoming.minutes=inboundRecorded;
    if(outboundRecorded!==null)outgoing.minutes=outboundRecorded;
    travel.note+=` Travel time: inbound ${inboundRecorded===null?'road estimate':'recorded transfer'}, outbound ${outboundRecorded===null?'road estimate':'recorded transfer'}. Recorded transfers include elapsed time between confirmed stops.`;

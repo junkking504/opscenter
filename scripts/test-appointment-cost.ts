@@ -70,3 +70,23 @@ assert.deepEqual(pendingDisposal.missing,['Disposal cost (enter 0 if none)']);
 assert.equal(calculateAppointmentCost({...inputs,disposal:null,onsiteMinutes:null},travel,4,40).breakEvenBeforeDisposal,null);
 assert.equal(calculateAppointmentCost({...inputs,disposal:null},travel,null,40).breakEvenBeforeDisposal,null);
 assert.equal(calculateAppointmentCost({...inputs,disposal:0},travel,4,40).breakEven,205);
+
+// Cost planning follows the verified card truck, without rewriting booked data.
+import {appointmentCostRoute,appointmentCostOnsite} from '../lib/appointment-cost-route';
+import type {ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
+const unassigned={recordId:'gps-job',truck:'Virtual Truck',status:'Confirmed',driver:'Booked driver',navigator:'',truckVisits:[{truck:'Truck 8'}]} as ScheduleAppointment;
+const [observed]=appointmentCostRoute([unassigned]);
+assert.equal(observed.truck,'Truck 8');
+assert.equal(observed.driver,'Booked driver');
+assert.equal(unassigned.truck,'Virtual Truck');
+assert.equal(unassigned.driver,'Booked driver');
+const [ambiguous]=appointmentCostRoute([{...unassigned,truckVisits:[{truck:'Truck 8'},{truck:'Truck 6'}] as ScheduleAppointment['truckVisits']}]);
+assert.equal(ambiguous.truck,'Unassigned');
+const [completed]=appointmentCostRoute([{...unassigned,truck:'Truck 4',status:'Completed',onsiteTime:{...onsite,truck:'Truck 4'},recordedOnsiteTime:{...onsite,truck:'Truck 8',minutes:20}}]);
+assert.equal(completed.truck,'Truck 8');
+assert.equal(appointmentCostOnsite(completed)?.minutes,20);
+assert.equal(appointmentCostOnsite({...completed,recordedOnsiteTime:undefined}),undefined);
+const [booked]=appointmentCostRoute([{...unassigned,truck:'Truck 6'}]);
+assert.equal(booked.truck,'Truck 6');
+assert.equal(booked.driver,'Booked driver');
+console.log('Verified truck cost projection and matching on-site source tests passed.');

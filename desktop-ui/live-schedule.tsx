@@ -139,7 +139,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const snapshot = snapshots[date];
   const [costRevision,setCostRevision]=useState(0);
   const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.location, job.mapFallback, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
-  const attendance=useAppointmentAttendance(date,`${snapshot?.observedAt||''}:${costRevision}:${routingKey}`,Boolean(snapshot)&&!mapOnly&&view==='board');
+  const costSourceKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.driver, job.navigator, job.additionalCrew, job.onsiteTime, job.recordedOnsiteTime, job.truckVisits])) : '';
+  const attendance=useAppointmentAttendance(date,`${snapshot?.observedAt||''}:${costRevision}:${routingKey}:${costSourceKey}`,Boolean(snapshot)&&!mapOnly&&view==='board');
   const routeRequest = useRouteEstimate(!mapOnly && routingKey ? `/api/desktop/schedule/routes?${new URLSearchParams({date})}` : null, date, routingKey);
   const routing = routeRequest.data;
   const closestJob = snapshot?.appointments.find(job => job.recordId === selectedId);

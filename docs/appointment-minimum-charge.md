@@ -10,8 +10,7 @@ starts collapsed. Cost details are loaded only when first expanded. When only di
 amount only, as requested by the owner. Disposal remains excluded while missing;
 its status is available in Cost details and the amount tooltip. This subtotal includes on-site labor, other entered
 costs and revenue fees; disposal and any fees on it remain to be added. The full
-break-even and minimum charge remain incomplete until disposal is entered. Other
-missing inputs stay unavailable. Manager access remains
+break-even and minimum charge remain incomplete until disposal is entered. Unrecorded assignments and labor use clearly labeled provisional assumptions as described below; missing road locations or a current fuel price remain unavailable. Manager access remains
 required.
 Board totals share one source snapshot and at most two concurrent calculations.
 They refresh with the schedule snapshot and after saving cost assumptions. It never changes a quote, payment,
@@ -36,15 +35,31 @@ Cost planning uses the same truck as the appointment card: its booked truck, or 
 Each shared job-to-job leg is split evenly, and first/last warehouse legs count
 in full. The default warehouse is inferred from the first stop's territory and
 is labeled and editable. No live GPS position or booked window is treated as
-actual travel/labor. Missing routes never become zero. Canceled/unassigned jobs
-have no route estimate. Dump detours are excluded and must be budgeted in costs.
+actual travel/labor. Missing routes never become zero. Canceled jobs have no planned route estimate or attendance row. Unassigned jobs use the provisional local warehouse round trip. Dump detours are excluded and must be budgeted in costs.
 
 Crew rates come from the appointment's named driver, navigator and additional
 crew, then the dated planned roster or an unambiguous current truck crew snapshot,
 using the latest available rate within 14 days at or before the operating
 date (no later than today). Dates are shown. Base hourly rates omit burden and
-overtime; a combined loaded hourly override is available. Missing names/rates
-leave cost unavailable.
+overtime; a combined loaded hourly override is available. Missing names/rates use the provisional crew assumption below.
+
+## Provisional card estimates
+
+When the truck route is unassigned or verification is pending, estimate a standalone
+round trip from the local warehouse (BRHQ for Baton Rouge, otherwise NOHQ), without
+joining other unassigned appointments into a fictional truck route. Existing source
+assignments and booking times are unchanged. When named crew rates are unavailable,
+use a provisional two-person crew at $40/hour combined ($20 each). Missing on-site
+work uses 30 minutes for break-even only; attendance excludes on-site work. Saved
+overrides and recorded sources replace these defaults automatically. When a current
+truck-specific WEX price is absent, the newest matched fleet alert within seven days
+is an explicit planning price. No current alert still means unavailable fuel.
+
+Cards append “estimated” when their amount depends on these provisional inputs.
+Cost details and tooltips list the assumptions, with existing per-appointment
+crew, on-site time, warehouse and fuel overrides. These are planning figures, not
+recorded assignments or labor. Canceled appointments do not display an upcoming
+attendance estimate and cancellation never produces a GPS truck-mismatch warning.
 
 ## WEX Outlook alerts
 

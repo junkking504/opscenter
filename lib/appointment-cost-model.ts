@@ -42,4 +42,15 @@ export function allocateAppointmentTravel(incoming:{miles:number;minutes:number}
 
 export const defaultCostWarehouse=(territory:string):CostInputs['warehouse']=>/^(BR|Baton Rouge)$/i.test(territory)?'BRHQ':'NOHQ';
 
-export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[]};
+export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[];attendanceAssumptions?:string[];breakEvenAssumptions?:string[]};
+
+// Provisional planning defaults, replaced automatically by source values or saved overrides.
+export const planningCrewHourly=40;
+export const planningOnsiteMinutes=30;
+export function appointmentCostLabor(inputs:CostInputs,sourceCrew:number|null,sourceMinutes:number|null,canceled=false){
+ const crewHourly=inputs.crewHourly??sourceCrew??(canceled?null:planningCrewHourly);
+ const onsiteMinutes=inputs.onsiteMinutes??sourceMinutes??(canceled?null:planningOnsiteMinutes);
+ const attendanceAssumptions=inputs.crewHourly===null&&sourceCrew===null&&!canceled?['Provisional two-person crew: $40/hour combined ($20 each).']:[];
+ const breakEvenAssumptions=[...attendanceAssumptions,...(inputs.onsiteMinutes===null&&sourceMinutes===null&&!canceled?['Provisional on-site work: 30 minutes.']:[])];
+ return {crewHourly,onsiteMinutes,attendanceAssumptions,breakEvenAssumptions};
+}

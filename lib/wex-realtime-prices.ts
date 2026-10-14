@@ -53,3 +53,10 @@ export function readWexRealtimePrice(truck:string,asOf=new Date()){
  const rows=data.rows.filter(row=>sameTruck(row.truck,truck)&&Number.isFinite(row.price)&&row.price>0&&Number.isFinite(Date.parse(row.at))&&Date.parse(row.at)<=asOf.getTime()).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  return {price:rows[0]||null,importedAt:data.importedAt};
 }
+
+// A fleet price is a planning assumption, never a claim that this truck fueled up.
+export function readWexFleetPlanningPrice(asOf=new Date()){
+ return Array.from({length:9},(_,i)=>readWexRealtimePrice(`Truck ${i+1}`,asOf))
+  .filter(row=>row.price&&asOf.getTime()-Date.parse(row.price.at)<=7*86400000)
+  .sort((a,b)=>Date.parse(b.price!.at)-Date.parse(a.price!.at))[0]||{price:null,importedAt:null};
+}

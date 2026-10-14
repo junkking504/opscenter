@@ -242,6 +242,7 @@ export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'tru
   return /complete|closed/i.test(job.status || '') && gpsTruck !== 'Unassigned' ? gpsTruck : truckLabel(job.truck || '');
 }
 export function scheduleTruckMismatch(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'|'truckVisits'>) {
+  if (/cancel/i.test(job.status || '')) return null;
   const displayed = scheduleDisplayTruck(job), source = truckLabel(job.truck || '');
   return displayed !== source ? {gpsTruck:displayed,junkwareTruck:source} : null;
 }

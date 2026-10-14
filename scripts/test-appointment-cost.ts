@@ -90,3 +90,25 @@ const [booked]=appointmentCostRoute([{...unassigned,truck:'Truck 6'}]);
 assert.equal(booked.truck,'Truck 6');
 assert.equal(booked.driver,'Booked driver');
 console.log('Verified truck cost projection and matching on-site source tests passed.');
+
+// Provisional labor fills gaps, while real source/explicit settings always take precedence.
+import {appointmentCostLabor} from '../lib/appointment-cost-model';
+import {readWexFleetPlanningPrice} from '../lib/wex-realtime-prices';
+import {scheduleTruckMismatch} from '../desktop-ui/lib/schedule-contract';
+const planning=appointmentCostLabor(defaultCostInputs,null,null);
+assert.equal(planning.crewHourly,40);assert.equal(planning.onsiteMinutes,30);
+assert.equal(planning.attendanceAssumptions.length,1);assert.equal(planning.breakEvenAssumptions.length,2);
+const recovered=appointmentCostLabor(defaultCostInputs,34.5,9.2);
+assert.equal(recovered.crewHourly,34.5);assert.equal(recovered.onsiteMinutes,9.2);
+assert.deepEqual(recovered.breakEvenAssumptions,[]);
+const explicit=appointmentCostLabor({...defaultCostInputs,crewHourly:55,onsiteMinutes:0},34.5,9.2);
+assert.equal(explicit.crewHourly,55);assert.equal(explicit.onsiteMinutes,0);
+assert.deepEqual(explicit.breakEvenAssumptions,[]);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).crewHourly,null);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).onsiteMinutes,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T16:00:00Z')).price?.price,4);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-21T16:00:00Z')).price,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T14:00:00Z')).price,null);
+assert.equal(scheduleTruckMismatch({...unassigned,truck:'Truck 8',status:'Cancelled by dispatcher'}),null);
+assert.equal(scheduleTruckMismatch(unassigned)?.gpsTruck,'Truck 8');
+console.log('Provisional labor, automatic source replacement, current fleet fuel and cancellation warnings passed.');

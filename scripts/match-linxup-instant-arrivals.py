@@ -99,7 +99,8 @@ def approximate_policy_start(data):
 
 
 def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None):
-    module.visit_policy_started_at = started_at or (lambda: approximate_policy_start(module.DATA))
+    # Approximate matching is disabled. Do not create/reset the historical cutoff.
+    module.visit_policy_started_at = started_at or (lambda: datetime.max.replace(tzinfo=timezone.utc))
     def valid(location):
         return isinstance(location, dict) and all(
             isinstance(location.get(key), (int, float)) and not isinstance(location[key], bool)
@@ -107,43 +108,17 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
             for key, bound in [('latitude', 90), ('longitude', 180)])
 
     def resolve(appointments, geocodes, radius, target):
-        previous_file = module.VISIT_HISTORY / f'linxup_appointment_visits_{target.isoformat()}.json'
-        previous = json.loads(previous_file.read_text()).get('visits', []) if previous_file.exists() else []
-        retained = {}
-        for visit in previous:
-            pin = visit.get('visit_pin') or {}
-            if visit.get('match_confidence') == 'confirmed' and visit.get('visit_count', 0) > 0 and pin.get('approximate') and valid(pin.get('location')):
-                retained.setdefault(str(visit.get('appointment_id')), []).append(pin)
-        fallbacks = read_fallbacks([row.get('address') or '' for row in appointments])
+        # Use only verified premises. Neither current display fallbacks nor a
+        # previously persisted approximate pin may establish a new GPS event.
+        # Historical visit files are not edited here.
         pins = {}
         for row in appointments:
             raw = row.get('address') or ''
             verified = geocodes.get(module.address_hash(module.normalize_address(raw)))
-            fallback = fallbacks.get(raw)
-            saved = retained.get(row['_appointment_id'], [])
-            identities = {json.dumps(pin, sort_keys=True) for pin in saved}
-            if len(identities) == 1 and saved[0].get('sourceAddress') == raw:
-                pin = saved[0]
-                pins[row['_appointment_id']] = {**pin['location'], 'match_confidence': 'approximate', 'visit_pin': pin}
-            elif verified and verified.get('match_confidence') == 'confirmed' and valid(verified):
+            if (verified and verified.get('match_confidence') == 'confirmed'
+                    and not (verified.get('visit_pin') or {}).get('approximate')
+                    and valid(verified)):
                 pins[row['_appointment_id']] = dict(verified)
-            elif fallback and valid(fallback.get('location')) and 'cancel' not in str(row.get('job_status', '')).lower() and row.get('_source_group') != 'cancelled':
-                evidence = {**fallback, 'approximate': True, 'sourceAddress': raw}
-                pins[row['_appointment_id']] = {**fallback['location'], 'match_confidence': 'approximate', 'visit_pin': evidence}
-        # With approximate evidence, overlapping geofences are ambiguous even if
-        # only one pin is closest. Never resolve apartments by assignment/time.
-        for index, left in enumerate(appointments):
-            a = pins.get(left['_appointment_id'])
-            if not a or 'cancel' in str(left.get('job_status', '')).lower() or left.get('_source_group') == 'cancelled':
-                continue
-            for right in appointments[index+1:]:
-                b = pins.get(right['_appointment_id'])
-                if not b or 'cancel' in str(right.get('job_status', '')).lower() or right.get('_source_group') == 'cancelled':
-                    continue
-                if not (a.get('visit_pin', {}).get('approximate') or b.get('visit_pin', {}).get('approximate')):
-                    continue
-                if module.haversine_meters(a['latitude'], a['longitude'], b['latitude'], b['longitude']) <= 2 * radius:
-                    a['blocked'] = b['blocked'] = True
         return pins
     module.resolve_visit_pins = resolve
 

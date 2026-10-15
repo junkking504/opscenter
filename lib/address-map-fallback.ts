@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {fullFieldStreetAddress, serviceStreetCandidates} from './appointment-partner';
-import {cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit} from './service-address-format';
+import {cleanServiceQuery, legacyServiceQuery, normalizeServiceAddress, serviceUnitIdentifiers, withoutServiceUnit} from './service-address-format';
 import {serviceHouseAndStreet, normalizeHouseNumber} from './service-house-number';
 import {parishAddressQuery} from './parish-service-address';
 import {osmMapAddressQuery} from './osm-service-address';
@@ -11,8 +11,7 @@ import {geocodioAddressQuery} from './geocodio-service-address';
 import {approximateMapAddressQuery} from './address-map-query';
 import {gpsDistanceMeters} from './gps-presence-policy';
 
-/** Approximate map evidence. Visit detection may use it with explicit provenance
- * and ambiguity guards; never publish it as a verified geocode. */
+/** Approximate map/route evidence only; never a verified geocode or GPS visit pin. */
 export type AddressMapFallback = {
   location: {latitude:number;longitude:number};
   matchedAddress:string;
@@ -20,7 +19,7 @@ export type AddressMapFallback = {
   sourceUrl:string;
   detail:string;
   stale:boolean;
-  /** A corroborated street with a conflicting postal code cannot identify a visit. */
+  /** All approximate evidence is ineligible for arrival/departure detection. */
   visitEligible?:false;
   navigationReviewed?:true;
 };
@@ -35,7 +34,7 @@ const bareMapUnit=/(\b(?:ST|STREET|RD|ROAD|AVE|AVENUE|DR|DRIVE|LN|LANE|CT|COURT|
 function mapAddress(value:string) {return approximateMapAddressQuery(value).replace(bareMapUnit,'$1 Unit $2');}
 function mapStreet(value:string) {return withoutServiceUnit(mapAddress(value)).replace(/\s+(?:CLUBHOUSE|LEASING OFFICE)\b.*$/i,'').trim();}
 function mapUnit(value:string) {
-  return mapAddress(value).match(/\b(?:UNIT|APT|APARTMENT|STE|SUITE|BLDG|BUILDING)\.?\s*#?\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)\b/i)?.[1].toUpperCase().replace(/-/g,'') || '';
+  return serviceUnitIdentifiers(mapAddress(value))[0] || '';
 }
 function comparableStreet(value:string,city:string) {
   const stem=normalize(mapStreet(value)).replace(suffix,'');
@@ -55,6 +54,11 @@ function omittedHouseSuffix(address:string,candidate:Candidate) {
 export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(serviceStreetCandidates(mapAddress(address)).length!==1)return false;
   if(typeof candidate.house!=='string'||![candidate.street,candidate.city,candidate.state,candidate.zip].every(value=>typeof value==='string'&&value.length>0))return false;
+  const sourceUnits=serviceUnitIdentifiers(mapAddress(address)),candidateUnits=serviceUnitIdentifiers(mapAddress(candidate.street));
+  // A complex entrance can omit a unit, but another explicit unit cannot stand
+  // in for the requested one. Multiple unit/building identities stay unresolved.
+  if(new Set(sourceUnits).size>1 || new Set(candidateUnits).size>1
+    || sourceUnits.length && candidateUnits.length && sourceUnits[0]!==candidateUnits[0])return false;
   const full=cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address))));
   const parsed=serviceHouseAndStreet(full);
   const missingSuffix=omittedHouseSuffix(address,candidate);
@@ -106,7 +110,7 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const matchedAddress=`${[row.house,row.street].filter(Boolean).join(' ')}, ${row.city}, ${row.state} ${row.zip}`;
   const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
-    ...(row.streetZipCorroborated ? {visitEligible:false as const} : {}),
+    visitEligible:false,
     detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence. Not used for arrival or departure detection.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
@@ -148,9 +152,10 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
         }));
       }
     }
+    const legacy=legacyServiceQuery(fullFieldStreetAddress(lookup));
     const osmQuery=osmMapAddressQuery(lookup);
-    if(osmQuery) {
-      const params=new URLSearchParams({q:osmQuery,format:'jsonv2',addressdetails:'1',limit:'5',countrycodes:'us'});
+    for(const cachedQuery of new Set(osmQuery ? [osmQuery,legacy.replace(/[,\s]+\d{5}(?:-\d{4})?\s*$/,'').trim()] : [])) {
+      const params=new URLSearchParams({q:cachedQuery,format:'jsonv2',addressdetails:'1',limit:'5',countrycodes:'us'});
       const directory=process.env.OSM_ADDRESS_CACHE_DIR||path.join(root,'cache/osm-address-lookups');
       const cached=cachedFile(path.join(directory,hash('search?'+params)+'.json'));
       if(cacheUsable(cached,now)&&Array.isArray(cached.payload)&&cached.payload.every((row:any)=>row&&typeof row==='object')) {
@@ -165,9 +170,10 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
       }
     }
     const query=geocodioAddressQuery(lookup);
-    if(query) {
+    const legacyWithState=/\b(?:LA|LOUISIANA)[,\s]+\d{5}/i.test(legacy) ? legacy : legacy.replace(/[,\s]+(\d{5}(?:-\d{4})?)$/,', LA $1');
+    for(const cachedQuery of new Set(query ? [query,legacyWithState] : [])) {
       const stateFile=process.env.GEOCODIO_FREE_STATE_FILE||path.join(process.env.HOME||'','Library/Application Support/OpsCenter/geocodio-free-usage.json');
-      const ledger=cachedFile(stateFile),cached=ledger?.schema===1?ledger.cache?.[hash(normalize(query))]:null;
+      const ledger=cachedFile(stateFile),cached=ledger?.schema===1?ledger.cache?.[hash(normalize(cachedQuery))]:null;
       if(cacheUsable(cached,now)&&Array.isArray(cached.payload?.results)&&cached.payload.results.every((row:any)=>row&&typeof row==='object')) {
         const rows:Candidate[]=cached.payload.results.map((row:any)=>{
           const a=row?.address_components||{};

@@ -67,7 +67,7 @@ try {
  assert.deepEqual(readAddressMapFallback(unitAddress,now)?.location,{latitude:30.45,longitude:-90.052},'A partial parish response can provide a complex entrance when the requested unit is absent');
  assert.equal(readAddressMapFallback('123 Example Wind Blvd Bldg 26 Mandeville, LA 70471',now)?.location.longitude,-90.052,'Explicit buildings may use a display-only complex pin');
  const bridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify([unitAddress]),encoding:'utf8',env:process.env}));
- assert.deepEqual(bridge[unitAddress].location,readAddressMapFallback(unitAddress,now)?.location,'Matcher bridge uses the same cached bare-unit fallback as the UI');
+ assert.equal(bridge[unitAddress],null,'Matcher bridge excludes navigation-only fallbacks');
  const unitQuery=geocodioAddressQuery(unitAddress)!;
  save(process.env.GEOCODIO_FREE_STATE_FILE!,{schema:1,cache:{[hash(normalizeServiceAddress(unitQuery))]:{expires:now+60000,payload:{results:[{address_components:{number:'123',formatted_street:'Example Wind Blvd',unit_number:'26107',city:'Mandeville',state_province:'LA',postal_code:'70471',country:'US'},location:{lat:30.451,lng:-90.053},accuracy_type:'rooftop'}]}}}});
  assert.equal(readAddressMapFallback(unitAddress,now)?.source,'Geocodio','An explicitly matching provider unit ranks ahead of an available parish clubhouse');

@@ -1,4 +1,4 @@
-import {appointmentVisitPin, type VisitPinJob} from './appointment-visit-pin';
+import {visitEvidenceLocation, type VisitPinJob} from './appointment-visit-pin';
 import {gpsDistanceMeters,validGpsCoordinates,GPS_SITE_RADIUS_METERS,GPS_MAX_POINT_GAP_MS,type DwellPoint} from './gps-presence-policy';
 import type {PresenceTruck} from './schedule-gps-presence';
 import type {TrackedVisit} from './visit-tracking-agent';
@@ -18,7 +18,7 @@ export function reconcileAppointmentPositions(visits: TrackedVisit[], jobs: JobL
     const segmentEnd = nextVisit ? Date.parse(nextVisit.enteredAt!) : Infinity;
     const unresolved = nextVisit ? {...visit,supersededAt:nextVisit.enteredAt!} : visit;
     const matching = jobs.filter(job=>job.appointmentId === visit.appointmentId && (!job.jkNumber || job.jkNumber === visit.jobNumber));
-    const location = matching.length === 1 ? (visit.visitPin || appointmentVisitPin(matching[0]))?.location : null;
+    const location = matching.length === 1 ? visitEvidenceLocation(matching[0], visit.visitPin) : null;
     if (!location || !validGpsCoordinates(location)) return unresolved;
     const matchingTrucks = trucks.filter(truck=>truckKey(truck.truck) === truckKey(visit.truck));
     if (matchingTrucks.length !== 1) return unresolved;

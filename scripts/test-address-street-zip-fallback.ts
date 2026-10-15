@@ -73,7 +73,7 @@ try {
  saveRoad([road,road]);assert.ok(read(),'Identical duplicates do not create false ambiguity');
  const correctZip=address.replace('70126','70128');
  saveRoad();assert.ok(read(correctZip),'Ordinary matching-ZIP street behavior stays intact');
- assert.equal(read(correctZip)?.visitEligible,undefined);
+ assert.equal(read(correctZip)?.visitEligible,false);
  const differentPrefix=address.replace('70126','70426');saveCenter([center],now+60000,differentPrefix);
  assert.equal(read(differentPrefix),null,'Do not cross postal regions on street-only evidence');
  saveCenter();
@@ -82,7 +82,7 @@ try {
  saveCenter();
  const house={...road,category:'building',address:{...road.address,house_number:'123'},lat:'30.0605'};
  saveRoad([road,house]);assert.equal(read()?.location.latitude,30.0605,'House evidence always outranks the new street estimate');
- assert.equal(read()?.visitEligible,undefined);
+ assert.equal(read()?.visitEligible,false);
  assert.equal(address,'123 Example Drive New Orleans, LA 70126','Source address stays unchanged');
  console.log('Street ZIP fallback PASS: corroboration, false-pin guards, exact verification, territory, visit exclusion and source preservation.');
 } finally {

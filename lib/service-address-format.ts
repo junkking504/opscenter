@@ -9,24 +9,53 @@ export const normalizeServiceAddress = (text: string) => normalizeStreetOrdinal(
   // as "State Highway 59". Treat those as the same numbered state route, but
   // retain an explicit US designation so US Highway 59 cannot become LA 59.
   .replace(/(?<!\bUS )\bHWY (\d+)\b/g,'LA $1'));
-const units = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
+const legacyUnits = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
+const units = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
 // A bare alphanumeric unit is recognized only after a road suffix and before
 // a complete locality/ZIP tail. Never consume highway identifiers or numbers.
 const bareUnit = /(\b(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|terrace|ter|circle|cir|trail|trl)\.?)[,\s]+([A-Z]{1,2}\d{1,4}[A-Z]?)(?=[,\s]+[A-Z][A-Z .'-]*,?\s+(?:(?:LA|LOUISIANA)[,\s]+)?\d{5}(?:-\d{4})?\s*$)/ig;
 const explicitServiceUnits = (address: string) => address.replace(bareUnit,(match, suffix: string, unit: string, offset: number) =>
   /\b(?:county|parish|state|farm)\s*$/i.test(address.slice(0,offset)) ? match : `${suffix} Unit ${unit}`);
-export const withoutServiceUnit = (address: string) => explicitServiceUnits(address).replace(units,' ').replace(/\s+/g,' ').trim();
+const roadEnd = /\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|pky|terrace|ter|circle|cir|trail|trl|trace|trce|square|sq|way|loop)\.?[,\s]*$/i;
+function recognizedUnit(address:string,unit:string,index:number) {
+  // These labels also occur in road names (Space Walk, Trailer Park Rd).
+  // Admit them only after a complete street, optionally following other units.
+  return !/^(?:lot|trailer|trlr|space)\b/i.test(unit)
+    || roadEnd.test(address.slice(0,index).replace(new RegExp(units),' ').trim());
+}
+function replaceServiceUnits(address:string,replacement:(unit:string)=>string) {
+  const value=explicitServiceUnits(address);
+  return value.replace(units,(unit:string,index:number)=>recognizedUnit(value,unit,index)?replacement(unit):unit);
+}
+// Only collapse adjacent repeated locality text after a complete road suffix
+// and before the postal tail. Never deduplicate street words or single-letter roads.
+export function normalizeRepeatedServiceLocality(address: string) {
+  return address.replace(/(\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|pky|terrace|ter|circle|cir|trail|trl|trace|trce|square|sq|way|loop)\.?)[,\s]+([A-Z][A-Z .'-]*?)(?:[,\s]+\2)+(?=,?\s+(?:(?:LA|LOUISIANA)[,\s]+)?\d{5}(?:-\d{4})?\s*$)/i,'$1 $2');
+}
+export function serviceUnitIdentifiers(address: string) {
+  const value=explicitServiceUnits(address);
+  return [...value.matchAll(units)].filter(match=>recognizedUnit(value,match[0],match.index!)).map(match => match[0]
+    .replace(/^(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space)\.?\s*/i,'')
+    .replace(/^[#\s]+/,'').replace(/[,\s]+$/,'').toUpperCase().replace(/-/g,''));
+}
+export const withoutServiceUnit = (address: string) => normalizeRepeatedServiceLocality(replaceServiceUnits(address,()=> ' ').replace(/\s+/g,' ').trim());
+const queryFormatting = (address: string) => address.replace(/\bStr\b/ig,'Street').replace(/\bPky\b/ig,'Pkwy').replace(/\bLA\s*-\s*(\d+)\b/ig,'LA Highway $1').replace(/\s*,\s*/g,', ').trim();
+// Read pre-normalization provider cache keys without making another lookup.
+export function legacyServiceQuery(address: string) {
+  return queryFormatting(explicitServiceUnits(cleanServiceAddressForVerification(address)).replace(legacyUnits,' ').replace(/\s+/g,' ').trim());
+}
 export function cleanServiceQuery(address: string) {
-  const value = withoutServiceUnit(cleanServiceAddressForVerification(address)).replace(/\bStr\b/ig,'Street').replace(/\bPky\b/ig,'Pkwy').replace(/\bLA\s*-\s*(\d+)\b/ig,'LA Highway $1').replace(/\s*,\s*/g,', ');
+  const value = queryFormatting(withoutServiceUnit(cleanServiceAddressForVerification(address)));
   return value.trim();
 }
 export function appointmentServiceAddress(job: {address:string;mapAddress?:string}) {
   if (!job.mapAddress) return job.address;
-  const sourceUnits = explicitServiceUnits(job.address).match(units)?.map(unit=>unit.replace(/[,\s]+$/,'').trim()) || [];
+  const sourceUnits:string[]=[];
+  replaceServiceUnits(job.address,unit=>{sourceUnits.push(unit.replace(/[,\s]+$/,'').trim());return unit;});
   if (!sourceUnits.length) return job.mapAddress;
   // Source units remain the crew instruction even if the provider omits them
   // or returns a conflicting unit. Never replace Apt 2 with Apt 20.
-  const mapped = explicitServiceUnits(job.mapAddress).replace(units, unit => /,\s*$/.test(unit) ? ', ' : ' ').replace(/(?:,\s*){2,}/g, ', ').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
+  const mapped = replaceServiceUnits(job.mapAddress, unit => /,\s*$/.test(unit) ? ', ' : ' ').replace(/(?:,\s*){2,}/g, ', ').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
   const comma = mapped.indexOf(',');
   return comma < 0 ? `${mapped}, ${sourceUnits.join(', ')}` : `${mapped.slice(0,comma)}, ${sourceUnits.join(', ')},${mapped.slice(comma+1)}`;
 }

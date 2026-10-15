@@ -3,7 +3,7 @@ import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-p
 import { cleanJunkwareAddressText } from './junkware-address-text';
 import { osmAddressJson } from './osm-address-transport';
 import type { AddressVerification } from './desktop-address-verification';
-import {cleanServiceQuery,normalizeServiceAddress} from './service-address-format';
+import {cleanServiceQuery,normalizeServiceAddress,serviceUnitIdentifiers} from './service-address-format';
 import {hasMinorStreetCorrection} from './address-spelling-correction';
 import {approximateMapAddressQuery} from './address-map-query';
 
@@ -32,6 +32,8 @@ export function verifyOsmServiceAddress(address:string,payload:unknown):AddressV
   const identities=new Set(rows.map(row=>JSON.stringify([row.osm_type,row.osm_id,row.lat,row.lon,row.address])));
   if(identities.size!==1)return {location:null,reason:'Multiple Address Matches'};
   const row=rows[0],a=row.address || {},city=a.city||a.town||a.village||'';
+  const units=serviceUnitIdentifiers(address);
+  if(new Set(units).size>1 || a.unit && (!units.length || units[0]!==a.unit.toUpperCase().replace(/-/g,'')))return unavailable;
   const sourceHouse=serviceHouseAndStreet(query);
   if (!sourceHouse || normalizeHouseNumber(sourceHouse.house)!==normalizeHouseNumber(a.house_number || '')) return unavailable;
   const requested=normalize(query).replace(/ (?:LA|LOUISIANA)$/,'');

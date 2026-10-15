@@ -1,5 +1,39 @@
 # Address verification completion
 
+## October 15, 2026 policy update
+
+Policy 18 recognizes explicit Lot, Trailer, Trlr and Space unit labels alongside
+the existing unit aliases. Only comparison/query text is normalized; raw customer
+addresses and unit instructions stay intact. Fallbacks reject conflicting unit
+identifiers or multiple distinct unit/building identities. A missing provider
+unit can still supply an explicitly approximate complex entrance. Unit-bearing
+Geocodio responses remain ineligible for exact-premises verification.
+
+Adjacent repeated full locality text is collapsed only after a recognized road
+suffix and before the postal tail. This handles duplicated cities without
+changing street words, single-letter roads, house numbers or ZIPs. The shared
+normalizer applies to provider queries and exact verification. Map readers also
+check legacy provider cache keys, so already saved evidence remains usable.
+Old negative verification entries are re-evaluated; positive entries must pass
+current identity checks. No provider, request limit or spending policy changes.
+
+**Approximate pins are navigation-only.** This supersedes the October 12 GPS
+policy described historically below. All ordinary and reviewed map fallbacks
+are excluded from live GPS presence and from the Python matcher. Previously
+recorded approximate pins cannot infer new presence/departure events or override
+verified premises. Existing recorded visit provenance remains readable; no
+history migration, activation-state reset or operational replay is included.
+Verified premises continue to qualify under the existing GPS rules.
+
+Road comparisons have a 30-second total budget across their sequential tables,
+below the client's 45-second timeout. They return completed road estimates when
+a later table stalls; unavailable trucks remain unavailable and the UI labels
+incomplete comparisons. Late shared transport responses may fill their existing
+cache but cannot alter the published comparison. Rate limits, provider deadlines,
+request deduplication and cache limits are unchanged. This addresses a reproduced
+serial-batch timeout path; it does not establish the cause of a particular user's
+spinner without request-duration evidence.
+
 Every collected appointment address remains eligible for free verification and urgent oversight until verified, including completed, closed, canceled and unassigned records. Appointment outcome cannot clear an address failure. Square/SQ is a formatting equivalence; directions and house numbers must still match. Provider failures must remain visible and owned, with escalation. Verification cannot be fabricated to satisfy coverage. Evidence-backed source corrections use the durable reviewed-address store and preserve the original source field.
 
 The paid research candidate scope and spending approvals remain unchanged. Completed and canceled records are covered by ordinary free verification and urgent ownership, without expanding paid usage.
@@ -18,7 +52,7 @@ As requested on October 12, 2026, Control and Job Order select the best availabl
 
 The board shows the selected point as Approximate and provides an Open pin link; ambiguity no longer asks the dispatcher to confirm or correct an address. If no usable provider point exists, every appointment still has an Area locator at its dispatch-territory map center, or the operating-area overview for unknown territory. This marker explicitly says the property is not located; it is never used for travel, nearest-truck or visit detection. Coverage shows locators and area-only counts separately, and background lookup continues. Street suffix corrections, duplicated localities, a locality word omitted from the road name and differing ZIPs may supply display evidence. Explicit conflicting states, directions, house numbers, unrelated streets and invalid coordinates cannot. Out-of-state display points are supported within the continental US. The source address remains unchanged, and the candidate address and source remain inspectable.
 
-This fallback reads the existing bounded provider caches; it creates no additional provider calls or spending. Recent expired cache evidence remains available for up to seven days with an explicit last-result label. Verified coordinates always win. Approximate points never enter `planningLocation` or the shared verified geocode cache. The October 12 arrival/departure policy below separately admits labeled approximate visit evidence. The board counts map coverage separately from verified-property coverage and continues exact verification in the existing worker.
+This fallback reads the existing bounded provider caches; it creates no additional provider calls or spending. Recent expired cache evidence remains available for up to seven days with an explicit last-result label. Verified coordinates always win. Approximate points never enter `planningLocation` or the shared verified geocode cache. The October 15 policy above excludes approximate visit evidence. The board counts map coverage separately from verified-property coverage and continues exact verification in the existing worker.
 
 When OpenStreetMap returns only a road, its point may supply an approximate pin if the complete road name, direction, locality, state and ZIP match. The result must be an identified road way with valid bounds containing its coordinate and spanning no more than 0.03 degrees on either axis. Long highways and locality centroids do not qualify. Matching house-level candidates always rank ahead of street-only results. Pin details identify the street-level estimate without claiming that the house was located; the original house number stays on the appointment. This reads the existing search response and adds no lookup or spending.
 
@@ -34,7 +68,7 @@ Street parsing recognizes `Trace` and postal abbreviation `Trce`; normalization 
 
 The same bounded `Cr` display query also replaces an otherwise unsupported Geocodio query in the automatic worker. It uses the existing single free lookup slot, cache, deadline and limits, including after evidence expires. The transformed query can populate approximate evidence only; its verification result cannot promote the original source to a verified location. Provider backoff remains honored.
 
-## Approximate arrival and departure pins (October 12, 2026)
+## Historical approximate arrival and departure policy (October 12; superseded October 15)
 
 At the owner's explicit request, arrival and departure detection may use the
 same best available cached map point shown by Control/Job Order, including

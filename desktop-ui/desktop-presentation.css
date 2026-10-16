@@ -43,3 +43,4 @@
 .ops-app.ops-live :is(.crew-today-actions button,.convoy-text-button,.convoy-row-link,.convoy-truck-link) { color: var(--ops-brand-red); }
 .ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
 .ops-app.ops-live .schedule-control-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
+.ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }

@@ -22,3 +22,7 @@ Workspace page tabs use `WorkspaceTabs`: one underline style, optional counts,
 roving keyboard focus, Arrow Left/Right and Home/End. Page titles use the same
 26px token. Primary cards share one radius, border and shadow. Brand red is the
 accent; semantic success and failure colors remain reserved for status.
+
+`MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
+dash. Its tooltip and accessible label retain the reason; source notes and
+refresh errors remain visible. Real zeroes keep their numeric presentation.

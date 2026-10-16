@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import { TruckLevelGauges } from './convoy-gauges';
 import { useState } from "react";
 import {
@@ -92,7 +93,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
         <summary>
           <Wrench size={16} />
           <span>
-            <strong>{issue.title}</strong>
+            <strong><MetricValue value={issue.title} /></strong>
             <small>
               {issue.owner || "Shop / contact not recorded"} · Updated {updated(issue.updatedAt)}
             </small>
@@ -268,7 +269,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
                   <Truck size={21} />
                 </span>
                 <span className="convoy-visit-label">
-                  <strong>{label(t.label)}</strong>
+                  <strong><MetricValue value={label(t.label)} /></strong>
                   <span>
                     Inspection: {t.checklist} · {active.length} active{" "}
                     {active.length === 1 ? "repair" : "repairs"}

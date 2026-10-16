@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import type { MonthlyTruckMileage } from '../lib/fleet-monthly-mileage';
 
 export function MonthlyMileage({ mileage, date, compact = false }: { mileage?: MonthlyTruckMileage; date: string; compact?: boolean }) {
@@ -6,7 +7,7 @@ export function MonthlyMileage({ mileage, date, compact = false }: { mileage?: M
   const stamp = (value: string) => new Date(value).toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
   return <div className="convoy-monthly-mileage">
     <span className="convoy-fact-label">{compact ? label : `Monthly mileage · ${label}`}</span>
-    <strong>{mileage?.recordedMiles == null ? 'Unavailable' : `${mileage.recordedMiles.toLocaleString('en-US', { maximumFractionDigits: 1 })} mi recorded`}</strong>
+    <strong><MetricValue value={mileage?.recordedMiles == null ? null : `${mileage.recordedMiles.toLocaleString('en-US', { maximumFractionDigits: 1 })} mi recorded`} reason="No usable recorded mileage for the selected month" /></strong>
     {!compact && <details><summary>Mileage coverage</summary>
       <small>{mileage ? `${mileage.tripDays}/${mileage.expectedDays} days with trips · ${mileage.status === 'partial' ? 'Partial coverage' : 'No usable trip mileage'}` : 'Mileage source unavailable'}</small>
       <small>Saved LinxUp closed trips in America/Chicago through {mileage?.throughDate || date}. Missing days are not zero; recorded miles are not a complete monthly total.</small>

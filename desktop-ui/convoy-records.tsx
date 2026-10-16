@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import { useId, useState } from 'react';
 import { Search, FileText, ArrowRight, Download, SlidersHorizontal, ChevronDown, ChevronRight, Image as ImageIcon, Wrench, Truck, X, ExternalLink } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -64,8 +65,8 @@ export function ConvoyRecords({snapshot,trucks,truckId='',onTruck,open,compact=f
             <button className="convoy-visit-toggle" aria-expanded={isOpen} aria-controls={`${controlId}-${index}-work`} aria-label={`${isOpen?'Collapse':'Expand'} ${row.title}, ${truckLabel(row.truck)}, ${dateLabel(row.date)}`} onClick={()=>setExpanded(isOpen?'':row.id)}>
               <span className="convoy-visit-date"><time dateTime={row.date}>{dateLabel(row.date)}</time><span>{row.kind==='repair'?'Updated':truckLabel(row.truck)}</span></span>
               <span className="convoy-visit-icon">{row.kind==='invoice'?<FileText size={21}/>:row.kind==='repair'?<Wrench size={21}/>:<Truck size={21}/>}</span>
-              <span className="convoy-visit-label"><strong>{visitTitle(row)}</strong><span>{[row.kind==='invoice'?row.title:statusLabel(row.status),row.kind==='repair'?truckLabel(row.truck):row.record?.vendor||'Shop not recorded'].join(' · ')}</span><span className="convoy-visit-metadata">{row.record?.odometer!=null?`${row.record.odometer.toLocaleString()} mi`:'Mileage not recorded'}{photos.length?` · ${photos.length} ${photos.length===1?'photo':'photos'}`:''}{row.kind==='invoice'&&row.status!=='completed'?` · ${statusLabel(row.status)}`:''}</span></span>
-              <span className="convoy-visit-cost"><strong>{money(row.cost)}</strong><span>{row.kind==='invoice'?'Invoice total':'Recorded cost'}</span></span>
+              <span className="convoy-visit-label"><strong><MetricValue value={visitTitle(row)} /></strong><span>{[row.kind==='invoice'?row.title:statusLabel(row.status),row.kind==='repair'?truckLabel(row.truck):row.record?.vendor||'Shop not recorded'].join(' · ')}</span><span className="convoy-visit-metadata">{row.record?.odometer!=null?`${row.record.odometer.toLocaleString()} mi`:'Mileage not recorded'}{photos.length?` · ${photos.length} ${photos.length===1?'photo':'photos'}`:''}{row.kind==='invoice'&&row.status!=='completed'?` · ${statusLabel(row.status)}`:''}</span></span>
+              <span className="convoy-visit-cost"><strong><MetricValue value={money(row.cost)} /></strong><span>{row.kind==='invoice'?'Invoice total':'Recorded cost'}</span></span>
               {isOpen?<ChevronDown size={18}/>:<ChevronRight size={18}/>}
             </button>
             {isOpen&&<div className="convoy-visit-expanded" id={`${controlId}-${index}-work`}>
@@ -76,8 +77,8 @@ export function ConvoyRecords({snapshot,trucks,truckId='',onTruck,open,compact=f
           </article>
         </div>;
       })}</div>
-      {!entries.length&&<div className="convoy-repair-empty"><FileText size={24}/><strong>{filtered?'No matching records':'No records saved for this truck'}</strong><p>{filtered?'Try a different truck, clear the filters, or widen the date range.':'Completed work will appear here after you record a service visit.'}</p>{filtered&&<Button variant="outline" onClick={reset}>Clear filters</Button>}</div>}
-      <footer className="convoy-journal-footer"><span><strong>{money(costs.total)}</strong> recorded for completed work{costs.missing?` · ${costs.missing} missing ${costs.missing===1?'total':'totals'}`:''}</span><details><summary>About these records</summary><p>Each invoice appears once. Totals cover all work on the bill, even when filtering by category. Missing costs are unknown. Repair dates show the latest update. History includes all dates unless you set a date filter.</p></details></footer>
+      {!entries.length&&<div className="convoy-repair-empty"><FileText size={24}/><strong><MetricValue value={filtered?'No matching records':'No records saved for this truck'} /></strong><p>{filtered?'Try a different truck, clear the filters, or widen the date range.':'Completed work will appear here after you record a service visit.'}</p>{filtered&&<Button variant="outline" onClick={reset}>Clear filters</Button>}</div>}
+      <footer className="convoy-journal-footer"><span><strong><MetricValue value={money(costs.total)} /></strong> recorded for completed work{costs.missing?` · ${costs.missing} missing ${costs.missing===1?'total':'totals'}`:''}</span><details><summary>About these records</summary><p>Each invoice appears once. Totals cover all work on the bill, even when filtering by category. Missing costs are unknown. Repair dates show the latest update. History includes all dates unless you set a date filter.</p></details></footer>
     </div>
   </section>;
 }

@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import { MonthlyMileage } from './monthly-mileage';
 import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
@@ -115,7 +116,7 @@ function Metric({
 }) {
   const content = (
     <>
-      <strong>{value}</strong>
+      <strong><MetricValue value={value} /></strong>
       <span>{title}</span>
       <small>{detail}</small>
     </>
@@ -129,7 +130,7 @@ function Metric({
   );
 }
 function TruckVin({truck}: {truck: DesktopFleetTruck}) {
-  return <div className="convoy-vin"><strong>{truck.vinNeedsVerification ? 'Needs verification' : truck.vin || 'Not recorded'}</strong><small>{truck.vinNeedsVerification ? 'Check the vehicle record' : truck.vin ? 'LinxUp vehicle record' : 'No VIN in the vehicle record'}</small></div>;
+  return <div className="convoy-vin"><strong><MetricValue value={truck.vinNeedsVerification ? 'Needs verification' : truck.vin || 'Not recorded'} /></strong><small>{truck.vinNeedsVerification ? 'Check the vehicle record' : truck.vin ? 'LinxUp vehicle record' : 'No VIN in the vehicle record'}</small></div>;
 }
 export function Mileage({
   truck,
@@ -148,7 +149,7 @@ export function Mileage({
     review = truckMileageReview(truck,records,now), q = review.quality;
   return (
     <div className="convoy-mileage">
-      <strong>{q === "conflict" ? "Needs verification" : miles(m?.value)}</strong>
+      <strong><MetricValue value={q === "conflict" ? "Needs verification" : miles(m?.value)} /></strong>
       <small>
         {q === "conflict"
           ? review.belowService
@@ -443,9 +444,9 @@ export function ConvoyDashboard(props: DashboardProps) {
                   <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
-                  <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong></td>
+                  <td data-label="Mileage"><strong><MetricValue value={q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)} /></strong></td>
                   <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
-                  <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
+                  <td data-label="Fuel" title={fuel?.detail}><strong><MetricValue value={fuel ? `${fuel.percent}%` : 'Not recorded'} /></strong>
                     {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>
                   <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>
                     {loadKnown && <><small>Recorded estimate</small><small className="convoy-row-observed" title={`Load observed ${stamp(t.loadUpdatedAt)}`}>{stamp(t.loadUpdatedAt)}</small></>}</td>

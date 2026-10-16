@@ -1,4 +1,5 @@
 'use client';
+import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
 import { metricNumber } from '../command-revenue-hero';
@@ -4405,7 +4406,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             {commandKpiRows.filter(kpi => kpi.label !== 'Revenue').map((kpi) => (
               <button type="button" data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
-                <DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /><strong>{kpi.value}</strong>
+                <DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /><strong><MetricValue value={kpi.value} reason={kpi.detail} /></strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>
                   {kpi.segments ? kpi.segments.map((segment) => (

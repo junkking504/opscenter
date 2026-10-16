@@ -35,6 +35,7 @@ export function crewAppointmentStatus(value:string) {
 export function crewAssignmentUpdateToken(payload: CrewCurrent) {
   return createHash('sha256').update(JSON.stringify({
     state:payload.state,
+    visibility:payload.visibility,
     truck:payload.truck,
     job:payload.job?.assignmentId || null,
     jobs:payload.jobs || [],
@@ -58,6 +59,16 @@ function withUpdateToken(payload:CrewCurrent):CrewCurrent {
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
 export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'> & {reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
+  return assignedDay(phone,date,deps,now,false);
+}
+
+/** Browsing projection only: callers must obtain allTrucks from server policy.
+ * The original crewAssignedDay remains the sole truck-day write-scope source. */
+export function crewVisibleDay(phone: CrewPhone, date: string, allTrucks: boolean, deps: Parameters<typeof crewAssignedDay>[2] = sources, now = Date.now()): CrewCurrent {
+  return assignedDay(phone,date,deps,now,allTrucks);
+}
+
+function assignedDay(phone: CrewPhone, date: string, deps: NonNullable<Parameters<typeof crewAssignedDay>[2]>, now: number, allTrucks: boolean): CrewCurrent {
   const snapshot = deps.snapshot(date);
   const age = snapshot ? now - snapshot.freshnessAtMs : Infinity;
   if (!snapshot || snapshot.date !== date || age < 0 || age > 120_000) return withUpdateToken({
@@ -78,7 +89,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     const assignedTruck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
     const truck=isAmazonJob(row)?amazonAssignedTruck(assignedTruck):assignedTruck;
     if (!/^\d{1,12}$/.test(row.appointmentId) || counts.get(row.appointmentId) !== 1
-      || (!sameTruck(truck, phone.truck) && !isAmazonJob(row)) || !crewAppointmentStatus(row.status)
+      || (!sameTruck(truck, phone.truck) && !isAmazonJob(row) && !(allTrucks && truckNumber(truck)!==null)) || !crewAppointmentStatus(row.status)
       || (override && override.junkwareSyncStatus !== 'verified')) return [];
     return [{...row,truck,assignedTruck:truck,
       ...(newerVerifiedMove && override?.appointmentTime ? {appointmentTime:override.appointmentTime} : {}),
@@ -86,7 +97,8 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
   });
   const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
     .map(row => {
-      const reset=deps.reset?.(phone.truck,date,row.appointmentId) || null;
+      const readOnly=!sameTruck(row.truck,phone.truck) && !isAmazonJob(row);
+      const reset=readOnly?null:deps.reset?.(phone.truck,date,row.appointmentId) || null;
       return ({
       appointmentId: row.appointmentId, date, truck:row.truck, sharedAmazon:isAmazonJob(row), jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
@@ -98,6 +110,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
       } : {}),
       // Draft identity follows the appointment, never its current/queued slot.
       // Aliases are migration hints only; request scope checks are unchanged.
+      ...(readOnly ? {readOnly:true} : {
       draftScope: `appointment:${date}:${row.appointmentId}:${reset?.token || 'original'}`,
       draftAssignmentIds: [...new Set([
         crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
@@ -106,8 +119,9 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
       assignmentId: current?.date === date && current.appointmentId === row.appointmentId
         ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
       ...(reset?{resetAt:reset.resetAt,resetPriorAssignmentId:reset.priorAssignmentId}:{}),
+      }),
     });});
   const active = jobs.find(job => job.assignmentId);
-  return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,
+  return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,...(allTrucks?{visibility:'all-trucks' as const}:{}),
     job: active?.assignmentId ? {...active, assignmentId: active.assignmentId} : null});
 }

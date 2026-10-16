@@ -3,7 +3,7 @@ import {readyCrewInspection} from './fixtures/crew-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {randomBytes,randomUUID} from 'node:crypto';
+import {createHash,randomBytes,randomUUID} from 'node:crypto';
 async function main(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crew-job-scope-'));
  process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_TRUCK_INSPECTION_DIR=path.join(dir,'inspections');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
@@ -15,10 +15,15 @@ async function main(){
   const {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone}=await import('../lib/crew-phone-store');
   const {releaseCrewJob}=await import('../lib/crew-dispatch-store');
   const {CREW_PHONE_COOKIE}=await import('../lib/crew-phone');
-  const token=randomBytes(32).toString('hex'),invite=createCrewPhoneEnrollment('Truck 6','Test company phone','test-manager');
+  const actor='crew-self-setup:'+createHash('sha256').update('2255550101').digest('hex');
+  const token=randomBytes(32).toString('hex'),invite=createCrewPhoneEnrollment('Truck 6','Test company phone',actor);
   const phone=enrollCrewPhone(invite.code,token),date=chicagoDateKey();
   saveCrewDay(phone,{date,requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:[]});
   readyCrewInspection(phone);
+  fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR!,'directory.json'),JSON.stringify({schema:1,company:[{label:'Fixture Operations',number:'225-555-0101',truck:'Truck 6'}],managers:[]}));
+  fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR!,'appointment-visibility.json'),JSON.stringify({schema:1,purpose:'waypoint-all-truck-read',approvedBy:'fixture-owner',approvedAt:new Date().toISOString(),contacts:[{kind:'company',name:'Fixture Operations',number:'225-555-0101'}]}));
+  const {crewCanBrowseAllTrucks}=await import('../lib/crew-appointment-visibility');
+  assert.equal(crewCanBrowseAllTrucks(phone),true,'Exercise write gates with an approved all-truck viewer');
   const state=releaseCrewJob({truck:'Truck 6',date,appointmentId:'900001',expectedVersion:0,requestId:randomUUID()},'test-manager');
   const current=state.current!;
   const request=new Request('https://ops.example.invalid/api/crew-jobs/photos',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});
@@ -32,6 +37,8 @@ async function main(){
   const action=async()=>{calls++;return 'success';};
   await assert.rejects(withCrewJob(new Request(request.url),current.assignmentId,action,deps),/manager setup/);
   await assert.rejects(withCrewJob(request,randomUUID(),action,deps),/truck assignment changed/i);
+  const {crewScheduleAssignmentId}=await import('../lib/crew-assigned-day');
+  await assert.rejects(withCrewJob(request,crewScheduleAssignmentId('Truck 5',date,'900003'),action,deps),/truck assignment changed/i,'Guessing another truck’s deterministic assignment ID grants no write access');
   sourceTruck='Truck 5';await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/no longer assigned/);sourceTruck='Truck 6';
   sourceDate='2020-01-01';await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/no longer assigned/);sourceDate=date;
   observedAt=null;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/source is unavailable/);observedAt=new Date().toISOString();

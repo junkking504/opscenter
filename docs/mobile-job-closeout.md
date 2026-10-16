@@ -881,3 +881,39 @@ Validation uses synthetic signatures and mocked provider pages; no test signs or
 closes a customer appointment. Existing signatures may be inspected read-only.
 
 Amazon jobs in JunkWare’s Virtual Truck/unassigned lane are shared too. JunkWare requires a numbered truck at completion; Waypoint uses the completing phone’s truck for those jobs while retaining the native Eugene/Robert/Lance assignee. Jobs already assigned to a numbered truck retain that truck. Unknown truck labels fail verification.
+
+## Optional all-truck appointment browsing
+
+An explicitly approved phone identity can receive a read-only view of the current
+day's confirmed and completed appointments on all numbered trucks. This is a
+separate browsing policy, not a manager role or a change to job authority.
+`crewAssignedDay` remains truck-scoped (including the existing shared Amazon
+exception). Dispatch, photo staging, payment and closeout continue using that
+original scope and the existing source checks. `crewVisibleDay` is used only for
+the current screen and its change token; additional appointments have `readOnly`
+and no assignment/draft identifiers. The UI labels their truck and hides closeout.
+Truck summaries, crew changes and truck switches retain their existing scope.
+
+The policy is disabled when the private runtime file
+`crew-phones/appointment-visibility.json` is absent, malformed or unapproved.
+Its shape is `{schema:1,purpose:"waypoint-all-truck-read",approvedBy,approvedAt,
+contacts:[{kind:"manager"|"company",name,number}]}`. Each entry must match the
+private directory's exact full manager name or company label and number uniquely.
+The authenticated device's immutable binding actor must match the existing
+`crew-self-setup` identity for that number. A display label, selected crew name,
+truck default, payroll login or manager session cannot grant this permission.
+Manual enrollments without that identity evidence do not inherit the exception.
+No private contact data or approval file belongs in Git.
+
+Installing the policy requires separate approval of the exact contacts. Routine
+build/deployment must not create it. This change creates no enrollments and sends
+no setup messages. Daily enrollment, live-versus-sandbox separation, daily truck
+and crew setup, inspection, revocation, schedule freshness, duplicate identity
+and pending-move checks remain required. Cancelled appointments, ordinary
+unassigned appointments and unknown truck labels retain their existing exclusion;
+the established shared Amazon behavior is unchanged. Expanding dates, statuses,
+setup/inspection bypasses or write capabilities requires a separate decision.
+
+Validation: `npm run verify:waypoint-visibility` covers exact identity matching,
+fail-closed approval, revoked/expired/sandbox phones, read-only projection,
+API/dispatch separation and write-scope denial with an approved browsing policy.

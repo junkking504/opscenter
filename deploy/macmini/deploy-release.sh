@@ -19,6 +19,7 @@ DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 source "$SCRIPT_DIR/release-services.sh"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
+PRESERVE_RELEASES="${OPSCENTER_PRESERVE_RELEASES:-true}"
 RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="${OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20}"
 PRODUCTION_REF="refs/remotes/origin/production"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
@@ -93,6 +94,10 @@ activate_release() {
 }
 
 prune_superseded_releases() {
+  if [[ "$PRESERVE_RELEASES" == true ]]; then
+    echo "Preserving all existing releases; deployment retention skipped."
+    return 0
+  fi
   # Cleanup failure must preserve files and report itself, not roll back a
   # healthy application. The helper shares this deployment's lock.
   python3 "$SCRIPT_DIR/workspace-retention.py" --apply --scope production \
@@ -127,6 +132,7 @@ restore_previous_release() {
 }
 
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
+[[ "$PRESERVE_RELEASES" == true || "$PRESERVE_RELEASES" == false ]] || fail "OPSCENTER_PRESERVE_RELEASES must be true or false"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
 [[ "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" == <-> && "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS must be a positive integer"

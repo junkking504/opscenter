@@ -10,6 +10,7 @@ import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
+import {propertyNameSearch} from './property-name-search';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -49,6 +50,7 @@ function matchesStreet(requested: string, house: string, street: string, city: s
 
 // Match returned components, never a city centroid or a nearby street/house.
 export function verifyAddressResult(address: string, payload: Payload): AddressVerification {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanServiceAddressForVerification(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   if(payload.status!=='OK') return {location:null,reason:`Geocoding ${payload.status || 'Unavailable'}`};
@@ -120,6 +122,7 @@ async function requestGeocode(address:string):Promise<{payload:unknown;failed:bo
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
 const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'),'cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
 export function cachedAddressVerification(address:string):AddressVerification|undefined {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanJunkwareAddressText(address);
   const reviewed = reviewedServiceAddress(address); if (reviewed) return {...reviewed,matchedAddress:reviewed.verifiedAddress};
   const row=cache.get(address);
@@ -147,6 +150,7 @@ export function addressQueries(address: string) {
   return [...new Set([withState,full,street,withoutUnit])];
 }
 export async function verifyDesktopAddress(address:string):Promise<AddressVerification> {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanJunkwareAddressText(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   const disk=cachedAddressVerification(address); if(disk) return disk;

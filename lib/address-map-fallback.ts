@@ -1,4 +1,5 @@
 import {readReviewedAddressNavigation} from './reviewed-address-navigation';
+import {propertyNameSearch} from './property-name-search';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -128,6 +129,7 @@ function usableOsmStreetPoint(row:any) {
 /** Reuse evidence from the already approved, rate-limited lookups. No new
  * provider calls, credentials, quota, paid requests or inferred coordinates. */
 export function readAddressMapFallback(address:string,now=Date.now()):AddressMapFallback|null {
+  if(propertyNameSearch(address))return null;
   const root=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
   const reviewed=readReviewedAddressNavigation(address,root,now);
   if(reviewed)return reviewed;

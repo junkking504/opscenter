@@ -182,3 +182,16 @@ Control's selected appointment has an explicit Directions to address action,
 using the original source address in a Google Maps URL. This is separate from
 View approximate pin, which opens OpsCenter's stored coordinates. Maps URLs
 require no API key; they do not import a Google geocode into OpsCenter.
+
+# Property-name recovery — October 16, 2026
+
+A named apartment property followed by a number and road suffix alone (for
+example, `Example Lakes Apartment 310 Blvd`) is not a complete street address.
+Preserve the original source and offer a separate property-name/locality search
+link in the appointment summary. Only the name and explicit locality go into
+that user-opened link; no new automatic provider request is added. Conflicting
+localities, additional notes and explicit building ambiguity remain unresolved.
+The numeric identifier is unverified. A search candidate has no coordinates and
+cannot establish a unit, building, entrance, route destination or GPS visit.
+Existing ordinary street/business-prefix parsing remains unchanged. Any future
+automatic complex lookup is a separate reviewed feature.

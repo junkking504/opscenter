@@ -1,4 +1,5 @@
 import {appointmentDirectionsHref} from '../lib/appointment-navigation';
+import {propertyNameSearch} from '../lib/property-name-search';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import { completedOnsiteClockRange } from '../lib/appointment-onsite-time';
@@ -17,6 +18,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
   coverageNote?: string; job: ScheduleAppointment; closest: ClosestTruck | null; loading: boolean; error?: boolean; checkedAt?: string | null; retry?: () => void; isToday: boolean; busy: boolean; open: () => void; clear: () => void;
 }) {
   const directionsHref=appointmentDirectionsHref(job.address);
+  const propertySearch=!job.location && !job.mapFallback ? propertyNameSearch(job.address) : null;
   const partner = appointmentPartner(job);
   const status = appointmentStatus(job);
   const onsiteClocks = status === 'Completed' ? completedOnsiteClockRange(displayedOnsiteTime(job)) : null;
@@ -43,6 +45,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
       <div className="selected-job-contact">{job.address ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))}`} target="_blank" rel="noopener noreferrer"><MapPin size={14} />{appointmentServiceAddress(job)}</a> : <span>Address unavailable</span>}{phone.length >= 7 && <a href={`tel:+${phone.length === 10 ? '1' : ''}${phone}`}><Phone size={14} />{job.phone}</a>}</div>
 
       {directionsHref && <div className="selected-job-map-evidence"><a href={directionsHref} target="_blank" rel="noopener noreferrer">Directions to address</a></div>}
+      {propertySearch && <div className="selected-job-map-evidence"><a href={propertySearch.href} target="_blank" rel="noopener noreferrer">Search property name</a><small>Possible complex: {propertySearch.name}. Source identifier {propertySearch.unresolvedIdentifier} is unverified. Search results are approximate; unit, building and entrance are unconfirmed. Not used for arrival or departure detection.</small></div>}
       {locator.kind==='area' && <div className="selected-job-map-evidence"><strong>{locator.label}</strong><small>{locator.detail}</small></div>}
       {!job.location && job.mapFallback && <div className="selected-job-map-evidence"><div><span>{job.mapFallback.navigationReviewed ? 'Approximate address location' : 'Approximate'}</span><a href={`https://www.google.com/maps/search/?api=1&query=${job.mapFallback.location.latitude},${job.mapFallback.location.longitude}`} target="_blank" rel="noopener noreferrer">{job.mapFallback.navigationReviewed ? 'View approximate address pin' : 'View approximate pin'}</a></div><details><summary>Pin details</summary><span>{job.mapFallback.matchedAddress}</span><small>{job.mapFallback.detail}</small><a href={job.mapFallback.sourceUrl} target="_blank" rel="noopener noreferrer">{job.mapFallback.source}</a></details></div>}
       <div className="selected-job-work"><b>Work</b><span>{items ? excerpt(items,220) : 'Work not recorded'}</span>{items.length>220&&<button onClick={open} disabled={busy}>Read full description</button>}</div>

@@ -55,6 +55,13 @@ Management from treating every immutable-release symlink change as a newly
 added background program. Collector installers also leave an identical
 installed plist untouched while restarting the loaded service.
 
+Production deployments now preserve all existing releases by default. Both
+retention phases are skipped when `OPSCENTER_PRESERVE_RELEASES=true` (the default
+in the launcher and installed controller). The launcher forwards this setting
+explicitly; invalid values fail before deployment. Only a separately authorized
+cleanup may use `false`. This does not change scheduled retention or authorize
+cleanup. Install the reviewed controller before relying on this safeguard.
+
 Before deploying, commit and push the intended code, integrate it into
 `origin/production`, and install or refresh the reviewed controller explicitly:
 

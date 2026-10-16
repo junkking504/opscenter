@@ -30,4 +30,12 @@ const failed=renderToStaticMarkup(React.createElement(Summary,{job,closest:null,
 assert.ok(failed.includes('Lookup failed'));assert.ok(!failed.includes('Checking distance'));
 assert.ok(html.includes('entrance unconfirmed'));
 assert.ok(html.includes('Not used for arrival or departure detection'));
+const propertyAddress='Example Lakes Apartment 310 Blvd, Baton Rouge La, 70809 Baton Rouge, LA 70809';
+const property=renderToStaticMarkup(React.createElement(Summary,{job:{...job,address:propertyAddress,mapFallback:null},closest:null,loading:false,isToday:true,busy:false,open(){},clear(){}}));
+assert.ok(property.includes('Search property name'));
+assert.ok(property.includes(encodeURIComponent('Example Lakes Apartment, Baton Rouge, LA 70809')));
+assert.ok(property.includes(propertyAddress),'Original address remains visible');
+assert.ok(property.includes('Source identifier 310 is unverified'));
+assert.ok(!property.includes('View approximate pin'));
+assert.ok(!property.includes('query=30.05,-89.95'));
 console.log('Appointment navigation UI PASS: source-address directions, distinct reviewed-pin action and approximation disclosure.');

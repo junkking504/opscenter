@@ -1,6 +1,7 @@
 import { HOUSE_NUMBER_PATTERN } from './service-house-number';
 import { withoutServiceUnit } from './service-address-format';
 import { cleanJunkwareAddressText } from './junkware-address-text';
+import {propertyNameSearch} from './property-name-search';
 type PartnerSource = { address: string; customerName: string };
 
 // Partner identity belongs to the source business label, never an item brand
@@ -18,6 +19,7 @@ export function appointmentPartner(job: PartnerSource) {
 }
 
 export function serviceStreetCandidates(address: string): number[] {
+  if(propertyNameSearch(address))return [];
   // Scan the whole field. A number inside a business label or suite is not a
   // street number unless followed by a recognizable street expression.
   const start = `(?<![A-Z0-9/#-])${HOUSE_NUMBER_PATTERN}`;

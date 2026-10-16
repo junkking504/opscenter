@@ -50,3 +50,15 @@ Command updates are compact native disclosure rows: time, type, truck, customer,
 and follow-up flag. Enter/Space expands the original detail block, including its
 source facts, photos, record link and existing workflow actions. Filters and
 newest-first ordering are unchanged; no detail is discarded to compact the feed.
+
+## Capital revenue pace
+
+MTD/YTD/Custom displays daily bars and two cumulative series against the same
+calendar dates last year. Today alone gets a brand-red bar; last year is dashed.
+The chart reuses the existing saved prediction dataset's actual revenue and the
+fresh selected-day finance value. It never uses forecast values as actuals.
+Daily bars use the left axis, cumulative lines the right. Missing days break the
+cumulative series rather than inventing zero revenue. Leap-day comparisons are
+unavailable where no matching date exists. Custom ranges are bounded to 366 days.
+Published monthly totals can have separate authority; the chart states its
+source and exposes a dated data table.

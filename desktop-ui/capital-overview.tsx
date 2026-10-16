@@ -1,13 +1,14 @@
+import { RevenuePace } from './revenue-pace';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
 import type { ReactNode } from 'react';
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, CheckCircle2, CircleAlert, CreditCard, Fuel, Package, Recycle, Wallet } from 'lucide-react';
 import { commercialMoney as money, commercialPercent as percent, commercialDate, type FinanceData, type FinanceView } from './lib/commercial-contract';
 import { verifiedPayments } from './lib/payment-verification';
-import { capitalRevenueHistory } from './lib/capital-overview';
+
 import './capital-overview.css';
 
-const compactMoney = new Intl.NumberFormat('en-US', { notation: 'compact', style: 'currency', currency: 'USD', maximumFractionDigits: 1 });
+
 
 export function CapitalOverview({ data, date, dailySummary, sourceDetails, onViewChange }: {
   data: FinanceData; date: string; dailySummary: ReactNode; sourceDetails?: ReactNode; onViewChange: (view: FinanceView) => void;
@@ -17,8 +18,6 @@ export function CapitalOverview({ data, date, dailySummary, sourceDetails, onVie
   const displayed = {revenue:data.month.revenue,costs:data.month.costs,profit:data.month.profit,averageJob:data.month.revenue != null && data.month.jobs ? data.month.revenue/data.month.jobs : null};
   const delta = (field: 'revenue'|'costs'|'profit'|'averageJob') => <DeltaChip current={displayed[field]} comparison={comparison && displayed[field] != null && comparison.current[field] != null && Math.abs(displayed[field]! - comparison.current[field]!) < .011 ? {prior:comparison.prior[field],label:`${comparison.priorStart}–${comparison.priorEnd}`} : undefined} lowerIsBetter={field === 'costs'} />;
   const verification = verifiedPayments(data.reconciliation);
-  const history = capitalRevenueHistory(data.trends, date);
-  const chartMax = Math.max(1, ...history.map(month => month.revenue ?? 0));
   const toList = data.resale.filter(item => !item.deletedAt && item.status === 'to_list').length;
   const unpaidRuns = data.recycling.filter(item => item.date <= date && item.status !== 'Paid').length;
   const missing = data.month.missingDates.length;
@@ -40,13 +39,7 @@ export function CapitalOverview({ data, date, dailySummary, sourceDetails, onVie
     </section>
     {sourceDetails}
     <div className="capital-main-grid">
-      <section className="capital-panel capital-performance"><header><div><span className="capital-eyebrow">REVENUE HISTORY</span><h3>See the bigger picture</h3></div><button className="capital-text-button" onClick={() => onViewChange('trends')}>Explore trends <ArrowRight size={14} /></button></header>
-        <div className="capital-chart-legend"><span><i /> Reported revenue</span><span><i className="partial" /> Partial month</span><span>USD · last 6 months</span></div>
-        <div className="capital-chart" role="img" aria-label={history.map(month => `${month.label}: ${money(month.revenue)}${month.partial ? ', partial month' : ''}`).join('; ')}>
-          <div className="capital-chart-scale"><span>{money(chartMax)}</span><span>{money(chartMax / 2)}</span><span>$0</span></div>
-          <div className="capital-chart-bars">{history.map(month => <div className="capital-chart-column" key={month.key}><span className="capital-chart-value">{month.revenue == null ? '—' : compactMoney.format(month.revenue)}</span><div className="capital-chart-track"><div className={`capital-chart-bar${month.partial ? ' partial' : ''}${month.revenue == null ? ' missing' : ''}`} style={{ height: month.revenue == null ? '100%' : `${Math.max(month.revenue > 0 ? 1 : 0, month.revenue / chartMax * 100)}%` }} /></div><span className="capital-chart-label">{month.label}{month.partial && <small>MTD</small>}</span></div>)}</div>
-        </div><footer>Published monthly revenue. Partial months are marked; missing values stay unavailable.</footer>
-      </section>
+      <RevenuePace days={data.revenuePace || []} date={date} />
       <section className="capital-panel capital-attention"><header><div><span className="capital-eyebrow">YOUR NEXT ACTIONS</span><h3>Needs attention</h3></div><span className="capital-count">{attention.length}</span></header>
         {attention.length ? <div className="capital-action-list">{attention.map(item => <button key={item.title} onClick={() => onViewChange(item.target)}><span className="capital-action-count">{item.value}</span><span><strong><MetricValue value={item.title} /></strong><small>{item.detail}</small></span><ArrowRight size={15} /></button>)}</div> : <div className="capital-all-clear"><CheckCircle2 size={26} /><strong>No open items in this snapshot</strong><p>Review the source records before closing the day.</p></div>}
         <button className="capital-attention-footer" onClick={() => onViewChange('payments')}>Review payments & closeout <ArrowRight size={15} /></button>

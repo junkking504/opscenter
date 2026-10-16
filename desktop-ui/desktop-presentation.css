@@ -83,3 +83,12 @@
 .crew-compact-update[open] > summary > svg { transform: rotate(90deg); }
 .ops-app .crew-compact-update .crew-update { margin: 0; border: 0; }
 @media(max-width:760px) { .ops-app .crew-compact-update>summary { grid-template-columns: 56px 1fr 52px 14px; gap: 5px; } .crew-compact-update>summary .crew-update-customer { grid-column: 2; } .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; } .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; } }
+.revenue-pace-chart { height: 240px; min-width: 0; font-size: var(--oc-type-11); }
+.pace-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--oc-type-11); color: var(--oc-text-muted); padding: 8px 0; }
+.pace-coverage,.revenue-pace details { font-size: var(--oc-type-11); color: var(--oc-text-muted); }
+.pace-dates { display: flex; gap: 12px; font-size: var(--oc-type-12); }
+.pace-dates label { display: flex; align-items: center; gap: 6px; }
+.pace-dates input { min-width: 0; padding: 5px; border: var(--desktop-card-border); border-radius: var(--radius-sm); }
+.pace-data { max-height: 260px; overflow: auto; }
+.pace-data table { width: 100%; text-align: left; font-variant-numeric: tabular-nums; }
+.ops-app .revenue-pace header { flex-wrap: wrap; }

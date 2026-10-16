@@ -92,6 +92,13 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   return { dailyComparison, fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
     operatingTrends: readOperatingTrends(date),
+    revenuePace: (() => {
+      try {
+        const start = `${Number(date.slice(0,4))-2}-01-01`;
+        const days = (readPredictionDataset()?.daily || []).filter(row => row.date >= start && row.date < date).map(row => ({date:row.date,revenue:finite(row.junkware.revenue)}));
+        return [...days,{date,revenue:dailySummary.revenue}];
+      } catch { return [{date,revenue:dailySummary.revenue}]; }
+    })(),
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses') : null, profit: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'net_profit') : null, source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), key) : null, source: monthCostsUsable ? 'Published daily metrics' : 'Cost inputs incomplete or stale' })),
     trends, trendComparisons: financeTrendComparisons(trends, readDaily, key => {

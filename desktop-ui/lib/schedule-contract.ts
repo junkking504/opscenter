@@ -1,4 +1,5 @@
 import {territoryMapCenters} from './schedule-map-layout';
+import {propertyNameSearch} from '../../lib/property-name-search';
 import type {AddressMapFallback} from '../../lib/address-map-fallback';
 import {appointmentServiceAddress} from '../../lib/service-address-format';
 export type ScheduleTruckVisit = { approximate?: boolean; truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
@@ -195,10 +196,11 @@ export function scheduleDisplayLocator(job: ScheduleAppointment) {
     return {location:point, kind:job.location ? 'verified' as const : 'approximate' as const,
       label:job.location ? 'Verified location' : 'Approximate location', detail:job.mapFallback?.detail || ''};
   const region=appointmentRegion({...job,address:job.address || '',territory:job.territory || ''}), center=territoryMapCenters[region.code];
+  const nextStep=propertyNameSearch(job.address || '') ? 'Search the property name to review possible matches; the source identifier and entrance remain unverified.' : 'Address lookup continues automatically.';
   return {location:{latitude:center?.[0] ?? 30.14,longitude:center?.[1] ?? -90.5},kind:'area' as const,
     label: 'Area locator · address pending',
-    detail:center ? `Shown at the ${territoryLabels[region.code]} map center. The property has not been located. Address lookup continues automatically.`
-      : 'Shown in the operating-area overview. The address and territory have not been located. Address lookup continues automatically.'};
+    detail:center ? `Shown at the ${territoryLabels[region.code]} map center. The property has not been located. ${nextStep}`
+      : `Shown in the operating-area overview. The address and territory have not been located. ${nextStep}`};
 }
 export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }

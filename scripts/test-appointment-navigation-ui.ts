@@ -36,6 +36,8 @@ assert.ok(property.includes('Search property name'));
 assert.ok(property.includes(encodeURIComponent('Example Lakes Apartment, Baton Rouge, LA 70809')));
 assert.ok(property.includes(propertyAddress),'Original address remains visible');
 assert.ok(property.includes('Source identifier 310 is unverified'));
+assert.ok(property.includes('Search the property name to review possible matches'));
+assert.ok(!property.includes('Address lookup continues automatically'));
 assert.ok(!property.includes('View approximate pin'));
 assert.ok(!property.includes('query=30.05,-89.95'));
 console.log('Appointment navigation UI PASS: source-address directions, distinct reviewed-pin action and approximation disclosure.');

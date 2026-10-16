@@ -9,7 +9,7 @@ import { closeoutPhotoCount, CLOSEOUT_PHOTOS_REQUIRED, type CloseoutPhotoEvidenc
 import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
 import { automaticSizePrice } from '../lib/closeout-load-price';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
-import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
+import { paymentReferenceLabel, validateCloseoutPayment, validateWaypointPayment } from "../lib/closeout-payment";
 
 import { readCloseoutLocal, writeCloseoutLocal, preserveCloseoutDraft, preservedCloseoutDrafts } from './lib/closeout-drafts';
 import { createPortal } from 'react-dom';
@@ -152,9 +152,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const retainedOtherCharges = live ? live.otherCharges.filter(charge => !charge.id || !pendingOtherChargeRemovals.includes(charge.id)) : [];
   const totals = live ? closeoutChargesSummary({...live,otherCharges:retainedOtherCharges}, pendingOtherCharges) : null;
   const recordedPayments = live ? live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const billing = addPayment && /^billed$/i.test(live?.paymentMethods.find(option=>option.value===paymentMethod)?.label.trim() || '');
+  const recordedBilling = live ? live.payments.filter(payment=>/^billed\b/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
   const draftBalance = totals ? totals.total-recordedPayments : 0;
-  const amountToMarkPaid = Number.isFinite(draftBalance) ? Math.max(0,draftBalance) : 0;
-  const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
+  const amountToMarkPaid = Number.isFinite(draftBalance) ? Math.max(0,draftBalance-(billing?recordedBilling:0)) : 0;
+  const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-(draftBalance-(billing?recordedBilling:0)) : 0;
 
   useEffect(()=>{
     if(crewMode && addPayment && paymentAmountAuto && (!receipt || receipt.status==='failed')){
@@ -402,7 +404,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     if (completing && !crewMode && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
     if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
-      const paymentError = validateCloseoutPayment({ methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() }, live.paymentMethods);
+      const payment = { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() };
+      const paymentError = crewMode ? validateWaypointPayment(payment, live.paymentMethods, category) : validateCloseoutPayment(payment, live.paymentMethods);
       if (paymentError) { setError(paymentError); return; }
     }
     if (!completing && (addPayment || pendingOtherCharges.length)) { setError('Select Completed to save the payment or additional charges in this draft.'); return; }
@@ -587,8 +590,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <div><span>Subtotal</span><strong>{money(totals!.subtotal)}</strong></div><div><span>Discount</span><strong>−{money(Number(inputMoney(live.discount)))}</strong></div><div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div><div className="closeout-review-total"><span>Total{totals!.estimated ? ' (estimated)' : ''}</span><strong>{money(totals!.total)}</strong></div>
               </div>
               <div className="closeout-review-facts">{live.payments.map((payment,index)=><div key={index}><span>Already recorded · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
-              <p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · ${money(Number(inputMoney(paymentAmount)))}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p>
-              {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} remains after this entry`}</strong><p>Draft balance {money(draftBalance)} · Payment entered {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
+              <p>{addPayment ? `${billing?'Billed receivable to record':'Payment to record'}: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · ${money(Number(inputMoney(paymentAmount)))}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p>
+              {billing && <p><strong>Payment remains owed.</strong> This entry records no collected money and does not charge a card.{category==='Estimate'?' This remains an estimate quote, not job revenue.':' Completed job revenue is counted once; collecting it later does not add revenue again.'}</p>}
+              {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} ${billing?'remains unbilled':'remains after this entry'}`}</strong><p>{billing?'Unbilled amount':'Draft balance'} {money(draftBalance-(billing?recordedBilling:0))} · {billing?'Billed amount entered':'Payment entered'} {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
               {category==='Estimate' && targetStatus==='8' && <p>Estimate outcome: {estimateReason} · {estimateExplanation}{noDiscountReason ? ` · No discount: ${noDiscountReason}` : ''}</p>}
               </>}
               {targetStatus==='8' && isAmazonJob(live) && <p><strong>Customer signature:</strong> {hasSavedSignature(live as unknown as Record<string,unknown>,resolvedAppointmentId)?'Saved in JunkWare':signature?'Captured · saves with closeout':'Required'}</p>}
@@ -736,23 +740,25 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             <section data-closeout-step={photoSteps ? "3" : "2"} className="appointment-create-section">
               <h4>Payments</h4>
               {crewMode && <label><span>Tip</span><input value={live.tip} inputMode="decimal" placeholder="0.00" onChange={(event) => update("tip", event.target.value)} /></label>}
-              {crewMode && totals && <div className="ops-closeout-payment-summary" aria-label="Amount to mark paid" aria-live="polite">
+              {crewMode && totals && <div className="ops-closeout-payment-summary" aria-label={billing?"Amount to bill":"Amount to mark paid"} aria-live="polite">
                 <div><span>Charges after discount</span><strong>{money(totals.total-Number(inputMoney(live.tip)))}</strong></div>
                 <div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div>
-                {recordedPayments>0 && <div><span>Already recorded</span><strong>−{money(recordedPayments)}</strong></div>}
-                <div className="amount-due"><span>{recordedPayments>0?'Remaining to mark paid':'Amount to mark paid'}</span><strong>{money(amountToMarkPaid)}{totals.estimated?' estimated':''}</strong></div>
+                {billing && recordedBilling>0 && <div><span>Already billed · unpaid</span><strong>−{money(recordedBilling)}</strong></div>}
+                {recordedPayments>0 && <div><span>Already collected</span><strong>−{money(recordedPayments)}</strong></div>}
+                <div className="amount-due"><span>{billing?'Amount to bill':recordedPayments>0?'Remaining to mark paid':'Amount to mark paid'}</span><strong>{money(amountToMarkPaid)}{totals.estimated?' estimated':''}</strong></div>
               </div>}
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
-              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => { const checked=event.target.checked;setAddPayment(checked);if(!checked)setPaymentAmountAuto(false);else if(crewMode && !paymentAmount.trim()){setPaymentAmountAuto(true);setPaymentAmount(amountToMarkPaid.toFixed(2));} }} /> <span>{crewMode?"Record a collected payment":"Add a payment"}</span></label>
+              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => { const checked=event.target.checked;setAddPayment(checked);if(!checked)setPaymentAmountAuto(false);else if(crewMode && !paymentAmount.trim()){setPaymentAmountAuto(true);setPaymentAmount(amountToMarkPaid.toFixed(2));} }} /> <span>{crewMode?"Record payment or Billed":"Add a payment"}</span></label>
               {!live.paymentMethods.some(option => option.value) && <p role="alert">Payment methods could not be loaded. Reload from JunkWare to try again.</p>}
               {addPayment ? <div className="ops-closeout-payment-entry">
                 <fieldset className="ops-closeout-payment-methods"><legend>Payment method</legend>
-                  {live.paymentMethods.filter(option => option.value && (!crewMode || !/billed/i.test(option.label))).map(option => <label key={option.value}><input type="radio" name={paymentGroupId} value={option.value} checked={paymentMethod === option.value} onChange={() => { setPaymentMethod(option.value); setPaymentReference(""); setReviewing(false); }} /><span>{option.label}</span></label>)}
+                  {live.paymentMethods.filter(option => option.value).map(option => <label key={option.value}><input type="radio" name={paymentGroupId} value={option.value} disabled={crewMode && category==='Estimate' && /^billed$/i.test(option.label.trim())} checked={paymentMethod === option.value} onChange={() => { setPaymentMethod(option.value); setPaymentReference(""); setReviewing(false); }} /><span>{option.label}</span></label>)}
                 </fieldset>
-                <label><span>Payment amount</span><input aria-label="Payment amount" value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => {setPaymentAmountAuto(false);setPaymentAmount(event.target.value);}} /></label>
+                {crewMode && category==='Estimate' && <p>Billed is available for completed jobs. Estimates remain quotes; choose Job only when work was completed.</p>}
+                <label><span>{billing?"Billed amount":"Payment amount"}</span><input aria-label={billing?"Billed amount":"Payment amount"} value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => {setPaymentAmountAuto(false);setPaymentAmount(event.target.value);}} /></label>
                 {crewMode && <button type="button" className="ops-button subtle ops-use-payment-amount" onClick={()=>{setPaymentAmountAuto(true);setPaymentAmount(amountToMarkPaid.toFixed(2));}}>Use {money(amountToMarkPaid)}</button>}
                 {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
-                <p>{crewMode?"Record money already collected. This does not charge a card. Payments already recorded in JunkWare are shown above; do not enter them again.":"Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed."}</p>
+                <p>{crewMode?"Billed records money still owed, not money collected. Completed billed jobs count as revenue. Cash, card and check record money already collected; this does not charge a card. Do not re-enter existing entries.":"Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed."}</p>
               </div> : null}
             </section>
 

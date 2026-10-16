@@ -16,7 +16,7 @@ export default function AssignmentOutcome({job}:{job:CrewScheduledJob;details?:b
       {c.tip!==0 && <div><dt>Tip</dt><dd>{money(c.tip)}</dd></div>}
       <div><dt>{estimate?'Estimate total':'Total'}</dt><dd>{money(c.total)}</dd></div>
       <div><dt>Payment</dt><dd>{c.payments.length?c.payments.map((payment,i)=><span key={i}>{payment.method}{payment.detail?` ${payment.detail}`:''}</span>):'None'}</dd></div>
-    </dl>{estimate && <p>Estimate only · not a completed pickup or collected revenue.</p>}</>}
+    </dl>{!estimate && c.payments.some(payment=>/^billed$/i.test(payment.method.trim())) && <p>Billed · job revenue. Billed entries are not collected payments.</p>}{estimate && <p>Estimate only · not a completed pickup or collected revenue.</p>}</>}
     {estimate && job.estimateOutcomes?.map((note,index)=><p key={index}>{note}</p>)}
   </section>;
 }

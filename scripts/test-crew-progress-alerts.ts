@@ -64,6 +64,14 @@ assert.deepEqual(closeoutCompactSummary(job({customerName:'Melissa Johnson',driv
 });
 const build = (appointments:Parameters<typeof buildCrewProgress>[0]['appointments'], options:Partial<Parameters<typeof buildCrewProgress>[0]> = {}) => buildCrewProgress({date:'2026-09-07',appointments,alerts:[],visits:[],scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now,...options});
 const step = (snapshot:ReturnType<typeof build>,label:string) => snapshot.jobs[0].steps.find(step => step.label === label)!;
+for(const paid of [0,100,450]){
+ const billedJob=job({closeout:{...job().closeout!,total:450,balance:0,payments:[{method:'Billed',detail:'',amount:450},...(paid?[{method:'Cash',detail:'',amount:paid}]:[])]}});
+ const summary=closeoutCompactSummary(billedJob);
+ assert.equal(summary.payment,`Billed $450.00 · ${paid?`Collected $${paid.toFixed(2)}`:'not collected'}`,'Billed and collected amounts must never be summed as payments');
+ const paymentStep=step(build([billedJob]),'Payment');assert.equal(paymentStep.state,'complete','Documented billing counts as a recorded payment method');
+ assert.match(paymentStep.detail,paid===450?/settlement verification/:/not yet fully collected/);
+ assert.equal(crewPaymentFacts(billedJob)[0].label,'Billed · receivable');
+}
 const stale = build([job()],{scheduleCurrent:false,visitsCurrent:false,updatesComplete:false});
 assert.equal(stale.jobs[0].needsFollowUp,false,'Stale source must not assert missing steps');
 assert.equal(step(stale,'Photos').state,'unknown');

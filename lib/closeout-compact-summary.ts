@@ -67,6 +67,12 @@ function paymentSummary(closeout: AnyRecord): string | undefined {
     .filter(payment => payment.method || payment.amount !== null);
   if (!payments.length) return undefined;
 
+  const billed = payments.filter(payment => /^billed$/i.test(payment.method));
+  if (billed.length) {
+    const billedAmount = billed.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    const collected = payments.filter(payment => !billed.includes(payment)).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    return `Billed ${money(billedAmount)} · ${collected > 0 ? `Collected ${money(collected)}` : 'not collected'}`;
+  }
   const total = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
   const one = payments.length === 1 ? payments[0] : null;
   if (one && /card|credit|debit|visa|master|amex|american express|discover/i.test(one.method)) {

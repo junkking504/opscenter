@@ -36,7 +36,7 @@ try{
   await page.getByRole('button',{name:'Manage appointment',exact:true}).nth(2).click();
   await page.getByText('Dispatch controls',{exact:true}).click();
   await expect(page.getByRole('button',{name:'Release assignment',exact:true})).toBeDisabled();
-  await page.getByText('Closeout and collected payments',{exact:true}).click();
+  await page.getByText('Closeout and payment methods',{exact:true}).click();
   await expect(page.getByLabel(/^Work truck/)).toHaveValue('');
   await page.getByRole('button',{name:'Back to all appointments',exact:true}).click();
   await page.getByRole('button',{name:'Manage phone access',exact:true}).click();
@@ -71,7 +71,7 @@ try{
   await page.getByRole('button',{name:'Release assignment',exact:true}).click();
   await expect(page.getByText('Dispatch updated.',{exact:true})).toBeVisible();
   assert.equal(writes.at(-1).body.truck,'Truck 9');assert.equal(writes.at(-1).body.expectedVersion,3);
-  await page.getByText('Closeout and collected payments',{exact:true}).click();
+  await page.getByText('Closeout and payment methods',{exact:true}).click();
   await page.getByLabel(/^Responsible person/).selectOption('Fixture Driver');
   await page.getByLabel(/^Driver/).selectOption('Fixture Driver');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);

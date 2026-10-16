@@ -1,4 +1,5 @@
 'use client';
+import { ShopTv } from '../shop-tv';
 import { PageRail } from '../page-rail';
 import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
@@ -4212,6 +4213,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setDrawer(null);
   };
 
+  if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <ShopTv snapshot={live.snapshot} error={live.error} />;
+
   return (
     <main className={live ? 'ops-app ops-live' : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
@@ -4224,6 +4227,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         <NavigationDiagnostics />
         <PageRail workspace={activeNav} selected={{Command:view,Schedule:scheduleView,Krewe:kreweView,Fleet:fleetView,Finance:financeView,Marketing:marketingView}} canFinance={!live || canFinance} disabled={mutationBusy} preload={workspace => { void preloadWorkspace[workspace]?.().catch(() => {}); }} navigate={(workspace, page) => {
           if (mutationBusyRef.current) return;
+          if (workspace === 'Command' && page === 'tv') { const url = new URL(window.location.href); url.searchParams.set('tv','1'); url.searchParams.delete('date'); window.location.assign(url.href); return; }
           const pageUrl = new URL(window.location.href);
           for (const key of ['appointment','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
           window.history.replaceState(window.history.state, '', pageUrl);

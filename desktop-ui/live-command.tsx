@@ -10,13 +10,14 @@ import { workspaceShell, type WorkspaceBootstrap } from './lib/workspace-bootstr
 const currentDay = currentOperatingDay;
 const initialUrl = normalizeOperatingDayUrl(window.location.href);
 if (initialUrl.href !== window.location.href) window.history.replaceState(window.history.state, '', initialUrl);
-const explicitDate = initialUrl.searchParams.get('date');
+const tvMode = initialUrl.searchParams.get('tv') === '1';
+const explicitDate = tvMode ? null : initialUrl.searchParams.get('date');
 
 export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootstrap } = {}) {
-  const [date,setDate] = useState(() => bootstrap?.date || explicitDate || currentDay());
+  const [date,setDate] = useState(() => tvMode ? currentDay() : bootstrap?.date || explicitDate || currentDay());
   const workspaceBusy = useRef(false);
   const onWorkspaceBusy = useCallback((busy:boolean) => {workspaceBusy.current=busy;},[]);
-  const [snapshot, setSnapshot] = useState<DesktopCommandSnapshot | null>(() => bootstrap ? workspaceShell(bootstrap) : null);
+  const [snapshot, setSnapshot] = useState<DesktopCommandSnapshot | null>(() => bootstrap ? workspaceShell(tvMode ? {...bootstrap,date:currentDay()} : bootstrap) : null);
   const [clock, setClock] = useState(Date.now);
   const [error, setError] = useState('');
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);

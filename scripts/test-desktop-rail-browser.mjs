@@ -6,12 +6,14 @@ const errors=[];page.on('pageerror',error=>errors.push(error.message));
 await page.route('**/*',route=>new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.fulfill({status:204}));
 await page.goto('http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=Command&commandMap=1&date=2026-09-12');
 await page.waitForSelector('.page-rail-link');
-const targets=await page.locator('.page-rail-link').evaluateAll(links=>links.map(link=>({href:link.getAttribute('href'),label:link.textContent})));
+const targets=await page.locator('.page-rail-link').evaluateAll(links=>links.filter(link=>!link.href.includes('tv=1')).map(link=>({href:link.getAttribute('href'),label:link.textContent})));
 assert.ok(targets.length >= 29);
-for(const [index, {href,label}] of targets.entries()){
- const target=page.locator('.page-rail-link').nth(index);
- await target.click();
- await page.waitForFunction(index=>document.querySelectorAll('.page-rail-link')[index]?.getAttribute('aria-current')==='page',index);
+for(const {href,label} of targets){
+ const all=await page.locator('.page-rail-link').evaluateAll(links=>links.map(link=>link.href));
+ const expectedUrl=new URL(href,page.url()); const workspace=expectedUrl.searchParams.get('workspace'); const key={Command:'commandView',Schedule:'scheduleView',Krewe:'kreweView',Fleet:'fleetView',Finance:'financeView',Marketing:'marketingView'}[workspace];
+ const position=all.findIndex(value=>{const url=new URL(value);return url.searchParams.get('workspace')===workspace && url.searchParams.get(key)===expectedUrl.searchParams.get(key) && !url.searchParams.has('tv');});
+ await page.locator('.page-rail-link').nth(position).click();
+ await page.waitForFunction(index=>document.querySelectorAll('.page-rail-link')[index]?.getAttribute('aria-current')==='page',position);
  const expected=new URL(href,page.url()); assert.equal(new URL(page.url()).searchParams.get('workspace'),expected.searchParams.get('workspace'));
  assert.equal(await page.locator('.page-rail-link[aria-current="page"]').count(),1);
  assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');

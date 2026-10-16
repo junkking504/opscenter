@@ -115,3 +115,6 @@ cleanup, task completion and daily storage checks.
 5. Treat production, preview, and source as distinct until verified.
 
 - [Address verification completion](address-verification-completion.md)
+
+- [Desktop presentation and navigation](desktop-presentation.md)
+- [Shop TV](shop-tv.md)

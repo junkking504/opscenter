@@ -3,7 +3,8 @@ import {chromium,expect} from '@playwright/test';
 const origin=process.argv[2] || 'http://127.0.0.1:3199';
 const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date());
 const phone={deviceId:'synthetic-device',truck:'Truck 1',label:'Synthetic manager',enrolledAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString()};
-const jobs=[1,9].map(n=>({recordId:`${date}:appointment:${n}`,appointmentId:String(n),version:'source-v1',jkNumber:`SAMPLE-${n}`,customerName:`Synthetic truck ${n} customer`,address:'100 Example St',appointmentTime:'9:00 AM',status:'Confirmed',truck:`Truck ${n}`,appointmentNotes:[],driver:'Fixture Driver',navigator:'',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true}));
+const jobs=[1,9].map(n=>({recordId:`${date}:appointment:${n}`,appointmentId:String(n),version:'source-v1',jkNumber:`SAMPLE-${n}`,customerName:`Synthetic truck ${n} customer`,address:'100 Example St',appointmentTime:'9:00 AM',status:'Confirmed',truck:`Truck# ${n}`,appointmentNotes:[],driver:'Fixture Driver',navigator:'',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true}));
+jobs.push({...jobs[0],recordId:date+':appointment:99',appointmentId:'99',customerName:'Synthetic unassigned customer',truck:'Unassigned'});
 const browser=await chromium.launch({headless:true});
 try{
  for(const width of [320,390,430]){
@@ -32,6 +33,12 @@ try{
   await expect(page.getByRole('heading',{name:'Waypoint manager',exact:true})).toBeVisible();
   for(const job of jobs)await expect(page.getByRole('heading',{name:job.customerName,exact:true})).toBeVisible();
   assert.equal(writes.length,0,'Manager browsing without daily setup performs no writes');
+  await page.getByRole('button',{name:'Manage appointment',exact:true}).nth(2).click();
+  await page.getByText('Dispatch controls',{exact:true}).click();
+  await expect(page.getByRole('button',{name:'Release assignment',exact:true})).toBeDisabled();
+  await page.getByText('Closeout and collected payments',{exact:true}).click();
+  await expect(page.getByLabel(/^Work truck/)).toHaveValue('');
+  await page.getByRole('button',{name:'Back to all appointments',exact:true}).click();
   await page.getByRole('button',{name:'Manage phone access',exact:true}).click();
   await page.getByRole('button',{name:'Grant live access',exact:true}).click();
   assert.deepEqual(writes.at(-1),{resource:'phones',body:{action:'authorize-live',deviceId:'synthetic-other-phone'}});
@@ -81,5 +88,5 @@ try{
   assert.equal(writes.at(-1).resource,'creation');assert.equal(writes.at(-1).body.duplicateReview.fingerprint,'synthetic-fingerprint');
   assert.deepEqual(errors,[]);await context.close();
  }
- console.log('PASS: manager all-truck/no-day view, exact-device access control, cross-truck note/cancel/edit/dispatch, explicit work context and reviewed creation at 320/390/430px. All APIs mocked; no real mutations or external requests.');
+ console.log('PASS: manager all-truck/no-day view, exact-device access control, cross-truck note/cancel/edit/dispatch, explicit work context and reviewed creation at 320/390/430px. Source Truck# labels normalize to storage identities; unassigned dispatch is disabled. All APIs mocked; no real mutations or external requests.');
 }finally{await browser.close();}

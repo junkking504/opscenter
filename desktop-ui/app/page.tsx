@@ -1,4 +1,5 @@
 'use client';
+import { ReleaseUpdateToast } from '../release-update-toast';
 import { ShopTv } from '../shop-tv';
 import { PageRail } from '../page-rail';
 import { MetricValue } from '../metric-value';
@@ -4213,11 +4214,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setDrawer(null);
   };
 
-  if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <ShopTv snapshot={live.snapshot} error={live.error} />;
+  if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
 
   return (
     <main className={live ? 'ops-app ops-live' : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
+      {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>
           <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />

@@ -1,0 +1,14 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({headless:true});
+for(const workspace of ['Command','Schedule','Krewe','Fleet','Finance','Marketing']) {
+ const page=await browser.newPage({viewport:{width:1280,height:720}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.clock.install({time:new Date('2026-10-09T18:00:00Z')});
+ await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.fulfill({status:204}));
+ await page.goto(`http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=${workspace}&commandMap=1`);await page.waitForSelector('.workspace');await page.waitForTimeout(700);
+ const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,title:getComputedStyle(document.querySelector('.workspace-heading h1')).fontSize,tabs:[...document.querySelectorAll('.workspace-heading [role=tab]')].map(tab=>({width:tab.clientWidth,scroll:tab.scrollWidth})),rail:getComputedStyle(document.querySelector('.ops-sidebar')).backgroundColor,missing:[...document.querySelectorAll('.workspace strong .missing-value')].map(value=>({text:value.textContent,font:getComputedStyle(value).fontSize,reason:value.getAttribute('title')}))}));
+ assert.equal(geometry.overflow,false,`${workspace}: no page overflow`);assert.equal(geometry.title,'26px',`${workspace}: shared title size`);assert.ok(geometry.tabs.every(tab=>tab.scroll<=tab.width+1),`${workspace}: tab labels fit`);assert.ok(geometry.missing.every(value=>value.text==='—'&&value.font==='14px'&&value.reason),`${workspace}: quiet missing values`);
+ if(workspace==='Command') {assert.equal(await page.locator('.command-revenue-hero progress').getAttribute('value'),'50');assert.equal(await page.locator('.command-metrics .kpi-card').count(),5);assert.ok(await page.locator('.delta-negative').count()>0);const update=page.locator('.crew-compact-update').first();await update.locator('summary').click();assert.equal(await update.getAttribute('open'),'');await update.getByRole('button',{name:'Open record',exact:true}).waitFor({state:'visible'});}
+ if(workspace==='Finance') {await page.getByRole('tab',{name:'YTD',exact:true}).click();assert.ok((await page.locator('.pace-coverage').innerText()).startsWith('2026-01-01'));await page.getByRole('tab',{name:'Custom',exact:true}).click();await page.getByLabel('Revenue pace from').fill('2026-09-03');assert.ok((await page.locator('.pace-coverage').innerText()).startsWith('2026-09-03'));}
+ assert.deepEqual(errors,[]);await page.close();console.log(`${workspace}: layout, shared titles, tabs and missing values passed`);
+}await browser.close();

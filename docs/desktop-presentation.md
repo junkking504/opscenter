@@ -62,3 +62,15 @@ cumulative series rather than inventing zero revenue. Leap-day comparisons are
 unavailable where no matching date exists. Custom ranges are bounded to 366 days.
 Published monthly totals can have separate authority; the chart states its
 source and exposes a dated data table.
+
+## Update ready
+
+The desktop checks `x-opscenter-release` using a same-origin HEAD request to its
+existing wordmark asset every 60 seconds while visible, and on return/online.
+The first valid SHA is the session baseline. A different SHA displays a polite,
+non-blocking Update ready toast. **Later** dismisses that SHA for the session;
+a later distinct release can prompt again. **Refresh now** is the only reload
+path and is disabled during an active action/review. Missing headers, timeouts,
+failed requests and offline state cause no reload or false update message.
+No health aggregation, collectors, new endpoint or provider requests are added.
+The toast can detect releases only when the origin supplies the release header.

@@ -1,4 +1,5 @@
 'use client';
+import { PageRail } from '../page-rail';
 import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
@@ -4221,17 +4222,19 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </div>
 
         <NavigationDiagnostics />
-        <nav className="primary-nav" aria-label="Primary">
-          <p className="nav-label">Workspaces</p>
-          {(live ? nav.filter(item => item.label !== 'Finance' || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? activeAlerts.length : 0 })) : nav).map((item) => {
-            const Icon = item.icon;
-            return (
-              <button key={item.label} className={activeNav === item.label ? 'nav-item active' : 'nav-item'} onPointerEnter={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onFocus={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onClick={() => setActiveNav(item.label)}>
-                <Icon size={17} /><span>{workspaceLabel(item.label)}</span>{item.count ? <em>{item.count}</em> : null}
-              </button>
-            );
-          })}
-        </nav>
+        <PageRail workspace={activeNav} selected={{Command:view,Schedule:scheduleView,Krewe:kreweView,Fleet:fleetView,Finance:financeView,Marketing:marketingView}} canFinance={!live || canFinance} disabled={mutationBusy} preload={workspace => { void preloadWorkspace[workspace]?.().catch(() => {}); }} navigate={(workspace, page) => {
+          if (mutationBusyRef.current) return;
+          const pageUrl = new URL(window.location.href);
+          for (const key of ['appointment','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
+          window.history.replaceState(window.history.state, '', pageUrl);
+          setActiveNav(workspace);
+          if (workspace === 'Command') setView(page as typeof view);
+          if (workspace === 'Schedule') setScheduleView(page as typeof scheduleView);
+          if (workspace === 'Krewe') setKreweView(page as KreweView);
+          if (workspace === 'Fleet') setFleetView(page as FleetView);
+          if (workspace === 'Finance') setFinanceView(page as FinanceView);
+          if (workspace === 'Marketing') setMarketingView(page as MarketingView);
+        }} />
 
         {live && canFinance && <section className="sidebar-opsbot-card" aria-label="Ask OpsBot">
           <div className="sidebar-opsbot-heading">

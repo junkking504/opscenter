@@ -44,3 +44,23 @@
 .ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
 .ops-app.ops-live .schedule-control-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
 .ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }
+.ops-app.ops-live { grid-template-columns: 176px minmax(0, 1fr); }
+.ops-app.ops-live .ops-sidebar { width: 176px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
+.ops-app.ops-live .brand-lockup { padding: 0 8px 10px; border-bottom: var(--desktop-card-border); flex-shrink: 0; }
+.ops-app.ops-live .page-rail { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; scrollbar-width: thin; }
+.page-rail-group { padding: 8px 0; border-bottom: 1px solid var(--oc-border-default); }
+.page-rail-group:last-child { border-bottom: 0; }
+.page-rail-group h2 { padding: 0 8px; margin: 0 0 4px; color: var(--oc-text-muted); font-size: var(--oc-type-10); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.page-rail-link { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 4px 8px; color: var(--oc-text-primary); font-size: var(--oc-type-12); border-radius: var(--radius-sm); text-decoration: none; }
+.page-rail-link:hover { background: var(--oc-surface-muted); }
+.page-rail-link.active { color: var(--ops-brand-red); background: var(--oc-status-critical-tint); box-shadow: inset 2px 0 var(--ops-brand-red); font-weight: 650; }
+.page-rail-link[aria-disabled=true] { opacity: .6; }
+.ops-app.ops-live .sidebar-opsbot-card { flex-shrink: 0; margin: 8px 0; padding: 8px; background: var(--oc-surface-muted); border: var(--desktop-card-border); border-radius: var(--desktop-card-radius); color: var(--oc-text-primary); }
+.ops-app.ops-live .sidebar-opsbot-card p,.ops-app.ops-live .sidebar-opsbot-heading small { display: none; }
+.ops-app.ops-live .sidebar-opsbot-heading strong { color: var(--oc-text-primary); font-size: var(--oc-type-12); }
+.ops-app.ops-live .sidebar-opsbot-card button { color: var(--ops-brand-red); background: var(--oc-surface-raised); border: var(--desktop-card-border); font-size: var(--oc-type-11); }
+.ops-app.ops-live .sidebar-footer { flex-shrink: 0; margin-top: 0; padding: 8px 4px 0; border-top: var(--desktop-card-border); }
+.ops-app.ops-live .sidebar-footer .health-pulse { color: var(--oc-text-muted); font-size: var(--oc-type-10); white-space: normal; text-align: left; }
+.ops-app.ops-live .sidebar-footer .user-row { margin-top: 8px; }
+.ops-app.ops-live .sidebar-footer .user-row strong { color: var(--oc-text-primary); font-size: var(--oc-type-11); }
+@media(max-width:760px) { .ops-app.ops-live { grid-template-columns: minmax(0,1fr); } .ops-app.ops-live .ops-sidebar { display: none; } }

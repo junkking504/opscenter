@@ -26,3 +26,14 @@ accent; semantic success and failure colors remain reserved for status.
 `MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
 dash. Its tooltip and accessible label retain the reason; source notes and
 refresh errors remain visible. Real zeroes keep their numeric presentation.
+
+## Navigation
+
+The 176px page rail lists every primary page under Command, Control, Crew,
+Convoy, Capital and Campaign. Capital and restricted Crew reports follow the
+existing financial permission boundary. Every item is a real link (including
+open-in-new-tab), retains the operating date and clears unrelated record filters.
+The active page has `aria-current="page"`; keyboard focus is visible. The page
+list scrolls independently so OpsBot, source checks and the user remain available
+at the bottom. Mobile retains its workspace selector and shared page tabs.
+The existing URL keys remain compatible with saved links.

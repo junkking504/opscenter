@@ -45,7 +45,10 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     const followUpDetail = job?.needsFollowUp && latestJobUpdates.has(alert.id) ? job.next : '';
     const presentation = crewAlertCardPresentation(alert, job);
     const appointmentContext = crewAlertContext(alert, job, presentation?.kind === 'completed');
-    return <article key={alert.id} className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${presentation?.label === 'Estimate Completed' ? ' crew-update-estimate' : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
+    const customer = [...(job?.customerFacts || []), ...alert.facts].find(fact => /^(customer|customer name)$/i.test(fact.label))?.value || alert.title;
+    return <details key={alert.id} className="crew-compact-update">
+      <summary><time dateTime={alert.timestamp}>{clock(alert.timestamp) === 'Time unavailable' ? alert.detected : clock(alert.timestamp)}</time><strong>{presentation?.label || alert.label}</strong><span>{truckDisplayText(alert.truck || job?.truck || '—')}</span><span className="crew-update-customer" title={customer}>{customer}</span><span className={requiresAlertAttention(alert) ? 'update-follow-flag' : 'update-reviewed'}>{requiresAlertAttention(alert) ? 'Follow up' : alert.workflowState === 'acknowledged' ? 'Reviewed' : '—'}</span><ChevronRight size={14} aria-hidden="true" /></summary>
+    <article className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${presentation?.label === 'Estimate Completed' ? ' crew-update-estimate' : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
       <header>
@@ -74,7 +77,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
         {alert.workflowState === 'in-control' ? <button type="button" onClick={openControl}>Open Control</button> : alert.workflowState !== 'resolved' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'add_to_control')}>Follow up in Control</button>}
       </footer>
     </div>
-  </article>;
+  </article></details>;
   };
 
   return <section className="crew-alerts" aria-labelledby="crew-alert-title" id="live-alert-list">

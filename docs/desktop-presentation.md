@@ -45,3 +45,8 @@ across GPS visit lanes. Fresh GPS supports parked/on-route status; historical
 open work says Planned and absent GPS remains unavailable. “Off today” means no
 active scheduled appointments, not verified attendance. Cards select the truck
 on the existing map; map resizing, timeline and assignment tools remain intact.
+
+Command updates are compact native disclosure rows: time, type, truck, customer,
+and follow-up flag. Enter/Space expands the original detail block, including its
+source facts, photos, record link and existing workflow actions. Filters and
+newest-first ordering are unchanged; no detail is discarded to compact the feed.

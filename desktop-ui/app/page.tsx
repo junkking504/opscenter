@@ -1,4 +1,5 @@
 'use client';
+import { CommandRevenueHero } from '../command-revenue-hero';
 import '../css-phase-two.css';
 import { cssPhaseTwoWorkspaces } from '../lib/css-phase-two';
 import { truckDisplayText } from '../../lib/junkware-trucks';
@@ -4396,8 +4397,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Command</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
             <LiveAnalytics key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
           </section>}
+          {activeNav === 'Command' && view !== 'forecast' && <CommandRevenueHero kpi={commandKpiRows.find(kpi => kpi.label === 'Revenue')} date={live?.snapshot.date || operatingDate} onOpen={() => openCommandKpi('Revenue')} disabled={mutationBusy} />}
           {activeNav === 'Command' && view !== 'forecast' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
-            {commandKpiRows.map((kpi) => (
+            {commandKpiRows.filter(kpi => kpi.label !== 'Revenue').map((kpi) => (
               <button type="button" data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>

@@ -1,3 +1,4 @@
+import { DeltaChip } from './delta-chip';
 import { crewRph, employeeRph } from './lib/crew-rph';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useState } from 'react';
@@ -29,10 +30,10 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
   const rph = crewRph(snapshot);
   return <div className="crew-today">
     <div className="krewe-kpi-strip" aria-label="Selected day’s full crew summary">
-      <article><span>Crew count</span><strong>{members.filter(member => member.working).length}</strong><small>Recorded clock-in for this day</small></article>
-      <article><span>Crew revenue</span><strong>{money(totals.revenue)}</strong><small>Credited to clocked-in crew</small></article>
-      <article><span>Average RPH</span><strong>{rph.value === null ? 'Unavailable' : money(rph.value)}</strong><small>{rph.included} with valid worked hours{rph.excluded ? ` · ${rph.excluded} excluded` : ''}</small></article>
-      <article><span>Employee total earnings</span><strong>{money(totals.totalPay)}</strong><small>{snapshot.payrollVisible ? 'Available payroll rows only' : 'Manager access required'}</small></article>
+      <article><span>Crew count</span><DeltaChip current={members.filter(member => member.working).length} comparison={snapshot.comparison && {prior:snapshot.comparison.count,label:snapshot.comparison.label}} /><strong>{members.filter(member => member.working).length}</strong><small>Recorded clock-in for this day</small></article>
+      <article><span>Crew revenue</span><DeltaChip current={totals.revenue} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.revenue,label:snapshot.comparison.label}} /><strong>{money(totals.revenue)}</strong><small>Credited to clocked-in crew</small></article>
+      <article><span>Average RPH</span><DeltaChip current={rph.value} comparison={snapshot.comparison && {prior:snapshot.comparison.rph,label:snapshot.comparison.label}} /><strong>{rph.value === null ? 'Unavailable' : money(rph.value)}</strong><small>{rph.included} with valid worked hours{rph.excluded ? ` · ${rph.excluded} excluded` : ''}</small></article>
+      <article><span>Employee total earnings</span><DeltaChip current={totals.totalPay} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.totalPay,label:snapshot.comparison.label}} lowerIsBetter /><strong>{money(totals.totalPay)}</strong><small>{snapshot.payrollVisible ? 'Available payroll rows only' : 'Manager access required'}</small></article>
     </div>
     <section className="crew-today-roster" aria-label="Today’s crew roster">
       <header className="crew-today-heading"><div><h2>Today’s crew</h2><p>{visible.length} of {members.length} shown · Includes completed shifts</p></div>

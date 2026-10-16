@@ -1,3 +1,4 @@
+import { DeltaChip } from './delta-chip';
 import type { DesktopKpi } from './lib/live-contract';
 import { currentOperatingDay } from './lib/operating-day';
 
@@ -9,7 +10,7 @@ export function CommandRevenueHero({ kpi, date, onOpen, disabled }: { kpi?: Desk
   const prior = kpi?.priorYear;
   const percent = value != null && goal != null && goal > 0 ? Math.max(0, value / goal * 100) : null;
   return <section className="command-revenue-hero" aria-label="Revenue pace">
-    <div><span className="hero-label">{date === currentOperatingDay() ? 'Today’s revenue' : 'Day’s revenue'}</span>
+    <div><DeltaChip current={value} comparison={kpi?.comparison} /><span className="hero-label">{date === currentOperatingDay() ? 'Today’s revenue' : 'Day’s revenue'}</span>
       <button className={value == null ? 'hero-value missing-value' : 'hero-value'} onClick={onOpen} disabled={disabled || !onOpen} title={value == null ? kpi?.detail || 'Revenue source unavailable' : 'Open revenue details'}>{value == null ? '—' : kpi?.value}</button>
       <small>{kpi?.detail || 'Revenue source unavailable'}</small>
     </div>

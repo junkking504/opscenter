@@ -10,3 +10,10 @@ Jobs, Labor, Dump + Fuel, Net and RPH remain neutral supporting tiles. RPH is
 retained from the production layout. Revenue is recorded, not verified cash;
 assumed disposal costs and all source/freshness explanations remain visible.
 The historical operating-day controls, map and OpsBot remain available.
+
+All comparison chips share the top-right position. Daily KPIs compare the same
+weekday last week; Crew compares the previous weekday, pay period or equally
+elapsed month. Capital uses its existing matched-period financial comparisons.
+Tooltips identify the period. Green means favorable (lower for costs), red means
+unfavorable. Actual zero change is neutral; absent, non-finite and zero prior
+baselines produce no chip. A partial live day is not a completed-day result.

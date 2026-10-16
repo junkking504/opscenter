@@ -1,3 +1,4 @@
+import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
 import { changeResaleLifecycle } from './resale-lifecycle';
 import { readFuelReconciliation } from './fuel-reconciliation';
 import { readPredictionDataset } from './prediction-data';
@@ -82,7 +83,13 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   });
   const dailySummary = { revenue: display.revenue.value, costs: display.totalCosts.value, profit: display.net.value, recyclingIncome: finite(metrics?.recycling_income ?? metrics?.truck_record_financial_summary?.recycling_income) };
 
-  return { fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  const priorDate = shiftOperatingDay(date, -7);
+  const priorMetrics = readDaily(priorDate);
+  const priorFuel = readWexFuelFinance(priorDate);
+  const priorSummary = buildDailyFinanceSummary(priorMetrics, priorFuel);
+  const priorDisplay = presentDailyFinance(priorSummary, dailyFinanceEvidence(priorMetrics, priorSummary, priorDate, priorFuel), priorDate);
+  const dailyComparison = {label:`same weekday last week · ${priorDate} (completed day; recorded costs)`, revenue:priorDisplay.revenue.value, labor:priorDisplay.labor.value, dumps:priorDisplay.dumps.value, fuel:priorDisplay.fuel.value, totalCosts:priorDisplay.totalCosts.value, net:priorDisplay.net.value};
+  return { dailyComparison, fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
     operatingTrends: readOperatingTrends(date),
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses') : null, profit: monthCostsUsable ? sumField(monthly.entries.map(entry => entry.metrics), 'net_profit') : null, source: monthly.revenueSource },

@@ -81,7 +81,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const metrics = readMetrics(date);
   // Local reads only. Keep Command usable if the Crew source cannot be read.
   let krewe: DesktopKreweSnapshot | null = null;
-  try { krewe = readDesktopKrewe(date, 'today', 'operator'); } catch { /* RPH remains unavailable. */ }
+  try { krewe = readDesktopKrewe(date, 'today', 'operator', false); } catch { /* RPH remains unavailable. */ }
   const wexFuel = readWexFuelFinance(date);
   const dumpExpenses = readDumpExpenses(date);
   const map = metrics ? buildCommandMapData(date) : null;
@@ -147,6 +147,18 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     if (latest) latest.needsAction = true;
   }
   const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe);
+  const priorDate = shiftOperatingDay(date, -7);
+  const priorMetrics = readMetrics(priorDate);
+  const priorMap = priorMetrics ? buildCommandMapData(priorDate) : null;
+  let priorKrewe: DesktopKreweSnapshot | null = null;
+  try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
+  const priorKpis = desktopCommandKpis(priorMetrics, priorMap ? summarizeCommandSchedule(priorMap.jobs) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe);
+  for (const kpi of kpis) {
+    const old = priorKpis.find(row => row.label === kpi.label);
+    const value = old?.value.replace(/[$,]/g, '');
+    const prior = value && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : null;
+    kpi.comparison = { prior: dumpExpenses.assumedTotal > 0 && ['Dump + Fuel','Net'].includes(kpi.label) ? null : prior, label: `same weekday last week · ${priorDate} (completed day; recorded costs)` };
+  }
   // Same weekday, 52 weeks earlier. Only reuse saved metrics; never collect history.
   const priorYearDate = shiftOperatingDay(date, -364);
   const priorYearMetrics = readMetrics(priorYearDate);

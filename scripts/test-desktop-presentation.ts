@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { percentDelta } from '../desktop-ui/delta-chip';
+import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
+assert.equal(percentDelta(null, 100), null);
+assert.equal(percentDelta(100, null), null);
+assert.equal(percentDelta(100, 0), null);
+assert.equal(percentDelta(Infinity, 100), null);
+assert.equal(percentDelta(100, 100), 0);
+assert.equal(percentDelta(120, 100), 20);
+assert.equal(percentDelta(-80, -100), 20);
+assert.equal(percentDelta(0, 100), -100);
+assert.equal(new Date(shiftOperatingDay('2026-10-16', -364)).getUTCDay(), new Date('2026-10-16').getUTCDay());
+console.log('Desktop percentage and same-weekday comparisons passed.');

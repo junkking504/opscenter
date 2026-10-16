@@ -1,5 +1,6 @@
 export type DesktopSourceHealth = { detail?: string; reasonCounts?: Record<string, number>; name: string; area: string; workspace: string; action: string; state: string; tone: 'healthy' | 'warning'; observedAt: string | null; maxAgeSeconds: number; href?: string };
 export type DesktopKpi = {
+  comparison?: import('../delta-chip').MetricComparison;
   goal?: number;
   priorYear?: { date: string; value: number | null };
   financeEvidence?: import('../../lib/daily-finance-freshness').FinanceKpiEvidence;

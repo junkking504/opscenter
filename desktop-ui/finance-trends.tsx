@@ -1,4 +1,5 @@
 'use client';
+import { DeltaChip } from './delta-chip';
 
 import { CapitalPageHeader } from './capital-ui';
 import { useRef, useState } from 'react';
@@ -6,7 +7,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import type { FinanceData } from './lib/commercial-contract';
 import { commercialMoney as money } from './lib/commercial-contract';
 import { fromFinanceMonth, type TrendValues } from '../lib/finance-trend-comparison';
-import { financeChange, financePerformance, performanceExplanation, type PerformanceComparison, type PerformanceScope } from './lib/finance-performance';
+import { financePerformance, performanceExplanation, type PerformanceComparison, type PerformanceScope } from './lib/finance-performance';
 import './finance-trends.css';
 import { OperatingTrends } from './operating-trends';
 import { monthRevenueProjection } from '../lib/operating-planning';
@@ -18,12 +19,7 @@ const format = (key: keyof TrendValues, value: number | null | undefined) => val
 const dateLabel = (date?: string) => date ? new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'No matching history';
 const monthLabel = (key: string) => new Date(`${key}-01T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' });
 function Delta({ field, current, prior }: { field: keyof TrendValues; current: number | null; prior: number | null }) {
-  const change = financeChange(field, current, prior);
-  if (!change) return null;
-  const sign = change.difference > 0 ? '+' : change.difference < 0 ? '−' : '';
-  const absolute = field === 'margin' ? `${sign}${Math.abs(change.difference).toFixed(1)} pp` : `${sign}${format(field, Math.abs(change.difference))}`;
-  const percent = change.percent == null ? 'No prior baseline' : `${change.percent > 0 ? '+' : ''}${change.percent.toFixed(1)}%`;
-  return <span className="finance-performance-delta">{absolute}{field === 'margin' ? '' : ` · ${percent}`}</span>;
+  return <DeltaChip current={current} comparison={{prior, label:'selected comparable period'}} lowerIsBetter={field === 'costs'} />;
 }
 export default function FinanceTrends({ data, hideCharts = false }: { data: FinanceData; hideCharts?: boolean }) {
   const section = useRef<HTMLElement>(null);

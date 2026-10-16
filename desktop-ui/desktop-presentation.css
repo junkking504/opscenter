@@ -18,3 +18,8 @@
 .ops-app.ops-live .command-metrics > button strong { font-size: var(--oc-type-24); font-variant-numeric: tabular-nums; }
 .ops-app .missing-value { color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; }
 @media(max-width:760px) { .ops-app .command-revenue-hero { grid-template-columns: 1fr; gap: 12px; } .ops-app.ops-live .metric-strip.command-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ops-app :is(.kpi-card,.capital-stat,.capital-metric,.krewe-kpi-strip>article,.krewe-period-summary>article,.krewe-monthly-kpis>article,.finance-performance-kpis>article,.command-revenue-hero) { position: relative; }
+.ops-app .delta-chip { position: absolute; top: 8px; right: 8px; padding: 2px 5px; border-radius: var(--radius-sm); background: var(--oc-surface-muted); font-size: var(--oc-type-11); line-height: 1.3; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--oc-text-muted); }
+.ops-app .delta-positive { color: var(--oc-status-ok-ink); background: var(--oc-status-ok-tint); }
+.ops-app .delta-negative { color: var(--oc-status-critical-ink); background: var(--oc-status-critical-tint); }
+.ops-app :is(.kpi-card,.capital-stat,.capital-metric,.krewe-kpi-strip>article,.krewe-period-summary>article,.krewe-monthly-kpis>article,.finance-performance-kpis>article):has(.delta-chip) { padding-top: 28px; }

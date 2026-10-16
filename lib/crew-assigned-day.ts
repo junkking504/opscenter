@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {isAmazonJob} from './amazon-closeout';
 import { createHash } from 'node:crypto';
 import type { CrewPhone } from './crew-phone';
 import type { CrewCurrent, CrewScheduledJob } from './crew-dispatch';
@@ -26,7 +27,8 @@ const safePaymentDetail=(method:string,detail:string)=>{
 };
 /** The schedule appends its duration to status text after completion. */
 export function crewAppointmentStatus(value:string) {
-  const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(value.trim());
+  const status=value.trim().replace(/^(?:\*\s*(?:ETA|Assignment) Required\s*\*\s*)+/i,'');
+  const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(status);
   return match?match[1].toLowerCase()==='completed'?'Completed':'Confirmed':null;
 }
 
@@ -75,7 +77,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     const newerVerifiedMove=Boolean(override?.junkwareSyncStatus==='verified' && Number.isFinite(verifiedAt) && verifiedAt>snapshot.freshnessAtMs);
     const truck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
     if (!/^\d{1,12}$/.test(row.appointmentId) || counts.get(row.appointmentId) !== 1
-      || !sameTruck(truck, phone.truck) || !crewAppointmentStatus(row.status)
+      || (!sameTruck(truck, phone.truck) && !isAmazonJob(row)) || !crewAppointmentStatus(row.status)
       || (override && override.junkwareSyncStatus !== 'verified')) return [];
     return [{...row,truck,assignedTruck:truck,
       ...(newerVerifiedMove && override?.appointmentTime ? {appointmentTime:override.appointmentTime} : {}),
@@ -85,7 +87,7 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     .map(row => {
       const reset=deps.reset?.(phone.truck,date,row.appointmentId) || null;
       return ({
-      appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
+      appointmentId: row.appointmentId, date, truck:row.truck, sharedAmazon:isAmazonJob(row), jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,

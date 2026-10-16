@@ -31,7 +31,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   const action = String(body.action || '') as ScheduleOperation['action'];
   if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'restore', 'call_ahead', 'cancel', 'note', 'closeout', 'classify'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
   const values = body.values && typeof body.values === 'object' ? body.values as Record<string, unknown> : {};
-  if (JSON.stringify(values).length > 10_000) throw new Error('The appointment change is too large.');
+  if (JSON.stringify(values).length > (action==='closeout'?64_000:10_000)) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
   if (action === 'call_ahead' && typeof values.called !== 'boolean') throw new Error('A call-ahead status is required.');
   if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');

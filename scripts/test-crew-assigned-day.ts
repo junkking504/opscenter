@@ -66,3 +66,13 @@ assert.equal(crewAppointmentStatus('Cancelled'),null);
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Confirmed'}]};
 assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].closedTotal,undefined,'An open appointment never claims a saved closeout amount');
 console.log('PASS: full assigned day with closeout scope, immediate verified assignment projection and update token, truck isolation, source freshness, pending move exclusion and duplicate identity rejection; no provider calls.');
+
+snapshot={...snapshot,appointments:[{...row('200','Truck 2','* ETA Required * * Assignment Required * Confirmed'),address:'Amazon Mattress Removal 100 Example St'},{...row('201','Truck 3'),address:'100 Amazon Street'},{...row('202',''),address:'Amazon Mattress Removal 300 Example St'}]};
+const shared=crewAssignedDay(phone,date,deps,now).jobs!;
+assert.deepEqual(shared.map(job=>job.appointmentId),['200','202']);
+assert.equal(shared[0].truck,'Truck 2');assert.equal(shared[0].sharedAmazon,true);
+assert.notEqual(shared[0].assignmentId,crewAssignedDay({...phone,truck:'Truck 3'},date,deps,now).jobs![0].assignmentId,'Each phone truck retains an isolated draft and submission scope');
+
+assert.equal(crewAppointmentStatus('* ETA Required * * Assignment Required * Confirmed'),'Confirmed');
+assert.equal(crewAppointmentStatus('* Unknown * Confirmed'),null);
+assert.equal(crewAppointmentStatus('Not Confirmed'),null);

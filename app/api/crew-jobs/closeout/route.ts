@@ -30,7 +30,7 @@ export async function POST(request:Request) {
     if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'closeout',new URL(request.url).searchParams,await crewPhoneBody(request,16384)));
 
     requireCrewPhone(request);
-    const body=await crewPhoneBody(request,16*1024);
+    const body=await crewPhoneBody(request,72*1024);
     const simulated=await simulateCrewCloseout(request,body);
     if(simulated)return crewPhoneResponse({receipt:simulated});
     const queued=await queueCrewCloseout(request,body),receipt=queued.receipt;

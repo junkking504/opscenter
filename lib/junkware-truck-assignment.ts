@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export type SavedJunkwareAssignment = { appointmentId: string; truck: string; date: string; appointmentStartMinutes: number; appointmentEndMinutes: number; verifiedAt: string; status?: string };
+export type SavedJunkwareAssignment = { companyName?:string; appointmentId: string; truck: string; date: string; appointmentStartMinutes: number; appointmentEndMinutes: number; verifiedAt: string; status?: string };
 /** Fresh source read only: never replay a pending schedule move. */
 export async function readJunkwareTruckAssignment(appointmentId: string): Promise<SavedJunkwareAssignment> {
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error('A valid appointment ID is required.');

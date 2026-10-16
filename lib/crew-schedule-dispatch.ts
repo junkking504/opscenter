@@ -11,7 +11,7 @@ export function ensureCrewScheduleDispatch(truck: string, date: string, payload:
   const observed = Date.parse(payload.observedAt || '');
   if (date !== chicagoDateKey(now) || payload.state !== 'assigned' || !sameTruck(payload.truck,truck)
     || !Number.isFinite(observed) || observed > now.getTime() || now.getTime()-observed > 120_000) return false;
-  const jobs=(payload.jobs || []).filter(job=>job.date===date && /^confirmed$/i.test(job.status));
+  const jobs=(payload.jobs || []).filter(job=>job.date===date && /^confirmed$/i.test(job.status) && (!job.sharedAmazon || sameTruck(job.truck,truck)));
   let changed=false;
   for(let slot=0;slot<2;slot++) {
     const state=readCrewDispatch(truck);

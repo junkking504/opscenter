@@ -840,3 +840,42 @@ or submission. Browser storage remains device/origin-local, not a server backup.
 Validation uses synthetic sources and isolated Chromium contexts, never real
 closeouts or payments: `npm run verify:waypoint-drafts`, the full closeout and
 crew-dispatch suites, and the existing desktop/mobile payment UI checks.
+
+## Amazon signatures and shared closeout — October 16, 2026
+
+Amazon company jobs in the fresh current-day JunkWare schedule are visible to all
+ready, enrolled Waypoint crews. Cards label them as shared Amazon work. Other
+customers retain the truck boundary. Cross-truck access requires both the saved
+schedule's Amazon business label and the live JunkWare Company field; incidental
+notes, street names, driver names, client flags, and stale schedules do not grant
+access. Shared jobs do not occupy another truck's automatic dispatch slots.
+
+Waypoint preserves the source truck and the assigned Eugene Dabezies, Robert
+McLaughlin, or Lance Gerard, including the existing navigators. An unassigned
+truck uses the submitting phone's truck; a missing/other person assignment needs
+an office correction first. The submitting device and declared daily crew remain
+in the closeout receipt separately. Concurrent submissions share the existing
+appointment lock and pending-receipt guard. Ordinary crew defaults stay unchanged.
+
+OpsCenter and Waypoint both require a customer signature for Amazon completion.
+The shared editor provides a finger/stylus/mouse drawing pad on Payment, supports
+clear/redraw, restores compatible Waypoint drafts, and shows signature status in
+Review. A signature already verified on this exact JunkWare appointment satisfies
+the requirement. Server checks also protect direct closeout and completion via
+classification; office photo exemptions never waive an Amazon signature.
+
+Bounded vector strokes (100 strokes / 2,000 points) are rendered to PNG on the
+server and saved using JunkWare's native SignatureHF/SaveSignatureBtn controls
+before staging charges, payments, or Completed status. Reopening must return the
+same nonblank image pixel hash from SignatureImage, and financial source fields
+must remain unchanged. Final completion verifies the signature again. Only its
+appointment-bound hash is projected as saved evidence. Closeout requests allow
+64 KB of values / 72 KiB handset body; other operation limits are unchanged.
+
+A missing, blank, malformed, or unverified signature blocks completion. An
+uncertain native signature save stays uncertain and is never automatically
+replayed. A later financial failure after a signature save also remains subject
+to the existing office source-review recovery, avoiding duplicate payments.
+
+Validation uses synthetic signatures and mocked provider pages; no test signs or
+closes a customer appointment. Existing signatures may be inspected read-only.

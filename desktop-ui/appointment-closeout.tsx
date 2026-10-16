@@ -1,5 +1,7 @@
 "use client";
 
+import SignaturePad from './signature-pad';
+import {isAmazonJob,hasSavedSignature,parseSignature,AMAZON_SIGNATURE_REQUIRED,type SignatureDrawing,type SignatureEvidence} from '../lib/amazon-closeout';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { checkoutFieldsKey, sameCheckoutFields } from '../app/crew-jobs/photo-checkout';
 import { closeoutPhotoCount, CLOSEOUT_PHOTOS_REQUIRED, type CloseoutPhotoEvidence } from '../lib/closeout-photo-policy';
@@ -19,6 +21,8 @@ type Option = { value: string; label: string };
 type OtherCharge = { id?: string; label: string; quantity: string; price: string; total: string };
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 export type LiveCloseout = {
+  companyName?:string;
+  signatureEvidence?:SignatureEvidence;
   photoEvidence?: CloseoutPhotoEvidence;
   truck?: string;
   truckOptions?: Option[];
@@ -88,6 +92,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [truck, setTruck] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
   const [sourceVersion, setSourceVersion] = useState('');
+  const [signature,setSignature]=useState<SignatureDrawing|null>(null);
   const [canWrite, setCanWrite] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -164,9 +169,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
+      writeCloseoutLocal(`${draftKey}:draft`,{signature,sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
-  },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow]);
+  },[draftKey,live,loading,receipt,sourceVersion,signature,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow]);
 
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
@@ -208,7 +213,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       }
       setLive(withTimes);
       setTargetStatus(crewMode?'8':payload.closeout.status.value);
-      setTruck(payload.closeout.truck || '');
+      setTruck(payload.closeout.truck || (crewMode && isAmazonJob(payload.closeout)?job.truck:'') || '');
+      setSignature(null);
       setCancellationReason('');
       setAddPayment(false);
       setPaymentMethod("");
@@ -235,6 +241,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         const draft=readCloseoutLocal<Record<string,unknown>>(`${draftKey}:draft`);
         if(draft && (lockedDraft || ((draft.sourceVersion===payload.sourceVersion || (photoWorkflow && draft.sourceFields===checkoutFieldsKey(source))) && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)))){
           try {
+            if(draft.signature && !hasSavedSignature(source as unknown as Record<string,unknown>,resolvedAppointmentId)){try{setSignature(parseSignature(draft.signature));}catch{/* Incomplete pen strokes are not reusable signatures. */}}
             const fields=draft.fields as Record<string,string>;
             const restored={...withTimes};
             for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)if(typeof fields[key]==='string')restored[key]=fields[key];
@@ -369,6 +376,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       return;
     }
     const completing = targetStatus === '8';
+    if(completing && isAmazonJob(live) && !hasSavedSignature(live as unknown as Record<string,unknown>,resolvedAppointmentId)){
+      try{parseSignature(signature);}catch{setError(AMAZON_SIGNATURE_REQUIRED);return;}
+    }
     if (crewMode && completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) && !(transport?.prepare && photoSteps?.hasPhotos)) {
       setError(transport?.prepare?'Add job photos before submitting checkout. They upload after final confirmation.':CLOSEOUT_PHOTOS_REQUIRED); return;
     }
@@ -428,6 +438,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const result = await send('closeout', {
         ...{
           appointmentId: resolvedAppointmentId,
+          ...(signature?{signature}:{}),
           targetStatus,
           ...(truck ? { truck } : {}),
           serviceDate,
@@ -467,7 +478,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const payload = result.sourceResult as { closeout: LiveCloseout; truckLoadStatus?: { updated?: boolean; status?: { truck?: string; currentLoadLabel?: string }; reason?: string } };
       setLive(payload.closeout);
       setTargetStatus(payload.closeout.status.value);
-      setTruck(payload.closeout.truck || '');
+      setTruck(payload.closeout.truck || (crewMode && isAmazonJob(payload.closeout)?job.truck:'') || '');
+      setSignature(null);
       setAddPayment(false);
       setPaymentMethod("");
       setPaymentAmount("");
@@ -576,6 +588,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} remains after this entry`}</strong><p>Draft balance {money(draftBalance)} · Payment entered {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
               {category==='Estimate' && targetStatus==='8' && <p>Estimate outcome: {estimateReason} · {estimateExplanation}{noDiscountReason ? ` · No discount: ${noDiscountReason}` : ''}</p>}
               </>}
+              {targetStatus==='8' && isAmazonJob(live) && <p><strong>Customer signature:</strong> {hasSavedSignature(live as unknown as Record<string,unknown>,resolvedAppointmentId)?'Saved in JunkWare':signature?'Captured · saves with closeout':'Required'}</p>}
               <p className="closeout-confirm-note">{dryRun ? "Dry run only. Nothing will be uploaded or saved to JunkWare, and no customer receipt will be sent." : <>Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</>}</p>
             </div>}
             <p className="closeout-step-note">{reviewing ? 'Review the summary above, or edit any field below.' : '1. Job details and charges → 2. Review → 3. Confirm in JunkWare'}</p>
@@ -586,6 +599,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <label><span>Cancellation reason</span><textarea aria-label="Closeout cancellation reason" maxLength={500} rows={2} value={cancellationReason} onChange={event => { setCancellationReason(event.target.value); setReviewing(false); }} /></label>
               <p>Cancellation saves only the status and reason. Charges, payments and crew edits in this draft are not submitted.</p>
             </section> : <>
+            {isAmazonJob(live) && targetStatus==='8' && <section data-closeout-step={photoSteps?'3':'2'} className="appointment-create-section"><h4>Customer signature · Required</h4>
+              {hasSavedSignature(live as unknown as Record<string,unknown>,resolvedAppointmentId)?<p>Customer signature saved in JunkWare.</p>:<SignaturePad value={signature} disabled={saving || pendingReceipt || verified} onChange={drawing=>{setSignature(drawing);setReviewing(false);setError('');}}/>}
+            </section>}
             <label data-closeout-step={photoSteps ? "1" : "0"}><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             {!crewMode && <div data-closeout-step={photoSteps ? "1" : "0"} className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
@@ -613,7 +629,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{truckDisplayText(label)}</option>; })}
                 {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truckDisplayText(truck)}</option>}
               </select></label>
-              <h4>{crewMode?'Assigned crew':'Krewe Assigned to This Job'}</h4>{crewMode && dailyCrew.current && <p>{truckDisplayText(truck)} · {dailyCrew.current.driver.label} (driver){dailyCrew.current.navigators.length?` · ${dailyCrew.current.navigators.map(person=>person.label).join(', ')} (navigator)`:''}</p>}
+              <h4>{crewMode && isAmazonJob(live)?'JunkWare assignee':crewMode?'Assigned crew':'Krewe Assigned to This Job'}</h4>{crewMode && dailyCrew.current && <p>{truckDisplayText(truck)} · {dailyCrew.current.driver.label} (driver){dailyCrew.current.navigators.length?` · ${dailyCrew.current.navigators.map(person=>person.label).join(', ')} (navigator)`:''}</p>}
               <label hidden={crewMode && Boolean(dailyCrew.current)}>
                 <span>Driver</span>
                 <select disabled={crewMode && Boolean(dailyCrew.current)} value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>
@@ -633,7 +649,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                   </div>
                 ))}
               </div>
-              <button type="button" className="ops-button subtle" onClick={addNavigator}>{crewMode?'+ Add additional crew':'+ Add another navigator'}</button>
+              {crewMode && isAmazonJob(live) && <p>Any Waypoint crew can close this Amazon job. The JunkWare assignment stays unchanged.</p>}
+              <button hidden={crewMode && isAmazonJob(live)} type="button" className="ops-button subtle" onClick={addNavigator}>{crewMode?'+ Add additional crew':'+ Add another navigator'}</button>
             </section>
 
             <section hidden={crewMode} data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section">

@@ -1,4 +1,6 @@
 import { closeoutPhotoEvidence, requireCloseoutPhotos, type CloseoutApplication } from '../lib/closeout-photo-policy';
+import {isAmazonJob,isAmazonAssignee,parseSignature,requireAmazonSignature,verifyAmazonSignature,type SignatureDrawing} from '../lib/amazon-closeout';
+import {readSignature,saveSignature,signatureImage,signatureHash} from './junkware-signature';
 import { pathToFileURL } from 'node:url';
 import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
@@ -22,6 +24,7 @@ const STORAGE_STATE = path.join(
 type Option = { value: string; label: string };
 type OtherChargeInput = { typeValue: string; quantity: string; price: string; sourceCalculatedPrice?: string };
 type CloseoutInput = {
+  signature?: SignatureDrawing;
   arrivalUnavailable?: boolean;
   expectedSourceVersion?: string;
   targetStatus?: "1" | "8";
@@ -144,6 +147,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     const truckNumber = truckLabel.match(/truck\s*#?\s*(\d+)/i)?.[1];
     return {
       jobNumber,
+      companyName: input("ctl00_Content_CompanyTB"),
       photoUrls: Array.from(document.querySelectorAll('a[href],img[src]')).map(node => { try { return new URL(node.getAttribute(node.tagName === "A" ? "href" : "src") || "", location.href).href; } catch { return ""; } }),
       truck: truckNumber ? 'Truck ' + truckNumber : '',
       truckOptions: truckSelect instanceof HTMLSelectElement ? Array.from(truckSelect.options).map(option=>({value:option.value,label:clean(option.textContent)})) : [],
@@ -181,7 +185,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     };
   })()`) as { status: { value: string; label: string }; [key: string]: unknown };
   const {photoUrls, ...fields} = source;
-  return {...fields,otherCharges:stableCloseoutChargeRows(source.otherCharges),photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
+  return {...fields,signatureEvidence:await readSignature(page),otherCharges:stableCloseoutChargeRows(source.otherCharges),photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
 }
 
 async function captureSource(page: Page) { return captureCloseoutSource(page, capture); }
@@ -291,6 +295,7 @@ function parsePayload(): CloseoutInput {
     };
   }
   return {
+    ...(row.signature!==undefined?{signature:parseSignature(row.signature)}:{}),
     targetStatus: row.targetStatus === '1' ? '1' : '8',
     ...(row.truck !== undefined ? { truck: String(row.truck) } : {}),
     driverId: String(row.driverId || "").trim(),
@@ -607,12 +612,14 @@ async function main(): Promise<void> {
       process.stdout.write(JSON.stringify({ok:true,diagnostics})+'\n');
       await context.close(); return;
     }
+    if(await page.locator('#ctl00_Content_CompanyTB').count()!==1)throw new Error('The JunkWare customer company field is unavailable. Reload the appointment.');
     const input = mode === "write" ? parsePayload() : null;
     const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
     const before = input || classification ? await captureSource(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
     if (input || classification) {
       const target = input ? input.targetStatus || '8' : classification!.completeEstimate ? '8' : String(before!.status.value);
+      requireAmazonSignature(before!,target,appointmentId,input?.signature);
       try { requireCloseoutPhotos(before!, target, appointmentId, application); }
       catch (error) { failureCode = 'completion_photos_required'; throw error; }
     }
@@ -630,15 +637,25 @@ async function main(): Promise<void> {
         const paymentError = validateCloseoutPayment(input.addPayment, before!.paymentMethods as Option[]);
         if (paymentError) throw new Error(paymentError);
       }
+      if(completing && isAmazonJob(before!)){
+        const selected=(before!.drivers as Option[]).find(option=>option.value===input.driverId);
+        if(!selected || !isAmazonAssignee(selected.label))throw new Error('Amazon jobs must retain a JunkWare assignment to Eugene, Robert, or Lance.');
+      }
+      const expectedSignature=input.signature?await signatureHash(await signatureImage(input.signature)):undefined;
       writeStarted = true;
       try {
+        if(input.signature){
+          await saveSignature(page,input.signature);
+          const signed=await captureSource(page);
+          if(closeoutSourceVersion({...before,signatureEvidence:null})!==closeoutSourceVersion({...signed,signatureEvidence:null}))throw new Error('The appointment changed while saving the signature. Reload and review before closing.');
+        }
         await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!, application), async () => {
           await ensureAuthenticated(page, targetUrl);
           return captureSource(page);
-        }, persisted => { requireCloseoutPhotos(persisted, input.targetStatus || '8', appointmentId, application); verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
+        }, persisted => { verifyAmazonSignature(before!,persisted,input.targetStatus || '8',appointmentId,expectedSignature); requireCloseoutPhotos(persisted, input.targetStatus || '8', appointmentId, application); verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
       }
       catch (error) {
-        if (error instanceof CloseoutNotAppliedError) { writeStarted = false; failureCode = 'source_closeout_not_applied'; }
+        if (error instanceof CloseoutNotAppliedError && !input.signature) { writeStarted = false; failureCode = 'source_closeout_not_applied'; }
         throw error;
       }
     }
@@ -647,8 +664,9 @@ async function main(): Promise<void> {
       await applyClassification(page,classification,before,application);
     }
     const closeout = await captureSource(page);
-    if (input) { requireCloseoutPhotos(closeout, input.targetStatus || '8', appointmentId, application); verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
+    if (input) { verifyAmazonSignature(before!,closeout,input.targetStatus || '8',appointmentId,input.signature?await signatureHash(await signatureImage(input.signature)):undefined); requireCloseoutPhotos(closeout, input.targetStatus || '8', appointmentId, application); verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
     if (classification && before) {
+      verifyAmazonSignature(before,closeout,classification.completeEstimate?'8':String(before.status.value),appointmentId);
       requireCloseoutPhotos(closeout, classification.completeEstimate ? '8' : String(before.status.value), appointmentId, application);
       verifyClassificationChange(before,closeout,classification);
     }

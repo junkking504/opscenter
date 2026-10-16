@@ -1,3 +1,4 @@
+import {isAmazonJob,isAmazonAssignee} from './amazon-closeout';
 import {assertTruckNotSwitching} from './crew-truck-switch-store';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -71,6 +72,11 @@ export function saveCrewDay(phone:CrewPhone,body:Record<string,unknown>,now=new 
 type Option={value:string;label:string};
 const nameKey=(name:string)=>{const parts=name.trim().split(',').map(s=>s.trim());return (parts.length===2?`${parts[1]} ${parts[0]}`:name).replace(/\s+/g,' ').trim().toLowerCase();};
 export function closeoutCrewDefaults(day:CrewPhoneDay,source:Record<string,unknown>) {
+ if(isAmazonJob(source)){
+  const driver=source.driver as Option;
+  if(!driver?.value || !isAmazonAssignee(driver.label))throw new CrewPhoneError('The office must assign this Amazon job to Eugene, Robert, or Lance in JunkWare before closeout.',409);
+  return {version:day.version,driver,navigators:(source.navigators as Option[]).filter(row=>row.value)};
+ }
  const match=(name:string,options:unknown):Option=>{
   const matches=Array.isArray(options)?options.filter((row:Option)=>row && typeof row.value==='string' && row.value && typeof row.label==='string' && nameKey(row.label)===nameKey(name)):[];
   if(matches.length!==1)throw new CrewPhoneError(`JunkWare could not uniquely match ${name}. Ask the office to check the crew list.`,409);

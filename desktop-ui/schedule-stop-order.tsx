@@ -66,9 +66,9 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
   },[sourceKey,draftKey,stale,refresh]);
   useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
   return <>
-    <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Job Order</button>
+    <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Route Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
-      <header><h2 id="stop-order-title">Truck Job Order</h2><button type="button" aria-label="Close job order" disabled={working === 'save'} onClick={close}>×</button></header>
+      <header><h2 id="stop-order-title">Truck Route Order</h2><button type="button" aria-label="Close route order" disabled={working === 'save'} onClick={close}>×</button></header>
       <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
       {groups.length>0 && <label>Truck<select aria-label="Truck to reorder" value={groupKey} disabled={working === 'save' || moved} onChange={event=>{const next=groups.find(g=>orderGroupKey(g[0],'remaining')===event.target.value);if(next)choose(next);}}>{groups.map(g=><option key={orderGroupKey(g[0],'remaining')} value={orderGroupKey(g[0],'remaining')}>{truckDisplayText(g[0].truck)} · {g.length} assigned {g.length===1?'stop':'stops'}</option>)}</select></label>}
       {moved && <p>Save this truck’s order before choosing another truck, or <button type="button" disabled={working === 'save'} onClick={()=>{if(group)choose(group);}}>Reset changes</button>.</p>}

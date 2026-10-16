@@ -27,10 +27,10 @@ try {
   await page.waitForFunction(()=>{const marker=document.querySelector('.appointment-marker.approximate-location')?.getBoundingClientRect(),map=document.querySelector('.live-schedule-map')?.getBoundingClientRect();return marker&&map&&marker.left>=map.left&&marker.right<=map.right&&marker.top>=map.top&&marker.bottom<=map.bottom;});
   await page.waitForFunction(()=>[...document.querySelectorAll('.leaflet-tile')].every(tile=>tile.complete&&tile.naturalWidth>0));
   if(process.env.PIN_SCREENSHOT)await page.screenshot({path:process.env.PIN_SCREENSHOT,fullPage:true});
-  await page.getByRole('button',{name:'Job Order',exact:true}).click();
-  await page.getByRole('dialog',{name:'Truck Job Order'}).waitFor();
-  assert.ok((await page.getByRole('dialog',{name:'Truck Job Order'}).innerText()).includes('Approximate'),'Job Order also retains the pin');
+  await page.getByRole('button',{name:'Route Order',exact:true}).click();
+  await page.getByRole('dialog',{name:'Truck Route Order'}).waitFor();
+  assert.ok((await page.getByRole('dialog',{name:'Truck Route Order'}).innerText()).includes('Approximate'),'Route Order also retains the pin');
   assert.match(await page.locator('#fixture-writes').innerText(),/Writes: 0/);
   assert.deepEqual(errors,[]);
-  console.log(`Best-guess ${streetPin?'street':'premises'} pin browser passed: real map marker, selection, address and source, direct pin link, approximate ETA, map coverage, Job Order, and no confirmation prompt or writes.`);
+  console.log(`Best-guess ${streetPin?'street':'premises'} pin browser passed: real map marker, selection, address and source, direct pin link, approximate ETA, map coverage, Route Order, and no confirmation prompt or writes.`);
 } finally {await browser.close();}

@@ -24,7 +24,7 @@ assert.equal(stopOrderTrucks({...fleet,isToday:false},'Truck 2',now).length,0,'N
 assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,latitude:null}]},'Truck 2',now).length,0,'Unavailable selected truck cannot be guessed');
 assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,lastGpsUpdate:null}]},'Truck 2',now)[0].gps.stale,true);
 assert.equal(stopOrderTrucks({...fleet,trucks:[{...truck,speed:0,ignition:'OFF',lastGpsUpdate:'2026-10-09T15:30:00Z'}]},'Truck 2',now)[0].gps.label,'Parked · ignition off','Honor existing parked reporting cadence');
-console.log('Job Order fleet: coordinate validation, truck identity, freshness, parked reporting and date boundaries passed.');
+console.log('Route Order fleet: coordinate validation, truck identity, freshness, parked reporting and date boundaries passed.');
 
 for(const size of [{x:680,y:340},{x:330,y:230}]) {
  const points=[2,3,4,6,8,9].map((id,index)=>({id:`Truck ${id}`,x:size.x/2+(index<2?0:index),y:size.y/2+(index<2?0:index),selected:id===8,stale:id===3||id===8||id===9}));

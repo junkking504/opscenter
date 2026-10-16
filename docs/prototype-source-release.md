@@ -731,7 +731,7 @@ existing detail workflows. Desktop observation timestamps sit behind clock
 indicators; source quality remains visible and narrow screens retain full dates.
 Truck labels in Control remain buttons that select the truck on the map and open
 its trips and appointment details.
-The **Job Order** button in Control's toolbar, immediately before the Map toggle,
+The **Route Order** button in Control's toolbar, immediately before the Map toggle,
 opens the truck job-order editor. This is the renamed Stop Order control; saved
 orders, appointment times and truck assignments retain their existing behavior.
 

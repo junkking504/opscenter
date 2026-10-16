@@ -23,3 +23,23 @@
 .ops-app .delta-positive { color: var(--oc-status-ok-ink); background: var(--oc-status-ok-tint); }
 .ops-app .delta-negative { color: var(--oc-status-critical-ink); background: var(--oc-status-critical-tint); }
 .ops-app :is(.kpi-card,.capital-stat,.capital-metric,.krewe-kpi-strip>article,.krewe-period-summary>article,.krewe-monthly-kpis>article,.finance-performance-kpis>article):has(.delta-chip) { padding-top: 28px; }
+.ops-app.ops-live .ops-content .workspace .workspace-heading h1 { font-size: var(--oc-page-title); line-height: 1.2; font-weight: 750; color: var(--oc-text-primary); padding-bottom: 8px; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; border: 0; border-bottom: 1px solid var(--oc-border-default); border-radius: 0; background: transparent; box-shadow: none; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button { min-height: 40px; height: auto; padding: 8px 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; color: var(--oc-text-primary); font-size: var(--oc-type-12); }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button.active { border-bottom-color: var(--ops-brand-red); color: var(--ops-brand-red); background: transparent; box-shadow: none; }
+.ops-app .shared-workspace-tabs button span { padding: 1px 5px; color: var(--oc-text-muted); background: var(--oc-surface-muted); border-radius: var(--radius-sm); font-size: var(--oc-type-11); }
+.ops-app :is(.capital-metric,.capital-stat,.capital-panel,.kpi-card,.krewe-kpi-strip>article,.krewe-period-summary>article,.krewe-monthly-kpis>article,.finance-performance-kpis>article,.convoy-overview-table,.convoy-panel,.campaign-kpi-strip>button,.campaign-panel,.crew-today-roster) { border: var(--desktop-card-border); border-radius: var(--desktop-card-radius); box-shadow: var(--desktop-card-shadow); }
+.ops-app.ops-live :is(.capital-metric,.capital-stat,.capital-metric-primary,.capital-stat-primary,.campaign-kpi-strip>button) { background: var(--oc-surface-raised); color: var(--oc-text-primary); }
+.ops-app.ops-live :is(.capital-metric-primary,.capital-stat-primary) :is(strong,span,small) { color: var(--oc-text-primary); }
+.ops-app :is(.capital-chart-bar,.capital-territory-track>i,.capital-cost-dot) { background: var(--ops-brand-red); }
+.ops-app :is(.capital-page-header h2,.crew-today-heading h2) { font-size: var(--oc-type-26); }
+.ops-app :is(button,a,input,select,summary):focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs>button { flex: 0 0 auto; width: auto; min-width: 0; white-space: nowrap; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs { max-width: 100%; }
+.ops-app.ops-live .capital-workspace .capital-metric-primary>strong,.ops-app.ops-live .krewe-kpi-strip>article:nth-child(2)>strong { font-size: var(--oc-type-32); line-height: 1.15; }
+.ops-app.ops-live :is(.convoy-metric,.convoy-dash-panel,.convoy-truck-dashboard) { border: var(--desktop-card-border); border-radius: var(--desktop-card-radius); box-shadow: var(--desktop-card-shadow); }
+.ops-app.ops-live .crew-today-fact strong { color: var(--oc-text-primary); }
+.ops-app.ops-live :is(.crew-today-avatar,.sidebar-opsbot-icon) { background: var(--oc-surface-muted); color: var(--oc-text-primary); }
+.ops-app.ops-live :is(.crew-today-actions button,.convoy-text-button,.convoy-row-link,.convoy-truck-link) { color: var(--ops-brand-red); }
+.ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
+.ops-app.ops-live .schedule-control-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }

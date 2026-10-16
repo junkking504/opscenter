@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
 import { metricNumber } from '../command-revenue-hero';
 import { CommandRevenueHero } from '../command-revenue-hero';
@@ -4348,47 +4349,47 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       : view === 'forecast' ? 'Plan the coming week with source-backed jobs, revenue and expense baselines.' : 'Watch operational trends and emerging risks; system health remains supporting context.'}</p>
             </div>
             {activeNav === 'Command' ? (
-              <div className="view-switcher workspace-tabs" role="tablist" aria-label="Command views">
+              <WorkspaceTabs label="Command views">
                 <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
                 <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
                 {live && canFinance && <button onClick={() => setView('forecast')} className={view === 'forecast' ? 'active' : ''}>Forecast</button>}
-              </div>
+              </WorkspaceTabs>
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
-                <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Control views">
+                <WorkspaceTabs label="Control views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
                   {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
                   <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
-                </div>
+                </WorkspaceTabs>
               </div>
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
-                <div className="krewe-view-switcher workspace-tabs" role="tablist" aria-label="Crew views">
+                <WorkspaceTabs label="Crew views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
                   ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
-                </div>
+                </WorkspaceTabs>
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
-                <div className="fleet-view-switcher workspace-tabs convoy-tabs" role="tablist" aria-label="Convoy views">
+                <WorkspaceTabs label="Convoy views">
                   {(convoyTabs).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
-                </div>
+                </WorkspaceTabs>
               </div>
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
-                <div className="marketing-view-switcher workspace-tabs" role="tablist" aria-label="Campaign views">
+                <WorkspaceTabs label="Campaign views">
                   {(live ? [['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
-                </div>
+                </WorkspaceTabs>
               </div>
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
-                <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Capital views">
+                <WorkspaceTabs label="Capital views">
                   {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key || key === 'payments' && financeView === 'reconciliation' ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key || key === 'payments' && financeView === 'reconciliation'} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
-                </div>
+                </WorkspaceTabs>
               </div>
             ) : null}
           </div>

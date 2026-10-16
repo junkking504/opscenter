@@ -17,3 +17,8 @@ elapsed month. Capital uses its existing matched-period financial comparisons.
 Tooltips identify the period. Green means favorable (lower for costs), red means
 unfavorable. Actual zero change is neutral; absent, non-finite and zero prior
 baselines produce no chip. A partial live day is not a completed-day result.
+
+Workspace page tabs use `WorkspaceTabs`: one underline style, optional counts,
+roving keyboard focus, Arrow Left/Right and Home/End. Page titles use the same
+26px token. Primary cards share one radius, border and shadow. Brand red is the
+accent; semantic success and failure colors remain reserved for status.

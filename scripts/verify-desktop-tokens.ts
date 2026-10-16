@@ -14,6 +14,7 @@ rawHexAllowlist[phaseTwoFile]=Object.fromEntries([...Object.values(phaseOneHold)
 const tokens=postcss.parse(fs.readFileSync(tokenFile,'utf8'));
 const definitions=new Map<string,string>();tokens.walkDecls(d=>{definitions.set(d.prop,d.value);});
 const scale=new Set([6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,30,32,36,42]);
+assert.equal(definitions.get('--oc-page-title'),'var(--oc-type-26)','Shared page titles must use the existing 26px scale anchor');
 for(const size of scale)assert.equal(definitions.get(`--oc-type-${size}`),`${size}px`);
 for(const role of ['surface-canvas','surface-raised','surface-muted','border-default','text-primary','text-muted','brand',...['ok','warn','critical','info'].flatMap(status=>['ink','tint','accent'].map(part=>`status-${status}-${part}`))])assert.ok(definitions.has(`--oc-${role}`),`Missing semantic token ${role}`);
 function validate(file:string,css:string){
@@ -21,7 +22,7 @@ function validate(file:string,css:string){
   for(const hex of d.value.match(/#[\da-f]{3,8}\b/gi)||[])assert.ok(file===tokenFile||rawHexAllowlist[file]?.[hex],`${file}: raw color ${hex}`);
   for(const [,name] of d.value.matchAll(/var\((--oc-[\w-]+)/g))assert.ok(definitions.has(name),`${file}: undefined ${name}`);
   if(d.prop==='font-size' && d.value==='var(--oc-compact-label)')assert.ok(file===phaseTwoFile&&phaseTwoRecords.some(record=>record.compactExceptions.some((exception:{selector:string})=>(d.parent as postcss.Rule).selector===`.ops-live[data-css-phase-two="${record.workspace}"] ${exception.selector}`)),'Compact exception must name its exact reviewed selector');
-  if(d.prop==='font-size' && d.value!=='var(--oc-compact-label)')assert.ok(/^(var\(--oc-type-\d+\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
+  if(d.prop==='font-size' && d.value!=='var(--oc-compact-label)')assert.ok(/^(var\(--oc-(?:type-\d+|page-title)\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
   if(d.prop==='font')assert.ok(d.value==='inherit'||/^(?:(?:\d+|normal|bold|italic|oblique|small-caps)\s+)*var\(--oc-type-\d+\)(?:\s|\/)/.test(d.value),`${file}: shorthand size must use a token`);
   if(d.prop.startsWith('--oc-type-'))assert.ok((file===tokenFile&&scale.has(Number(d.prop.slice(10))))||(file===phaseTwoFile&&phaseTwoRecords.some(record=>d.value===`var(--oc-type-${record.typeMap[d.prop.slice(10)]})`)),`${file}: off-scale definition ${d.prop}`);
  });

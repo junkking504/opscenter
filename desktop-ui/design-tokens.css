@@ -3,6 +3,8 @@
  * Phase 2 workspace profiles live in css-phase-two.css; alpha is unchanged.
  * Brand identity remains authoritative in styles/brand-tokens.css. */
 :root {
+  /* Shared title resolves here before workspace-local type remapping. */
+  --oc-page-title: var(--oc-type-26);
   --oc-compact-label: 8px;
   --oc-shadow-alpha-01: #0007;
   --oc-shadow-alpha-02: #0003;

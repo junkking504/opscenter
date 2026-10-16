@@ -98,4 +98,4 @@
 .live-schedule .readable-appointment .register-attendance { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: flex-start; gap: 8px; width: 100%; min-height: 22px; padding: 0; margin: 0; border: 0; background: none; color: var(--oc-text-green-11); font-size: var(--oc-type-12); text-align: left; cursor: pointer; }
 .live-schedule .readable-appointment .register-attendance b { font-size: inherit; font-weight: 650; font-variant-numeric: tabular-nums; }
 
-.live-schedule .readable-appointment .register-attendance > span { font-size: .85em; font-weight: 400; }
+.live-schedule .readable-appointment .register-attendance > span { font-size: var(--oc-type-11); font-weight: 400; }

@@ -50,4 +50,4 @@
  .ops-live .stop-order-list { grid-row:2; }
 }
 
-.stop-order-pin.approximate-location{outline:2px dashed #b77908;outline-offset:3px}
+.stop-order-pin.approximate-location{outline:2px dashed var(--oc-status-warn-accent);outline-offset:3px}

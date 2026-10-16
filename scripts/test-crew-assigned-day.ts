@@ -76,3 +76,6 @@ assert.notEqual(shared[0].assignmentId,crewAssignedDay({...phone,truck:'Truck 3'
 assert.equal(crewAppointmentStatus('* ETA Required * * Assignment Required * Confirmed'),'Confirmed');
 assert.equal(crewAppointmentStatus('* Unknown * Confirmed'),null);
 assert.equal(crewAppointmentStatus('Not Confirmed'),null);
+
+snapshot={...snapshot,appointments:[{...row('203','Virtual Truck'),address:'Amazon Mattress Removal 300 Example St'}]};
+assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].truck,'','Virtual lane is available to every crew and has no physical assigned truck');

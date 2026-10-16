@@ -879,3 +879,5 @@ to the existing office source-review recovery, avoiding duplicate payments.
 
 Validation uses synthetic signatures and mocked provider pages; no test signs or
 closes a customer appointment. Existing signatures may be inspected read-only.
+
+Amazon jobs in JunkWare’s Virtual Truck/unassigned lane are shared too. JunkWare requires a numbered truck at completion; Waypoint uses the completing phone’s truck for those jobs while retaining the native Eugene/Robert/Lance assignee. Jobs already assigned to a numbered truck retain that truck. Unknown truck labels fail verification.

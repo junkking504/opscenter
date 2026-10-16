@@ -99,6 +99,9 @@ async function main(){
   assert.equal((await submitCrewCloseout(request,{...signed,requestId:randomUUID(),values:{...signed.values,driverId:'d'}},amazonDeps)).status,'failed');assert.equal(amazonWrites,0,'Daily driver cannot replace the Amazon source assignee');
   assert.equal((await submitCrewCloseout(request,signed,amazonDeps)).status,'verified');
   assert.equal((await submitCrewCloseout(request,signed,amazonDeps)).status,'verified');assert.equal(amazonWrites,1,'Signed cross-truck checkout is replay-safe');
+  job.truck='Virtual Truck';source={...source,truck:''};
+  const virtualDeps={...amazonDeps,scope:(req:Request,assignmentId:string,run:Parameters<typeof withCrewJob>[2])=>withCrewJob(req,assignmentId,run,{...scopeSources,assignment:async()=>({appointmentId:id,truck:'',date,status:'Confirmed',companyName:'Amazon Mattress Removal'})} as never),write:async(_id:string,input?:Record<string,unknown>)=>{assert.equal(input!.truck,'Truck 6','Virtual-lane jobs use the completing phone truck required by JunkWare');assert.equal(input!.driverId,'amz','Lance remains the assigned person');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},truck:'Truck 6'},verifiedAt:new Date().toISOString()};}} as typeof deps;
+  assert.equal((await submitCrewCloseout(request,{...amazonBody(),values:{...amazonBody().values,truck:'Truck 6',signature:signed.values.signature}},virtualDeps)).status,'verified');
   source=structuredClone(baseline);Object.assign(job,{truck:originalTruck,address:''});
   lose=true;const uncertain=body();assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1);
   assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1,'Same request is never replayed');

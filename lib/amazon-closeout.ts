@@ -6,6 +6,12 @@ export function isAmazonJob(value:unknown) {
   if(typeof source.companyName==='string')return appointmentPartner({address:source.companyName,customerName:''})?.name==='Amazon';
   return appointmentPartner({address:typeof source.address==='string'?source.address:'',customerName:typeof source.customerName==='string'?source.customerName:''})?.name === 'Amazon';
 }
+// JunkWare uses Virtual Truck as its unscheduled lane; its completion form
+// still requires a numbered completion truck. Unknown labels stay untrusted.
+export function amazonAssignedTruck(value:unknown) {
+  const label=String(value ?? '').trim();
+  return /^(?:Virtual Truck|Unassigned|—)?$/i.test(label)?'':label;
+}
 export function isAmazonAssignee(label:string) {
   const parts=label.trim().split(',').map(part=>part.trim());
   const name=(parts.length===2?`${parts[1]} ${parts[0]}`:label).replace(/\s+/g,' ').trim().toLowerCase();

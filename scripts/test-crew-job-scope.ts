@@ -43,6 +43,9 @@ async function main(){
   assert.equal(await withCrewJob(request,scheduledId,async scope=>scope.job.truck,sharedDeps),'Truck 2','A different enrolled crew may access source-confirmed Amazon work without moving its truck');
   await assert.rejects(withCrewJob(request,scheduledId,action,{...sharedDeps,assignment:async()=>({appointmentId:'900002',truck:'Truck 2',date,status:'Confirmed',companyName:'Another Business'})} as unknown as typeof deps),/no longer assigned/);
   await assert.rejects(withCrewJob(request,scheduledId,action,{...sharedDeps,schedule:()=>({observedAt,appointments:[{appointmentId:'900002',truck:'Truck 2',address:'100 Amazon Street'}]})} as unknown as typeof deps),/source is unavailable/);
+  const virtualDeps={...sharedDeps,schedule:()=>({observedAt,appointments:[{appointmentId:'900002',truck:'Virtual Truck',address:'Amazon Mattress Removal 100 Example St'}]}),assignment:async()=>({appointmentId:'900002',truck:'',date,status:'Confirmed',companyName:'Amazon Mattress Removal'})} as unknown as typeof deps;
+  assert.equal(await withCrewJob(request,scheduledId,async scope=>scope.job.truck,virtualDeps),'Virtual Truck');
+  await assert.rejects(withCrewJob(request,scheduledId,action,{...virtualDeps,schedule:()=>({observedAt,appointments:[{appointmentId:'900002',truck:'Unknown Truck',address:'Amazon Mattress Removal 100 Example St'}]})} as unknown as typeof deps),/source is unavailable/);
   revokeDuringRead=true;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/manager setup/);assert.equal(calls,1,'Revocation during source lookup prevents mutation');
   console.log('PASS: full truck-day assignment scope, truck/date source checks, stale source rejection, unauthorized access and mid-read revocation before mutation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}

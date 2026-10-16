@@ -1,4 +1,5 @@
 'use client';
+import {amazonAssignedTruck} from '../../lib/amazon-closeout';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import AppointmentCloseout, {type CloseoutJob, type CloseoutTransport} from '../../desktop-ui/appointment-closeout';
 import type { CrewCurrentJob } from '@/lib/crew-dispatch';
@@ -151,7 +152,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       check,
     };
   },[endpoint,key,photoKey,aliasesJson,deviceId,job.assignmentId,job.appointmentId,job.date,draftScope,onAccepted,onHandoffFailed]);
-  const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
+  const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.sharedAmazon?amazonAssignedTruck(job.truck) || truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
     <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}

@@ -1,4 +1,4 @@
-import {isAmazonJob,parseSignature,requireAmazonSignature} from './amazon-closeout';
+import {isAmazonJob,amazonAssignedTruck,parseSignature,requireAmazonSignature} from './amazon-closeout';
 import { sameTruck } from './junkware-trucks';
 import {crewCloseoutArrival,crewCloseoutTimes} from './crew-closeout-time';
 import { crewCheckoutDryRun } from './crew-checkout-dry-run';
@@ -96,7 +96,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
   const values=body.values && typeof body.values==='object' && !Array.isArray(body.values)?body.values as Record<string,unknown>:{};
   const operation=parseScheduleOperation({requestId:body.requestId,date:current.date,recordId:`${current.date}:appointment:${current.appointmentId}`,expectedVersion:body.expectedVersion,action:'closeout',values:{...values,photoRequestIds:Array.isArray(body.photoRequestIds)?body.photoRequestIds:[]}});
   const scopedJob=deps.schedule(current.date).appointments.find(job=>job.appointmentId===current.appointmentId);
-  const sourceTruck=scopedJob && isAmazonJob(scopedJob) ? scopedJob.truck || phone.truck : phone.truck;
+  const sourceTruck=scopedJob && isAmazonJob(scopedJob) ? amazonAssignedTruck(scopedJob.truck) || phone.truck : phone.truck;
   validateCrewCloseout(operation.values,sourceTruck,current.appointmentId,current.date);
   const actor=actorFor(phone.deviceId,assignmentId);
   const photoRequestIds=operation.values.photoRequestIds as string[];

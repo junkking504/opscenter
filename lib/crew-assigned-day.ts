@@ -1,5 +1,5 @@
 import path from 'node:path';
-import {isAmazonJob} from './amazon-closeout';
+import {isAmazonJob,amazonAssignedTruck} from './amazon-closeout';
 import { createHash } from 'node:crypto';
 import type { CrewPhone } from './crew-phone';
 import type { CrewCurrent, CrewScheduledJob } from './crew-dispatch';
@@ -75,7 +75,8 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     const override = overrides.get(`appt:${row.appointmentId}`);
     const verifiedAt=Date.parse(override?.junkwareVerifiedAt || '');
     const newerVerifiedMove=Boolean(override?.junkwareSyncStatus==='verified' && Number.isFinite(verifiedAt) && verifiedAt>snapshot.freshnessAtMs);
-    const truck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
+    const assignedTruck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
+    const truck=isAmazonJob(row)?amazonAssignedTruck(assignedTruck):assignedTruck;
     if (!/^\d{1,12}$/.test(row.appointmentId) || counts.get(row.appointmentId) !== 1
       || (!sameTruck(truck, phone.truck) && !isAmazonJob(row)) || !crewAppointmentStatus(row.status)
       || (override && override.junkwareSyncStatus !== 'verified')) return [];

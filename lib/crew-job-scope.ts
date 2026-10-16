@@ -1,4 +1,4 @@
-import {isAmazonJob} from './amazon-closeout';
+import {isAmazonJob,amazonAssignedTruck} from './amazon-closeout';
 import { sameTruck } from './junkware-trucks';
 import { requireCrewReady } from './crew-phone-http';
 import { requireCrewDay } from './crew-phone-day';
@@ -53,7 +53,7 @@ export async function withCrewJob<T>(request: Request, assignmentId: string,
     if (source.appointmentId !== current.appointmentId || (!sameTruck(source.truck,phone.truck) && !isAmazonJob(source)) || source.date !== current.date || !/^(confirmed|completed)$/i.test(source.status || '')) throw new CrewPhoneError('This appointment is no longer assigned to this truck. Contact dispatch.', 409);
     const snapshot = dependencies.schedule(current.date);
     const matches = snapshot.appointments.filter(job => job.appointmentId === current.appointmentId && (sameTruck(job.truck,phone.truck) || (isAmazonJob(source) && isAmazonJob(job))));
-    if (!crewScheduleFresh(snapshot.observedAt) || matches.length !== 1 || (isAmazonJob(source) && !((!matches[0].truck && !source.truck) || sameTruck(matches[0].truck,source.truck))) || (matches[0].junkwareSyncStatus && matches[0].junkwareSyncStatus !== 'verified')) throw new CrewPhoneError('The appointment source is unavailable. Contact dispatch.', 409);
+    if (!crewScheduleFresh(snapshot.observedAt) || matches.length !== 1 || (isAmazonJob(source) && !((!amazonAssignedTruck(matches[0].truck) && !source.truck) || sameTruck(matches[0].truck,source.truck))) || (matches[0].junkwareSyncStatus && matches[0].junkwareSyncStatus !== 'verified')) throw new CrewPhoneError('The appointment source is unavailable. Contact dispatch.', 409);
     assertScope();
     const result = await run({ phone, current, job: matches[0] });
     assertScope();

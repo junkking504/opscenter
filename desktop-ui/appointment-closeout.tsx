@@ -11,9 +11,10 @@ import { automaticSizePrice } from '../lib/closeout-load-price';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { paymentReferenceLabel, validateCloseoutPayment, validateWaypointPayment } from "../lib/closeout-payment";
 
+import { createCloseoutPreparation } from './lib/closeout-preparation';
 import { readCloseoutLocal, writeCloseoutLocal, preserveCloseoutDraft, preservedCloseoutDrafts } from './lib/closeout-drafts';
 import { createPortal } from 'react-dom';
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-receipt';
 import './appointment-closeout.css';
@@ -69,7 +70,15 @@ export type CloseoutTransport = {
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
-export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false, submissionStatus }: { job: CloseoutJob; date: string; saved: (verified?: boolean) => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean;submissionStatus?:string; photoSteps?:{render:(category:'before'|'after',required:boolean)=>ReactNode;hasPhotos:boolean;busy:boolean;submitStep?:(category:'before'|'after',required:boolean)=>Promise<void>} }) {
+type CloseoutPayload = Awaited<ReturnType<CloseoutTransport['load']>>;
+async function readOfficeCloseout(appointmentId:string, signal?:AbortSignal):Promise<CloseoutPayload> {
+  const response=await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(appointmentId)}`,{cache:'no-store',signal});
+  const payload=await response.json().catch(()=>{throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`);});
+  if(!response.ok || !payload?.closeout)throw new Error(payload?.error || 'The JunkWare closeout could not be loaded.');
+  return payload;
+}
+
+export default function AppointmentCloseout({ prepareOnMount=false, job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false, submissionStatus }: { prepareOnMount?:boolean; job: CloseoutJob; date: string; saved: (verified?: boolean) => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean;submissionStatus?:string; photoSteps?:{render:(category:'before'|'after',required:boolean)=>ReactNode;hasPhotos:boolean;busy:boolean;submitStep?:(category:'before'|'after',required:boolean)=>Promise<void>} }) {
   const crewMode=Boolean(transport);
   const [arrival,setArrival]=useState<string|null>(null);
   const arrivalLabel=arrival?new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(arrival)):'Awaiting confirmed truck arrival';
@@ -106,6 +115,18 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const gpsDefaults = useRef<Partial<Record<CloseoutTimeKey,string>>>({});
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
+  // Only the selected office drawer prepares a read. Never share payloads across
+  // appointments, schedule versions, days, transports, or mounted sessions.
+  const preparation = useMemo(() => {
+    const scope={appointmentId:resolvedAppointmentId,date:serviceDate,version:job.version,photoRevision};
+    return prepareOnMount && !transport && scope.appointmentId && !/cancel(?:ed|led)/i.test(initialStatus)
+      ? createCloseoutPreparation(signal=>readOfficeCloseout(scope.appointmentId,signal)) : null;
+  },[prepareOnMount,transport,resolvedAppointmentId,initialStatus,serviceDate,job.version,photoRevision]);
+  useEffect(() => {
+    if(live)return;
+    const timer=setTimeout(()=>preparation?.prepare(),150);
+    return ()=>{clearTimeout(timer);preparation?.clear();};
+  },[preparation,live]);
   const sourceBaseline = useRef<LiveCloseout | null>(null);
   const previousPhotoRevision = useRef(photoRevision);
   const draftReady=useRef(false);
@@ -181,10 +202,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
   async function readSource(refresh=false) {
     if(transport)return transport.load(refresh);
-    const response=await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(resolvedAppointmentId)}`,{cache:'no-store'});
-    const payload=await response.json().catch(()=>{throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`);});
-    if(!response.ok || !payload?.closeout)throw new Error(payload?.error || 'The JunkWare closeout could not be loaded.');
-    return payload;
+    preparation?.clear();
+    return readOfficeCloseout(resolvedAppointmentId);
   }
   const send = (action:string,values:Record<string,unknown>,requestId:string) => transport
     ? transport.send(values,requestId) : sendScheduleChange(job,serviceDate,action,values,requestId);
@@ -200,7 +219,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     setError("");
     setMessage("");
     try {
-      const payload = await readSource(refresh || reconciled);
+      const payload = await (preparation && !live && !refresh && !reconciled
+        ? preparation.take() : readSource(refresh || reconciled));
       const source = payload.closeout as LiveCloseout;
       if(crewMode)setArrival(payload.arrival || null);
       sourceBaseline.current = source;

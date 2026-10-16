@@ -964,3 +964,36 @@ regressions prove revenue is not doubled by later collection. The read-only
 `scripts/test-billed-metrics-source.py <process_daily_metrics.py>` runs only the
 production collector's completed-job revenue block on synthetic rows, proving
 billed revenue/receivable separation and exclusion of estimates/open work.
+
+
+### OpsCenter drawer preparation (October 2026)
+
+The shared editor is bundled with the schedule, but the office appointment drawer
+previously waited until **Appointment Closeout** was expanded to read the native
+JunkWare form. That read may stage unsaved category/status controls to discover
+payment options, then reopen and verify the unchanged saved record. It can require
+several browser round trips; preparation does not shorten that source operation.
+
+Only the selected OpsCenter drawer opts into preparation. After a 150 ms dwell it
+starts one existing authenticated GET, without making the drawer busy. Opening
+closeout joins that pending request or consumes its completed result once. Unused
+results expire 60 seconds after completion. Appointment, service date, schedule
+version, photo revision, transport and mount boundaries isolate the preparation;
+closing the drawer aborts the client request and discards the result. An already
+started server-side browser read may still finish. There is no schedule-wide
+prefetch, persisted client cache, background polling or automatic failure retry.
+Viewing a drawer without opening closeout can now perform one otherwise unused
+read, so the dwell and selected-drawer limit are intentional.
+
+Explicit reload, reconciliation and photo verification bypass the prepared result.
+Collapsing the already opened form retains the current edits as before. The source
+version sent with a closeout remains subject to the existing authoritative read,
+version comparison, authorization and payment/photo checks at submission. No
+server write path or Waypoint crew transport/cache behavior changes. If a user
+opens before preparation finishes, the existing loading/error/retry UI remains
+honest; this is an opening-latency improvement, not an instant-source guarantee.
+
+`npm run verify:closeout-preparation` tests one-use preparation, expiry, failed-read
+retry, cancellation/isolation and the actual shared editor under React StrictMode.
+Its browser timings use a controlled 1,000 ms synthetic source delay, not live
+JunkWare measurements. No real operational writes are made by these fixtures.

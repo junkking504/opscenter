@@ -1,3 +1,4 @@
+import { TruckSummaryStrip } from './truck-summary-strip';
 import {AppointmentCostDetails} from './appointment-cost';
 import {useAppointmentAttendance} from './lib/use-appointment-attendance';
 import { useScheduleSplit } from './schedule-split';
@@ -501,6 +502,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => scheduleDisplayTruck(job) === 'Unassigned').length], ['verify', 'Area only', jobs.filter(needsScheduleMapLocation).length],
     ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
     {error && <div className="live-schedule-status live-schedule-error" role="alert">{error}</div>}
+    {!mapOnly && <TruckSummaryStrip snapshot={snapshot} now={now.getTime()} select={selectTruck} disabled={operationBusy} />}
     <div ref={dispatchSurfaceRef} className={`schedule-dispatch-surface${selected ? ' has-selected-job' : ''}`}>
     {selected && <div className="schedule-selected-job-pane" ref={selectedSummaryRef}><ScheduleAppointmentSummary coverageNote={closestRequest.data?.closest.some(row=>row.status!=='available') ? 'Some truck GPS or road estimates are unavailable; comparison is incomplete.' : undefined} job={selected} closest={closestTruckFor(selected)} loading={closestRequest.loading} error={closestRequest.error} checkedAt={closestRequest.data?.closestCalculatedAt || closestRequest.data?.calculatedAt} retry={closestRequest.retry} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
     <div ref={boardLayoutRef} style={split.style} className={`schedule-board-layout${showMap ? ' map-open' : ''}${split.customized ? ' has-custom-split' : ''}`}>

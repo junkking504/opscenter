@@ -37,3 +37,11 @@ The active page has `aria-current="page"`; keyboard focus is visible. The page
 list scrolls independently so OpsBot, source checks and the user remain available
 at the bottom. Mobile retains its workspace selector and shared page tabs.
 The existing URL keys remain compatible with saved links.
+
+Control Board's truck strip uses the existing schedule and GPS snapshot. Completed
+job charges exclude tips and estimates; incomplete charges show a dash. Each job
+uses the same unique displayed truck as the board, avoiding revenue duplication
+across GPS visit lanes. Fresh GPS supports parked/on-route status; historical
+open work says Planned and absent GPS remains unavailable. “Off today” means no
+active scheduled appointments, not verified attendance. Cards select the truck
+on the existing map; map resizing, timeline and assignment tools remain intact.

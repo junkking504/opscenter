@@ -1,4 +1,5 @@
 'use client';
+import {isEstimateCloseoutOutcome} from '@/lib/estimate-closeout-outcome';
 import {amazonAssignedTruck} from '../../lib/amazon-closeout';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import AppointmentCloseout, {type CloseoutJob, type CloseoutTransport} from '../../desktop-ui/appointment-closeout';
@@ -95,8 +96,9 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       return current.assignmentId as string;
     }
     return {
-      async prepare(){
-        if(!await photoSubmit.current?.submitted())throw new Error('Submit both Before and After photos before checkout.');
+      async prepare(outcome){
+        const requireAfter=!isEstimateCloseoutOutcome(outcome);
+        if(!await photoSubmit.current?.submitted(requireAfter))throw new Error(requireAfter?'Submit both Before and After photos before checkout.':'Submit Before photos before closing this estimate.');
         if(dryRunMode.current){setSubmissionMessage('Checking the dry run. No live results will be posted.');return;}
         setSubmissionMessage('Checking this assignment before sending. Keep Waypoint open.');
         if(!photoSubmit.current)throw new Error('Photo selection is unavailable. Return to photos before submitting.');
@@ -154,11 +156,11 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   },[endpoint,key,photoKey,aliasesJson,deviceId,job.assignmentId,job.appointmentId,job.date,draftScope,onAccepted,onHandoffFailed]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.sharedAmazon?amazonAssignedTruck(job.truck) || truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
+    <h2>Job closeout</h2><p>Before photos → Charges → After photos (optional for estimates) → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
     {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'A photo transfer needs attention. You can continue filling out the job; return to Photos to check or resume it.':photos.transferring?'Photos are uploading in the background. Continue filling out the job.':'Photos are saved on the server and verification continues in the background.'}</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
-    <AppointmentCloseout submissionStatus={submissionMessage} dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{submitStep:async category=>{if(!photoSubmit.current)throw new Error('Photo selection is unavailable.');await photoSubmit.current.submitStep(category);},render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
+    <AppointmentCloseout submissionStatus={submissionMessage} dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{submitStep:async (category,required)=>{if(!photoSubmit.current)throw new Error('Photo selection is unavailable.');await photoSubmit.current.submitStep(category,required);},render:(category,required)=><JobPhotos optional={!required} ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>
     {completed && <div className={styles.card}><h2>{dryRun?'Dry run complete':'Closeout verified'}</h2><p>{dryRun?'Nothing was uploaded or saved to JunkWare. No customer receipt was sent.':'The saved work and payment are confirmed in JunkWare.'}</p>{(!dryRun || test) && <button className={styles.primary} onClick={onNext}>Check next assignment</button>}</div>}
   </div></section>;

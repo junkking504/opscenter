@@ -1,3 +1,4 @@
+import {isEstimateCloseoutOutcome} from './estimate-closeout-outcome';
 import {isAmazonJob,amazonAssignedTruck,parseSignature,requireAmazonSignature} from './amazon-closeout';
 import { sameTruck } from './junkware-trucks';
 import {crewCloseoutArrival,crewCloseoutTimes} from './crew-closeout-time';
@@ -34,6 +35,7 @@ export function validateCrewCloseout(values:Record<string,unknown>,truck:string,
   const allowed=['signature','appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','otherChargeIdsToRemove','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','expectedSourceFieldsVersion','appointmentType','estimateOutcome','photoRequestIds'];
   if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || !sameTruck(values.truck,truck) || values.appointmentId!==id || values.serviceDate!==date
     || !['Job','Estimate'].includes(String(values.appointmentType)))throw new CrewPhoneError('Close only your current appointment using its assigned truck.',403);
+  if(values.appointmentType==='Estimate' ? !isEstimateCloseoutOutcome(values) : values.estimateOutcome!==undefined)throw new CrewPhoneError('Review the explicit estimate outcome and no-discount explanation before closing an estimate.');
   if(values.signature!==undefined)parseSignature(values.signature);
   const payment=values.addPayment;
   const removals=values.otherChargeIdsToRemove===undefined ? [] : values.otherChargeIdsToRemove;
@@ -160,6 +162,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         await setPendingCloseoutSourceVersion(receipt,String(writeValues.expectedSourceVersion));
         writeStarted=true;
         const result=await deps.write(current.appointmentId,{...writeValues,...timing,...(!timing.actualStartHour?{arrivalUnavailable:true}:{})});
+        if(isEstimateCloseoutOutcome(operation.values) && result.closeout?.appointmentType?.label!=='Estimate')throw new JunkwareCloseoutError('The saved estimate outcome could not be verified. Check Saved Result.','uncertain');
         let truckLoadStatus;
         try {truckLoadStatus=deps.updateLoad(current.date,current.appointmentId,result.closeout,String(result.verifiedAt || ''),actor);}
         catch {truckLoadStatus={updated:false,reason:'Closeout saved; truck load reconciliation is pending.'};}

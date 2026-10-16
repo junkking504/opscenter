@@ -184,7 +184,8 @@
     "verify:monthly-mileage:browser": "node scripts/test-fleet-monthly-mileage-browser.mjs",
     "verify:amazon-closeout": "node --import tsx scripts/test-amazon-closeout.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts && npm run verify:crew-closeout",
     "verify:amazon-closeout:browser": "node --import tsx scripts/test-amazon-closeout-browser.ts",
-    "verify:waypoint-manager": "node --import tsx scripts/test-waypoint-manager.ts && node --import tsx scripts/test-waypoint-manager-route.ts && node --import tsx scripts/test-waypoint-manager-edit.ts"
+    "verify:waypoint-manager": "node --import tsx scripts/test-waypoint-manager.ts && node --import tsx scripts/test-waypoint-manager-route.ts && node --import tsx scripts/test-waypoint-manager-edit.ts",
+    "verify:estimate-photos": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-estimate-photo-browser.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

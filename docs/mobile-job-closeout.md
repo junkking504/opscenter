@@ -901,3 +901,21 @@ Validation: `npm run verify:waypoint-visibility` covers exact identity matching,
 fail-closed grants, revocation/expiry/sandbox, projection, API/dispatch separation
 and original write-scope denial. `npm run verify:waypoint-manager` covers the
 manager gateway, internal delegation and guarded appointment-edit writer.
+
+## Estimate after-photo exception
+
+An explicit completed Estimate outcome may continue without After photos. Before
+photos and the verified source-photo safeguard remain. The exception requires a
+valid estimate reason, explanation and, where no discount is offered, an
+explanation for that decision. It applies to ordinary crew and managers alike.
+Changing back to Job restores the normal Before/After workflow.
+
+No skip-photo flag is accepted by the server. The crew closeout service validates
+the actual estimate outcome before accepting a write; the native JunkWare flow
+persists and verifies that category and its outcome notes. A returned completed
+Job cannot verify an Estimate request. Source versions, assigned crew, inspection,
+signature, payment, idempotency and receipt recovery remain unchanged.
+
+Validation: `npm run verify:estimate-photos` covers before-only Estimate success,
+invalid outcomes, source-photo rejection, category mismatch, the completed-Job
+after-photo gate, and the ordinary phone UI at 320/390/430 pixels.

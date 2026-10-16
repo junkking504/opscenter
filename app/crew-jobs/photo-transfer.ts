@@ -7,9 +7,10 @@ export function submittedPhotoStep(photos:CheckoutPhoto[],category:'before'|'aft
   const rows=photos.filter(row=>row.category===category);
   return rows.length>0 && rows.every(row=>row.submitted || row.status!=='selected');
 }
-export async function submitPhotoStep(key:string,assignmentId:string,category:'before'|'after',dryRun=false) {
+export async function submitPhotoStep(key:string,assignmentId:string,category:'before'|'after',dryRun=false,required=true) {
   await updateStoredPhotos(key,photos=>{
     const rows=photos.filter(row=>row.category===category);
+    if(!rows.length && !required)return photos;
     if(!rows.length)throw new Error(`Add at least one ${category} photo before continuing.`);
     if(rows.some(row=>row.status==='selected' && !row.image))throw new Error('A selected photo could not be saved. Choose it again before continuing.');
     return photos.map(row=>row.category===category && row.status==='selected'?{...row,submitted:true,assignmentId}:row);

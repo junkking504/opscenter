@@ -38,6 +38,13 @@ async function main(){
   const values={jobCategoryId:'house',howHeardId:'ref',actualStartHour:'99',actualStartMinute:'99',actualEndHour:'99',actualEndMinute:'99',driverId:'d',navigatorIds:['n','e'],appointmentId:id,serviceDate:date,targetStatus:'8',truck:'Truck 6',appointmentType:'Job',expectedSourceVersion:closeoutSourceVersion(source),addPayment:{methodId:'card',amount:'350.00',reference:'1234'}};
   const body=()=>({assignmentId:current.assignmentId,requestId:randomUUID(),expectedVersion:version,crewVersion:1,values:{...values,expectedSourceVersion:closeoutSourceVersion(source)}});
   const photoRequestIds=Array.from({length:25},()=>randomUUID());
+  const estimateOutcome={reason:'Other',explanation:'Customer requested an estimate only',noDiscountReason:'No removal work was performed'};
+  for(const invalidEstimate of [{appointmentType:'Estimate'},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,explanation:''}},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,noDiscountReason:''}},{appointmentType:'Job',estimateOutcome},{skipAfterPhotos:true}])assert.throws(()=>validateCrewCloseout({...values,...invalidEstimate,photoRequestIds},'Truck 6',id,date));
+  source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  const noEstimatePhotos=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}},deps);assert.equal(noEstimatePhotos.status,'failed');assert.equal(writes,0,'Estimate exception never bypasses verified source photos');source=structuredClone(baseline);
+  let estimateWrites=0;
+  const estimate=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}}, {...deps,write:async(_id,payload)=>{estimateWrites++;assert.equal(payload!.appointmentType,'Estimate');assert.deepEqual(payload!.estimateOutcome,estimateOutcome);return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Estimate'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(estimate.status,'verified','Explicit estimate outcome retains before-photo source evidence without requiring after photos');assert.equal(estimateWrites,1);
   assert.doesNotThrow(()=>validateCrewCloseout({...values,photoRequestIds},'Truck 6',id,date));
   assert.throws(()=>validateCrewCloseout({...values,photoRequestIds:[...photoRequestIds,randomUUID()]},'Truck 6',id,date),/photos selected/);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,true);
@@ -117,6 +124,11 @@ async function main(){
   assert.equal(JSON.stringify(crewReceiptProjection(receipt)).includes('crewContext'),false);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,false,'Completed source cannot be charged again through the phone');
   assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2);
+  source=structuredClone(baseline);
+  const mismatchedEstimate={...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}};
+  const mismatch=await submitCrewCloseout(request,mismatchedEstimate,{...deps,write:async()=>({ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Job'}},verifiedAt:new Date().toISOString()})});
+  assert.equal(mismatch.status,'uncertain','An estimate request cannot be verified as a completed Job');
+  assert.equal((await checkCrewCloseout(request,current.assignmentId,mismatchedEstimate.requestId,true,deps)).status,'failed','Unchanged source read-back resolves only the synthetic no-save outcome');
   source=structuredClone(baseline);revokeOnRead=true;assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2,'Revocation during source read prevents payment write');
   console.log('PASS: collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}

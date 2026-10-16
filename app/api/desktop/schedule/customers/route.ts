@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 // Read-only POST keeps customer search terms out of URLs and access logs.
 export async function POST(request: Request) {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   if (!isDesktopWriteOriginAllowed(request) || !authorizeOpsRequest(actor.role, '/api/appointments', 'POST').allowed) return Response.json({ error: 'Customer lookup is not permitted.' }, { status: 403, headers });
   let input: { query: string; key?: string };

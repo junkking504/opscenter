@@ -6,21 +6,21 @@ import type { CrewPhone } from './crew-phone';
 import { readCrewPhoneDirectory } from './crew-phone-directory';
 
 type Contact = { kind: 'manager' | 'company'; name: string; number: string };
-type Approval = { schema: 1; purpose: 'waypoint-all-truck-read'; approvedBy: string; approvedAt: string; contacts: Contact[] };
+type Approval = { schema: 1; purpose: 'waypoint-manager'; approvedBy: string; approvedAt: string; contacts: Contact[] };
 const read = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const actorFor = (number: string) => `crew-self-setup:${createHash('sha256').update(number.replace(/-/g, '')).digest('hex')}`;
 
-/** Additional browsing only. Call after phone authentication; never use this
- * policy in job scope, dispatch, closeout, payment, inspection or crew setup.
+/** Exact, approved Waypoint-only manager identity. Call after phone authentication; never use this
+ * policy to grant OpsCenter sessions or unrelated system access.
  * The private approval file is installed separately after exact-target approval.
  * Labels, selected crew names, default trucks and manager sessions grant nothing.
  */
-export function crewCanBrowseAllTrucks(phone: CrewPhone, now = new Date()): boolean {
+export function crewIsWaypointManager(phone: CrewPhone, now = new Date()): boolean {
   if (phone.test || !/^[a-f0-9-]{36}$/.test(phone.deviceId)) return false;
   const root = process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'crew-phones');
   try {
-    const approval: Approval = read(path.join(root, 'appointment-visibility.json'));
-    if (approval.schema !== 1 || approval.purpose !== 'waypoint-all-truck-read'
+    const approval: Approval = read(path.join(root, 'manager-access.json'));
+    if (approval.schema !== 1 || approval.purpose !== 'waypoint-manager'
       || typeof approval.approvedBy !== 'string' || !approval.approvedBy.trim()
       || !Number.isFinite(Date.parse(approval.approvedAt)) || Date.parse(approval.approvedAt) > now.getTime()
       || !Array.isArray(approval.contacts) || !approval.contacts.length || approval.contacts.length > 50
@@ -47,3 +47,5 @@ export function crewCanBrowseAllTrucks(phone: CrewPhone, now = new Date()): bool
       && binding.actor === actorFor(approved.number));
   } catch { return false; } // Missing, corrupt or ambiguous policy never expands visibility.
 }
+
+export const crewCanBrowseAllTrucks=crewIsWaypointManager;

@@ -72,3 +72,9 @@
 .backgroundProgress,.backgroundNotice { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
 .backgroundProgress { background: #eef3e8; border: 1px solid #c7d1bf; color: #354431; }
 .backgroundNotice { background: #fff3da; border: 1px solid #e2c675; color: #664d03; }
+
+/* Manager forms remain usable on narrow handsets. */
+.form { min-width: 0; }
+.form textarea { width: 100%; min-height: 96px; box-sizing: border-box; font: inherit; padding: 12px; border: 1px solid #bdc7bc; border-radius: 8px; }
+.form input[type="checkbox"] { width: 24px; min-height: 24px; }
+.card { overflow-wrap: anywhere; }

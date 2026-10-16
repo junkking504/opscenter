@@ -1,3 +1,4 @@
+import {crewIsWaypointManager} from './crew-appointment-visibility';
 import {assertTruckNotSwitching} from './crew-truck-switch-store';
 import { readCrewDay } from './crew-phone-day';
 import { requireCrewInspection } from './crew-phone-inspection';
@@ -64,7 +65,8 @@ export async function crewPhoneSession(request: Request) {
         const {crewPhoneSetupChoices}=await import('./crew-phone-delivery');
         return crewPhoneResponse({choices:crewPhoneSetupChoices()});
       }
-      return crewPhoneResponse({ phone: requireCrewPhone(request) });
+      const phone=requireCrewPhone(request);
+      return crewPhoneResponse({ phone, manager:crewIsWaypointManager(phone) });
     }
     if (request.method !== 'POST') return crewPhoneResponse({ error: 'Method not allowed.' }, 405, { Allow: 'GET, POST' });
     const body = await crewPhoneBody(request);

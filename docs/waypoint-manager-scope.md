@@ -1,45 +1,64 @@
-# Waypoint manager scope: pending definition and activation approval
+# Waypoint manager access
 
-The current deployed architecture does not define a Waypoint manager role.
-`CrewPhone` has device identity, truck, label, enrollment/expiry and optional test
-state; it has no role. The private directory's `managers` section selects approved
-setup recipients, not permissions. Waypoint's host allowlist exposes only the
-phone/inspection app and APIs. Those APIs authenticate the phone cookie, saved
-truck day and inspection; they do not consume the OpsCenter role bindings.
+Waypoint managers have an exact-contact grant in the private runtime file
+`data/crew-phones/manager-access.json`. It contains schema 1, purpose
+`waypoint-manager`, approval actor/time, and approved directory tuples
+`{kind, name, number}`. No personal contacts or live grants belong in Git.
 
-The existing **OpsCenter** `manager` bundle in `lib/ops-roles.ts` grants
-`operations.read`, `operations.write`, `finance.read`, and `sensitive.write`.
-It does not grant `platform.manage`. Roles belong to OpsCenter session identities,
-not phone numbers or payroll usernames. There is no source-backed general mapping
-from those identities to Waypoint phone bindings.
+A grant requires an authenticated, non-test, unrevoked phone enrolled today;
+its immutable enrollment actor must match the approved phone number's self-setup
+identity. The contact must still uniquely match the directory's exact name,
+number and manager/company section. Labels, selected crew names, payroll accounts,
+truck assignments and generic OpsCenter roles do not establish this identity.
+Missing, malformed, future-dated, ambiguous or revoked grants fail closed.
+New enrollment for the same verified contact inherits eligibility. No enrollment
+is fabricated to activate a grant; an eligible contact without an active binding
+still needs the existing approved setup flow.
 
-Relevant existing office capabilities include:
+## Capabilities
 
-- Schedule visibility and appointment creation, assignment/moves, ordering,
-  rescheduling/restoration, cancellation, notes and call-ahead status.
-- Appointment classification, source-verified closeout and payment recording.
-  Office and Waypoint closeout policies differ: Waypoint requires job photos,
-  only records collected payments (no Billed), and uses the saved daily crew.
-- Crew dispatch release/queue management on supported trucks.
-- Company-phone enrollment, setup-message requests under the separate spending
-  approval, revocation and device-specific sandbox-to-live grants.
+The manager screen reads every appointment in the selected day's local schedule,
+including all trucks and unassigned/closed appointments, without requiring daily
+truck setup. It reuses existing source-version checks, operation receipts and
+handlers for booking/duplicate review, truck/time assignment, rescheduling,
+restoration, cancellation, notes, call-ahead, manual stop order, open-appointment
+charge editing, dispatch and device enrollment/live-access grants/revocation.
 
-The generic office manager bundle also permits finance views, payroll corrections,
-manual bonuses, resale management and certain integration changes. These are not
-Waypoint permissions and must not be inherited by adding a mobile manager role.
-Platform recovery and integration connection administration remain admin-only.
+Cross-truck completion uses an explicit manager work context: choose the actual
+truck and responsible person, driver and navigators, then enter the crew workflow.
+This updates only this phone's versioned daily attribution; it transfers no jobs.
+Existing truck-switch interlocks, inspection, source checks, photos, signatures,
+idempotency and collected-payment rules remain. The office edit adapter rejects
+completion, payments, photo-policy overrides and edits to closed appointments.
+Billed payments remain unavailable in Waypoint.
 
-A Waypoint-only manager role therefore needs an explicit capability definition
-before it can be prepared as a complete implementation. Confirm which office
-capabilities above should be exposed in Waypoint, especially cross-truck
-closeout/payment recording, cancellation/restoration, and phone-access grants.
-State whether office closeout rules should replace Waypoint's photo, collected-
-payment and daily-crew restrictions. Existing safety/source/idempotency checks
-should remain; manager status alone must not silently waive them.
+Phone management grants only ordinary device access; it cannot add managers.
+The manager gateway does not expose setup-message sending or route-provider
+suggestions. Those retain their separate approval workflows. No finance reports,
+payroll, infrastructure or integration administration is included.
 
-The accompanying all-truck browsing patch is a tested, disabled-by-default
-foundation from the earlier visibility-only scope. It is not an implementation
-of the subsequently requested full manager role and must not be presented or
-activated as one. No approval file, personal contacts, runtime roles or live
-configuration are included in this source change. Exact-contact and capability
-approval is still required before activation.
+## Authorization boundaries
+
+`/api/crew-jobs/manager` authenticates the phone and exact manager grant before
+reading or delegating. POST uses the existing same-origin/JSON checks. A closed
+resource/method/action allowlist selects internal handlers. Request-local
+AsyncLocalStorage provides a revalidated actor only to those selected handlers;
+there is no OpsCenter cookie, general role binding, header override or public
+proxy. The ordinary office endpoints cannot authenticate a crew cookie directly.
+
+Ordinary crew users retain their truck-scoped feed and write authorization.
+Managers' crew view can browse other trucks, but those projected rows carry no
+closeout identifiers. The original job-scope resolver remains truck-scoped;
+manager work context is the explicit path to cross-truck crew actions.
+
+## Verification and rollout
+
+Run `npm run verify:waypoint-manager`, `npm run verify:waypoint-visibility`, the
+closeout/dispatch regressions, typecheck, lint and the production build. Browser
+fixtures in `scripts/test-waypoint-manager-browser.mjs` mock every API and block
+external requests. Do not test mutations on real appointments, payments or phones.
+
+Deploy source through the installed controller with release preservation enabled.
+Install the exact separately approved runtime grant only after release health is
+verified. Report eligible contacts, current enrolled devices, read-only runtime
+verification and physical handset verification as separate evidence.

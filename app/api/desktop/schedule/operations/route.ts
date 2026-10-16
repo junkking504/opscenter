@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
 import {trackedAfter as after} from '@/lib/release-after';
@@ -29,7 +30,7 @@ function checkMoveAfterResponse(requestId: string, actor: string) {
   });
 }
 export async function GET(request: Request) {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   const parameters = new URL(request.url).searchParams;
   const requestId = parameters.get('requestId') || '';
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
   return Response.json({ receipt }, { headers });
 }
 export async function POST(request: Request) {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try {

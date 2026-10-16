@@ -21,7 +21,7 @@ import {HANDOFF_EVENT,readHandoffs,retireHandoff,resumeHandoff,saveHandoff,type 
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 type Pending = { code: string; connectionKey: string };
-export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange }: { onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'setup' | 'inspection' | 'jobs') => void }) {
+export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'setup' | 'inspection' | 'jobs') => void }) {
   const [viewGuard]=useState(createWaypointViewGuard);
   const [phone, setPhone] = useState<CrewPhone | null>(null);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrewState]=useState(false);
@@ -206,9 +206,9 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       const body = await response.json();
       if(request!==jobRequest.current)return;
       if(!viewGuard.current(viewVersion)){viewGuard.defer();return;}
-      if (response.status === 401) { setDay(null);setPhone(null); return; }
+      if (response.status === 401) { setDay(null);setPhone(null);onManagerChange?.(false); return; }
       if (!response.ok || !body.phone) throw new Error(body.error || 'Phone access could not be verified.');
-      setPhone(body.phone);
+      setPhone(body.phone);onManagerChange?.(body.manager===true);
       // A same-device refresh also needs a new current-assignment read.
       if(phone?.deviceId===body.phone.deviceId)void loadJob();
       try { localStorage.removeItem(pendingKey); } catch { /* Connection is already verified. */ }

@@ -21,7 +21,7 @@ async function main(){
   saveCrewDay(phone,{date,requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:[]});
   readyCrewInspection(phone);
   fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR!,'directory.json'),JSON.stringify({schema:1,company:[{label:'Fixture Operations',number:'225-555-0101',truck:'Truck 6'}],managers:[]}));
-  fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR!,'appointment-visibility.json'),JSON.stringify({schema:1,purpose:'waypoint-all-truck-read',approvedBy:'fixture-owner',approvedAt:new Date().toISOString(),contacts:[{kind:'company',name:'Fixture Operations',number:'225-555-0101'}]}));
+  fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR!,'manager-access.json'),JSON.stringify({schema:1,purpose:'waypoint-manager',approvedBy:'fixture-owner',approvedAt:new Date().toISOString(),contacts:[{kind:'company',name:'Fixture Operations',number:'225-555-0101'}]}));
   const {crewCanBrowseAllTrucks}=await import('../lib/crew-appointment-visibility');
   assert.equal(crewCanBrowseAllTrucks(phone),true,'Exercise write gates with an approved all-truck viewer');
   const state=releaseCrewJob({truck:'Truck 6',date,appointmentId:'900001',expectedVersion:0,requestId:randomUUID()},'test-manager');

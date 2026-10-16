@@ -17,13 +17,13 @@ const contacts=[
  {kind:'company',name:'Fixture Operations',number:'225-555-0104'},
 ];
 const directory={schema:1,managers:contacts.slice(0,3).map(({name,number})=>({name,number})),company:[{label:contacts[3].name,number:contacts[3].number,truck:'Truck 2'}]};
-const approval={schema:1,purpose:'waypoint-all-truck-read',approvedBy:'fixture-owner',approvedAt:new Date(Date.now()-1000).toISOString(),contacts};
+const approval={schema:1,purpose:'waypoint-manager',approvedBy:'fixture-owner',approvedAt:new Date(Date.now()-1000).toISOString(),contacts};
 function phone(number:string,label='Not an authority',test=false){const invitation=createCrewPhoneEnrollment('Truck 1',label,actor(number),new Date(),test);return enrollCrewPhone(invitation.code,randomBytes(32).toString('hex'));}
 try {
  write('directory.json',directory);
  const enrolled=contacts.map(contact=>phone(contact.number));
  assert.equal(crewCanBrowseAllTrucks(enrolled[0]),false,'Unapproved code deployment grants nothing');
- write('appointment-visibility.json',approval);
+ write('manager-access.json',approval);
  for(const p of enrolled){assert.equal(crewCanBrowseAllTrucks(p),true);assert.equal(crewCanBrowseAllTrucks({...p,truck:'Truck 9',label:'Changed label'}),true,'Daily truck and display label never select authority');}
  const ordinary=phone('225-555-0199','Fixture Operations');
  assert.equal(crewCanBrowseAllTrucks(ordinary),false,'Exact label match on another identity is not authority');
@@ -36,10 +36,10 @@ try {
  assert.equal(crewCanBrowseAllTrucks(enrolled[0]),false,'Directory reassignment does not inherit approval');
  write('directory.json',directory);
  for(const invalid of [{...approval,contacts:[...contacts,contacts[0]]},{...approval,purpose:'manager'},{...approval,approvedAt:'bad'},{...approval,approvedAt:new Date(Date.now()+60_000).toISOString()},{...approval,approvedBy:''},{...approval,contacts:[]}]){
-  write('appointment-visibility.json',invalid);assert.equal(crewCanBrowseAllTrucks(enrolled[0]),false);
+  write('manager-access.json',invalid);assert.equal(crewCanBrowseAllTrucks(enrolled[0]),false);
  }
- write('appointment-visibility.json',approval);
+ write('manager-access.json',approval);
  revokeCrewPhone(enrolled[0].deviceId,'fixture-owner');assert.equal(crewCanBrowseAllTrucks(enrolled[0]),false,'Revocation wins');
- fs.writeFileSync(path.join(dir,'appointment-visibility.json'),'{broken');assert.equal(crewCanBrowseAllTrucks(enrolled[1]),false);
+ fs.writeFileSync(path.join(dir,'manager-access.json'),'{broken');assert.equal(crewCanBrowseAllTrucks(enrolled[1]),false);
  console.log('PASS: four exact phone identities, missing/malformed approval, label spoof, sandbox, expiry, revocation, duplicate/reassigned directory contacts; isolated files only.');
 } finally {fs.rmSync(dir,{recursive:true,force:true});}

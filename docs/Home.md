@@ -11,6 +11,7 @@ without mixing live runtime data or secrets into Git.
 | Understand the product | [README](../README.md) and [OS Constitution](OPSCENTER_OS_CONSTITUTION.md) |
 | Find a file or system | [Asset Register](ASSET_REGISTER.md) |
 | Make a code or documentation change | [Editing and Releases](EDITING_AND_RELEASES.md) |
+| Review a change and retain its lesson | [Review and learning](review-and-learning.md) |
 | Share with the Business workspace | [Sharing and Access](SHARING_AND_ACCESS.md) |
 | Understand prior decisions | [Context and History](CONTEXT_AND_HISTORY.md) |
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |

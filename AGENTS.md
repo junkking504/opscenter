@@ -66,6 +66,15 @@ Keep runtime knowledge and conversation details outside Git. Historical fixes
 are diagnostic evidence, not current verification or authorization to replay an
 action. Preserve manager edits and label incomplete outcomes honestly.
 
+## Review and learning
+
+Follow [Review and learning](docs/review-and-learning.md) for meaningful changes:
+record the original requirement and relevant prior lessons, prepare an exact-source
+review packet, obtain separate review for consequential changes, verify acceptance
+and capture the outcome in OpsWiki. Preserve pending review and unresolved work
+honestly. The local packet checker does not replace the installed release controls
+or authenticate reviewers; it must never be described as a production gate.
+
 ## Documentation
 
 Update the relevant document in `docs/` when changing architecture,

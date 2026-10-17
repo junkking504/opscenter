@@ -87,6 +87,8 @@ map. Prefer links to one canonical document over duplicated instructions.
 - Do not merge a task branch into `origin/production` until its `review.md`
   approves the exact commit being merged, unless the user waived review for
   that change and the waiver is recorded there.
+  `deploy/macmini/deploy-from-macbook.sh` refuses a deployment with unreviewed
+  commits; never work around it.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

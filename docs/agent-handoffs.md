@@ -147,9 +147,10 @@ A task branch is not merged into `origin/production` until
 `vault/Tasks/<task>/review.md`:
 
 1. names a reviewer that is a different model from the builder,
-2. reviews the exact commit being merged (a later push needs a new review or an
-   addendum covering the new commits), and
-3. has the verdict `approve` with no open blocking findings.
+2. reviews the exact commit being merged (a later push needs a new review, or
+   an addendum: another `Reviewer: … · Builder: … · Reviewed: <branch> @ <sha>`
+   line for the new head), and
+3. has the verdict `approve` with no open `[blocking]` findings.
 
 Agreement between agents is not evidence. The review checks the diff and the
 recorded check results; the `verify:*` scripts and the post-deploy release,
@@ -158,6 +159,29 @@ health, and browser checks still decide whether the change works.
 The user may waive the gate for a specific change. Record the waiver in
 `review.md` as `Verdict: waived by <user>, <date>, <reason>`.
 
-The gate is a workspace rule today. The deploy controller does not yet check
-for a receipt; adding that check is a separate, explicitly authorized change to
-the installed controller.
+`deploy/macmini/deploy-from-macbook.sh` enforces the gate before it calls the
+installed controller. It reads the active release commit and every
+`vault/Tasks/*/review.md` from Mission Control, then
+`deploy/macmini/check-review-gate.py` requires each non-merge commit between
+the active release and `origin/production` to be contained in a commit that an
+approved or waived receipt names. Merge commits made while integrating into
+`production` are not reviewed separately. A refused deployment lists the
+unreviewed commits. Validation: `npm run verify:review-gate`.
+
+## Nightly digest
+
+`deploy/macmini/vault-nightly-digest.py` runs at 23:30 on Mission Control and
+writes `vault/Inbox/Digest <date>.md`: the active release, new production
+commits, task notes and review verdicts, handoffs still waiting on review, new
+deploy evidence, and memory notes changed that day. It links files instead of
+copying their contents and calls no external service. A person or agent
+promotes what matters into `Decisions/` or `Lessons/` and deletes the digest.
+
+Install it after the change is deployed, from the active release:
+
+```sh
+~/opscenter-v2/opscenter/deploy/macmini/install-vault-digest.sh
+```
+
+Validation: `npm run verify:vault-digest`. Slack, email, and call notes are not
+read yet; each new source needs its own privacy review first.

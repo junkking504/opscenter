@@ -22,7 +22,9 @@ esac
 ''')
             (root/'ssh').write_text('''#!/bin/sh
 case "$*" in
+  *readlink*) echo /Users/missioncontrol/opscenter-v2/releases/1234567890123456789012345678901234567890;;
   *" -s "*) printf '%s\\n' "$@" > "$RECORD"; cat >> "$RECORD";;
+  *" -s") cat > /dev/null; tar -cf - -T /dev/null;;
 esac
 ''')
             for name in ('git','ssh'):(root/name).chmod(0o700)

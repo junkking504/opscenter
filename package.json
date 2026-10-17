@@ -8,6 +8,8 @@
     "verify:approximate-visits": "python3 -B scripts/test-approximate-arrivals.py && node --import tsx scripts/test-approximate-visit-presence.ts && node --import tsx scripts/test-address-map-fallback.ts",
     "verify:stop-order-map": "node --import tsx scripts/test-stop-order-map.ts",
     "verify:backup": "python3 scripts/test-backup-sync.py && node --import tsx scripts/test-backup-signal.ts",
+    "verify:review-gate": "python3 scripts/test-review-gate.py",
+    "verify:vault-digest": "python3 scripts/test-vault-digest.py",
     "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts && node --import tsx scripts/test-crew-publication-months.ts",
     "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",

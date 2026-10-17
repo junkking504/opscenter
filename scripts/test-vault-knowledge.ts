@@ -18,6 +18,11 @@ try {
   write('Tasks/demo/brief.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: Task file.\n---\nBrief.\n');
 
   assert.deepEqual(parseNote('---\na: "x"\nb: [c, d]\nc: Command   # optional\n---\nBody').meta, { a: 'x', b: ['c', 'd'], c: 'Command' });
+  assert.equal(parseNote('---\nsummary: "Fix #42 before release"   # note\n---\n').meta.summary, 'Fix #42 before release', 'a quoted # is text');
+  assert.equal(parseNote("---\nsummary: 'Issue #7'\n---\n").meta.summary, 'Issue #7');
+  assert.equal(parseNote('---\nsummary: Ticket#9 stays\n---\n').meta.summary, 'Ticket#9 stays', 'a # without a leading space is text');
+  assert.throws(() => parseNote('---\nsummary: >\n  folded text\n---\n'), /multiline YAML/);
+  assert.throws(() => parseNote('---\nsummary: |\n  block text\n---\n'), /multiline YAML/);
   const manifest = vaultKnowledgeManifest(vault);
   assert.deepEqual(manifest.records.map(record => record.sourceNote), ['vault/Decisions/Backup target.md', 'vault/Lessons/Rsync locks.md'], 'only published notes outside Inbox, Templates and Tasks');
   const [decision, lesson] = manifest.records;

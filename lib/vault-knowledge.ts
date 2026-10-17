@@ -22,8 +22,10 @@ export function parseNote(text: string): { meta: Frontmatter; body: string } {
     const pair = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
     if (!pair) continue;
     const [, key] = pair;
-    const raw = pair[2].replace(/\s+#.*$/, '');
+    const raw = stripComment(pair[2]);
     listKey = '';
+    // Only plain scalars and lists are supported; refuse multiline YAML instead of publishing a fragment.
+    if (/^[|>]/.test(raw)) throw new KnowledgeError(`Frontmatter field "${key}" uses multiline YAML; write it on one line.`);
     if (!raw) { meta[key] = []; listKey = key; }
     else if (raw.startsWith('[') && raw.endsWith(']')) meta[key] = raw.slice(1, -1).split(',').map(unquote).filter(Boolean);
     else meta[key] = unquote(raw);
@@ -31,6 +33,17 @@ export function parseNote(text: string): { meta: Frontmatter; body: string } {
   return { meta, body: text.slice(match[0].length).trim() };
 }
 const unquote = (value: string) => value.trim().replace(/^(['"])(.*)\1$/, '$2');
+// A YAML comment starts with " #" outside quotes; "#" inside a quoted value is text.
+function stripComment(value: string) {
+  let quote = '';
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (quote) { if (char === quote) quote = ''; }
+    else if (char === '"' || char === "'") quote = char;
+    else if (char === '#' && (index === 0 || /\s/.test(value[index - 1]))) return value.slice(0, index).trim();
+  }
+  return value.trim();
+}
 const text = (meta: Frontmatter, key: string) => typeof meta[key] === 'string' ? meta[key] as string : '';
 
 function notes(root: string, dir = ''): string[] {

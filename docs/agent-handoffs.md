@@ -117,8 +117,8 @@ Claude reviewing a Codex branch:
 ```sh
 cd /Users/missioncontrol/opscenter-v2/worktrees/<task>
 claude -p "Review this branch against origin/production. Read \
-vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
-and write the review receipt to vault/Tasks/<task>/review.md." \
+/Users/missioncontrol/opscenter-v2/vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
+and write the review receipt to /Users/missioncontrol/opscenter-v2/vault/Tasks/<task>/review.md." \
   --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(npm run verify:*)"
 ```
 
@@ -127,8 +127,8 @@ Codex reviewing a Claude branch:
 ```sh
 cd /Users/missioncontrol/opscenter-v2/worktrees/<task>
 codex exec "Review this branch against origin/production. Read \
-vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
-and write the review receipt to vault/Tasks/<task>/review.md. Do not edit \
+/Users/missioncontrol/opscenter-v2/vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
+and write the review receipt to /Users/missioncontrol/opscenter-v2/vault/Tasks/<task>/review.md. Do not edit \
 source files."
 ```
 

@@ -8,6 +8,7 @@ import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import type { DesktopCommandSnapshot } from './lib/live-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { isOperatingDay } from './lib/operating-day';
+import { isCompletedTvJob } from './lib/shop-tv-completion';
 
 export function tvLeaderboard(snapshot: DesktopKreweSnapshot | null) {
   if (!snapshot || snapshot.missingDates.length) return [];
@@ -23,7 +24,7 @@ export function ShopTv({ snapshot, error }: { snapshot: DesktopCommandSnapshot; 
   const [screenError,setScreenError] = useState('');
   const ranked = tvLeaderboard(crew?.date === snapshot.date ? crew : null);
   const top = ranked[0]?.revenue ?? null;
-  const done = snapshot.crewProgress?.jobs.filter(job=>/^(completed|job completed|closed|paid)$/i.test(job.status)) || [];
+  const done = snapshot.crewProgress?.jobs.filter(job=>isCompletedTvJob(job.status)) || [];
   const exit = new URL(window.location.href);exit.searchParams.delete('tv');exit.searchParams.delete('date');exit.searchParams.set('workspace','Command');exit.searchParams.set('commandView','now');
   const synthetic = /synthetic/i.test(snapshot.actor.displayName);
   return <main className="ops-app shop-tv" aria-label="Shop TV, read only">

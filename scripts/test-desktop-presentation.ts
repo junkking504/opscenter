@@ -31,3 +31,11 @@ assert.deepEqual(pace.map(row=>row.daily),[0,null,50]);
 assert.deepEqual(pace.map(row=>row.prior),[10,null,null]);
 assert.equal(revenuePaceRows([], '2025-01-01','2026-10-16').length,0);
 console.log('Revenue pace preserves zeroes, missing days, leap dates and bounded ranges.');
+import { isCompletedTvJob } from '../desktop-ui/lib/shop-tv-completion';
+for (const status of ['Completed', 'Job Completed', 'Closed', 'Job Closed', 'Paid', 'Completed Duration: 60 min(s)', 'Completed Duration: 15 min(s)', ' completed duration: 10 min(s) ']) {
+  assert.equal(isCompletedTvJob(status), true, status);
+}
+for (const status of ['Estimate completed', 'Estimate · Completed Duration: 60 min(s)', 'Confirmed', 'Open', 'Unpaid', 'Cancelled', 'Not completed', 'Completed pending review', '']) {
+  assert.equal(isCompletedTvJob(status), false, status);
+}
+console.log('Shop TV recognizes completed duration statuses and excludes estimates, cancellations and unconfirmed completions.');

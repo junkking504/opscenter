@@ -15,6 +15,9 @@ Missing hours produce a dash. Missing crew dates prevent a leaderboard.
 The completion ticker uses completed jobs in Command's existing source snapshot,
 not estimates or GPS proximity. Source timestamps, incomplete coverage and stale
 revenue states remain visible. Recorded revenue is not verified cash collected.
+Completed statuses may include JunkWare's recorded-duration suffix; that suffix
+does not exclude a completed job from the ticker. Estimates, cancellations and
+unconfirmed completion text remain excluded.
 
 Command and Crew refresh through the existing authenticated read endpoints every
 30 seconds while visible. No collectors, integrations or provider calls are added.

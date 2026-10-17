@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [production, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Keep CI hermetic: no runtime state from a developer or Mission Control.
+      HOME: /tmp/ci-home
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: mkdir -p "$HOME"
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Credential-free verify scripts
+        run: |
+          failed=()
+          while read -r script; do
+            case "$script" in ''|'#'*) continue ;; esac
+            echo "::group::$script"
+            if npm run --silent "$script" < /dev/null; then
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              echo "::error title=$script failed::npm run $script exited non-zero"
+              failed+=("$script")
+            fi
+          done < scripts/ci-verify-scripts.txt
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "Failed: ${failed[*]}"
+            exit 1
+          fi

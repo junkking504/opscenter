@@ -55,7 +55,16 @@ with tempfile.TemporaryDirectory() as temp:
 
     receipt(receipts, "hotfix", [("Claude", "Claude", hotfix)])
     code, out = gate(repo, active, target, receipts)
-    assert code == 1 and "same model" in out, "self-review never counts\n" + out
+    assert code == 1 and "same model family" in out, "self-review never counts\n" + out
+
+    for reviewer, builder in (("GPT-6 Codex", "Codex"), ("Anthropic Claude", "Claude Code"), ("Claude Opus", "Sonnet"),
+                              ("ChatGPT", "OpenAI Codex"), ("Gemini", "Google Bard"), ("Mystery Model", "Codex"), ("Claude and Codex", "Gemini")):
+        receipt(receipts, "hotfix", [(reviewer, builder, hotfix)])
+        code, out = gate(repo, active, target, receipts)
+        assert code == 1 and ("same model family" in out or "known families" in out), f"{reviewer} reviewing {builder} must not pass\n{out}"
+    receipt(receipts, "hotfix", [("GPT-6 Codex", "Claude Code", hotfix)])
+    receipt(receipts, "task", [("Codex", "Claude", second)])
+    assert gate(repo, active, target, receipts)[0] == 0, "aliases from different families pass"
 
     receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], findings="- [blocking] a.ts:1 broken")
     code, out = gate(repo, active, target, receipts)
@@ -79,7 +88,7 @@ with tempfile.TemporaryDirectory() as temp:
 
     receipt(receipts, "task", [("Codex", "Claude", first), ("Claude", "Claude", second)])
     code, out = gate(repo, active, target, receipts)
-    assert code == 1 and "same model" in out, "a self-reviewed addendum invalidates the receipt\n" + out
+    assert code == 1 and "same model family" in out, "a self-reviewed addendum invalidates the receipt\n" + out
 
     receipt(receipts, "task", [("Codex", "Claude", first), ("Gemini", "Claude", second)])
     code, out = gate(repo, active, target, receipts)
@@ -129,4 +138,4 @@ with tempfile.TemporaryDirectory() as temp:
 
     assert gate(repo, target, target, receipts)[0] == 0, "redeploying the active commit needs nothing new"
 
-print("Review gate passed: missing receipts, self-review, addenda, stray review lines, blocking findings, verdicts, complete waivers, later pushes, unknown commits, clean merges, conflict resolutions and changed merges.")
+print("Review gate passed: missing receipts, self-review, model aliases and unknown names, addenda, stray review lines, blocking findings, verdicts, complete waivers, later pushes, unknown commits, clean merges, conflict resolutions and changed merges.")

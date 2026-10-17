@@ -169,7 +169,10 @@ must be contained in a commit that an approved or waived receipt names.
 - Review lines count only in the receipt's opening block, before the first
   `##` section, and only in the full `Reviewer: … · Builder: … · Reviewed:
   <branch> @ <sha>` form. Every review line in a receipt must name the same
-  reviewer and builder, and the reviewer must be a different model. One
+  reviewer and builder, and the reviewer must be a different model family.
+  Names map to a family by keyword (Anthropic: Claude, Opus, Sonnet, Haiku,
+  Fable; OpenAI: Codex, GPT, ChatGPT; Google: Gemini), so "GPT-6 Codex" cannot
+  review "Codex". A name with no known family, or more than one, is rejected. One
   self-reviewed or malformed line rejects the whole receipt.
 - A waiver must read `waived by <user>, <YYYY-MM-DD>, <reason>`.
 - A two-parent merge needs no review of its own only when its tree is exactly

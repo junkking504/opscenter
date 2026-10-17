@@ -22,6 +22,20 @@ REVIEW_LINE = re.compile(
     r"Reviewed:\s*\S+\s*@\s*(?P<sha>[0-9a-f]{7,40})\s*$", re.I)
 WAIVER = re.compile(r"^waived by\s+(?P<who>[^,]*\S)\s*,\s*(?P<date>\d{4}-\d{2}-\d{2})\s*,\s*(?P<reason>\S.*)$", re.I)
 OPEN_BLOCKING = re.compile(r"^\s*-\s*\[blocking\]", re.I | re.M)
+# Reviewer and builder names map to the vendor family behind them, so product
+# aliases ("GPT-6 Codex", "Anthropic Claude", "Claude Code") cannot pass as a
+# different model. A name with no known family, or more than one, is rejected.
+FAMILIES = {
+    "anthropic": ("anthropic", "claude", "opus", "sonnet", "haiku", "fable"),
+    "openai": ("openai", "codex", "chatgpt", "gpt"),
+    "google": ("google", "gemini", "bard"),
+}
+
+
+def model_family(name):
+    words = set(re.findall(r"[a-z]+", name.lower()))
+    found = {family for family, aliases in FAMILIES.items() if words & set(aliases)}
+    return found.pop() if len(found) == 1 else None
 
 
 def git(repository, *args):
@@ -47,11 +61,15 @@ def review_lines(text):
         found.append(match)
     if not found:
         return None, "missing the Reviewer · Builder · Reviewed line"
-    family = lambda name: name.strip().split()[0].lower()
+    pairs = set()
     for match in found:
-        if family(match.group("reviewer")) == family(match.group("builder")):
-            return None, "a review line names the same model as reviewer and builder"
-    if len({(family(m.group("reviewer")), family(m.group("builder"))) for m in found}) > 1:
+        reviewer, builder = model_family(match.group("reviewer")), model_family(match.group("builder"))
+        if not reviewer or not builder:
+            return None, "a review line names a model outside the known families"
+        if reviewer == builder:
+            return None, "a review line names the same model family as reviewer and builder"
+        pairs.add((reviewer, builder))
+    if len(pairs) > 1:
         return None, "review lines disagree on the reviewer or builder"
     return [m.group("sha") for m in found], None
 

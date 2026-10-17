@@ -19,7 +19,7 @@ export function parseNote(text: string): { meta: Frontmatter; body: string; mult
   let listKey = '';
   for (const line of match[1].split(/\r?\n/)) {
     const item = /^\s+-\s+(.*)$/.exec(line);
-    if (item && listKey) { (meta[listKey] as string[]).push(unquote(item[1])); continue; }
+    if (item && listKey) { (meta[listKey] as string[]).push(unquote(stripComment(item[1]))); continue; }
     const pair = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
     if (!pair) continue;
     const [, key] = pair;
@@ -28,19 +28,39 @@ export function parseNote(text: string): { meta: Frontmatter; body: string; mult
     // Only plain scalars and lists are supported; a published note with multiline YAML is refused instead of publishing a fragment.
     if (/^[|>]/.test(raw)) multiline.push(key);
     else if (!raw) { meta[key] = []; listKey = key; }
-    else if (raw.startsWith('[') && raw.endsWith(']')) meta[key] = raw.slice(1, -1).split(',').map(unquote).filter(Boolean);
+    else if (raw.startsWith('[') && raw.endsWith(']')) meta[key] = flowItems(raw.slice(1, -1)).map(unquote).filter(Boolean);
     else meta[key] = unquote(raw);
   }
   return { meta, body: text.slice(match[0].length).trim(), multiline };
 }
-const unquote = (value: string) => value.trim().replace(/^(['"])(.*)\1$/, '$2');
-// A YAML comment starts with "#" after whitespace. Quotes matter only when the
-// value starts with one, so an apostrophe in plain text does not hide a comment.
-function stripComment(value: string) {
-  const quote = /^\s*(["'])/.exec(value);
-  const start = quote ? value.indexOf(quote[1], value.indexOf(quote[1]) + 1) + 1 || value.length : 0;
-  const comment = /(^|\s)#/.exec(value.slice(start));
-  return (comment ? value.slice(0, start + comment.index) : value).trim();
+const unquote = (value: string) => {
+  const quoted = /^(['"])([\s\S]*)\1$/.exec(value.trim());
+  if (!quoted) return value.trim();
+  return quoted[1] === "'" ? quoted[2].replace(/''/g, "'") : quoted[2].replace(/\\(["\\])/g, '$1');
+};
+// Walks a value the way YAML reads it: a quote opens a quoted scalar only at the
+// start of the value or of a flow-list item, '' and \" are escapes inside one, and
+// "#" after whitespace outside quotes starts a comment. Calls `split` at each
+// top-level comma of a flow list.
+function scan(value: string, split?: (index: number) => void) {
+  const flow = Boolean(split) || value.trimStart().startsWith('[');
+  let quote = '';
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (quote) {
+      if (quote === '"' && char === '\\') index++;
+      else if (char === quote) { if (quote === "'" && value[index + 1] === "'") index++; else quote = ''; }
+    } else if ((char === '"' || char === "'") && (flow ? /(^|[[,])\s*$/ : /^\s*$/).test(value.slice(0, index))) quote = char;
+    else if (char === '#' && (index === 0 || /\s/.test(value[index - 1]))) return index;
+    else if (char === ',' && flow) split?.(index);
+  }
+  return value.length;
+}
+const stripComment = (value: string) => value.slice(0, scan(value)).trim();
+function flowItems(list: string) {
+  const cuts = [0];
+  scan(list, index => cuts.push(index + 1));
+  return cuts.map((start, index) => list.slice(start, (cuts[index + 1] ?? list.length + 1) - 1));
 }
 const text = (meta: Frontmatter, key: string) => typeof meta[key] === 'string' ? meta[key] as string : '';
 

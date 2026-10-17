@@ -23,7 +23,10 @@ try {
   assert.equal(parseNote("---\nsummary: 'Issue #7'\n---\n").meta.summary, 'Issue #7');
   assert.equal(parseNote('---\nsummary: Ticket#9 stays\n---\n').meta.summary, 'Ticket#9 stays', 'a # without a leading space is text');
   assert.equal(parseNote("---\nsummary: Don't publish this   # private note\n---\n").meta.summary, "Don't publish this", 'an apostrophe in plain text does not hide a comment');
-  assert.equal(parseNote("---\nsummary: 'It''s fine' # note\n---\n").meta.summary, "It''s fine");
+  assert.equal(parseNote("---\nsummary: 'It''s #1' # note\n---\n").meta.summary, "It's #1", "'' is an escaped apostrophe, not the closing quote");
+  assert.equal(parseNote('---\nsummary: "Say \\"#1\\" now" # note\n---\n').meta.summary, 'Say "#1" now');
+  assert.deepEqual(parseNote('---\ntopics: ["Fix #42", \'Bob\'\'s, #7\', plain]   # note\n---\n').meta.topics, ['Fix #42', "Bob's, #7", 'plain'], 'quoted # and commas in list items are text');
+  assert.deepEqual(parseNote('---\ntopics:\n  - "Fix #42"  # note\n  - backup # note\n---\n').meta.topics, ['Fix #42', 'backup']);
   assert.deepEqual(parseNote('---\nsummary: >\n  folded text\n---\n').multiline, ['summary']);
   assert.equal(vaultNoteDraft('Knowledge/Draft.md', '---\nsummary: |\n  block text\n---\nPrivate.\n'), null, 'an unpublished multiline note is skipped, not fatal');
   assert.throws(() => vaultNoteDraft('Knowledge/Long.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: >\n  folded text\n---\n'), /Long\.md: frontmatter field "summary" uses multiline YAML/);

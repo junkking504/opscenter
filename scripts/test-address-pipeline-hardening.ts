@@ -102,12 +102,16 @@ for (const address of [
   '100 North Avenue B, New Orleans, 70125', '100 B St, New Orleans, 70125',
   '100 County Rd B, New Orleans, 70125', '100 Parish Road A, New Orleans, 70125',
   '100 State Rd C, New Orleans, 70125', '100 Farm Rd D, New Orleans, 70125',
+  'Business 5 100 Avenue B, New Orleans, 70125',
+  'Business 5 Location 100 Avenue B, New Orleans, 70125',
   '100 Example St B', '100 Example St B, New Orleans',
   ...['N','S','E','W','NE','NW','SE','SW'].map(d => `100 Example St ${d}, New Orleans, 70125`),
 ]) {
   assert.deepEqual(serviceUnitIdentifiers(address), [], `Ambiguous street or direction is not a unit: ${address}`);
   assert.equal(cleanServiceQuery(address), address);
 }
+assert.equal(cleanServiceQuery('Apt 5 100 Avenue B, New Orleans, 70125'),'100 Avenue B, New Orleans, 70125', 'Explicit prefix unit must not make Avenue B a unit');
+assert.deepEqual(serviceUnitIdentifiers('100 6th St B, New Orleans, 70125'),['B'], 'Ordinal street stems still allow a trailing unit');
 assert.equal(verify('100 E Example St B, New Orleans, 70125').location, null);
 assert.equal(appointmentServiceAddress({address:'100 Example St B, New Orleans, 70125',mapAddress:'100 EXAMPLE ST Unit C, NEW ORLEANS, LA, 70125'}),'100 EXAMPLE ST, Unit B, NEW ORLEANS, LA, 70125', 'Source unit wins over a conflicting provider unit');
 

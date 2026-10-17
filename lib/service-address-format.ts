@@ -23,6 +23,7 @@ const explicitServiceUnits = (address: string, bareLetters = true) => address.re
     // a house plus a real street name before the suffix, not just a direction.
     const street = firstHouseAndStreet(prefix)?.street;
     if (!bareLetters || /^[NSEW]$/i.test(unit) || !street
+      || !/^(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH))(?:\s+(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH)))*$/i.test(street.trim())
       || /^(?:N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)$/i.test(street.trim())) return match;
   }
   return `${suffix} Unit ${unit}`;

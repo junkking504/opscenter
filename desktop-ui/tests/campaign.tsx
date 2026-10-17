@@ -17,7 +17,7 @@ const data: MarketingData = {
 let uncertain = false, posts = 0, receipt: CommercialReceipt | null = null;
 let pendingOperation: CommercialOperation | null = null;
 function applyOperation(operation: CommercialOperation) {
-  if (operation.action === 'lead.update') { const lead = data.leads.find(row => row.id === operation.recordId)!; Object.assign(lead, operation.values, { version: 'c'.repeat(64) }); }
+  if (['lead.update', 'lead.flag'].includes(operation.action)) { const lead = data.leads.find(row => row.id === operation.recordId)!; Object.assign(lead, operation.values, { version: 'c'.repeat(64) }); }
   if (operation.action === 'review.assign') { const review = data.reviews.find(row => row.id === operation.recordId)!; review.attribution = { status: 'matched', appointmentId: String(operation.values.appointmentId), jkNumber: 'JK1001', crew: ['Crew Alpha', 'Crew Beta'] }; review.version = 'c'.repeat(64); }
 }
 window.fetch = async (input, init) => {

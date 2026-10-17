@@ -4,11 +4,12 @@ export type LeadFilters = {
   query: string;
   territory: string;
   contact: '' | 'contacted' | 'uncontacted';
-  queue: 'recover' | 'lost' | 'followup' | 'booked' | 'all';
+  queue: 'flagged' | 'recover' | 'lost' | 'followup' | 'booked' | 'all';
   order: 'newest' | 'oldest' | 'value' | 'priority';
 };
 export const defaultLeadFilters: LeadFilters = { query: '', territory: '', contact: '', queue: 'recover', order: 'newest' };
 export function inLeadQueue(lead: Lead, queue: LeadFilters['queue']) {
+  if (queue === 'flagged') return lead.flagged === true;
   if (queue === 'recover') return ['lost', 'needs_follow_up'].includes(lead.status);
   if (queue === 'followup') return lead.status === 'needs_follow_up';
   if (queue === 'booked') return ['booked', 'recovered'].includes(lead.status);

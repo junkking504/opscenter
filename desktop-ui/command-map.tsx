@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './components/ui/button';
-import LiveSchedule from './live-schedule';
+import LiveSchedule from './deferred-live-schedule';
 import './command-map.css';
 
 const preferenceKey = 'opscenter.commandMap.expanded';

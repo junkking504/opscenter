@@ -1,6 +1,6 @@
 import { campaignShortcutFilters, campaignShortcutCount, type CampaignShortcut } from './lib/campaign-shortcuts';
 import { CampaignLeads, CampaignResults, CampaignReviews, campaignOutcomes } from './campaign-workspace';
-import { LiveAnalytics } from './live-analytics';
+import { LiveAnalytics } from './deferred-live-analytics';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';

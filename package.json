@@ -188,6 +188,8 @@
     "verify:waypoint-manager": "node --import tsx scripts/test-waypoint-manager.ts && node --import tsx scripts/test-waypoint-manager-route.ts && node --import tsx scripts/test-waypoint-manager-edit.ts",
     "verify:estimate-photos": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-estimate-photo-browser.ts",
     "verify:waypoint-billed": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-schedule-payment.ts && node --import tsx scripts/test-waypoint-day-summary.ts && node --import tsx scripts/test-crew-progress-alerts.ts && node --import tsx scripts/test-waypoint-billed-browser.ts",
+    "verify:desktop-bundle-budget": "node scripts/test-desktop-bundle-budget.mjs",
+    "perf:desktop": "node scripts/measure-desktop-performance.mjs",
     "verify:desktop-presentation": "node --import tsx scripts/test-desktop-presentation.ts",
     "verify:desktop-presentation:browser": "node scripts/test-desktop-presentation-browser.mjs && node scripts/test-desktop-rail-browser.mjs && node scripts/test-desktop-update-browser.mjs && node scripts/test-shop-tv-browser.mjs"
   },

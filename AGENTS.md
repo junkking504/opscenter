@@ -72,6 +72,17 @@ Update the relevant document in `docs/` when changing architecture,
 integrations, source precedence, deployment, operational safety, or the asset
 map. Prefer links to one canonical document over duplicated instructions.
 
+## Agent handoffs and review
+
+- Planner, builder, and reviewer hand work off through files in
+  `task-evidence/<task>/`: `brief.md`, `handoff.md`, and `review.md`. Use the
+  templates in [docs/agent-handoffs.md](docs/agent-handoffs.md).
+- The reviewer is a different model from the builder. Claude reviews Codex
+  branches; Codex reviews Claude branches.
+- Do not merge a task branch into `origin/production` until its `review.md`
+  approves the exact commit being merged, unless the user waived review for
+  that change and the waiver is recorded there.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

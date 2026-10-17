@@ -16,6 +16,7 @@ without mixing live runtime data or secrets into Git.
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |
 | Work with an integration | Use the integration index below |
 | Approve or prevent usage charges | [Spending controls](spending-controls.md) |
+| Hand off or review agent work | [Agent handoffs and review](agent-handoffs.md) |
 
 ## Product and architecture
 

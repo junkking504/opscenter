@@ -128,6 +128,42 @@ export function readPodiumGoogleReviewsHistory(): PodiumGoogleReviewsSnapshot[] 
   return Array.from(snapshots.values()).sort((left, right) => left.fetchedAt.localeCompare(right.fetchedAt));
 }
 
+/**
+ * The newest history snapshot fetched before `fetchedAt`. The collector names
+ * each history file by the Chicago date it was fetched, so files are read
+ * newest first and the search stops after the first day with a match instead
+ * of parsing every day's copy of every review.
+ */
+export function readPreviousPodiumGoogleReviewsSnapshot(fetchedAt: string): PodiumGoogleReviewsSnapshot | null {
+  const files: Array<{ day: string; file: string }> = [];
+  for (const root of dataRoots()) {
+    const directory = path.join(root, "history", "podium-google-reviews");
+    try {
+      if (!fs.existsSync(directory)) continue;
+      for (const file of fs.readdirSync(directory)) {
+        const match = /^podium-google-reviews_(\d{4}-\d{2}-\d{2})\.json$/.exec(file);
+        if (match) files.push({ day: match[1], file: path.join(directory, file) });
+      }
+    } catch {
+      // Runtime roots can be absent or inaccessible outside production.
+    }
+  }
+  files.sort((left, right) => right.day.localeCompare(left.day));
+  let previous: PodiumGoogleReviewsSnapshot | null = null;
+  let previousDay = "";
+  for (const { day, file } of files) {
+    if (previousDay && day < previousDay) break;
+    const snapshot = readSnapshot(file);
+    if (snapshot && snapshot.fetchedAt < fetchedAt && (!previous || snapshot.fetchedAt > previous.fetchedAt)) {
+      previous = snapshot;
+      const timestamp = new Date(snapshot.fetchedAt);
+      // A snapshot without a readable fetch time cannot bound the search.
+      previousDay = Number.isFinite(timestamp.getTime()) ? chicagoDateKey(timestamp) : "";
+    }
+  }
+  return previous;
+}
+
 export function buildPodiumGoogleReviewsViewFromData(
   snapshot: PodiumGoogleReviewsSnapshot | null,
   history: PodiumGoogleReviewsSnapshot[] = [],
@@ -259,10 +295,9 @@ export function buildPodiumGoogleReviewsViewFromData(
 }
 
 export function buildPodiumGoogleReviewsView(): PodiumGoogleReviewsView {
-  return buildPodiumGoogleReviewsViewFromData(
-    readPodiumGoogleReviewsSnapshot(),
-    readPodiumGoogleReviewsHistory(),
-  );
+  const snapshot = readPodiumGoogleReviewsSnapshot();
+  const previous = snapshot ? readPreviousPodiumGoogleReviewsSnapshot(snapshot.fetchedAt) : null;
+  return buildPodiumGoogleReviewsViewFromData(snapshot, previous ? [previous] : []);
 }
 
 export function podiumReviewsSetupSummary(view = buildPodiumGoogleReviewsView()): string {

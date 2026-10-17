@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { addDays } from "@/lib/report-dates";
-import { money, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { metricsDirs, money, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { sourceFileMemo } from "@/lib/source-file-memo";
 
 export type SearchKingsMetric = {
   id: number;
@@ -338,30 +339,34 @@ function uniqueMoneyMatches(value: string, patterns: RegExp[]): number[] {
   return Array.from(amounts);
 }
 
+// Built once: explicitCallValue runs for every call in every month on each Campaign load.
+const FINAL_AMOUNT_PATTERNS = [
+  new RegExp(String.raw`discounted(?:\s+(?:price|quote))?\s+to\s+${EXPLICIT_MONEY}`, "gi"),
+  new RegExp(String.raw`final(?:\s+(?:price|quote|amount))?(?:\s+(?:was|is|of|at))?\s+${EXPLICIT_MONEY}`, "gi"),
+];
+const QUOTED_RANGE = new RegExp(
+  String.raw`${EXPLICIT_MONEY}\s*(?:or|to|and|[-–])\s*${EXPLICIT_MONEY}`,
+  "i",
+);
+const QUOTED_AMOUNT_PATTERNS = [
+  new RegExp(String.raw`(?:quoted?|priced|estimated)(?:\s+(?:at|as|around|about|approximately|of|was|is))?\s*(?:around|about|approximately|approx\.?|~)?\s*${EXPLICIT_MONEY}`, "gi"),
+  new RegExp(String.raw`(?:provided|gave)\s+(?:a\s+)?${EXPLICIT_MONEY}\s+(?:quote|quoted\s+price|estimate|starting\s+price|price)`, "gi"),
+  new RegExp(String.raw`${EXPLICIT_MONEY}\s+(?:starting\s+price|quote|quoted\s+price|estimate|estimated\s+price)`, "gi"),
+  new RegExp(String.raw`starting(?:\s+price)?(?:\s+(?:of|at|was|is))?\s+${EXPLICIT_MONEY}`, "gi"),
+  new RegExp(String.raw`(?:price|cost)(?:\s+(?:was|is|of|at))\s+${EXPLICIT_MONEY}`, "gi"),
+];
+
 export function explicitCallValue(value: unknown): number | null {
   const summary = String(value || "").trim();
   if (!summary) return null;
 
-  const finalAmounts = uniqueMoneyMatches(summary, [
-    new RegExp(String.raw`discounted(?:\s+(?:price|quote))?\s+to\s+${EXPLICIT_MONEY}`, "gi"),
-    new RegExp(String.raw`final(?:\s+(?:price|quote|amount))?(?:\s+(?:was|is|of|at))?\s+${EXPLICIT_MONEY}`, "gi"),
-  ]);
+  const finalAmounts = uniqueMoneyMatches(summary, FINAL_AMOUNT_PATTERNS);
   if (finalAmounts.length === 1) return finalAmounts[0];
   if (finalAmounts.length > 1) return null;
 
-  const quotedRange = new RegExp(
-    String.raw`${EXPLICIT_MONEY}\s*(?:or|to|and|[-–])\s*${EXPLICIT_MONEY}`,
-    "i",
-  );
-  if (quotedRange.test(summary)) return null;
+  if (QUOTED_RANGE.test(summary)) return null;
 
-  const quotedAmounts = uniqueMoneyMatches(summary, [
-    new RegExp(String.raw`(?:quoted?|priced|estimated)(?:\s+(?:at|as|around|about|approximately|of|was|is))?\s*(?:around|about|approximately|approx\.?|~)?\s*${EXPLICIT_MONEY}`, "gi"),
-    new RegExp(String.raw`(?:provided|gave)\s+(?:a\s+)?${EXPLICIT_MONEY}\s+(?:quote|quoted\s+price|estimate|starting\s+price|price)`, "gi"),
-    new RegExp(String.raw`${EXPLICIT_MONEY}\s+(?:starting\s+price|quote|quoted\s+price|estimate|estimated\s+price)`, "gi"),
-    new RegExp(String.raw`starting(?:\s+price)?(?:\s+(?:of|at|was|is))?\s+${EXPLICIT_MONEY}`, "gi"),
-    new RegExp(String.raw`(?:price|cost)(?:\s+(?:was|is|of|at))\s+${EXPLICIT_MONEY}`, "gi"),
-  ]);
+  const quotedAmounts = uniqueMoneyMatches(summary, QUOTED_AMOUNT_PATTERNS);
   return quotedAmounts.length === 1 ? quotedAmounts[0] : null;
 }
 
@@ -422,7 +427,21 @@ export function parseCalledDate(call: SearchKingsCall): string {
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 }
 
+// Building an Intl formatter costs far more than formatting with one, and
+// snapshot calls are reused across loads, so each call's time is resolved once.
+let chicagoPartsFormatter: Intl.DateTimeFormat | null = null;
+const calledAtByCall = new WeakMap<SearchKingsCall, { key: string; value: string }>();
+
 export function parseCalledAt(call: SearchKingsCall): string {
+  const key = `${call.calledAtDate}|${call.calledAtTime}`;
+  const cached = calledAtByCall.get(call);
+  if (cached?.key === key) return cached.value;
+  const value = resolveCalledAt(call);
+  calledAtByCall.set(call, { key, value });
+  return value;
+}
+
+function resolveCalledAt(call: SearchKingsCall): string {
   const date = parseCalledDate(call);
   if (!date) return '';
   const time = String(call.calledAtTime || '').trim();
@@ -433,7 +452,7 @@ export function parseCalledAt(call: SearchKingsCall): string {
   if (match[4]) hour = hour % 12 + (match[4].toLowerCase() === 'pm' ? 12 : 0);
   const wall = Date.parse(`${date}T${String(hour).padStart(2,'0')}:${match[2]}:${String(second).padStart(2,'0')}Z`);
   const offsets = match[5] ? [match[5].toUpperCase() === 'CDT' ? 5 : 6] : [5, 6];
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: DEFAULT_TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+  const formatter = chicagoPartsFormatter ??= new Intl.DateTimeFormat('en-CA', { timeZone: DEFAULT_TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
   const candidates = offsets.map(offset => new Date(wall + offset * 3600000)).filter(value => {
     const parts = Object.fromEntries(formatter.formatToParts(value).map(part => [part.type,part.value]));
     return `${parts.year}-${parts.month}-${parts.day}` === date && Number(parts.hour) === hour && Number(parts.minute) === minute && Number(parts.second) === second;
@@ -551,7 +570,17 @@ export function saveLostLeadOverride(input: {
   return saved;
 }
 
+// Campaign reads every month's snapshot and appointment roster on each load.
+// Past months rarely change, so readings are reused until a file changes.
+const SOURCE_MEMO_MAX_AGE_MS = 10 * 60_000;
+const snapshotMemo = sourceFileMemo<SearchKingsSnapshot | null>(SOURCE_MEMO_MAX_AGE_MS, 128);
+const appointmentRowsMemo = sourceFileMemo<SearchKingsAppointmentMatch[]>(SOURCE_MEMO_MAX_AGE_MS, 128);
+
 function readSearchKingsSnapshotFromFile(file: string): SearchKingsSnapshot | null {
+  return snapshotMemo(file, [file], () => parseSearchKingsSnapshotFile(file));
+}
+
+function parseSearchKingsSnapshotFile(file: string): SearchKingsSnapshot | null {
   try {
     if (!fs.existsSync(file)) return null;
     const payload = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -604,8 +633,17 @@ function completedAppointmentIds(metrics: AnyRecord | null): Set<string> {
 }
 
 function appointmentRows(start: string, end: string): SearchKingsAppointmentMatch[] {
+  const dates = dateKeys(start, addDays(end, 7));
+  // readMetrics overrides adjust trucks, drivers, bonuses and recycling, never the
+  // appointment fields read here, so the daily metrics files are the sources.
+  const directories = metricsDirs();
+  const files = dates.flatMap((date) => directories.map((dir) => path.join(dir, `daily_metrics_${date}.json`)));
+  return appointmentRowsMemo(`${directories.join("|")}|${start}|${end}`, files, () => readAppointmentRows(dates));
+}
+
+function readAppointmentRows(dates: string[]): SearchKingsAppointmentMatch[] {
   const rows: SearchKingsAppointmentMatch[] = [];
-  for (const date of dateKeys(start, addDays(end, 7))) {
+  for (const date of dates) {
     const metrics = readMetrics(date);
     const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments : [];
     const completedIds = completedAppointmentIds(metrics);
@@ -673,8 +711,9 @@ function matchAppointments(
     .sort((left, right) => left.calledAt.localeCompare(right.calledAt));
 
   for (const entry of eligibleCalls) {
+    const latestDate = addDays(entry.calledDate, 7);
     const appointment = appointments
-      .filter((candidate) => !claimed.has(appointmentKey(candidate)) && candidate.phone === entry.phone && candidate.date >= entry.calledDate && candidate.date <= addDays(entry.calledDate, 7))
+      .filter((candidate) => candidate.phone === entry.phone && candidate.date >= entry.calledDate && candidate.date <= latestDate && !claimed.has(appointmentKey(candidate)))
       .sort((left, right) => left.date.localeCompare(right.date))[0];
     if (!appointment) continue;
     matches.set(entry.call, appointment);

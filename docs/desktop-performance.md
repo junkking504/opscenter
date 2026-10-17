@@ -58,3 +58,23 @@ which reuses a reading while every source file keeps its modification time and
 size, for at most a few seconds (GPS) or a minute (geocodes). A collector write
 is picked up on the next call. Values from the memo are shared, so callers must
 not mutate them.
+
+Campaign (`readDesktopMarketing`) shows every SearchKings inquiry ever and
+every Podium review. It used to rebuild each month's appointment roster from
+daily metrics, parse every daily copy of the Podium review history to find
+yesterday's, and reread every day's appointments for review suggestions on
+each load. Now:
+
+- SearchKings snapshots and each month's appointment roster go through
+  `sourceFileMemo` (`lib/searchkings.ts`), keyed on the snapshot file and the
+  month's daily metrics files. Lead status is still computed on every load,
+  because it depends on the current time.
+- The previous Podium snapshot is found newest first by the Chicago date in
+  each history file's name, which the collector writes, so only the last day
+  or two are parsed (`readPreviousPodiumGoogleReviewsSnapshot`).
+- Review-suggestion appointments are reused until a file in `processed/`
+  changes (`lib/podium-review-attribution.ts`).
+
+`scripts/test-campaign-read-performance.ts` (part of
+`npm run verify:podium-reviews`) checks that these reads stay bounded and that
+a collector rewrite shows on the next load.

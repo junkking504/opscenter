@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chicagoDateKey } from "@/lib/chicago-date";
+import { sourceFileMemo } from "@/lib/source-file-memo";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -104,12 +105,27 @@ function appointmentIdentifiers(row: AnyRecord): Set<string> {
   ].filter(Boolean));
 }
 
+// Every Campaign load reads every day's appointments to suggest review
+// matches; reuse that reading until a daily metrics file changes.
+const appointmentMemo = sourceFileMemo<AppointmentCandidate[]>(10 * 60_000, 4);
+const DAILY_METRICS_FILE = /^daily_metrics_(\d{4}-\d{2}-\d{2})\.json$/;
+
 function readAppointments(dataDir: string): AppointmentCandidate[] {
   const directory = path.join(dataDir, "processed");
+  let names: string[];
+  try {
+    names = fs.readdirSync(directory).filter((file) => DAILY_METRICS_FILE.test(file));
+  } catch {
+    return [];
+  }
+  return appointmentMemo(directory, names.map((file) => path.join(directory, file)), () => parseAppointments(directory, names));
+}
+
+function parseAppointments(directory: string, names: string[]): AppointmentCandidate[] {
   const appointments = new Map<string, AppointmentCandidate>();
   try {
-    for (const file of fs.readdirSync(directory)) {
-      const match = /^daily_metrics_(\d{4}-\d{2}-\d{2})\.json$/.exec(file);
+    for (const file of names) {
+      const match = DAILY_METRICS_FILE.exec(file);
       if (!match) continue;
       const payload = JSON.parse(fs.readFileSync(path.join(directory, file), "utf8")) as AnyRecord;
       for (const row of recordRows(payload.appointments)) {
@@ -277,8 +293,8 @@ export function buildPodiumReviewNameSuggestionMap(
   dataDir: string,
   reviews: PodiumReviewNameSuggestionInput[],
 ): Record<string, PodiumReviewNameSuggestion[]> {
-  // Normalize each name once per source read, rather than once per review pair.
-  // Nothing survives this call: the next refresh observes newly published data.
+  // Normalize each name once per call, rather than once per review pair.
+  // Appointments are reread whenever a daily metrics file changes.
   const appointments = readAppointments(dataDir)
     .filter((candidate) => candidate.crew.length > 0 && candidate.customerName)
     .map((candidate) => ({ candidate, name: preparedName(candidate.customerName) }));

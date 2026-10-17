@@ -51,7 +51,7 @@
     "verify:pay-period": "node --import tsx scripts/test-pay-period.ts",
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
-    "verify:podium-reviews": "node --import tsx scripts/test-podium-reviews.ts",
+    "verify:podium-reviews": "node --import tsx scripts/test-podium-reviews.ts && node --import tsx scripts/test-campaign-read-performance.ts",
     "verify:historical-searchkings": "node --import tsx scripts/test-historical-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-assignment-email": "node --import tsx scripts/test-junkware-assignment-email.ts",

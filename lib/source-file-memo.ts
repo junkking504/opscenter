@@ -3,7 +3,7 @@ import fs from 'node:fs';
 type Entry<T> = { signature: string; storedAt: number; value: T };
 
 function fileSignature(file: string): string {
-  try { const stat = fs.statSync(file); return `${stat.mtimeMs}:${stat.size}`; } catch { return 'missing'; }
+  try { const stat = fs.statSync(file); return `${file}=${stat.mtimeMs}:${stat.size}`; } catch { return `${file}=missing`; }
 }
 
 /**

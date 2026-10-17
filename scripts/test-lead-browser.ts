@@ -32,3 +32,5 @@ assert.equal(callDurationLabel('3:36'), '3 min 36 sec');
 assert.equal(callDurationLabel('1:00:05'), '1 hr 5 sec');
 assert.equal(callDurationLabel(''), 'Not recorded');
 console.log('Lead browsing: queues, combined search, phones, sorting, pagination and live shrink passed.');
+
+assert.deepEqual(browseLeads([lead('booked-flag', { status: 'booked', flagged: true }), lead('lost-unflagged'), lead('unqualified-flag', { status: 'unqualified', flagged: true })], { ...defaultLeadFilters, queue: 'flagged' }).rows.map(row => row.id), ['booked-flag', 'unqualified-flag']);

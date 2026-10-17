@@ -104,3 +104,20 @@ Campaign inquiry and follow-up lists combine all available monthly snapshots and
 the current snapshot, deduplicated by call ID with the newest copy taking
 precedence. The operating day/month still scopes performance totals; it does
 not restrict inquiry history. The legacy Calls browser defaults to All dates.
+
+## Campaign conversation flags
+
+Campaign's conversation detail offers **Flag conversation** / **Remove flag**.
+The shared flag appears in the queue and the **Flagged** filter includes marked
+conversations across outcomes (including matched bookings). Search and territory
+filters still apply. Flagging is immediate and does not require an outcome note.
+
+Flags are OpsCenter-owned metadata, persisted beneath the existing commercial
+runtime directory in `conversation-flags/state.json`, keyed by the stable call
+ID. Source calls, outcomes, notes and appointment matches remain unchanged.
+The `lead.flag` action uses the existing authenticated same-origin Marketing API,
+`operations.write` permission, commercial lock, optimistic version check and
+attributed receipts. An uncertain result blocks replay until receipt recovery;
+unreadable flag state fails closed instead of silently resetting flags.
+The runtime `data` link preserves flags across releases. No provider calls or
+background requests are added. Validate with `npm run verify:campaign-flags`.

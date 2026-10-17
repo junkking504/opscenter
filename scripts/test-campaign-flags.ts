@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { commercialVersion, executeCommercialOperation, parseCommercialOperation, readConversationFlags, saveConversationFlag } from '../lib/desktop-marketing';
+import type { CommercialOperation } from '../desktop-ui/lib/commercial-contract';
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'campaign-flags-'));
+const prior = process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR;
+process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR = root;
+const actor = { email: 'synthetic@example.test', role: 'manager' as const };
+const version = () => commercialVersion(readConversationFlags()['synthetic-call'] || null);
+const operation = (flagged: boolean): CommercialOperation => parseCommercialOperation({ requestId: randomUUID(), date: '2026-10-17', action: 'lead.flag', recordId: 'synthetic-call', expectedVersion: version(), values: { flagged } });
+let writes = 0;
+const run = (op: CommercialOperation) => executeCommercialOperation(op, actor, version, () => { writes++; saveConversationFlag(op.recordId, op.values.flagged as boolean, actor.email); return readConversationFlags()[op.recordId].flagged === op.values.flagged; });
+try {
+  assert.deepEqual(Object.keys(readConversationFlags()), [], 'No store means no flags');
+  const set = operation(true);
+  const result = run(set);
+  assert.equal(result.status, 'verified');
+  assert.deepEqual(result.input, { flagged: true });
+  assert.equal(readConversationFlags()['synthetic-call'].flagged, true);
+  assert.equal(readConversationFlags()['synthetic-call'].updatedBy, actor.email);
+  assert.equal(run(set).requestId, result.requestId);
+  assert.equal(writes, 1, 'Receipt replay never toggles or rewrites the flag');
+  assert.throws(() => run({ ...set, requestId: randomUUID() }), /record changed/);
+  assert.equal(run(operation(false)).status, 'verified');
+  assert.equal(readConversationFlags()['synthetic-call'].flagged, false);
+  assert.throws(() => executeCommercialOperation(set, { ...actor, email: 'other@example.test' }, version, () => { throw new Error('Must not write'); }), /another change/);
+  const uncertain = operation(true);
+  assert.equal(executeCommercialOperation(uncertain, actor, version, () => { throw new Error('Simulated disk failure'); }).status, 'uncertain');
+  assert.throws(() => run(operation(true)), /unverified change/);
+  assert.equal(readConversationFlags()['synthetic-call'].flagged, false);
+  fs.writeFileSync(path.join(root, 'conversation-flags/state.json'), '{broken');
+  assert.throws(() => readConversationFlags(), 'Corruption must not silently clear saved flags');
+  console.log('Campaign flag persistence, removal, receipts, stale versions, permissions, uncertain saves and corrupt-state handling passed.');
+} finally {
+  if (prior === undefined) delete process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR; else process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR = prior;
+  fs.rmSync(root, { recursive: true, force: true });
+}

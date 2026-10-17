@@ -50,24 +50,23 @@
 .crew-territory-unknown { background: #c5c9ce; }
 .crew-event-job { color: #064f9d; font-size: 14px; font-weight: 900; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .crew-event-job:hover { color: #033e7c; }
-.crew-update-content dl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0; }
-.crew-update-content dl>div { min-width: 0; display: flex; align-items: baseline; gap: 5px; max-width: 100%; }
-.crew-update-content dt { color: var(--crew-muted); font-size: 12px; flex-shrink: 0; }
-.crew-update-content dt::after { content: ':'; }
-.crew-update-content dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; white-space: pre-line; }
-.crew-update-content dd a { color: #14547a; text-decoration: underline; }
-.crew-completed-summary { margin: 9px 0; }
-.crew-update-content .crew-completion-facts,.crew-update-content .crew-appointment-context { display: grid; gap: 5px; margin: 0; line-height: 1.5; }
-.crew-update-content .crew-completion-facts>div,.crew-update-content .crew-appointment-context>div { display: grid; grid-template-columns: 96px minmax(0,1fr); align-items: baseline; gap: 10px; }
-.crew-update-content .crew-completion-facts dd,.crew-update-content .crew-appointment-context dd { min-width: 0; color: #263843; }
-.crew-update-content .crew-appointment-context { padding-top: 8px; margin-bottom: 8px; border-top: 1px solid #d9e0e5; }
+/* A single label/value rhythm across event facts and appointment context. */
+.crew-update-content dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)); gap: 14px 20px; margin: 12px 0; line-height: 1.5; }
+.crew-update-content dl>div { min-width: 0; display: flex; flex-direction: column; gap: 3px; max-width: 100%; }
+.crew-update-content dl>.crew-fact-wide { grid-column: 1 / -1; }
+.crew-update-content dt { color: var(--crew-muted); font-size: 12px; font-weight: 600; line-height: 1.4; }
+.crew-update-content dd { min-width: 0; margin: 0; color: var(--crew-ink); font-size: 14px; font-weight: 400; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; white-space: pre-line; }
+.crew-update-content dd a { color: #14547a; text-decoration: underline; text-underline-offset: 3px; }
+.crew-completed-summary { margin: 12px 0; }
+.crew-update-content .crew-completion-facts { margin: 0; }
+.crew-update-content .crew-appointment-context { padding-top: 14px; margin: 14px 0; border-top: 1px solid var(--crew-line); }
 .crew-inline-facts { display: flex; flex-wrap: wrap; gap: 3px 16px; }
 .crew-inline-facts span { min-width: 0; }
 .crew-inline-facts strong { font-weight: 600; }
-.crew-completion-facts .crew-completion-amount { padding-block: 5px; }
+.crew-completion-facts .crew-completion-amount { padding: 0; }
 .crew-completion-facts .crew-completion-amount dt,.crew-completion-facts .crew-completion-amount dd { color: #25643d; font-weight: 750; }
 .crew-update-estimate .crew-completion-amount dt,.crew-update-estimate .crew-completion-amount dd { color: #69468f; }
-.crew-completion-facts .crew-completion-amount dd { font-size: 15px; }
+.crew-completion-facts .crew-completion-amount dd { font-size: 14px; }
 .crew-update-content footer { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .crew-update-content footer button { padding: 3px 0; border: 0; background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; min-height: 24px; }
 .crew-update-content footer span { margin-right: auto; font-size: 11px; color: var(--crew-muted); }
@@ -94,8 +93,6 @@
   .crew-alert-search { flex-basis: 100%; }
   .crew-update { grid-template-columns: 1fr; gap: 8px; }
   .crew-update-time { justify-content: flex-start; }
-  .crew-update-content dl>div { flex-wrap: wrap; }
-  .crew-update-content .crew-completion-facts>div,.crew-update-content .crew-appointment-context>div { grid-template-columns: 86px minmax(0,1fr); gap: 8px; }
   .crew-update-content header { flex-wrap: wrap; gap: 3px; }
   .crew-update-content footer button { min-height: 32px; }
 }

@@ -72,6 +72,24 @@ Update the relevant document in `docs/` when changing architecture,
 integrations, source precedence, deployment, operational safety, or the asset
 map. Prefer links to one canonical document over duplicated instructions.
 
+## Agent handoffs and review
+
+- The Obsidian vault at `/Users/missioncontrol/opscenter-v2/vault` is the
+  shared memory for people and agents. Read its `Home.md` before starting a
+  task. Record decisions in `Decisions/` and lessons in `Lessons/`, one note
+  each. The vault follows the runtime boundary above: no credentials, customer
+  records, payroll, financial exports, raw telemetry, or logs.
+- Planner, builder, and reviewer hand work off through files in
+  `vault/Tasks/<task>/`: `brief.md`, `handoff.md`, and `review.md`. Use the
+  templates in [docs/agent-handoffs.md](docs/agent-handoffs.md).
+- The reviewer is a different model from the builder. Claude reviews Codex
+  branches; Codex reviews Claude branches.
+- Do not merge a task branch into `origin/production` until its `review.md`
+  approves the exact commit being merged, unless the user waived review for
+  that change and the waiver is recorded there.
+  The installed deployment controller refuses a deployment with unreviewed
+  commits; never work around it.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

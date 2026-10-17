@@ -176,6 +176,11 @@ active_release="$(readlink "$APP_LINK")"
 active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
 [[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
 require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
+# Every new commit needs an approved cross-model review receipt in the vault
+# (docs/agent-handoffs.md). The installed controller enforces this so that no
+# launcher copy can skip it.
+python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY" "$active_commit" "$commit" "$DEPLOY_ROOT/vault/Tasks" \
+  || fail "the review gate refused $commit"
 
 release="$RELEASES_DIR/$commit"
 if [[ -d "$release" ]]; then

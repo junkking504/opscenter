@@ -47,3 +47,14 @@ Use a local or preview server. Against empty data the numbers isolate code
 cost; against real data they include the API reads. Nothing is uploaded.
 For a single browser, `?performance=1` on `/desktop` shows the in-page timing
 panel from `desktop-ui/navigation-performance.tsx`.
+
+## Server reads
+
+One Command request used to replay the same day's LinxUp GPS evidence five
+times (Command, dump expenses, truck loads and visit tracking each call
+`readGeofenceEntries`) and re-parse the whole appointment geocode cache for
+every GPS stop on the map. Both now go through `lib/source-file-memo.ts`,
+which reuses a reading while every source file keeps its modification time and
+size, for at most a few seconds (GPS) or a minute (geocodes). A collector write
+is picked up on the next call. Values from the memo are shared, so callers must
+not mutate them.

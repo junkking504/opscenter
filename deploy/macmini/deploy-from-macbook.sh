@@ -82,23 +82,6 @@ if $BOOTSTRAP; then
   exit 0
 fi
 
-# Every commit new since the active release needs an approved cross-model
-# review receipt in the Mission Control vault (docs/agent-handoffs.md).
-command -v python3 >/dev/null 2>&1 || fail "required command is missing: python3"
-active_commit="$(ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/readlink /Users/missioncontrol/opscenter-v2/opscenter || true)"
-active_commit="${active_commit:t}"
-[[ "$active_commit" =~ ^[0-9a-f]{40}$ ]] || fail "cannot read the active release commit on Mission Control"
-receipts_dir="$(mktemp -d)"
-trap 'rm -rf "$receipts_dir"' EXIT
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s <<'REMOTE' | tar -xf - -C "$receipts_dir" \
-  || fail "cannot read review receipts from the Mission Control vault"
-cd /Users/missioncontrol/opscenter-v2/vault/Tasks || exit 1
-receipts=(*/review.md(N))
-if (( ${#receipts} )); then tar -cf - -- $receipts; else tar -cf - -T /dev/null; fi
-REMOTE
-python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY_ROOT" "$active_commit" "$commit" "$receipts_dir" \
-  || fail "the review gate refused $commit"
-
 echo "Deploying pushed commit $commit to Mission Control..."
 ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" "$RESTART_WHATSAPP_PHOTO_WORKER" "$PRESERVE_RELEASES" <<'REMOTE'
 controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"

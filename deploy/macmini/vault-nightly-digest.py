@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write a nightly digest of OpsCenter work into the Obsidian vault Inbox.
 
-Reads only local files and Git: production commits, the active release, task
+Reads only local files and the local Git checkout (it never fetches): production commits, the active release, task
 notes in vault/Tasks, deploy evidence in task-evidence, and vault notes changed
 in the last day. It writes vault/Inbox/Digest YYYY-MM-DD.md for a person or agent
 to promote into Decisions/ or Lessons/. It calls no external service and never
@@ -44,7 +44,7 @@ def digest(workspace, vault, repository, day, since):
 
     active = pathlib.Path(os.path.realpath(workspace / "opscenter")).name
     lines += ["## Production", "", f"- Active release: `{active[:12]}`"]
-    git(repository, "fetch", "--quiet", "origin", "production")
+    # Local refs only: commits appear once a deploy or person has fetched them.
     commits = git(repository, "log", "--no-merges", f"--since=@{int(since)}", "--format=- `%h` %s (%an)", "origin/production")
     lines += [commits] if commits else ["- No new production commits."]
     lines.append("")

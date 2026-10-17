@@ -7,22 +7,22 @@ import tempfile
 GATE = pathlib.Path(__file__).resolve().parent.parent / "deploy" / "macmini" / "check-review-gate.py"
 
 
-def run(*args, cwd):
-    return subprocess.run(args, cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
+def run(*args, cwd, check=True):
+    return subprocess.run(args, cwd=cwd, capture_output=True, text=True, check=check).stdout.strip()
 
 
-def commit(repo, name):
-    (repo / name).write_text(name)
+def commit(repo, name, text=None):
+    (repo / name).write_text(text or name)
     run("git", "add", name, cwd=repo)
     run("git", "commit", "-qm", name, cwd=repo)
     return run("git", "rev-parse", "HEAD", cwd=repo)
 
 
-def receipt(receipts, task, reviewer, builder, shas, state="approve", findings=""):
+def receipt(receipts, task, lines, state="approve", findings=""):
     folder = receipts / task
     folder.mkdir(parents=True, exist_ok=True)
-    reviewed = "\n".join(f"Reviewer: {reviewer}  ·  Builder: {builder}  ·  Reviewed: task @ {sha}" for sha in shas)
-    (folder / "review.md").write_text(f"# Review: {task}\n\n{reviewed}\n\n## Verdict\n{state}\n\n## Findings\n{findings}\n")
+    opening = "\n".join(f"Reviewer: {reviewer}  ·  Builder: {builder}  ·  Reviewed: task @ {sha}" for reviewer, builder, sha in lines)
+    (folder / "review.md").write_text(f"# Review: {task}\n\n{opening}\n\n## Verdict\n{state}\n\n## Findings\n{findings}\n")
 
 
 def gate(repo, active, target, receipts):
@@ -42,44 +42,91 @@ with tempfile.TemporaryDirectory() as temp:
     first = commit(repo, "one")
     second = commit(repo, "two")
     run("git", "checkout", "-q", "production", cwd=repo)
-    commit(repo, "hotfix-on-production")
+    hotfix = commit(repo, "hotfix-on-production")
     run("git", "merge", "-q", "--no-ff", "-m", "integrate task", "task", cwd=repo)
     target = run("git", "rev-parse", "HEAD", cwd=repo)
-    hotfix = run("git", "rev-parse", "HEAD^1", cwd=repo)
 
     code, out = gate(repo, active, target, receipts)
-    assert code == 1 and "3 commit(s)" in out, out
+    assert code == 1 and "3 commit(s)" in out, "a clean merge is exempt; its three parents' commits are not\n" + out
 
-    receipt(receipts, "task", "Codex", "Claude", [second[:12]])
+    receipt(receipts, "task", [("Codex", "Claude", second[:12])])
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "1 commit(s)" in out and "hotfix-on-production" in out, "the task review covers both task commits, not the hotfix\n" + out
 
-    receipt(receipts, "hotfix", "Claude", "Claude", [hotfix])
+    receipt(receipts, "hotfix", [("Claude", "Claude", hotfix)])
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "same model" in out, "self-review never counts\n" + out
 
-    receipt(receipts, "hotfix", "Claude", "Codex", [hotfix], findings="- [blocking] a.ts:1 broken")
+    receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], findings="- [blocking] a.ts:1 broken")
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "open blocking finding" in out, out
 
-    receipt(receipts, "hotfix", "Claude", "Codex", [hotfix], state="changes requested")
+    receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], state="changes requested")
     assert gate(repo, active, target, receipts)[0] == 1
 
-    receipt(receipts, "hotfix", "Claude", "Codex", [hotfix], state="waived by T'Jean, 2026-10-17, urgent fix")
+    for incomplete in ("waived", "waived by T'Jean", "waived by T'Jean, 2026-10-17", "waived by , 2026-10-17, urgent", "waived by T'Jean, 2026-13-45, urgent"):
+        receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], state=incomplete)
+        code, out = gate(repo, active, target, receipts)
+        assert code == 1 and "waiver" in out, f"incomplete waiver {incomplete!r} must not pass\n{out}"
+
+    receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], state="waived by T'Jean, 2026-10-17, urgent fix")
     code, out = gate(repo, active, target, receipts)
     assert code == 0, out
 
-    receipt(receipts, "task", "Codex", "Claude", [first])
+    receipt(receipts, "task", [("Codex", "Claude", first)])
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "two" in out, "a review of an earlier commit does not cover later pushes\n" + out
 
-    receipt(receipts, "task", "Codex", "Claude", [first, second])
-    assert gate(repo, active, target, receipts)[0] == 0, "an addendum line covers the later push"
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Claude", "Claude", second)])
+    code, out = gate(repo, active, target, receipts)
+    assert code == 1 and "same model" in out, "a self-reviewed addendum invalidates the receipt\n" + out
 
-    receipt(receipts, "task", "Codex", "Claude", ["deadbeefdeadbeef"])
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Gemini", "Claude", second)])
+    code, out = gate(repo, active, target, receipts)
+    assert code == 1 and "disagree" in out, "an addendum cannot switch reviewer\n" + out
+
+    stray = f"- [non-blocking] note.\nReviewer: Codex  ·  Builder: Claude  ·  Reviewed: task @ {second}\nReviewed: task @ {second}"
+    receipt(receipts, "task", [("Codex", "Claude", first)], findings=stray)
+    code, out = gate(repo, active, target, receipts)
+    assert code == 1 and "two" in out, "review lines outside the opening block are ignored\n" + out
+
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Codex", "Claude", second)])
+    assert gate(repo, active, target, receipts)[0] == 0, "an addendum by the same reviewer covers the later push"
+
+    receipt(receipts, "task", [("Codex", "Claude", "deadbeefdeadbeef")])
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "not in this checkout" in out, out
+    receipt(receipts, "task", [("Codex", "Claude", second)])
+
+    # A merge that resolves a conflict, or slips in an extra change, needs its own review.
+    run("git", "checkout", "-qb", "task-two", active, cwd=repo)
+    branch_change = commit(repo, "shared.txt", "branch version")
+    run("git", "checkout", "-q", "production", cwd=repo)
+    production_change = commit(repo, "shared.txt", "production version")
+    run("git", "merge", "-q", "task-two", cwd=repo, check=False)
+    (repo / "shared.txt").write_text("hand resolved")
+    run("git", "add", "shared.txt", cwd=repo)
+    run("git", "commit", "-qm", "integrate task-two", cwd=repo)
+    conflicted = run("git", "rev-parse", "HEAD", cwd=repo)
+    receipt(receipts, "task-two", [("Codex", "Claude", branch_change)])
+    receipt(receipts, "production-change", [("Claude", "Codex", production_change)])
+    code, out = gate(repo, active, conflicted, receipts)
+    assert code == 1 and "1 commit(s)" in out and "integrate task-two" in out, "a conflict resolution needs review\n" + out
+    receipt(receipts, "integration", [("Codex", "Claude", conflicted)])
+    assert gate(repo, active, conflicted, receipts)[0] == 0, "a reviewed integration merge passes"
+
+    run("git", "checkout", "-qb", "task-three", conflicted, cwd=repo)
+    three = commit(repo, "three")
+    run("git", "checkout", "-q", "production", cwd=repo)
+    run("git", "merge", "-q", "--no-ff", "--no-commit", "task-three", cwd=repo)
+    (repo / "sneaky.txt").write_text("unreviewed")
+    run("git", "add", "sneaky.txt", cwd=repo)
+    run("git", "commit", "-qm", "integrate task-three", cwd=repo)
+    evil = run("git", "rev-parse", "HEAD", cwd=repo)
+    receipt(receipts, "task-three", [("Codex", "Claude", three)])
+    code, out = gate(repo, conflicted, evil, receipts)
+    assert code == 1 and "integrate task-three" in out, "an extra change inside a merge needs review\n" + out
 
     assert gate(repo, target, target, receipts)[0] == 0, "redeploying the active commit needs nothing new"
 
-print("Review gate passed: missing receipts, self-review, blocking findings, verdicts, waivers, later pushes, addenda, unknown commits and integration merges.")
+print("Review gate passed: missing receipts, self-review, addenda, stray review lines, blocking findings, verdicts, complete waivers, later pushes, unknown commits, clean merges, conflict resolutions and changed merges.")

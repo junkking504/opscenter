@@ -3,18 +3,24 @@
 
 Usage: check-review-gate.py REPOSITORY ACTIVE_SHA TARGET_SHA RECEIPTS_DIR
 
-Every non-merge commit in ACTIVE_SHA..TARGET_SHA must be reachable from a
-commit named on a `Reviewed:` line of an approved or waived review receipt
-(`*/review.md` under RECEIPTS_DIR). Merge commits made while integrating into
-production are not reviewed separately. See docs/agent-handoffs.md.
+Every commit in ACTIVE_SHA..TARGET_SHA must be reachable from a commit named
+on a review line of an approved or waived receipt (`*/review.md` under
+RECEIPTS_DIR). A two-parent merge is exempt only when its tree is exactly what
+Git's automatic merge produces, so conflict resolutions and any other change
+made in a merge still need a review. The installed deployment controller runs
+this check. See docs/agent-handoffs.md.
 """
+import datetime as dt
 import pathlib
 import re
 import subprocess
 import sys
 
-HEADER = re.compile(r"Reviewer:\s*(?P<reviewer>[^·\n]+?)\s*·\s*Builder:\s*(?P<builder>[^·\n]+?)\s*·\s*Reviewed:", re.I)
-REVIEWED = re.compile(r"Reviewed:\s*\S+\s*@\s*(?P<sha>[0-9a-f]{7,40})\b", re.I)
+# Review lines belong to the receipt's opening block, before the first section.
+REVIEW_LINE = re.compile(
+    r"^Reviewer:\s*(?P<reviewer>[^·\n]+?)\s*·\s*Builder:\s*(?P<builder>[^·\n]+?)\s*·\s*"
+    r"Reviewed:\s*\S+\s*@\s*(?P<sha>[0-9a-f]{7,40})\s*$", re.I)
+WAIVER = re.compile(r"^waived by\s+(?P<who>[^,]*\S)\s*,\s*(?P<date>\d{4}-\d{2}-\d{2})\s*,\s*(?P<reason>\S.*)$", re.I)
 OPEN_BLOCKING = re.compile(r"^\s*-\s*\[blocking\]", re.I | re.M)
 
 
@@ -24,21 +30,44 @@ def git(repository, *args):
 
 def verdict(text):
     section = re.search(r"^##\s*Verdict\s*$\n(?P<body>.*?)(?=^##\s|\Z)", text, re.M | re.S)
-    lines = [line.strip().lower() for line in (section.group("body") if section else "").splitlines() if line.strip()]
+    lines = [line.strip() for line in (section.group("body") if section else "").splitlines() if line.strip()]
     return lines[0] if lines else ""
 
 
-def receipt_problem(text):
-    header = HEADER.search(text)
-    if not header:
-        return "missing the Reviewer · Builder · Reviewed line"
+def review_lines(text):
+    """Return the review lines from the opening block, or a problem."""
+    opening = re.split(r"^##\s", text, maxsplit=1, flags=re.M)[0]
+    found = []
+    for line in opening.splitlines():
+        if not re.match(r"^\s*Reviewer:", line, re.I):
+            continue
+        match = REVIEW_LINE.match(line.strip())
+        if not match:
+            return None, f"malformed review line: {line.strip()[:80]}"
+        found.append(match)
+    if not found:
+        return None, "missing the Reviewer · Builder · Reviewed line"
     family = lambda name: name.strip().split()[0].lower()
-    if family(header.group("reviewer")) == family(header.group("builder")):
-        return "reviewer and builder are the same model"
+    for match in found:
+        if family(match.group("reviewer")) == family(match.group("builder")):
+            return None, "a review line names the same model as reviewer and builder"
+    if len({(family(m.group("reviewer")), family(m.group("builder"))) for m in found}) > 1:
+        return None, "review lines disagree on the reviewer or builder"
+    return [m.group("sha") for m in found], None
+
+
+def receipt_problem(text):
     state = verdict(text)
-    if state.startswith("waived by"):
+    waiver = WAIVER.match(state)
+    if state.lower().startswith("waived"):
+        if not waiver:
+            return "a waiver needs `waived by <user>, <YYYY-MM-DD>, <reason>`"
+        try:
+            dt.date.fromisoformat(waiver.group("date"))
+        except ValueError:
+            return "the waiver date is not a real date"
         return None
-    if state != "approve":
+    if state.lower() != "approve":
         return f"verdict is {state or 'missing'}"
     if OPEN_BLOCKING.search(text):
         return "approve with an open blocking finding"
@@ -49,27 +78,41 @@ def approved_commits(repository, receipts):
     covered, notes = [], []
     for path in sorted(pathlib.Path(receipts).glob("*/review.md")):
         text = path.read_text(encoding="utf-8", errors="replace")
-        problem = receipt_problem(text)
+        shas, problem = review_lines(text)
+        problem = problem or receipt_problem(text)
         if problem:
             notes.append(f"{path.parent.name}: {problem}")
             continue
-        for match in REVIEWED.finditer(text):
-            resolved = git(repository, "rev-parse", "--verify", "--quiet", f"{match.group('sha')}^{{commit}}")
+        for sha in shas:
+            resolved = git(repository, "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}")
             if resolved.returncode == 0:
                 covered.append(resolved.stdout.strip())
             else:
-                notes.append(f"{path.parent.name}: reviewed commit {match.group('sha')} is not in this checkout")
+                notes.append(f"{path.parent.name}: reviewed commit {sha} is not in this checkout")
     return covered, notes
 
 
+def clean_merge(repository, commit):
+    parents = git(repository, "rev-list", "--parents", "-n", "1", commit).stdout.split()[1:]
+    if len(parents) != 2:
+        return False
+    merged = git(repository, "merge-tree", "--write-tree", "--no-messages", *parents)
+    tree = git(repository, "rev-parse", f"{commit}^{{tree}}").stdout.strip()
+    return merged.returncode == 0 and merged.stdout.split()[:1] == [tree]
+
+
 def unreviewed(repository, active, target, covered):
-    listed = git(repository, "rev-list", "--no-merges", f"{active}..{target}")
+    listed = git(repository, "rev-list", f"{active}..{target}")
     if listed.returncode != 0:
         raise SystemExit(f"Review gate stopped: cannot list commits {active}..{target}: {listed.stderr.strip()}")
+    merges = set(git(repository, "rev-list", "--merges", f"{active}..{target}").stdout.split())
     missing = []
     for commit in listed.stdout.split():
-        if not any(git(repository, "merge-base", "--is-ancestor", commit, head).returncode == 0 for head in covered):
-            missing.append(commit)
+        if any(git(repository, "merge-base", "--is-ancestor", commit, head).returncode == 0 for head in covered):
+            continue
+        if commit in merges and clean_merge(repository, commit):
+            continue
+        missing.append(commit)
     return missing
 
 

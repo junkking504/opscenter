@@ -38,8 +38,17 @@ with tempfile.TemporaryDirectory() as temp:
     write(vault / "Decisions" / "README.md", "# Decisions")
     write(workspace / "task-evidence" / "backup-fix" / "verification.md", "secret-looking log line")
 
-    result = run(workspace)
+    # A git double records every call, so the digest provably stays offline.
+    shim = workspace / "bin"
+    shim.mkdir()
+    (shim / "git").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$GIT_CALLS"\nexit 1\n')
+    (shim / "git").chmod(0o700)
+    calls = workspace / "git-calls"
+    env = {**os.environ, "PATH": f"{shim}:{os.environ['PATH']}", "GIT_CALLS": str(calls)}
+    result = subprocess.run([sys.executable, str(DIGEST), "--workspace", str(workspace), "--date", "2026-10-17"], capture_output=True, text=True, env=env)
     assert result.returncode == 0, result.stderr
+    recorded = calls.read_text()
+    assert "log" in recorded and not any(word in recorded for word in ("fetch", "pull", "ls-remote", "push")), recorded
     text = (vault / "Inbox" / "Digest 2026-10-17.md").read_text()
     assert "Active release: `aaaaaaaaaaaa`" in text
     assert "[[Tasks/backup-fix/review]]: approve" in text
@@ -57,4 +66,4 @@ with tempfile.TemporaryDirectory() as temp:
     assert run(workspace, "--force").returncode == 0
     assert "edited by a person" not in (vault / "Inbox" / "Digest 2026-10-17.md").read_text()
 
-print("Vault digest passed: missing vault, active release, reviews and verdicts, unreviewed handoffs, time window, README exclusion, links not contents, and no overwrite without --force.")
+print("Vault digest passed: no network Git calls, missing vault, active release, reviews and verdicts, unreviewed handoffs, time window, README exclusion, links not contents, and no overwrite without --force.")

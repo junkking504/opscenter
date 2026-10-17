@@ -128,9 +128,10 @@ restarts the prior release. Each release also installs the Chromium revision
 pinned by Playwright so JunkWare closeout and truck-assignment actions remain
 available after dependency updates.
 
-Before deploying, the launcher enforces the cross-model review gate: every
-non-merge commit since the active release must be covered by an approved or
-waived `vault/Tasks/<task>/review.md` on Mission Control. See
+The installed controller enforces the cross-model review gate: every commit
+since the active release must be covered by an approved or waived
+`vault/Tasks/<task>/review.md` on Mission Control, except clean automatic
+merges. See
 [agent handoffs and review](../../docs/agent-handoffs.md#review-gate).
 
 The normal deployment command has no non-forward override. A manual rollback

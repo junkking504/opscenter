@@ -159,14 +159,28 @@ health, and browser checks still decide whether the change works.
 The user may waive the gate for a specific change. Record the waiver in
 `review.md` as `Verdict: waived by <user>, <date>, <reason>`.
 
-`deploy/macmini/deploy-from-macbook.sh` enforces the gate before it calls the
-installed controller. It reads the active release commit and every
-`vault/Tasks/*/review.md` from Mission Control, then
-`deploy/macmini/check-review-gate.py` requires each non-merge commit between
-the active release and `origin/production` to be contained in a commit that an
-approved or waived receipt names. Merge commits made while integrating into
-`production` are not reviewed separately. A refused deployment lists the
-unreviewed commits. Validation: `npm run verify:review-gate`.
+The installed production controller enforces the gate, so every launcher
+copy, old or new, goes through it. After its forward-ancestry check and under
+the deployment lock, `deploy-release.sh` runs
+`deploy/macmini/check-review-gate.py` against `vault/Tasks/*/review.md` on
+Mission Control. Every commit between the active release and `origin/production`
+must be contained in a commit that an approved or waived receipt names.
+
+- Review lines count only in the receipt's opening block, before the first
+  `##` section, and only in the full `Reviewer: … · Builder: … · Reviewed:
+  <branch> @ <sha>` form. Every review line in a receipt must name the same
+  reviewer and builder, and the reviewer must be a different model. One
+  self-reviewed or malformed line rejects the whole receipt.
+- A waiver must read `waived by <user>, <YYYY-MM-DD>, <reason>`.
+- A two-parent merge needs no review of its own only when its tree is exactly
+  what `git merge-tree` produces automatically. A conflict resolution or any
+  other change made in a merge needs a receipt naming the merge commit.
+
+A refused deployment lists the unreviewed commits and the skipped receipts. The
+gate takes effect when the controller is reinstalled from a `production` commit
+that contains it; until then the installed controller is unchanged. Reviewer
+names are written by the agents, so the gate prevents mistakes and skipped
+reviews, not deliberate forgery. Validation: `npm run verify:review-gate`.
 
 ## Nightly digest
 
@@ -174,7 +188,8 @@ unreviewed commits. Validation: `npm run verify:review-gate`.
 writes `vault/Inbox/Digest <date>.md`: the active release, new production
 commits, task notes and review verdicts, handoffs still waiting on review, new
 deploy evidence, and memory notes changed that day. It links files instead of
-copying their contents and calls no external service. A person or agent
+copying their contents, reads only the local Git checkout without fetching,
+and calls no external service. A person or agent
 promotes what matters into `Decisions/` or `Lessons/` and deletes the digest.
 
 Install it after the change is deployed, from the active release:

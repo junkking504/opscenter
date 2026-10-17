@@ -73,4 +73,7 @@ a later distinct release can prompt again. **Refresh now** is the only reload
 path and is disabled during an active action/review. Missing headers, timeouts,
 failed requests and offline state cause no reload or false update message.
 No health aggregation, collectors, new endpoint or provider requests are added.
-The toast can detect releases only when the origin supplies the release header.
+The release proxy supplies the header when enabled. Legacy origins also expose
+the exact Git build SHA on the wordmark request with `release-check=1`, using
+Next.js response headers and `no-store`. Ordinary wordmark requests retain their
+existing caching. Builds without a valid Git identity omit the fallback header.

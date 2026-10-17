@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { importKnowledgeHistory } from '../lib/knowledge-import';
 import { readKnowledgeEntries, knowledgeSnapshot } from '../lib/knowledge-store';
-import { parseNote, vaultKnowledgeManifest } from '../lib/vault-knowledge';
+import { parseNote, vaultKnowledgeManifest, vaultNoteDraft } from '../lib/vault-knowledge';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-knowledge-'));
 const vault = path.join(root, 'vault');
@@ -14,6 +14,7 @@ try {
   write('Decisions/Backup target.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: Offsite backup moves off the retired VPS.\ntopics: [backup, vps]\n---\n# Backup target\n\nChosen: new host. Rejected: retired VPS.\n');
   write('Lessons/Rsync locks.md', '---\nopswiki: publish\ndate: 2026-10-09\nid: lesson-rsync-locks\nworkspace: Command\nsummary: Exclude lock files before include rules.\ntopics:\n  - backup\n  - rsync\n---\nRsync stops at the first matching rule.\n');
   write('Knowledge/Draft only.md', '---\ndate: 2026-10-09\nsummary: Not published.\n---\nPrivate draft.\n');
+  write('Knowledge/Unpublished long.md', '---\nsummary: |\n  several\n  lines\n---\nDraft.\n');
   write('Inbox/Scrape.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: Raw capture.\n---\nUnreviewed.\n');
   write('Tasks/demo/brief.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: Task file.\n---\nBrief.\n');
 
@@ -21,8 +22,11 @@ try {
   assert.equal(parseNote('---\nsummary: "Fix #42 before release"   # note\n---\n').meta.summary, 'Fix #42 before release', 'a quoted # is text');
   assert.equal(parseNote("---\nsummary: 'Issue #7'\n---\n").meta.summary, 'Issue #7');
   assert.equal(parseNote('---\nsummary: Ticket#9 stays\n---\n').meta.summary, 'Ticket#9 stays', 'a # without a leading space is text');
-  assert.throws(() => parseNote('---\nsummary: >\n  folded text\n---\n'), /multiline YAML/);
-  assert.throws(() => parseNote('---\nsummary: |\n  block text\n---\n'), /multiline YAML/);
+  assert.equal(parseNote("---\nsummary: Don't publish this   # private note\n---\n").meta.summary, "Don't publish this", 'an apostrophe in plain text does not hide a comment');
+  assert.equal(parseNote("---\nsummary: 'It''s fine' # note\n---\n").meta.summary, "It''s fine");
+  assert.deepEqual(parseNote('---\nsummary: >\n  folded text\n---\n').multiline, ['summary']);
+  assert.equal(vaultNoteDraft('Knowledge/Draft.md', '---\nsummary: |\n  block text\n---\nPrivate.\n'), null, 'an unpublished multiline note is skipped, not fatal');
+  assert.throws(() => vaultNoteDraft('Knowledge/Long.md', '---\nopswiki: publish\ndate: 2026-10-09\nsummary: >\n  folded text\n---\n'), /Long\.md: frontmatter field "summary" uses multiline YAML/);
   const manifest = vaultKnowledgeManifest(vault);
   assert.deepEqual(manifest.records.map(record => record.sourceNote), ['vault/Decisions/Backup target.md', 'vault/Lessons/Rsync locks.md'], 'only published notes outside Inbox, Templates and Tasks');
   const [decision, lesson] = manifest.records;

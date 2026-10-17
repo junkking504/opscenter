@@ -11,10 +11,11 @@ const folderKinds: Record<string, KnowledgeKind> = { Decisions: 'decision', Less
 const skipped = new Set(['Inbox', 'Templates', 'Tasks', '.obsidian', '.trash']);
 
 type Frontmatter = Record<string, string | string[]>;
-export function parseNote(text: string): { meta: Frontmatter; body: string } {
+export function parseNote(text: string): { meta: Frontmatter; body: string; multiline: string[] } {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
-  if (!match) return { meta: {}, body: text.trim() };
+  if (!match) return { meta: {}, body: text.trim(), multiline: [] };
   const meta: Frontmatter = {};
+  const multiline: string[] = [];
   let listKey = '';
   for (const line of match[1].split(/\r?\n/)) {
     const item = /^\s+-\s+(.*)$/.exec(line);
@@ -24,25 +25,22 @@ export function parseNote(text: string): { meta: Frontmatter; body: string } {
     const [, key] = pair;
     const raw = stripComment(pair[2]);
     listKey = '';
-    // Only plain scalars and lists are supported; refuse multiline YAML instead of publishing a fragment.
-    if (/^[|>]/.test(raw)) throw new KnowledgeError(`Frontmatter field "${key}" uses multiline YAML; write it on one line.`);
-    if (!raw) { meta[key] = []; listKey = key; }
+    // Only plain scalars and lists are supported; a published note with multiline YAML is refused instead of publishing a fragment.
+    if (/^[|>]/.test(raw)) multiline.push(key);
+    else if (!raw) { meta[key] = []; listKey = key; }
     else if (raw.startsWith('[') && raw.endsWith(']')) meta[key] = raw.slice(1, -1).split(',').map(unquote).filter(Boolean);
     else meta[key] = unquote(raw);
   }
-  return { meta, body: text.slice(match[0].length).trim() };
+  return { meta, body: text.slice(match[0].length).trim(), multiline };
 }
 const unquote = (value: string) => value.trim().replace(/^(['"])(.*)\1$/, '$2');
-// A YAML comment starts with " #" outside quotes; "#" inside a quoted value is text.
+// A YAML comment starts with "#" after whitespace. Quotes matter only when the
+// value starts with one, so an apostrophe in plain text does not hide a comment.
 function stripComment(value: string) {
-  let quote = '';
-  for (let index = 0; index < value.length; index++) {
-    const char = value[index];
-    if (quote) { if (char === quote) quote = ''; }
-    else if (char === '"' || char === "'") quote = char;
-    else if (char === '#' && (index === 0 || /\s/.test(value[index - 1]))) return value.slice(0, index).trim();
-  }
-  return value.trim();
+  const quote = /^\s*(["'])/.exec(value);
+  const start = quote ? value.indexOf(quote[1], value.indexOf(quote[1]) + 1) + 1 || value.length : 0;
+  const comment = /(^|\s)#/.exec(value.slice(start));
+  return (comment ? value.slice(0, start + comment.index) : value).trim();
 }
 const text = (meta: Frontmatter, key: string) => typeof meta[key] === 'string' ? meta[key] as string : '';
 
@@ -55,9 +53,10 @@ function notes(root: string, dir = ''): string[] {
 }
 
 export function vaultNoteDraft(relative: string, contents: string): KnowledgeDraft | null {
-  const { meta, body } = parseNote(contents);
+  const { meta, body, multiline } = parseNote(contents);
   if (text(meta, 'opswiki') !== 'publish') return null;
   const where = (message: string) => new KnowledgeError(`${relative}: ${message}`);
+  if (multiline.length) throw where(`frontmatter field "${multiline[0]}" uses multiline YAML; write it on one line.`);
   const date = text(meta, 'date');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date))) throw where('add `date: YYYY-MM-DD` to the frontmatter.');
   const kind = (text(meta, 'kind') || folderKinds[relative.split('/')[0]] || 'procedure') as KnowledgeKind;

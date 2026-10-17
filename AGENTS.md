@@ -74,8 +74,13 @@ map. Prefer links to one canonical document over duplicated instructions.
 
 ## Agent handoffs and review
 
+- The Obsidian vault at `/Users/missioncontrol/opscenter-v2/vault` is the
+  shared memory for people and agents. Read its `Home.md` before starting a
+  task. Record decisions in `Decisions/` and lessons in `Lessons/`, one note
+  each. The vault follows the runtime boundary above: no credentials, customer
+  records, payroll, financial exports, raw telemetry, or logs.
 - Planner, builder, and reviewer hand work off through files in
-  `task-evidence/<task>/`: `brief.md`, `handoff.md`, and `review.md`. Use the
+  `vault/Tasks/<task>/`: `brief.md`, `handoff.md`, and `review.md`. Use the
   templates in [docs/agent-handoffs.md](docs/agent-handoffs.md).
 - The reviewer is a different model from the builder. Claude reviews Codex
   branches; Codex reviews Claude branches.

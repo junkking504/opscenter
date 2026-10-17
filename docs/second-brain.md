@@ -144,6 +144,45 @@ Record exact historical outcome and evidence, separate implementation from live
 acceptance, and retain unresolved work. Never overwrite a manager's revision.
 Do this explicitly as part of the task; no background chat watcher is enabled.
 
+### Publishing from the Obsidian vault
+
+Knowledge is written in the Obsidian vault at
+`/Users/missioncontrol/opscenter-v2/vault`, which people, Claude and Codex share.
+OpsWiki remains the in-app library managers search. The vault feeds it one way:
+a note is published only when its frontmatter says so.
+
+```markdown
+---
+opswiki: publish
+date: 2026-10-09
+summary: Exclude rsync lock files before the include rules.
+workspace: Command          # optional, default All
+kind: incident              # optional, defaults from the folder
+outcome: fixed              # optional, default context for decisions, else unknown
+owner: Operations           # optional, default Unassigned
+id: lesson-rsync-locks      # optional, keeps one entry when the note moves
+topics: [backup, rsync]
+---
+# Rsync lock files
+...
+```
+
+`Decisions/` notes default to `decision`, `Lessons/` to `incident`, and
+`Knowledge/` and `Systems/` to `procedure`. `Inbox/`, `Templates/` and `Tasks/`
+are never published. Publish from a source worktree:
+
+```sh
+npm run publish:vault -- /Users/missioncontrol/opscenter-v2/vault --directory=/absolute/private/second-brain
+npm run publish:vault -- /Users/missioncontrol/opscenter-v2/vault --directory=/absolute/private/second-brain --apply
+```
+
+Publishing uses the history import above, so dry run is the default, every
+published note is validated before the first write, records stay manager-only
+and unverified, and a manager's edit, verification or archive in OpsWiki is
+reported as a conflict instead of being overwritten. Removing the publish flag
+does not archive the OpsWiki entry; archive it in OpsWiki. Validation:
+`node --import tsx scripts/test-vault-knowledge.ts`.
+
 ### Use for troubleshooting
 
 The authenticated manager API exposes the same records to authorized diagnostic

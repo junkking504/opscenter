@@ -17,22 +17,28 @@ not. When Claude builds, Codex or another model reviews.
 
 ## Where the files live
 
-Each task keeps its files in the Mission Control workspace, outside Git, next to
-the evidence it already produces:
+Each task keeps its notes in the Obsidian vault on Mission Control, outside Git,
+so they link to the decisions and lessons they produce. Logs and machine
+receipts stay in `task-evidence/`:
 
 ```text
-/Users/missioncontrol/opscenter-v2/task-evidence/<task>/
+/Users/missioncontrol/opscenter-v2/vault/Tasks/<task>/
 ├── brief.md          written by the planner before work starts
 ├── handoff.md        written by the builder when the branch is ready
-├── review.md         written by the reviewer
-└── verification.md   release, health, and browser evidence after deploy
+└── review.md         written by the reviewer
+
+/Users/missioncontrol/opscenter-v2/task-evidence/<task>/
+└── verification.md   release, health, and browser evidence, plus logs
 ```
 
 `<task>` matches the worktree name, for example `waypoint-loading-20261007`.
 These files follow the runtime boundary in [AGENTS.md](../AGENTS.md): they may
 cite commits, files, and check names, but never credentials, customer records,
 payroll, financial exports, or raw logs. Keep each file short; link to logs and
-receipts instead of pasting them.
+receipts instead of pasting them. When a task produces a decision or lesson
+worth keeping, write it as its own note in the vault's `Decisions/` or
+`Lessons/` folder and link it from the handoff; see
+[OpsWiki](second-brain.md#publishing-from-the-obsidian-vault).
 
 ## Brief
 
@@ -111,8 +117,8 @@ Claude reviewing a Codex branch:
 ```sh
 cd /Users/missioncontrol/opscenter-v2/worktrees/<task>
 claude -p "Review this branch against origin/production. Read \
-task-evidence/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
-and write the review receipt to task-evidence/<task>/review.md." \
+vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
+and write the review receipt to vault/Tasks/<task>/review.md." \
   --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(npm run verify:*)"
 ```
 
@@ -121,8 +127,8 @@ Codex reviewing a Claude branch:
 ```sh
 cd /Users/missioncontrol/opscenter-v2/worktrees/<task>
 codex exec "Review this branch against origin/production. Read \
-task-evidence/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
-and write the review receipt to task-evidence/<task>/review.md. Do not edit \
+vault/Tasks/<task>/brief.md and handoff.md, follow docs/agent-handoffs.md, \
+and write the review receipt to vault/Tasks/<task>/review.md. Do not edit \
 source files."
 ```
 
@@ -138,7 +144,7 @@ approval first; see [spending controls](spending-controls.md).
 ## Review gate
 
 A task branch is not merged into `origin/production` until
-`task-evidence/<task>/review.md`:
+`vault/Tasks/<task>/review.md`:
 
 1. names a reviewer that is a different model from the builder,
 2. reviews the exact commit being merged (a later push needs a new review or an

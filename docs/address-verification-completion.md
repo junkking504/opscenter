@@ -1,5 +1,16 @@
 # Address verification completion
 
+## October 17, 2026 bare-letter unit update
+
+Policy 19 recognizes a trailing single-letter unit after a house and named
+street with a road suffix, before a complete locality/ZIP tail. Building queries
+omit that unit while crew-facing addresses retain it as `Unit B`, for example.
+N/S/E/W post-directions, letter street names such as `Avenue B`, county/parish/
+state/farm road identifiers and incomplete addresses are not inferred units.
+Matching provider evidence is still required; parsing does not verify an entrance.
+Legacy provider keys remain readable and old negative verification entries retry
+through the existing worker. No providers, request limits or spending rules change.
+
 ## October 15, 2026 policy update
 
 Policy 18 recognizes explicit Lot, Trailer, Trlr and Space unit labels alongside

@@ -128,6 +128,12 @@ restarts the prior release. Each release also installs the Chromium revision
 pinned by Playwright so JunkWare closeout and truck-assignment actions remain
 available after dependency updates.
 
+The installed controller enforces the cross-model review gate: every commit
+since the active release must be covered by an approved or waived
+`vault/Tasks/<task>/review.md` on Mission Control, except clean automatic
+merges. See
+[agent handoffs and review](../../docs/agent-handoffs.md#review-gate).
+
 The normal deployment command has no non-forward override. A manual rollback
 requires a separately reviewed and explicitly authorized recovery procedure;
 never move `origin/production` backward merely to make a deployment pass.

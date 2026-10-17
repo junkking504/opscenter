@@ -16,6 +16,8 @@ without mixing live runtime data or secrets into Git.
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |
 | Work with an integration | Use the integration index below |
 | Approve or prevent usage charges | [Spending controls](spending-controls.md) |
+| Hand off or review agent work | [Agent handoffs and review](agent-handoffs.md) |
+| Record a decision or lesson | Obsidian vault, published to [OpsWiki](second-brain.md#publishing-from-the-obsidian-vault) |
 
 ## Product and architecture
 

@@ -14,7 +14,8 @@ import time
 
 CORE = ('workspace-retention.py', 'release-lineage.sh', 'deploy-release.sh', 'deploy-preview-release.sh')
 EXTRA = ('release-services.sh', 'origin-state.mjs', 'origin-proxy.mjs', 'release-transaction.mjs',
-         'release-bootstrap.mjs', 'verify-release-slots.mjs', 'run-release-slot.sh', 'slot-process.py', 'verify-kernel-isolation.py')
+         'release-bootstrap.mjs', 'verify-release-slots.mjs', 'run-release-slot.sh', 'slot-process.py', 'verify-kernel-isolation.py',
+         'check-review-gate.py')
 PLISTS = tuple('production-launchd/com.openclaw.opscenter.' + name + '.plist' for name in ('slot-a', 'slot-b', 'origin-proxy'))
 FILES = CORE + EXTRA + PLISTS
 

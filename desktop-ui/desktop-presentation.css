@@ -74,16 +74,27 @@
 .truck-summary-card small,.truck-summary-route { display: block; color: var(--oc-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .truck-off-chip { flex-shrink: 0; align-self: center; padding: 6px 10px; border-radius: var(--desktop-card-radius); background: var(--oc-surface-muted); color: var(--oc-text-muted); font-size: var(--oc-type-12); }
 .ops-app .crew-compact-update { border-bottom: 1px solid var(--oc-border-default); background: var(--oc-surface-raised); }
-.ops-app .crew-compact-update > summary { display: grid; grid-template-columns: 66px 120px 62px minmax(100px,1fr) 60px 14px; gap: 8px; align-items: center; padding: 8px 10px; min-height: 36px; cursor: pointer; list-style: none; font-size: var(--oc-type-11); color: var(--oc-text-primary); }
+.ops-app .crew-compact-update > summary { display: grid; grid-template-columns: 72px 132px 72px minmax(100px,1fr) 72px 14px; gap: 8px; align-items: center; padding: 8px 10px; min-height: 42px; cursor: pointer; list-style: none; font-size: var(--oc-type-13); color: var(--oc-text-primary); }
 .crew-compact-update > summary::-webkit-details-marker { display: none; }
 .crew-compact-update > summary time { color: var(--oc-text-muted); font-variant-numeric: tabular-nums; }
-.crew-compact-update > summary strong { font-size: var(--oc-type-11); font-weight: 600; }
+.crew-compact-update > summary strong { font-size: var(--oc-type-13); font-weight: 600; }
 .crew-update-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .update-follow-flag { color: var(--oc-status-critical-ink); }
 .update-reviewed { color: var(--oc-text-muted); }
 .crew-compact-update[open] > summary > svg { transform: rotate(90deg); }
 .ops-app .crew-compact-update .crew-update { margin: 0; border: 0; }
-@media(max-width:760px) { .ops-app .crew-compact-update>summary { grid-template-columns: 56px 1fr 52px 14px; gap: 5px; } .crew-compact-update>summary .crew-update-customer { grid-column: 2; } .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; } .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; } }
+@container (max-width: 640px) {
+  .ops-app .crew-compact-update>summary { grid-template-columns: 72px minmax(0,1fr) 72px 14px; gap: 5px 8px; }
+  .crew-compact-update>summary .crew-update-customer { grid-column: 2; }
+  .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; }
+  .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; }
+}
+@media(max-width:760px) {
+  .ops-app .crew-compact-update>summary { grid-template-columns: 64px minmax(0,1fr) 64px 14px; gap: 5px; }
+  .crew-compact-update>summary .crew-update-customer { grid-column: 2; }
+  .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; }
+  .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; }
+}
 .revenue-pace-chart { height: 240px; min-width: 0; font-size: var(--oc-type-11); }
 .pace-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--oc-type-11); color: var(--oc-text-muted); padding: 8px 0; }
 .pace-coverage,.revenue-pace details { font-size: var(--oc-type-11); color: var(--oc-text-muted); }

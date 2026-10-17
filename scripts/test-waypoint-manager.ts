@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createHash,randomBytes} from 'node:crypto';
+import {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone} from '../lib/crew-phone-store';
+import {CREW_PHONE_COOKIE} from '../lib/crew-phone';
+import {withWaypointManager,waypointManagerActor,requireWaypointManager} from '../lib/waypoint-manager-context';
+import {validateManagerResource} from '../lib/waypoint-manager-policy';
+import {crewIsWaypointManager} from '../lib/crew-appointment-visibility';
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'waypoint-manager-'));
+process.env.OPS_CREW_PHONE_DIR=dir;process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'attempts.json');
+async function main(){try{
+ const number='225-555-0101',actor='crew-self-setup:'+createHash('sha256').update(number.replaceAll('-','')).digest('hex');
+ const key=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 1','Fixture manager',actor).code,key);
+ fs.writeFileSync(path.join(dir,'directory.json'),JSON.stringify({schema:1,company:[{label:'Fixture manager',truck:'Truck 1',number}],managers:[]}));
+ fs.writeFileSync(path.join(dir,'manager-access.json'),JSON.stringify({schema:1,purpose:'waypoint-manager',approvedBy:'fixture',approvedAt:new Date().toISOString(),contacts:[{kind:'company',name:'Fixture manager',number}]}));
+ const request=new Request('https://waypoint.example.invalid/api/crew-jobs/manager',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${key}`}});
+ const delegated=(path:string,method='GET')=>new Request('https://waypoint.example.invalid'+path,{method});
+ assert.equal(crewIsWaypointManager(phone),true);assert.equal(requireWaypointManager(request).deviceId,phone.deviceId);
+ assert.equal(waypointManagerActor(delegated('/api/crew-phones')),null,'Direct endpoint requests cannot claim manager authority');
+ assert.throws(()=>requireWaypointManager(new Request(request.url,{headers:{'x-ops-role':'manager'}})),/setup/);
+ await withWaypointManager(request,async()=>{
+  assert.equal(waypointManagerActor(delegated('/api/crew-phones'))?.email,`waypoint-manager:${phone.deviceId}`);
+  assert.equal(waypointManagerActor(delegated('/api/desktop/schedule/operations','POST'))?.role,'manager');
+  for(const uri of ['/api/payroll-corrections','/api/manual-bonuses','/api/integrations/qbo/disconnect','/api/desktop/maintenance/recovery','/api/arbitrary'])assert.equal(waypointManagerActor(delegated(uri,'POST')),null,uri);
+  assert.equal(waypointManagerActor(delegated('/api/crew-phones','DELETE')),null);
+  await Promise.resolve();assert.ok(waypointManagerActor(delegated('/api/crew-dispatch')),'Async delegate retains scoped identity');
+ });
+ assert.equal(waypointManagerActor(delegated('/api/crew-phones')),null,'Context never leaks to subsequent work');
+ for(const action of ['move','reschedule','restore','note','cancel','call_ahead'])assert.equal(validateManagerResource('operations','POST',{action}),'operations');
+ assert.throws(()=>validateManagerResource('operations','POST',{action:'closeout',values:{targetStatus:'8'}}),/crew workflow/);
+ assert.throws(()=>validateManagerResource('operations','POST',{action:'classify',values:{completeEstimate:true}}),/photo-protected/);
+ for(const body of [{targetStatus:'8'},{targetStatus:'1',addPayment:{methodId:'cash'}},{targetStatus:'1',application:'opscenter'},{targetStatus:'1',requirePhotos:false}])assert.throws(()=>validateManagerResource('operations','POST',{action:'closeout',values:body}),/crew workflow/);
+ for(const action of ['send-setup','send-test','grant-manager'])assert.throws(()=>validateManagerResource('phones','POST',{action}),/setup screen/);
+ for(const action of ['enroll','authorize-live','revoke'])assert.equal(validateManagerResource('phones','POST',{action}),'phones');
+ for(const resource of ['finance','payroll','admin','__proto__','constructor','/api/job-closeout'])assert.throws(()=>validateManagerResource(resource,'POST',{}),/Unknown/);
+ assert.throws(()=>validateManagerResource('order','POST',{action:'nearest'}),/manual stop/);
+ await withWaypointManager(request,async()=>{revokeCrewPhone(phone.deviceId,'fixture');assert.throws(()=>waypointManagerActor(delegated('/api/crew-phones')),/setup/,'Revocation during request blocks another delegated action');});
+ console.log('PASS: exact live manager identity, trusted internal request context, no direct/header impersonation, async isolation/revocation, closed resource/method allowlist, no finance/admin access, closeout/photo/payment/message bypass denials. Synthetic only.');
+}finally{fs.rmSync(dir,{recursive:true,force:true});}}
+void main().catch(e=>{console.error(e);process.exitCode=1;});

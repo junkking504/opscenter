@@ -26,3 +26,7 @@
 .convoyHeader .brand strong { font-size: 22px; }
 .convoyHeader .brand span { font-size: 9px; letter-spacing: 2px; }
 @media (max-width: 360px) { .steps { gap: 6px; } .steps li { flex-direction: column; font-size: 12px; } }
+
+.managerViews { display:flex; flex-wrap:wrap; gap:12px; padding:16px; background:#f7f8f3; }
+.managerViews button { min-height:44px; padding:10px 16px; border:1px solid #bdc7bc; border-radius:10px; background:white; color:#25312c; font:600 16px system-ui,sans-serif; cursor:pointer; }
+.managerViews button[aria-pressed="true"] { background:#25312c; color:white; }

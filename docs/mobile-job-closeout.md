@@ -151,7 +151,7 @@ release cycle and a fresh source check; an old receipt with a newly updated
 recovery timestamp cannot unlock the next customer. Legacy receipts without
 creation time do not establish the current cycle.
 
-**Payment decision — September 18:** crews record payments already collected.
+**Historical payment decision — September 18 (Billed exclusion superseded October 16):** crews record payments already collected.
 Recording a card payment does not charge the card. The phone can record cash,
 card or check using the source payment options; office billing is excluded.
 Card references accept only the last four digits. Existing source payments are
@@ -881,3 +881,119 @@ Validation uses synthetic signatures and mocked provider pages; no test signs or
 closes a customer appointment. Existing signatures may be inspected read-only.
 
 Amazon jobs in JunkWare’s Virtual Truck/unassigned lane are shared too. JunkWare requires a numbered truck at completion; Waypoint uses the completing phone’s truck for those jobs while retaining the native Eugene/Robert/Lance assignee. Jobs already assigned to a numbered truck retain that truck. Unknown truck labels fail verification.
+
+## Manager all-truck browsing and crew workflow
+
+The exact-contact Waypoint manager policy enables a separate manager screen with
+all appointments for a selected date, plus all-truck browsing in the crew screen.
+See [Waypoint manager access](waypoint-manager-scope.md) for the capabilities,
+activation schema, identity matching and authorization boundaries.
+
+In the crew screen, `crewAssignedDay` stays truck-scoped (including the existing
+shared Amazon exception). `crewVisibleDay` adds the current day's confirmed and
+completed jobs on numbered trucks as read-only rows without assignment/draft IDs.
+Closeout, photos and payments still use the original job-scope resolver. Managers
+explicitly select their actual work truck/crew in the manager screen to work on
+another truck; this transfers no jobs. Inspection and collected-payment/photo
+safeguards remain. Ordinary users retain their existing scope.
+
+Validation: `npm run verify:waypoint-visibility` covers exact identity matching,
+fail-closed grants, revocation/expiry/sandbox, projection, API/dispatch separation
+and original write-scope denial. `npm run verify:waypoint-manager` covers the
+manager gateway, internal delegation and guarded appointment-edit writer.
+
+## Estimate after-photo exception
+
+An explicit completed Estimate outcome may continue without After photos. Before
+photos and the verified source-photo safeguard remain. The exception requires a
+valid estimate reason, explanation and, where no discount is offered, an
+explanation for that decision. It applies to ordinary crew and managers alike.
+Changing back to Job restores the normal Before/After workflow.
+
+No skip-photo flag is accepted by the server. The crew closeout service validates
+the actual estimate outcome before accepting a write; the native JunkWare flow
+persists and verifies that category and its outcome notes. A returned completed
+Job cannot verify an Estimate request. Source versions, assigned crew, inspection,
+signature, payment, idempotency and receipt recovery remain unchanged.
+
+Validation: `npm run verify:estimate-photos` covers before-only Estimate success,
+invalid outcomes, source-photo rejection, category mismatch, the completed-Job
+after-photo gate, and the ordinary phone UI at 320/390/430 pixels.
+
+## Waypoint Billed method — October 16, 2026
+
+The owner requested Billed and clarified that it counts as revenue. Waypoint now
+allows the appointment-specific JunkWare **Billed** method through the same
+closeout path used for cash, card and check. It records a receivable, never a
+card charge or a collected payment. Both ordinary crew and managers using the
+crew workflow retain their existing assignment, inspection, daily crew, photo,
+signature, source-version and revocation checks. No manager gateway or access
+capability is added. A completed source record still cannot receive another
+crew closeout/payment.
+
+The payment step says **Record payment or Billed**. Selecting Billed labels its
+amount and review as a receivable and explicitly says payment remains owed.
+The suggested new billed amount excludes recorded collections and prior billed
+entries; switching back to a collected method does not treat prior billing as
+collected money. Manual partial amounts and discrepancy review remain available.
+Source method IDs, positive money validation, no payment reference for Billed,
+exact new-row read-back, preserved existing rows and durable retry protection
+remain shared with the existing writer.
+
+Billed is disabled for a final **Estimate** and rejected server-side. JunkWare's
+source reader documents that estimates omit payment controls and temporarily
+stages an unsaved Job only to discover options; those options do not authorize
+billing an estimate. Operators must choose Job only for completed work. Existing
+estimate outcome, photo exception and quote/revenue interpretation are unchanged.
+
+Reporting reuses existing rules: completed billed jobs contribute source job
+revenue once, separately from collected payment. Later collection does not add
+job revenue again. Waypoint day/crew totals use source revenue and deduplicate
+metrics catch-up by appointment; the schedule shows Billed daily revenue, and
+Accounting keeps billed entries as receivables, ineligible for Verify Payment.
+Compact summaries keep billed and collected amounts separate. The crew progress
+view recognizes documented billing while explicitly retaining its uncollected
+status until collected entries cover the job. No revenue, payroll, invoice-sync
+or collection rules are changed.
+
+Validation: `scripts/test-waypoint-billed-browser.ts` covers crew/manager review,
+source IDs, prior billing versus collections, estimate blocking and mobile sizes.
+`verify:crew-closeout`, `verify:waypoint-manager` and source payment fixtures cover
+permissions, source verification and retry safeguards. Schedule and day-summary
+regressions prove revenue is not doubled by later collection. The read-only
+`scripts/test-billed-metrics-source.py <process_daily_metrics.py>` runs only the
+production collector's completed-job revenue block on synthetic rows, proving
+billed revenue/receivable separation and exclusion of estimates/open work.
+
+
+### OpsCenter drawer preparation (October 2026)
+
+The shared editor is bundled with the schedule, but the office appointment drawer
+previously waited until **Appointment Closeout** was expanded to read the native
+JunkWare form. That read may stage unsaved category/status controls to discover
+payment options, then reopen and verify the unchanged saved record. It can require
+several browser round trips; preparation does not shorten that source operation.
+
+Only the selected OpsCenter drawer opts into preparation. After a 150 ms dwell it
+starts one existing authenticated GET, without making the drawer busy. Opening
+closeout joins that pending request or consumes its completed result once. Unused
+results expire 60 seconds after completion. Appointment, service date, schedule
+version, photo revision, transport and mount boundaries isolate the preparation;
+closing the drawer aborts the client request and discards the result. An already
+started server-side browser read may still finish. There is no schedule-wide
+prefetch, persisted client cache, background polling or automatic failure retry.
+Viewing a drawer without opening closeout can now perform one otherwise unused
+read, so the dwell and selected-drawer limit are intentional.
+
+Explicit reload, reconciliation and photo verification bypass the prepared result.
+Collapsing the already opened form retains the current edits as before. The source
+version sent with a closeout remains subject to the existing authoritative read,
+version comparison, authorization and payment/photo checks at submission. No
+server write path or Waypoint crew transport/cache behavior changes. If a user
+opens before preparation finishes, the existing loading/error/retry UI remains
+honest; this is an opening-latency improvement, not an instant-source guarantee.
+
+`npm run verify:closeout-preparation` tests one-use preparation, expiry, failed-read
+retry, cancellation/isolation and the actual shared editor under React StrictMode.
+Its browser timings use a controlled 1,000 ms synthetic source delay, not live
+JunkWare measurements. No real operational writes are made by these fixtures.

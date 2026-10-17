@@ -16,3 +16,11 @@ export function validateCloseoutPayment(payment: CloseoutPayment, methods: Payme
   if (!label && payment.reference) return 'This payment method does not use a payment reference.';
   return '';
 }
+
+/** Waypoint bills completed work; JunkWare estimates omit payment controls. */
+export function validateWaypointPayment(payment: CloseoutPayment, methods: PaymentOption[], category: string): string {
+  const error = validateCloseoutPayment(payment, methods);
+  if (error) return error;
+  if (/^billed$/i.test(methods.find(option => option.value === payment.methodId)?.label.trim() || '') && category !== 'Job') return 'Billed is available for completed jobs. Estimates remain quotes; choose Job only when work was completed.';
+  return '';
+}

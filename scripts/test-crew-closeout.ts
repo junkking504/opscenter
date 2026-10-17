@@ -38,6 +38,13 @@ async function main(){
   const values={jobCategoryId:'house',howHeardId:'ref',actualStartHour:'99',actualStartMinute:'99',actualEndHour:'99',actualEndMinute:'99',driverId:'d',navigatorIds:['n','e'],appointmentId:id,serviceDate:date,targetStatus:'8',truck:'Truck 6',appointmentType:'Job',expectedSourceVersion:closeoutSourceVersion(source),addPayment:{methodId:'card',amount:'350.00',reference:'1234'}};
   const body=()=>({assignmentId:current.assignmentId,requestId:randomUUID(),expectedVersion:version,crewVersion:1,values:{...values,expectedSourceVersion:closeoutSourceVersion(source)}});
   const photoRequestIds=Array.from({length:25},()=>randomUUID());
+  const estimateOutcome={reason:'Other',explanation:'Customer requested an estimate only',noDiscountReason:'No removal work was performed'};
+  for(const invalidEstimate of [{appointmentType:'Estimate'},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,explanation:''}},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,noDiscountReason:''}},{appointmentType:'Job',estimateOutcome},{skipAfterPhotos:true}])assert.throws(()=>validateCrewCloseout({...values,...invalidEstimate,photoRequestIds},'Truck 6',id,date));
+  source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  const noEstimatePhotos=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}},deps);assert.equal(noEstimatePhotos.status,'failed');assert.equal(writes,0,'Estimate exception never bypasses verified source photos');source=structuredClone(baseline);
+  let estimateWrites=0;
+  const estimate=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}}, {...deps,write:async(_id,payload)=>{estimateWrites++;assert.equal(payload!.appointmentType,'Estimate');assert.deepEqual(payload!.estimateOutcome,estimateOutcome);return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Estimate'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(estimate.status,'verified','Explicit estimate outcome retains before-photo source evidence without requiring after photos');assert.equal(estimateWrites,1);
   assert.doesNotThrow(()=>validateCrewCloseout({...values,photoRequestIds},'Truck 6',id,date));
   assert.throws(()=>validateCrewCloseout({...values,photoRequestIds:[...photoRequestIds,randomUUID()]},'Truck 6',id,date),/photos selected/);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,true);
@@ -54,9 +61,23 @@ async function main(){
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,truck:'Truck 5'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,targetStatus:'9'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),appointmentId:'900002'},deps),/current closeout/);
-  await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350.00',reference:'1234',cardNumber:'1234'}}},deps),/collected payment/);
+  await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350.00',reference:'1234',cardNumber:'1234'}}},deps),/payment or billed entry/);
   const invalid=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350',reference:'123'}}},deps);assert.equal(invalid.status,'failed');assert.equal(writes,0);
-  const billed=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'billed',amount:'350'}}},deps);assert.equal(billed.status,'failed');assert.equal(writes,0);
+  let billedWrites=0;
+  const billedBody={...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350.00'}}};
+  const billedDeps={...deps,write:async(_id:string,payload?:Record<string,unknown>)=>{billedWrites++;assert.deepEqual(payload!.addPayment,{methodId:'billed',amount:'350.00'});return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},payments:[...baseline.payments,{description:'Billed',amount:'350.00'}]},verifiedAt:new Date().toISOString()};}};
+  const billed=await submitCrewCloseout(request,billedBody,billedDeps);assert.equal(billed.status,'verified');
+  assert.match(billed.actor || '',/^crew-phone:/,'Billing keeps the device/assignment audit actor');
+  assert.equal((await submitCrewCloseout(request,billedBody,billedDeps)).status,'verified');assert.equal(billedWrites,1,'Billed entries retain durable replay protection');
+  for(const payment of [{methodId:'billed',amount:'0'},{methodId:'billed',amount:'-10'},{methodId:'billed',amount:'350',reference:'1234'},{methodId:'made-up-billed',amount:'350'}]){
+   assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:payment}},billedDeps)).status,'failed');
+  }
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Estimates cannot be billed as completed work');
+  source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Billed cannot bypass source photo evidence');
+  source=structuredClone(baseline);
+  assert.equal(billedWrites,1,'Billed still requires a source method, positive amount and no reference');assert.equal(writes,0);
+
   source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
   await assert.rejects(submitCrewCloseout(request,{...body(),application:'opscenter'},deps),/current closeout/);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...body().values,application:'opscenter',requirePhotos:false}},deps),/current appointment/);
@@ -117,8 +138,14 @@ async function main(){
   assert.equal(JSON.stringify(crewReceiptProjection(receipt)).includes('crewContext'),false);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,false,'Completed source cannot be charged again through the phone');
   assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2);
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Completed records cannot receive a new billed entry');assert.equal(billedWrites,1);
+  source=structuredClone(baseline);
+  const mismatchedEstimate={...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}};
+  const mismatch=await submitCrewCloseout(request,mismatchedEstimate,{...deps,write:async()=>({ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Job'}},verifiedAt:new Date().toISOString()})});
+  assert.equal(mismatch.status,'uncertain','An estimate request cannot be verified as a completed Job');
+  assert.equal((await checkCrewCloseout(request,current.assignmentId,mismatchedEstimate.requestId,true,deps)).status,'failed','Unchanged source read-back resolves only the synthetic no-save outcome');
   source=structuredClone(baseline);revokeOnRead=true;assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2,'Revocation during source read prevents payment write');
-  console.log('PASS: collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
+  console.log('PASS: billed receivable and collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

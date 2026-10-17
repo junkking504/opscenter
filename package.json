@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:closeout-preparation": "node --import tsx scripts/test-closeout-preparation.ts && node --import tsx scripts/test-closeout-preparation-browser.ts",
+    "verify:waypoint-visibility": "node --import tsx scripts/test-crew-appointment-visibility.ts && node --import tsx scripts/test-crew-visibility-routes.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts",
     "verify:approximate-visits": "python3 -B scripts/test-approximate-arrivals.py && node --import tsx scripts/test-approximate-visit-presence.ts && node --import tsx scripts/test-address-map-fallback.ts",
     "verify:stop-order-map": "node --import tsx scripts/test-stop-order-map.ts",
     "verify:backup": "python3 scripts/test-backup-sync.py && node --import tsx scripts/test-backup-signal.ts",
@@ -183,6 +185,9 @@
     "verify:monthly-mileage:browser": "node scripts/test-fleet-monthly-mileage-browser.mjs",
     "verify:amazon-closeout": "node --import tsx scripts/test-amazon-closeout.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts && npm run verify:crew-closeout",
     "verify:amazon-closeout:browser": "node --import tsx scripts/test-amazon-closeout-browser.ts",
+    "verify:waypoint-manager": "node --import tsx scripts/test-waypoint-manager.ts && node --import tsx scripts/test-waypoint-manager-route.ts && node --import tsx scripts/test-waypoint-manager-edit.ts",
+    "verify:estimate-photos": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-estimate-photo-browser.ts",
+    "verify:waypoint-billed": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-schedule-payment.ts && node --import tsx scripts/test-waypoint-day-summary.ts && node --import tsx scripts/test-crew-progress-alerts.ts && node --import tsx scripts/test-waypoint-billed-browser.ts",
     "verify:desktop-presentation": "node --import tsx scripts/test-desktop-presentation.ts",
     "verify:desktop-presentation:browser": "node scripts/test-desktop-presentation-browser.mjs && node scripts/test-desktop-rail-browser.mjs && node scripts/test-desktop-update-browser.mjs && node scripts/test-shop-tv-browser.mjs"
   },

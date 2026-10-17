@@ -7,7 +7,7 @@ export type CrewCurrentJob = {
   customerName: string; phone: string; address: string; appointmentTime: string;
   junkItems: string[]; appointmentNotes: string[]; driver: string; navigator: string;
 };
-export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; status: string; resetAt?:string;resetPriorAssignmentId?:string;appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{
+export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; readOnly?: boolean; status: string; resetAt?:string;resetPriorAssignmentId?:string;appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{
   loadQuantity:number;loadSize:string;loadPrice:number;bedloadQuantity:number;bedloadSize:string;bedloadPrice:number;
   otherCharges:Array<{name:string;quantity:number;unitPrice:number;total:number}>;discount:number;tip:number;total:number;
   payments:Array<{method:string;detail?:string;amount:number}>;balance:number;
@@ -15,5 +15,5 @@ export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignme
 export type CrewCurrent = {
   state: 'assigned' | 'waiting' | 'unavailable'; truck: string; job: CrewCurrentJob | null;
   observedAt: string | null; message?: string; summary?: WaypointDaySummary; jobs?: CrewScheduledJob[]; completionPending?: boolean;
-  updateToken?: string;
+  updateToken?: string; visibility?: 'all-trucks';
 };

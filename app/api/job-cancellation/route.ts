@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
@@ -9,7 +10,7 @@ const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const auth = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  const auth = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "") || waypointManagerActor(request);
   if (!auth) {
     return NextResponse.json(
       { error: "Authentication required.", loginPath: "/login" },

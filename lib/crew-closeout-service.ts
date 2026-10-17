@@ -1,3 +1,4 @@
+import {isEstimateCloseoutOutcome} from './estimate-closeout-outcome';
 import {isAmazonJob,amazonAssignedTruck,parseSignature,requireAmazonSignature} from './amazon-closeout';
 import { sameTruck } from './junkware-trucks';
 import {crewCloseoutArrival,crewCloseoutTimes} from './crew-closeout-time';
@@ -13,7 +14,7 @@ import { junkwareJobCloseout, JunkwareCloseoutError } from './junkware-job-close
 import { closeoutSourceVersion } from './desktop-closeout-contract';
 import { requireCloseoutPhotos } from './closeout-photo-policy';
 import { waitForCrewPhotos } from './crew-job-photos';
-import { validateCloseoutPayment, type CloseoutPayment, type PaymentOption } from './closeout-payment';
+import { validateWaypointPayment, type CloseoutPayment, type PaymentOption } from './closeout-payment';
 import { executeScheduleOperation, finishQueuedScheduleOperation, parseScheduleOperation, queueScheduleOperation, readPendingScheduleReceipt, readScheduleReceipt, reconcileCloseoutReceipt, setPendingCloseoutSourceVersion, type ScheduleReceipt } from './desktop-schedule-operations';
 import { withJunkwareAppointmentSyncLock } from './job-route-assignments';
 import { updateVerifiedCloseoutLoad } from './truck-load-closeouts';
@@ -34,12 +35,13 @@ export function validateCrewCloseout(values:Record<string,unknown>,truck:string,
   const allowed=['signature','appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','otherChargeIdsToRemove','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','expectedSourceFieldsVersion','appointmentType','estimateOutcome','photoRequestIds'];
   if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || !sameTruck(values.truck,truck) || values.appointmentId!==id || values.serviceDate!==date
     || !['Job','Estimate'].includes(String(values.appointmentType)))throw new CrewPhoneError('Close only your current appointment using its assigned truck.',403);
+  if(values.appointmentType==='Estimate' ? !isEstimateCloseoutOutcome(values) : values.estimateOutcome!==undefined)throw new CrewPhoneError('Review the explicit estimate outcome and no-discount explanation before closing an estimate.');
   if(values.signature!==undefined)parseSignature(values.signature);
   const payment=values.addPayment;
   const removals=values.otherChargeIdsToRemove===undefined ? [] : values.otherChargeIdsToRemove;
   if(values.expectedSourceFieldsVersion!==undefined && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceFieldsVersion)))throw new CrewPhoneError('Reload the closeout before saving.');
   if(!Array.isArray(removals) || removals.length>20 || removals.some(value=>typeof value!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) || new Set(removals).size!==removals.length)throw new CrewPhoneError('Reload the saved charges before removing one.');
-  if(payment!==null && payment!==undefined && (typeof payment!=='object' || Array.isArray(payment) || Object.keys(payment).some(key=>!['methodId','amount','reference'].includes(key))))throw new CrewPhoneError('Enter a collected payment with its method, amount and reference.');
+  if(payment!==null && payment!==undefined && (typeof payment!=='object' || Array.isArray(payment) || Object.keys(payment).some(key=>!['methodId','amount','reference'].includes(key))))throw new CrewPhoneError('Enter a payment or billed entry with its method, amount and reference.');
   if(!Array.isArray(values.photoRequestIds) || values.photoRequestIds.length>MAX_CHECKOUT_PHOTOS || values.photoRequestIds.some(value=>typeof value!=='string' || !/^[0-9a-f-]{36}$/i.test(value)) || new Set(values.photoRequestIds).size!==values.photoRequestIds.length)throw new CrewPhoneError('Use the photos selected for this checkout.');
 }
 async function loadFreshCrewCloseout(request:Request,assignmentId:string,deps=crewCloseoutDependencies) {
@@ -131,9 +133,8 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         requireCloseoutPhotos(before.closeout,'8',current.appointmentId);
         if(operation.values.addPayment){
           const payment=operation.values.addPayment as CloseoutPayment,methods=before.closeout.paymentMethods as PaymentOption[];
-          const error=validateCloseoutPayment(payment,methods);
+          const error=validateWaypointPayment(payment,methods,String(operation.values.appointmentType));
           if(error)throw new CrewPhoneError(error);
-          if(/billed/i.test(methods.find(method=>method.value===payment.methodId)?.label || ''))throw new CrewPhoneError('Record only money already collected. The office handles billing.');
         }
         const day=requireCrewDay(phone,current.date),defaults=closeoutCrewDefaults(day,before.closeout);
         const navigatorIds=operation.values.navigatorIds;
@@ -160,6 +161,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         await setPendingCloseoutSourceVersion(receipt,String(writeValues.expectedSourceVersion));
         writeStarted=true;
         const result=await deps.write(current.appointmentId,{...writeValues,...timing,...(!timing.actualStartHour?{arrivalUnavailable:true}:{})});
+        if(isEstimateCloseoutOutcome(operation.values) && result.closeout?.appointmentType?.label!=='Estimate')throw new JunkwareCloseoutError('The saved estimate outcome could not be verified. Check Saved Result.','uncertain');
         let truckLoadStatus;
         try {truckLoadStatus=deps.updateLoad(current.date,current.appointmentId,result.closeout,String(result.verifiedAt || ''),actor);}
         catch {truckLoadStatus={updated:false,reason:'Closeout saved; truck load reconciliation is pending.'};}

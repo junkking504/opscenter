@@ -80,6 +80,7 @@ async function main() {
       const result=await saveAndVerifyCloseout(before,()=>applyCloseout(page,request,before),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,before));
       assert.equal(truckPosts,0,'Keeping the saved truck must not issue a scheduling postback from its blank picker');
       assert.equal(persisted.get('ctl00$Content$LoadSizeHF'),'1');assert.equal(result.status.value,'8');assert.equal((result.driver as {value:string}).value,'d');assert.equal(saves,1);assert.equal(adds,1);assert.equal((result.payments as unknown[]).length,2);
+      if(method.label==='Billed') assert.throws(()=>verifyCloseoutFields({...result,payments:[payments[0],{description:'Cash',amount:'1100.00'}]},request,before),/payment method/,'A Billed request cannot verify as collected Cash');
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
     }

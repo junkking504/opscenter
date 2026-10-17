@@ -26,6 +26,7 @@ const dependencies={
   'next/headers':{cookies:async()=>({get:()=>({value:'fixture'})})},
   'next/server':{NextResponse:Response},
   '@/lib/release-after':{trackedAfter:()=>{publications++;}},
+  '@/lib/waypoint-manager-context':{waypointManagerActor:()=>null},
   '@/lib/auth':{AUTH_SESSION_COOKIE:'fixture',verifyAuthSessionCookie:async()=>signedIn?{email:'fixture-manager',role}:null},
   '@/lib/ops-roles':{authorizeOpsRequest},
   '@/lib/desktop-request-origin':{isDesktopWriteOriginAllowed:(request:Request)=>request.headers.get('origin')===new URL(request.url).origin},

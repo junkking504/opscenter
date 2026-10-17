@@ -1,5 +1,6 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from 'next/headers';
-import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
 import { readCrewPhoneDirectory } from '@/lib/crew-phone-directory';
 import { crewPhoneDeliveryAvailability, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '@/lib/crew-phone-delivery';
@@ -9,21 +10,21 @@ import { authorizeCrewPhoneLive, createCrewPhoneEnrollment, listCrewPhones, revo
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-async function manager() {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+async function manager(request:Request) {
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) throw new CrewPhoneError('Sign in to OpsCenter.', 401);
-  if (!opsRoleCan(opsAuthRole(actor.email), 'sensitive.write')) throw new CrewPhoneError('A manager must set up company phones.', 403);
+  if (!opsRoleCan(actor.role, 'sensitive.write')) throw new CrewPhoneError('A manager must set up company phones.', 403);
   return actor;
 }
-export async function GET() {
+export async function GET(request:Request) {
   try {
-    await manager();
+    await manager(request);
     return crewPhoneResponse({ phones: listCrewPhones(), trucks: JUNKWARE_DISPATCH_TRUCKS, directory: readCrewPhoneDirectory(), delivery: crewPhoneDeliveryAvailability(), deliveries: listCrewPhoneDeliveries() });
   } catch (error) { return crewPhoneFailure(error); }
 }
 export async function POST(request: Request) {
   try {
-    const actor = await manager();
+    const actor = await manager(request);
     const body = await crewPhoneBody(request);
     if (body.action === 'send-setup' || body.action === 'send-test') {
       if (Object.keys(body).some(key => !['action', 'truck', 'requestId'].includes(key))) throw new CrewPhoneError('Use the saved company phone for setup delivery.');

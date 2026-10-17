@@ -115,7 +115,7 @@ async function main(){
     await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(13);
     await capture('07-after-photos');
    }
-   await time(`Job ${i}: open Payment`,async()=>{await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await expect(page.getByLabel('Record a collected payment',{exact:true})).toBeVisible();});
+   await time(`Job ${i}: open Payment`,async()=>{await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await expect(page.getByLabel('Record payment or Billed',{exact:true})).toBeVisible();});
    await page.getByLabel('Tip',{exact:true}).fill('20');
    if(i===1)await capture('08-payment');
    await time(`Job ${i}: review closeout`,async()=>{await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();});

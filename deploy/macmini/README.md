@@ -40,6 +40,24 @@ requires the requested SHA to equal `origin/production`, verifies that it
 contains the active release before and after the build, and records successful
 transitions in `deployment-history.tsv` beside the controller.
 
+Before activation in either deployment mode, the controller runs the reviewed
+release's kernel migration runner against the existing protected
+`production.env`. It requires an enabled Mission Control kernel and the
+`opscenter_production` database, passes only the migration environment, and
+never evaluates configuration as shell code. Build, spending, review, and
+lineage checks precede database changes; production head and ancestry are
+checked again afterward. Migration failure prevents candidate startup, live-link
+changes, and service restarts. Migration output is suppressed to keep protected
+connection details out of deployment logs; investigate failures locally through
+the existing database maintenance workflow.
+
+The runner serializes migrations with its database advisory lock, verifies
+checksums, and commits each migration separately. A failed migration rolls back
+that file; earlier completed migrations remain. Production changes must use
+reviewed backward-compatible migrations: automatic application rollback does
+not undo schema changes. Destructive migrations require separate authorization.
+An interrupted live migration retains the deployment lock for recovery.
+
 After activation, the controller restarts every loaded release-bound collector
 and watcher with a bounded timeout. A restart failure restores the prior
 release. Superseded releases are pruned only after a bounded `lsof` scan proves

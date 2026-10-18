@@ -1,4 +1,4 @@
-import { archivePushScopes,pushRetirementCutoff } from '../lib/web-push-archive';
+import { archivePushScopes,pushRetirementCutoff,createPushMaintenance } from '../lib/web-push-archive';
 import { createHash } from 'node:crypto';
 import { startPushJournal } from '../lib/web-push-journal';
 import { retainPushMetadata } from '../lib/web-push-retention';
@@ -66,8 +66,10 @@ async function main(){
  await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '1 minute'");
  // No timer drives delivery: real NOTIFY wakes the listener after commit.
- const listener=new Client(config);const runtime=await startPushDispatcher(d,listener);stop=runtime.stop;
+ let retirementWakes=0;const listener=new Client(config);const runtime=await startPushDispatcher(d,listener,undefined,()=>{retirementWakes++;});stop=runtime.stop;
  const second=await startPushDispatcher(d,new Client(config));assert.ok('busy' in second);
+ await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
+ await until(async()=>retirementWakes>0);
  const before=sends;const producer=await p.connect();await producer.query('BEGIN');
  await producer.query("INSERT INTO opscenter_kernel.push_events(id,category,occurred_at) VALUES('commit-test','schedule',now())");
  await producer.query("INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES('commit-test',$1)",[device]);
@@ -249,9 +251,10 @@ with (Path(root)/'writer.lock').open('a') as holder:
  const retireFiles=async(cutoff:string,acks:import('../lib/web-push-archive').PushAcknowledgement[])=>JSON.parse(execFileSync('python3',['scripts/opscenter_push_journal.py','--retire',retirementRoot,'--cutoff',cutoff,'--acknowledgements',JSON.stringify(acks)],{env:{...env,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8'})) as string[];
  const retired=await archivePushScopes(d,retireFiles);
  assert.ok(retired.includes(archivedScope)&&retired.includes(orphanScope));
- assert.ok(!retired.includes(pendingScope)&&!retired.includes(boundaryScope)&&!retired.includes(retainedScope));
+ assert.ok(!retired.includes(pendingScope)&&!retired.includes(boundaryScope)&&retired.includes(retainedScope));
  assert.equal((await p.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[archivedScope])).rows.length,0);
- assert.ok(fs.existsSync(protectedFile),'quarantine never pruned to force retirement');
+ assert.ok(!fs.existsSync(protectedFile),'provably old withheld evidence expires with counted receipt');
+ assert.equal(JSON.parse(fs.readFileSync(path.join(retirementRoot,'retention-audit.json'),'utf8')).expired.quarantine,1);
  await assert.rejects(recordPushBatch({scope:archivedScope,category:'schedule',sequence:1,complete:true,observedAt:new Date(Date.now()-16*86400000).toISOString(),recordedAt:new Date(Date.now()-16*86400000).toISOString(),generation:'f'.repeat(32),baseline:false,observations:[]},d),/scope_retired/);
  // Age pruning never consumes pending deliveries; terminal history expires.
  await p.query("UPDATE opscenter_kernel.push_events SET recorded_at=now()-interval '15 days' WHERE id='retention-pending'");
@@ -263,11 +266,63 @@ with (Path(root)/'writer.lock').open('a') as holder:
  await archivePushScopes({...d,enabled:()=>false},async()=>{throw new Error('disabled archive must perform no I/O');});
  // Acknowledged file phase followed by DB rollback retains its compact floor;
  // retry reconciles the absent file checkpoint without reviving old events.
- await p.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped' WHERE event_id='retention-pending'");
+ await p.query("UPDATE opscenter_kernel.push_deliveries SET status='sending' WHERE event_id='retention-pending'");
+ assert.ok(!(await archivePushScopes(d,retireFiles)).includes(pendingScope),'in-flight delivery prevents retirement');
+ await p.query("UPDATE opscenter_kernel.push_deliveries SET status='uncertain' WHERE event_id='retention-pending'");
+ const beforeUncertain=sends;await drainPushOutbox(d);assert.equal(sends,beforeUncertain,'uncertain delivery is never replayed');
  await assert.rejects(archivePushScopes(d,async(c,acks)=>{await retireFiles(c,acks);throw new Error('synthetic_after_file_commit');}),/synthetic_after_file_commit/);
  assert.equal((await p.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[pendingScope])).rows.length,1);
  assert.ok((await archivePushScopes(d,retireFiles)).includes(pendingScope));
  assert.ok(!(await archivePushScopes(d,retireFiles)).includes(pendingScope),'restart does not recreate retired scope');
+ // Actual producer publication with a controlled historical clock. Full detail
+ // intervals overlap page-stream intervals but are ordered against prior details.
+ const assignmentRoot=path.join(root,'assignment');
+ const assignmentDay=new Date(Date.now()+86400000).toISOString().slice(0,10);
+ execFileSync('python3',['-c',`
+import sys,json
+from pathlib import Path
+from datetime import datetime,timedelta,timezone
+sys.path.insert(0,'scripts')
+import opscenter_push_journal as J
+base=datetime.now(timezone.utc)
+t=lambda seconds:(base-timedelta(seconds=seconds)).isoformat()
+class Clock(datetime):
+ point=base
+ @classmethod
+ def now(cls,tz=None):return cls.point.astimezone(tz) if tz else cls.point
+J.datetime=Clock
+root,day=sys.argv[1:]
+def publish(end,start,driver=None,status='Scheduled'):
+ Clock.point=base-timedelta(seconds=end)
+ row={'appt_id':'assignment-fixture','market':'Jefferson Parish','job_status':status}
+ if driver:row.update(driver=driver,navigator='Navigator',crew_assignment_status='verified')
+ target=Path(root).parent/('junkware_'+day+'_raw.json' if driver else 'junkware_schedule_fast_'+day+'.json')
+ J.publish_json(target,{'date':day,'scraped_at':t(end+1),'territory_verification':[{'territory_id':'484','verified':True}],'appointments':[row]},journal_root=root,enabled=True,observation_started_at=t(start))
+publish(900,901)
+publish(890,950,'Driver A')
+for n in range(6):
+ publish(800-n*50,801-n*50)
+ publish(790-n*50,850-n*50,'Driver A')
+publish(400,460,'Driver B')
+publish(390,391)
+publish(380,600,'Driver C')
+publish(370,371,status='Arrived')
+`,assignmentRoot,assignmentDay],{env:{...env,PYTHONDONTWRITEBYTECODE:'1'}});
+ await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule'],expiresAt:new Date(Date.now()+60000)},p);
+ await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '20 minutes'");
+ const assignmentDeps={...d,activatedAt:new Date(Date.now()-20*60000).toISOString()};const beforeAssignment=sends;
+ let assignmentJournal=await startPushJournal(assignmentRoot,assignmentDeps);await assignmentJournal.stop();await drainPushOutbox(assignmentDeps);
+ assert.equal(sends,beforeAssignment+2,'silent roster/detail seed; one real crew reassignment and one page transition');
+ assert.equal(fs.readdirSync(path.join(assignmentRoot,'uncertain')).length,1,'only distinct overlapping crew conflict retained');
+ for(const file of fs.readdirSync(path.join(assignmentRoot,'archive')))fs.copyFileSync(path.join(assignmentRoot,'archive',file),path.join(assignmentRoot,'ready',file));
+ assignmentJournal=await startPushJournal(assignmentRoot,assignmentDeps);await assignmentJournal.stop();await drainPushOutbox(assignmentDeps);assert.equal(sends,beforeAssignment+2,'restart replay sends nothing twice');
+ console.log('PASS: actual publication -> DB -> mocked sender: silent first crew evidence, real reassignment, unchanged refresh dedup, preserved page transition and replay.');
+ let scans=0,maintenanceNow=new Date();const gate=createPushMaintenance(async()=>{scans++;},()=>maintenanceNow);
+ await gate.maintain();for(let n=0;n<100;n++)await gate.maintain();assert.equal(scans,1,'current-source wakes do not repeat retirement scans');
+ gate.invalidate();await gate.maintain();assert.equal(scans,2,'changed eligibility invalidates scan');
+ maintenanceNow=new Date(maintenanceNow.getTime()+86400000);await gate.maintain();assert.equal(scans,3,'cutoff rollover scans on next event');
+ await gate.maintain(true);assert.equal(scans,4,'consumed old backlog triggers scan');
+ console.log('PASS: retirement scan gate: 100 unchanged wakes, eligibility changes, old backlog and cutoff rollover.');
  console.log('PASS: fourteen-day Chicago boundary, pending-delivery and retained-file guards, orphan-gap retirement, compact replay floor, and file-complete/DB-rollback restart recovery.');
  console.log('PASS: independent malformed/expired-scope probes, same-file isolation, restart quarantine, eight-day retained catch-up, fleet removal restraint and explicit generation reset.');
  console.log('PASS: Python publication hooks -> retained burst journal -> DB NOTIFY -> mocked sender, restart replay, live filesystem wake, disabled no-I/O, replay checkpoint and closed-scope retention.');

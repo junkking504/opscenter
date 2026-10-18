@@ -97,17 +97,33 @@ Capacity and retention (owner approved initial-schedule silence and 14-day histo
   prepared/quarantined pending files share those limits; each capture is at most
   8 MiB. Concurrent independent admissions can exceed an aggregate check by
   in-flight writers: these are admission guards, not an atomic disk quota.
-- Ambiguous ordering evidence has separate 10,000-entry / 128 MiB admission bounds.
-  Pending, quarantined and uncertain records are never deleted just to free space.
-  They block retirement of referenced scopes. Unparseable retained evidence
-  conservatively blocks all source retirement. Resolving these exceptions needs
-  explicit operational review; capacity exhaustion remains a visible coverage gap.
+- Equivalent unresolved observations deduplicate by scope, field group and fact
+  hashes, excluding collection timestamps and writer paths. Repeats do not create
+  new files or gap IDs; distinct conflicts remain visible. Admission is bounded
+  to 10,000 files / 128 MiB.
+- Ready/pending captures and pending/sending deliveries are protected at any age.
+  Uncertainty, quarantine and pending-quarantine can expire only when every known
+  service-day scope is before the cutoff, each has a locked DB acknowledgement
+  with no pending/sending delivery, and no ready/pending capture references it.
+  Mixed current/old records remain intact. Business-source data is never deleted.
+- Expiry first saves a durable intent with file hashes and the resulting aggregate
+  counts. Replay after interruption cannot double count. `retention-audit.json`
+  keeps counts by class, byte count, cutoff and producer ordinal; `state.json`
+  keeps the replay floor and retired-scope count. No source facts are in the audit.
+- Unscopable/malformed withheld files remain retained and counted: their approved
+  service-day age cannot be proved. They do not pin unrelated old scopes because
+  a repaired record still cannot bypass the replay floor. They consume bounded
+  capacity and eventually require a separate disposition policy. Filesystem mtime
+  is not business-source truth. Unknown ready/pending captures still block retirement
+  until consumed into quarantine or scoped by recovery.
 - Acknowledged journal archive is bounded to 14 days, 10,000 entries and 128 MiB.
   Terminal notification events retain 14 days; pending/sending deliveries do not
   expire by age. Security audits and expired/revoked device records retain 90 days.
 - Source/checkpoint scopes strictly older than the Chicago service day minus 14 days
-  retire only when no pending/sending delivery exists, database and producer
-  generation/sequence agree, and no retained file references the scope. The cutoff
+  retire under DB source locks with no pending/sending delivery or ready/pending
+  reference. Explicit obsolete-evidence disposition also allows a poisoned/ahead
+  producer checkpoint to retire under both replay floors; without that disposition,
+  generation/sequence must match. The cutoff
   day itself stays. Orphan gap scopes use explicit database-absence proof.
 - Both stores retain a compact monotonic date floor before deleting per-scope
   metadata. Replay below that floor cannot recreate a retired scope or notify.
@@ -118,9 +134,12 @@ Capacity and retention (owner approved initial-schedule silence and 14-day histo
   identities per scope. The latest 10,000 batch digests and per-scope watermark
   protect active replay. Normal old daily scopes now retire; retained exceptions
   can still exhaust capacity and require disposition before long-lived operation.
-- Maintenance is event/startup driven without new polling. File retirement uses
-  the producer lock and database source locks, and skips repeated empty helper
-  work within one cutoff day. Terminal cleanup also runs every 100 batches.
+- A cheap maintenance gate opens only for cutoff rollover or eligibility changes:
+  consumed old backlog, changed pending spool, old-delivery completion/skip, and
+  device/category changes. Normal current-day wakes do not repeat DB/helper scans.
+  Restart invalidates the gate after deliberate evidence repair. One private
+  acknowledgement file carries the full set without OS argument limits. No timer
+  is introduced. Terminal cleanup also runs every 100 batches.
 - V2 source-date validation uses publication time (14 past/90 future Chicago service
   days), so ordinary valid retained publications survive consumer delay.
   Legacy entries without publication time can be quarantined with a visible gap.
@@ -136,24 +155,26 @@ Prepared writer coverage (no runtime files installed):
 | Krewe | `daily_metrics_DATE.json` via `source_aware_metrics.atomic_json` | Current employee source, explicit clock-in/out facts; ambiguous duplicate person is a gap |
 | Fleet | `linxup_alerts_DATE.json`, staged external collector hook | Complete verified native geofence entered/exited rows with mapped truck, ID and event time |
 
-These schedule writers share market/date scopes. Inspection and a pure extracted
-normalizer fixture establish that stream and full collection use the same page
-normalizer and retain page status/type/truck/time. The full refresh additionally
-enriches crew fields; the stream's empty placeholders do not prove assignment
-removal. Only verified detail evidence owns those fields, and absent detail fields
-preserve prior hashes. Verified explicit empty assignments can still clear them.
+These schedule writers share market/date scopes. Actual writer inspection and a
+pure extracted-normalizer fixture establish two evidence groups. Page status,
+type, truck, time, end and membership are shared by stream/full collection.
+The full writer derives assigned_truck from page truck; it is not independent crew
+truth. Driver, navigator and additional crew require verified enrichment with no
+detail error. Missing enriched fields and stream placeholders preserve known hashes;
+present verified empty values can clear known fields.
 
-Identical projected facts deduplicate without lowering observation watermarks or
-resetting a generation. A changed observation is accepted in the existing temporal
-sequence only when its read interval does not overlap the prior accepted read.
-Conflicting overlapping or regressed observations retain their hashes in `uncertain`
-and a scoped warning; they cannot overwrite accepted state or force its next real
-change silent. No later-start/supersession assumption is made. This preserves known
-ordered transitions but does not resolve all cross-writer uncertainty: a conflicting
-verified fact may be retained without a push until a provable ordered observation
-supports it. An authoritative upstream cursor or reviewed reconciliation contract
-is still needed before claiming complete coverage. Same-path full/forward writers
-are subject to the same interval check; a filename alone does not establish order.
+Each group has its own collection interval. A stream read cannot advance the crew
+checkpoint, and a conflicting page read does not suppress an independently ordered
+crew change. First-seen crew fields seed silently; later changes to known fields
+notify. The full writer's scraped_at precedes enrichment, so publication time is
+the conservative end bound for crew reads. Later start alone is not supersession
+proof: conflicting overlapping reads within a group remain explicit uncertainty.
+An older detail row cannot revive a removed appointment.
+
+Equivalent conflicts are retained once. Distinct conflicts remain unknown and may
+expire only under the counted scope policy above. Settings distinguish withheld
+facts, blocked capture and unknown sources. No upstream revision cursor or complete
+coverage guarantee is claimed.
 
 Only verified complete schedule snapshots support missing-row removals. Missing
 Krewe/fleet rows do not mean clock-out/departure; explicit facts supply those events.
@@ -189,7 +210,8 @@ sending stops, capture may fill its bounded queue but canonical/Slack publicatio
 continues with explicit gaps. Resume requires helper-version verification, recovery,
 retained backlog review, scoped gap/recovery visibility and preserved-observation
 reconciliation checks.
-Never discard pending/uncertain records to clear an alarm. None of these operational
+Never discard pending captures/deliveries to clear an alarm. Withheld evidence
+expires only through the counted scope policy above, without bypassing its guards. None of these operational
 steps was executed as part of this local revision.
 
 ## Privacy, enrollment and transport

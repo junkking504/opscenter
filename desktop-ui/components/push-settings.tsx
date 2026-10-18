@@ -15,8 +15,13 @@ export function PushSettings() {
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
     const current=(body.devices || []).find((device:Device)=>device.id===saved);if(current)setSelected(current.categories);
-    const gaps=(body.health || []).filter((row:{code:string})=>row.code!=='recorded'&&row.code!=='recovered_gap');
-    setMessage(body.enabled?(gaps.length?'Some notification sources are blocked; source coverage is incomplete.':!(body.health || []).length?'Notification source coverage is unknown.':(body.health || []).some((row:{code:string})=>row.code==='recovered_gap')?'Capture recovered after a recorded gap. Some earlier updates may be missing.':'Choose categories for this device.'):'Phone notifications are awaiting activation.');
+    const health=body.health || [];
+    const messages:string[]=[];
+    if(health.some((row:{code:string;reason?:string})=>!['recorded','recovered_gap','source_unknown'].includes(row.code)&&row.reason!=='ordering_uncertain'))messages.push('Some notification sources are blocked; source coverage is incomplete.');
+    if(health.some((row:{reason?:string})=>row.reason==='ordering_uncertain'))messages.push('Some notification facts are withheld because their order is uncertain. Other verified updates can still notify.');
+    if(!health.length||health.some((row:{code:string})=>row.code==='source_unknown'))messages.push('Notification source coverage is unknown.');
+    if(health.some((row:{code:string})=>row.code==='recovered_gap'))messages.push('Capture recovered after a recorded gap. Some earlier updates may be missing.');
+    setMessage(body.enabled?(messages.join(' ')||'Choose categories for this device.'):'Phone notifications are awaiting activation.');
     return body.enabled as boolean;
   }
   useEffect(()=>{

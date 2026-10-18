@@ -15,6 +15,7 @@ try {
  let device=false,mode='enabled';const writes=[];
  await page.route('**/api/push/devices',async route=>{
    const req=route.request();if(mode==='operator'){await route.fulfill({status:403,json:{error:'Manager access required.'}});return;}
+   if(mode==='withheld'){await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:[],health:[{scope:'schedule:fixture',code:'coverage_gap',reason:'ordering_uncertain'}]}});return;}
    if(mode==='recovered'){await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:[],health:[{scope:'schedule:fixture',code:'recovered_gap'}]}});return;}
    if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
    if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
@@ -33,6 +34,7 @@ try {
  await page.getByRole('button',{name:'Disable device 1'}).click();await page.getByText('Device disabled.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
  mode='recovered';await page.reload();await page.getByText('Capture recovered after a recorded gap.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
+ mode='withheld';await page.reload();await page.getByText('Some notification facts are withheld',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='operator';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
  mode='disabled';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
  assert.deepEqual(errors,[]);console.log('Browser fixture passed: collapsed mobile/desktop previews, no overflow, tap-only mocked permission, category save and revoke. No real subscription or notification.');

@@ -5,7 +5,7 @@ import { pushEnabled } from './web-push-policy';
 import { drainPushOutbox, pushDependencies, PUSH_LOCK, pushErrorCode, type PushWorkerDependencies } from './web-push-worker';
 /** One dedicated connection owns LISTEN and leadership. Connection loss stops
  * new claims; the process exits for supervisor restart, never returns it to a pool. */
-export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client, onFailure:()=>void=()=>{}) {
+export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client, onFailure:()=>void=()=>{},onRetirementEligibility:()=>void=()=>{}) {
   if(!deps && !pushEnabled())return {disabled:true,stop:async()=>{}};
   const d=deps||pushDependencies();
   if(!d.enabled())return {disabled:true,stop:async()=>{}};
@@ -19,7 +19,7 @@ export async function startPushDispatcher(deps?:PushWorkerDependencies, supplied
   listener.on('error',fail);listener.on('end',fail);
   const wake=()=>{
     again=true;if(draining||!alive||!ready)return;
-    draining=(async()=>{do{again=false;await drainPushOutbox(guarded);}while(again&&alive);})()
+    draining=(async()=>{do{again=false;const result=await drainPushOutbox(guarded);if(result.retirementEligibilityChanged)onRetirementEligibility();}while(again&&alive);})()
       .catch(error=>{console.error(`Web Push dispatcher: ${pushErrorCode(error)}`);fail();})
       .finally(()=>{draining=null;if(again&&alive)wake();});
   };
@@ -27,7 +27,7 @@ export async function startPushDispatcher(deps?:PushWorkerDependencies, supplied
     await listener.connect();
     const lock=await listener.query('SELECT pg_try_advisory_lock($1) AS locked',[PUSH_LOCK]);
     if(!lock.rows[0].locked){await stop();return {busy:true,stop};}
-    listener.on('notification',notice=>{if(notice.channel==='opscenter_web_push')wake();});
+    listener.on('notification',notice=>{if(notice.channel==='opscenter_web_push'){if(notice.payload==='retention')onRetirementEligibility();wake();}});
     await listener.query('LISTEN opscenter_web_push');
     await listener.query("UPDATE opscenter_kernel.push_deliveries SET status='uncertain',reason='process_interrupted' WHERE status='sending'");
     await retainPushMetadata(listener);

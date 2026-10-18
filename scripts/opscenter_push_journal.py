@@ -130,10 +130,13 @@ def project(path, payload):
                 # rows. Only verified detail evidence owns assignment fields;
                 # missing detail evidence must never clear a prior assignment.
                 if row.get("crew_assignment_status") == "verified" and not row.get("detail_collection_error"):
-                    facts.update({"driver": first(row, "driver_name", "driver").casefold(),
-                                  "navigator": first(row, "navigator_name", "navigator").casefold(),
-                                  "crew": row.get("additional_crew") or row.get("crew") or "",
-                                  "assignedTruck": first(row, "assigned_truck", "truck")})
+                    for field, aliases in (("driver", ("driver_name", "driver")), ("navigator", ("navigator_name", "navigator"))):
+                        if any(key in row for key in aliases):
+                            facts[field] = first(row, *aliases).casefold()
+                    if "additional_crew" in row:
+                        facts["crew"] = row["additional_crew"]
+                    elif "crew" in row:
+                        facts["crew"] = row["crew"]
                 item = observation(identity, facts)
                 item["facts"] = {key: digest(value) for key, value in facts.items()}
                 items_by_id[identity] = item
@@ -205,6 +208,10 @@ def mark_gap(root, scopes, code, reset=True):
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     for scope in scopes:
         target = gap_file(root, scope)
+        if not reset and target.exists():
+            previous = json.loads(target.read_text())
+            if previous.get("code") == code and not previous.get("reset"):
+                continue
         if not target.exists() and len(list(directory.glob("*.json"))) >= 1000:
             # Capacity is a diagnostic, never a reset of unrelated sources.
             scope = "journal:capacity"
@@ -305,6 +312,65 @@ def projections_for(root, path, payload, scopes):
     return projections
 
 
+PAGE_FIELDS = {"status", "type", "truck", "time", "end"}
+
+
+def later(*values):
+    return max(values, key=lambda value: datetime.fromisoformat(value))
+
+
+def merge_schedule(root, batch, prior, owner, collected_at, recorded_at):
+    """Independent evidence intervals for shared page facts and verified crew.
+    Never changes business-source data. First verified detail seeds silently;
+    subsequent non-overlapping detail changes remain eligible across stream reads.
+    """
+    known = prior.get("facts", {})
+    incoming = {item["identity"]: item["facts"] for item in batch["observations"]}
+    page = {identity: {key: value for key, value in facts.items() if key in PAGE_FIELDS} for identity, facts in incoming.items()}
+    old_page = {identity: {key: value for key, value in facts.items() if key in PAGE_FIELDS} for identity, facts in known.items()}
+    page_checkpoint = dict(prior.get("pageCheckpoint", {}))
+    if not page_checkpoint and prior:
+        page_checkpoint = {"end": prior["observedAt"]}
+    page_changed = page != old_page
+    overlap = page_checkpoint and datetime.fromisoformat(collected_at) < datetime.fromisoformat(page_checkpoint["end"])
+    if page_changed and overlap:
+        retain_uncertain(root, {"scope": batch["scope"], "group": "page", "writer": owner,
+            "collectedAt": collected_at, "recordedAt": recorded_at, "facts": page})
+        mark_gap(root, [batch["scope"]], "ordering_uncertain", reset=False)
+        page = old_page
+    elif not page_checkpoint or not overlap:
+        page_checkpoint = {"end": batch["observedAt"]}
+    next_facts = {identity: {**{key: value for key, value in known.get(identity, {}).items() if key not in PAGE_FIELDS and key != "assignedTruck"}, **facts} for identity, facts in page.items()}
+    details = {identity: dict(value) for identity, value in prior.get("detailCheckpoints", {}).items() if identity in page}
+    silent = []
+    for identity, facts in incoming.items():
+        detail = {key: value for key, value in facts.items() if key not in PAGE_FIELDS and key != "assignedTruck"}
+        if not detail or identity not in page:
+            continue  # Missing enrichment / absent appointment is unknown.
+        old_detail = {key: value for key, value in known.get(identity, {}).items() if key not in PAGE_FIELDS and key != "assignedTruck"}
+        checkpoint = details.get(identity) or ({"end": prior["observedAt"]} if old_detail else None)
+        changed = any(old_detail.get(key) != value for key, value in detail.items())
+        known_changed = any(key in old_detail and old_detail[key] != value for key, value in detail.items())
+        overlap = checkpoint and datetime.fromisoformat(collected_at) < datetime.fromisoformat(checkpoint["end"])
+        if known_changed and overlap:
+            retain_uncertain(root, {"scope": batch["scope"], "group": "assignment", "writer": owner,
+                "collectedAt": collected_at, "recordedAt": recorded_at, "facts": {identity: detail}})
+            mark_gap(root, [batch["scope"]], "ordering_uncertain", reset=False)
+            continue
+        next_facts[identity].update(detail)
+        if not checkpoint or not overlap:
+            # scraped_at precedes detail enrichment in the full writer. Publication
+            # is the conservative upper bound of that detail collection interval.
+            details[identity] = {"end": recorded_at}
+        if changed and not known_changed and identity in known and page.get(identity) == old_page.get(identity):
+            silent.append(identity)
+    prior["pageCheckpoint"] = page_checkpoint
+    prior["detailCheckpoints"] = details
+    batch["silentIdentities"] = silent
+    batch["observedAt"] = later(batch["observedAt"], prior["observedAt"]) if prior.get("observedAt") else batch["observedAt"]
+    return next_facts
+
+
 def select_batches(root, state, projections, owner, started_at, recorded_at):
     selected = []
     for original in projections:
@@ -314,18 +380,13 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
         if not prior and scope.split(":")[1] < state.get("retiredBefore", ""):
             mark_gap(root, ["journal:retired"], "scope_retired", reset=False)
             continue
+        has_prior = bool(prior)
         collected_at = stamp(started_at or batch["observedAt"])
-        known_facts = prior.get("facts", {})
-        next_facts = {}
-        observations = []
-        for item in batch["observations"]:
-            if "facts" in item:
-                combined = {**known_facts.get(item["identity"], {}), **item["facts"]}
-                next_facts[item["identity"]] = combined
-                observations.append({"identity": item["identity"], "revision": digest(combined)})
-            else:
-                observations.append(item)
-        batch["observations"] = observations
+        schedule_facts = batch["category"] == "schedule" and all("facts" in item for item in batch["observations"])
+        next_facts = merge_schedule(root, batch, prior, owner, collected_at, recorded_at) if schedule_facts else {}
+        if schedule_facts:
+            batch["observations"] = [{"identity": identity, "revision": digest(facts)} for identity, facts in sorted(next_facts.items())]
+        observations = batch["observations"]
         signature = digest({"complete": batch["complete"], "observations": observations})
         token = gap_token(root, scope)
         reset = token is not None and token != prior.get("gapToken")
@@ -339,11 +400,11 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
         # A different writer may take over only after a non-overlapping read.
         # Same-writer regressed reads are also retained as ambiguous. Neither a
         # start timestamp nor a publication timestamp proves supersession.
-        ambiguous = prior and (
+        ambiguous = has_prior and not schedule_facts and (
             datetime.fromisoformat(collected_at) < datetime.fromisoformat(prior["observedAt"]) or
             datetime.fromisoformat(collected_at) < datetime.fromisoformat(prior.get("collectedAt", prior["observedAt"]))
         )
-        if ambiguous:
+        if ambiguous and not schedule_facts:
             retain_uncertain(root, {"scope": scope, "writer": owner, "collectedAt": collected_at,
                                    "recordedAt": recorded_at, "batch": batch})
             mark_gap(root, [scope], "ordering_uncertain", reset=False)
@@ -356,7 +417,7 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
         day = scope.split(":")[1]
         # Existing schedule bootstrap policy is unchanged. A first observation
         # of a past day's clock/geofence history cannot prove a new live event.
-        batch["baseline"] = not prior and (batch["category"] == "schedule" or day <= start_day or day < record_day)
+        batch["baseline"] = not has_prior and (batch["category"] == "schedule" or day <= start_day or day < record_day)
         if batch["baseline"] and batch["category"] != "schedule" and day < record_day:
             batch["baselineReason"] = "historical_first_seen"
         if reset:
@@ -365,7 +426,8 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
             batch["gapIds"] = [json.loads(gap_file(root, key).read_text())["id"] for key in (scope, "journal:global") if gap_file(root, key).exists()]
         state["scopes"][scope] = {"sequence": batch["sequence"], "signature": signature,
             "observedAt": batch["observedAt"], "generation": generation, "gapToken": token,
-            "writer": owner, "collectedAt": collected_at, "facts": next_facts}
+            "writer": owner, "collectedAt": collected_at, "facts": next_facts,
+            "pageCheckpoint": prior.get("pageCheckpoint", {}), "detailCheckpoints": prior.get("detailCheckpoints", {})}
         selected.append(batch)
     return selected
 
@@ -373,13 +435,18 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
 def retain_uncertain(root, value):
     directory = root / "uncertain"
     directory.mkdir(exist_ok=True, mode=0o700)
-    files = list(directory.glob("*.json"))
-    data = encoded(value)
+    # Equivalence excludes collection timestamps and writer path. Repeated evidence
+    # retains one bounded record, never manufactures a new transition or gap ID.
+    proof = value.get("facts") or {key: child for key, child in value.get("batch", {}).items() if key in ("scope", "category", "complete", "observations")}
+    key = digest([value["scope"], value.get("group", "source"), proof])
+    target = directory / (key + ".json")
+    if target.exists():
+        return
+    value = {**value, "evidenceKey": key}
+    files = list(directory.glob("*.json"));data = encoded(value)
     if len(files) >= MAX_ENTRIES or retained_size(files) + len(data) > MAX_BYTES:
         raise ValueError("push_uncertain_capacity")
-    # Facts are hashes only. Preserve ambiguous evidence for reconciliation,
-    # rather than fabricate a transition or claim a later start supersedes it.
-    save(directory / (digest(value) + ".json"), data)
+    save(target, data)
 
 
 def pending_capture(root, path, payload, scopes, started_at, source_write):
@@ -569,47 +636,109 @@ def publish_json(path, payload, *, journal_root=None, enabled=None, fault=None, 
         print("OpsCenter push coverage gap: " + code, file=sys.stderr)
 
 
+def evidence_scopes(value):
+    scopes = set()
+    def visit(item):
+        if isinstance(item, dict):
+            if isinstance(item.get("scope"), str):
+                scopes.add(item["scope"])
+            if isinstance(item.get("scopes"), list):
+                scopes.update(scope for scope in item["scopes"] if isinstance(scope, str))
+            for child in item.values():
+                visit(child)
+        elif isinstance(item, list):
+            for child in item:
+                visit(child)
+    visit(value)
+    return scopes
+
+
+def finish_expiry(root):
+    intent = root / "expiry-intent.json"
+    if not intent.exists():
+        return
+    value = json.loads(intent.read_text())
+    # The intent fixes the resulting aggregate counts. Replaying it after any
+    # interruption cannot count or delete an item twice, nor delete changed data.
+    for item in value["files"]:
+        target = root / item["directory"] / item["name"]
+        if target.exists():
+            if file_digest(target) != item["digest"]:
+                raise ValueError("expiry_evidence_changed")
+            target.unlink();sync_dir(target.parent)
+    save(root / "retention-audit.json", encoded(value["auditAfter"]))
+    intent.unlink();sync_dir(root)
+
+
 def retire_scopes(root, cutoff, acknowledgements):
-    """Called only by the approved dispatcher with DB acknowledgements held.
-    Never removes source files or retained evidence. Metadata-only, replay-safe.
+    """Expire only proved old notification evidence; never business-source files.
+    Caller holds DB source locks and certifies no pending/sending deliveries.
+    Ready/pending publication references remain protected regardless of age.
     """
-    date.fromisoformat(cutoff)
+    date.fromisoformat(cutoff);finish_expiry(root)
     state_path = root / "state.json"
     state = json.loads(state_path.read_text()) if state_path.exists() else {"ordinal": 0, "scopes": {}}
     state["retiredBefore"] = max(cutoff, state.get("retiredBefore", cutoff))
-    # Persist compact replay barrier before any metadata can be removed.
-    save(state_path, encoded(state))
-    referenced = set()
-    def visit(value):
-        if isinstance(value, dict):
-            if isinstance(value.get("scope"), str):
-                referenced.add(value["scope"])
-            if isinstance(value.get("scopes"), list):
-                referenced.update(value["scopes"])
-            for child in value.values():
-                visit(child)
-        elif isinstance(value, list):
-            for child in value:
-                visit(child)
-    for directory in ("ready", "pending", "quarantine", "pending-quarantine", "uncertain"):
+    save(state_path, encoded(state))  # durable replay floor before any deletion
+    ack_by_scope = {ack["scope"]: ack for ack in acknowledgements}
+    referenced, protected = set(), set()
+    unknown_protected = False
+    for directory in ("ready", "pending"):
         for file in (root / directory).glob("*"):
             if file.suffix not in (".json", ".prepared"):
                 continue
             try:
-                visit(json.loads(file.read_text()))
+                scopes = evidence_scopes(json.loads(file.read_text()))
+                protected.update(scopes)
+                unknown_protected |= not bool(scopes)
             except (ValueError, OSError):
-                return []  # Unknown retained evidence cannot prove safe deletion.
-    retired = []
+                unknown_protected = True
+    files, unknown_withheld = [], 0
+    for directory in ("quarantine", "pending-quarantine", "uncertain"):
+        for file in (root / directory).glob("*.json"):
+            try:
+                scopes = evidence_scopes(json.loads(file.read_text()))
+            except (ValueError, OSError):
+                scopes = set()
+            # Unscopable evidence is retained. It cannot establish an expired
+            # service day, but cannot bypass the replay floor to revive an old one.
+            if not scopes or any(not re.fullmatch(r"(?:schedule|krewe|fleet):\d{4}-\d{2}-\d{2}(?::market-(?:352|477|399|484))?", scope) for scope in scopes):
+                unknown_withheld += 1;continue
+            can_expire = not unknown_protected and all(scope.split(":")[1] < cutoff and scope not in protected and ack_by_scope.get(scope, {}).get("discardWithheld") is True for scope in scopes)
+            if can_expire:
+                files.append({"directory": directory, "name": file.name, "digest": file_digest(file), "bytes": file.stat().st_size})
+            else:
+                referenced.update(scopes)
+    audit_path = root / "retention-audit.json"
+    audit = json.loads(audit_path.read_text()) if audit_path.exists() else {"expired": {}, "bytes": 0, "retiredScopes": 0}
+    audit.update({"throughDay": max(cutoff, audit.get("throughDay", cutoff)), "producerOrdinal": max(state.get("ordinal", 0), audit.get("producerOrdinal", 0)), "unscopableRetained": unknown_withheld})
+    if files:
+        for item in files:
+            audit["expired"][item["directory"]] = audit["expired"].get(item["directory"], 0) + 1
+            audit["bytes"] += item["bytes"]
+        save(root / "expiry-intent.json", encoded({"files": files, "auditAfter": audit}))
+        finish_expiry(root)
+    else:
+        save(audit_path, encoded(audit))
+    if unknown_protected:
+        return []
+    retired, newly_retired = [], 0
     for ack in acknowledgements:
         scope = ack["scope"]
-        if scope.split(":")[1] >= cutoff or scope in referenced:
+        if scope.split(":")[1] >= cutoff or scope in referenced or scope in protected:
             continue
         prior = state["scopes"].get(scope)
-        if prior and (prior.get("generation") != ack["generation"] or prior["sequence"] != ack["sequence"]):
+        matches = not prior or (prior.get("generation") == ack["generation"] and prior["sequence"] == ack["sequence"])
+        # Explicit obsolete-evidence disposition permits an ahead/poisoned
+        # checkpoint to retire only under both floors and the same no-pending proof.
+        if not matches and ack.get("discardWithheld") is not True:
             continue
+        newly_retired += int(bool(prior) or gap_file(root, scope).exists())
         state["scopes"].pop(scope, None)
         gap_file(root, scope).unlink(missing_ok=True)
         retired.append(scope)
+    # Metadata retirement is idempotent; aggregate count lives with the checkpoint.
+    state["retiredScopeCount"] = state.get("retiredScopeCount", 0) + newly_retired
     save(state_path, encoded(state))
     if (root / "gaps").exists():
         sync_dir(root / "gaps")
@@ -623,6 +752,7 @@ if __name__ == "__main__":
     parser.add_argument("--pause", type=Path)
     parser.add_argument("--retire", type=Path)
     parser.add_argument("--acknowledgements")
+    parser.add_argument("--acknowledgements-file", type=Path)
     parser.add_argument("--cutoff")
     args = parser.parse_args()
     root = args.recover or args.pause or args.retire
@@ -631,10 +761,14 @@ if __name__ == "__main__":
     with (root / "writer.lock").open("a") as lock:
         if not acquire(lock, timeout=5):
             raise SystemExit("push_journal_busy")
+        finish_expiry(root)
         recover(root)
         drain_pending(root)
         if args.retire:
-            print(json.dumps(retire_scopes(root, args.cutoff, json.loads(args.acknowledgements))))
+            if args.acknowledgements_file and args.acknowledgements_file.resolve().parent != root.resolve():
+                raise SystemExit("acknowledgements_file_outside_journal")
+            acknowledgements = args.acknowledgements_file.read_text() if args.acknowledgements_file else args.acknowledgements
+            print(json.dumps(retire_scopes(root, args.cutoff, json.loads(acknowledgements))))
         if args.pause:
             state_path = root / "state.json"
             state = json.loads(state_path.read_text()) if state_path.exists() else {"ordinal": 0, "scopes": {}}

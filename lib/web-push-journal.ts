@@ -1,3 +1,4 @@
+import { pushRetirementCutoff } from './web-push-archive';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash,randomUUID } from 'node:crypto';
@@ -13,11 +14,11 @@ function atomic(file:string,value:unknown){
   fs.renameSync(temporary,file);sync(path.dirname(file));
 }
 function validate(batch:PushBatch){
-  if(!batch||!scopePattern.test(batch.scope)||!batch.scope.startsWith(batch.category+':')||typeof batch.complete!=='boolean'||!Array.isArray(batch.observations)||batch.observations.length>10000||batch.observations.some(row=>!row||!/^[a-f0-9]{64}$/.test(row.identity)||typeof row.revision!=='string'||!/^[a-f0-9]{64}$/.test(row.revision)))throw new Error('invalid_journal_observation');
+  if(!batch||!scopePattern.test(batch.scope)||!batch.scope.startsWith(batch.category+':')||typeof batch.complete!=='boolean'||(batch.silentIdentities!==undefined&&(!Array.isArray(batch.silentIdentities)||batch.silentIdentities.length>10000||batch.silentIdentities.some(id=>typeof id!=='string'||!/^[a-f0-9]{64}$/.test(id))))||!Array.isArray(batch.observations)||batch.observations.length>10000||batch.observations.some(row=>!row||!/^[a-f0-9]{64}$/.test(row.identity)||typeof row.revision!=='string'||!/^[a-f0-9]{64}$/.test(row.revision)))throw new Error('invalid_journal_observation');
 }
 /** Retained records, one leader, no timer. Deterministic failures quarantine
  * locally and preserve sticky coverage gaps; only transient failures stop I/O. */
-export async function startPushJournal(root:string,deps?:PushWorkerDependencies,onFailure:()=>void=()=>{},recoverPending:()=>Promise<void>=async()=>{},maintain:()=>Promise<void>=async()=>{}) {
+export async function startPushJournal(root:string,deps?:PushWorkerDependencies,onFailure:()=>void=()=>{},recoverPending:()=>Promise<void>=async()=>{},maintain:(eligibilityChanged?:boolean)=>Promise<void>=async()=>{}) {
   if(!deps&&!pushEnabled())return {stop:async()=>{},disabled:true};
   const d=deps||pushDependencies();if(!d.enabled())return {stop:async()=>{},disabled:true};
   if(!path.isAbsolute(root))throw new Error('push_journal_directory_required');
@@ -51,7 +52,11 @@ export async function startPushJournal(root:string,deps?:PushWorkerDependencies,
     }
   };
   const drain=async()=>{
-    if(fs.readdirSync(pending).some(name=>name.endsWith('.json')||name.endsWith('.prepared')))await recoverPending();
+    let eligibilityChanged=false;
+    if(fs.readdirSync(pending).some(name=>name.endsWith('.json')||name.endsWith('.prepared'))){
+      const before=fs.statSync(pending).mtimeMs;await recoverPending();
+      if(fs.statSync(pending).mtimeMs!==before)eligibilityChanged=true;
+    }
     await readGaps();
     for(const name of fs.readdirSync(ready).filter(name=>entryName.test(name)).sort()){
       if(!alive||!d.enabled())return;
@@ -68,6 +73,7 @@ export async function startPushJournal(root:string,deps?:PushWorkerDependencies,
         fs.renameSync(file,path.join(quarantine,name));sync(ready);sync(quarantine);continue;
       }
       for(const batch of entry.batches){
+        if(typeof batch?.scope==='string'&&batch.scope.split(':')[1]<pushRetirementCutoff())eligibilityChanged=true;
         if(!alive||!d.enabled())return;
         try{validate(batch);await recordPushBatch(batch,d);}
         catch(error){
@@ -80,10 +86,10 @@ export async function startPushJournal(root:string,deps?:PushWorkerDependencies,
       const destination=damaged?quarantine:archive;
       fs.renameSync(file,path.join(destination,name));sync(ready);sync(destination);
     }
-    // Only acknowledged entries may expire. Quarantine remains evidence and
-    // blocks source retirement until an explicitly reviewed disposition.
+    // Acknowledged archive has an age bound. Scoped withheld evidence expires
+    // separately under both replay floors and no-pending-delivery proof.
     prune(archive);
-    await maintain();
+    await maintain(eligibilityChanged);
   };
   const wake=()=>{
     again=true;if(draining||!alive)return;

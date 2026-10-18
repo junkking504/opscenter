@@ -1,4 +1,4 @@
-import { archivePushScopes } from '../lib/web-push-archive';
+import { archivePushScopes,createPushMaintenance } from '../lib/web-push-archive';
 import { pushDependencies } from '../lib/web-push-worker';
 import { startPushDispatcher } from '../lib/web-push-dispatcher';
 import { startPushJournal } from '../lib/web-push-journal';
@@ -23,21 +23,24 @@ async function main(){
   let closeJournal:(()=>Promise<void>)|undefined;
   let closeDispatcher:(()=>Promise<void>)|undefined;
   const failed=()=>{process.exitCode=1;void closeJournal?.();void closeDispatcher?.();};
-  const dispatcher=await startPushDispatcher(undefined,undefined,failed);
+  const maintenance=createPushMaintenance(async()=>{await archivePushScopes(pushDependencies(),async(cutoff,acks)=>{
+    // One proof set, including files referencing scopes across the whole set.
+    // A private file avoids OS argument limits without splitting acknowledgements.
+    const ackFile=path.join(root,'retirement-acknowledgements.json');
+    fs.writeFileSync(ackFile,JSON.stringify(acks),{mode:0o600});
+    try {
+      const result=await execute('python3',[helper,'--retire',root,'--cutoff',cutoff,'--acknowledgements-file',ackFile],{env:{NODE_ENV:'production',PATH:process.env.PATH,PYTHONDONTWRITEBYTECODE:'1'},timeout:30000});
+      return JSON.parse(result.stdout) as string[];
+    }finally{fs.unlinkSync(ackFile);}
+  });});
+  let journalWake:(()=>void)|undefined;
+  const dispatcher=await startPushDispatcher(undefined,undefined,failed,()=>{maintenance.invalidate();journalWake?.();});
   closeDispatcher=dispatcher.stop;
   if('busy' in dispatcher||'disabled' in dispatcher)return;
   try{
-    let lastFileCutoff='';
-    const maintain=async()=>{await archivePushScopes(pushDependencies(),async(cutoff,acks)=>{
-      if(!acks.length&&lastFileCutoff===cutoff)return [];
-      const retired:string[]=[];
-      for(let offset=0;offset<Math.max(1,acks.length);offset+=100){
-        const result=await execute('python3',[helper,'--retire',root,'--cutoff',cutoff,'--acknowledgements',JSON.stringify(acks.slice(offset,offset+100))],{env:{NODE_ENV:'production',PATH:process.env.PATH,PYTHONDONTWRITEBYTECODE:'1'},timeout:30000});
-        retired.push(...JSON.parse(result.stdout));
-      }
-      lastFileCutoff=cutoff;return retired;
-    });};
-    const journal=await startPushJournal(root,undefined,failed,recover,maintain);
+    const journal=await startPushJournal(root,undefined,failed,recover,maintenance.maintain);
+    journalWake=journal.wake;
+    await maintenance.maintain(); // close the startup delivery-completion race
     closeJournal=journal.stop;
     const stop=async()=>{await journal.stop();await dispatcher.stop();};
     process.once('SIGTERM',()=>{void stop();});process.once('SIGINT',()=>{void stop();});

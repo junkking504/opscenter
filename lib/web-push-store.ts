@@ -28,6 +28,7 @@ export async function managePushDevice(owner: string, input: {action:'subscribe'
     }
     if(input.action==='subscribe') await client.query("UPDATE opscenter_kernel.push_deliveries q SET status='skipped',reason='category_disabled' FROM opscenter_kernel.push_events e WHERE q.event_id=e.id AND q.device_id=$1 AND q.status='pending' AND NOT(e.category=ANY($2::text[]))",[id,input.categories]);
     await client.query('INSERT INTO opscenter_kernel.push_audit(owner_id,action,device_id) VALUES($1,$2,$3)',[owner,PUSH_ACTIONS[input.action],id]);
+    await client.query("SELECT pg_notify('opscenter_web_push','retention')");
     await client.query('COMMIT'); return id;
   } catch(error) {await client.query('ROLLBACK');throw error;} finally {client.release();}
 }
@@ -40,7 +41,7 @@ export async function listPushDevices(owner: string, pool: Pool = getKernelPool(
 export async function readPushHealth(pool:Pool=getKernelPool()) {
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const expected=[...['352','477','399','484'].map(id=>`schedule:${day}:market-${id}`),`krewe:${day}`,`fleet:${day}`];
-  const current=await pool.query('SELECT scope,code,recorded_at FROM opscenter_kernel.push_health WHERE scope=ANY($1::text[])',[expected]);
+  const current=await pool.query('SELECT h.scope,h.code,h.recorded_at,g.code AS reason FROM opscenter_kernel.push_health h LEFT JOIN opscenter_kernel.push_gaps g ON g.scope=h.scope WHERE h.scope=ANY($1::text[])',[expected]);
   const gaps=await pool.query("SELECT scope,CASE WHEN resolved_at IS NULL THEN 'coverage_gap' ELSE 'recovered_gap' END AS code,code AS reason,observed_at,resolved_at,recorded_at FROM opscenter_kernel.push_gaps ORDER BY recorded_at DESC LIMIT 20");
   return [...current.rows.filter(row=>!gaps.rows.some(gap=>gap.scope===row.scope)),...gaps.rows,...expected.filter(scope=>!current.rows.some(row=>row.scope===scope)&&!gaps.rows.some(row=>row.scope===scope)).map(scope=>({scope,code:'source_unknown',recorded_at:null}))];
 }

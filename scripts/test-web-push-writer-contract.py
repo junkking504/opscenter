@@ -34,6 +34,7 @@ full = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and 
 assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'normalize_appt' for node in ast.walk(full))
 assert 'row["crew_assignment_status"]' in source and 'row["detail_collection_error"]' in source
 assert 'row["appointment_time"] = ' not in source[source.index('def collect_attendance_source'):source.index('def collect_and_write_attendance')], 'detail must not overwrite schedule time'
+assert 'row["assigned_truck"] = str(row.get("truck", "") or "").strip()' in source, 'assigned truck derives from page truck'
 refresh = (args.opsbot_root / 'scripts/run_opscenter_refresh.sh').read_text()
 assert 'python3 scripts/collect_junkware_daily.py --date "$DATE"' in refresh
-print(json.dumps({'pure_normalizer_sha256': hashlib.sha256(ast.get_source_segment(source, normalize).encode()).hexdigest(), 'collector_source_sha256': hashlib.sha256(source.encode()).hexdigest(), 'same_schedule_page_fields': True, 'crew_placeholders_are_unknown': True, 'full_refresh_invokes_full_collector': True, 'upstream_revision_cursor_proven': False}, indent=2))
+print(json.dumps({'pure_normalizer_sha256': hashlib.sha256(ast.get_source_segment(source, normalize).encode()).hexdigest(), 'collector_source_sha256': hashlib.sha256(source.encode()).hexdigest(), 'same_schedule_page_fields': True, 'crew_placeholders_are_unknown': True, 'verified_detail_owns_assignment_fields': True, 'assigned_truck_derives_from_page_truck': True, 'full_refresh_invokes_full_collector': True, 'upstream_revision_cursor_proven': False}, indent=2))

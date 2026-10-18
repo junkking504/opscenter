@@ -1,5 +1,5 @@
 import type { PushWorkerDependencies } from './web-push-worker';
-export type PushAcknowledgement={scope:string;generation:string;sequence:number};
+export type PushAcknowledgement={scope:string;generation:string;sequence:number;discardWithheld?:boolean};
 /** Service-day cutoff is inclusive: dates strictly before today minus 14 days
  * retire. Compact monotonic floor prevents replay after per-scope state leaves. */
 export function pushRetirementCutoff(now=new Date()) {
@@ -23,7 +23,7 @@ export async function archivePushScopes(d:PushWorkerDependencies,retireFiles:(cu
    const pending=await client.query(`SELECT 1 FROM opscenter_kernel.push_events e JOIN opscenter_kernel.push_deliveries q ON q.event_id=e.id
     WHERE (e.source_scope=$1 OR e.source_scope IS NULL) AND q.status IN ('pending','sending') LIMIT 1`,[candidate.scope]);
    if(pending.rows.length)continue;
-   acknowledgements.push({scope:candidate.scope,generation:source?.generation||'absent',sequence:Number(source?.sequence||0)});
+   acknowledgements.push({scope:candidate.scope,generation:source?.generation||'absent',sequence:Number(source?.sequence||0),discardWithheld:true});
   }
   // Helper holds the producer lock, validates its checkpoint and all retained
   // references, writes its replay floor before deleting only eligible metadata.
@@ -34,4 +34,20 @@ export async function archivePushScopes(d:PushWorkerDependencies,retireFiles:(cu
   }
   await client.query('COMMIT');return retired;
  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+}
+
+/** Cheap event-driven gate. A current-day capture does not make an expired scope
+ * eligible. Cutoff rollover, consumed old backlog, and terminal old delivery do.
+ * Restart also invalidates the gate; no timer or recurring scans are introduced. */
+export function createPushMaintenance(run:()=>Promise<unknown>,now:()=>Date=()=>new Date()) {
+ let lastCutoff='',dirty=true,active:Promise<void>|undefined;
+ const maintain=(eligibilityChanged=false):Promise<void>=>{
+  if(eligibilityChanged)dirty=true;
+  if(active)return active;
+  if(!dirty&&lastCutoff===pushRetirementCutoff(now()))return Promise.resolve();
+  active=(async()=>{do{const cutoff=pushRetirementCutoff(now());dirty=false;await run();lastCutoff=cutoff;}while(dirty||lastCutoff!==pushRetirementCutoff(now()));})()
+   .catch(error=>{dirty=true;throw error;}).finally(()=>{active=undefined;});
+  return active;
+ };
+ return {maintain,invalidate:()=>{dirty=true;}};
 }

@@ -327,7 +327,7 @@ for revision in range(5):
         self.publish(schedule())
         self.assertEqual(len(self.entries()), 1)
         full["appointments"][0]["driver"] = "Different Driver"
-        self.publish(full)
+        self.publish(full, observation_started_at=datetime.now(timezone.utc).isoformat())
         self.assertEqual(len(self.entries()), 2)
         self.assertFalse(self.entries()[-1]["batches"][0]["baseline"])
     def test_malformed_pending_does_not_poison_restart(self):
@@ -386,12 +386,13 @@ for revision in range(5):
                 self.assertTrue(journal.gap_file(self.journal, ack["scope"]).exists())
                 target.unlink()
                 self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
-    def test_retirement_unknown_evidence_blocks_deletion(self):
+    def test_retirement_unknown_evidence_retained_without_reviving_old_scope(self):
         cutoff, ack = self.retirement_fixture()
         target = self.journal / "quarantine" / "unknown.json"
         target.parent.mkdir(exist_ok=True);target.write_text("{bad")
-        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [])
-        self.assertTrue(journal.gap_file(self.journal, ack["scope"]).exists())
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
+        self.assertTrue(target.exists())
+        self.assertEqual(json.loads((self.journal / "retention-audit.json").read_text())["unscopableRetained"], 1)
     def test_quarantine_counts_against_capture_admission(self):
         self.publish(schedule())
         quarantine = self.journal / "quarantine";quarantine.mkdir()
@@ -401,6 +402,93 @@ for revision in range(5):
         self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Arrived")
         self.assertEqual(self.entries(), [])
         self.assertEqual(len(list(quarantine.glob("*.json"))), 1)
+    def group_capture(self, state, end, start, driver=None, status="Scheduled"):
+        def t(seconds):
+            return (datetime.now(timezone.utc)-timedelta(seconds=seconds)).isoformat()
+        payload = schedule(status, t(end+1))
+        if driver is not None:
+            payload["appointments"][0].update(driver=driver, navigator="Navigator", crew_assignment_status="verified")
+        self.journal.mkdir(exist_ok=True)
+        projected = journal.project(self.target, payload)
+        return journal.select_batches(self.journal, state, projected, "full" if driver else "stream", t(start), t(end))
+    def test_six_unchanged_full_refreshes_have_no_uncertain_growth(self):
+        state = {"scopes": {}, "startedAt": STAMP}
+        first = self.group_capture(state, 900, 901)
+        self.assertTrue(first[0]["baseline"])
+        seeded = self.group_capture(state, 890, 950, "Driver A")
+        self.assertEqual(len(seeded[0]["silentIdentities"]), 1)
+        for n in range(6):
+            self.group_capture(state, 800-n*50, 801-n*50)
+            self.assertEqual(self.group_capture(state, 790-n*50, 850-n*50, "Driver A"), [])
+        self.assertEqual(list((self.journal / "uncertain").glob("*.json")), [])
+        self.assertEqual(list((self.journal / "gaps").glob("*.json")), [])
+        changed = self.group_capture(state, 400, 460, "Driver B")
+        self.assertEqual(len(changed), 1)
+        self.assertFalse(changed[0]["silentIdentities"])
+        self.assertFalse(changed[0]["baseline"])
+        self.assertEqual(self.group_capture(state, 390, 391), [])
+    def test_conflicts_are_group_scoped_deduplicated_and_do_not_hide_other_changes(self):
+        state = {"scopes": {}, "startedAt": STAMP}
+        self.group_capture(state, 900, 901, "Driver A")
+        self.group_capture(state, 800, 801, status="Enroute")
+        # Page conflict does not prevent a properly ordered crew change.
+        result = self.group_capture(state, 790, 850, "Driver B", status="Scheduled")
+        self.assertEqual(len(result), 1)
+        with patch.object(journal, "MAX_ENTRIES", 1):
+            for n in range(6):
+                self.group_capture(state, 780-n, 850, "Driver B", status="Scheduled")
+        self.assertEqual(len(list((self.journal / "uncertain").glob("*.json"))), 1)
+        # Different crew conflicts against its own detail interval, not the stream.
+        self.group_capture(state, 770, 850, "Driver C", status="Enroute")
+        self.assertEqual(len(list((self.journal / "uncertain").glob("*.json"))), 2)
+        changed = self.group_capture(state, 760, 761, status="Arrived")
+        self.assertEqual(len(changed), 1)
+        self.assertFalse(changed[0]["baseline"])
+    def test_counted_expiry_keeps_pending_and_current_evidence(self):
+        cutoff, ack = self.retirement_fixture();ack["discardWithheld"] = True
+        for directory in ("uncertain", "quarantine", "pending-quarantine"):
+            p = self.journal / directory / "old.json";p.parent.mkdir(exist_ok=True);p.write_text(json.dumps({"scope": ack["scope"]}))
+        current = self.journal / "uncertain" / "current.json";current.write_text(json.dumps({"scope": "fleet:"+cutoff}))
+        pending = self.journal / "pending" / "held.json";pending.parent.mkdir();pending.write_text(json.dumps({"scope": ack["scope"]}))
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [])
+        self.assertTrue((self.journal / "uncertain" / "old.json").exists())
+        pending.unlink()
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
+        audit = json.loads((self.journal / "retention-audit.json").read_text())
+        self.assertEqual(audit["expired"], {"uncertain": 1, "quarantine": 1, "pending-quarantine": 1})
+        self.assertTrue(current.exists())
+        journal.retire_scopes(self.journal, cutoff, [ack])
+        self.assertEqual(json.loads((self.journal / "retention-audit.json").read_text())["expired"], audit["expired"])
+        self.assertEqual(json.loads((self.journal / "state.json").read_text())["retiredScopeCount"], 1)
+    def test_expiry_interruption_counts_once_and_finishes_on_restart(self):
+        cutoff, ack = self.retirement_fixture();ack["discardWithheld"] = True
+        target = self.journal / "uncertain" / "old.json";target.parent.mkdir();target.write_text(json.dumps({"scope": ack["scope"]}))
+        save = journal.save
+        def crash(path, data):
+            if path.name == "retention-audit.json":
+                raise SimulatedCrash()
+            save(path, data)
+        with patch.object(journal, "save", crash), self.assertRaises(SimulatedCrash):
+            journal.retire_scopes(self.journal, cutoff, [ack])
+        self.assertFalse(target.exists())
+        self.assertTrue((self.journal / "expiry-intent.json").exists())
+        journal.retire_scopes(self.journal, cutoff, [ack])
+        self.assertEqual(json.loads((self.journal / "retention-audit.json").read_text())["expired"], {"uncertain": 1})
+        self.assertFalse((self.journal / "expiry-intent.json").exists())
+    def test_missing_verified_detail_fields_preserve_known_facts(self):
+        state = {"scopes": {}, "startedAt": STAMP}
+        self.group_capture(state, 900, 901, "Driver A")
+        payload = schedule(at=(datetime.now(timezone.utc)-timedelta(seconds=800)).isoformat())
+        payload["appointments"][0]["crew_assignment_status"] = "verified"
+        projected = journal.project(self.target, payload)
+        result = journal.select_batches(self.journal, state, projected, "full", (datetime.now(timezone.utc)-timedelta(seconds=801)).isoformat(), (datetime.now(timezone.utc)-timedelta(seconds=799)).isoformat())
+        self.assertEqual(result, [])
+    def test_expiry_cannot_discard_a_mixed_current_day_record(self):
+        cutoff, ack = self.retirement_fixture();ack["discardWithheld"] = True
+        target = self.journal / "quarantine" / "mixed.json";target.parent.mkdir()
+        target.write_text(json.dumps({"batches": [{"scope": ack["scope"]}, {"scope": "fleet:"+cutoff}]}))
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [])
+        self.assertTrue(target.exists())
     def test_runtime_patch_guards(self):
         prepare = load("prepare-web-push-source-hooks")
         with self.assertRaises(ValueError):

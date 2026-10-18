@@ -1,3 +1,4 @@
+import { pushRetirementCutoff } from './web-push-archive';
 import { retainPushMetadata } from './web-push-retention';
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
@@ -82,7 +83,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           ON CONFLICT(scope,identity_hash) DO UPDATE SET revision_hash=EXCLUDED.revision_hash,version=EXCLUDED.version,observed_at=EXCLUDED.observed_at,present=EXCLUDED.present`,[batch.scope,change.identity,change.revision,change.version,batch.observedAt,change.present]);
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
         await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope]);
-        if(!batch.baseline && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
+        if(!batch.baseline && !batch.silentIdentities?.some(identity=>pushHash(identity)===change.identity) && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
           const devices=await client.query('SELECT id,owner_id FROM opscenter_kernel.push_devices WHERE $1=ANY(categories) AND revoked_at IS NULL AND expires_at>now() AND created_at<=$2',[batch.category,batch.recordedAt||batch.observedAt]);
           for(const device of devices.rows)if(d.ownerAllowed(device.owner_id))await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
@@ -104,13 +105,14 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
 /** Caller owns the dedicated single-instance lock. Claims serialize per device;
  * a completed claim may finish after revoke. No later claim can bypass revoke. */
 export async function drainPushOutbox(d:PushWorkerDependencies) {
-  let attempted=0;
+  let attempted=0,retirementEligibilityChanged=false;
   while(d.enabled()) {
-    const pending=await d.pool.query(`SELECT q.event_id,q.device_id FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
+    const pending=await d.pool.query(`SELECT q.event_id,q.device_id,e.source_scope FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
       WHERE q.status='pending' ORDER BY e.dispatch_order,q.device_id LIMIT 50`);
     if(!pending.rows.length)break;
     for(const row of pending.rows) {
-      if(!d.enabled())return {attempted};
+      if(!row.source_scope||row.source_scope.split(':')[1]<pushRetirementCutoff())retirementEligibilityChanged=true;
+      if(!d.enabled())return {attempted,retirementEligibilityChanged};
       const client=await d.pool.connect();
       let claim:{endpoint:string;token:string}|null=null;
       try {
@@ -137,13 +139,14 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
         await receipt.query('SELECT id FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[row.device_id]);
         await receipt.query("UPDATE opscenter_kernel.push_deliveries SET status=$4,reason=$5 WHERE event_id=$1 AND device_id=$2 AND claim_token=$3 AND status='sending'",[row.event_id,row.device_id,claim.token,status,reason]);
         if(status==='expired'){
+          retirementEligibilityChanged=true;
           await receipt.query('UPDATE opscenter_kernel.push_devices SET revoked_at=now() WHERE id=$1',[row.device_id]);
           await receipt.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason='expired' WHERE device_id=$1 AND status='pending'",[row.device_id]);
         }
       });}finally{receipt.release();}
     }
   }
-  return {attempted};
+  return {attempted,retirementEligibilityChanged};
 }
 /** Compatibility test harness; never scheduled. Production dispatch uses LISTEN. */
 export async function runPushWorker(batches:PushBatch[],deps?:PushWorkerDependencies) {

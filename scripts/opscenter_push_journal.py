@@ -18,6 +18,13 @@ from pathlib import Path
 MAX_ENTRIES = 10000
 MAX_BYTES = 128 * 1024 * 1024
 MARKETS = {"352": "New Orleans", "477": "Northshore", "399": "Baton Rouge", "484": "Jefferson Parish"}
+# Exact producer labels plus the existing short-label contract. No fuzzy name
+# matching or fallback from an explicitly unknown market to a geographic territory.
+MARKET_IDS = {label: market for market, name in MARKETS.items() for label in (name, f"Junk King {name}")}
+
+
+def schedule_market(row):
+    return MARKET_IDS.get(first(row, "market", "territory"))
 
 
 def encoded(value):
@@ -109,9 +116,9 @@ def project(path, payload):
             market = str(verified.get("territory_id", ""))
             if verified.get("verified") is not True or market not in MARKETS:
                 continue
-            selected = [row for row in rows if first(row, "market", "territory") == MARKETS[market]]
+            selected = [row for row in rows if schedule_market(row) == market]
             # Never interpret an unclassified row as a complete-market removal.
-            if any(first(row, "market", "territory") not in MARKETS.values() for row in rows):
+            if any(schedule_market(row) is None for row in rows):
                 continue
             items_by_id = {}
             for row in selected:

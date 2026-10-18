@@ -8,11 +8,12 @@ import { pushEnabled, pushOutcome, pushHash, PUSH_CATEGORIES } from './web-push-
 import { pushTransitions, type PushBatch } from './web-push-events';
 import { sendAppleWakeup } from './web-push-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
+import { supervisedPushDelivery } from './web-push-runtime';
 import { opsRoleCan } from './ops-roles';
 export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
-  return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleWakeup,ownerAllowed:owner=>allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
+  return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleWakeup,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
 }
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;

@@ -329,10 +329,74 @@ subscription or metered inference is introduced. Runtime CPU/storage capacity,
 dedicated session connection availability and deployment wiring still need review.
 This is a no-new-provider design, not evidence of unlimited free capacity.
 
-A future supervisor would run `scripts/run-web-push.ts` as a long-lived dispatcher
-with KeepAlive, not a timed job. No launchd configuration is installed or changed.
+The reviewed preparation includes `scripts/supervise-web-push.py` and a disabled
+launchd template. The supervisor runs the journal consumer/dispatcher as a
+long-lived child, with RunAtLoad and KeepAlive both false. Installation and start
+remain explicit runtime operations; importing or deploying the source does neither.
 Deployment must supply the existing authenticated role resolution to the sender
 without exposing private signing material to web processes.
+
+## Bounded supervisor and enrollment-only setup
+
+The supervisor pins the active immutable release and requires the installed
+canonical helper to match it byte for byte. It reads only an allowlist of existing
+production configuration into a minimal child environment. Observe mode requires
+`OPSCENTER_WEB_PUSH_ENABLED=0`, uses role `push-observer`, denies every owner for
+fanout/claims, and never retrieves a signing key. Enrollment can separately use
+`OPSCENTER_WEB_PUSH_ENROLLMENT_ENABLED=1`; the prepared-owner trial gate still
+applies. The default web API additionally requires the live supervisor lease.
+Unsubscribe remains available after enrollment is disabled.
+
+The private state directory is
+`~/Library/Application Support/OpsCenter/web-push` (0700), with `journal/` (0700)
+and `sender.json` (0600). The latter has `mode: off|observe|send` and an absolute
+Unix-seconds `setupUntil` at most one hour from launch. This setup bound does not
+start or extend the database trial. A stable private flock prevents two supervisors.
+No second instance may remove the running instance's lease. Launchd must use the
+prepared template without auto-start or automatic restart.
+
+Before starting the child, the supervisor conservatively pauses/reconciles the
+journal and marks the prior coverage gap. It waits up to 45 seconds for the
+child's nonce/PID readiness after recovery, dedicated DB leadership, listener and
+journal initialization. Only then it renews a private five-second capability file.
+Canonical hooks whose capture environment flag is absent check that lease at
+the existing publication call. They never change canonical collection cadence or
+Slack publication. Explicit capture=0 still disables capture. No delivery timer
+or source polling was added: journal filesystem events and committed PostgreSQL
+NOTIFY remain the delivery triggers. The local lease timer is lifecycle safety.
+
+The API rejects enrollment when the lease disappears/expires. Default owner
+eligibility and the real transport require a `send` lease matching that child
+nonce, checked again after DNS. A child orphaned by a supervisor crash therefore
+loses sending permission within five seconds. Already accepted notices can remain
+within the bounded provider TTL. Observe mode grants no sending permission.
+
+A signal, child exit/readiness loss, operator configuration change or setup expiry
+removes the lease first, terminates only that child's process group, calls the
+canonical helper's locked pause/recovery to retain pending records and mark gaps,
+and persists `mode: off`, even when recovery fails. Recovery failure requires
+inspection; it must not be interpreted as a healthy shutdown. The child also
+stops at the database trial deadline, explicit stop or the third reserved attempt.
+An observer stops if a trial is started. No run resets attempts, deadline or audit.
+
+Approved installation order: stage exact source hooks and record input/output
+hashes; deploy the reviewed release with no lease or services running; back up
+external writer files; acquire the existing refresh and LinxUp writer locks; check
+input hashes again; atomically install the exact helper before the hook importers;
+verify output hashes and release/helper equality. Do not steal a busy lock or
+replace changed source. Then provision private state and the disabled LaunchAgent,
+supply the same owner/role resolution, explicitly prepare the intended owner and
+start observe-only setup. Verify known baselines and unresolved source health
+before opening enrollment or considering any send. Never approve the first
+candidate automatically. Match the phone-displayed device ID and full subscription
+fingerprint to the intended owner and require their actual readiness before start.
+
+For coordinated manual stop, set `sender.json` mode to `off` atomically or stop
+this supervisor; verify lease absent, child stopped and retained gap evidence.
+Then set enrollment/capture/sending configuration off, stop the trial if started,
+and verify the authenticated API reports enrollment disabled. Do not delete
+pending or uncertain evidence or reset the trial. A later mode change never
+restarts the process automatically.
 
 ## Verification and remaining approvals
 

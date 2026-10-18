@@ -2,7 +2,8 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP, BlockList } from 'node:net';
 import https from 'node:https';
-import { pushEnabled, pushEndpoint } from './web-push-policy';
+import { supervisedPushDelivery } from './web-push-runtime';
+import { pushEndpoint } from './web-push-policy';
 const blocked = new BlockList();
 for (const [address, prefix] of [['0.0.0.0',8],['10.0.0.0',8],['100.64.0.0',10],['127.0.0.0',8],['169.254.0.0',16],['172.16.0.0',12],['192.0.0.0',24],['192.0.2.0',24],['192.168.0.0',16],['198.18.0.0',15],['198.51.100.0',24],['203.0.113.0',24],['224.0.0.0',3]] as const) blocked.addSubnet(address,prefix,'ipv4');
 export function publicPushAddress(address: string): boolean {
@@ -19,7 +20,7 @@ export function vapidAuthorization(endpoint: URL, env: NodeJS.ProcessEnv = proce
   const signature = sign('sha256',Buffer.from(input),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
   return `vapid t=${input}.${signature}, k=${pub.toString('base64url')}`;
 }
-const transportDependencies={enabled:pushEnabled,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
+const transportDependencies={enabled:supervisedPushDelivery,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
 /** Empty-body standards Web Push: no customer, employee, event or URL payload. */
 export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<boolean>, deadline:number, io=transportDependencies): Promise<number> {
   if (!io.enabled()) throw new Error('Push delivery disabled.');

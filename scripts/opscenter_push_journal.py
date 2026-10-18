@@ -6,6 +6,7 @@ import fcntl
 import hashlib
 import json
 import os
+import stat
 import re
 import sys
 import time
@@ -533,21 +534,53 @@ def drain_pending(root):
 
 
 
+# Local supervisor capability: no collector restart or Slack change is needed to
+# pause capture. Absent/invalid/expired lease fails closed; never follows symlinks.
+# Explicit enabled= is only the existing local test adapter.
+CAPTURE_HOME = Path('/Users/missioncontrol/Library/Application Support/OpsCenter/web-push')
+
+def capture_lease(home=CAPTURE_HOME, now=None):
+    now = time.time() if now is None else now
+    try:
+        info = home.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            return None
+        fd = os.open(home / 'capture-lease.json', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077 or info.st_size > 1024:
+                return None
+            value = json.loads(os.read(fd, 1025))
+        finally:
+            os.close(fd)
+        expiry = value.get('expiresAt')
+        if value.get('mode') not in ('observe', 'send') or value.get('version') != 1 or not isinstance(expiry, (float, int)) or not now < expiry <= now + 10 or not re.fullmatch('[a-f0-9]{32}', value.get('nonce', '')):
+            return None
+        root = home / 'journal'
+        info = root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            return None
+        return root
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
 def publish_json(path, payload, *, journal_root=None, enabled=None, fault=None, publisher=None, observation_started_at=None):
     """Capture failure cannot suppress the original write or its caller (Slack).
 
     The disabled path calls the original publisher exactly once, with no journal
-    I/O. Canonical I/O failures still propagate normally. A bounded lock protects
+    I/O. When the capture environment flag is absent it first checks the private lease. Canonical I/O failures still propagate normally. A bounded lock protects
     the healthy publication/intent boundary; contention retains a private spool capture for ordered recovery.
     """
     path = Path(path)
     publish = publisher or (lambda: original_json(path, payload))
-    active = os.environ.get("OPSCENTER_WEB_PUSH_CAPTURE") == "1" if enabled is None else enabled
+    lease_root = capture_lease() if enabled is None and "OPSCENTER_WEB_PUSH_CAPTURE" not in os.environ else None
+    active = (os.environ.get("OPSCENTER_WEB_PUSH_CAPTURE") == "1" or lease_root is not None) if enabled is None else enabled
     if not active:
         publish()
         return
     scopes = ["journal:global"]
-    configured = journal_root or os.environ.get("OPSCENTER_WEB_PUSH_JOURNAL_DIR")
+    configured = journal_root or lease_root or os.environ.get("OPSCENTER_WEB_PUSH_JOURNAL_DIR")
     root = Path(configured) if configured and Path(configured).is_absolute() else None
     attempted = False
     source_error = None

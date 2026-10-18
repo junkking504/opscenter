@@ -5,7 +5,7 @@ import { pushEnabled } from './web-push-policy';
 import { drainPushOutbox, pushDependencies, PUSH_LOCK, pushErrorCode, type PushWorkerDependencies } from './web-push-worker';
 /** One dedicated connection owns LISTEN and leadership. Connection loss stops
  * new claims; the process exits for supervisor restart, never returns it to a pool. */
-export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client, onFailure:()=>void=()=>{},onRetirementEligibility:()=>void=()=>{}) {
+export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client, onFailure:()=>void=()=>{},onRetirementEligibility:()=>void=()=>{},onDrain:()=>void=()=>{}) {
   if(!deps && !pushEnabled())return {disabled:true,stop:async()=>{}};
   const d=deps||pushDependencies();
   if(!d.enabled())return {disabled:true,stop:async()=>{}};
@@ -19,7 +19,7 @@ export async function startPushDispatcher(deps?:PushWorkerDependencies, supplied
   listener.on('error',fail);listener.on('end',fail);
   const wake=()=>{
     again=true;if(draining||!alive||!ready)return;
-    draining=(async()=>{do{again=false;const result=await drainPushOutbox(guarded);if(result.retirementEligibilityChanged)onRetirementEligibility();}while(again&&alive);})()
+    draining=(async()=>{do{again=false;const result=await drainPushOutbox(guarded);if(result.retirementEligibilityChanged)onRetirementEligibility();onDrain();}while(again&&alive);})()
       .catch(error=>{console.error(`Web Push dispatcher: ${pushErrorCode(error)}`);fail();})
       .finally(()=>{draining=null;if(again&&alive)wake();});
   };

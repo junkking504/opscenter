@@ -2,11 +2,12 @@ import { readPushTrial } from './web-push-trial';
 import { readPushJournalHealth } from './web-push-journal-health';
 import type { AuthSession } from './auth';
 import { opsRoleCan } from './ops-roles';
-import { pushEnrollmentEnabled, pushCategories, pushSubscription } from './web-push-policy';
+import { supervisedPushEnrollment } from './web-push-runtime';
+import { pushCategories, pushSubscription } from './web-push-policy';
 import { listPushDevices, managePushDevice, readPushHealth } from './web-push-store';
 type PushSession=Pick<AuthSession,'email'|'role'|'expiresAt'>|null;
 const headers={'Cache-Control':'private, no-store, max-age=0'};
-const defaultService={enabled:pushEnrollmentEnabled,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice,health:readPushHealth,journal:readPushJournalHealth,trial:readPushTrial};
+const defaultService={enabled:supervisedPushEnrollment,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice,health:readPushHealth,journal:readPushJournalHealth,trial:readPushTrial};
 type PushService=Omit<typeof defaultService,'health'|'journal'|'trial'> & {health?:typeof readPushHealth;journal?:typeof readPushJournalHealth;trial?:typeof readPushTrial};
 export async function pushDevicesGET(session: PushSession, service:PushService=defaultService) {
   if(!session) return Response.json({error:'Authentication required.'},{status:401,headers});

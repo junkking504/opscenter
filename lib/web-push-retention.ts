@@ -2,15 +2,14 @@ import type { PoolClient, Client } from 'pg';
 /** Event/startup maintenance, never an interval. Preserve source watermarks
  * while retained publications may still need ordered recovery. */
 export async function retainPushMetadata(client:PoolClient|Client) {
-  await client.query("DELETE FROM opscenter_kernel.push_events WHERE recorded_at<now()-interval '7 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.event_id=push_events.id AND q.status IN ('pending','sending'))");
+  await client.query("DELETE FROM opscenter_kernel.push_events WHERE recorded_at<now()-interval '14 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.event_id=push_events.id AND q.status IN ('pending','sending'))");
   await client.query("DELETE FROM opscenter_kernel.push_audit WHERE recorded_at<now()-interval '90 days'");
   await client.query("DELETE FROM opscenter_kernel.push_devices WHERE GREATEST(expires_at,COALESCE(revoked_at,expires_at))<now()-interval '90 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.device_id=push_devices.id AND q.status IN ('pending','sending'))");
   // Keep a bounded replay window and a permanent watermark for each active
   // scope. Older conflicting replays fail closed instead of becoming new events.
   await client.query('UPDATE opscenter_kernel.push_sources SET archived_sequence=GREATEST(archived_sequence,sequence-10000)');
   await client.query('DELETE FROM opscenter_kernel.push_batches b USING opscenter_kernel.push_sources s WHERE b.scope=s.scope AND b.sequence<=s.archived_sequence');
-  // Keep source/observation watermarks: deleting them can re-baseline a retained
-  // backlog or reuse event identities. Recorder enforces 1,000 scopes and 10,000
-  // identities per scope; capacity becomes an explicit coverage gap, not a
-  // collector failure. Archival of those watermarks needs an acknowledged cutoff.
+  // Source/observation retirement runs separately under source and producer
+  // locks, with matching checkpoints, retained-reference guards and a permanent
+  // compact date floor. Pending/sending deliveries never expire by age.
 }

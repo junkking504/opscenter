@@ -15,8 +15,8 @@ export function PushSettings() {
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
     const current=(body.devices || []).find((device:Device)=>device.id===saved);if(current)setSelected(current.categories);
-    const gaps=(body.health || []).filter((row:{code:string})=>row.code!=='recorded');
-    setMessage(body.enabled?(gaps.length?'Some notification sources are blocked; source coverage is incomplete.':!(body.health || []).length?'Notification source coverage is unknown.':'Choose categories for this device.'):'Phone notifications are awaiting activation.');
+    const gaps=(body.health || []).filter((row:{code:string})=>row.code!=='recorded'&&row.code!=='recovered_gap');
+    setMessage(body.enabled?(gaps.length?'Some notification sources are blocked; source coverage is incomplete.':!(body.health || []).length?'Notification source coverage is unknown.':(body.health || []).some((row:{code:string})=>row.code==='recovered_gap')?'Capture recovered after a recorded gap. Some earlier updates may be missing.':'Choose categories for this device.'):'Phone notifications are awaiting activation.');
     return body.enabled as boolean;
   }
   useEffect(()=>{

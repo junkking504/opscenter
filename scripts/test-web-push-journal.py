@@ -159,7 +159,7 @@ for revision in range(5):
         self.assertEqual([process.wait(timeout=10) for process in processes], [0, 0, 0, 0])
         batches = [entry["batches"][0] for entry in self.entries()]
         self.assertEqual([batch["sequence"] for batch in batches], list(range(1, 21)))
-        self.assertEqual(batches[-1]["observations"], journal.project(self.target, json.loads(self.target.read_text()))[0]["observations"])
+        self.assertEqual([x["identity"] for x in batches[-1]["observations"]], [x["identity"] for x in journal.project(self.target, json.loads(self.target.read_text()))[0]["observations"]])
     def test_recovery_after_ready_before_checkpoint(self):
         save = journal.save
         def interrupted(path, data):
@@ -200,7 +200,10 @@ for revision in range(5):
             self.publish(schedule())
             self.assertLess(time.monotonic()-started, 0.5)
         self.assertTrue(self.target.exists())
-        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+        self.assertTrue(list((self.journal / "pending").glob("*.json")))
+        journal.drain_pending(self.journal)
+        self.assertEqual(len(self.entries()), 1)
+        self.assertFalse(list((self.journal / "gaps").glob("*.json")))
     def test_raw_requested_and_competing_collection_order(self):
         raw = self.root / f"junkware_{DAY}_raw.json"
         requested = self.root / f"junkware_schedule_requested_{DAY}.json"
@@ -212,10 +215,11 @@ for revision in range(5):
         self.assertTrue(list((self.journal / "gaps").glob("*.json")))
     def test_pause_gap_rebases_and_keeps_gap_visible(self):
         self.publish(schedule())
-        journal.mark_gap(self.journal, ["journal:global"], "capture_disabled")
+        journal.mark_gap(self.journal, [f"schedule:{DAY}:market-352"], "capture_disabled")
         self.publish(schedule("Arrived"))
         batch = self.entries()[-1]["batches"][0]
-        self.assertTrue(batch["baseline"])
+        self.assertFalse(batch["baseline"])
+        self.assertTrue(batch["reconcile"])
         self.assertTrue(batch["reset"])
         self.assertEqual(batch["sequence"], 1)
         self.assertNotEqual(batch["generation"], self.entries()[0]["batches"][0]["generation"])
@@ -256,6 +260,147 @@ for revision in range(5):
         self.publish(payload)
         self.assertEqual([batch["scope"] for batch in self.entries()[0]["batches"]], [f"schedule:{DAY}:market-477"])
         self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_identical_overlapping_raw_does_not_reset_next_transition(self):
+        self.publish(schedule())
+        later = (datetime.fromisoformat(STAMP)+timedelta(seconds=20)).isoformat()
+        self.publish(schedule("Enroute", later))
+        raw = self.root / f"junkware_{DAY}_raw.json"
+        journal.publish_json(raw, schedule("Enroute", later), enabled=True, journal_root=self.journal, observation_started_at=STAMP)
+        self.publish(schedule("Arrived", (datetime.fromisoformat(STAMP)+timedelta(seconds=30)).isoformat()))
+        self.assertEqual([b["batches"][0]["sequence"] for b in self.entries()], [1, 2, 3])
+        self.assertFalse(self.entries()[-1]["batches"][0]["baseline"])
+        self.assertFalse(list((self.journal / "gaps").glob("*.json")))
+    def test_conflicting_overlap_retains_evidence_and_next_change(self):
+        self.publish(schedule())
+        later = (datetime.fromisoformat(STAMP)+timedelta(seconds=20)).isoformat()
+        self.publish(schedule("Enroute", later))
+        raw = self.root / f"junkware_{DAY}_raw.json"
+        journal.publish_json(raw, schedule("Completed", later), enabled=True, journal_root=self.journal, observation_started_at=STAMP)
+        self.assertEqual(len(list((self.journal / "uncertain").glob("*.json"))), 1)
+        self.publish(schedule("Arrived", (datetime.fromisoformat(STAMP)+timedelta(seconds=30)).isoformat()))
+        last = self.entries()[-1]["batches"][0]
+        self.assertFalse(last["baseline"])
+        self.assertFalse(last["reset"])
+        self.assertEqual(last["sequence"], 3)
+    def test_contended_transitions_survive_restart_and_replay(self):
+        self.publish(schedule())
+        with (self.journal / "writer.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            self.publish(schedule("Enroute"))
+            self.publish(schedule("Arrived"))
+        self.assertEqual(len(list((self.journal / "pending").glob("*.json"))), 2)
+        subprocess.run([sys.executable, str(Path(journal.__file__)), "--recover", str(self.journal)], check=True)
+        self.assertEqual(len(self.entries()), 3)
+        journal.drain_pending(self.journal)
+        self.assertEqual(len(self.entries()), 3)
+        self.assertTrue(all(not entry["batches"][0]["baseline"] for entry in self.entries()[1:]))
+    def test_gap_overflow_does_not_reset_unrelated_source(self):
+        self.publish(schedule())
+        journal.mark_gap(self.journal, [f"krewe:2025-01-01:x{i}" for i in range(1001)], "contract_violation")
+        self.publish(schedule("Enroute"))
+        self.assertFalse(journal.gap_file(self.journal, "journal:global").exists())
+        self.assertTrue(journal.gap_file(self.journal, "journal:capacity").exists())
+        self.assertFalse(self.entries()[-1]["batches"][0]["baseline"])
+    def test_out_of_window_does_not_allocate_gaps(self):
+        old = (datetime.now(timezone.utc)-timedelta(days=30)).date().isoformat()
+        payload = schedule();payload["date"] = old
+        journal.publish_json(self.root / f"junkware_{old}_raw.json", payload, enabled=True, journal_root=self.journal)
+        self.assertFalse(self.journal.exists())
+    def test_pending_commit_interruption_is_idempotent(self):
+        self.publish(schedule())
+        with (self.journal / "writer.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            self.publish(schedule("Enroute"))
+        save = journal.save
+        def crash(path, data):
+            if path.name == "state.json":
+                raise SimulatedCrash()
+            save(path, data)
+        with patch.object(journal, "save", crash), self.assertRaises(SimulatedCrash):
+            journal.drain_pending(self.journal)
+        journal.drain_pending(self.journal)
+        self.assertEqual(len(self.entries()), 2)
+        self.assertEqual(list((self.journal / "pending").glob("*.json")), [])
+    def test_missing_detail_placeholders_cannot_clear_verified_assignment(self):
+        full = schedule();full["appointments"][0].update(driver="Synthetic Driver", crew_assignment_status="verified")
+        self.publish(full)
+        self.publish(schedule())
+        self.assertEqual(len(self.entries()), 1)
+        full["appointments"][0]["driver"] = "Different Driver"
+        self.publish(full)
+        self.assertEqual(len(self.entries()), 2)
+        self.assertFalse(self.entries()[-1]["batches"][0]["baseline"])
+    def test_malformed_pending_does_not_poison_restart(self):
+        self.publish(schedule())
+        with (self.journal / "writer.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            self.publish(schedule("Enroute"))
+        (self.journal / "pending" / "00000000000000000000-invalid.json").write_text("{bad")
+        journal.drain_pending(self.journal)
+        self.assertEqual(len(self.entries()), 2)
+        self.assertEqual(len(list((self.journal / "pending-quarantine").glob("*.json"))), 1)
+        journal.drain_pending(self.journal)
+        self.assertEqual(len(self.entries()), 2)
+    def test_historical_first_seen_clock_is_identified_without_live_alert(self):
+        self.publish(schedule())
+        state = json.loads((self.journal / "state.json").read_text())
+        state["startedAt"] = (datetime.now(timezone.utc)-timedelta(days=4)).isoformat()
+        journal.save(self.journal / "state.json", journal.encoded(state))
+        old = (datetime.now(timezone.utc)-timedelta(days=2)).date().isoformat()
+        metrics = {"date": old, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}}, "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00"}]}
+        journal.publish_json(self.root / f"daily_metrics_{old}.json", metrics, enabled=True, journal_root=self.journal)
+        batch = self.entries()[-1]["batches"][0]
+        self.assertTrue(batch["baseline"])
+        self.assertEqual(batch["baselineReason"], "historical_first_seen")
+    def retirement_fixture(self):
+        self.publish(schedule())
+        cutoff = (datetime.now(timezone.utc)-timedelta(days=14)).date().isoformat()
+        old = (datetime.now(timezone.utc)-timedelta(days=15)).date().isoformat()
+        scope = f"fleet:{old}"
+        state = json.loads((self.journal / "state.json").read_text())
+        state["scopes"][scope] = {"generation": "a"*32, "sequence": 3}
+        journal.save(self.journal / "state.json", journal.encoded(state))
+        journal.mark_gap(self.journal, [scope], "capture_failure")
+        return cutoff, {"scope": scope, "generation": "a"*32, "sequence": 3}
+    def test_retirement_requires_matching_ack_and_preserves_boundary(self):
+        cutoff, ack = self.retirement_fixture()
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [{**ack, "sequence": 2}]), [])
+        self.assertEqual(journal.retire_scopes(self.journal, ack["scope"].split(":")[1], [ack]), [])
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
+        state = json.loads((self.journal / "state.json").read_text())
+        self.assertEqual(state["retiredBefore"], cutoff)
+        self.assertNotIn(ack["scope"], state["scopes"])
+        self.assertFalse(journal.gap_file(self.journal, ack["scope"]).exists())
+        # Filesystem completion followed by DB rollback is safe to retry.
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
+        projection = {"scope": ack["scope"], "category": "fleet", "complete": True, "observedAt": STAMP, "observations": [{"identity": "a"*64, "revision": "b"*64}]}
+        self.assertEqual(journal.select_batches(self.journal, state, [projection], "owner", STAMP, STAMP), [])
+    def test_retirement_retains_every_unacknowledged_reference(self):
+        for directory in ("ready", "pending", "quarantine", "pending-quarantine", "uncertain"):
+            with self.subTest(directory=directory):
+                cutoff, ack = self.retirement_fixture()
+                target = self.journal / directory / "retained.json"
+                target.parent.mkdir(exist_ok=True)
+                target.write_text(json.dumps({"batches": [{"scope": ack["scope"]}]}))
+                self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [])
+                self.assertTrue(journal.gap_file(self.journal, ack["scope"]).exists())
+                target.unlink()
+                self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [ack["scope"]])
+    def test_retirement_unknown_evidence_blocks_deletion(self):
+        cutoff, ack = self.retirement_fixture()
+        target = self.journal / "quarantine" / "unknown.json"
+        target.parent.mkdir(exist_ok=True);target.write_text("{bad")
+        self.assertEqual(journal.retire_scopes(self.journal, cutoff, [ack]), [])
+        self.assertTrue(journal.gap_file(self.journal, ack["scope"]).exists())
+    def test_quarantine_counts_against_capture_admission(self):
+        self.publish(schedule())
+        quarantine = self.journal / "quarantine";quarantine.mkdir()
+        first = next((self.journal / "ready").glob("*.json"));first.replace(quarantine / first.name)
+        with patch.object(journal, "MAX_ENTRIES", 1):
+            self.publish(schedule("Arrived"))
+        self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Arrived")
+        self.assertEqual(self.entries(), [])
+        self.assertEqual(len(list(quarantine.glob("*.json"))), 1)
     def test_runtime_patch_guards(self):
         prepare = load("prepare-web-push-source-hooks")
         with self.assertRaises(ValueError):

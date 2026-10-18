@@ -16,14 +16,17 @@ export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
   return typeof code==='string' && /^[0-9A-Z]{5}$/.test(code)?`sql_${code}`:'source_failed';
 }
-export const deterministicPushErrors=new Set(['invalid_scope','invalid_observation','invalid_generation','generation_mismatch','reset_reordered','sequence_archived','source_date_expired','sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','duplicate_identity','source_capacity','observation_capacity','invalid_journal_entry','invalid_journal_observation']);
+export const deterministicPushErrors=new Set(['invalid_scope','invalid_observation','invalid_generation','generation_mismatch','reset_reordered','sequence_archived','source_date_expired','sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','duplicate_identity','source_capacity','scope_retired','observation_capacity','invalid_journal_entry','invalid_journal_observation']);
 export async function recordPushGap(scope:string,id:string,code:string,d:PushWorkerDependencies) {
   if(!d.enabled())return;
-  const safeScope=/^(schedule|krewe|fleet):[a-zA-Z0-9:-]{1,100}$/.test(scope)?scope:'journal:global';
+  const safeScope=/^(schedule|krewe|fleet):[a-zA-Z0-9:-]{1,100}$/.test(scope)?scope:/^journal:(capacity|pending|retired)$/.test(scope)?scope:'journal:global';
   const safeCode=/^[a-z_]{1,60}$/.test(code)?code:'capture_failure';
   await d.pool.query(`INSERT INTO opscenter_kernel.push_gaps(scope,gap_id,code,observed_at) VALUES($1,$2,$3,now())
-    ON CONFLICT(scope) DO UPDATE SET gap_id=EXCLUDED.gap_id,code=EXCLUDED.code,observed_at=EXCLUDED.observed_at,recorded_at=now() WHERE push_gaps.gap_id<>EXCLUDED.gap_id`,[safeScope,id,safeCode]);
-  await d.pool.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'coverage_gap') ON CONFLICT(scope) DO UPDATE SET code='coverage_gap',recorded_at=now()",[safeScope]);
+    ON CONFLICT(scope) DO UPDATE SET gap_id=EXCLUDED.gap_id,code=EXCLUDED.code,observed_at=EXCLUDED.observed_at,recorded_at=now(),resolved_at=NULL,recovered_generation=NULL WHERE push_gaps.gap_id<>EXCLUDED.gap_id`,[safeScope,id,safeCode]);
+  // Replay on startup must not reopen a gap already reconciled by a commit.
+  await d.pool.query(`INSERT INTO opscenter_kernel.push_health(scope,code)
+    SELECT scope,CASE WHEN resolved_at IS NULL THEN 'coverage_gap' ELSE 'recovered_gap' END FROM opscenter_kernel.push_gaps WHERE scope=$1
+    ON CONFLICT(scope) DO UPDATE SET code=EXCLUDED.code WHERE push_health.code<>EXCLUDED.code`,[safeScope]);
 }
 async function transaction<T>(client:PoolClient, action:()=>Promise<T>):Promise<T> {
   await client.query('BEGIN');
@@ -48,15 +51,17 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       const day=batch.scope.match(/:(\d{4}-\d{2}-\d{2})(?::|$)/)?.[1];
       // V2 validates against publication time, so a queued entry crossing
       // midnight or an outage does not expire before it can be recorded.
-      const windowTime=batch.recordedAt?recorded:Date.now();
-      if(day && (day<new Date(windowTime-7*86400000).toISOString().slice(0,10)||day>new Date(windowTime+90*86400000).toISOString().slice(0,10)))throw new Error('source_date_expired');
+      const publicationDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(batch.recordedAt?recorded:Date.now()));
+      const windowTime=Date.parse(publicationDay+'T12:00:00Z');
+      if(day && (day<new Date(windowTime-14*86400000).toISOString().slice(0,10)||day>new Date(windowTime+90*86400000).toISOString().slice(0,10)))throw new Error('source_date_expired');
+      if(!source&&day){const floor=(await client.query('SELECT retired_before::text FROM opscenter_kernel.push_retention WHERE singleton=true')).rows[0]?.retired_before;if(floor&&day<floor)throw new Error('scope_retired');}
       if(!source && Number((await client.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_sources')).rows[0]?.count||0)>=1000)throw new Error('source_capacity');
       if(source && (source.generation||'legacy')!==generation){
-        if(!batch.reset||!batch.baseline||batch.sequence!==1||!batch.gapId)throw new Error('generation_mismatch');
+        if(!batch.reset||(!batch.baseline&&!batch.reconcile)||batch.sequence!==1||!batch.gapId)throw new Error('generation_mismatch');
         if(recorded<=new Date(source.source_recorded_at||source.observed_at).getTime())throw new Error('reset_reordered');
-        await client.query('DELETE FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
+        if(!batch.reconcile)await client.query('DELETE FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
         await client.query('DELETE FROM opscenter_kernel.push_batches WHERE scope=$1',[batch.scope]);
-        source=undefined;
+        source=batch.reconcile?{...source,sequence:0,archived_sequence:0}:undefined;
       }
       const digest=pushHash(batch);
       if(source && batch.sequence<=Number(source.archived_sequence||0))throw new Error('sequence_archived');
@@ -76,7 +81,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
         await client.query(`INSERT INTO opscenter_kernel.push_observations(scope,identity_hash,revision_hash,version,observed_at,present) VALUES($1,$2,$3,$4,$5,$6)
           ON CONFLICT(scope,identity_hash) DO UPDATE SET revision_hash=EXCLUDED.revision_hash,version=EXCLUDED.version,observed_at=EXCLUDED.observed_at,present=EXCLUDED.present`,[batch.scope,change.identity,change.revision,change.version,batch.observedAt,change.present]);
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
-        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt]);
+        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope]);
         if(!batch.baseline && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
           const devices=await client.query('SELECT id,owner_id FROM opscenter_kernel.push_devices WHERE $1=ANY(categories) AND revoked_at IS NULL AND expires_at>now() AND created_at<=$2',[batch.category,batch.recordedAt||batch.observedAt]);
           for(const device of devices.rows)if(d.ownerAllowed(device.owner_id))await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
@@ -85,7 +90,8 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete,generation,source_recorded_at) VALUES($1,$2,$3,true,$4,$5)
         ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true,generation=EXCLUDED.generation,source_recorded_at=EXCLUDED.source_recorded_at,archived_sequence=CASE WHEN push_sources.generation<>EXCLUDED.generation THEN 0 ELSE push_sources.archived_sequence END`,[batch.scope,batch.observedAt,batch.sequence,generation,batch.recordedAt||batch.observedAt]);
       await client.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'recorded') ON CONFLICT(scope) DO UPDATE SET code='recorded',recorded_at=now()",[batch.scope]);
-      await client.query("UPDATE opscenter_kernel.push_health SET code='coverage_gap' WHERE scope=$1 AND EXISTS(SELECT 1 FROM opscenter_kernel.push_gaps WHERE scope=$1)",[batch.scope]);
+      if(batch.reconcile&&batch.gapIds?.length)await client.query(`UPDATE opscenter_kernel.push_gaps SET resolved_at=now(),recovered_generation=$3 WHERE scope=$1 AND gap_id=ANY($2::text[]) AND resolved_at IS NULL AND code<>'ordering_uncertain'`,[batch.scope,batch.gapIds,batch.generation]);
+      await client.query(`UPDATE opscenter_kernel.push_health h SET code=CASE WHEN g.resolved_at IS NULL THEN 'coverage_gap' ELSE 'recovered_gap' END FROM opscenter_kernel.push_gaps g WHERE h.scope=$1 AND g.scope=h.scope`,[batch.scope]);
       if(batch.sequence%100===0)await retainPushMetadata(client);
       await client.query("SELECT pg_notify('opscenter_web_push','')");
     });

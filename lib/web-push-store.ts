@@ -41,6 +41,6 @@ export async function readPushHealth(pool:Pool=getKernelPool()) {
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const expected=[...['352','477','399','484'].map(id=>`schedule:${day}:market-${id}`),`krewe:${day}`,`fleet:${day}`];
   const current=await pool.query('SELECT scope,code,recorded_at FROM opscenter_kernel.push_health WHERE scope=ANY($1::text[])',[expected]);
-  const gaps=await pool.query("SELECT scope,'coverage_gap' AS code,recorded_at FROM opscenter_kernel.push_gaps ORDER BY recorded_at DESC LIMIT 20");
+  const gaps=await pool.query("SELECT scope,CASE WHEN resolved_at IS NULL THEN 'coverage_gap' ELSE 'recovered_gap' END AS code,code AS reason,observed_at,resolved_at,recorded_at FROM opscenter_kernel.push_gaps ORDER BY recorded_at DESC LIMIT 20");
   return [...current.rows.filter(row=>!gaps.rows.some(gap=>gap.scope===row.scope)),...gaps.rows,...expected.filter(scope=>!current.rows.some(row=>row.scope===scope)&&!gaps.rows.some(row=>row.scope===scope)).map(scope=>({scope,code:'source_unknown',recorded_at:null}))];
 }

@@ -1,3 +1,4 @@
+import { archivePushScopes,pushRetirementCutoff } from '../lib/web-push-archive';
 import { createHash } from 'node:crypto';
 import { startPushJournal } from '../lib/web-push-journal';
 import { retainPushMetadata } from '../lib/web-push-retention';
@@ -136,16 +137,53 @@ for state in json.loads(states):
  publish(['E','F','G']);
  await until(async()=>sends===beforeJournal+7);
  await journal.stop();await stop();stop=undefined;
+ // Real producer gap: preserve observations and notify the next proven change.
+ let gapWrites=0;
+ const countedPool={connect:p.connect.bind(p),query:async(sql:string,args?:unknown[])=>{if(sql.includes('INSERT INTO opscenter_kernel.push_gaps'))gapWrites++;return p.query(sql,args);}} as unknown as Pool;
+ const recoverPending=async()=>{execFileSync('python3',['scripts/opscenter_push_journal.py','--recover',journalRoot],{env});};
+ const scopeForRecovery=`schedule:${day}:market-352`;
+ execFileSync('python3',['-c',`from pathlib import Path
+from opscenter_push_journal import mark_gap
+mark_gap(Path(__import__('sys').argv[1]), [__import__('sys').argv[2]], 'capture_failure')`,journalRoot,scopeForRecovery],{env:{...env,PYTHONPATH:path.join(process.cwd(),'scripts')}});
+ publish(['H']);
+ let recoveryJournal=await startPushJournal(journalRoot,{...d,pool:countedPool},undefined,recoverPending);
+ const beforeRecoveredSend=sends;await drainPushOutbox(d);assert.equal(sends,beforeRecoveredSend+1,'first proven transition after gap is retained');
+ const gapRow=(await p.query('SELECT resolved_at,recovered_generation FROM opscenter_kernel.push_gaps WHERE scope=$1',[scopeForRecovery])).rows[0];
+ assert.ok(gapRow.resolved_at&&gapRow.recovered_generation);
+ assert.ok((await readPushHealth(p)).some(row=>row.scope===scopeForRecovery&&row.code==='recovered_gap'));
+ const firstGapWrites=gapWrites;
+ recoveryJournal.wake!();await new Promise(resolve=>setTimeout(resolve,30));
+ recoveryJournal.wake!();await new Promise(resolve=>setTimeout(resolve,30));
+ assert.equal(gapWrites,firstGapWrites,'unchanged gaps do not generate DB writes every wake');
+ await recoveryJournal.stop();
+ recoveryJournal=await startPushJournal(journalRoot,{...d,pool:countedPool},undefined,recoverPending);await recoveryJournal.stop();
+ assert.equal((await p.query('SELECT code FROM opscenter_kernel.push_health WHERE scope=$1',[scopeForRecovery])).rows[0].code,'recovered_gap','restart cannot reopen resolved gap');
+ // Two publications while lock is held survive in spool and dispatch on restart.
+ execFileSync('python3',['-c',`import fcntl,sys
+from pathlib import Path
+from opscenter_push_journal import publish_json
+root,day,stamp=sys.argv[1:]
+with (Path(root)/'writer.lock').open('a') as holder:
+ fcntl.flock(holder,fcntl.LOCK_EX)
+ for state in ['I','J']:
+  publish_json(Path(root).parent / ('junkware_schedule_fast_'+day+'.json'), {'date':day,'scraped_at':stamp,'territory_verification':[{'territory_id':'352','verified':True}],'appointments':[{'appt_id':'fixture','market':'New Orleans','job_status':state}]},journal_root=root,enabled=True)
+`,journalRoot,day,observed],{env:{...env,PYTHONPATH:path.join(process.cwd(),'scripts')}});
+ const beforeSpool=sends;
+ recoveryJournal=await startPushJournal(journalRoot,d,undefined,recoverPending);await recoveryJournal.stop();
+ await drainPushOutbox(d);assert.equal(sends,beforeSpool+2,'both contended captures dispatch exactly once');
+ assert.equal(fs.readdirSync(path.join(journalRoot,'pending')).filter(name=>name.endsWith('.json')).length,0);
+ console.log('PASS: gap reconciliation retains next transition; resolved health survives restart; unchanged gaps cause no repeat DB writes; contention spool dispatches both transitions.');
+
  // Disabled start does not even create its supplied directory.
  const disabledPath=path.join(root,'disabled-journal');
  await startPushJournal(disabledPath,{...d,enabled:()=>false});assert.equal(fs.existsSync(disabledPath),false);
  // Bounded replay checkpoint rejects old sequences and closes expired scopes.
- await p.query("INSERT INTO opscenter_kernel.push_batches(scope,sequence,digest) SELECT $1,n,'synthetic' FROM generate_series(9,10001) n",[scope]);
+ await p.query("INSERT INTO opscenter_kernel.push_batches(scope,sequence,digest) SELECT $1,n,'synthetic' FROM generate_series(4,10001) n",[scope]);
  await p.query('UPDATE opscenter_kernel.push_sources SET sequence=10001 WHERE scope=$1',[scope]);
  const retention=await p.connect();try{await retainPushMetadata(retention);}finally{retention.release();}
  assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_batches WHERE scope=$1',[scope])).rows[0].count),10000);
  await assert.rejects(recordPushBatch({scope,category:'schedule',sequence:1,complete:true,observedAt:observed,observations:[]},d),/sequence_archived|generation_mismatch/);
- const oldDay=new Date(Date.now()-8*86400000).toISOString().slice(0,10);
+ const oldDay=new Date(Date.now()-16*86400000).toISOString().slice(0,10);
  await assert.rejects(recordPushBatch({scope:`fleet:${oldDay}`,category:'fleet',sequence:1,complete:true,observedAt:observed,observations:[]},d),/source_date_expired/);
  // Independent-review probes: a poisoned scope/file cannot stop a good scope.
  const poisonRoot=path.join(root,'poison');fs.mkdirSync(path.join(poisonRoot,'ready'),{recursive:true});
@@ -177,7 +215,8 @@ for state in json.loads(states):
  // V2 retained publication survives a long outage; unsupported fleet removals
  // retain identity, so disappearance/reappearance does not manufacture an event.
  const oldStamp=new Date(Date.now()-8*86400000).toISOString();
- const retained:PushBatch={scope:`fleet:${oldDay}`,category:'fleet',sequence:1,complete:true,observedAt:oldStamp,recordedAt:oldStamp,generation:'a'.repeat(32),baseline:false,observations:[{identity:'retained-native',revision:'arrival'}]};
+ const retainedDay=oldStamp.slice(0,10);
+ const retained:PushBatch={scope:`fleet:${retainedDay}`,category:'fleet',sequence:1,complete:true,observedAt:oldStamp,recordedAt:oldStamp,generation:'a'.repeat(32),baseline:false,observations:[{identity:'retained-native',revision:'arrival'}]};
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '10 days'");
  await managePushDevice('owner',{action:'subscribe',subscription,categories:['fleet'],expiresAt:new Date(Date.now()+60000)},p);
  const catchup={...d,activatedAt:new Date(Date.now()-10*86400000).toISOString()};
@@ -192,6 +231,44 @@ for state in json.loads(states):
  await recordPushBatch({...reset,sequence:2,reset:false,baseline:false,observations:[{identity:'retained-native',revision:'departure'}]},catchup);
  await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+2);
  await assert.rejects(recordPushBatch({...retained,reset:true,baseline:true,gapId:'d'.repeat(64)},catchup),/reset_reordered/);
+ // Approved fourteen-day scope retirement: DB and actual Python helper must
+ // agree. Tests use synthetic rows/private journal only, never production data.
+ const retirementRoot=path.join(root,'retirement');fs.mkdirSync(retirementRoot);
+ const cutoff=pushRetirementCutoff();
+ assert.equal(pushRetirementCutoff(new Date('2026-10-18T02:00:00Z')),'2026-10-03','Chicago cutoff before UTC midnight differs');
+ const archivedScope=`schedule:${oldDay}:market-399`,pendingScope=`schedule:${oldDay}:market-484`,boundaryScope=`schedule:${cutoff}:market-399`;
+ const retainedScope=`schedule:${oldDay}:market-477`,orphanScope=`schedule:${oldDay}:market-352`;
+ const retirementState={ordinal:0,scopes:Object.fromEntries([archivedScope,pendingScope,boundaryScope,retainedScope].map(scope=>[scope,{generation:'f'.repeat(32),sequence:3}]))};
+ fs.writeFileSync(path.join(retirementRoot,'state.json'),JSON.stringify(retirementState));
+ for(const scope of [archivedScope,pendingScope,boundaryScope,retainedScope])await p.query(`INSERT INTO opscenter_kernel.push_sources(scope,sequence,observed_at,baseline_complete,generation) VALUES($1,3,now(),true,$2)`,[scope,'f'.repeat(32)]);
+ await p.query(`INSERT INTO opscenter_kernel.push_gaps(scope,gap_id,code,observed_at) VALUES($1,$2,'capture_failure',now())`,[orphanScope,'f'.repeat(32)]);
+ await p.query(`INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_scope) VALUES('retention-pending','schedule',now(),$1)`,[pendingScope]);
+ await p.query(`INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES('retention-pending',$1)`,[device]);
+ fs.mkdirSync(path.join(retirementRoot,'quarantine'));
+ const protectedFile=path.join(retirementRoot,'quarantine','retained.json');fs.writeFileSync(protectedFile,JSON.stringify({batches:[{scope:retainedScope}]}));
+ const retireFiles=async(cutoff:string,acks:import('../lib/web-push-archive').PushAcknowledgement[])=>JSON.parse(execFileSync('python3',['scripts/opscenter_push_journal.py','--retire',retirementRoot,'--cutoff',cutoff,'--acknowledgements',JSON.stringify(acks)],{env:{...env,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8'})) as string[];
+ const retired=await archivePushScopes(d,retireFiles);
+ assert.ok(retired.includes(archivedScope)&&retired.includes(orphanScope));
+ assert.ok(!retired.includes(pendingScope)&&!retired.includes(boundaryScope)&&!retired.includes(retainedScope));
+ assert.equal((await p.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[archivedScope])).rows.length,0);
+ assert.ok(fs.existsSync(protectedFile),'quarantine never pruned to force retirement');
+ await assert.rejects(recordPushBatch({scope:archivedScope,category:'schedule',sequence:1,complete:true,observedAt:new Date(Date.now()-16*86400000).toISOString(),recordedAt:new Date(Date.now()-16*86400000).toISOString(),generation:'f'.repeat(32),baseline:false,observations:[]},d),/scope_retired/);
+ // Age pruning never consumes pending deliveries; terminal history expires.
+ await p.query("UPDATE opscenter_kernel.push_events SET recorded_at=now()-interval '15 days' WHERE id='retention-pending'");
+ await p.query("INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,recorded_at) VALUES('retention-terminal','schedule',now()-interval '15 days',now()-interval '15 days'),('retention-recent','schedule',now()-interval '13 days',now()-interval '13 days')");
+ const maintenance=await p.connect();try{await retainPushMetadata(maintenance);}finally{maintenance.release();}
+ assert.equal((await p.query("SELECT id FROM opscenter_kernel.push_events WHERE id='retention-pending'")).rows.length,1);
+ assert.equal((await p.query("SELECT id FROM opscenter_kernel.push_events WHERE id='retention-terminal'")).rows.length,0);
+ assert.equal((await p.query("SELECT id FROM opscenter_kernel.push_events WHERE id='retention-recent'")).rows.length,1);
+ await archivePushScopes({...d,enabled:()=>false},async()=>{throw new Error('disabled archive must perform no I/O');});
+ // Acknowledged file phase followed by DB rollback retains its compact floor;
+ // retry reconciles the absent file checkpoint without reviving old events.
+ await p.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped' WHERE event_id='retention-pending'");
+ await assert.rejects(archivePushScopes(d,async(c,acks)=>{await retireFiles(c,acks);throw new Error('synthetic_after_file_commit');}),/synthetic_after_file_commit/);
+ assert.equal((await p.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[pendingScope])).rows.length,1);
+ assert.ok((await archivePushScopes(d,retireFiles)).includes(pendingScope));
+ assert.ok(!(await archivePushScopes(d,retireFiles)).includes(pendingScope),'restart does not recreate retired scope');
+ console.log('PASS: fourteen-day Chicago boundary, pending-delivery and retained-file guards, orphan-gap retirement, compact replay floor, and file-complete/DB-rollback restart recovery.');
  console.log('PASS: independent malformed/expired-scope probes, same-file isolation, restart quarantine, eight-day retained catch-up, fleet removal restraint and explicit generation reset.');
  console.log('PASS: Python publication hooks -> retained burst journal -> DB NOTIFY -> mocked sender, restart replay, live filesystem wake, disabled no-I/O, replay checkpoint and closed-scope retention.');
  console.log('PASS: real PostgreSQL isolated cluster: baseline, versions/reversion, removal completeness, dedup, zero-claim race, scope failure, in-flight revoke, commit NOTIFY, burst fanout, single leader, restart catch-up, uncertain recovery and 410 expiry. All sender calls mocked.');

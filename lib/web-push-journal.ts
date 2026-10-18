@@ -17,37 +17,41 @@ function validate(batch:PushBatch){
 }
 /** Retained records, one leader, no timer. Deterministic failures quarantine
  * locally and preserve sticky coverage gaps; only transient failures stop I/O. */
-export async function startPushJournal(root:string,deps?:PushWorkerDependencies,onFailure:()=>void=()=>{}) {
+export async function startPushJournal(root:string,deps?:PushWorkerDependencies,onFailure:()=>void=()=>{},recoverPending:()=>Promise<void>=async()=>{},maintain:()=>Promise<void>=async()=>{}) {
   if(!deps&&!pushEnabled())return {stop:async()=>{},disabled:true};
   const d=deps||pushDependencies();if(!d.enabled())return {stop:async()=>{},disabled:true};
   if(!path.isAbsolute(root))throw new Error('push_journal_directory_required');
-  const ready=path.join(root,'ready'),archive=path.join(root,'archive'),quarantine=path.join(root,'quarantine'),gaps=path.join(root,'gaps');
-  for(const directory of [ready,archive,quarantine,gaps])fs.mkdirSync(directory,{recursive:true,mode:0o700});
+  const ready=path.join(root,'ready'),archive=path.join(root,'archive'),quarantine=path.join(root,'quarantine'),gaps=path.join(root,'gaps'),pending=path.join(root,'pending');
+  for(const directory of [ready,archive,quarantine,gaps,pending])fs.mkdirSync(directory,{recursive:true,mode:0o700});
   let alive=true,again=false,draining:Promise<void>|null=null;
   const watchers:fs.FSWatcher[]=[];
   const fail=()=>{if(!alive)return;alive=false;for(const watcher of watchers)watcher.close();onFailure();};
   const prune=(directory:string)=>{
     const files=fs.readdirSync(directory).filter(name=>entryName.test(name)).sort();
     let bytes=files.reduce((sum,name)=>sum+fs.lstatSync(path.join(directory,name)).size,0);
-    for(const [i,name] of files.entries()){const stat=fs.lstatSync(path.join(directory,name));if(i<files.length-10000||bytes>128*1024*1024||stat.mtimeMs<Date.now()-7*86400000){fs.unlinkSync(path.join(directory,name));bytes-=stat.size;}}
+    for(const [i,name] of files.entries()){const stat=fs.lstatSync(path.join(directory,name));if(i<files.length-10000||bytes>128*1024*1024||stat.mtimeMs<Date.now()-14*86400000){fs.unlinkSync(path.join(directory,name));bytes-=stat.size;}}
     sync(directory);
   };
   const gap=async(scope:unknown,code:string)=>{
     let target=typeof scope==='string'&&scopePattern.test(scope)?scope:'journal:global';
-    if(fs.readdirSync(gaps).length>=1000)target='journal:global';
+    if(fs.readdirSync(gaps).length>=1000&&!fs.existsSync(path.join(gaps,createHash('sha256').update(target).digest('hex')+'.json')))target='journal:capacity';
     const id=randomUUID().replaceAll('-','');
-    atomic(path.join(gaps,createHash('sha256').update(target).digest('hex')+'.json'),{scope:target,id,code,observedAt:new Date().toISOString()});
+    atomic(path.join(gaps,createHash('sha256').update(target).digest('hex')+'.json'),{scope:target,id,code,observedAt:new Date().toISOString(),reset:!target.startsWith('journal:')});
     await recordPushGap(target,id,code,d);
   };
+  const processedGaps=new Map<string,string>();
   const readGaps=async()=>{
-    for(const name of fs.readdirSync(gaps).filter(name=>/^[a-f0-9]{64}\.json$/.test(name))){
+    const names=fs.readdirSync(gaps).filter(name=>/^[a-f0-9]{64}\.json$/.test(name));
+    const present=new Set(names);for(const name of processedGaps.keys())if(!present.has(name))processedGaps.delete(name);
+    for(const name of names){
       const file=path.join(gaps,name),stat=fs.lstatSync(file);
       if(!stat.isFile()||stat.size>4096)continue;
       let value:{scope:string;id:string;code:string};try{value=JSON.parse(fs.readFileSync(file,'utf8'));}catch{continue;}
-      if(value&&typeof value.scope==='string'&&typeof value.id==='string'&&/^[a-f0-9]{32}$/.test(value.id)&&typeof value.code==='string')await recordPushGap(value.scope,value.id,value.code,d);
+      if(value&&typeof value.scope==='string'&&typeof value.id==='string'&&/^[a-f0-9]{32}$/.test(value.id)&&typeof value.code==='string'&&processedGaps.get(name)!==value.id){await recordPushGap(value.scope,value.id,value.code,d);processedGaps.set(name,value.id);}
     }
   };
   const drain=async()=>{
+    if(fs.readdirSync(pending).some(name=>name.endsWith('.json')||name.endsWith('.prepared')))await recoverPending();
     await readGaps();
     for(const name of fs.readdirSync(ready).filter(name=>entryName.test(name)).sort()){
       if(!alive||!d.enabled())return;
@@ -76,7 +80,10 @@ export async function startPushJournal(root:string,deps?:PushWorkerDependencies,
       const destination=damaged?quarantine:archive;
       fs.renameSync(file,path.join(destination,name));sync(ready);sync(destination);
     }
-    prune(archive);prune(quarantine);
+    // Only acknowledged entries may expire. Quarantine remains evidence and
+    // blocks source retirement until an explicitly reviewed disposition.
+    prune(archive);
+    await maintain();
   };
   const wake=()=>{
     again=true;if(draining||!alive)return;
@@ -84,7 +91,7 @@ export async function startPushJournal(root:string,deps?:PushWorkerDependencies,
       .catch(()=>{console.error('Web Push journal unavailable; retained records await recovery.');fail();})
       .finally(()=>{draining=null;if(again&&alive)wake();});
   };
-  for(const directory of [ready,gaps]){const watcher=fs.watch(directory,wake);watcher.on('error',fail);watchers.push(watcher);}
+  for(const directory of [ready,gaps,pending]){const watcher=fs.watch(directory,wake);watcher.on('error',fail);watchers.push(watcher);}
   wake();await draining;
   return {get active(){return alive;},wake,stop:async()=>{alive=false;for(const watcher of watchers)watcher.close();await draining;}};
 }

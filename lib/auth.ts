@@ -37,7 +37,7 @@ export const AUTH_PUBLIC_API_ROUTES = [
   "/api/integrations/qbo/connect",
   "/api/integrations/qbo/callback",
 ] as const;
-export const AUTH_PUBLIC_FILES = ["/junk-king-logo.svg", "/opscenter-icon.svg", "/opscenter-apple-icon.png", "/opscenter-logo.png", "/opscenter-wordmark.png", "/opscenter-favicon.png", "/favicon.ico", "/opscenter-app-192.png", "/opscenter-app-512.png", "/opscenter.webmanifest", "/opscenter-red-gold-favicon-32.png", "/opscenter-red-gold-apple-180.png", "/opscenter-red-gold-app-192.png", "/opscenter-red-gold-app-512.png"] as const;
+export const AUTH_PUBLIC_FILES = ["/opscenter-push-sw.js", "/junk-king-logo.svg", "/opscenter-icon.svg", "/opscenter-apple-icon.png", "/opscenter-logo.png", "/opscenter-wordmark.png", "/opscenter-favicon.png", "/favicon.ico", "/opscenter-app-192.png", "/opscenter-app-512.png", "/opscenter.webmanifest", "/opscenter-red-gold-favicon-32.png", "/opscenter-red-gold-apple-180.png", "/opscenter-red-gold-app-192.png", "/opscenter-red-gold-app-512.png"] as const;
 export const AUTH_PROTECTED_API_PREFIXES = ["/api/desktop/photos", "/api/exceptions", "/api/operational-status", "/api/inbox", "/api/global-search", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/fleet-issue-attachments", "/api/truck-load-status", "/api/manual-bonuses", "/api/payroll-corrections", "/api/searchkings", "/api/integrations/qbo/status", "/api/integrations/qbo/disconnect"] as const;
 export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
@@ -221,7 +221,7 @@ export function opsAuthIdentity(): string {
 
 // In shared-login mode, an old email session is not another account. Require
 // the current shared credentials instead of silently giving it Operator access.
-function allowedSessionIdentity(identity: string): boolean {
+export function allowedSessionIdentity(identity: string): boolean {
   return identity === opsAuthIdentity() || opsAccessConfigured();
 }
 

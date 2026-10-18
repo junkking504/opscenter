@@ -47,6 +47,7 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
+- [Direct Web Push preparation and activation boundary](web-push.md)
 - [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)

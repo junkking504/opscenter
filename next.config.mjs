@@ -50,7 +50,7 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
     const sha = sourceReleaseSha();
-    return [...(sha ? [{ source: '/opscenter-wordmark.png', has: [{ type: 'query', key: 'release-check', value: '1' }], headers: [
+    return [{source:'/opscenter-push-sw.js',headers:[{key:'Cache-Control',value:'no-store'},{key:'Service-Worker-Allowed',value:'/'}]}, ...(sha ? [{ source: '/opscenter-wordmark.png', has: [{ type: 'query', key: 'release-check', value: '1' }], headers: [
       { key: 'x-opscenter-release', value: sha },
       { key: 'Cache-Control', value: 'no-store' },
     ] }] : []), { source: '/desktop-assets/assets/:asset', headers: [

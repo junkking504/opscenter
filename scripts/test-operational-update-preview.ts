@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { operationalUpdatePreview as preview, operationalUpdateHasEdit } from '../desktop-ui/lib/operational-update-preview';
+import { operationalUpdateGaps } from '../lib/operational-update-health';
+import { geofenceVisitAlert } from '../lib/linxup-geofence-alerts';
+const base={label:'Krewe Summary',title:'Krewe Summary',timestamp:'2026-10-18T13:40:00Z',updatedAt:'2026-10-18T13:49:00Z',facts:[{label:'Example Driver',value:'08:46 AM'},{label:'Example Navigator',value:'08:37 AM'}]};
+assert.equal(preview(base),'2 clocked in · Example Driver 08:46 AM · Example Navigator 08:37 AM');
+assert.ok(operationalUpdateHasEdit(base));assert.equal(operationalUpdateHasEdit({...base,updatedAt:'invalid'}),false);
+assert.equal(preview({...base,label:'Schedule Summary',title:'Schedule Summary',facts:[{label:'Appointments',value:'3'}]}),'3 appointments in schedule snapshot');
+const visit=geofenceVisitAlert({id:'test',truck:'Truck 8',name:'NOHQ',enteredAt:'2026-10-18T13:00:00Z',departedAt:'2026-10-18T13:59:00Z',durationSeconds:3540,entryIds:[]},'2026-10-18');
+assert.match(preview(visit),/Truck 8 departed NOHQ · On site: 59m/);
+assert.match(preview({...visit,facts:[{label:'Time on site',value:'Unavailable · entry not confirmed'}]}),/entry not confirmed/);
+assert.equal(preview({...base,label:'Unknown',title:'Unknown',facts:[]}),'Details unavailable');
+assert.deepEqual(operationalUpdateGaps({status:'ready',complete:true},{available:true,complete:true}),[]);
+assert.match(operationalUpdateGaps({status:'ready'},{available:false,complete:false}).join(' '),/Slack history completeness is unknown.*LinxUp alert history is missing/);
+assert.match(operationalUpdateGaps({status:'unavailable',detail:'Slack is temporarily rate limited.'},{available:true,complete:false,sourceHealth:{alerts:'stale'}}).join(' '),/rate limited.*stale/);
+console.log('Operational preview, edited time, geofence duration and source-gap assertions passed.');

@@ -78,21 +78,28 @@
 .crew-compact-update > summary::-webkit-details-marker { display: none; }
 .crew-compact-update > summary time { color: var(--oc-text-muted); font-variant-numeric: tabular-nums; }
 .crew-compact-update > summary strong { font-size: var(--oc-type-13); font-weight: 600; }
-.crew-update-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crew-update-customer { min-width: 0; overflow-wrap: anywhere; white-space: normal; line-height: 1.5; }
+.crew-update-edit { display: block; color: var(--oc-text-muted); font-size: 11px; }
+.push-settings { padding: 12px; border-bottom: 1px solid var(--oc-border-default); font-size: 13px; }
+.push-settings fieldset { display: grid; gap: 8px; margin: 10px 0; }
+.push-settings label { display: flex; align-items: center; gap: 6px; }
+.push-settings p { margin: 8px 0; }
+.push-settings button { min-height: 40px; }
+.notification-panel { max-height: 85dvh; overflow-y: auto; }
 .update-follow-flag { color: var(--oc-status-critical-ink); }
 .update-reviewed { color: var(--oc-text-muted); }
 .crew-compact-update[open] > summary > svg { transform: rotate(90deg); }
 .ops-app .crew-compact-update .crew-update { margin: 0; border: 0; }
 @container (max-width: 640px) {
   .ops-app .crew-compact-update>summary { grid-template-columns: 72px minmax(0,1fr) 72px 14px; gap: 5px 8px; }
-  .crew-compact-update>summary .crew-update-customer { grid-column: 2; }
-  .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; }
+  .crew-compact-update>summary .crew-update-customer { grid-column: 2 / -1; grid-row: 2; }
+  .crew-compact-update>summary > span:nth-child(5) { grid-column: 2 / -1; grid-row: 3; }
   .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; }
 }
 @media(max-width:760px) {
   .ops-app .crew-compact-update>summary { grid-template-columns: 64px minmax(0,1fr) 64px 14px; gap: 5px; }
-  .crew-compact-update>summary .crew-update-customer { grid-column: 2; }
-  .crew-compact-update>summary > span:nth-child(5) { grid-column: 3; }
+  .crew-compact-update>summary .crew-update-customer { grid-column: 2 / -1; grid-row: 2; }
+  .crew-compact-update>summary > span:nth-child(5) { grid-column: 2 / -1; grid-row: 3; }
   .crew-compact-update>summary > svg { grid-column: 4; grid-row: 1; }
 }
 .revenue-pace-chart { height: 240px; min-width: 0; font-size: var(--oc-type-11); }

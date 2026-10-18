@@ -75,7 +75,8 @@ suppress presentation. Source and queue metadata retain 7 days; audit rows 90 da
 - Empty-body RFC 8030 pushes use RFC 8292 VAPID with Node's native P-256 signing.
   No encryption library or extra runtime package is introduced because there is no
   application payload. A cryptographic and Apple interoperability review is still
-  required before live use. No VAPID keys were created during preparation.
+  required before live use. VAPID keys were subsequently created under the separate
+  signing-setup approval; the private key remains in Keychain.
 - `MISSION_CONTROL`, `OPSCENTER_WEB_PUSH_ENABLED=1`, a valid activation timestamp,
   VAPID public/private keys and a mailto subject are required. Every default invocation
   exits before reading sources/database/network. Preview runtimes cannot send.
@@ -99,28 +100,40 @@ migration privileges, deployment packaging and delivery latency remain unverifie
 It makes no guarantee of zero existing power/network costs or future provider policy.
 No recurring billable service is being introduced or enabled by this branch.
 
-The repository's existing spending scan rejects the newly explicit Apple host:
-`lib/web-push-policy.ts: new external host web.push.apple.com needs spending review`.
-The checker and host inventory are intentionally unchanged. Full `npm run build`
-is therefore blocked at that gate. Desktop-only compilation and focused checks
-are independent local evidence, not a bypass or production-build pass.
+The initial build stopped at the existing spending gate for `web.push.apple.com`.
+On October 18 the user separately approved only that host and protected VAPID
+signing setup, with no added cost. Source and installed host inventories now include
+that exact host; both gates pass. The checker, other hosts, dependencies, protected
+pins and paid limits are unchanged. The protected installed pair was backed up and
+checksummed. The initial blocked result remains in the private evidence history.
 
-## Required approval sequence — none performed
+The private key is stored only in the user Keychain under account `opscenter`,
+service `com.opscenter.web-push-vapid-private-key`. The feature's existing secrets
+loader now includes it, pending code review/deployment. Mode-0600 `production.env`
+contains the public key, subject reusing the already-configured support contact,
+`https://ops.junk-king.app` origin, `OPSCENTER_WEB_PUSH_ENABLED=0`, and a blank
+activation timestamp. The original environment is backed up only in the protected
+configuration-backups directory. No services were restarted or scheduled. Do not
+load this signing key into preview. Future approved worker setup must use the
+production environment and reviewed secrets loader without logging their values.
+
+## Approval sequence — signing setup complete, activation still off
 
 1. Obtain independent Claude review of the exact commit, especially authentication,
    shared-account ownership, endpoint/DNS/TLS controls, VAPID protocol, migration,
    queue locking, retention and lost-device behavior. Record the review receipt.
-2. Approve the Apple Web Push host and zero-new-service-cost scope through the
-   existing spending/security process. Review the local host inventory change and
-   separately approve any installed gate inventory update; preserve all other pins.
-   Do not weaken or bypass the checker. Rerun the full build after that approval.
+2. **Completed:** narrow Apple-host approval and installed inventory update. Both
+   spending gates pass with all other controls preserved. Full build and regression
+   results are recorded separately; they do not waive independent review.
 3. Approve production integration and deployment separately. Check current production
    lineage; use the installed immutable-release controller. Apply migration
    `0002_web_push.sql` to the intended existing kernel with backup/recovery validation.
    Confirm public service-worker delivery and authenticated API/source behavior.
-4. Separately approve generating and storing VAPID credentials in protected runtime
-   storage, public key exposure, mailto subject and exact HTTPS
-   `OPSCENTER_WEB_PUSH_ORIGIN`. Never put private keys in source, logs or browser code.
+4. **Completed:** separately approved VAPID generation/storage and public origin/subject
+   configuration. Private key is in Keychain; sending remains disabled. The loader
+   change must still be independently reviewed and deployed with the feature. It
+   retrieves the private key only for explicitly enabled Mission Control runtimes;
+   disabled and preview runtimes do not load the key.
 5. Approve activation: set the activation timestamp and enable flag on Mission Control,
    and install the proposed once-per-minute worker scheduling. Verify source freshness,
    baseline seeding, durable queue health and rate limits. Do not enable a preview sender.

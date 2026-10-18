@@ -259,3 +259,26 @@ and all protected-file hashes. Back up the installed checker/inventory pair,
 install the reviewed pair with read-only permissions, and record both SHA256
 checksums and the approval source in the external installation record. Then run
 both repository and installed gates plus the normal build and regressions.
+
+## Apple Web Push signing setup — approved October 18, 2026
+
+The user approved adding only `web.push.apple.com` to the existing hostname
+inventory and creating/configuring protected OpsCenter VAPID signing credentials,
+with $0 additional service cost. The checker, other hosts, dependencies, protected
+file hashes, quotas and all paid limits remain unchanged. The installed inventory
+and unchanged checker were backed up; their SHA256 hashes are recorded in the
+external installation record. No broad network/firewall policy was changed.
+
+The private signing key is in the user Keychain under account `opscenter`, service
+`com.opscenter.web-push-vapid-private-key`, with access limited to the existing
+`/usr/bin/security` loader. No all-application ACL is granted. The feature branch
+extends `scripts/load-opscenter-secrets.sh`; that extension is not deployed and
+loads the new key only when Mission Control push is explicitly enabled.
+Only the public key, existing support contact, HTTPS origin, disabled flag and
+blank activation timestamp were added to mode-0600 `production.env`. No private
+key is written to source, environment files, logs, patches or evidence artifacts.
+
+This approval does not authorize deployment, database migration, worker scheduling,
+live sending, device subscription or a paid reviewer. Independent Claude review
+remains pending. Both host inventories can pass now; that is not permission to
+merge or deploy. See [Web Push activation boundaries](web-push.md).

@@ -1,3 +1,5 @@
+import { startPushJournal } from '../lib/web-push-journal';
+import { retainPushMetadata } from '../lib/web-push-retention';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -6,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { Pool, Client } from 'pg';
 import { recordPushBatch, drainPushOutbox, runPushWorker, type PushWorkerDependencies, PUSH_LOCK } from '../lib/web-push-worker';
 import { startPushDispatcher } from '../lib/web-push-dispatcher';
-import { managePushDevice } from '../lib/web-push-store';
+import { managePushDevice, readPushHealth } from '../lib/web-push-store';
 import type { PushBatch } from '../lib/web-push-events';
 
 // Installed local PostgreSQL only. Private Unix socket; TCP listening disabled.
@@ -32,7 +34,7 @@ async function main(){
  const device=await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '1 minute'");
  let seq=0,stamp=Date.now()-20000;
- const batch=(observations:PushBatch['observations'],complete=true):PushBatch=>({scope:'schedule:2026-10-18',category:'schedule',sequence:++seq,complete,observedAt:new Date(stamp+=10).toISOString(),observations});
+ const batch=(observations:PushBatch['observations'],complete=true):PushBatch=>({scope:`schedule:${new Date().toISOString().slice(0,10)}`,category:'schedule',sequence:++seq,complete,observedAt:new Date(stamp+=10).toISOString(),observations});
  const one=(revision:string)=>[{identity:'A',revision}];
  await recordPushBatch(batch(one('a')),d);assert.equal((await drainPushOutbox(d)).attempted,0);
  await recordPushBatch(batch(one('a')),d);assert.equal((await drainPushOutbox(d)).attempted,0);
@@ -101,6 +103,50 @@ async function main(){
  // Definitive invalid subscription prevents subsequent events; no automatic retry.
  code=410;await recordPushBatch(batch(one('f')),d);await drainPushOutbox(d);
  assert.ok((await p.query('SELECT revoked_at FROM opscenter_kernel.push_devices WHERE id=$1',[device])).rows[0].revoked_at);
+ const health=await readPushHealth(p);assert.ok(health.some(row=>row.scope.startsWith('krewe:')&&row.code==='source_unknown'),'missing source remains unknown');
+ // Real Python publication -> retained journal -> PostgreSQL -> mocked sender.
+ code=201;
+ await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule'],expiresAt:new Date(Date.now()+60000)},p);
+ await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '1 minute'");
+ const journalRoot=path.join(root,'journal');
+ const day=new Date().toISOString().slice(0,10),observed=new Date(Date.now()-1000).toISOString();
+ const publish=(states:string[])=>execFileSync('python3',['-c',`
+import json,sys
+from pathlib import Path
+from opscenter_push_journal import publish_json
+root,day,stamp,states=sys.argv[1:]
+for state in json.loads(states):
+ publish_json(Path(root).parent / ("junkware_schedule_fast_"+day+".json"), {"date":day,"scraped_at":stamp,"territory_verification":[{"territory_id":"352","verified":True}],"appointments":[{"appt_id":"fixture","market":"New Orleans","job_status":state}]},journal_root=root,enabled=True)
+`,journalRoot,day,observed,JSON.stringify(states)],{env:{...env,PYTHONPATH:path.join(process.cwd(),'scripts')}});
+ publish(['A','B','C','D','A']);
+ const beforeJournal=sends;
+ const leader=await startPushDispatcher(d,new Client(config));stop=leader.stop;
+ let journal=await startPushJournal(journalRoot,d);
+ await until(async()=>sends===beforeJournal+4);
+ assert.equal(fs.readdirSync(path.join(journalRoot,'ready')).filter(n=>n.endsWith('.json')).length,0);
+ const scope=`schedule:${day}:market-352`;
+ assert.equal(Number((await p.query('SELECT sequence FROM opscenter_kernel.push_sources WHERE scope=$1',[scope])).rows[0].sequence),5);
+ // Simulate commit succeeding but archive acknowledgement being lost.
+ await journal.stop();
+ const replay=fs.readdirSync(path.join(journalRoot,'archive')).sort().at(-1)!;
+ fs.copyFileSync(path.join(journalRoot,'archive',replay),path.join(journalRoot,'ready',replay));
+ journal=await startPushJournal(journalRoot,d);
+ assert.equal(sends,beforeJournal+4,'restart replay does not resend');
+ publish(['E','F','G']);
+ await until(async()=>sends===beforeJournal+7);
+ await journal.stop();await stop();stop=undefined;
+ // Disabled start does not even create its supplied directory.
+ const disabledPath=path.join(root,'disabled-journal');
+ await startPushJournal(disabledPath,{...d,enabled:()=>false});assert.equal(fs.existsSync(disabledPath),false);
+ // Bounded replay checkpoint rejects old sequences and closes expired scopes.
+ await p.query("INSERT INTO opscenter_kernel.push_batches(scope,sequence,digest) SELECT $1,n,'synthetic' FROM generate_series(9,10001) n",[scope]);
+ await p.query('UPDATE opscenter_kernel.push_sources SET sequence=10001 WHERE scope=$1',[scope]);
+ const retention=await p.connect();try{await retainPushMetadata(retention);}finally{retention.release();}
+ assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_batches WHERE scope=$1',[scope])).rows[0].count),10000);
+ await assert.rejects(recordPushBatch({scope,category:'schedule',sequence:1,complete:true,observedAt:observed,observations:[]},d),/sequence_archived/);
+ const oldDay=new Date(Date.now()-8*86400000).toISOString().slice(0,10);
+ await assert.rejects(recordPushBatch({scope:`fleet:${oldDay}`,category:'fleet',sequence:1,complete:true,observedAt:observed,observations:[]},d),/source_date_expired/);
+ console.log('PASS: Python publication hooks -> retained burst journal -> DB NOTIFY -> mocked sender, restart replay, live filesystem wake, disabled no-I/O, replay checkpoint and closed-scope retention.');
  console.log('PASS: real PostgreSQL isolated cluster: baseline, versions/reversion, removal completeness, dedup, zero-claim race, scope failure, in-flight revoke, commit NOTIFY, burst fanout, single leader, restart catch-up, uncertain recovery and 410 expiry. All sender calls mocked.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{await stop?.();await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','fast','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

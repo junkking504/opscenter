@@ -1,9 +1,9 @@
 # Direct OpsCenter Web Push — local preparation, sending off
 
-The delivery core is prepared and tested locally. Canonical producer integration
-is **blocked**, so the command-line entry point fails closed even if deployment
-flags are accidentally supplied. No deployment, activation or handset test has
-occurred. Slack publishers, configuration and history polling are unchanged.
+The delivery core and canonical publication hooks are prepared and tested locally.
+Capture and sending remain disabled by default. No collector installation,
+production migration, deployment, activation or handset test occurred in this
+revision. Slack publishers, configuration and history polling are unchanged.
 
 ## Event recording and dispatch
 
@@ -49,33 +49,81 @@ Source failures are isolated and persisted as sanitized codes in push_health.
 Manager settings expose unknown or incomplete coverage without raw errors. Missing
 storage returns a disabled state without an error banner. Existing devices can be
 listed and revoked while sending is disabled. Operators do not render settings.
-Old events with terminal receipts expire after seven days, audits after 90 days.
-Source sequence/digest and observation hashes are retained to avoid ID reuse;
-a bounded archival/checkpoint policy is still required before live activation.
+Terminal events expire after seven days; audits and expired/revoked subscriptions
+after 90 days. Pending deliveries older than 15 minutes become explicitly stale.
+Each active scope retains the latest 10,000 batch digests plus an archived-sequence
+checkpoint. A replay below that checkpoint fails closed. Closed date scopes older
+than seven UTC days expire; ingestion rejects reopening them. Maintenance runs at
+startup and every 100 recorded batches, without a timer. All deletes in tests
+operate only on a disposable database. Production application requires approval.
 
-## Canonical integration blocker
+## Canonical publication hooks
 
-The inspected collector code replaces the daily schedule snapshot using a temp
-file and rename (`collect_junkware_daily.py`), and daily metrics through
-`source_aware_metrics.atomic_json`. The schedule reader checks date and market
-coverage, but that is not a durable sequence of every persisted snapshot. Krewe
-reads daily metrics plus attendance/correction inputs; a single file watcher is
-not an authoritative completeness contract. Existing schedule-change publication
-state is coupled to Slack and must not be reused as the push event source.
+`scripts/opscenter_push_journal.py` adds a durable publication boundary:
 
-A watcher can observe A then C after an intermediate persisted B is overwritten.
-It therefore cannot promise notifications for every recorded event. This branch
-removes the earlier snapshot-scanning runner and intentionally does not add a
-lossy watcher. Source producers must first supply a retained ordered journal or
-an atomic persistence/outbox hook. That source integration and its completeness
-contracts require a further scoped change; no collector or webhook was modified.
-Fleet history is retained in its own source format, but its persistence hook has
-not been connected to this core. All three categories remain unconnected.
+1. A shared OS file lock serializes all participating writers.
+2. A private, fsynced intent stores selected observation hashes, the next sequence,
+   and old/new snapshot hashes; it contains no source payload.
+3. The canonical snapshot is atomically replaced and its directory is fsynced.
+4. Immutable ready records and a durable sequence checkpoint commit the journal.
 
-The upstream detection cadence is separate from recorded-event dispatch latency.
-No live cadence measurements were taken, and no fixed ten-minute snapshot filter
-remains in the recorder. Actual source freshness contracts remain unresolved.
-This core cannot manufacture events that upstream never recorded or retained.
+After interruption, recovery compares the exact snapshot hash. A committed
+snapshot completes its journal record; an unchanged old snapshot aborts the
+unpublished intent. An unexpected third state blocks further publication until
+reviewed. Subsequent writers recover before any overwrite. Startup also recovers.
+The consumer watches the immutable ready directory, drains all records in order,
+and catches up at startup. Filesystem wake coalescing cannot lose intermediate
+states. DB sequence/digest replay protects a crash between DB commit and archive.
+Only committed entries move into the acknowledgement archive.
+
+The ready queue is capped at 10,000 entries/128 MiB; capacity exhaustion stops the
+opted-in publication visibly instead of dropping unacknowledged events. Archives
+are bounded by seven days, 10,000 entries and 128 MiB. Sequence metadata is capped
+at 1,000 scopes, with a seven-day past/90-day future source-date window. Source
+observation lists are capped at 10,000. Capture requires the separately approved
+`OPSCENTER_WEB_PUSH_CAPTURE=1` and an absolute private
+`OPSCENTER_WEB_PUSH_JOURNAL_DIR`. Disabled capture does not access the journal.
+
+Prepared coverage:
+
+| Source | Publication hook | Contract |
+|---|---|---|
+| Schedule stream | `collect-junkware-schedule-stream.py::write_snapshot` | Verified date/market, appointment IDs, status/time/assignment facts; cancellation rows win overlapping live rows |
+| Forward/requested day | `collect-junkware-forward-schedule.py::write_json_atomic`, reused by requested-day | Verified per-market canonical JSON; same scope/dedup as stream |
+| Full/fast JunkWare collector | Staged patch to external `collect_junkware_daily.py` | Same normalized schedule projection at both canonical writes |
+| Krewe | `source_aware_metrics.py::atomic_json` | Canonical dated metrics, current employee-source evidence, clock-in/out facts only |
+| Fleet | Staged patch to external `collect_linxup_alerts.py` | Verified complete native geofence entered/exited records with mapped truck, identity and timestamp |
+
+The first complete observation of each scope seeds a baseline without alerts.
+Later changes, reversions, complete removals and reappearances create separate
+intents. Incomplete source evidence never fabricates removals or healthy coverage.
+The settings health response includes unknown entries for missing current-day
+markets/categories. A recorded status proves ingestion, not ongoing upstream
+freshness or complete coverage of every Operational update type.
+
+Raw GPS positions, geometry-inferred visits, payroll amounts/finality, computed
+summaries, manual correction overlays, and provisional legacy metrics are outside
+this source contract. They are not represented as covered notifications. Their
+future expansion needs explicit canonical event contracts and tests. No Slack
+history or Slack publication state is used.
+
+`prepare-web-push-source-hooks.py` reads the external collector source and emits
+four staged source files into a new directory; it never installs or runs them.
+Known syntax anchors are checked and unknown drift is rejected. The external
+writers are under `/Users/missioncontrol/.openclaw/workspace/opsbot/scripts/`:
+`collect_junkware_daily.py`, `collect_linxup_alerts.py`, and the
+`source_aware_metrics.py` helper used by `process_daily_metrics.py`.
+Installing the staged versions plus `opscenter_push_journal.py`, updating the local
+source-owned collectors, and setting the shared journal path require a separately
+approved coordinated deployment while holding the existing collector locks.
+No further source-access blocker remains for these prepared writers.
+
+Upstream collection still determines when a provider event is first recorded.
+No upstream polling cadence or request volume is changed. Once a supported state
+is committed, the journal wake and PostgreSQL NOTIFY drive dispatch immediately,
+without a notification interval. Events never observed upstream cannot be created
+by this system. A process/OS failure may delay delivery until supervised restart;
+stale or uncertain outcomes are retained/skipped rather than blindly replayed.
 
 ## Privacy, enrollment and transport
 
@@ -108,8 +156,8 @@ subscription or metered inference is introduced. Runtime CPU/storage capacity,
 dedicated session connection availability and deployment wiring still need review.
 This is a no-new-provider design, not evidence of unlimited free capacity.
 
-A future supervisor would run a long-lived dispatcher with KeepAlive, not a timed
-job. No runnable launchd file is supplied while producer integration is blocked.
+A future supervisor would run `scripts/run-web-push.ts` as a long-lived dispatcher
+with KeepAlive, not a timed job. No launchd configuration is installed or changed.
 Deployment must supply the existing authenticated role resolution to the sender
 without exposing private signing material to web processes.
 
@@ -123,11 +171,14 @@ Keychain. The cluster is stopped and deleted after testing.
 permission, subscription and API calls mocked. These are not handset tests.
 
 Before any live use:
-1. Resolve canonical producer integration/completeness and metadata retention.
+1. Review the prepared source contracts, initial baseline behavior and retention;
+   approve the explicit coverage limits before activation.
 2. Obtain independent review of the exact final commit and test evidence.
 3. Separately approve branch integration/PR/push as needed, deployment and database
-   migrations 0002 and 0003 through the installed deployment controller.
-4. Approve sender installation and activation with source baseline/recovery checks.
+   migrations 0002, 0003 and 0004 through the installed deployment controller.
+4. Approve coordinated collector-hook installation, private journal setup,
+   supervisor installation, public/private configuration and sender activation with
+   source baseline/recovery checks. No credentials were created by this revision.
 5. Device owner installs the Home Screen app and grants opt-in permission.
 6. Separately approve one actual iPhone delivery/revoke/expiry test.
 

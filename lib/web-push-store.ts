@@ -39,5 +39,7 @@ export async function listPushDevices(owner: string, pool: Pool = getKernelPool(
 /** Manager-only settings route exposes codes, never raw SQL or provider errors. */
 export async function readPushHealth(pool:Pool=getKernelPool()) {
   const rows=await pool.query('SELECT scope,code,recorded_at FROM opscenter_kernel.push_health ORDER BY recorded_at DESC LIMIT 20');
-  return rows.rows;
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const expected=[...['352','477','399','484'].map(id=>`schedule:${day}:market-${id}`),`krewe:${day}`,`fleet:${day}`];
+  return [...rows.rows,...expected.filter(scope=>!rows.rows.some(row=>row.scope===scope)).map(scope=>({scope,code:'source_unknown',recorded_at:null}))];
 }

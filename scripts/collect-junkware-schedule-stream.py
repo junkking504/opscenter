@@ -7,6 +7,7 @@ inside the same authenticated session, and publish each market immediately.
 """
 
 import argparse
+from opscenter_push_journal import publish_json
 import importlib
 import json
 import os
@@ -234,8 +235,7 @@ def snapshot_file(data_dir, market_id, date_iso):
 def write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url):
     target = snapshot_file(data_dir, market_id, date_iso)
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps({
+    publish_json(target, {
         "date": date_iso,
         "scraped_at": datetime.now(TIMEZONE).isoformat(),
         "page_url": source_url,
@@ -249,8 +249,7 @@ def write_snapshot(data_dir, date_iso, market_id, market_name, appointments, can
             "verified": True,
             "reason": "requested date and territory confirmed",
         }],
-    }, indent=2), encoding="utf-8")
-    temporary.replace(target)
+    })
     return target
 
 

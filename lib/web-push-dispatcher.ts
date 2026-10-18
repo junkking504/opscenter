@@ -1,10 +1,11 @@
+import { retainPushMetadata } from './web-push-retention';
 import { Client } from 'pg';
 import { resolveKernelDatabaseConfig } from './platform/persistence/config';
 import { pushEnabled } from './web-push-policy';
 import { drainPushOutbox, pushDependencies, PUSH_LOCK, pushErrorCode, type PushWorkerDependencies } from './web-push-worker';
 /** One dedicated connection owns LISTEN and leadership. Connection loss stops
  * new claims; the process exits for supervisor restart, never returns it to a pool. */
-export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client) {
+export async function startPushDispatcher(deps?:PushWorkerDependencies, suppliedListener?:Client, onFailure:()=>void=()=>{}) {
   if(!deps && !pushEnabled())return {disabled:true,stop:async()=>{}};
   const d=deps||pushDependencies();
   if(!d.enabled())return {disabled:true,stop:async()=>{}};
@@ -14,8 +15,8 @@ export async function startPushDispatcher(deps?:PushWorkerDependencies, supplied
   let alive=true,ready=false,again=false,draining:Promise<void>|null=null;
   const guarded={...d,enabled:()=>alive&&d.enabled()};
   const stop=async()=>{alive=false;await listener.end().catch(()=>{});await draining;};
-  const fail=()=>{alive=false;void listener.end().catch(()=>{});};
-  listener.on('error',fail);listener.on('end',()=>{alive=false;});
+  const fail=()=>{if(!alive)return;alive=false;void listener.end().catch(()=>{});onFailure();};
+  listener.on('error',fail);listener.on('end',fail);
   const wake=()=>{
     again=true;if(draining||!alive||!ready)return;
     draining=(async()=>{do{again=false;await drainPushOutbox(guarded);}while(again&&alive);})()
@@ -29,10 +30,7 @@ export async function startPushDispatcher(deps?:PushWorkerDependencies, supplied
     listener.on('notification',notice=>{if(notice.channel==='opscenter_web_push')wake();});
     await listener.query('LISTEN opscenter_web_push');
     await listener.query("UPDATE opscenter_kernel.push_deliveries SET status='uncertain',reason='process_interrupted' WHERE status='sending'");
-    // Finite retention maintenance at startup. Never erase live source versions:
-    // reset versions could reuse IDs and turn a later revision into an old event.
-    await listener.query("DELETE FROM opscenter_kernel.push_events WHERE recorded_at<now()-interval '7 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.event_id=push_events.id AND q.status IN ('pending','sending'))");
-    await listener.query("DELETE FROM opscenter_kernel.push_audit WHERE recorded_at<now()-interval '90 days'");
+    await retainPushMetadata(listener);
     if(!alive)throw new Error('listener_lost');
     ready=true;wake();
     return {stop,get active(){return alive;}};

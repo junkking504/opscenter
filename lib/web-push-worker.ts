@@ -1,3 +1,4 @@
+import { retainPushMetadata } from './web-push-retention';
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { getKernelPool } from './platform/persistence/pool';
@@ -32,7 +33,10 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       if(!Number.isFinite(stamp)||stamp>Date.now()||!Number.isSafeInteger(batch.sequence)||batch.sequence<1)throw new Error('invalid_observation');
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`push-source:${batch.scope}`]);
       const source=(await client.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[batch.scope])).rows[0];
+      const day=batch.scope.match(/:(\d{4}-\d{2}-\d{2})(?::|$)/)?.[1];
+      if(day && (day<new Date(Date.now()-7*86400000).toISOString().slice(0,10)||day>new Date(Date.now()+90*86400000).toISOString().slice(0,10)))throw new Error('source_date_expired');
       const digest=pushHash(batch);
+      if(source && batch.sequence<=Number(source.archived_sequence||0))throw new Error('sequence_archived');
       if(batch.sequence<=(Number(source?.sequence)||0)){
         const prior=(await client.query('SELECT digest FROM opscenter_kernel.push_batches WHERE scope=$1 AND sequence=$2',[batch.scope,batch.sequence])).rows[0];
         if(prior?.digest!==digest)throw new Error('sequence_conflict');
@@ -57,10 +61,11 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete) VALUES($1,$2,$3,true)
         ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true`,[batch.scope,batch.observedAt,batch.sequence]);
       await client.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'recorded') ON CONFLICT(scope) DO UPDATE SET code='recorded',recorded_at=now()",[batch.scope]);
+      if(batch.sequence%100===0)await retainPushMetadata(client);
       await client.query("SELECT pg_notify('opscenter_web_push','')");
     });
   } catch(error) {
-    const reason=['sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','invalid_observation','duplicate_identity'].includes((error as Error).message)?(error as Error).message:pushErrorCode(error);
+    const reason=['sequence_archived','source_date_expired','sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','invalid_observation','duplicate_identity'].includes((error as Error).message)?(error as Error).message:pushErrorCode(error);
     await client.query('INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,$2) ON CONFLICT(scope) DO UPDATE SET code=EXCLUDED.code,recorded_at=now()',[batch.scope,reason]);
     throw new Error(reason);
   } finally {client.release();}
@@ -71,7 +76,7 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
   let attempted=0;
   while(d.enabled()) {
     const pending=await d.pool.query(`SELECT q.event_id,q.device_id FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
-      WHERE q.status='pending' ORDER BY e.recorded_at,q.event_id,q.device_id LIMIT 50`);
+      WHERE q.status='pending' ORDER BY e.dispatch_order,q.device_id LIMIT 50`);
     if(!pending.rows.length)break;
     for(const row of pending.rows) {
       if(!d.enabled())return {attempted};

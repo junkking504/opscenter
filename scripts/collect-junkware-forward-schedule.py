@@ -47,10 +47,8 @@ def existing_raw(path: Path) -> dict:
 
 
 def write_json_atomic(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    temp.replace(path)
+    from opscenter_push_journal import publish_json
+    publish_json(path, payload)
 
 
 def isolate_browser_session(collector) -> Path:

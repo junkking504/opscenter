@@ -85,7 +85,7 @@ def install(root, apply=False):
     for name, patch in [('run_opscenter_refresh.sh', patch_refresh), ('process_daily_metrics.py', patch_processor)]:
         path = directory / name
         updates[path] = patch(path.read_text())
-    for name in ['source_aware_metrics.py', 'run-opsbot-refresh-locked.py']:
+    for name in ['opscenter_push_journal.py', 'source_aware_metrics.py', 'run-opsbot-refresh-locked.py']:
         updates[directory / name] = Path(__file__).with_name(name).read_text()
     # Install helper dependencies before publishing the shell entrypoint.
     updates = dict(sorted(updates.items(), key=lambda item: item[0].name == 'run_opscenter_refresh.sh'))

@@ -38,8 +38,9 @@ export async function listPushDevices(owner: string, pool: Pool = getKernelPool(
 
 /** Manager-only settings route exposes codes, never raw SQL or provider errors. */
 export async function readPushHealth(pool:Pool=getKernelPool()) {
-  const rows=await pool.query('SELECT scope,code,recorded_at FROM opscenter_kernel.push_health ORDER BY recorded_at DESC LIMIT 20');
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const expected=[...['352','477','399','484'].map(id=>`schedule:${day}:market-${id}`),`krewe:${day}`,`fleet:${day}`];
-  return [...rows.rows,...expected.filter(scope=>!rows.rows.some(row=>row.scope===scope)).map(scope=>({scope,code:'source_unknown',recorded_at:null}))];
+  const current=await pool.query('SELECT scope,code,recorded_at FROM opscenter_kernel.push_health WHERE scope=ANY($1::text[])',[expected]);
+  const gaps=await pool.query("SELECT scope,'coverage_gap' AS code,recorded_at FROM opscenter_kernel.push_gaps ORDER BY recorded_at DESC LIMIT 20");
+  return [...current.rows.filter(row=>!gaps.rows.some(gap=>gap.scope===row.scope)),...gaps.rows,...expected.filter(scope=>!current.rows.some(row=>row.scope===scope)&&!gaps.rows.some(row=>row.scope===scope)).map(scope=>({scope,code:'source_unknown',recorded_at:null}))];
 }

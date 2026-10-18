@@ -16,8 +16,8 @@ watcher over a replaced file does not meet this contract.
 One transaction records hashed observations, versioned events, per-device delivery
 intents and `pg_notify`. PostgreSQL delivers the wake only after commit. The first
 complete snapshot seeds a baseline. Identical snapshots do not notify; genuine
-A→B→A transitions, removals and reappearances get new versions. Missing rows produce
-tombstones only with explicit complete authoritative evidence. Moving off today's
+A→B→A transitions get new versions. Schedule removals/reappearances require
+explicit complete authoritative evidence; missing clock/fleet rows are unknown. Moving off today's
 scope is a removal; reporting the destination requires its own source evidence.
 An incomplete initial baseline is blocked. No Slack-derived history is consumed.
 
@@ -38,92 +38,113 @@ retry is performed, including HTTP 429/5xx; a future retry policy must reauthori
 each attempt. HTTP 201 means accepted by Apple, not delivered to the handset.
 404/410 revoke the subscription. Timeouts and unknown outcomes remain uncertain.
 
-The maximum event age at claim is configurable through dispatcher dependencies
-(default 15 minutes); stale events get an explicit skipped reason. This is an
-outage guard, not a batching delay. Device expiry is bounded by the enrolling
-session and 30 days. Changing categories cancels only pending excluded categories.
-Each supported event can alert separately, so a burst of N events can mean N
-notifications. Apple, Focus, browser and network policy still control presentation.
+There is no automatic age cutoff for retained, eligible deliveries. Restart catches
+up the queue, subject to current role, category, revocation, expiry and activation
+checks. Device expiry is bounded by the enrolling session and 30 days. Changing
+categories cancels only pending excluded categories. Each supported event can alert
+separately; a burst of N events can mean N notifications. Apple/Focus/network
+policy still control presentation. Unknown outcomes are never blindly retried.
 
-Source failures are isolated and persisted as sanitized codes in push_health.
-Manager settings expose unknown or incomplete coverage without raw errors. Missing
-storage returns a disabled state without an error banner. Existing devices can be
-listed and revoked while sending is disabled. Operators do not render settings.
-Terminal events expire after seven days; audits and expired/revoked subscriptions
-after 90 days. Pending deliveries older than 15 minutes become explicitly stale.
-Each active scope retains the latest 10,000 batch digests plus an archived-sequence
-checkpoint. A replay below that checkpoint fails closed. Closed date scopes older
-than seven UTC days expire; ingestion rejects reopening them. Maintenance runs at
-startup and every 100 recorded batches, without a timer. All deletes in tests
-operate only on a disposable database. Production application requires approval.
+## Canonical capture, failure isolation and recovery
 
-## Canonical publication hooks
+The Python wrapper calls each writer's original serialization/replacement callback
+exactly once. With capture disabled it performs no journal I/O. Capture exceptions
+never escape into canonical publication or the subsequent existing Slack publisher;
+real canonical-write failures retain their original failure behavior. The shared
+file lock waits at most 100 ms. Synchronous filesystem stalls remain an OS/storage
+limitation; this is not a guarantee against disk hangs.
 
-`scripts/opscenter_push_journal.py` adds a durable publication boundary:
+Healthy capture prepares hashed facts in a private fsynced intent, invokes the
+original writer, then commits immutable ready records and a sequence checkpoint.
+Recovery finishes a confirmed write, aborts an unchanged old write, or records an
+explicit coverage gap for an ambiguous write. Ambiguity cannot block the next
+canonical publication. Missing journal storage uses a sanitized marker beside the
+canonical file, imported on the next healthy capture. If both locations cannot be
+written, stderr is the remaining diagnostic; immediate settings visibility cannot
+be guaranteed during that storage failure.
 
-1. A shared OS file lock serializes all participating writers.
-2. A private, fsynced intent stores selected observation hashes, the next sequence,
-   and old/new snapshot hashes; it contains no source payload.
-3. The canonical snapshot is atomically replaced and its directory is fsynced.
-4. Immutable ready records and a durable sequence checkpoint commit the journal.
+Projection errors are isolated per market/scope. Full queues, ordering conflicts,
+missing source proof and other capture failures leave durable sticky gap markers.
+The consumer watches ready records and gap markers. Deterministic malformed or
+unrecordable batches are quarantined; good scopes in the same file and later files
+continue. Restart does not repeat quarantined poison records. Transient database
+or filesystem failures stop the consumer with retained entries awaiting recovery.
+No status claims complete notification delivery. Settings query all six expected
+current-day scopes explicitly and show missing sources as unknown, plus known gaps.
 
-After interruption, recovery compares the exact snapshot hash. A committed
-snapshot completes its journal record; an unchanged old snapshot aborts the
-unpublished intent. An unexpected third state blocks further publication until
-reviewed. Subsequent writers recover before any overwrite. Startup also recovers.
-The consumer watches the immutable ready directory, drains all records in order,
-and catches up at startup. Filesystem wake coalescing cannot lose intermediate
-states. DB sequence/digest replay protects a crash between DB commit and archive.
-Only committed entries move into the acknowledgement archive.
+After a gap, the first valid capture starts an explicit new generation with a
+silent baseline; later proven transitions notify. Retained pre-gap entries remain
+eligible. Changes never captured during the gap cannot be reconstructed and the
+coverage-gap marker remains visible after rebaselining. This deliberately avoids
+inventing a transition across missing evidence.
 
-The ready queue is capped at 10,000 entries/128 MiB; capacity exhaustion stops the
-opted-in publication visibly instead of dropping unacknowledged events. Archives
-are bounded by seven days, 10,000 entries and 128 MiB. Sequence metadata is capped
-at 1,000 scopes, with a seven-day past/90-day future source-date window. Source
-observation lists are capped at 10,000. Capture requires the separately approved
-`OPSCENTER_WEB_PUSH_CAPTURE=1` and an absolute private
-`OPSCENTER_WEB_PUSH_JOURNAL_DIR`. Disabled capture does not access the journal.
+Capacity and retention:
+- Ready queue: 10,000 entries / 128 MiB; individual entry at most 8 MiB. Full queues
+  stop capture, not canonical publication. Archive and quarantine each retain at
+  most seven days, 10,000 entries and 128 MiB.
+- Source/checkpoint metadata: hard limit 1,000 scopes and 10,000 identities per
+  scope; latest 10,000 batch digests plus a replay watermark. Metadata is not
+  silently erased while delayed records might still arrive. A separate reviewed
+  archival cutoff is required before these limits are reached; capacity failure
+  becomes a coverage gap. At six daily scopes, 1,000 is roughly 166 days, less when
+  new future dates add scopes. This is a pre-activation operational policy decision.
+- Terminal events: seven days. Audits and expired/revoked devices: 90 days. Pending
+  deliveries are not silently aged out. Maintenance runs at startup/every 100
+  batches, without a polling timer.
+- V2 source-date validation uses publication time (seven past/90 future days), so
+  a valid retained publication is not rejected merely because its consumer is late.
+  Legacy entries without publication time can be quarantined with a visible gap.
 
-Prepared coverage:
+Prepared writer coverage (no runtime files installed):
 
-| Source | Publication hook | Contract |
+| Source | Exact publication | Evidence / ownership |
 |---|---|---|
-| Schedule stream | `collect-junkware-schedule-stream.py::write_snapshot` | Verified date/market, appointment IDs, status/time/assignment facts; cancellation rows win overlapping live rows |
-| Forward/requested day | `collect-junkware-forward-schedule.py::write_json_atomic`, reused by requested-day | Verified per-market canonical JSON; same scope/dedup as stream |
-| Full/fast JunkWare collector | Staged patch to external `collect_junkware_daily.py` | Same normalized schedule projection at both canonical writes |
-| Krewe | `source_aware_metrics.py::atomic_json` | Canonical dated metrics, current employee-source evidence, clock-in/out facts only |
-| Fleet | Staged patch to external `collect_linxup_alerts.py` | Verified complete native geofence entered/exited records with mapped truck, identity and timestamp |
+| Market stream | `history/junkware/schedule-watchers/ID/junkware_schedule_fast_DATE.json` through `write_snapshot` | Verified market/date, IDs, status/time/assignment; collection-start timestamp |
+| Forward/full raw | `junkware_DATE_raw.json` | Verified market rows; full external collector patch preserves original raw writer |
+| Fast full | `junkware_schedule_fast_DATE.json` | Same per-market scope as raw/stream |
+| Requested day | `junkware_schedule_requested_DATE.json` via forward writer helper | Verified per-market snapshot, explicit collection-start timestamp |
+| Krewe | `daily_metrics_DATE.json` via `source_aware_metrics.atomic_json` | Current employee source, explicit clock-in/out facts; ambiguous duplicate person is a gap |
+| Fleet | `linxup_alerts_DATE.json`, staged external collector hook | Complete verified native geofence entered/exited rows with mapped truck, ID and event time |
 
-The first complete observation of each scope seeds a baseline without alerts.
-Later changes, reversions, complete removals and reappearances create separate
-intents. Incomplete source evidence never fabricates removals or healthy coverage.
-The settings health response includes unknown entries for missing current-day
-markets/categories. A recorded status proves ingestion, not ongoing upstream
-freshness or complete coverage of every Operational update type.
+These schedule writers share market/date scopes; no filename is a sole authority.
+Capture orders competing publications by collection START, not write/end time.
+An older-start collection completing later is skipped with a visible gap, avoiding
+false reversions. This is conservative: no upstream revision cursor exists, and
+an overlapping slow request may contain a legitimate newer fact. Approval is
+needed for any future reconciliation policy beyond explicit gap/rebaseline.
+Only verified complete schedule snapshots support missing-row removals. Missing
+Krewe/fleet rows do not mean clock-out/departure; explicit facts supply those events.
 
-Raw GPS positions, geometry-inferred visits, payroll amounts/finality, computed
-summaries, manual correction overlays, and provisional legacy metrics are outside
-this source contract. They are not represented as covered notifications. Their
-future expansion needs explicit canonical event contracts and tests. No Slack
-history or Slack publication state is used.
+Initial bootstrap is silent. After uninterrupted capture started on an earlier
+Chicago service day, the first new-day Krewe/fleet facts notify. Each new schedule
+scope currently starts with a silent roster baseline. Before activation choose
+whether to retain that policy or separately implement first-roster notifications;
+no inferred change to that policy is claimed approved.
 
-`prepare-web-push-source-hooks.py` reads the external collector source and emits
-four staged source files into a new directory; it never installs or runs them.
-Known syntax anchors are checked and unknown drift is rejected. The external
-writers are under `/Users/missioncontrol/.openclaw/workspace/opsbot/scripts/`:
-`collect_junkware_daily.py`, `collect_linxup_alerts.py`, and the
-`source_aware_metrics.py` helper used by `process_daily_metrics.py`.
-Installing the staged versions plus `opscenter_push_journal.py`, updating the local
-source-owned collectors, and setting the shared journal path require a separately
-approved coordinated deployment while holding the existing collector locks.
-No further source-access blocker remains for these prepared writers.
+Raw positions, geometry-inferred visits, payroll amounts/finality, computed daily
+summaries, manual correction overlays and provisional legacy metrics remain
+outside this contract. No Slack history or Slack publication state is consumed.
+Upstream collection cadence/request volume is unchanged. Journal/DB notifications
+drive delivery immediately after supported facts are recorded, without batching.
 
-Upstream collection still determines when a provider event is first recorded.
-No upstream polling cadence or request volume is changed. Once a supported state
-is committed, the journal wake and PostgreSQL NOTIFY drive dispatch immediately,
-without a notification interval. Events never observed upstream cannot be created
-by this system. A process/OS failure may delay delivery until supervised restart;
-stale or uncertain outcomes are retained/skipped rather than blindly replayed.
+`prepare-web-push-source-hooks.py` reads external source code and stages four files;
+it never installs/runs them. Unknown or legacy hook anchors fail closed. Deployment
+must coordinate all source-owned collectors plus external `collect_junkware_daily.py`,
+`collect_linxup_alerts.py`, `source_aware_metrics.py` and the shared helper under
+existing collector locks. The dispatcher requires an absolute
+`OPSCENTER_WEB_PUSH_CAPTURE_HELPER` whose bytes match its release helper, preventing
+recovery with a different journal format. Capture requires its separate flag and
+absolute private journal directory; sending remains independently disabled.
+
+Approved future pause procedure: stop capture writers under their existing locks,
+mark the journal with helper `--pause`, set capture off and sending off, then stop
+the dispatcher. `--pause` only records a global gap; it does not change flags.
+If capture was disabled without a marker, mark a gap before resuming. If only
+sending stops, capture may fill its bounded queue but canonical/Slack publication
+continues with explicit gaps. Resume requires helper-version verification, recovery,
+retained backlog review, sticky gap visibility and explicit baseline checks.
+Never discard pending/uncertain records to clear an alarm. None of these operational
+steps was executed as part of this local revision.
 
 ## Privacy, enrollment and transport
 
@@ -175,15 +196,15 @@ Before any live use:
    approve the explicit coverage limits before activation.
 2. Obtain independent review of the exact final commit and test evidence.
 3. Separately approve branch integration/PR/push as needed, deployment and database
-   migrations 0002, 0003 and 0004 through the installed deployment controller.
+   migrations 0002, 0003, 0004 and 0005 through the installed deployment controller.
 4. Approve coordinated collector-hook installation, private journal setup,
    supervisor installation, public/private configuration and sender activation with
    source baseline/recovery checks. No credentials were created by this revision.
 5. Device owner installs the Home Screen app and grants opt-in permission.
 6. Separately approve one actual iPhone delivery/revoke/expiry test.
 
-Recovery after approved activation: disable sending, stop the dedicated dispatcher,
-revoke affected devices and preserve uncertain outcomes. An accepted notice can
+Recovery after approved activation: follow the coordinated capture/sender pause
+procedure above, revoke affected devices when authorized and preserve uncertain outcomes. An accepted notice can
 still appear within the five-minute TTL. Never blindly replay uncertain attempts.
 
 References: [WebKit](https://webkit.org/blog/13878/),

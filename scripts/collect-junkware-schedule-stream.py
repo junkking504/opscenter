@@ -232,10 +232,10 @@ def snapshot_file(data_dir, market_id, date_iso):
     return data_dir / "history" / "junkware" / "schedule-watchers" / market_id / f"junkware_schedule_fast_{date_iso}.json"
 
 
-def write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url):
+def write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url, observation_started_at=None):
     target = snapshot_file(data_dir, market_id, date_iso)
     target.parent.mkdir(parents=True, exist_ok=True)
-    publish_json(target, {
+    payload = {
         "date": date_iso,
         "scraped_at": datetime.now(TIMEZONE).isoformat(),
         "page_url": source_url,
@@ -249,7 +249,12 @@ def write_snapshot(data_dir, date_iso, market_id, market_name, appointments, can
             "verified": True,
             "reason": "requested date and territory confirmed",
         }],
-    })
+    }
+    def publish():
+        temporary = target.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        temporary.replace(target)
+    publish_json(target, payload, publisher=publish, observation_started_at=observation_started_at)
     return target
 
 
@@ -266,12 +271,12 @@ def publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target):
     ], cwd=opscenter_dir, env=environment, check=True)
 
 
-def publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data):
+def publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data, observation_started_at=None):
     source_url = str(data.get("url", "") or collector.SCHEDULE_URL)
     appointments = appointment_rows(collector, data, market_name, source_url)
     appointments = enrich_closed_charges(collector, data_dir, date_iso, market_id, appointments)
     cancelled = cancellation_rows(data, market_name, source_url)
-    target = write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url)
+    target = write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url, observation_started_at)
     publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target)
     print(
         f"JunkWare live market {market_name} ({market_id}): "
@@ -297,6 +302,7 @@ def write_health(data_dir, started_at, started_epoch, market_durations):
 
 
 def initialize(collector, opscenter_dir, data_dir, date_iso):
+    observation_started_at = datetime.now(TIMEZONE).isoformat()
     source_url, appointments, cancelled, verification = collector.collect_all_markets(date_iso)
     if verification.get("verified_date") != date_iso or not verification.get("all_territories_verified"):
         raise RuntimeError("Initial JunkWare schedule stream baseline did not verify every market.")
@@ -306,7 +312,7 @@ def initialize(collector, opscenter_dir, data_dir, date_iso):
         # A schedule baseline has no charge detail. Preserve matching verified
         # closeouts before replacing the files that hold the detail cache.
         market_appointments = enrich_closed_charges(collector, data_dir, date_iso, market_id, market_appointments, read_limit=0)
-        target = write_snapshot(data_dir, date_iso, market_id, market_name, market_appointments, market_cancelled, source_url)
+        target = write_snapshot(data_dir, date_iso, market_id, market_name, market_appointments, market_cancelled, source_url, observation_started_at)
         publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target)
 
 
@@ -353,8 +359,9 @@ def main() -> None:
             durations = {}
             for market_id, market_name in MARKETS:
                 market_started = time.time()
+                observation_started_at = datetime.now(TIMEZONE).isoformat()
                 data = collect_selected_market(collector, date_iso, market_id, market_name)
-                publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data)
+                publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data, observation_started_at)
                 durations[market_id] = round(time.time() - market_started, 1)
             # Bound expense work to one market after the schedule has published.
             # Four extra detail passes must not delay every schedule sweep.

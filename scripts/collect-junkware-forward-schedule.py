@@ -46,9 +46,14 @@ def existing_raw(path: Path) -> dict:
         return {}
 
 
-def write_json_atomic(path: Path, payload: dict) -> None:
+def write_json_atomic(path: Path, payload: dict, observation_started_at=None) -> None:
     from opscenter_push_journal import publish_json
-    publish_json(path, payload)
+    def publish():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        temp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        temp.replace(path)
+    publish_json(path, payload, publisher=publish, observation_started_at=observation_started_at)
 
 
 def isolate_browser_session(collector) -> Path:
@@ -76,6 +81,7 @@ def isolate_browser_session(collector) -> Path:
 
 def publish_schedule_day(collector, paths, target: date) -> dict:
     date_iso = target.isoformat()
+    observation_started_at = datetime.now().astimezone().isoformat()
     collected = collector.collect_attendance_source(date_iso)
     verification = collected["verification"]
     if not verification.get("all_territories_verified"):
@@ -124,6 +130,7 @@ def publish_schedule_day(collector, paths, target: date) -> dict:
             "markets_scraped": verification.get("verified_markets", []),
             "territory_verification": verification.get("territories", []),
         },
+        observation_started_at=observation_started_at,
     )
 
     return {

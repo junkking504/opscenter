@@ -3,7 +3,7 @@ export type PushObservation = { identity: string; revision: unknown };
 /** Ordered, retained canonical snapshots. A watcher over an overwritten file does
  * NOT satisfy this contract. Sequence is durable and contiguous within a scope. */
 export type PushBatch = { scope:string; category:PushCategory; sequence:number;
-  observedAt:string; complete:boolean; observations:PushObservation[] };
+  observedAt:string; recordedAt?:string; generation?:string; reset?:boolean; gapId?:string; baseline?:boolean; complete:boolean; observations:PushObservation[] };
 export function pushEventId(batch: Pick<PushBatch,'scope'|'category'>, item: PushObservation, version=1) {
   return pushHash(['opscenter-push-v1',batch.scope,batch.category,item.identity,item.revision,version]);
 }
@@ -17,7 +17,7 @@ export function pushTransitions(previous: Map<string,{revision_hash:string;versi
     seen.add(identity);const prior=previous.get(identity);
     if(!prior || prior.revision_hash!==revision || !prior.present)changes.push({identity,revision,version:(prior?.version||0)+1,present:true});
   }
-  if(batch.complete)for(const [identity,prior] of previous){
+  if(batch.complete && batch.category==='schedule')for(const [identity,prior] of previous){
     if(prior.present && !seen.has(identity))changes.push({identity,revision:pushHash({present:false}),version:prior.version+1,present:false});
   }
   return changes;

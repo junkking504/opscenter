@@ -13,11 +13,13 @@ from pathlib import Path
 def patch_schedule(source):
     marker = "from opscenter_push_journal import publish_json"
     if marker in source:
+        if "observation_started_at=push_schedule_started_at" not in source or "publisher=lambda: temp_path.replace(fast_path)" not in source:
+            raise ValueError("legacy_schedule_hook_requires_explicit_replacement")
         return source
     old = "        temp_path.replace(fast_path)"
     if source.count(old) != 1:
         raise ValueError("schedule_fast_writer_anchor_changed")
-    source = source.replace(old, '        publish_json(fast_path, json.loads(temp_path.read_text(encoding="utf-8")))\n        temp_path.unlink()', 1)
+    source = source.replace(old, '        publish_json(fast_path, json.loads(temp_path.read_text(encoding="utf-8")), publisher=lambda: temp_path.replace(fast_path), observation_started_at=push_schedule_started_at)', 1)
     tree = ast.parse(source)
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
              and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
@@ -33,7 +35,12 @@ def patch_schedule(source):
     begin = sum(len(line) for line in lines[:call.lineno-1]) + call.col_offset
     end = sum(len(line) for line in lines[:call.end_lineno-1]) + call.end_col_offset
     payload = ast.get_source_segment(source, call.args[0].args[0])
-    source = source[:begin] + f"publish_json(raw_path, {payload})" + source[end:]
+    original_call = ast.get_source_segment(source, call)
+    source = source[:begin] + f"publish_json(raw_path, {payload}, publisher=lambda: {original_call}, observation_started_at=push_schedule_started_at)" + source[end:]
+    main = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == "main")
+    lines = source.splitlines(keepends=True)
+    lines.insert(main.body[0].lineno - 1, "    push_schedule_started_at = datetime.now(TIMEZONE).isoformat()\n")
+    source = "".join(lines)
     # Insert after future imports without rewriting unrelated code.
     parsed = ast.parse(source)
     anchor = next(node for node in parsed.body if isinstance(node, (ast.Import, ast.ImportFrom)) and not (isinstance(node, ast.ImportFrom) and node.module == "__future__"))
@@ -45,13 +52,16 @@ def patch_schedule(source):
 
 
 def patch_fleet(source):
-    marker = "from opscenter_push_journal import publish_json as write_json"
+    marker = "from opscenter_push_journal import publish_json"
     if marker in source:
+        if "publisher=lambda: _original_write_json(path, payload)" not in source:
+            raise ValueError("legacy_fleet_hook_requires_explicit_replacement")
         return source
     anchor = "from linxup_collection_safety import request_json, run_collector"
     if source.count(anchor) != 1 or '"pagination_completed": pagination_completed' not in source:
         raise ValueError("fleet_verified_writer_anchor_changed")
-    result = source.replace(anchor, anchor + "\n" + marker, 1)
+    wrapper = marker + "\n_original_write_json = write_json\ndef write_json(path, payload):\n    return publish_json(path, payload, publisher=lambda: _original_write_json(path, payload))"
+    result = source.replace(anchor, anchor + "\n" + wrapper, 1)
     ast.parse(result)
     return result
 

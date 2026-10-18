@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { startPushJournal } from '../lib/web-push-journal';
 import { retainPushMetadata } from '../lib/web-push-retention';
 import assert from 'node:assert/strict';
@@ -95,7 +96,7 @@ async function main(){
  const beforeCategory=sends;await drainPushOutbox(d);assert.equal(sends,beforeCategory);
  await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule'],expiresAt:new Date(Date.now()+60000)},p);
  await recordPushBatch(batch(one('owner-test')),d);await drainPushOutbox({...d,ownerAllowed:()=>false});assert.equal(sends,beforeCategory);
- await recordPushBatch(batch(one('stale-test')),d);await drainPushOutbox({...d,maxAgeMs:1});assert.equal(sends,beforeCategory);
+ await recordPushBatch(batch(one('retained-test')),d);await drainPushOutbox(d);assert.equal(sends,beforeCategory+1,'retained events have no unapproved age cutoff');
  await recordPushBatch(batch(one('uncertain-test')),d);sendHook=async()=>{throw new Error('synthetic unknown outcome');};await drainPushOutbox(d);sendHook=undefined;
  const afterUnknown=sends;await drainPushOutbox(d);assert.equal(sends,afterUnknown);
  assert.ok(Number((await p.query("SELECT count(*) FROM opscenter_kernel.push_deliveries WHERE status='uncertain'")).rows[0].count)>=2);
@@ -143,9 +144,55 @@ for state in json.loads(states):
  await p.query('UPDATE opscenter_kernel.push_sources SET sequence=10001 WHERE scope=$1',[scope]);
  const retention=await p.connect();try{await retainPushMetadata(retention);}finally{retention.release();}
  assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_batches WHERE scope=$1',[scope])).rows[0].count),10000);
- await assert.rejects(recordPushBatch({scope,category:'schedule',sequence:1,complete:true,observedAt:observed,observations:[]},d),/sequence_archived/);
+ await assert.rejects(recordPushBatch({scope,category:'schedule',sequence:1,complete:true,observedAt:observed,observations:[]},d),/sequence_archived|generation_mismatch/);
  const oldDay=new Date(Date.now()-8*86400000).toISOString().slice(0,10);
  await assert.rejects(recordPushBatch({scope:`fleet:${oldDay}`,category:'fleet',sequence:1,complete:true,observedAt:observed,observations:[]},d),/source_date_expired/);
+ // Independent-review probes: a poisoned scope/file cannot stop a good scope.
+ const poisonRoot=path.join(root,'poison');fs.mkdirSync(path.join(poisonRoot,'ready'),{recursive:true});
+ const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
+ const fleetScope=`fleet:${day}`,fleetBatch:PushBatch={scope:fleetScope,category:'fleet',sequence:1,complete:true,observedAt:observed,observations:[{identity:hash('fleet-id'),revision:hash('arrival')}]};
+ const oldScope=`krewe:${oldDay}`;
+ const writeEntry=(name:string,value:unknown)=>fs.writeFileSync(path.join(poisonRoot,'ready',name),JSON.stringify(value));
+ writeEntry('0000000000000001.json',{version:1,batches:[{...fleetBatch,scope:oldScope,category:'krewe'},fleetBatch]});
+ fs.writeFileSync(path.join(poisonRoot,'ready','0000000000000002.json'),'{invalid');
+ writeEntry('0000000000000003.json',{version:1,batches:[{...fleetBatch,sequence:2,observations:[{identity:hash('fleet-id'),revision:hash('departure')}]}]});
+ let poisoned=await startPushJournal(poisonRoot,d);assert.equal(poisoned.active,true);await poisoned.stop();
+ assert.equal(fs.readdirSync(path.join(poisonRoot,'quarantine')).length,2);
+ assert.equal(Number((await p.query('SELECT sequence FROM opscenter_kernel.push_sources WHERE scope=$1',[fleetScope])).rows[0].sequence),2);
+ assert.equal((await p.query('SELECT code FROM opscenter_kernel.push_health WHERE scope=$1',[oldScope])).rows[0].code,'coverage_gap');
+ poisoned=await startPushJournal(poisonRoot,d);assert.equal(poisoned.active,true);await poisoned.stop();
+ assert.equal(fs.readdirSync(path.join(poisonRoot,'ready')).length,0,'restart does not repeat poisoned record');
+ // A transient DB failure keeps the entry ready and stops; recovery succeeds.
+ writeEntry('0000000000000004.json',{version:1,batches:[{...fleetBatch,sequence:3,observations:[]}]});
+ const brokenPool={query:p.query.bind(p),connect:async()=>{throw new Error('synthetic database unavailable');}} as unknown as Pool;
+ const transient=await startPushJournal(poisonRoot,{...d,pool:brokenPool});assert.equal(transient.active,false);await transient.stop();
+ assert.ok(fs.existsSync(path.join(poisonRoot,'ready','0000000000000004.json')));
+ poisoned=await startPushJournal(poisonRoot,d);assert.equal(poisoned.active,true);await poisoned.stop();
+ assert.equal(fs.readdirSync(path.join(poisonRoot,'ready')).length,0);
+ // Future-scope noise cannot hide known current-day health.
+ const localDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ await p.query("INSERT INTO opscenter_kernel.push_health(scope,code) SELECT 'schedule:2099-01-'||lpad(n::text,2,'0'),'recorded' FROM generate_series(1,25) n ON CONFLICT DO NOTHING");
+ await p.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'source_failed') ON CONFLICT(scope) DO UPDATE SET code='source_failed'",[`krewe:${localDay}`]);
+ assert.ok((await readPushHealth(p)).some(row=>row.scope===`krewe:${localDay}`&&row.code==='source_failed'));
+ // V2 retained publication survives a long outage; unsupported fleet removals
+ // retain identity, so disappearance/reappearance does not manufacture an event.
+ const oldStamp=new Date(Date.now()-8*86400000).toISOString();
+ const retained:PushBatch={scope:`fleet:${oldDay}`,category:'fleet',sequence:1,complete:true,observedAt:oldStamp,recordedAt:oldStamp,generation:'a'.repeat(32),baseline:false,observations:[{identity:'retained-native',revision:'arrival'}]};
+ await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '10 days'");
+ await managePushDevice('owner',{action:'subscribe',subscription,categories:['fleet'],expiresAt:new Date(Date.now()+60000)},p);
+ const catchup={...d,activatedAt:new Date(Date.now()-10*86400000).toISOString()};
+ await recordPushBatch(retained,catchup);const beforeCatchup=sends;await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+1,'eight-day retained publication delivered with mocked sender');
+ const eventCount=Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count);
+ await recordPushBatch({...retained,sequence:2,observations:[]},catchup);
+ await recordPushBatch({...retained,sequence:3},catchup);
+ assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count),eventCount,'fleet missing/reappearance is not a supported event');
+ // Explicit gap reset is silent and durable; subsequent transition delivers once.
+ const reset={...retained,sequence:1,generation:'b'.repeat(32),reset:true,baseline:true,gapId:'c'.repeat(64),recordedAt:new Date(Date.parse(oldStamp)+1000).toISOString(),observations:[{identity:'retained-native',revision:'unknown-gap-end'}]};
+ await recordPushBatch(reset,catchup);await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+1);
+ await recordPushBatch({...reset,sequence:2,reset:false,baseline:false,observations:[{identity:'retained-native',revision:'departure'}]},catchup);
+ await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+2);
+ await assert.rejects(recordPushBatch({...retained,reset:true,baseline:true,gapId:'d'.repeat(64)},catchup),/reset_reordered/);
+ console.log('PASS: independent malformed/expired-scope probes, same-file isolation, restart quarantine, eight-day retained catch-up, fleet removal restraint and explicit generation reset.');
  console.log('PASS: Python publication hooks -> retained burst journal -> DB NOTIFY -> mocked sender, restart replay, live filesystem wake, disabled no-I/O, replay checkpoint and closed-scope retention.');
  console.log('PASS: real PostgreSQL isolated cluster: baseline, versions/reversion, removal completeness, dedup, zero-claim race, scope failure, in-flight revoke, commit NOTIFY, burst fanout, single leader, restart catch-up, uncertain recovery and 410 expiry. All sender calls mocked.');
 }

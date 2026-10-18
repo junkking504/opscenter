@@ -7,7 +7,7 @@ import { pushTransitions, type PushBatch } from './web-push-events';
 import { sendAppleWakeup } from './web-push-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { opsRoleCan } from './ops-roles';
-export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;maxAgeMs?:number};
+export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
   return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleWakeup,ownerAllowed:owner=>allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
@@ -15,6 +15,15 @@ export function pushDependencies():PushWorkerDependencies {
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
   return typeof code==='string' && /^[0-9A-Z]{5}$/.test(code)?`sql_${code}`:'source_failed';
+}
+export const deterministicPushErrors=new Set(['invalid_scope','invalid_observation','invalid_generation','generation_mismatch','reset_reordered','sequence_archived','source_date_expired','sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','duplicate_identity','source_capacity','observation_capacity','invalid_journal_entry','invalid_journal_observation']);
+export async function recordPushGap(scope:string,id:string,code:string,d:PushWorkerDependencies) {
+  if(!d.enabled())return;
+  const safeScope=/^(schedule|krewe|fleet):[a-zA-Z0-9:-]{1,100}$/.test(scope)?scope:'journal:global';
+  const safeCode=/^[a-z_]{1,60}$/.test(code)?code:'capture_failure';
+  await d.pool.query(`INSERT INTO opscenter_kernel.push_gaps(scope,gap_id,code,observed_at) VALUES($1,$2,$3,now())
+    ON CONFLICT(scope) DO UPDATE SET gap_id=EXCLUDED.gap_id,code=EXCLUDED.code,observed_at=EXCLUDED.observed_at,recorded_at=now() WHERE push_gaps.gap_id<>EXCLUDED.gap_id`,[safeScope,id,safeCode]);
+  await d.pool.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'coverage_gap') ON CONFLICT(scope) DO UPDATE SET code='coverage_gap',recorded_at=now()",[safeScope]);
 }
 async function transaction<T>(client:PoolClient, action:()=>Promise<T>):Promise<T> {
   await client.query('BEGIN');
@@ -29,12 +38,26 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
   const client=await d.pool.connect();
   try {
     await transaction(client,async()=>{
-      const stamp=Date.parse(batch.observedAt);
+      const stamp=Date.parse(batch.observedAt),recorded=Date.parse(batch.recordedAt||batch.observedAt);
+      const generation=batch.generation||'legacy';
+      if(generation!=='legacy'&&!/^[a-f0-9]{32}$/.test(generation))throw new Error('invalid_generation');
+      if(!Number.isFinite(recorded)||recorded>Date.now()||recorded<stamp)throw new Error('invalid_observation');
       if(!Number.isFinite(stamp)||stamp>Date.now()||!Number.isSafeInteger(batch.sequence)||batch.sequence<1)throw new Error('invalid_observation');
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`push-source:${batch.scope}`]);
-      const source=(await client.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[batch.scope])).rows[0];
+      let source=(await client.query('SELECT * FROM opscenter_kernel.push_sources WHERE scope=$1',[batch.scope])).rows[0];
       const day=batch.scope.match(/:(\d{4}-\d{2}-\d{2})(?::|$)/)?.[1];
-      if(day && (day<new Date(Date.now()-7*86400000).toISOString().slice(0,10)||day>new Date(Date.now()+90*86400000).toISOString().slice(0,10)))throw new Error('source_date_expired');
+      // V2 validates against publication time, so a queued entry crossing
+      // midnight or an outage does not expire before it can be recorded.
+      const windowTime=batch.recordedAt?recorded:Date.now();
+      if(day && (day<new Date(windowTime-7*86400000).toISOString().slice(0,10)||day>new Date(windowTime+90*86400000).toISOString().slice(0,10)))throw new Error('source_date_expired');
+      if(!source && Number((await client.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_sources')).rows[0]?.count||0)>=1000)throw new Error('source_capacity');
+      if(source && (source.generation||'legacy')!==generation){
+        if(!batch.reset||!batch.baseline||batch.sequence!==1||!batch.gapId)throw new Error('generation_mismatch');
+        if(recorded<=new Date(source.source_recorded_at||source.observed_at).getTime())throw new Error('reset_reordered');
+        await client.query('DELETE FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
+        await client.query('DELETE FROM opscenter_kernel.push_batches WHERE scope=$1',[batch.scope]);
+        source=undefined;
+      }
       const digest=pushHash(batch);
       if(source && batch.sequence<=Number(source.archived_sequence||0))throw new Error('sequence_archived');
       if(batch.sequence<=(Number(source?.sequence)||0)){
@@ -48,24 +71,26 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       await client.query('INSERT INTO opscenter_kernel.push_batches(scope,sequence,digest) VALUES($1,$2,$3)',[batch.scope,batch.sequence,digest]);
       const rows=await client.query('SELECT identity_hash,revision_hash,version,present FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
       const previous=new Map(rows.rows.map(row=>[row.identity_hash,row]));
+      if(new Set([...previous.keys(),...batch.observations.map(row=>pushHash(row.identity))]).size>10000)throw new Error('observation_capacity');
       for(const change of pushTransitions(previous,batch)) {
         await client.query(`INSERT INTO opscenter_kernel.push_observations(scope,identity_hash,revision_hash,version,observed_at,present) VALUES($1,$2,$3,$4,$5,$6)
           ON CONFLICT(scope,identity_hash) DO UPDATE SET revision_hash=EXCLUDED.revision_hash,version=EXCLUDED.version,observed_at=EXCLUDED.observed_at,present=EXCLUDED.present`,[batch.scope,change.identity,change.revision,change.version,batch.observedAt,change.present]);
-        const id=pushHash([batch.scope,batch.category,change.identity,change.revision,change.version]);
-        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt]);
-        if(source?.baseline_complete && stamp>=Date.parse(d.activatedAt)) {
-          const devices=await client.query('SELECT id,owner_id FROM opscenter_kernel.push_devices WHERE $1=ANY(categories) AND revoked_at IS NULL AND expires_at>now() AND created_at<=$2',[batch.category,batch.observedAt]);
+        const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
+        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt]);
+        if(!batch.baseline && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
+          const devices=await client.query('SELECT id,owner_id FROM opscenter_kernel.push_devices WHERE $1=ANY(categories) AND revoked_at IS NULL AND expires_at>now() AND created_at<=$2',[batch.category,batch.recordedAt||batch.observedAt]);
           for(const device of devices.rows)if(d.ownerAllowed(device.owner_id))await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
-      await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete) VALUES($1,$2,$3,true)
-        ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true`,[batch.scope,batch.observedAt,batch.sequence]);
+      await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete,generation,source_recorded_at) VALUES($1,$2,$3,true,$4,$5)
+        ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true,generation=EXCLUDED.generation,source_recorded_at=EXCLUDED.source_recorded_at,archived_sequence=CASE WHEN push_sources.generation<>EXCLUDED.generation THEN 0 ELSE push_sources.archived_sequence END`,[batch.scope,batch.observedAt,batch.sequence,generation,batch.recordedAt||batch.observedAt]);
       await client.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'recorded') ON CONFLICT(scope) DO UPDATE SET code='recorded',recorded_at=now()",[batch.scope]);
+      await client.query("UPDATE opscenter_kernel.push_health SET code='coverage_gap' WHERE scope=$1 AND EXISTS(SELECT 1 FROM opscenter_kernel.push_gaps WHERE scope=$1)",[batch.scope]);
       if(batch.sequence%100===0)await retainPushMetadata(client);
       await client.query("SELECT pg_notify('opscenter_web_push','')");
     });
   } catch(error) {
-    const reason=['sequence_archived','source_date_expired','sequence_conflict','sequence_gap','observation_reordered','baseline_incomplete','invalid_observation','duplicate_identity'].includes((error as Error).message)?(error as Error).message:pushErrorCode(error);
+    const reason=deterministicPushErrors.has((error as Error).message)?(error as Error).message:pushErrorCode(error);
     await client.query('INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,$2) ON CONFLICT(scope) DO UPDATE SET code=EXCLUDED.code,recorded_at=now()',[batch.scope,reason]);
     throw new Error(reason);
   } finally {client.release();}
@@ -85,11 +110,11 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
       try {
         claim=await transaction(client,async()=>{
           const device=(await client.query('SELECT * FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[row.device_id])).rows[0];
-          const delivery=(await client.query(`SELECT q.status,e.category,e.occurred_at FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
+          const delivery=(await client.query(`SELECT q.status,e.category,e.occurred_at,e.source_recorded_at FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
             WHERE q.event_id=$1 AND q.device_id=$2 FOR UPDATE OF q`,[row.event_id,row.device_id])).rows[0];
           if(!delivery || delivery.status!=='pending')return null;
-          const age=Date.now()-new Date(delivery.occurred_at).getTime();
-          const reason=!d.enabled()?'disabled':!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.occurred_at).getTime()<Date.parse(d.activatedAt)?'before_activation':age>(d.maxAgeMs??15*60000)?'stale':null;
+          const age=Date.now()-new Date(delivery.source_recorded_at||delivery.occurred_at).getTime();
+          const reason=!d.enabled()?'disabled':!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.source_recorded_at||delivery.occurred_at).getTime()<Date.parse(d.activatedAt)?'before_activation':null;
           if(reason){await client.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason=$3 WHERE event_id=$1 AND device_id=$2 AND status='pending'",[row.event_id,row.device_id,reason]);return null;}
           const token=randomUUID();
           const saved=await client.query("UPDATE opscenter_kernel.push_deliveries SET status='sending',claim_token=$3,attempted_at=now() WHERE event_id=$1 AND device_id=$2 AND status='pending' RETURNING event_id",[row.event_id,row.device_id,token]);

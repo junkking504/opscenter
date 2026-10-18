@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic records only. Does not read runtime data, settings or credentials."""
+import fcntl
+import time
 import importlib.util
 import json
 import os
@@ -10,6 +12,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
+from types import SimpleNamespace
 import opscenter_push_journal as journal
 
 DAY = datetime.now(timezone.utc).date().isoformat()
@@ -26,6 +29,10 @@ def load(name):
 def schedule(status="Scheduled", at=STAMP):
     return {"date": DAY, "scraped_at": at, "appointments": [{"appt_id": "synthetic-job", "market": "New Orleans", "job_status": status}],
             "territory_verification": [{"territory_id": "352", "verified": True}]}
+
+
+class SimulatedCrash(BaseException):
+    pass
 
 
 class JournalTest(unittest.TestCase):
@@ -64,15 +71,15 @@ class JournalTest(unittest.TestCase):
         self.publish(schedule())
         def fail(point):
             if point == "prepared":
-                raise RuntimeError("simulated stop")
-        with self.assertRaises(RuntimeError):
+                raise SimulatedCrash("simulated stop")
+        with self.assertRaises(SimulatedCrash):
             self.publish(schedule("Enroute"), fault=fail)
         self.publish(schedule("Arrived"))
         self.assertEqual(len(self.entries()), 2)
         def after(point):
             if point == "published":
-                raise RuntimeError("simulated stop")
-        with self.assertRaises(RuntimeError):
+                raise SimulatedCrash("simulated stop")
+        with self.assertRaises(SimulatedCrash):
             self.publish(schedule("Completed"), fault=after)
         self.assertEqual(len(self.entries()), 2)
         journal.recover(self.journal)
@@ -83,13 +90,14 @@ class JournalTest(unittest.TestCase):
         self.publish(schedule())
         def fail(point):
             if point == "prepared":
-                raise RuntimeError("stop")
-        with self.assertRaises(RuntimeError):
+                raise SimulatedCrash("stop")
+        with self.assertRaises(SimulatedCrash):
             self.publish(schedule("Enroute"), fault=fail)
         self.target.write_text('{"uncoordinated":true}')
-        with self.assertRaisesRegex(ValueError, "recovery_uncertain"):
-            self.publish(schedule("Arrived"))
-        self.assertEqual(self.target.read_text(), '{"uncoordinated":true}')
+        self.publish(schedule("Arrived"))
+        self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Arrived")
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+        self.assertTrue(self.entries()[-1]["batches"][0]["reset"])
     def test_complete_removal_and_unknown_source(self):
         self.publish(schedule())
         partial = schedule(); partial["territory_verification"][0]["verified"] = False
@@ -103,9 +111,11 @@ class JournalTest(unittest.TestCase):
         journal.publish_json(self.target, schedule(), enabled=False)
         self.assertFalse(self.journal.exists())
         self.publish(schedule())
-        with patch.object(journal, "MAX_ENTRIES", 1), self.assertRaisesRegex(ValueError, "capacity"):
+        with patch.object(journal, "MAX_ENTRIES", 1):
             self.publish(schedule("Enroute"))
-        self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Scheduled")
+        self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Enroute")
+        self.assertEqual(len(self.entries()), 1)
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}
@@ -124,14 +134,15 @@ class JournalTest(unittest.TestCase):
         self.publish(schedule())
         later = (datetime.fromisoformat(STAMP) + timedelta(seconds=20)).isoformat()
         self.publish(schedule(at=later))
-        with self.assertRaisesRegex(ValueError, "reordered"):
-            self.publish(schedule("Enroute"))
+        self.publish(schedule("Enroute"))
+        self.assertEqual(len(self.entries()), 1)
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
     def test_real_source_helpers(self):
         with patch.dict(os.environ, {"OPSCENTER_WEB_PUSH_CAPTURE": "1", "OPSCENTER_WEB_PUSH_JOURNAL_DIR": str(self.journal)}):
             stream = load("collect-junkware-schedule-stream")
-            stream.write_snapshot(self.root, DAY, "352", "New Orleans", schedule()["appointments"], [], "https://example.invalid")
+            stream.write_snapshot(self.root, DAY, "352", "New Orleans", schedule()["appointments"], [], "https://example.invalid", observation_started_at=STAMP)
             forward = load("collect-junkware-forward-schedule")
-            forward.write_json_atomic(self.target, schedule("Enroute", datetime.now(timezone.utc).isoformat()))
+            forward.write_json_atomic(self.target, schedule("Enroute", datetime.now(timezone.utc).isoformat()), observation_started_at=datetime.now(timezone.utc).isoformat())
             metrics = load("source_aware_metrics")
             metrics.atomic_json(self.root / f"daily_metrics_{DAY}.json", {"date": DAY, "payroll_records": [], "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}}})
         self.assertEqual(len(self.entries()), 3)
@@ -153,9 +164,9 @@ for revision in range(5):
         save = journal.save
         def interrupted(path, data):
             if path.name == "state.json":
-                raise RuntimeError("checkpoint interrupted")
+                raise SimulatedCrash("checkpoint interrupted")
             save(path, data)
-        with patch.object(journal, "save", interrupted), self.assertRaises(RuntimeError):
+        with patch.object(journal, "save", interrupted), self.assertRaises(SimulatedCrash):
             self.publish(schedule())
         self.assertEqual(len(self.entries()), 1)
         # A consumer may already have archived the committed ready record.
@@ -166,6 +177,85 @@ for revision in range(5):
         self.assertEqual(self.entries(), [])
         self.publish(schedule("Enroute"))
         self.assertEqual(self.entries()[0]["batches"][0]["sequence"], 2)
+    def test_capture_fault_never_blocks_canonical_or_caller(self):
+        cases = [schedule(), schedule(), []]
+        cases[0]["appointments"][0].pop("appt_id")
+        cases[1]["scraped_at"] = (datetime.now(timezone.utc)+timedelta(days=1)).isoformat()
+        for payload in cases:
+            calls = []
+            self.publish(payload, publisher=lambda: (calls.append("canonical"), journal.original_json(self.target, payload)))
+            calls.append("existing Slack continuation")
+            self.assertEqual(calls, ["canonical", "existing Slack continuation"])
+            self.assertEqual(json.loads(self.target.read_text()), payload)
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+        def broken():
+            raise OSError("canonical unavailable")
+        with self.assertRaisesRegex(OSError, "canonical unavailable"):
+            self.publish(schedule(), publisher=broken)
+    def test_lock_wait_is_bounded_and_source_continues(self):
+        self.journal.mkdir()
+        with (self.journal / "writer.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            started = time.monotonic()
+            self.publish(schedule())
+            self.assertLess(time.monotonic()-started, 0.5)
+        self.assertTrue(self.target.exists())
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_raw_requested_and_competing_collection_order(self):
+        raw = self.root / f"junkware_{DAY}_raw.json"
+        requested = self.root / f"junkware_schedule_requested_{DAY}.json"
+        journal.publish_json(raw, schedule(), enabled=True, journal_root=self.journal, observation_started_at=STAMP)
+        later = (datetime.fromisoformat(STAMP)+timedelta(seconds=20)).isoformat()
+        journal.publish_json(requested, schedule("Arrived", later), enabled=True, journal_root=self.journal, observation_started_at=later)
+        journal.publish_json(raw, schedule("Scheduled", later), enabled=True, journal_root=self.journal, observation_started_at=STAMP)
+        self.assertEqual(len(self.entries()), 2)
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_pause_gap_rebases_and_keeps_gap_visible(self):
+        self.publish(schedule())
+        journal.mark_gap(self.journal, ["journal:global"], "capture_disabled")
+        self.publish(schedule("Arrived"))
+        batch = self.entries()[-1]["batches"][0]
+        self.assertTrue(batch["baseline"])
+        self.assertTrue(batch["reset"])
+        self.assertEqual(batch["sequence"], 1)
+        self.assertNotEqual(batch["generation"], self.entries()[0]["batches"][0]["generation"])
+        self.publish(schedule("Completed"))
+        self.assertEqual(self.entries()[-1]["batches"][0]["sequence"], 2)
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_disabled_preserves_original_bytes_mode_callback(self):
+        calls=[]
+        def original():
+            calls.append(1)
+            self.target.write_text('{"original": true}')
+            self.target.chmod(0o644)
+        journal.publish_json(self.target, schedule(), enabled=False, publisher=original)
+        self.assertEqual(calls, [1])
+        self.assertEqual(self.target.read_text(), '{"original": true}')
+        self.assertEqual(self.target.stat().st_mode & 0o777, 0o644)
+        self.assertFalse(self.journal.exists())
+    def test_existing_stream_slack_continuation_after_projection_failure(self):
+        stream = load("collect-junkware-schedule-stream")
+        invalid = [{"market": "New Orleans", "job_status": "Scheduled"}]
+        with patch.dict(os.environ, {"OPSCENTER_WEB_PUSH_CAPTURE": "1", "OPSCENTER_WEB_PUSH_JOURNAL_DIR": str(self.journal)}), patch.object(stream, "appointment_rows", return_value=invalid), patch.object(stream, "enrich_closed_charges", return_value=invalid), patch.object(stream, "cancellation_rows", return_value=[]), patch.object(stream, "publish_snapshot") as slack:
+            stream.publish_market(SimpleNamespace(SCHEDULE_URL="https://example.invalid"), self.root, self.root, DAY, "352", "New Orleans", {}, STAMP)
+            slack.assert_called_once()
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_new_service_day_clock_facts_are_not_silently_baselined(self):
+        self.publish(schedule())
+        state = json.loads((self.journal / "state.json").read_text())
+        state["startedAt"] = (datetime.now(timezone.utc)-timedelta(days=2)).isoformat()
+        journal.save(self.journal / "state.json", journal.encoded(state))
+        metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}}, "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00"}]}
+        journal.publish_json(self.root / f"daily_metrics_{DAY}.json", metrics, enabled=True, journal_root=self.journal)
+        self.assertFalse(self.entries()[-1]["batches"][0]["baseline"])
+    def test_bad_market_does_not_remove_good_market(self):
+        payload = schedule()
+        payload["appointments"][0].pop("appt_id")
+        payload["appointments"].append({"appt_id": "good", "market": "Northshore", "job_status": "Scheduled"})
+        payload["territory_verification"].append({"territory_id": "477", "verified": True})
+        self.publish(payload)
+        self.assertEqual([batch["scope"] for batch in self.entries()[0]["batches"]], [f"schedule:{DAY}:market-477"])
+        self.assertTrue(list((self.journal / "gaps").glob("*.json")))
     def test_runtime_patch_guards(self):
         prepare = load("prepare-web-push-source-hooks")
         with self.assertRaises(ValueError):

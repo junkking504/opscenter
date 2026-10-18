@@ -8,7 +8,10 @@ async function main(){
   // Recover publication state before any pending delivery can be claimed.
   // The source helper receives no signing key or protected runtime environment.
   const {execFileSync}=await import('node:child_process');
-  try{execFileSync('python3',['scripts/opscenter_push_journal.py','--recover',root],{
+  const fs=await import('node:fs');const path=await import('node:path');
+  const helper=process.env.OPSCENTER_WEB_PUSH_CAPTURE_HELPER;
+  if(!helper||!path.isAbsolute(helper)||!fs.readFileSync(helper).equals(fs.readFileSync(path.join(process.cwd(),'scripts/opscenter_push_journal.py'))))throw new Error('push_helper_version_mismatch');
+  try{execFileSync('python3',[helper,'--recover',root],{
     stdio:'pipe',env:{NODE_ENV:'production',PATH:process.env.PATH,PYTHONDONTWRITEBYTECODE:'1'},
   });}catch{throw new Error('push_source_recovery_failed');}
   let closeJournal:(()=>Promise<void>)|undefined;

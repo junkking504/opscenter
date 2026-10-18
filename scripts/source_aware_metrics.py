@@ -22,7 +22,16 @@ def timestamp(value):
 
 def atomic_json(path, payload):
     from opscenter_push_journal import publish_json
-    publish_json(path, payload)
+    path = Path(path)
+    def publish():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f'.{path.name}.{os.getpid()}.tmp')
+        try:
+            temporary.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    publish_json(path, payload, publisher=publish)
 
 
 def money(value):

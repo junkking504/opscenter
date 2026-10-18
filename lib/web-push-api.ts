@@ -1,17 +1,17 @@
 import type { AuthSession } from './auth';
 import { opsRoleCan } from './ops-roles';
-import { pushEnabled, pushCategories, pushSubscription } from './web-push-policy';
-import { listPushDevices, managePushDevice } from './web-push-store';
+import { pushEnrollmentEnabled, pushCategories, pushSubscription } from './web-push-policy';
+import { listPushDevices, managePushDevice, readPushHealth } from './web-push-store';
 type PushSession=Pick<AuthSession,'email'|'role'|'expiresAt'>|null;
 const headers={'Cache-Control':'private, no-store, max-age=0'};
-const defaultService={enabled:pushEnabled,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice};
-export async function pushDevicesGET(session: PushSession, service=defaultService) {
+const defaultService={enabled:pushEnrollmentEnabled,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice,health:readPushHealth};
+export async function pushDevicesGET(session: PushSession, service:Omit<typeof defaultService,'health'> & {health?:typeof readPushHealth}=defaultService) {
   if(!session) return Response.json({error:'Authentication required.'},{status:401,headers});
   if(!opsRoleCan(session.role,'sensitive.write')) return Response.json({error:'Manager access required.'},{status:403,headers});
-  try {return Response.json({enabled:service.enabled(),publicKey:service.enabled()?service.publicKey():null,devices:await service.list(session.email)},{headers});}
-  catch {return Response.json({enabled:false,error:'Notification storage is unavailable.'},{status:503,headers});}
+  try {return Response.json({enabled:service.enabled(),publicKey:service.enabled()?service.publicKey():null,devices:await service.list(session.email),health:service.health?await service.health():[]},{headers});}
+  catch {return Response.json({enabled:false,publicKey:null,devices:[],storage:'unavailable'},{headers});}
 }
-export async function pushDevicesPOST(request: Request, session: PushSession, service=defaultService) {
+export async function pushDevicesPOST(request: Request, session: PushSession, service:Omit<typeof defaultService,'health'> & {health?:typeof readPushHealth}=defaultService) {
   if(!session) return Response.json({error:'Authentication required.'},{status:401,headers});
   // Explicit trusted deployment origin, not client-controlled forwarding headers.
   const origin=service.origin();

@@ -3,9 +3,9 @@ import { pushDevicesGET,pushDevicesPOST } from '../lib/web-push-api';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createPublicKey,verify } from 'node:crypto';
-import { pushEndpoint,pushCategories,pushSubscription,pushEnabled,pushOutcome,pushHash,validPushOrigin } from '../lib/web-push-policy';
+import { pushEndpoint,pushCategories,pushSubscription,pushEnabled,pushEnrollmentEnabled,pushOutcome,pushHash,validPushOrigin } from '../lib/web-push-policy';
 import { publicPushAddress,sendAppleWakeup,vapidAuthorization } from '../lib/web-push-transport';
-import { pushEventId, type PushBatch } from '../lib/web-push-events';
+import { pushEventId, pushTransitions, type PushBatch } from '../lib/web-push-events';
 import { runPushWorker } from '../lib/web-push-worker';
 import { managePushDevice } from '../lib/web-push-store';
 import type { Pool } from 'pg';
@@ -52,54 +52,26 @@ assert.equal((await pushDevicesPOST(request({padding:'x'.repeat(9000)}),actor,ap
 activation=false;assert.equal((await pushDevicesPOST(request({action:'unsubscribe',deviceId:'00000000-0000-4000-8000-000000000000'}),actor,api)).status,200,'revoke remains available when sending is disabled');
 assert.match((await pushDevicesGET(actor,api)).headers.get('Cache-Control') || '',/no-store/);
 
-// In-memory query double: no database, credentials, subscription or network access.
-function mockStore() {
- const sources=new Map<string,string>(), observations=new Map<string,{revision_hash:string;version:number}>(),events=new Map<string,{category:string;observed_at:Date}>();
- const device={id:'device',owner_id:'owner',categories:['fleet','schedule'],subscription_json:subscription};
- const deliveries=new Map<string,{event_id:string;device_id:string;status:string}>();let live=true,locked=true;
- const queries:Array<{sql:string;args:unknown[]}>=[];
- const query=async(sql:string,args:unknown[]=[])=>{
-  queries.push({sql,args});let rows:unknown[]=[];
-  if(sql.includes('pg_try_advisory_lock'))rows=[{locked}];
-  else if(sql.startsWith('SELECT scope'))rows=sources.has(String(args[0]))?[{scope:args[0],observed_at:sources.get(String(args[0]))}]:[];
-  else if(sql.startsWith('SELECT revision_hash'))rows=observations.has(args.slice(0,2).join('|'))?[observations.get(args.slice(0,2).join('|'))]:[];
-  else if(sql.startsWith('INSERT INTO opscenter_kernel.push_observations'))observations.set(args.slice(0,2).join('|'),{revision_hash:String(args[2]),version:Number(args[3])});
-  else if(sql.startsWith('INSERT INTO opscenter_kernel.push_sources'))sources.set(String(args[0]),String(args[1]));
-  else if(sql.startsWith('INSERT INTO opscenter_kernel.push_events')){if(!events.has(String(args[0]))){events.set(String(args[0]),{category:String(args[1]),observed_at:new Date()});rows=[{id:args[0]}];}}
-  else if(sql.startsWith('INSERT INTO opscenter_kernel.push_deliveries'))deliveries.set(String(args[0]),{event_id:String(args[0]),device_id:device.id,status:'pending'});
-  else if(sql.startsWith('SELECT DISTINCT ON'))rows=[...deliveries.values()].filter(d=>d.status==='pending').slice(-1).map(d=>({...d,...events.get(d.event_id)}));
-  else if(sql.startsWith('SELECT * FROM opscenter_kernel.push_devices'))rows=live?[device]:[];
-  else if(sql.startsWith('DELETE FROM opscenter_kernel.push_devices WHERE id'))live=false;
-  else if(sql.includes("SET status='uncertain'"))for(const d of deliveries.values()){if(d.status==='sending')d.status='uncertain';}
-  else if(sql.includes("SET status='sending'"))for(const d of deliveries.values()){if(d.device_id===args[0] && d.status==='pending')d.status='sending';}
-  else if(sql.includes('SET status=$3')){const d=deliveries.get(String(args[0]));if(d)d.status=String(args[2]);}
-  else if(sql.includes('SET status=$2'))for(const d of deliveries.values()){if(d.status==='sending')d.status=String(args[1]);}
-  return {rows,rowCount:rows.length};
- };
- return {pool:{connect:async()=>({query,release:()=>{}})} as unknown as Pool,queries,deliveries,events,device,get live(){return live;},setLocked:(v:boolean)=>{locked=v;}};
-}
-const store=mockStore();let sends=0,code=201,throws=false,allowed=true;
-const deps={pool:store.pool,enabled:()=>true,send:async()=>{sends++;if(throws)throw new Error('mock timeout');return code;},ownerAllowed:()=>allowed,activatedAt:new Date(Date.now()-60000).toISOString()};
-let tick=Date.now()-10000;
-const batch=(revision:string):PushBatch=>({scope:'fleet:2026-10-18',category:'fleet',observedAt:new Date(tick+=100).toISOString(),observations:[{identity:'stable-source-id',revision}]});
-await runPushWorker([batch('arrival')],deps);assert.equal(sends,0,'first snapshot is a baseline');
-await runPushWorker([batch('arrival')],deps);assert.equal(sends,0,'snapshot refresh does not notify');
-await runPushWorker([batch('departure')],deps);assert.equal(sends,1);
-await runPushWorker([batch('departure')],deps);assert.equal(sends,1,'repeat source revision deduplicates');
-await runPushWorker([batch('arrival')],deps);assert.equal(sends,2,'real reversion is a new transition');
-throws=true;const concurrent=batch('departure');concurrent.observations.push({identity:'second-source-id',revision:'arrival'});await runPushWorker([concurrent],deps);assert.equal(sends,3);assert.equal([...store.deliveries.values()].filter(d=>d.status==='uncertain').length,2,'all coalesced deliveries reserve before sending');
-await runPushWorker([],deps);assert.equal(sends,3,'uncertain attempts are not retried');
-throws=false;allowed=false;await runPushWorker([batch('new')],deps);assert.equal(sends,3,'revoked actor cannot receive');
-allowed=true;code=410;await runPushWorker([batch('expired')],deps);assert.equal(store.live,false,'expired subscription removed');
-store.setLocked(false);assert.deepEqual(await runPushWorker([],deps),{busy:true,attempted:0});
-assert.equal(pushEventId(batch('same'),{identity:'x',revision:'same'}),pushEventId(batch('same'),{identity:'x',revision:'same'}));
+// Pure transition assertions complement the real-PostgreSQL race suite.
+const batch:PushBatch={scope:'schedule:2026-10-18',category:'schedule',sequence:1,complete:true,observedAt:new Date().toISOString(),observations:[{identity:'A',revision:'one'}]};
+const first=pushTransitions(new Map(),batch)[0];
+const baseline=new Map([[first.identity,{revision_hash:first.revision,version:1,present:true}]]);
+assert.equal(pushTransitions(baseline,batch).length,0);
+assert.equal(pushTransitions(baseline,{...batch,observations:[],complete:false}).length,0);
+const removed=pushTransitions(baseline,{...batch,observations:[]})[0];assert.equal(removed.present,false);
+assert.equal(pushTransitions(new Map([[first.identity,{revision_hash:removed.revision,version:2,present:false}]]),batch)[0].version,3);
+assert.throws(()=>pushTransitions(baseline,{...batch,observations:[...batch.observations,...batch.observations]}));
+assert.equal(pushEventId(batch,batch.observations[0]),pushEventId(batch,batch.observations[0]));
 assert.notEqual(pushHash('one'),pushHash('two'));
-
-const ownerQueries:Array<{sql:string;args:unknown[]}>=[];
-const ownerPool={connect:async()=>({release:()=>{},query:async(sql:string,args:unknown[]=[])=>{ownerQueries.push({sql,args});return {rows:sql.startsWith('SELECT id,owner_id')?[{id:'other-device',owner_id:'other-owner'}]:[]};}})} as unknown as Pool;
-await assert.rejects(managePushDevice('owner',{action:'subscribe',subscription,categories:['fleet'],expiresAt:new Date()},ownerPool),/another account/);
+const publicConfig={...fixtureEnv,OPSCENTER_RUNTIME:'MISSION_CONTROL',OPSCENTER_WEB_PUSH_ENABLED:'1',OPSCENTER_WEB_PUSH_ORIGIN:'https://ops.example.test',OPSCENTER_WEB_PUSH_ACTIVATED_AT:new Date(Date.now()-1000).toISOString(),OPSCENTER_WEB_PUSH_PRIVATE_KEY:undefined};
+assert.equal(pushEnrollmentEnabled(publicConfig),true);assert.equal(pushEnabled(publicConfig),false);
+assert.equal(pushEnabled({...publicConfig,...fixtureEnv,OPSCENTER_PROCESS_ROLE:'push-dispatcher'}),true);
+const missingStorage=await pushDevicesGET(actor,{...api,list:async()=>{throw new Error('private details');}});
+assert.equal(missingStorage.status,200);assert.deepEqual(await missingStorage.json(),{enabled:false,publicKey:null,devices:[],storage:'unavailable'});
+const ownerQueries:string[]=[];
+const ownerPool={connect:async()=>({release:()=>{},query:async(sql:string)=>{ownerQueries.push(sql);return {rows:[]};}})} as unknown as Pool;
 await managePushDevice('owner',{action:'unsubscribe',deviceId:'other-device',expiresAt:new Date()},ownerPool);
-assert.ok(ownerQueries.some(q=>q.sql.includes('DELETE FROM') && q.sql.includes('owner_id=$2') && q.args[1]==='owner'));
+assert.ok(!ownerQueries.some(sql=>sql.includes('INSERT INTO opscenter_kernel.push_audit')),'non-owned revoke cannot create misleading audit');
 
 const handlers:Record<string,(event:unknown)=>void>={};let shown:unknown;let opened='';
 const sw=readFileSync('public/opscenter-push-sw.js','utf8');

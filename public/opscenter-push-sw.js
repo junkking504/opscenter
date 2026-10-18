@@ -3,7 +3,7 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification('OpsCenter', {
     body: 'Operational updates are available. Open OpsCenter to review.',
     icon: '/opscenter-app-192.png', badge: '/opscenter-app-192.png',
-    tag: 'opscenter-operational-updates', renotify: false,
+    tag: 'opscenter-operational-updates', renotify: true,
     data: { path: '/desktop?workspace=Command' }
   }));
 });

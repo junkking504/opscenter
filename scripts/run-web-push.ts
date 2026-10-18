@@ -1,9 +1,11 @@
+import { startPushDispatcher } from '../lib/web-push-dispatcher';
 import { pushEnabled } from '../lib/web-push-policy';
-import { readPushBatches } from '../lib/web-push-events';
-import { runPushWorker } from '../lib/web-push-worker';
-async function main() {
+async function main(){
   if(!pushEnabled()){console.log('Web Push disabled; no source, database or network access.');return;}
-  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  console.log(await runPushWorker(await readPushBatches(date)));
+  // Source producer integration remains blocked: overwritten snapshots do not
+  // retain every event. Fail closed rather than silently advertise live coverage.
+  throw new Error('canonical_producer_integration_required');
 }
-main().catch(()=>{console.error('Web Push stopped. Review private receipts; no automatic retry.');process.exitCode=1;});
+// Export the prepared listener for explicit in-process integration and local tests.
+export { startPushDispatcher };
+main().catch(error=>{console.error(error instanceof Error?error.message:'push_dispatcher_failed');process.exitCode=1;});

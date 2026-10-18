@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 type Device={id:string;categories:string[];expires_at:string};
 const categories=['schedule','krewe','fleet'];
 export function PushSettings() {
+  const [hidden,setHidden]=useState(true);
   const [enabled,setEnabled]=useState(false),[key,setKey]=useState(''),[devices,setDevices]=useState<Device[]>([]);
   const [selected,setSelected]=useState(categories),[message,setMessage]=useState('Checking notification availability…'),[busy,setBusy]=useState(false);
   const [registration,setRegistration]=useState<ServiceWorkerRegistration|null>(null);
   const [supported,setSupported]=useState(false),[currentId,setCurrentId]=useState('');
   async function reload() {
     const res=await fetch('/api/push/devices',{cache:'no-store'});const body=await res.json();
-    if(!res.ok)throw new Error(body.error || 'Notification settings unavailable.');
+    if(res.status===401 || res.status===403){setHidden(true);return false;}
+    if(!res.ok)throw new Error('Notification settings unavailable.');
+    setHidden(!body.enabled && !(body.devices || []).length);
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
     const current=(body.devices || []).find((device:Device)=>device.id===saved);if(current)setSelected(current.categories);
-    setMessage(body.enabled?'Choose categories for this device.':'Phone notifications are awaiting activation.');
+    const gaps=(body.health || []).filter((row:{code:string})=>row.code!=='recorded');
+    setMessage(body.enabled?(gaps.length?'Some notification sources are blocked; source coverage is incomplete.':!(body.health || []).length?'Notification source coverage is unknown.':'Choose categories for this device.'):'Phone notifications are awaiting activation.');
     return body.enabled as boolean;
   }
   useEffect(()=>{
@@ -60,6 +64,7 @@ export function PushSettings() {
       await reload();setMessage('Device disabled. Use Enable Notifications to subscribe again.');
     }catch(error){setMessage(error instanceof Error?error.message:'Could not disable device.');}finally{setBusy(false);}
   }
+  if(hidden)return null;
   return <section className="push-settings" aria-label="Phone notifications">
     <h3>Phone notifications</h3><p>For iPhone, add OpsCenter to your Home Screen and open that app (iOS 16.4 or later). Apple Web Push devices only.</p>
     <fieldset disabled={busy}><legend>Updates for this device</legend>{categories.map(category=><label key={category}><input type="checkbox" checked={selected.includes(category)} onChange={event=>setSelected(event.target.checked?[...selected,category]:selected.filter(c=>c!==category))}/>{category==='krewe'?'Krewe clock changes':category==='fleet'?'Fleet arrivals and departures':'Schedule changes'}</label>)}</fieldset>

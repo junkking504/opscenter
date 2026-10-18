@@ -1,165 +1,141 @@
-# Direct OpsCenter Web Push — prepared, disabled
+# Direct OpsCenter Web Push — local preparation, sending off
 
-This feature is prepared locally. It has not been deployed, activated, independently
-reviewed by Claude, or tested on a handset. Slack publishers, settings and history
-polling are unchanged. Push does not consume Slack history.
+The delivery core is prepared and tested locally. Canonical producer integration
+is **blocked**, so the command-line entry point fails closed even if deployment
+flags are accidentally supplied. No deployment, activation or handset test has
+occurred. Slack publishers, configuration and history polling are unchanged.
 
-## User experience
+## Event recording and dispatch
 
-Managers can open the bell panel, choose Schedule changes, Krewe clock changes,
-and/or Fleet arrivals and departures, then tap Enable Notifications. On iPhone,
-use iOS 16.4 or later, add OpsCenter to the Home Screen, open that app and explicitly
-grant permission. A normal browser tab is not the supported iPhone installation.
-The initial provider scope is Apple Web Push (Safari/iPhone), not Chrome/Firefox.
+`recordPushBatch` accepts retained, ordered canonical snapshots. Each scope has a
+contiguous durable sequence and batch digest: gaps, reordering or conflicting
+replays produce a sanitized health reason instead of silently losing transitions.
+The producer must retain each snapshot until its transaction commits. A snapshot
+watcher over a replaced file does not meet this contract.
 
-Permission and subscribe calls occur only after the tap. Registration alone does
-not request permission. Server storage is session-owner scoped; the server ignores
-client owner fields. The current device can save categories, renew, or disable;
-other devices belonging to the same account can be revoked. The opaque device ID
-in localStorage is a convenience, never an authorization credential. Server revoke
-is authoritative even if local browser cleanup fails. Subscription rotation requires
-a new explicit authenticated tap. A different account cannot take over an endpoint.
+One transaction records hashed observations, versioned events, per-device delivery
+intents and `pg_notify`. PostgreSQL delivers the wake only after commit. The first
+complete snapshot seeds a baseline. Identical snapshots do not notify; genuine
+A→B→A transitions, removals and reappearances get new versions. Missing rows produce
+tombstones only with explicit complete authoritative evidence. Moving off today's
+scope is a removal; reporting the destination requires its own source evidence.
+An incomplete initial baseline is blocked. No Slack-derived history is consumed.
 
-The lock screen receives only “Operational updates are available. Open OpsCenter
-to review.” No names, addresses, payroll, counts, category, event IDs or URLs are
-sent. A notification opens the fixed same-origin Command page and the normal login
-boundary applies. The service worker has no fetch handler, Cache API or authenticated
-fetch. It is public code with no secrets; its updates are served with no-store.
+`startPushDispatcher` uses a dedicated PostgreSQL connection for LISTEN and the
+single-instance advisory lock. It drains on commit notifications and at startup;
+a wake during a drain schedules another drain. It has no delivery polling timer.
+Connection loss disables further claims and closes the dedicated connection.
+An approved future supervisor can restart it, reestablish LISTEN and catch up from
+the durable queue. Leftover sending attempts become uncertain and are not resent.
 
-Ownership follows the existing authenticated account. Shared login users share that
-account's devices; this preparation does not introduce person-specific identities or
-change access. Devices expire at the earliest of browser expiry, the enrolling login's
-expiry and 30 days. Saving renews them. Signing out alone is not device revocation;
-use Disable before handing over a device, or revoke it from another logged-in device.
+Claims take a short transaction, lock device then delivery, recheck account role,
+category, revocation, expiry, activation and event age, and require UPDATE RETURNING
+to succeed. Network requests hold no database lock. Sends are sequential; every
+event/device has its own outcome. No batching or frequency window is imposed.
+A revoke committed after a claim cannot cancel that already-claimed attempt, but
+prevents future claims. Revocation is soft so receipts survive. No automatic
+retry is performed, including HTTP 429/5xx; a future retry policy must reauthorize
+each attempt. HTTP 201 means accepted by Apple, not delivered to the handset.
+404/410 revoke the subscription. Timeouts and unknown outcomes remain uncertain.
 
-## Canonical events and delivery
+The maximum event age at claim is configurable through dispatcher dependencies
+(default 15 minutes); stale events get an explicit skipped reason. This is an
+outage guard, not a batching delay. Device expiry is bounded by the enrolling
+session and 30 days. Changing categories cancels only pending excluded categories.
+Each supported event can alert separately, so a burst of N events can mean N
+notifications. Apple, Focus, browser and network policy still control presentation.
 
-`lib/web-push-events.ts` reads existing local canonical projections: schedule rows
-by appointment ID/date (status, truck, window, driver/navigation assignment), Krewe
-clock-in/out fields by stable member/day identity, and native LinxUp entry/exit IDs.
-It never invokes collectors, Slack, inference, or vendor reads. Missing/stale source
-batches are skipped, never interpreted as no changes or healthy coverage. Only the
-current Chicago operating date is scanned. Existing pollers and Slack remain untouched.
+Source failures are isolated and persisted as sanitized codes in push_health.
+Manager settings expose unknown or incomplete coverage without raw errors. Missing
+storage returns a disabled state without an error banner. Existing devices can be
+listed and revoked while sending is disabled. Operators do not render settings.
+Old events with terminal receipts expire after seven days, audits after 90 days.
+Source sequence/digest and observation hashes are retained to avoid ID reuse;
+a bounded archival/checkpoint policy is still required before live activation.
 
-The worker records per-source baselines and hashed observations in the existing
-PostgreSQL kernel, with sequence numbers for true state transitions, including
-reversions. Identical snapshots do not notify. The first usable snapshot of each
-category/day seeds a baseline without sending old history. A missing source gets
-its own baseline when it first becomes available. Changes before subscription or
-activation are not replayed. Changes occurring wholly between snapshots can be
-missed; inferred/bounded geofence exits are not pushed in this pilot. These limits
-must be accepted before activation. Payroll and photo/payment messages are out of
-this initial category scope.
+## Canonical integration blocker
 
-The worker uses a session advisory lock, event/device unique keys and commits a
-reservation before sending. Per-device locks serialize revoke/preferences with
-sending. One generic wakeup coalesces pending changes for a device in each run;
-at most 50 devices are attempted per invocation. Events older than 15 minutes are
-skipped; push TTL is 5 minutes. HTTP 201 means **provider accepted**, not handset
-receipt. 404/410 remove subscriptions. Other statuses are rejected; timeouts,
-process crashes and unknown outcomes become uncertain and are never blindly retried.
-This deliberately favors duplicate avoidance over guaranteed delivery. The notification
-tag also replaces prior generic notices. Apple/Focus/offline policy can delay or
-suppress presentation. Source and queue metadata retain 7 days; audit rows 90 days.
+The inspected collector code replaces the daily schedule snapshot using a temp
+file and rename (`collect_junkware_daily.py`), and daily metrics through
+`source_aware_metrics.atomic_json`. The schedule reader checks date and market
+coverage, but that is not a durable sequence of every persisted snapshot. Krewe
+reads daily metrics plus attendance/correction inputs; a single file watcher is
+not an authoritative completeness contract. Existing schedule-change publication
+state is coupled to Slack and must not be reused as the push event source.
 
-## Security and operational boundary
+A watcher can observe A then C after an intermediate persisted B is overwritten.
+It therefore cannot promise notifications for every recorded event. This branch
+removes the earlier snapshot-scanning runner and intentionally does not add a
+lossy watcher. Source producers must first supply a retained ordered journal or
+an atomic persistence/outbox hook. That source integration and its completeness
+contracts require a further scoped change; no collector or webhook was modified.
+Fleet history is retained in its own source format, but its persistence hook has
+not been connected to this core. All three categories remain unconnected.
 
-- Signed sessions plus existing manager/admin permission; strict configured Origin,
-  cross-site rejection, bounded 8 KiB request bodies, category/key validation,
-  maximum 10 devices per account and owner-filtered revoke/list/update queries.
-- Exact `https://web.push.apple.com` host and constrained provider token path only.
-  No arbitrary destination, configurable allowlist, credentials in URLs, ports,
-  query strings, redirects or proxy support. DNS is bounded to 3 seconds; only
-  validated public IPv4 addresses are pinned into the TLS request. TLS still verifies
-  Apple's host. IPv6-only resolution fails closed. Requests time out in 8 seconds.
-- Empty-body RFC 8030 pushes use RFC 8292 VAPID with Node's native P-256 signing.
-  No encryption library or extra runtime package is introduced because there is no
-  application payload. A cryptographic and Apple interoperability review is still
-  required before live use. VAPID keys were subsequently created under the separate
-  signing-setup approval; the private key remains in Keychain.
-- `MISSION_CONTROL`, `OPSCENTER_WEB_PUSH_ENABLED=1`, a valid activation timestamp,
-  VAPID public/private keys and a mailto subject are required. Every default invocation
-  exits before reading sources/database/network. Preview runtimes cannot send.
-- Subscription endpoints/keys remain private database data. They are not returned
-  by list APIs, printed in errors, included in Git or placed in audit events.
-  The database backup/access model must be checked during security review.
-- Registered local action names: `push.device.subscribe` and
-  `push.device.unsubscribe`; durable audit rows record the session owner/action/device.
-  No user-facing endpoint can invoke dispatch.
+The upstream detection cadence is separate from recorded-event dispatch latency.
+No live cadence measurements were taken, and no fixed ten-minute snapshot filter
+remains in the recorder. Actual source freshness contracts remain unresolved.
+This core cannot manufacture events that upstream never recorded or retained.
 
-## Existing runtime and cost assessment
+## Privacy, enrollment and transport
 
-The existing Mission Control Node runtime and local PostgreSQL kernel can host the
-store and worker. After separate approval, run `scripts/run-web-push.ts` once per
-minute using the existing local scheduling infrastructure. This is a proposed
-configuration, not an installed or running job. No new cloud server, paid provider,
-subscription, Apple Developer Program membership or inference is required. Apple
-states Web Push uses APNs without Developer Program membership. This design adds
-small local CPU/database/network work; actual server uptime, DNS egress, database
-migration privileges, deployment packaging and delivery latency remain unverified.
-It makes no guarantee of zero existing power/network costs or future provider policy.
-No recurring billable service is being introduced or enabled by this branch.
+Managers/admins choose schedule, krewe and fleet categories and explicitly tap
+Enable Notifications. On iPhone use an iOS 16.4+ Home Screen web app. Permission is
+never requested on mount. Devices belong to authenticated accounts; shared-login
+users consequently share device ownership. Signing out is not revocation.
 
-The initial build stopped at the existing spending gate for `web.push.apple.com`.
-On October 18 the user separately approved only that host and protected VAPID
-signing setup, with no added cost. Source and installed host inventories now include
-that exact host; both gates pass. The checker, other hosts, dependencies, protected
-pins and paid limits are unchanged. The protected installed pair was backed up and
-checksummed. The initial blocked result remains in the private evidence history.
+The lock screen says only that operational updates are available. The empty push
+body contains no customer information, event IDs, counts or locations. The fixed
+same-origin link opens `/desktop?workspace=Command` through normal authentication.
+The service worker has no fetch/cache handler, is served no-store and uses a
+shared tag with renotify. Actual Safari behavior is unverified.
 
-The private key is stored only in the user Keychain under account `opscenter`,
-service `com.opscenter.web-push-vapid-private-key`. The feature's existing secrets
-loader now includes it, pending code review/deployment. Mode-0600 `production.env`
-contains the public key, subject reusing the already-configured support contact,
-`https://ops.junk-king.app` origin, `OPSCENTER_WEB_PUSH_ENABLED=0`, and a blank
-activation timestamp. The original environment is backed up only in the protected
-configuration-backups directory. No services were restarted or scheduled. Do not
-load this signing key into preview. Future approved worker setup must use the
-production environment and reviewed secrets loader without logging their values.
+Enrollment checks use only public VAPID configuration. The private key loader
+requires enabled Mission Control plus `OPSCENTER_PROCESS_ROLE=push-dispatcher`;
+web/preview roles clear an inherited push private-key variable. No Keychain or
+protected environment change is part of this revision. The existing separately
+approved key and host setup remain unchanged and sending remains disabled.
 
-## Approval sequence — signing setup complete, activation still off
+The exact Apple host and token-path rule, public IPv4 DNS pinning, TLS hostname
+validation, redirect denial, DNS/request timeouts, owner checks, strict Origin,
+8 KiB input limit and ten-device cap remain in place. The real Q-prefixed endpoint
+shape remains unverified and fails closed. No arbitrary endpoint forwarding.
 
-1. Obtain independent Claude review of the exact commit, especially authentication,
-   shared-account ownership, endpoint/DNS/TLS controls, VAPID protocol, migration,
-   queue locking, retention and lost-device behavior. Record the review receipt.
-2. **Completed:** narrow Apple-host approval and installed inventory update. Both
-   spending gates pass with all other controls preserved. Full build and regression
-   results are recorded separately; they do not waive independent review.
-3. Approve production integration and deployment separately. Check current production
-   lineage; use the installed immutable-release controller. Apply migration
-   `0002_web_push.sql` to the intended existing kernel with backup/recovery validation.
-   Confirm public service-worker delivery and authenticated API/source behavior.
-4. **Completed:** separately approved VAPID generation/storage and public origin/subject
-   configuration. Private key is in Keychain; sending remains disabled. The loader
-   change must still be independently reviewed and deployed with the feature. It
-   retrieves the private key only for explicitly enabled Mission Control runtimes;
-   disabled and preview runtimes do not load the key.
-5. Approve activation: set the activation timestamp and enable flag on Mission Control,
-   and install the proposed once-per-minute worker scheduling. Verify source freshness,
-   baseline seeding, durable queue health and rate limits. Do not enable a preview sender.
-6. Obtain device-owner approval to install the Home Screen app, grant permission and
-   subscribe the iPhone; separately approve a real test notification. Verify lock-screen
-   presentation, tap-to-login, Focus/offline behavior, expiry/revoke and provider receipts.
-   Mock tests are not handset-delivery evidence.
+## Runtime and cost
 
-Recovery: disable the enable flag and stop only the approved push worker schedule;
-revoke affected devices. Preserve uncertain receipts and do not replay them blindly.
-A queued provider-accepted notice may still arrive within TTL after revocation.
-Do not roll back production or alter credentials without the corresponding approval.
+Uses installed Node and existing PostgreSQL. No new service, provider SDK,
+subscription or metered inference is introduced. Runtime CPU/storage capacity,
+dedicated session connection availability and deployment wiring still need review.
+This is a no-new-provider design, not evidence of unlimited free capacity.
 
-## Validation commands
+A future supervisor would run a long-lived dispatcher with KeepAlive, not a timed
+job. No runnable launchd file is supplied while producer integration is blocked.
+Deployment must supply the existing authenticated role resolution to the sender
+without exposing private signing material to web processes.
 
-`npm run verify:web-push` exercises policy, actual HTTP handlers with mocked sessions,
-owner-scoped persistence with query doubles, source baselines/transition deduplication,
-provider outcomes and service-worker events. `npm run verify:web-push:browser` uses a
-local synthetic Vite fixture and mocks every permission/subscription/API operation.
-The worker has not been tested against real PostgreSQL or Apple. Run both TypeScript
-projects, lint, geofence/crew-progress/desktop-presentation/Slack-diagnostics checks
-and desktop compilation. See the private task handoff for exact outcomes.
+## Verification and remaining approvals
 
-## Reference material
+`npm run verify:web-push` uses local mocks. `npm run verify:web-push:database`
+creates a private disposable PostgreSQL cluster with a Unix socket, TCP disabled,
+synthetic records and injected sender. It never uses runtime database URLs or
+Keychain. The cluster is stopped and deleted after testing.
+`npm run verify:web-push:browser` tests a synthetic local fixture with all
+permission, subscription and API calls mocked. These are not handset tests.
 
-- [WebKit: iPhone Web Push and explicit user interaction](https://webkit.org/blog/13878/)
-- [Apple: Sending Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers)
-- [RFC 8030 HTTP Push](https://www.rfc-editor.org/rfc/rfc8030)
-- [RFC 8292 VAPID](https://www.rfc-editor.org/rfc/rfc8292)
+Before any live use:
+1. Resolve canonical producer integration/completeness and metadata retention.
+2. Obtain independent review of the exact final commit and test evidence.
+3. Separately approve branch integration/PR/push as needed, deployment and database
+   migrations 0002 and 0003 through the installed deployment controller.
+4. Approve sender installation and activation with source baseline/recovery checks.
+5. Device owner installs the Home Screen app and grants opt-in permission.
+6. Separately approve one actual iPhone delivery/revoke/expiry test.
+
+Recovery after approved activation: disable sending, stop the dedicated dispatcher,
+revoke affected devices and preserve uncertain outcomes. An accepted notice can
+still appear within the five-minute TTL. Never blindly replay uncertain attempts.
+
+References: [WebKit](https://webkit.org/blog/13878/),
+[Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers),
+[RFC 8030](https://www.rfc-editor.org/rfc/rfc8030),
+[RFC 8292](https://www.rfc-editor.org/rfc/rfc8292).

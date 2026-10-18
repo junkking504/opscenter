@@ -12,9 +12,11 @@ try {
    Object.defineProperty(window,'PushManager',{value:class {}});
    Object.defineProperty(navigator,'serviceWorker',{value:{register:async()=>({active:{},pushManager:{getSubscription:async()=>null,subscribe:async()=>{window.pushCalls.subscribe++;return sub;}}})}});
  });
- let device=false;const writes=[];
+ let device=false,mode='enabled';const writes=[];
  await page.route('**/api/push/devices',async route=>{
-   const req=route.request();if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
+   const req=route.request();if(mode==='operator'){await route.fulfill({status:403,json:{error:'Manager access required.'}});return;}
+   if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
+   if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
    await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z'}]:[]}});
  });
  await page.goto(process.env.PUSH_PREVIEW_URL || 'http://127.0.0.1:3137/desktop-assets/tests/web-push.html');
@@ -29,5 +31,7 @@ try {
  assert.deepEqual((await page.evaluate(()=>window.pushCalls)),{permission:1,subscribe:1,gesture:true});assert.deepEqual(writes[0].categories,['krewe','fleet']);
  await page.getByRole('button',{name:'Disable device 1'}).click();await page.getByText('Device disabled.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
+ mode='operator';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
+ mode='disabled';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
  assert.deepEqual(errors,[]);console.log('Browser fixture passed: collapsed mobile/desktop previews, no overflow, tap-only mocked permission, category save and revoke. No real subscription or notification.');
 } finally {await browser.close();}

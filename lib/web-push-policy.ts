@@ -32,14 +32,19 @@ export function pushSubscription(value: unknown) {
 export function validPushOrigin(value: string|undefined): boolean {
   try {const url=new URL(value || '');return url.protocol==='https:' && value===url.origin && !url.username && !url.password;} catch {return false;}
 }
-export function pushEnabled(env: Readonly<Record<string,string|undefined>> = process.env): boolean {
+export function pushEnrollmentEnabled(env: Readonly<Record<string,string|undefined>> = process.env): boolean {
   return validPushOrigin(env.OPSCENTER_WEB_PUSH_ORIGIN) && env.OPSCENTER_RUNTIME === 'MISSION_CONTROL' && env.OPSCENTER_WEB_PUSH_ENABLED === '1'
     && !!env.OPSCENTER_WEB_PUSH_ACTIVATED_AT && Number.isFinite(Date.parse(env.OPSCENTER_WEB_PUSH_ACTIVATED_AT))
     && Date.parse(env.OPSCENTER_WEB_PUSH_ACTIVATED_AT) <= Date.now()
     && /^[A-Za-z0-9_-]{87}$/.test(env.OPSCENTER_WEB_PUSH_PUBLIC_KEY || '')
-    && /^[A-Za-z0-9_-]{43}$/.test(env.OPSCENTER_WEB_PUSH_PRIVATE_KEY || '')
     && /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.OPSCENTER_WEB_PUSH_SUBJECT || '');
 }
 export function pushOutcome(status: number): 'accepted' | 'expired' | 'rejected' {
   return status === 201 ? 'accepted' : [404,410].includes(status) ? 'expired' : 'rejected';
+}
+
+/** Signing capability belongs only to the dispatcher process. */
+export function pushEnabled(env: Readonly<Record<string,string|undefined>> = process.env): boolean {
+  return pushEnrollmentEnabled(env) && env.OPSCENTER_PROCESS_ROLE === 'push-dispatcher'
+    && /^[A-Za-z0-9_-]{43}$/.test(env.OPSCENTER_WEB_PUSH_PRIVATE_KEY || '');
 }

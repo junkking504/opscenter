@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { PushJournalHealth } from '../../lib/web-push-journal-health';
 import { PushJournalStatus } from './push-journal-status';
-type Device={id:string;categories:string[];expires_at:string};
+type Device={id:string;categories:string[];expires_at:string;fingerprint:string;approved:boolean};
+type Trial={status:string;deadline:string|null;attemptsUsed:number;maxAttempts:number};
 const categories=['schedule','krewe','fleet'];
 export function PushSettings() {
   const [hidden,setHidden]=useState(true);
+  const [trial,setTrial]=useState<Trial|null>(null);
   const [journal,setJournal]=useState<PushJournalHealth|null>(null);
   const [enabled,setEnabled]=useState(false),[key,setKey]=useState(''),[devices,setDevices]=useState<Device[]>([]);
   const [selected,setSelected]=useState(categories),[message,setMessage]=useState('Checking notification availability…'),[busy,setBusy]=useState(false);
@@ -15,7 +17,7 @@ export function PushSettings() {
     if(res.status===401 || res.status===403){setHidden(true);return false;}
     if(!res.ok)throw new Error('Notification settings unavailable.');
     setHidden(!body.enabled && !(body.devices || []).length && !body.journal?.configured);
-    setJournal(body.journal || null);
+    setJournal(body.journal || null);setTrial(body.trial || null);
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
     const current=(body.devices || []).find((device:Device)=>device.id===saved);if(current)setSelected(current.categories);
@@ -59,7 +61,7 @@ export function PushSettings() {
       const res=await fetch('/api/push/devices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',subscription:subscription.toJSON(),categories:selected})});
       if(!res.ok)throw new Error('Could not save this device. Refresh settings and retry.');
       const saved=await res.json();localStorage.setItem('opscenter-push-device',saved.deviceId);
-      await reload();setMessage('This device is enabled. No test notification was sent.');
+      await reload();setMessage('Device saved. It must be explicitly verified and approved before the trial can send. No test notification was sent.');
     } catch(error) {if(created)await created.unsubscribe().catch(()=>false);setMessage(error instanceof Error?error.message:'Could not enable notifications.');}
     finally {setBusy(false);}
   }
@@ -70,7 +72,7 @@ export function PushSettings() {
       const res=await fetch('/api/push/devices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unsubscribe',deviceId:device.id})});
       if(!res.ok)throw new Error('Could not remove device. Refresh and retry.');
       if(device.id===currentId){localStorage.removeItem('opscenter-push-device');await (await registration?.pushManager.getSubscription())?.unsubscribe();}
-      await reload();setMessage('Device disabled. Use Enable Notifications to subscribe again.');
+      await reload();setMessage('Device disabled. Enabling again requires explicit device approval.');
     }catch(error){setMessage(error instanceof Error?error.message:'Could not disable device.');}finally{setBusy(false);}
   }
   if(hidden)return null;
@@ -79,9 +81,10 @@ export function PushSettings() {
     <fieldset disabled={busy}><legend>Updates for this device</legend>{categories.map(category=><label key={category}><input type="checkbox" checked={selected.includes(category)} onChange={event=>setSelected(event.target.checked?[...selected,category]:selected.filter(c=>c!==category))}/>{category==='krewe'?'Krewe clock changes':category==='fleet'?'Fleet arrivals and departures':'Schedule changes'}</label>)}</fieldset>
     <button type="button" disabled={busy || !enabled || !supported || !registration || !selected.length} onClick={()=>void save()}>Enable Notifications / Save Categories</button>
     <p role="status">{message}{!supported?' This browser cannot enable Web Push; open the Home Screen app.':''}</p>
-    {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · expires {new Date(device.expires_at).toLocaleDateString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button></div>)}
+    {trial&&<p>Trial: {trial.status.replaceAll('_',' ')} · {trial.attemptsUsed}/{trial.maxAttempts} send attempts used{trial.deadline?` · ends ${new Date(trial.deadline).toLocaleString()}`:' · clock has not started'}</p>}
+    {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · {device.approved?'Device approved':'Awaiting device approval'} · expires {new Date(device.expires_at).toLocaleString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button>{device.id===currentId&&<div><small>Device verification ID: {device.id}<br/>Fingerprint: <code style={{overflowWrap:'anywhere'}}>{device.fingerprint}</code></small></div>}</div>)}
     <PushJournalStatus health={journal}/>
     <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>
-    <small>Lock screen shows only that updates are available. Devices expire within 30 days or when the current login expires. Saving renews this device.</small>
+    <small>Lock screen shows only that updates are available. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.</small>
   </section>;
 }

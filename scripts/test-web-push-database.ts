@@ -1,3 +1,4 @@
+import { controlPushTrial, trialFingerprint } from '../lib/web-push-trial';
 import { archivePushScopes,pushRetirementCutoff,createPushMaintenance } from '../lib/web-push-archive';
 import { createHash } from 'node:crypto';
 import { startPushJournal } from '../lib/web-push-journal';
@@ -10,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { Pool, Client } from 'pg';
 import { recordPushBatch, drainPushOutbox, runPushWorker, type PushWorkerDependencies, PUSH_LOCK } from '../lib/web-push-worker';
 import { startPushDispatcher } from '../lib/web-push-dispatcher';
-import { managePushDevice, readPushHealth } from '../lib/web-push-store';
+import { managePushDevice as rawManagePushDevice, readPushHealth } from '../lib/web-push-store';
 import type { PushBatch } from '../lib/web-push-events';
 
 // Installed local PostgreSQL only. Private Unix socket; TCP listening disabled.
@@ -30,8 +31,22 @@ async function main(){
  pool=new Pool(config);const p=pool;
  await p.query('CREATE SCHEMA opscenter_kernel');
  for(const name of fs.readdirSync('lib/platform/persistence/migrations').filter(n=>/^[0-9]+.*sql$/.test(n)).sort())await p.query(fs.readFileSync(path.join('lib/platform/persistence/migrations',name),'utf8'));
+ // Core pipeline fixtures below span many independent scenarios. Each mocked
+ // transport ends its isolated budget fixture; the dedicated trial database suite
+ // exercises the real lifetime cap without resets. No production bypass exists.
+ await controlPushTrial({action:'prepare',owner:'owner'},'local core fixture',p);
+ const managePushDevice:typeof rawManagePushDevice=async(owner,input,pool)=>{
+   const id=await rawManagePushDevice(owner,input,pool);
+   if(input.action==='subscribe'){
+     await controlPushTrial({action:'approve',owner,deviceId:id,fingerprint:trialFingerprint(input.subscription!),expiresInMinutes:30},'local core device fixture',p);
+     const t=(await p.query('SELECT started_at FROM opscenter_kernel.push_trial')).rows[0];
+     if(!t.started_at)await controlPushTrial({action:'start'},'local core start fixture',p);
+     await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '20 minutes',deadline=statement_timestamp()+interval '10 minutes'");
+   }
+   return id;
+ };
  let sends=0;let code=201;let sendHook:(()=>Promise<void>)|undefined;
- const d:PushWorkerDependencies={pool:p,enabled:()=>true,send:async()=>{sends++;await sendHook?.();return code;},ownerAllowed:o=>o==='owner',activatedAt:new Date(Date.now()-60000).toISOString()};
+ const d:PushWorkerDependencies={pool:p,enabled:()=>true,send:async()=>{sends++;await p.query('DELETE FROM opscenter_kernel.push_trial_attempts');await p.query('UPDATE opscenter_kernel.push_trial SET attempts_used=0');await sendHook?.();return code;},ownerAllowed:o=>o==='owner',activatedAt:new Date(Date.now()-60000).toISOString()};
  const subscription={endpoint:'https://web.push.apple.com/Q'+'x'.repeat(64),keys:{p256dh:'synthetic',auth:'synthetic'}};
  const device=await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '1 minute'");
@@ -222,16 +237,16 @@ with (Path(root)/'writer.lock').open('a') as holder:
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '10 days'");
  await managePushDevice('owner',{action:'subscribe',subscription,categories:['fleet'],expiresAt:new Date(Date.now()+60000)},p);
  const catchup={...d,activatedAt:new Date(Date.now()-10*86400000).toISOString()};
- await recordPushBatch(retained,catchup);const beforeCatchup=sends;await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+1,'eight-day retained publication delivered with mocked sender');
+ await recordPushBatch(retained,catchup);const beforeCatchup=sends;await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup,'pretrial retained publication recorded but never delivered');
  const eventCount=Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count);
  await recordPushBatch({...retained,sequence:2,observations:[]},catchup);
  await recordPushBatch({...retained,sequence:3},catchup);
  assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count),eventCount,'fleet missing/reappearance is not a supported event');
  // Explicit gap reset is silent and durable; subsequent transition delivers once.
  const reset={...retained,sequence:1,generation:'b'.repeat(32),reset:true,baseline:true,gapId:'c'.repeat(64),recordedAt:new Date(Date.parse(oldStamp)+1000).toISOString(),observations:[{identity:'retained-native',revision:'unknown-gap-end'}]};
- await recordPushBatch(reset,catchup);await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+1);
+ await recordPushBatch(reset,catchup);await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup);
  await recordPushBatch({...reset,sequence:2,reset:false,baseline:false,observations:[{identity:'retained-native',revision:'departure'}]},catchup);
- await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup+2);
+ await drainPushOutbox(catchup);assert.equal(sends,beforeCatchup);
  await assert.rejects(recordPushBatch({...retained,reset:true,baseline:true,gapId:'d'.repeat(64)},catchup),/reset_reordered/);
  // Approved fourteen-day scope retirement: DB and actual Python helper must
  // agree. Tests use synthetic rows/private journal only, never production data.

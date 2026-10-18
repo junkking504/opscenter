@@ -20,7 +20,21 @@ assert.equal(pushSubscription(subscription).endpoint,endpoint);assert.throws(()=
 assert.equal(validPushOrigin('https://ops.example.test'),true);assert.equal(validPushOrigin('http://ops.example.test'),false);assert.equal(validPushOrigin('https://ops.example.test/path'),false);
 assert.equal(pushEnabled({}),false);assert.equal(pushEnabled({OPSCENTER_WEB_PUSH_ENABLED:'1',OPSCENTER_RUNTIME:'MAC_MINI_PREVIEW'}),false);
 assert.deepEqual([201,404,410,302,429,500].map(pushOutcome),['accepted','expired','expired','rejected','rejected','rejected']);
-process.env.OPSCENTER_WEB_PUSH_ENABLED='0';await assert.rejects(sendAppleWakeup(endpoint),/disabled/);assert.deepEqual(await runPushWorker([]),{disabled:true,attempted:0});
+process.env.OPSCENTER_WEB_PUSH_ENABLED='0';await assert.rejects(sendAppleWakeup(endpoint,async()=>false,0),/disabled/);assert.deepEqual(await runPushWorker([]),{disabled:true,attempted:0});
+
+// Transport rechecks the durable authorization after DNS and before request.
+// Every adapter is synthetic; no DNS, signing secret or network is used.
+let transportTime=1000,transportRequests=0,transportChecks=0;
+const transportIO={enabled:()=>true,resolve:async()=>[{address:'17.0.0.1',family:4}],authorization:()=> 'synthetic',now:()=>transportTime,request:(()=>{transportRequests++;throw new Error('unexpected network');}) as typeof import('node:https').request};
+await assert.rejects(sendAppleWakeup(endpoint,async()=>{transportChecks++;return false;},2000,transportIO),/authorization expired/);
+assert.equal(transportChecks,1);assert.equal(transportRequests,0);
+await assert.rejects(sendAppleWakeup(endpoint,async()=>true,2000,{...transportIO,resolve:async()=>{transportTime=2000;return [{address:'17.0.0.1',family:4}];}}),/authorization expired/);
+assert.equal(transportRequests,0,'deadline consumed by DNS prevents request');
+transportTime=1000;
+await assert.rejects(sendAppleWakeup(endpoint,async()=>{transportTime=2000;return true;},2000,transportIO),/deadline reached/);
+assert.equal(transportRequests,0,'deadline consumed by durable authorization prevents request');
+await assert.rejects(sendAppleWakeup(endpoint,async()=>true,3000,{...transportIO,resolve:async()=>[{address:'127.0.0.1',family:4}]}),/DNS rejected/);
+assert.equal(transportRequests,0);
 
 // Public mathematical P-256 test fixture (scalar 1), NOT deployable credentials.
 // No secret generation, environment configuration or provider request occurs.
@@ -37,7 +51,7 @@ assert.ok(verify('sha256',Buffer.from(parts.slice(0,2).join('.')),{key:publicKey
 // Exercise the actual HTTP handler with verified-session and persistence doubles.
 const actor={email:'owner',role:'manager' as const,expiresAt:new Date(Date.now()+86400000)};
 let saves=0;let activation=false;
-const api={enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
+const api={trial:async()=>({status:'awaiting_device',ownerEligible:true,canRequest:true,deadline:null,attemptsUsed:0,maxAttempts:3,durationMinutes:30}),enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
 const request=(body:unknown,origin='https://ops.example.test')=>new Request('https://ops.example.test/api/push/devices',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
 assert.equal((await pushDevicesGET(null,api)).status,401);
 assert.equal((await pushDevicesGET({...actor,role:'operator'},api)).status,403);
@@ -69,7 +83,7 @@ assert.equal(pushEnabled({...publicConfig,...fixtureEnv,OPSCENTER_PROCESS_ROLE:'
 const missingStorage=await pushDevicesGET(actor,{...api,list:async()=>{throw new Error('private details');}});
 assert.equal(missingStorage.status,200);assert.deepEqual(await missingStorage.json(),{enabled:false,publicKey:null,devices:[],storage:'unavailable'});
 const ownerQueries:string[]=[];
-const ownerPool={connect:async()=>({release:()=>{},query:async(sql:string)=>{ownerQueries.push(sql);return {rows:[]};}})} as unknown as Pool;
+const ownerPool={connect:async()=>({release:()=>{},query:async(sql:string)=>{ownerQueries.push(sql);return {rows:sql.includes('push_trial WHERE')?[{owner_id:null}]:sql.includes('clock_timestamp() AS now')?[{now:new Date()}]:[]};}})} as unknown as Pool;
 await managePushDevice('owner',{action:'unsubscribe',deviceId:'other-device',expiresAt:new Date()},ownerPool);
 assert.ok(!ownerQueries.some(sql=>sql.includes('INSERT INTO opscenter_kernel.push_audit')),'non-owned revoke cannot create misleading audit');
 

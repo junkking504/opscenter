@@ -1,3 +1,4 @@
+import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
 import { pushRetirementCutoff } from './web-push-archive';
 import { retainPushMetadata } from './web-push-retention';
 import { randomUUID } from 'node:crypto';
@@ -8,7 +9,7 @@ import { pushTransitions, type PushBatch } from './web-push-events';
 import { sendAppleWakeup } from './web-push-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { opsRoleCan } from './ops-roles';
-export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
+export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
   return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleWakeup,ownerAllowed:owner=>allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
@@ -84,8 +85,10 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
         await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope]);
         if(!batch.baseline && !batch.silentIdentities?.some(identity=>pushHash(identity)===change.identity) && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
-          const devices=await client.query('SELECT id,owner_id FROM opscenter_kernel.push_devices WHERE $1=ANY(categories) AND revoked_at IS NULL AND expires_at>now() AND created_at<=$2',[batch.category,batch.recordedAt||batch.observedAt]);
-          for(const device of devices.rows)if(d.ownerAllowed(device.owner_id))await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
+          const devices=await client.query(`SELECT d.id,d.owner_id,d.subscription_json,t.subscription_hash FROM opscenter_kernel.push_devices d JOIN opscenter_kernel.push_trial t ON t.singleton=true AND t.device_id=d.id AND t.owner_id=d.owner_id
+            WHERE $1=ANY(d.categories) AND d.revoked_at IS NULL AND d.expires_at>clock_timestamp() AND d.created_at<=$2
+              AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.stopped_at IS NULL AND t.attempts_used<3`,[batch.category,batch.recordedAt||batch.observedAt]);
+          for(const device of devices.rows)if(d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
       await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete,generation,source_recorded_at) VALUES($1,$2,$3,true,$4,$5)
@@ -114,33 +117,43 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
       if(!row.source_scope||row.source_scope.split(':')[1]<pushRetirementCutoff())retirementEligibilityChanged=true;
       if(!d.enabled())return {attempted,retirementEligibilityChanged};
       const client=await d.pool.connect();
-      let claim:{endpoint:string;token:string}|null=null;
+      let claim:{endpoint:string;token:string;deadline:number;owner:string}|null=null;
       try {
         claim=await transaction(client,async()=>{
+          const trial=await lockPushTrial(client);
           const device=(await client.query('SELECT * FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[row.device_id])).rows[0];
           const delivery=(await client.query(`SELECT q.status,e.category,e.occurred_at,e.source_recorded_at FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
             WHERE q.event_id=$1 AND q.device_id=$2 FOR UPDATE OF q`,[row.event_id,row.device_id])).rows[0];
           if(!delivery || delivery.status!=='pending')return null;
+          trial.now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
           const age=Date.now()-new Date(delivery.source_recorded_at||delivery.occurred_at).getTime();
-          const reason=!d.enabled()?'disabled':!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.source_recorded_at||delivery.occurred_at).getTime()<Date.parse(d.activatedAt)?'before_activation':null;
+          const reason=!d.enabled()?'disabled':trialReason(trial,device)||(!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.source_recorded_at||delivery.occurred_at).getTime()<Math.max(Date.parse(d.activatedAt),trial.started_at?.getTime()||Infinity)?'before_activation':null);
           if(reason){await client.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason=$3 WHERE event_id=$1 AND device_id=$2 AND status='pending'",[row.event_id,row.device_id,reason]);return null;}
           const token=randomUUID();
           const saved=await client.query("UPDATE opscenter_kernel.push_deliveries SET status='sending',claim_token=$3,attempted_at=now() WHERE event_id=$1 AND device_id=$2 AND status='pending' RETURNING event_id",[row.event_id,row.device_id,token]);
-          return saved.rows.length===1?{endpoint:device.subscription_json.endpoint as string,token}:null;
+          if(saved.rows.length!==1)return null;
+          await client.query('INSERT INTO opscenter_kernel.push_trial_attempts(ordinal,claim_token,event_id,device_id) VALUES($1,$2,$3,$4)',[trial.attempts_used+1,token,row.event_id,row.device_id]);
+          await client.query('UPDATE opscenter_kernel.push_trial SET attempts_used=attempts_used+1 WHERE singleton=true');
+          return {endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min(trial.deadline!.getTime(),device.expires_at.getTime())};
         });
       } finally {client.release();}
       if(!claim)continue;
       // Deliberately no automatic retries, including definitive rejection: a
       // future retry policy must reauthorize each attempt after revocation.
       let status='skipped',reason='disabled_before_send';
-      if(d.enabled()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint));reason=status;}catch {status='uncertain';reason='transport_unknown';}}
+      const reserved=claim;
+      const authorize=async()=>d.enabled()&&d.ownerAllowed(reserved.owner)&&Date.now()<reserved.deadline&&await authorizePushAttempt(d.pool,reserved.token,reserved.endpoint);
+      if(await authorize()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint,authorize,claim.deadline));reason=status;}catch {status='uncertain';reason='transport_unknown';}}
+      else reason='trial_or_device_changed_before_send';
       const receipt=await d.pool.connect();
       try {await transaction(receipt,async()=>{
+        await lockPushTrial(receipt);
         await receipt.query('SELECT id FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[row.device_id]);
         await receipt.query("UPDATE opscenter_kernel.push_deliveries SET status=$4,reason=$5 WHERE event_id=$1 AND device_id=$2 AND claim_token=$3 AND status='sending'",[row.event_id,row.device_id,claim.token,status,reason]);
         if(status==='expired'){
           retirementEligibilityChanged=true;
           await receipt.query('UPDATE opscenter_kernel.push_devices SET revoked_at=now() WHERE id=$1',[row.device_id]);
+          await receipt.query('UPDATE opscenter_kernel.push_trial SET device_id=NULL,subscription_hash=NULL,approved_at=NULL WHERE singleton=true AND device_id=$1',[row.device_id]);
           await receipt.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason='expired' WHERE device_id=$1 AND status='pending'",[row.device_id]);
         }
       });}finally{receipt.release();}

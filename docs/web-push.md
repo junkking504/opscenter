@@ -28,22 +28,75 @@ Connection loss disables further claims and closes the dedicated connection.
 An approved future supervisor can restart it, reestablish LISTEN and catch up from
 the durable queue. Leftover sending attempts become uncertain and are not resent.
 
-Claims take a short transaction, lock device then delivery, recheck account role,
+Claims take a short transaction, lock trial then device then delivery, recheck account role,
 category, revocation, expiry, activation and event age, and require UPDATE RETURNING
 to succeed. Network requests hold no database lock. Sends are sequential; every
 event/device has its own outcome. No batching or frequency window is imposed.
-A revoke committed after a claim cannot cancel that already-claimed attempt, but
-prevents future claims. Revocation is soft so receipts survive. No automatic
-retry is performed, including HTTP 429/5xx; a future retry policy must reauthorize
-each attempt. HTTP 201 means accepted by Apple, not delivered to the handset.
-404/410 revoke the subscription. Timeouts and unknown outcomes remain uncertain.
+A committed reservation consumes one of the three lifetime trial slots, including
+crashes before network I/O, errors and uncertain outcomes. Revocation, approval,
+role, category and deadlines are rechecked immediately before transport and after
+DNS resolution. A network request already initiated may finish after revocation;
+there is no recall guarantee. No retry is performed, including HTTP 429/5xx.
+HTTP 201 means accepted by Apple, not delivered to the handset. 404/410 revoke the
+subscription and clear its approval. Timeouts and unknown outcomes stay uncertain.
 
-There is no automatic age cutoff for retained, eligible deliveries. Restart catches
-up the queue, subject to current role, category, revocation, expiry and activation
-checks. Device expiry is bounded by the enrolling session and 30 days. Changing
-categories cancels only pending excluded categories. Each supported event can alert
-separately; a burst of N events can mean N notifications. Apple/Focus/network
-policy still control presentation. Unknown outcomes are never blindly retried.
+## Device-specific trial gate
+
+Migration 0008 creates an inert singleton with no owner, approved device, start,
+deadline or consumed attempts. Deployment never starts the clock. There is no
+HTTP approval, start, reset or account-wide bypass. This revision supports one
+bounded trial, not unrestricted ongoing notifications.
+
+A separately authorized local operator prepares the exact authenticated owner
+identity. The user's explicit permission tap submits a pending candidate. First
+enrollment is never approval, including concurrent phones using the same login.
+The operator must verify the intended phone's displayed device ID and full
+SHA-256 fingerprint (fixed ordered endpoint, p256dh and auth fields) before
+explicitly approving that candidate. Other candidates cannot fan out or send.
+After approval, a competing device or key rotation cannot replace it through the
+web API. Shared-login users can still revoke devices; that can deny service but
+cannot grant another device approval. Losing the intended browser subscription
+requires revocation, a new candidate and separate verification/approval.
+
+Approval permits a device expiry of 1–30 minutes, additionally bounded by the
+login/subscription expiry. Saving categories cannot extend approval. Trial start
+is a separate explicit local operation: its immutable deadline is exactly 30
+minutes later. Starting does not extend a shorter device expiry. Explicit device
+replacement preserves both clock and attempt budget; expired, exhausted or
+stopped trials cannot restart. There is deliberately no reset command.
+
+Fan-out and claims require the approved device and subscription fingerprint.
+Only canonical facts recorded after trial start are eligible; pretrial retained
+history is still recorded but never sent by this trial. Claims reserve a unique
+ordinal 1–3 in the same transaction as the sending status, before network I/O.
+The reservation ledger survives event/device retention. Concurrent drains cannot
+overspend; process restart never refunds a reservation or retries an uncertain
+attempt. Deadline checks use the database clock after lock waits. Transport checks
+again after DNS; request timeout and provider TTL are bounded by remaining trial
+and device lifetime (maximum 8 seconds and 5 minutes respectively). Apple may
+already have accepted or displayed a notice when revocation/expiry occurs.
+
+Local controls are in `scripts/control-web-push-trial.ts`, using explicitly loaded
+Mission Control production configuration without a signing secret. `status
+--owner <verified-identity>` is read-only. Mutations require `--apply` and
+`--approval-reference <approved-action-record>`, plus:
+
+- `prepare --owner <verified-identity>` only after audience preparation approval.
+- `approve --owner <verified-identity> --device <verified-id> --fingerprint
+  <verified-full-fingerprint> --expires-minutes <1-to-30>` only after that device's
+  identity is confirmed and separately approved.
+- `start` only after explicit live-trial approval and coordinated source/consumer
+  readiness. This is the only action that starts the clock.
+- `revoke --owner <verified-identity> --device <verified-id>` revokes the exact
+  approved/candidate device even after expiry; it preserves the trial clock and budget.
+- `stop` records a permanent stop and skips pending work. The UI's Disable device
+  revokes that subscription; expiry and rejection also block later sends.
+
+Do not run these mutations during a disabled deployment. A future approved trial
+must coordinate capture and dispatcher supervision and a pause at the end;
+expiration stops sending but does not itself uninstall hooks or stop capture.
+The API/UI expose pending approval, fingerprint, deadline and consumed attempts.
+No client refresh or enable tap approves a device or starts/restarts the trial.
 
 ## Canonical capture, failure isolation and recovery
 
@@ -295,7 +348,7 @@ Before any live use:
    approve the explicit coverage limits before activation.
 2. Obtain independent review of the exact final commit and test evidence.
 3. Separately approve branch integration/PR/push as needed, deployment and database
-   migrations 0002–0007 through the installed deployment controller.
+   migrations 0002–0008 through the installed deployment controller.
 4. Approve coordinated collector-hook installation, private journal setup,
    supervisor installation, public/private configuration and sender activation with
    source baseline/recovery checks. No credentials were created by this revision.
@@ -307,7 +360,7 @@ Proposed acceptance sequence (all live steps still require approval):
 1. Review the exact final revision, then separately authorize any PR/push/merge.
    Verify the current production ancestry before integration.
 2. Approve disabled staging through the installed controller, including migrations
-   0002–0007. If source hooks are included, separately approve their installation
+   0002–0008. If source hooks are included, separately approve their installation
    and install the reviewed helper first. Keep capture, enrollment and sending off.
    Verify deployed revision, service health and authenticated manager status as
    separate checks. Missing journal measurements must remain unknown.
@@ -321,19 +374,19 @@ Proposed acceptance sequence (all live steps still require approval):
    the enrolled audience to the one owner device before any event can notify.
 5. With separate enrollment permission, Eugene installs/opens the Home Screen app,
    signs in, selects categories, taps Enable Notifications and grants OS permission.
-   A browser mock is not evidence of the actual Apple endpoint or handset behavior.
+   Verify the displayed device ID and fingerprint, then separately approve that exact candidate with a short expiry. Explicitly start the trial only after readiness and live-trial approval. A browser mock is not evidence of the actual Apple endpoint or handset behavior.
 6. With explicit real-notification/test approval, perform one controlled canonical
    event delivery, inspect minimal lock-screen content and safe deep link, then
    test revoke and expiry with no blind replay of uncertain attempts. Approve any
    additional enrollment/delivery needed for those acceptance cases explicitly.
-7. Monitor the first day: lock_busy, pending spool, uncertain/quarantine admission
+7. Monitor throughout the 30-minute trial: lock_busy, pending spool, uncertain/quarantine admission
    headroom, last-scan unscopable count/age, CPU, disk and DB connections. Stop on
    unexplained gaps, unknown measurements or unsafe resource pressure. Preapprove
    the coordinated journal pause plus sending-disable rollback; retain evidence.
 
 Recovery after approved activation: follow the coordinated capture/sender pause
 procedure above, revoke affected devices when authorized and preserve uncertain outcomes. An accepted notice can
-still appear within the five-minute TTL. Never blindly replay uncertain attempts.
+still appear within the bounded provider TTL. Never blindly replay uncertain attempts.
 
 References: [WebKit](https://webkit.org/blog/13878/),
 [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers),

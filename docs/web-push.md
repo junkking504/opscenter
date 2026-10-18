@@ -238,6 +238,37 @@ validation, redirect denial, DNS/request timeouts, owner checks, strict Origin,
 8 KiB input limit and ten-device cap remain in place. The real Q-prefixed endpoint
 shape remains unverified and fails closed. No arbitrary endpoint forwarding.
 
+## Manager visibility of journal headroom
+
+The existing manager-only, private/no-store `GET /api/push/devices` response now
+includes `journal` health. The settings panel shows it while enrollment is disabled
+when a journal path is configured. The path is server configuration only; neither
+request input nor the response contains filesystem paths, fact contents or secrets.
+A database outage does not hide independently available queue measurements.
+
+Three admission groups match the producer's 10,000 files / 128 MiB guards:
+ready plus quarantine; pending JSON plus prepared markers plus pending quarantine;
+and uncertain evidence. The reader sums file metadata, reports used and remaining
+files/bytes, clamps remaining capacity to zero on overflow, and labels the sample
+time. It excludes acknowledged archive and temporary files, just as admission
+does. This is admission headroom, not disk free space or a hard atomic quota.
+Concurrent admissions can exceed the guards. CPU, storage, connections and lock
+headroom still require a monitored runtime trial; synthetic tests do not measure them.
+
+`unscopableRetained` is explicitly the count **at the last retention scan**, with
+that audit file's modification timestamp, not a fresh count. The current count
+may differ; even an old scan's zero must not be read as current health. Missing,
+malformed, oversized, future-dated or unreadable audits display unknown. A missing
+journal does not become a healthy empty queue. Symlinks and non-regular entries
+are rejected; changing directories or excessive directory scans give unknown
+headroom rather than misleading partial totals. No evidence payloads are read.
+
+Sampling happens on existing settings loads/saves and an explicit **Refresh
+status** button, with no background polling, new timer, retention run or producer
+invocation. Each group visits at most 20,002 directory entries; audit reads are
+bounded to 64 KiB. No cleanup or disposal is performed by the status reader.
+Unscopable disposal remains a separate, operator-reviewed decision if it accumulates.
+
 ## Runtime and cost
 
 Uses installed Node and existing PostgreSQL. No new service, provider SDK,
@@ -270,6 +301,35 @@ Before any live use:
    source baseline/recovery checks. No credentials were created by this revision.
 5. Device owner installs the Home Screen app and grants opt-in permission.
 6. Separately approve one actual iPhone delivery/revoke/expiry test.
+
+Proposed acceptance sequence (all live steps still require approval):
+
+1. Review the exact final revision, then separately authorize any PR/push/merge.
+   Verify the current production ancestry before integration.
+2. Approve disabled staging through the installed controller, including migrations
+   0002–0007. If source hooks are included, separately approve their installation
+   and install the reviewed helper first. Keep capture, enrollment and sending off.
+   Verify deployed revision, service health and authenticated manager status as
+   separate checks. Missing journal measurements must remain unknown.
+3. Separately authorize private journal/supervisor provisioning and restricted
+   public/private configuration (including VAPID credential creation/configuration).
+   Do not widen Apple endpoint validation or change access to make acceptance pass.
+   Verify health-path access and sample timestamps under the intended web identity.
+4. Approve a coordinated, supervised capture/dispatcher start and owner-only trial;
+   never leave capture running without its consumer. Verify silent baseline and
+   category filters. Explicitly approve enabling enrollment/sending and constrain
+   the enrolled audience to the one owner device before any event can notify.
+5. With separate enrollment permission, Eugene installs/opens the Home Screen app,
+   signs in, selects categories, taps Enable Notifications and grants OS permission.
+   A browser mock is not evidence of the actual Apple endpoint or handset behavior.
+6. With explicit real-notification/test approval, perform one controlled canonical
+   event delivery, inspect minimal lock-screen content and safe deep link, then
+   test revoke and expiry with no blind replay of uncertain attempts. Approve any
+   additional enrollment/delivery needed for those acceptance cases explicitly.
+7. Monitor the first day: lock_busy, pending spool, uncertain/quarantine admission
+   headroom, last-scan unscopable count/age, CPU, disk and DB connections. Stop on
+   unexplained gaps, unknown measurements or unsafe resource pressure. Preapprove
+   the coordinated journal pause plus sending-disable rollback; retain evidence.
 
 Recovery after approved activation: follow the coordinated capture/sender pause
 procedure above, revoke affected devices when authorized and preserve uncertain outcomes. An accepted notice can

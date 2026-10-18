@@ -17,6 +17,11 @@ try {
    const req=route.request();if(mode==='operator'){await route.fulfill({status:403,json:{error:'Manager access required.'}});return;}
    if(mode==='withheld'){await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:[],health:[{scope:'schedule:fixture',code:'coverage_gap',reason:'ordering_uncertain'}]}});return;}
    if(mode==='recovered'){await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:[],health:[{scope:'schedule:fixture',code:'recovered_gap'}]}});return;}
+   if(mode==='journal'){
+    await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'observed',sampledAt:'2026-10-18T19:00:00Z',retention:{status:'observed',unscopableRetained:7,scannedAt:'2026-10-17T12:00:00Z'},capacity:[{key:'ready',status:'observed',files:10000,bytes:134217728,remainingFiles:0,remainingBytes:0,limitFiles:10000,limitBytes:134217728},{key:'pending',status:'unknown',files:null,bytes:null,remainingFiles:null,remainingBytes:null,limitFiles:10000,limitBytes:134217728},{key:'uncertain',status:'observed',files:2,bytes:1024,remainingFiles:9998,remainingBytes:134216704,limitFiles:10000,limitBytes:134217728}]}}});return;
+   }
+   if(mode==='journal-error'){await route.fulfill({status:503,json:{error:'Unavailable'}});return;}
+   if(mode==='journal-unknown'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',sampledAt:'2026-10-18T19:00:00Z',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[{key:'ready',status:'unknown',limitFiles:10000,limitBytes:134217728}]}}});return;}
    if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
    if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
    await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z'}]:[]}});
@@ -35,7 +40,16 @@ try {
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
  mode='recovered';await page.reload();await page.getByText('Capture recovered after a recorded gap.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='withheld';await page.reload();await page.getByText('Some notification facts are withheld',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
+ mode='journal';await page.reload();await page.getByRole('heading',{name:'Notification queue status'}).waitFor();
+ assert.match(await page.locator('.push-settings').innerText(),/last retention scan: 7 files.*Current count may differ/s);
+ assert.match(await page.locator('.push-settings').innerText(),/Admission limit reached/);assert.match(await page.locator('.push-settings').innerText(),/Pending and pending quarantine: headroom unknown/);
+ assert.match(await page.locator('.push-settings').innerText(),/Runtime capacity remains unmeasured/);assert.ok(await enable.isDisabled(),'disabled staging has health visibility without enrollment');
+ await page.setViewportSize({width:393,height:852});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await page.screenshot({path:output+'/journal-mobile.png',fullPage:true});
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/journal-desktop.png',fullPage:true});
+ mode='journal-unknown';await page.getByRole('button',{name:'Refresh status'}).click();await page.getByText('Unscopable evidence count is unknown',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/last retention scan: 7/);
+ mode='journal-error';await page.getByRole('button',{name:'Refresh status'}).click();await page.getByText('Notification queue measurements are unknown.',{exact:true}).waitFor();
+ assert.equal((await page.evaluate(()=>window.pushCalls)).permission,0,'status reads never request permission');
  mode='operator';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
  mode='disabled';await page.reload();await page.getByRole('heading',{name:'Local synthetic preview'}).waitFor();await page.waitForTimeout(100);assert.equal(await page.locator('.push-settings').count(),0);
- assert.deepEqual(errors,[]);console.log('Browser fixture passed: collapsed mobile/desktop previews, no overflow, tap-only mocked permission, category save and revoke. No real subscription or notification.');
+ assert.deepEqual(errors,[]);console.log('Browser fixture passed: collapsed mobile/desktop previews, no overflow, tap-only mocked permission, category save/revoke, disabled-staging queue counts, unknown/error states and no permission calls on status refresh. No real subscription or notification.');
 } finally {await browser.close();}

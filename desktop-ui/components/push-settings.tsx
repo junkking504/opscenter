@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { PushJournalHealth } from '../../lib/web-push-journal-health';
+import { PushJournalStatus } from './push-journal-status';
 type Device={id:string;categories:string[];expires_at:string};
 const categories=['schedule','krewe','fleet'];
 export function PushSettings() {
   const [hidden,setHidden]=useState(true);
+  const [journal,setJournal]=useState<PushJournalHealth|null>(null);
   const [enabled,setEnabled]=useState(false),[key,setKey]=useState(''),[devices,setDevices]=useState<Device[]>([]);
   const [selected,setSelected]=useState(categories),[message,setMessage]=useState('Checking notification availability…'),[busy,setBusy]=useState(false);
   const [registration,setRegistration]=useState<ServiceWorkerRegistration|null>(null);
@@ -11,7 +14,8 @@ export function PushSettings() {
     const res=await fetch('/api/push/devices',{cache:'no-store'});const body=await res.json();
     if(res.status===401 || res.status===403){setHidden(true);return false;}
     if(!res.ok)throw new Error('Notification settings unavailable.');
-    setHidden(!body.enabled && !(body.devices || []).length);
+    setHidden(!body.enabled && !(body.devices || []).length && !body.journal?.configured);
+    setJournal(body.journal || null);
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
     const current=(body.devices || []).find((device:Device)=>device.id===saved);if(current)setSelected(current.categories);
@@ -76,6 +80,8 @@ export function PushSettings() {
     <button type="button" disabled={busy || !enabled || !supported || !registration || !selected.length} onClick={()=>void save()}>Enable Notifications / Save Categories</button>
     <p role="status">{message}{!supported?' This browser cannot enable Web Push; open the Home Screen app.':''}</p>
     {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · expires {new Date(device.expires_at).toLocaleDateString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button></div>)}
+    <PushJournalStatus health={journal}/>
+    <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>
     <small>Lock screen shows only that updates are available. Devices expire within 30 days or when the current login expires. Saving renews this device.</small>
   </section>;
 }

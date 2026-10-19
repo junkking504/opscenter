@@ -24,7 +24,7 @@ try {
   await modal.getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
   await modal.getByRole('button',{name:'Move JK3 up',exact:true}).click();
   assert.deepEqual(await modal.locator('.stop-order-row strong').allTextContents(),['JK1 · Example 1','JK3 · Example 3','JK2 · Example 2']);
-  await modal.getByRole('button',{name:'Save Order',exact:true}).click();
+  await modal.getByRole('button',{name:'Push order to Waypoint',exact:true}).click();
   await page.getByText('JK1,JK3,JK2',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Route Order',exact:true}).click();
   await modal.getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
@@ -44,11 +44,11 @@ try {
  await page.getByRole('dialog').getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
  const beforeSave=actions.length;
  await page.getByRole('button',{name:'Move JK3 up',exact:true}).click();
- await page.getByRole('button',{name:'Save Order',exact:true}).click();
+ await page.getByRole('button',{name:'Push order to Waypoint',exact:true}).click();
  await page.getByText('JK1,JK3,JK2',{exact:true}).waitFor({timeout:4000});
- assert.equal(await page.getByRole('dialog').count(),0,'A pending travel preview must never cancel Save Order');
+ assert.equal(await page.getByRole('dialog').count(),0,'A pending travel preview must never cancel Push order to Waypoint');
  assert.deepEqual(actions.slice(beforeSave),['save'],'Saving must cancel the queued preview');
- assert.equal(saves,3,'Exactly one save per explicit Save Order click');
+ assert.equal(saves,3,'Exactly one save per explicit Push order to Waypoint click');
  for(const width of [1280,390]) {
   await page.setViewportSize({width,height:720});
   await page.route('https://tile.openstreetmap.org/**',route=>route.fulfill({status:200,contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==','base64')}));

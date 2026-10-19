@@ -26,7 +26,7 @@ for(const engine of [chromium,webkit]) {
    await page.getByRole('button',{name:'Route Order',exact:true}).click();
    await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
    await page.getByRole('button',{name:'Move JK1005 up',exact:true}).click();
-   await page.getByRole('button',{name:'Save Order',exact:true}).click();
+   await page.getByRole('button',{name:'Push order to Waypoint',exact:true}).click();
    await page.getByRole('button',{name:'Route Order',exact:true}).click();
    const modal=page.getByRole('dialog');
    assert.match(await modal.locator('.stop-order-row').first().innerText(),/JK1005[\s\S]*Booked: 2:00 PM/);

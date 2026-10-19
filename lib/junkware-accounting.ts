@@ -3,7 +3,7 @@ import path from 'node:path';
 /** Registered sensitive actions; all entry points use the same durable source adapter. */
 export const ACCOUNTING_ACTIONS = {
   receive: { id: 'finance.verify-payment-received', permission: 'sensitive.write', risk: 3 },
-  verify: { id: 'finance.verify-payment-and-sync', permission: 'sensitive.write', risk: 3 },
+  verify: { id: 'finance.verify-payment-opscenter', permission: 'sensitive.write', risk: 3 },
   update: { id: 'finance.update-quickbooks', permission: 'sensitive.write', risk: 3 },
   exclude: { id: 'finance.exclude-from-quickbooks', permission: 'sensitive.write', risk: 3 },
 } as const;

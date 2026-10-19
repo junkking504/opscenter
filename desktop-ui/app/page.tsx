@@ -29,7 +29,7 @@ import { currentOperatingDay } from '../lib/operating-day';
 
 import { requiresAlertAttention } from '../lib/alert-attention';
 import {
-  Activity, ArrowLeft, ArrowRight, BarChart3, Bell, Bot, CalendarDays, Check, GripVertical,
+  Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
   CircleDollarSign, Command, Copy, Gauge, MapPin, Megaphone, Search,
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
@@ -1037,7 +1037,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   }) : referenceConnectedSources;
 
   const [query, setQuery] = useState('');
-  const [opsBotOpenRequest, setOpsBotOpenRequest] = useState(0);
   const [searchOpen, setSearchOpenValue] = useState(false);
   const setSearchOpen = (value: boolean) => {
     if (live && value) { setActionFeedback('Cross-workspace search is still being connected.'); return; }
@@ -4243,18 +4242,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           if (workspace === 'Marketing') setMarketingView(page as MarketingView);
         }} />
 
-        {live && canFinance && <section className="sidebar-opsbot-card" aria-label="Ask OpsBot">
-          <div className="sidebar-opsbot-heading">
-            <span className="sidebar-opsbot-icon"><Bot size={16} /></span>
-            <div><strong>Ask OpsBot</strong><small>Read-only operational help</small></div>
-          </div>
-          <p>Ask about today’s schedule, trucks, source health, or an OpsCenter procedure.</p>
-          <button type="button" onClick={() => setOpsBotOpenRequest(value => value + 1)}><span>Open assistant</span><ArrowRight size={14} /></button>
-        </section>}
-
         <div className="sidebar-footer">
           <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Source checks current' : 'All sources healthy'}</button>
-          <div className="user-row"><div className="avatar">MC</div><div><strong>{live?.snapshot.actor.displayName || 'Mission Control'}</strong><small>{live?.snapshot.actor.role || 'Administrator'}</small></div></div>
         </div>
       </aside>
 
@@ -4323,7 +4312,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           }
           </div>
         </header>
-        {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} openRequest={opsBotOpenRequest} /></div>}
+        {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /></div>}
         </div>
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>

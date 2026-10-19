@@ -2,9 +2,9 @@ import { Activity, CalendarDays, CircleDollarSign, Megaphone, Truck, Users } fro
 import type { MouseEvent } from 'react';
 
 export const workspacePages = [
-  { workspace: 'Command', label: 'Command', key: 'commandView', icon: Activity, pages: [['now','Updates'],['today','Actions'],['monitor','Monitor'],['forecast','Forecast'],['tv','Shop TV']] },
+  { workspace: 'Command', label: 'Command', key: 'commandView', icon: Activity, pages: [['now','Updates'],['forecast','Forecast'],['tv','The Huddle']] },
   { workspace: 'Schedule', label: 'Control', key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
-  { workspace: 'Krewe', label: 'Crew', key: 'kreweView', icon: Users, pages: [['today','Today'],['callin','Call-in plan'],['payperiod','Pay period'],['monthly','Monthly']] },
+  { workspace: 'Krewe', label: 'Crew', key: 'kreweView', icon: Users, pages: [['today','Today'],['payperiod','Pay period'],['monthly','Monthly']] },
   { workspace: 'Fleet', label: 'Convoy', key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['maintenance','Repairs'],['service','Maintenance'],['scores','Driving'],['reports','Records & invoices']] },
   { workspace: 'Finance', label: 'Capital', key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['payments','Payments'],['reconciliation','Reconciliation'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling'],['trends','Trends']] },
   { workspace: 'Marketing', label: 'Campaign', key: 'marketingView', icon: Megaphone, pages: [['overview','Follow up'],['reviews','Reviews'],['performance','Results']] },

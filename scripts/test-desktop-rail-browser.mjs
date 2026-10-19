@@ -7,7 +7,7 @@ await page.route('**/*',route=>new URL(route.request().url()).hostname === '127.
 await page.goto('http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=Command&commandMap=1&date=2026-09-12');
 await page.waitForSelector('.page-rail-link');
 const targets=await page.locator('.page-rail-link').evaluateAll(links=>links.filter(link=>!link.href.includes('tv=1')).map(link=>({href:link.getAttribute('href'),label:link.textContent})));
-assert.ok(targets.length >= 29);
+assert.equal(targets.length, 26);
 for(const {href,label} of targets){
  const all=await page.locator('.page-rail-link').evaluateAll(links=>links.map(link=>link.href));
  const expectedUrl=new URL(href,page.url()); const workspace=expectedUrl.searchParams.get('workspace'); const key={Command:'commandView',Schedule:'scheduleView',Krewe:'kreweView',Fleet:'fleetView',Finance:'financeView',Marketing:'marketingView'}[workspace];

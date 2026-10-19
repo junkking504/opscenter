@@ -43,12 +43,13 @@
 .ops-app.ops-live :is(.crew-today-avatar,.sidebar-opsbot-icon) { background: var(--oc-surface-muted); color: var(--oc-text-primary); }
 .ops-app.ops-live :is(.crew-today-actions button,.convoy-text-button,.convoy-row-link,.convoy-truck-link) { color: var(--ops-brand-red); }
 .ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
-.ops-app.ops-live .schedule-control-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
+.ops-app.ops-live .schedule-board-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
 .ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }
 .ops-app.ops-live { grid-template-columns: 176px minmax(0, 1fr); }
 .ops-app.ops-live .ops-sidebar { width: 176px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
 .ops-app.ops-live .brand-lockup { padding: 0 8px 10px; border-bottom: var(--desktop-card-border); flex-shrink: 0; }
-.ops-app.ops-live .page-rail { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; scrollbar-width: thin; }
+/* Override the legacy direct-child flex-shrink: 0 so the links scroll above the fixed footer. */
+.ops-app.ops-live .page-rail { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; scrollbar-width: thin; }
 .page-rail-group { padding: 8px 0; border-bottom: 1px solid var(--oc-border-default); }
 .page-rail-group:last-child { border-bottom: 0; }
 .page-rail-group h2 { padding: 0 8px; margin: 0 0 4px; color: var(--oc-text-muted); font-size: var(--oc-type-10); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
@@ -148,3 +149,76 @@
 .release-update-toast button:last-child { background: var(--ops-brand-red); color: var(--oc-surface-raised); border-color: var(--ops-brand-red); }
 .release-update-toast button:disabled { opacity: .5; cursor: default; }
 .release-update-toast small { display: block; margin-top: 6px; color: var(--oc-text-muted); font-size: var(--oc-type-11); }
+
+/* Wall scoreboard: keep the goal and standings visible beside one large story. */
+.ops-app.shop-tv { gap: 12px; padding: 20px 32px; }
+.shop-tv .command-revenue-hero { min-height: 150px; padding: 18px 24px; }
+.tv-win-strip { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:12px 20px; border-radius:12px; background:#20384d; color:#fff; font-size:20px; }
+.tv-win-strip strong { color:#ffda75; letter-spacing:.04em; }
+.tv-goal-reached { background:#165a42; }
+.tv-main-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; flex:1; min-height:0; }
+.tv-scoreboards { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.shop-tv .tv-leaderboard { flex:initial; padding:16px 20px; }
+.shop-tv .tv-ranking { grid-template-columns:36px minmax(120px,1fr) 120px 100px 110px; font-size:23px; padding:10px 0; gap:12px; }
+.shop-tv .tv-ranking-head { font-size:14px; padding:10px 0 6px; }
+.shop-tv .tv-leaderboard header { gap:12px; }
+.shop-tv .tv-leaderboard header>span { font-size:13px; max-width:260px; text-align:right; }
+.tv-trucks { padding:14px 20px; border-radius:12px; background:#fff; color:#152c40; }
+.tv-trucks header { display:flex; align-items:center; justify-content:space-between; }
+.tv-trucks h2 { font-size:24px; margin:0; }
+.tv-truck-row { display:grid; grid-template-columns:minmax(130px,1fr) 55px 110px 110px; gap:12px; padding:8px 0; border-bottom:1px solid #e0e5ea; font-size:22px; }
+.tv-truck-row>:nth-child(n+2) { text-align:right; }
+.tv-truck-row small { display:block; font-size:13px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tv-truck-head { font-size:14px; color:#536476; }
+.tv-trucks>small { display:block; margin-top:8px; color:#536476; }
+.tv-spotlight { display:flex; flex-direction:column; min-width:0; border:1px solid #516477; border-radius:16px; background:#102b42; color:#fff; padding:22px 26px; }
+.tv-spotlight>header { display:flex; align-items:center; justify-content:space-between; font-size:15px; letter-spacing:.12em; color:#b8c9d9; }
+.tv-spotlight button { color:#fff; border:1px solid #6c8195; border-radius:8px; background:transparent; padding:5px 10px; margin-left:8px; font-size:14px; }
+.tv-spotlight button:disabled { opacity:.5; }
+.tv-spotlight article { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:24px 0; overflow-wrap:anywhere; }
+.tv-card-kind { font-size:18px; color:#ffda75; letter-spacing:.06em; }
+.tv-spotlight h2 { font-size:38px; line-height:1.1; margin:16px 0; color:#fff; }
+.tv-spotlight article p { font-size:28px; line-height:1.4; margin:0 0 20px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; overflow:hidden; }
+.tv-spotlight article>strong { font-size:26px; color:#ffda75; }
+.tv-spotlight small { display:block; font-size:13px; color:#b8c9d9; margin-top:5px; }
+.tv-spotlight article>small { font-size:16px; }
+.tv-spotlight footer { border-top:1px solid #516477; padding-top:10px; font-size:13px; color:#b8c9d9; }
+.tv-photo-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; margin-bottom:15px; }
+.tv-photo-pair figure { margin:0; }
+.tv-photo-pair img { width:100%; height:180px; object-fit:contain; }
+.tv-photo-pair figcaption { font-size:15px; text-align:center; }
+.tv-card-win p { -webkit-line-clamp:2; }
+.shop-tv .tv-completed h2 { display:none; }
+@media(max-width:1400px) { .tv-main-grid { grid-template-columns:1fr; } .tv-spotlight { min-height:400px; } }
+@media(min-width:1401px) {
+  .ops-app.shop-tv { gap:10px; }
+  .tv-header strong { line-height:1.1; }
+  .tv-source,.tv-win-strip { line-height:1.2; }
+  .shop-tv .command-revenue-hero .hero-value { line-height:1.1; }
+  .shop-tv .tv-leaderboard { padding:12px 20px; }
+  .shop-tv .tv-ranking { font-size:22px; line-height:1.15; padding:6px 0; }
+  .shop-tv .tv-ranking-head { font-size:14px; padding:8px 0; }
+  .tv-truck-row { font-size:20px; line-height:1.15; padding:4px 0; }
+  .tv-truck-row small { line-height:1.2; }
+  .tv-truck-head { font-size:14px; }
+  .tv-spotlight article { min-height:0; padding:16px 0; }
+  .tv-spotlight article p { -webkit-line-clamp:3; }
+  .tv-spotlight h2,.tv-spotlight article>strong { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+  .tv-spotlight h2 { font-size:34px; margin:12px 0; }
+  .tv-spotlight footer,.tv-spotlight footer small { line-height:1.25; }
+  .tv-card-win h2 { font-size:28px; margin:8px 0; -webkit-line-clamp:1; }
+  .tv-spotlight .tv-card-win p { font-size:20px; line-height:1.25; -webkit-line-clamp:1; margin-bottom:6px; }
+  .tv-spotlight .tv-card-win>strong { font-size:22px; line-height:1.2; }
+  .tv-spotlight .tv-card-win>small { font-size:14px; line-height:1.2; }
+  .tv-photo-pair img { height:120px; }
+}
+
+.tv-review-author { font-size:20px; line-height:1.2; color:#b8c9d9; margin:0 0 14px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media(min-width:1401px) { .tv-spotlight .tv-card-review p { -webkit-line-clamp:2; margin-bottom:8px; } }
+/* Fit the complete desktop navigation in standard laptop-height windows. */
+@media (min-width: 761px) and (max-height: 1100px) {
+  .ops-app.ops-live .page-rail-group { padding: 3px 0; }
+  .ops-app.ops-live .page-rail-group h2 { font-size: 10px; line-height: 12px; margin-bottom: 2px; }
+  .ops-app.ops-live .page-rail-link { min-height: 24px; padding: 4px 8px; font-size: 12px; line-height: 16px; gap: 8px; }
+  .ops-app.ops-live .page-rail-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+}

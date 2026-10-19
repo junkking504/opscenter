@@ -104,6 +104,7 @@ function assignedDay(phone: CrewPhone, date: string, deps: NonNullable<Parameter
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,
+      ...(row.visitOrder !== undefined ? {routePosition:row.visitOrder+1} : {}),
       ...(crewAppointmentStatus(row.status)==='Completed' ? {
         ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),

@@ -69,7 +69,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
     <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Route Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
       <header><h2 id="stop-order-title">Truck Route Order</h2><button type="button" aria-label="Close route order" disabled={working === 'save'} onClick={close}>×</button></header>
-      <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
+      <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops into any order, regardless of booked time slots, then push the order to Waypoint. Crews see that numbered sequence; booked appointment times and truck assignments stay the same.</p>
       {groups.length>0 && <label>Truck<select aria-label="Truck to reorder" value={groupKey} disabled={working === 'save' || moved} onChange={event=>{const next=groups.find(g=>orderGroupKey(g[0],'remaining')===event.target.value);if(next)choose(next);}}>{groups.map(g=><option key={orderGroupKey(g[0],'remaining')} value={orderGroupKey(g[0],'remaining')}>{truckDisplayText(g[0].truck)} · {g.length} assigned {g.length===1?'stop':'stops'}</option>)}</select></label>}
       {moved && <p>Save this truck’s order before choosing another truck, or <button type="button" disabled={working === 'save'} onClick={()=>{if(group)choose(group);}}>Reset changes</button>.</p>}
       {!group && <><p>No assigned open appointments to reorder for this day.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
@@ -89,7 +89,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
         <p>Choose your first stop with the arrows. The suggestion then follows the nearest road distance. Estimates exclude live traffic.</p>
         </div><ScheduleStopOrderMap jobs={ids.map(id=>group.find(job=>job.recordId===id)!)} fleet={snapshot.fleet} selectedTruck={group[0].truck} legs={legs} selected={selected} onSelect={selectStop} loading={working==='preview'||working==='nearest'} stale={stale}/></div>
         {message && <p role="alert">{message}</p>}
-        <footer><button type="button" disabled={working === 'save'} onClick={close}>Cancel</button><button type="button" disabled={!changed || stale || working === 'save' || working === 'nearest'} onClick={()=>void request('save')}>{working === 'save' ? 'Saving…' : 'Save Order'}</button></footer>
+        <footer><button type="button" disabled={working === 'save'} onClick={close}>Cancel</button><button type="button" disabled={!changed || stale || working === 'save' || working === 'nearest'} onClick={()=>void request('save')}>{working === 'save' ? 'Pushing order…' : 'Push order to Waypoint'}</button></footer>
       </>}
     </dialog>
   </>;

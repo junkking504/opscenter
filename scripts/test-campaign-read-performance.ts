@@ -88,6 +88,30 @@ async function main() {
 
   write("history/podium-google-reviews/podium-google-reviews_2026-10-15.json", reviews("2026-10-15T09:00:00.000Z", 1));
   assert.equal(buildPodiumGoogleReviewsView().locations[0].reviewCountChange, 2);
+
+  // A same-size replacement that keeps the old mtime is still a change.
+  const { sourceFileMemo } = await import("../lib/source-file-memo");
+  const memo = sourceFileMemo<string>(60_000);
+  const memoFile = path.join(root, "memo.txt");
+  const readMemo = () => memo("file", [memoFile], () => fs.readFileSync(memoFile, "utf8"));
+  fs.writeFileSync(memoFile, "aaaa");
+  fs.utimesSync(memoFile, 1_760_000_000, 1_760_000_000);
+  assert.equal(readMemo(), "aaaa");
+  fs.writeFileSync(`${memoFile}.tmp`, "bbbb");
+  fs.utimesSync(`${memoFile}.tmp`, 1_760_000_000, 1_760_000_000);
+  fs.renameSync(`${memoFile}.tmp`, memoFile);
+  assert.equal(readMemo(), "bbbb");
+
+  // Roots holding different snapshots with the same fetch time: the last root
+  // read wins, exactly as when the whole history was read.
+  const { buildPodiumGoogleReviewsViewFromData, readPodiumGoogleReviewsHistory, readPodiumGoogleReviewsSnapshot } = await import("../lib/podium-reviews");
+  const homeData = path.join(root, ".openclaw", "workspace", "opsbot", "data");
+  fs.unlinkSync(homeData);
+  fs.mkdirSync(path.join(homeData, "history", "podium-google-reviews"), { recursive: true });
+  fs.writeFileSync(path.join(homeData, "history", "podium-google-reviews", "podium-google-reviews_2026-10-15.json"), JSON.stringify(reviews("2026-10-15T09:00:00.000Z", 2)));
+  const overlapping = buildPodiumGoogleReviewsView();
+  assert.equal(overlapping.locations[0].reviewCountChange, 1);
+  assert.deepEqual(overlapping, buildPodiumGoogleReviewsViewFromData(readPodiumGoogleReviewsSnapshot(), readPodiumGoogleReviewsHistory()));
 }
 
 main().then(() => {

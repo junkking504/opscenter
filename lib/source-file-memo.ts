@@ -3,14 +3,15 @@ import fs from 'node:fs';
 type Entry<T> = { signature: string; storedAt: number; value: T };
 
 function fileSignature(file: string): string {
-  try { const stat = fs.statSync(file); return `${file}=${stat.mtimeMs}:${stat.size}`; } catch { return `${file}=missing`; }
+  // Inode and ctime catch a same-size replacement that preserves mtime.
+  try { const stat = fs.statSync(file); return `${file}=${stat.ino}:${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}`; } catch { return `${file}=missing`; }
 }
 
 /**
  * Reuse a reading while every source file is unchanged and the reading is
  * younger than maxAgeMs. A single Command request reads the same GPS and
  * geocode files many times; parsing them once keeps requests fast while a
- * collector write (new mtime or size) is picked up on the next call.
+ * collector write (new inode, mtime, ctime or size) is picked up on the next call.
  * Callers must treat the returned value as read-only.
  */
 export function sourceFileMemo<T>(maxAgeMs: number, maxEntries = 16) {

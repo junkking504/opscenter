@@ -132,17 +132,18 @@ export function readPodiumGoogleReviewsHistory(): PodiumGoogleReviewsSnapshot[] 
  * The newest history snapshot fetched before `fetchedAt`. The collector names
  * each history file by the Chicago date it was fetched, so files are read
  * newest first and the search stops after the first day with a match instead
- * of parsing every day's copy of every review.
+ * of parsing every day's copy of every review. Snapshots sharing a fetch time
+ * resolve as readPodiumGoogleReviewsHistory does: the last one read wins.
  */
 export function readPreviousPodiumGoogleReviewsSnapshot(fetchedAt: string): PodiumGoogleReviewsSnapshot | null {
-  const files: Array<{ day: string; file: string }> = [];
+  const files: Array<{ day: string; file: string; order: number }> = [];
   for (const root of dataRoots()) {
     const directory = path.join(root, "history", "podium-google-reviews");
     try {
       if (!fs.existsSync(directory)) continue;
       for (const file of fs.readdirSync(directory)) {
         const match = /^podium-google-reviews_(\d{4}-\d{2}-\d{2})\.json$/.exec(file);
-        if (match) files.push({ day: match[1], file: path.join(directory, file) });
+        if (match) files.push({ day: match[1], file: path.join(directory, file), order: files.length });
       }
     } catch {
       // Runtime roots can be absent or inaccessible outside production.
@@ -151,11 +152,14 @@ export function readPreviousPodiumGoogleReviewsSnapshot(fetchedAt: string): Podi
   files.sort((left, right) => right.day.localeCompare(left.day));
   let previous: PodiumGoogleReviewsSnapshot | null = null;
   let previousDay = "";
-  for (const { day, file } of files) {
+  let previousOrder = -1;
+  for (const { day, file, order } of files) {
     if (previousDay && day < previousDay) break;
     const snapshot = readSnapshot(file);
-    if (snapshot && snapshot.fetchedAt < fetchedAt && (!previous || snapshot.fetchedAt > previous.fetchedAt)) {
+    if (!snapshot || snapshot.fetchedAt >= fetchedAt) continue;
+    if (!previous || snapshot.fetchedAt > previous.fetchedAt || (snapshot.fetchedAt === previous.fetchedAt && order > previousOrder)) {
       previous = snapshot;
+      previousOrder = order;
       const timestamp = new Date(snapshot.fetchedAt);
       // A snapshot without a readable fetch time cannot bound the search.
       previousDay = Number.isFinite(timestamp.getTime()) ? chicagoDateKey(timestamp) : "";

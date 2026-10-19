@@ -1,6 +1,6 @@
 .ops-live .schedule-board-layout.map-open .schedule-stop-order-trigger { display: inline-flex; align-items: center; }
 .ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid var(--oc-border-neutral-07); border-radius: 4px; background: white; color: var(--oc-text-green-05); font-size: var(--oc-type-11); white-space: nowrap; cursor: pointer; }
-.ops-live .schedule-control-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; flex-shrink: 0; background: var(--oc-text-green-01); border-color: var(--oc-text-green-01); color: white; font-weight: 600; }
+.ops-live .schedule-board-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; flex-shrink: 0; background: var(--oc-text-green-01); border-color: var(--oc-text-green-01); color: white; font-weight: 600; }
 .ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(1380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 16px; background: white; color: var(--oc-text-green-05); border: 1px solid var(--oc-border-neutral-07); border-radius: 8px; box-shadow: 0 8px 35px var(--oc-surface-overlay-10); font-size: var(--oc-type-13); }
 .ops-live .schedule-stop-order::backdrop { background: var(--oc-surface-overlay-14); }
 .ops-live .schedule-stop-order header, .ops-live .schedule-stop-order footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

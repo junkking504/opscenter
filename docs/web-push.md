@@ -1,0 +1,458 @@
+# Direct OpsCenter Web Push — local preparation, sending off
+
+The delivery core and canonical publication hooks are prepared and tested locally.
+Capture and sending remain disabled by default. No collector installation,
+production migration, deployment, activation or handset test occurred in this
+revision. Slack publishers, configuration and history polling are unchanged.
+
+## Event recording and dispatch
+
+`recordPushBatch` accepts retained, ordered canonical snapshots. Each scope has a
+contiguous durable sequence and batch digest: gaps, reordering or conflicting
+replays produce a sanitized health reason instead of silently losing transitions.
+The producer must retain each snapshot until its transaction commits. A snapshot
+watcher over a replaced file does not meet this contract.
+
+One transaction records hashed observations, versioned events, per-device delivery
+intents and `pg_notify`. PostgreSQL delivers the wake only after commit. The first
+complete snapshot seeds a baseline. Identical snapshots do not notify; genuine
+A→B→A transitions get new versions. Schedule removals/reappearances require
+explicit complete authoritative evidence; missing clock/fleet rows are unknown. Moving off today's
+scope is a removal; reporting the destination requires its own source evidence.
+An incomplete initial baseline is blocked. No Slack-derived history is consumed.
+
+`startPushDispatcher` uses a dedicated PostgreSQL connection for LISTEN and the
+single-instance advisory lock. It drains on commit notifications and at startup;
+a wake during a drain schedules another drain. It has no delivery polling timer.
+Connection loss disables further claims and closes the dedicated connection.
+An approved future supervisor can restart it, reestablish LISTEN and catch up from
+the durable queue. Leftover sending attempts become uncertain and are not resent.
+
+Claims take a short transaction, lock trial then device then delivery, recheck account role,
+category, revocation, expiry, activation and event age, and require UPDATE RETURNING
+to succeed. Network requests hold no database lock. Sends are sequential; every
+event/device has its own outcome. No batching or frequency window is imposed.
+A committed reservation consumes one of the three lifetime trial slots, including
+crashes before network I/O, errors and uncertain outcomes. Revocation, approval,
+role, category and deadlines are rechecked immediately before transport and after
+DNS resolution. A network request already initiated may finish after revocation;
+there is no recall guarantee. No retry is performed, including HTTP 429/5xx.
+HTTP 201 means accepted by Apple, not delivered to the handset. 404/410 revoke the
+subscription and clear its approval. Timeouts and unknown outcomes stay uncertain.
+
+## Device-specific trial gate
+
+Migration 0008 creates an inert singleton with no owner, approved device, start,
+deadline or consumed attempts. Deployment never starts the clock. There is no
+HTTP approval, start, reset or account-wide bypass. This revision supports one
+bounded trial, not unrestricted ongoing notifications.
+
+A separately authorized local operator prepares the exact authenticated owner
+identity. The user's explicit permission tap submits a pending candidate. First
+enrollment is never approval, including concurrent phones using the same login.
+The operator must verify the intended phone's displayed device ID and full
+SHA-256 fingerprint (fixed ordered endpoint, p256dh and auth fields) before
+explicitly approving that candidate. Other candidates cannot fan out or send.
+After approval, a competing device or key rotation cannot replace it through the
+web API. Shared-login users can still revoke devices; that can deny service but
+cannot grant another device approval. Losing the intended browser subscription
+requires revocation, a new candidate and separate verification/approval.
+
+Approval permits a device expiry of 1–30 minutes, additionally bounded by the
+login/subscription expiry. Saving categories cannot extend approval. Trial start
+is a separate explicit local operation: its immutable deadline is exactly 30
+minutes later. Starting does not extend a shorter device expiry. Explicit device
+replacement preserves both clock and attempt budget; expired, exhausted or
+stopped trials cannot restart. There is deliberately no reset command.
+
+Fan-out and claims require the approved device and subscription fingerprint.
+Only canonical facts recorded after trial start are eligible; pretrial retained
+history is still recorded but never sent by this trial. Claims reserve a unique
+ordinal 1–3 in the same transaction as the sending status, before network I/O.
+The reservation ledger survives event/device retention. Concurrent drains cannot
+overspend; process restart never refunds a reservation or retries an uncertain
+attempt. Deadline checks use the database clock after lock waits. Transport checks
+again after DNS; request timeout and provider TTL are bounded by remaining trial
+and device lifetime (maximum 8 seconds and 5 minutes respectively). Apple may
+already have accepted or displayed a notice when revocation/expiry occurs.
+
+Local controls are in `scripts/control-web-push-trial.ts`, using explicitly loaded
+Mission Control production configuration without a signing secret. `status
+--owner <verified-identity>` is read-only. Mutations require `--apply` and
+`--approval-reference <approved-action-record>`, plus:
+
+- `prepare --owner <verified-identity>` only after audience preparation approval.
+- `approve --owner <verified-identity> --device <verified-id> --fingerprint
+  <verified-full-fingerprint> --expires-minutes <1-to-30>` only after that device's
+  identity is confirmed and separately approved.
+- `start` only after explicit live-trial approval and coordinated source/consumer
+  readiness. This is the only action that starts the clock.
+- `revoke --owner <verified-identity> --device <verified-id>` revokes the exact
+  approved/candidate device even after expiry; it preserves the trial clock and budget.
+- `stop` records a permanent stop and skips pending work. The UI's Disable device
+  revokes that subscription; expiry and rejection also block later sends.
+
+Do not run these mutations during a disabled deployment. A future approved trial
+must coordinate capture and dispatcher supervision and a pause at the end;
+expiration stops sending but does not itself uninstall hooks or stop capture.
+The API/UI expose pending approval, fingerprint, deadline and consumed attempts.
+No client refresh or enable tap approves a device or starts/restarts the trial.
+
+## Canonical capture, failure isolation and recovery
+
+The Python wrapper calls each writer's original serialization/replacement callback
+exactly once. With capture disabled it performs no journal I/O. Capture exceptions
+never escape into canonical publication or the subsequent existing Slack publisher;
+real canonical-write failures retain their original failure behavior. A publisher waits at most 100 ms for the shared lock; on contention it retains
+a unique, fsynced hashed capture in a private pending spool after the original
+write. No transition is intentionally replaced by a contention baseline. The
+consumer watches that spool and invokes the byte-verified helper asynchronously;
+recovery may wait up to 5 seconds for the lock, outside the canonical writer.
+Startup and subsequent publications also drain pending captures, with a durable
+commit checkpoint protecting a crash between ready-file and state writes. Synchronous filesystem stalls remain an OS/storage
+limitation; this is not a guarantee against disk hangs.
+
+Healthy capture prepares hashed facts in a private fsynced intent, invokes the
+original writer, then commits immutable ready records and a sequence checkpoint.
+Recovery finishes a confirmed write, aborts an unchanged old write, or records an
+explicit coverage gap for an ambiguous write. Ambiguity cannot block the next
+canonical publication. Missing journal storage uses a sanitized marker beside the
+canonical file, imported on the next healthy capture. If both locations cannot be
+written, stderr is the remaining diagnostic; immediate settings visibility cannot
+be guaranteed during that storage failure.
+
+Projection errors are isolated per market/scope. Full queues, missing source
+proof and other capture failures leave durable scoped gap markers. Conflicting
+overlaps retain hashed evidence and a non-resetting ordering warning. Gap overflow
+records a capacity diagnostic; it never changes every source generation.
+The consumer watches ready records and gap markers. Deterministic malformed or
+unrecordable batches are quarantined; good scopes in the same file and later files
+continue. Restart does not repeat quarantined poison records. Transient database
+or filesystem failures stop the consumer with retained entries awaiting recovery.
+No status claims complete notification delivery. Settings query all six expected
+current-day scopes explicitly and show missing sources as unknown, plus known gaps.
+
+After a capture gap, the next verified capture reconciles against retained known
+observations in a new sequence generation. It does not silently baseline a genuine
+transition. Its transaction records a recovery timestamp/generation; settings show
+recovered coverage with missing-history wording, rather than permanently blocked.
+Restarting cannot reopen that resolved marker. Gap IDs are cached per consumer;
+unchanged files do not cause database writes on every wake. Conflicting ordering
+warnings stay unresolved because a successful later write alone is not proof that
+the conflicting evidence was superseded. Uncaptured intermediate events remain
+unknown; retained pre-gap events remain eligible. No complete-delivery claim.
+
+Capacity and retention (owner approved initial-schedule silence and 14-day history,
+2026-10-18; implementation only):
+
+- Initial schedule roster is silent. Subsequent proven changes are eligible.
+- Ready plus quarantine share 10,000-entry / 128 MiB admission limits; pending plus
+  prepared/quarantined pending files share those limits; each capture is at most
+  8 MiB. Concurrent independent admissions can exceed an aggregate check by
+  in-flight writers: these are admission guards, not an atomic disk quota.
+- Equivalent unresolved observations deduplicate by scope, field group and fact
+  hashes, excluding collection timestamps and writer paths. Repeats do not create
+  new files or gap IDs; distinct conflicts remain visible. Admission is bounded
+  to 10,000 files / 128 MiB.
+- Ready/pending captures and pending/sending deliveries are protected at any age.
+  Uncertainty, quarantine and pending-quarantine can expire only when every known
+  service-day scope is before the cutoff, each has a locked DB acknowledgement
+  with no pending/sending delivery, and no ready/pending capture references it.
+  Mixed current/old records remain intact. Business-source data is never deleted.
+- Expiry first saves a durable intent with file hashes and the resulting aggregate
+  counts. Replay after interruption cannot double count. `retention-audit.json`
+  keeps counts by class, byte count, cutoff and producer ordinal; `state.json`
+  keeps the replay floor and retired-scope count. No source facts are in the audit.
+- Unscopable/malformed withheld files remain retained and counted: their approved
+  service-day age cannot be proved. They do not pin unrelated old scopes because
+  a repaired record still cannot bypass the replay floor. They consume bounded
+  capacity and eventually require a separate disposition policy. Filesystem mtime
+  is not business-source truth. Unknown ready/pending captures still block retirement
+  until consumed into quarantine or scoped by recovery.
+- Acknowledged journal archive is bounded to 14 days, 10,000 entries and 128 MiB.
+  Terminal notification events retain 14 days; pending/sending deliveries do not
+  expire by age. Security audits and expired/revoked device records retain 90 days.
+- Source/checkpoint scopes strictly older than the Chicago service day minus 14 days
+  retire under DB source locks with no pending/sending delivery or ready/pending
+  reference. Explicit obsolete-evidence disposition also allows a poisoned/ahead
+  producer checkpoint to retire under both replay floors; without that disposition,
+  generation/sequence must match. The cutoff
+  day itself stays. Orphan gap scopes use explicit database-absence proof.
+- Both stores retain a compact monotonic date floor before deleting per-scope
+  metadata. Replay below that floor cannot recreate a retired scope or notify.
+  Filesystem completion followed by DB rollback is safe to reconcile on restart.
+  Corrections older than 14 days are ignored by current capture. Existing retained
+  backlog is drained before maintenance; unexplained old replay fails closed.
+- Active metadata remains capped at 1,000 scopes, 128 MiB producer state and 10,000
+  identities per scope. The latest 10,000 batch digests and per-scope watermark
+  protect active replay. Normal old daily scopes now retire; retained exceptions
+  can still exhaust capacity and require disposition before long-lived operation.
+- A cheap maintenance gate opens only for cutoff rollover or eligibility changes:
+  consumed old backlog, changed pending spool, old-delivery completion/skip, and
+  device/category changes. Normal current-day wakes do not repeat DB/helper scans.
+  Restart invalidates the gate after deliberate evidence repair. One private
+  acknowledgement file carries the full set without OS argument limits. No timer
+  is introduced. Terminal cleanup also runs every 100 batches.
+- V2 source-date validation uses publication time (14 past/90 future Chicago service
+  days), so ordinary valid retained publications survive consumer delay.
+  Legacy entries without publication time can be quarantined with a visible gap.
+
+Prepared writer coverage (no runtime files installed):
+
+| Source | Exact publication | Evidence / ownership |
+|---|---|---|
+| Market stream | `history/junkware/schedule-watchers/ID/junkware_schedule_fast_DATE.json` through `write_snapshot` | Verified market/date, IDs, status/time/assignment; collection-start timestamp |
+| Forward/full raw | `junkware_DATE_raw.json` | Verified market rows; full external collector patch preserves original raw writer |
+| Fast full | `junkware_schedule_fast_DATE.json` | Same per-market scope as raw/stream |
+| Requested day | `junkware_schedule_requested_DATE.json` via forward writer helper | Verified per-market snapshot, explicit collection-start timestamp |
+| Krewe | `daily_metrics_DATE.json` via `source_aware_metrics.atomic_json` | Current employee source, explicit clock-in/out facts; ambiguous duplicate person is a gap |
+| Fleet | `linxup_alerts_DATE.json`, staged external collector hook | Complete verified native geofence entered/exited rows with mapped truck, ID and event time |
+
+These schedule writers share market/date scopes. Actual writer inspection and a
+pure extracted-normalizer fixture establish two evidence groups. Page status,
+type, truck, time, end and membership are shared by stream/full collection.
+The full writer derives assigned_truck from page truck; it is not independent crew
+truth. Driver, navigator and additional crew require verified enrichment with no
+detail error. Missing enriched fields and stream placeholders preserve known hashes;
+present verified empty values can clear known fields.
+
+Each group has its own collection interval. A stream read cannot advance the crew
+checkpoint, and a conflicting page read does not suppress an independently ordered
+crew change. First-seen crew fields seed silently; later changes to known fields
+notify. The full writer's scraped_at precedes enrichment, so publication time is
+the conservative end bound for crew reads. Later start alone is not supersession
+proof: conflicting overlapping reads within a group remain explicit uncertainty.
+An older detail row cannot revive a removed appointment.
+
+Equivalent conflicts are retained once. Distinct conflicts remain unknown and may
+expire only under the counted scope policy above. Settings distinguish withheld
+facts, blocked capture and unknown sources. No upstream revision cursor or complete
+coverage guarantee is claimed.
+
+Only verified complete schedule snapshots support missing-row removals. Missing
+Krewe/fleet rows do not mean clock-out/departure; explicit facts supply those events.
+
+Initial bootstrap is silent. After uninterrupted capture started on an earlier
+Chicago service day, the first current-day Krewe/fleet facts notify. A first-seen
+past service day is tagged `historical_first_seen` and seeds history; publication
+now does not establish that its old clock/geofence facts are new live events. Each new schedule
+scope starts with the owner-approved silent roster baseline; only subsequent
+proven changes are eligible.
+
+Raw positions, geometry-inferred visits, payroll amounts/finality, computed daily
+summaries, manual correction overlays and provisional legacy metrics remain
+outside this contract. No Slack history or Slack publication state is consumed.
+Upstream collection cadence/request volume is unchanged. Journal/DB notifications
+drive delivery immediately after supported facts are recorded, without batching.
+
+`prepare-web-push-source-hooks.py` reads external source code and stages four files;
+it never installs/runs them. Unknown or legacy hook anchors fail closed. Deployment
+must coordinate all source-owned collectors plus external `collect_junkware_daily.py`,
+`collect_linxup_alerts.py`, `source_aware_metrics.py` and the shared helper under
+existing collector locks. The dispatcher requires an absolute
+`OPSCENTER_WEB_PUSH_CAPTURE_HELPER` whose bytes match its release helper, preventing
+recovery with a different journal format. Capture requires its separate flag and
+absolute private journal directory; sending remains independently disabled.
+
+Approved future pause procedure: stop capture writers under their existing locks,
+mark the journal with helper `--pause`, set capture off and sending off, then stop
+the dispatcher. `--pause` records per-known-scope gaps and a renewed bootstrap
+time; it does not change flags or create an all-source reset marker.
+If capture was disabled without a marker, mark a gap before resuming. If only
+sending stops, capture may fill its bounded queue but canonical/Slack publication
+continues with explicit gaps. Resume requires helper-version verification, recovery,
+retained backlog review, scoped gap/recovery visibility and preserved-observation
+reconciliation checks.
+Never discard pending captures/deliveries to clear an alarm. Withheld evidence
+expires only through the counted scope policy above, without bypassing its guards. None of these operational
+steps was executed as part of this local revision.
+
+## Privacy, enrollment and transport
+
+Managers/admins choose schedule, krewe and fleet categories and explicitly tap
+Enable Notifications. On iPhone use an iOS 16.4+ Home Screen web app. Permission is
+never requested on mount. Devices belong to authenticated accounts; shared-login
+users consequently share device ownership. Signing out is not revocation.
+
+The lock screen says only that operational updates are available. The empty push
+body contains no customer information, event IDs, counts or locations. The fixed
+same-origin link opens `/desktop?workspace=Command` through normal authentication.
+The service worker has no fetch/cache handler, is served no-store and uses a
+shared tag with renotify. Actual Safari behavior is unverified.
+
+Enrollment checks use only public VAPID configuration. The private key loader
+requires enabled Mission Control plus `OPSCENTER_PROCESS_ROLE=push-dispatcher`;
+web/preview roles clear an inherited push private-key variable. No Keychain or
+protected environment change is part of this revision. The existing separately
+approved key and host setup remain unchanged and sending remains disabled.
+
+The exact Apple host and token-path rule, public IPv4 DNS pinning, TLS hostname
+validation, redirect denial, DNS/request timeouts, owner checks, strict Origin,
+8 KiB input limit and ten-device cap remain in place. The real Q-prefixed endpoint
+shape remains unverified and fails closed. No arbitrary endpoint forwarding.
+
+## Manager visibility of journal headroom
+
+The existing manager-only, private/no-store `GET /api/push/devices` response now
+includes `journal` health. The settings panel shows it while enrollment is disabled
+when a journal path is configured. The path is server configuration only; neither
+request input nor the response contains filesystem paths, fact contents or secrets.
+A database outage does not hide independently available queue measurements.
+
+Three admission groups match the producer's 10,000 files / 128 MiB guards:
+ready plus quarantine; pending JSON plus prepared markers plus pending quarantine;
+and uncertain evidence. The reader sums file metadata, reports used and remaining
+files/bytes, clamps remaining capacity to zero on overflow, and labels the sample
+time. It excludes acknowledged archive and temporary files, just as admission
+does. This is admission headroom, not disk free space or a hard atomic quota.
+Concurrent admissions can exceed the guards. CPU, storage, connections and lock
+headroom still require a monitored runtime trial; synthetic tests do not measure them.
+
+`unscopableRetained` is explicitly the count **at the last retention scan**, with
+that audit file's modification timestamp, not a fresh count. The current count
+may differ; even an old scan's zero must not be read as current health. Missing,
+malformed, oversized, future-dated or unreadable audits display unknown. A missing
+journal does not become a healthy empty queue. Symlinks and non-regular entries
+are rejected; changing directories or excessive directory scans give unknown
+headroom rather than misleading partial totals. No evidence payloads are read.
+
+Sampling happens on existing settings loads/saves and an explicit **Refresh
+status** button, with no background polling, new timer, retention run or producer
+invocation. Each group visits at most 20,002 directory entries; audit reads are
+bounded to 64 KiB. No cleanup or disposal is performed by the status reader.
+Unscopable disposal remains a separate, operator-reviewed decision if it accumulates.
+
+## Runtime and cost
+
+Uses installed Node and existing PostgreSQL. No new service, provider SDK,
+subscription or metered inference is introduced. Runtime CPU/storage capacity,
+dedicated session connection availability and deployment wiring still need review.
+This is a no-new-provider design, not evidence of unlimited free capacity.
+
+The reviewed preparation includes `scripts/supervise-web-push.py` and a disabled
+launchd template. The supervisor runs the journal consumer/dispatcher as a
+long-lived child, with RunAtLoad and KeepAlive both false. Installation and start
+remain explicit runtime operations; importing or deploying the source does neither.
+Deployment must supply the existing authenticated role resolution to the sender
+without exposing private signing material to web processes.
+
+## Bounded supervisor and enrollment-only setup
+
+The supervisor pins the active immutable release and requires the installed
+canonical helper to match it byte for byte. It reads only an allowlist of existing
+production configuration into a minimal child environment. Observe mode requires
+`OPSCENTER_WEB_PUSH_ENABLED=0`, uses role `push-observer`, denies every owner for
+fanout/claims, and never retrieves a signing key. Enrollment can separately use
+`OPSCENTER_WEB_PUSH_ENROLLMENT_ENABLED=1`; the prepared-owner trial gate still
+applies. The default web API additionally requires the live supervisor lease.
+Unsubscribe remains available after enrollment is disabled.
+
+The private state directory is
+`~/Library/Application Support/OpsCenter/web-push` (0700), with `journal/` (0700)
+and `sender.json` (0600). The latter has `mode: off|observe|send` and an absolute
+Unix-seconds `setupUntil` at most one hour from launch. This setup bound does not
+start or extend the database trial. A stable private flock prevents two supervisors.
+No second instance may remove the running instance's lease. Launchd must use the
+prepared template without auto-start or automatic restart.
+
+Before starting the child, the supervisor conservatively pauses/reconciles the
+journal and marks the prior coverage gap. It waits up to 45 seconds for the
+child's nonce/PID readiness after recovery, dedicated DB leadership, listener and
+journal initialization. Only then it renews a private five-second capability file.
+Canonical hooks whose capture environment flag is absent check that lease at
+the existing publication call. They never change canonical collection cadence or
+Slack publication. Explicit capture=0 still disables capture. No delivery timer
+or source polling was added: journal filesystem events and committed PostgreSQL
+NOTIFY remain the delivery triggers. The local lease timer is lifecycle safety.
+
+The API rejects enrollment when the lease disappears/expires. Default owner
+eligibility and the real transport require a `send` lease matching that child
+nonce, checked again after DNS. A child orphaned by a supervisor crash therefore
+loses sending permission within five seconds. Already accepted notices can remain
+within the bounded provider TTL. Observe mode grants no sending permission.
+
+A signal, child exit/readiness loss, operator configuration change or setup expiry
+removes the lease first, terminates only that child's process group, calls the
+canonical helper's locked pause/recovery to retain pending records and mark gaps,
+and persists `mode: off`, even when recovery fails. Recovery failure requires
+inspection; it must not be interpreted as a healthy shutdown. The child also
+stops at the database trial deadline, explicit stop or the third reserved attempt.
+An observer stops if a trial is started. No run resets attempts, deadline or audit.
+
+Approved installation order: stage exact source hooks and record input/output
+hashes; deploy the reviewed release with no lease or services running; back up
+external writer files; acquire the existing refresh and LinxUp writer locks; check
+input hashes again; atomically install the exact helper before the hook importers;
+verify output hashes and release/helper equality. Do not steal a busy lock or
+replace changed source. Then provision private state and the disabled LaunchAgent,
+supply the same owner/role resolution, explicitly prepare the intended owner and
+start observe-only setup. Verify known baselines and unresolved source health
+before opening enrollment or considering any send. Never approve the first
+candidate automatically. Match the phone-displayed device ID and full subscription
+fingerprint to the intended owner and require their actual readiness before start.
+
+For coordinated manual stop, set `sender.json` mode to `off` atomically or stop
+this supervisor; verify lease absent, child stopped and retained gap evidence.
+Then set enrollment/capture/sending configuration off, stop the trial if started,
+and verify the authenticated API reports enrollment disabled. Do not delete
+pending or uncertain evidence or reset the trial. A later mode change never
+restarts the process automatically.
+
+## Verification and remaining approvals
+
+`npm run verify:web-push` uses local mocks. `npm run verify:web-push:database`
+creates a private disposable PostgreSQL cluster with a Unix socket, TCP disabled,
+synthetic records and injected sender. It never uses runtime database URLs or
+Keychain. The cluster is stopped and deleted after testing.
+`npm run verify:web-push:browser` tests a synthetic local fixture with all
+permission, subscription and API calls mocked. These are not handset tests.
+
+Before any live use:
+1. Review the prepared source contracts, initial baseline behavior, unresolved ordering and retention;
+   approve the explicit coverage limits before activation.
+2. Obtain independent review of the exact final commit and test evidence.
+3. Separately approve branch integration/PR/push as needed, deployment and database
+   migrations 0002–0008 through the installed deployment controller.
+4. Approve coordinated collector-hook installation, private journal setup,
+   supervisor installation, public/private configuration and sender activation with
+   source baseline/recovery checks. No credentials were created by this revision.
+5. Device owner installs the Home Screen app and grants opt-in permission.
+6. Separately approve one actual iPhone delivery/revoke/expiry test.
+
+Proposed acceptance sequence (all live steps still require approval):
+
+1. Review the exact final revision, then separately authorize any PR/push/merge.
+   Verify the current production ancestry before integration.
+2. Approve disabled staging through the installed controller, including migrations
+   0002–0008. If source hooks are included, separately approve their installation
+   and install the reviewed helper first. Keep capture, enrollment and sending off.
+   Verify deployed revision, service health and authenticated manager status as
+   separate checks. Missing journal measurements must remain unknown.
+3. Separately authorize private journal/supervisor provisioning and restricted
+   public/private configuration (including VAPID credential creation/configuration).
+   Do not widen Apple endpoint validation or change access to make acceptance pass.
+   Verify health-path access and sample timestamps under the intended web identity.
+4. Approve a coordinated, supervised capture/dispatcher start and owner-only trial;
+   never leave capture running without its consumer. Verify silent baseline and
+   category filters. Explicitly approve enabling enrollment/sending and constrain
+   the enrolled audience to the one owner device before any event can notify.
+5. With separate enrollment permission, Eugene installs/opens the Home Screen app,
+   signs in, selects categories, taps Enable Notifications and grants OS permission.
+   Verify the displayed device ID and fingerprint, then separately approve that exact candidate with a short expiry. Explicitly start the trial only after readiness and live-trial approval. A browser mock is not evidence of the actual Apple endpoint or handset behavior.
+6. With explicit real-notification/test approval, perform one controlled canonical
+   event delivery, inspect minimal lock-screen content and safe deep link, then
+   test revoke and expiry with no blind replay of uncertain attempts. Approve any
+   additional enrollment/delivery needed for those acceptance cases explicitly.
+7. Monitor throughout the 30-minute trial: lock_busy, pending spool, uncertain/quarantine admission
+   headroom, last-scan unscopable count/age, CPU, disk and DB connections. Stop on
+   unexplained gaps, unknown measurements or unsafe resource pressure. Preapprove
+   the coordinated journal pause plus sending-disable rollback; retain evidence.
+
+Recovery after approved activation: follow the coordinated capture/sender pause
+procedure above, revoke affected devices when authorized and preserve uncertain outcomes. An accepted notice can
+still appear within the bounded provider TTL. Never blindly replay uncertain attempts.
+
+References: [WebKit](https://webkit.org/blog/13878/),
+[Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers),
+[RFC 8030](https://www.rfc-editor.org/rfc/rfc8030),
+[RFC 8292](https://www.rfc-editor.org/rfc/rfc8292).

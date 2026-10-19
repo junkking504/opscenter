@@ -1,3 +1,4 @@
+import { operationalUpdateGaps } from './operational-update-health';
 import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
 import { financeReading } from './daily-finance-freshness';
 import { readDesktopKrewe } from './desktop-krewe';
@@ -140,8 +141,9 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const crewProgress = buildCrewProgress({date,appointments,visits,alerts,
       scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
       visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
-      updatesComplete: digest.status === 'ready' && digest.complete !== false && geofences.complete,
+      updatesComplete: digest.status === 'ready' && digest.complete === true && geofences.complete,
     });
+  crewProgress.updateHistoryReasons = operationalUpdateGaps(digest, geofences);
   for (const job of crewProgress.jobs.filter(job=>job.needsFollowUp)) {
     const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
     if (latest) latest.needsAction = true;
@@ -171,7 +173,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     kpis,
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
-      {name:'Slack',area:'Operational alerts',detail:digest.detail,reasonCounts:digest.reasonCounts,workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
+      {name:'Slack',area:'Operational alerts',detail:digest.detail,reasonCounts:digest.reasonCounts,workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === true ? 'Current' : digest.complete === false ? 'Incomplete' : 'Unknown'):'Unavailable',tone:digest.status==='ready' && digest.complete === true ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available || alerts.length > 0, workflow: workflow.available },
     alerts,

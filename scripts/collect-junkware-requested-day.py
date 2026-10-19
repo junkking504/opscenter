@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 READER_DEADLINE_SECONDS = 175  # Finish before the application's 180-second timeout.
@@ -100,6 +100,7 @@ def main():
         raise SystemExit(1)
     signal.signal(signal.SIGTERM, terminate)
     try:
+        observation_started_at = datetime.now().astimezone().isoformat()
         result = collector.collect_attendance_source(args.date.isoformat())
         verification = result['verification']
         if not verification.get('all_territories_verified'):
@@ -110,7 +111,7 @@ def main():
             'appointments': result['appointment_rows'], 'cancelled': result['cancel_rows'],
             'markets_scraped': verification.get('verified_markets', []),
             'territory_verification': verification.get('territories', []),
-        })
+        }, observation_started_at=observation_started_at)
         print(json.dumps({'ok': True, 'date': args.date.isoformat()}))
     finally:
         collector.close_browser()

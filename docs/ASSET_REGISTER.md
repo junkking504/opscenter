@@ -67,5 +67,5 @@ Every material item must have exactly one canonical owner:
 
 - [Desktop layout and navigation](desktop-presentation.md): shared page rail,
   tabs/cards, Command headline, comparison chips and Capital pace chart.
-- [Shop TV](shop-tv.md): `desktop-ui/shop-tv.tsx`, authenticated read-only wall
+- [The Huddle](shop-tv.md): `desktop-ui/shop-tv.tsx`, authenticated read-only wall
   display, entered with `?tv=1`; uses existing Command and Crew sources.

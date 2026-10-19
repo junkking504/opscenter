@@ -27,4 +27,5 @@ export type CrewProgressSnapshot = {
   scheduleCurrent: boolean;
   visitsCurrent: boolean;
   updatesComplete: boolean;
+  updateHistoryReasons?: string[];
 };

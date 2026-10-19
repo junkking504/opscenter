@@ -1,3 +1,4 @@
+import { operationalUpdatePreview, operationalUpdateHasEdit } from '../lib/operational-update-preview';
 import { truckDisplayText } from '../../lib/junkware-trucks';
 import { crewAlertContext } from '../lib/crew-alert-context';
 import { requiresAlertAttention } from '../lib/alert-attention';
@@ -46,9 +47,11 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     const followUpDetail = job?.needsFollowUp && latestJobUpdates.has(alert.id) ? job.next : '';
     const presentation = crewAlertCardPresentation(alert, job);
     const appointmentContext = crewAlertContext(alert, job, presentation?.kind === 'completed');
-    const customer = [...(job?.customerFacts || []), ...alert.facts].find(fact => /^(customer|customer name)$/i.test(fact.label))?.value || alert.title;
+    const customer = [...(job?.customerFacts || []), ...alert.facts].find(fact => /^(customer|customer name)$/i.test(fact.label))?.value;
+    const preview = operationalUpdatePreview(alert, customer);
+    const edited = operationalUpdateHasEdit(alert);
     return <details key={alert.id} className="crew-compact-update">
-      <summary><time dateTime={alert.timestamp}>{clock(alert.timestamp) === 'Time unavailable' ? alert.detected : clock(alert.timestamp)}</time><strong>{presentation?.label || alert.label}</strong><span>{truckDisplayText(alert.truck || job?.truck || '—')}</span><span className="crew-update-customer" title={customer}>{customer}</span><span className={requiresAlertAttention(alert) ? 'update-follow-flag' : 'update-reviewed'}>{requiresAlertAttention(alert) ? 'Follow up' : alert.workflowState === 'acknowledged' ? 'Reviewed' : '—'}</span><ChevronRight size={14} aria-hidden="true" /></summary>
+      <summary><time dateTime={alert.timestamp} title={`Original event: ${clock(alert.timestamp)}`}>{clock(alert.timestamp) === 'Time unavailable' ? alert.detected : clock(alert.timestamp)}</time><strong>{presentation?.label || alert.label}</strong><span>{truckDisplayText(alert.truck || job?.truck || '—')}</span><span className="crew-update-customer" title={preview}>{preview}{edited && <small className="crew-update-edit">Original {clock(alert.timestamp)} · Updated {clock(alert.updatedAt)}</small>}</span><span className={requiresAlertAttention(alert) ? 'update-follow-flag' : 'update-reviewed'}>{requiresAlertAttention(alert) ? 'Follow up' : alert.workflowState === 'acknowledged' ? 'Reviewed' : '—'}</span><ChevronRight size={14} aria-hidden="true" /></summary>
     <article className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${presentation?.label === 'Estimate Completed' ? ' crew-update-estimate' : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
@@ -59,7 +62,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
             <div className="crew-event-meta"><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span className="crew-event-window">{presentation.timeSlot}</span>{presentation.truck && <span className="crew-event-truck">{truckDisplayText(presentation.truck)}</span>}</div>
           </div> : <><strong className="crew-update-label">{alert.label}</strong><span>{alert.title === alert.label ? '' : alert.title}{truckDisplayText(job && !alert.truck && !alert.title.includes(job.truck) ? ` · ${job.truck}` : '')}</span></>}
         </div>
-        {alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}
+        {edited && <em>Original {clock(alert.timestamp)} · Updated {clock(alert.updatedAt)}</em>}
       </header>
       {presentation?.kind === 'completed' && presentation.completion ? <div className="crew-completed-summary">
         <dl className="crew-completion-facts">
@@ -91,7 +94,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
       {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}
     </div>
     </div>
-    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
+    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && (progress.updateHistoryReasons?.join(' ') || 'Update history is incomplete; source coverage is unknown.')].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
     <section className="crew-all-updates" aria-label="All operational updates, newest first">{visibleUpdates.length ? visibleUpdates.map(renderUpdate) : <p className="crew-empty">{snapshot.sources.alerts ? 'No updates match these filters.' : 'Update history is unavailable.'}</p>}</section>
     {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up actions are unavailable while Control is disconnected. Updates remain visible.</p>}
   </section>;

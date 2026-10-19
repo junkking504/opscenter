@@ -18,6 +18,7 @@ export function authoritativeMarketingTotals(leads: SearchKingsLead[]) {
 export function readDesktopMarketing(date: string, role: InteractiveOpsRole): MarketingData {
   const source = buildSearchKingsView(date.slice(0, 7));
   const inquiryLeads = buildSearchKingsInquiryHistory();
+  const flags = readConversationFlags();
   const podium = buildPodiumGoogleReviewsView();
   const reviews = podium.locations.flatMap(location => location.reviews.map(review => ({ ...review, location: location.name })));
   const suggestions = podiumReviewNameSuggestions(reviews.map(review => ({ uid: review.uid, authorName: review.authorName, createdAt: review.createdAt, locationName: review.location })));
@@ -29,14 +30,35 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
   const recent = authoritativeMarketingTotals(source.leads.filter(lead => lead.calledDate >= recentStart)).bookings;
   const previous = authoritativeMarketingTotals(source.leads.filter(lead => lead.calledDate >= previousStart && lead.calledDate < recentStart)).bookings;
   return { date, range: source.rangeLabel, fetchedAt: source.snapshot?.fetchedAt || null, available: source.available, error: source.error || null, canAssignReviews: opsRoleCan(role, 'sensitive.write'), reviewAvailable: podium.available, reviewFetchedAt: podium.snapshot?.fetchedAt || null, reviewError: podium.error || null,
-    leads: inquiryLeads.map(lead => ({ id: lead.callId, version: commercialVersion(lead), customer: lead.callerName || 'Name unavailable', phone: lead.phone, duration: lead.duration, recordingUrl: lead.recordingUrl, territory: lead.territory, intent: lead.summary || 'Call intent unavailable', quotedValue: lead.potentialRevenue, status: lead.status, reason: lead.reason, note: lead.note, contacted: lead.franchiseContacted, calledAt: lead.calledAt, updatedAt: lead.updatedAt, source: lead.source, sourceUrl: lead.searchKingsUrl, appointmentId: lead.matchedAppointment?.appointmentId || null, jk: lead.matchedAppointment?.jobId || null, completed: lead.matchedAppointment?.completed || false, revenue: lead.matchedAppointment?.revenue ?? null })),
+    leads: inquiryLeads.map(lead => ({ id: lead.callId, version: commercialVersion({ ...lead, flag: flags[lead.callId] || null }), flagged: flags[lead.callId]?.flagged === true, customer: lead.callerName || 'Name unavailable', phone: lead.phone, duration: lead.duration, recordingUrl: lead.recordingUrl, territory: lead.territory, intent: lead.summary || 'Call intent unavailable', quotedValue: lead.potentialRevenue, status: lead.status, reason: lead.reason, note: lead.note, contacted: lead.franchiseContacted, calledAt: lead.calledAt, updatedAt: lead.updatedAt, source: lead.source, sourceUrl: lead.searchKingsUrl, appointmentId: lead.matchedAppointment?.appointmentId || null, jk: lead.matchedAppointment?.jobId || null, completed: lead.matchedAppointment?.completed || false, revenue: lead.matchedAppointment?.revenue ?? null })),
     reviews: reviews.map(review => ({ id: review.uid, version: commercialVersion(review), customer: review.authorName, location: review.location, excerpt: review.body, stars: review.rating, createdAt: review.createdAt, sourceUrl: review.url, needsResponse: review.needsResponse, attribution: review.attribution || null, candidates: (suggestions[review.uid] || []).map(candidate => ({ appointmentId: candidate.appointmentId, jkNumber: candidate.jkNumber, label: candidate.label })) })),
     totals: { calls: source.totalCalls, qualified: source.qualifiedCalls, ...totals, cost: source.spend },
     sources: source.territoryRows.map(row => { const leads = source.leads.filter(lead => lead.territory === row.territory); return { source: row.territory, calls: leads.length, qualified: row.qualifiedCalls, ...authoritativeMarketingTotals(leads), cost: row.spend }; }),
     jobChange: comparisonAvailable ? `Matched appointments: last 7 days ${recent} · prior 7 days ${previous}` : 'Prior 7-day comparison unavailable' };
 }
+type ConversationFlag = { flagged: boolean; updatedAt: string; updatedBy: string };
+const conversationFlagsFile = () => path.join(commercialDirectory(), 'conversation-flags', 'state.json');
+export function readConversationFlags(): Record<string, ConversationFlag> {
+  try {
+    const flags = JSON.parse(fs.readFileSync(conversationFlagsFile(), 'utf8'));
+    if (!flags || typeof flags !== 'object' || Array.isArray(flags) || Object.values(flags).some(value => !value || typeof value !== 'object' || typeof (value as ConversationFlag).flagged !== 'boolean' || typeof (value as ConversationFlag).updatedAt !== 'string' || typeof (value as ConversationFlag).updatedBy !== 'string')) throw new Error('Conversation flags are unreadable.');
+    return Object.assign(Object.create(null), flags);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return Object.create(null);
+    throw error;
+  }
+}
+// Caller holds the commercial write lock; keep metadata separate from source outcomes.
+export function saveConversationFlag(id: string, flagged: boolean, actor: string) {
+  const flags = readConversationFlags();
+  flags[id] = { flagged, updatedAt: new Date().toISOString(), updatedBy: actor };
+  const file = conversationFlagsFile();
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(`${file}.tmp`, JSON.stringify(flags), { mode: 0o600 });
+  fs.renameSync(`${file}.tmp`, file);
+}
 /** Registered local action definitions: writes retain attribution and immutable receipts. */
-export const COMMERCIAL_ACTIONS = { 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'resale.delete': 'sensitive.write', 'resale.restore': 'sensitive.write', 'recycling.save': 'sensitive.write', 'recycling.receipt.record': 'sensitive.write' } as const;
+export const COMMERCIAL_ACTIONS = { 'lead.flag': 'operations.write', 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'resale.delete': 'sensitive.write', 'resale.restore': 'sensitive.write', 'recycling.save': 'sensitive.write', 'recycling.receipt.record': 'sensitive.write' } as const;
 export function parseCommercialOperation(body: unknown): CommercialOperation {
   if (!body || typeof body !== 'object') throw new CommercialActionError('A typed change is required.');
   const value = body as CommercialOperation;
@@ -62,7 +84,7 @@ export function executeCommercialOperation(operation: CommercialOperation, actor
       if (receipt?.recordId === operation.recordId && receipt.action === operation.action && receipt.status !== 'verified') throw new CommercialActionError('This record has an unverified change. Inspect its saved receipt before another change.');
     }
     if (loadVersion() !== operation.expectedVersion) throw new CommercialActionError('The record changed. Refresh and review the current version.');
-    const fields = operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId'] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : operation.action === 'recycling.receipt.record' ? ['kind', 'rows', 'total', 'reviewed', 'yard', 'paid', 'paymentDate', 'paymentReference', 'recordVersions'] : ['runDate', 'paymentDate', 'material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
+    const fields = operation.action === 'lead.flag' ? ['flagged'] : operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId'] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : operation.action === 'recycling.receipt.record' ? ['kind', 'rows', 'total', 'reviewed', 'yard', 'paid', 'paymentDate', 'paymentReference', 'recordVersions'] : ['runDate', 'paymentDate', 'material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
     const input = Object.fromEntries(fields.map(key => [key, operation.values[key]]));
     let receipt: CommercialReceipt = { expectedVersion: operation.expectedVersion, input, permission: COMMERCIAL_ACTIONS[operation.action], authority: 'opscenter_authoritative', requestId: operation.requestId, recordId: operation.recordId, action: operation.action, actor: actor.email, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Verifying saved OpsCenter state.' };
     writeReceipt(receipt);
@@ -75,6 +97,15 @@ export function executeCommercialOperation(operation: CommercialOperation, actor
   } finally { fs.rmdirSync(lock); }
 }
 export function updateDesktopMarketing(operation: CommercialOperation, actor: { email: string; role: InteractiveOpsRole }) {
+  if (operation.action === 'lead.flag') {
+    if (typeof operation.values.flagged !== 'boolean') throw new CommercialActionError('Choose whether to flag this conversation.');
+    const flagged = operation.values.flagged;
+    return executeCommercialOperation(operation, actor, () => readDesktopMarketing(operation.date, actor.role).leads.find(lead => lead.id === operation.recordId)?.version, () => {
+      saveConversationFlag(operation.recordId, flagged, actor.email);
+      return readDesktopMarketing(operation.date, actor.role).leads.find(lead => lead.id === operation.recordId)?.flagged === flagged;
+    });
+  }
+
   if (operation.action === 'lead.update') {
     const status = String(operation.values.status || '') as LostLeadStatus;
     const reason = String(operation.values.reason || '') as LostLeadReason;

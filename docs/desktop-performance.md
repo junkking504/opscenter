@@ -59,6 +59,10 @@ size, for at most a few seconds (GPS) or a minute (geocodes). A collector write
 is picked up on the next call. Values from the memo are shared, so callers must
 not mutate them.
 
+Command's comparison with the same weekday last week only needs that day's
+schedule counts, so it uses `summarizeCommandScheduleFromMetrics` instead of
+building a second map with geocodes and GPS (`lib/desktop-command.ts`).
+
 Campaign (`readDesktopMarketing`) shows every SearchKings inquiry ever and
 every Podium review. It used to rebuild each month's appointment roster from
 daily metrics, parse every daily copy of the Podium review history to find

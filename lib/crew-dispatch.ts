@@ -7,7 +7,7 @@ export type CrewCurrentJob = {
   customerName: string; phone: string; address: string; appointmentTime: string;
   junkItems: string[]; appointmentNotes: string[]; driver: string; navigator: string;
 };
-export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; readOnly?: boolean; status: string; resetAt?:string;resetPriorAssignmentId?:string;appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{
+export type CrewScheduledJob = Omit<CrewCurrentJob, 'assignmentId'> & { assignmentId?: string; readOnly?: boolean; routePosition?: number; status: string; resetAt?:string;resetPriorAssignmentId?:string;appointmentType?: string; closedTotal?: number; estimateOutcomes?: string[];closeout?:{
   loadQuantity:number;loadSize:string;loadPrice:number;bedloadQuantity:number;bedloadSize:string;bedloadPrice:number;
   otherCharges:Array<{name:string;quantity:number;unitPrice:number;total:number}>;discount:number;tip:number;total:number;
   payments:Array<{method:string;detail?:string;amount:number}>;balance:number;

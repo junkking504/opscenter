@@ -267,6 +267,18 @@ their original receipt and crew evidence.
 Run `verify:crew-phone-day` and `verify:crew-closeout` for day/identity/payment
 contracts. Phone browser tests cover daily setup and additional job crew.
 
+## Route order from Control
+
+Control’s Truck Schedule → Route Order → **Push order to Waypoint** saves the
+selected truck’s full remaining-stop sequence, across booked time windows.
+Waypoint reads that durable order on its next assignment refresh and labels
+ranked appointments **Route stop 1**, **Route stop 2**, and so on. Connected
+phones detect the changed assignment token; offline phones receive it after
+reconnecting. Saving the order does not acknowledge delivery to a phone.
+Booked appointment windows, truck assignments, closeout checks and existing
+draft identities stay unchanged. Completed/canceled appointments are outside
+the remaining route; new appointments append until the manager reorders them.
+
 ## Completion and next-assignment rules
 
 - A Waypoint completion requires at least one photo observed on the owning JunkWare

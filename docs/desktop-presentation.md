@@ -34,7 +34,7 @@ Convoy, Capital and Campaign. Capital and restricted Crew reports follow the
 existing financial permission boundary. Every item is a real link (including
 open-in-new-tab), retains the operating date and clears unrelated record filters.
 The active page has `aria-current="page"`; keyboard focus is visible. The page
-list scrolls independently so OpsBot, source checks and the user remain available
+list explicitly allows flex shrinking above the fixed bottom controls and scrolls independently so OpsBot, source checks and the user remain available
 at the bottom. Mobile retains its workspace selector and shared page tabs.
 The existing URL keys remain compatible with saved links.
 

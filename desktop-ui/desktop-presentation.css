@@ -45,7 +45,7 @@
 .ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
 .ops-app.ops-live .schedule-board-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
 .ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }
-.ops-app.ops-live { grid-template-columns: 224px minmax(0, 1fr); }
+main.ops-app.ops-live { grid-template-columns: 224px minmax(0, 1fr); }
 .ops-app.ops-live .ops-sidebar { width: 224px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
 .ops-app.ops-live .brand-lockup { padding: 0 8px 10px; border-bottom: var(--desktop-card-border); flex-shrink: 0; }
 /* Override the legacy direct-child flex-shrink: 0 so the links scroll above the fixed footer. */
@@ -65,7 +65,7 @@
 .ops-app.ops-live .sidebar-footer .health-pulse { color: var(--oc-text-muted); font-size: var(--oc-type-10); white-space: normal; text-align: left; }
 .ops-app.ops-live .sidebar-footer .user-row { margin-top: 8px; }
 .ops-app.ops-live .sidebar-footer .user-row strong { color: var(--oc-text-primary); font-size: var(--oc-type-11); }
-@media(max-width:760px) { .ops-app.ops-live { grid-template-columns: minmax(0,1fr); } .ops-app.ops-live .ops-sidebar { display: none; } }
+@media(max-width:760px) { main.ops-app.ops-live { grid-template-columns: minmax(0,1fr); } .ops-app.ops-live .ops-sidebar { display: none; } }
 .ops-app .truck-summary-strip { display: flex; gap: 8px; align-items: stretch; overflow-x: auto; padding: 2px 0 10px; }
 .ops-app .truck-summary-card { flex: 1 0 175px; max-width: 260px; min-width: 0; padding: 8px 10px; text-align: left; border: var(--desktop-card-border); border-radius: var(--desktop-card-radius); box-shadow: var(--desktop-card-shadow); background: var(--oc-surface-raised); color: var(--oc-text-primary); }
 .truck-summary-card header,.truck-summary-card > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

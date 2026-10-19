@@ -33,6 +33,8 @@ await page.waitForSelector('.tv-card-win img');
 await page.locator('.tv-card-win img').evaluateAll(images=>Promise.all(images.map(image=>image.decode())));
 assert.equal(await page.locator('.tv-truck-row:not(.tv-truck-head)').count(),4);
 assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'Photo win, four trucks, long names and all source notices fit 1080p');
+await page.evaluate(()=>{const article=document.querySelector('.tv-spotlight article');article.className='tv-spotlight-card tv-card-welcome';article.querySelector('.tv-photo-pair').remove();article.querySelector('h2').textContent='Congratulations on another outstanding year of teamwork with our whole crew! '.repeat(2).slice(0,100);article.querySelector('p').textContent='Celebrating a great teammate and all the hard work. '.repeat(12).slice(0,500);article.querySelector('strong').textContent='Example Long Teammate Name and Our Outstanding Crew Members '.repeat(4).slice(0,160);});
+assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'Maximum-length non-photo celebration fits 1080p');
 await page.getByRole('button',{name:'Next',exact:true}).click();
 assert.ok((await page.locator('.tv-trucks').innerText()).includes('Truck 5'),'Next exposes remaining trucks under reduced motion');
 await browser.close();console.log('The Huddle top-five ranking, RPH, automatic read refresh, no writes and 1080p fit passed.');

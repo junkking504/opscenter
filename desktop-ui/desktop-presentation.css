@@ -201,7 +201,7 @@
   .tv-truck-row small { line-height:1.2; }
   .tv-truck-head { font-size:14px; }
   .tv-spotlight article { min-height:0; padding:16px 0; }
-  .tv-spotlight article p { -webkit-line-clamp:4; }
+  .tv-spotlight article p { -webkit-line-clamp:3; }
   .tv-spotlight h2,.tv-spotlight article>strong { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
   .tv-spotlight h2 { font-size:34px; margin:12px 0; }
   .tv-spotlight footer,.tv-spotlight footer small { line-height:1.25; }

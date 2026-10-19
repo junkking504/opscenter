@@ -13,7 +13,7 @@ function readIds(file: string): string[] {
     return data.ids;
   } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
 }
-export function applyStopOrders<T extends OrderedStop>(date: string, jobs: T[]): T[] {
+export function applyStopOrders<T extends OrderedStop>(date: string, jobs: T[]): Array<T & {stopOrder?: number; visitOrder?: number}> {
   const ranks = new Map<string,number>();
   for (const group of stopGroups(jobs)) {
     const saved = readIds(fileFor(date,stopGroupKey(group[0]))).filter(id=>group.some(job=>job.recordId === id));

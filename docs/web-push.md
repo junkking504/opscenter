@@ -245,6 +245,13 @@ outside this contract. No Slack history or Slack publication state is consumed.
 Upstream collection cadence/request volume is unchanged. Journal/DB notifications
 drive delivery immediately after supported facts are recorded, without batching.
 
+Schedule market scoping accepts the collectors' exact `Junk King …` labels and
+the existing short labels, keyed to the verified market ID. A geographic territory
+never overrides an explicit market; an unknown label remains incomplete coverage.
+The writer-contract test extracts both collectors' actual market constants and
+projects their normalized synthetic rows, so invented fixture labels cannot mask
+an incompatible producer contract.
+
 `prepare-web-push-source-hooks.py` reads external source code and stages four files;
 it never installs/runs them. Unknown or legacy hook anchors fail closed. Deployment
 must coordinate all source-owned collectors plus external `collect_junkware_daily.py`,

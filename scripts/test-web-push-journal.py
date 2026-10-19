@@ -47,6 +47,26 @@ class JournalTest(unittest.TestCase):
         journal.publish_json(self.target, payload, journal_root=self.journal, enabled=True, **kwargs)
     def entries(self):
         return [json.loads(path.read_text()) for path in sorted((self.journal / "ready").glob("*.json"))]
+    def test_exact_canonical_market_names_for_all_verified_scopes(self):
+        for market, name in journal.MARKETS.items():
+            payload = schedule()
+            payload['territory_verification'] = [{'territory_id': market, 'verified': True}]
+            payload['appointments'][0]['market'] = 'Junk King ' + name
+            payload['appointments'][0]['territory'] = 'Different geographic territory'
+            batches = journal.project(self.target, payload)
+            self.assertEqual([batch['scope'] for batch in batches], [f'schedule:{DAY}:market-{market}'])
+            self.assertEqual(len(batches[0]['observations']), 1)
+    def test_market_label_alias_change_is_not_an_operational_event(self):
+        self.publish(schedule())
+        canonical = schedule(); canonical['appointments'][0]['market'] = 'Junk King New Orleans'
+        self.publish(canonical)
+        self.assertEqual(len(self.entries()), 1)
+    def test_unknown_market_does_not_fall_back_to_geographic_territory(self):
+        payload = schedule(); payload['appointments'][0].update(market='Unverified New Orleans alias', territory='New Orleans')
+        self.assertEqual(journal.project(self.target, payload), [])
+        payload['appointments'][0]['market'] = 'Junk King New Orleans'
+        payload['territory_verification'][0]['verified'] = False
+        self.assertEqual(journal.project(self.target, payload), [])
     def test_burst_order_dedup_and_reversion(self):
         for status in ["Scheduled", "Enroute", "Arrived", "Completed", "Scheduled"]:
             self.publish(schedule(status))

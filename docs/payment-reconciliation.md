@@ -124,13 +124,11 @@ payments or included in the separate payment summary.
 
 Managers select exact records, review their customers, methods and amounts,
 and confirm one of three registered actions: `finance.update-quickbooks`,
-`finance.exclude-from-quickbooks`, or `finance.verify-payment-and-sync`.
-**Verify Payment** records the manager's cash/check/card verification and
-uses JunkWare's native Update QuickBooks action for each unsynced record. An
-already-synced payment can be verified without submitting it again. Card
-processor approval, manager verification, JunkWare sync status, and
-QBO accounting evidence remain separate. This does not charge a card, deposit
-a check, move money, or create an independent QBO transaction outside JunkWare.
+`finance.exclude-from-quickbooks`, or `finance.verify-payment-opscenter`.
+**Verify Payment** records only the manager's cash/check/card verification in
+OpsCenter. It never submits JunkWare's Update QuickBooks action. The accountant
+records verification in QuickBooks separately. Processor approval, manager
+verification, JunkWare sync status and QBO evidence remain separate.
 
 `POST /api/desktop/accounting` requires finance access and trusted origin; actions
 and read-only recovery require `sensitive.write`. The server supplies the actor.
@@ -191,14 +189,14 @@ existing reviewed accounting-update workflow responsible for source changes.
 ## Verify Payment and morning mailbox checks
 
 Managers collect cash/check envelopes the following morning. Select the exact
-jobs and choose **Verify Payment** (`finance.verify-payment-and-sync`) to confirm
-receipt and update QuickBooks together. For cards, review successful processing
-before confirming; this records a manager review without replacing independent
-processor evidence. Billed receivables and excluded jobs cannot use this action.
-The review lists each job, method/check number and amount and explicitly states
-that confirmation also updates QuickBooks. An already-synced payment is not
-submitted again. Verification remains recorded if syncing needs recovery;
-**Check saved result** reads the result without replaying the update.
+jobs and choose **Verify Payment** (`finance.verify-payment-opscenter`) to save
+receipt confirmation only in OpsCenter. For cards, review successful processing
+before confirming. Billed receivables and excluded jobs cannot use this action.
+Confirmation records the manager and time after rechecking the source identity,
+amount and method. It leaves JunkWare and QuickBooks sync status unchanged.
+**Check saved result** never creates a new attestation or replays a source update.
+Historical combined verification/sync receipts remain readable; submitted legacy
+updates can still be checked read-only. Historical changes are not undone.
 
 The former receipt-only action is no longer offered in the UI. Historical
 `finance.verify-payment-received` receipts retain their original meaning and

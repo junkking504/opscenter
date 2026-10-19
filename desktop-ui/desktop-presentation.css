@@ -222,3 +222,11 @@ main.ops-app.ops-live { grid-template-columns: 256px minmax(0, 1fr); }
   .ops-app.ops-live .page-rail-link { min-height: 32px; padding: 4px 12px; font-size: 16px; line-height: 24px; gap: 12px; }
   .ops-app.ops-live .page-rail-link svg { width: 20px; height: 20px; flex-shrink: 0; }
 }
+/* Give each workspace a clear header without taking space from its links. */
+.ops-app.ops-live .page-rail-group h2 {
+  color: var(--oc-surface-raised);
+  background: var(--oc-text-primary);
+  border-left: 3px solid var(--ops-brand-red);
+  border-radius: 3px;
+  font-weight: 800;
+}

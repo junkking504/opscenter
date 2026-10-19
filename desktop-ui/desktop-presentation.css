@@ -45,15 +45,15 @@
 .ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
 .ops-app.ops-live .schedule-board-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
 .ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }
-main.ops-app.ops-live { grid-template-columns: 224px minmax(0, 1fr); }
-.ops-app.ops-live .ops-sidebar { width: 224px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
+main.ops-app.ops-live { grid-template-columns: 256px minmax(0, 1fr); }
+.ops-app.ops-live .ops-sidebar { width: 256px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
 .ops-app.ops-live .brand-lockup { padding: 0 8px 10px; border-bottom: var(--desktop-card-border); flex-shrink: 0; }
 /* Override the legacy direct-child flex-shrink: 0 so the links scroll above the fixed footer. */
 .ops-app.ops-live .page-rail { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; scrollbar-width: thin; }
 .page-rail-group { padding: 8px 0; border-bottom: 1px solid var(--oc-border-default); }
 .page-rail-group:last-child { border-bottom: 0; }
 .page-rail-group h2 { padding: 0 8px; margin: 0 0 4px; color: var(--oc-text-muted); font-size: var(--oc-type-10); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.page-rail-link { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 5px 10px; color: var(--oc-text-primary); font-size: 14px; border-radius: var(--radius-sm); text-decoration: none; }
+.page-rail-link { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; color: var(--oc-text-primary); font-size: 16px; border-radius: var(--radius-sm); text-decoration: none; }
 .page-rail-link:hover { background: var(--oc-surface-muted); }
 .page-rail-link.active { color: var(--ops-brand-red); background: var(--oc-status-critical-tint); box-shadow: inset 2px 0 var(--ops-brand-red); font-weight: 650; }
 .page-rail-link[aria-disabled=true] { opacity: .6; }
@@ -218,7 +218,15 @@ main.ops-app.ops-live { grid-template-columns: 224px minmax(0, 1fr); }
 /* Fit the complete desktop navigation in standard laptop-height windows. */
 @media (min-width: 761px) and (max-height: 1100px) {
   .ops-app.ops-live .page-rail-group { padding: 1px 0; }
-  .ops-app.ops-live .page-rail-group h2 { font-size: 11px; line-height: 14px; margin-bottom: 0; }
-  .ops-app.ops-live .page-rail-link { min-height: 28px; padding: 4px 10px; font-size: 14px; line-height: 20px; gap: 10px; }
-  .ops-app.ops-live .page-rail-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .ops-app.ops-live .page-rail-group h2 { font-size: 12px; line-height: 16px; margin-bottom: 0; }
+  .ops-app.ops-live .page-rail-link { min-height: 32px; padding: 4px 12px; font-size: 16px; line-height: 24px; gap: 12px; }
+  .ops-app.ops-live .page-rail-link svg { width: 20px; height: 20px; flex-shrink: 0; }
+}
+/* Give each workspace a clear header without taking space from its links. */
+.ops-app.ops-live .page-rail-group h2 {
+  color: var(--oc-surface-raised);
+  background: var(--oc-text-primary);
+  border-left: 3px solid var(--ops-brand-red);
+  border-radius: 3px;
+  font-weight: 800;
 }

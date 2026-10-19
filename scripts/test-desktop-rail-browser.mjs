@@ -7,7 +7,7 @@ await page.route('**/*',route=>new URL(route.request().url()).hostname === '127.
 await page.goto('http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=Command&commandMap=1&date=2026-09-12');
 await page.waitForSelector('.page-rail-link');
 const targets=await page.locator('.page-rail-link').evaluateAll(links=>links.filter(link=>!link.href.includes('tv=1')).map(link=>({href:link.getAttribute('href'),label:link.textContent})));
-assert.equal(targets.length, 26);
+assert.equal(targets.length, 22);
 for(const {href,label} of targets){
  const all=await page.locator('.page-rail-link').evaluateAll(links=>links.map(link=>link.href));
  const expectedUrl=new URL(href,page.url()); const workspace=expectedUrl.searchParams.get('workspace'); const key={Command:'commandView',Schedule:'scheduleView',Krewe:'kreweView',Fleet:'fleetView',Finance:'financeView',Marketing:'marketingView'}[workspace];
@@ -20,6 +20,26 @@ for(const {href,label} of targets){
  assert.equal(await page.locator('.workspace').count(),1);
  console.log(`Reachable and active: ${label}`);
 }
+// Capital combines its summary and trends while old trend links remain usable.
+await page.goto('http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=Finance&financeView=overview');
+await page.waitForSelector('#capital-trends .finance-performance');
+assert.equal(await page.locator('.capital-hub').count(),1);
+assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).count(),0);
+assert.equal(await page.locator('.page-rail').getByRole('link',{name:'Trends',exact:true}).count(),0);
+assert.equal(await page.locator('.page-rail').getByRole('link',{name:'Reconciliation',exact:true}).count(),0);
+await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).selectOption('ytd');
+assert.equal(await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).inputValue(),'ytd');
+await page.locator('.capital-metric-primary').click();
+await page.waitForFunction(()=>new URL(location.href).searchParams.get('financeView')==='trends');
+await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
+assert.equal(await page.locator('.capital-hub').count(),1);
+await page.goto('http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=Finance&financeView=trends');
+await page.waitForSelector('#capital-trends .finance-performance');
+assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
+assert.equal(await page.locator('.page-rail-link[aria-current="page"]').innerText(),'Overview');
+assert.equal(await page.locator('.capital-hub').count(),1);
+await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
+console.log('Capital Overview contains trends; controls and legacy links work.');
 await page.locator('.page-rail-link').first().focus();await page.keyboard.press('Enter');
 await page.waitForFunction(()=>document.querySelector('.page-rail-link[aria-current="page"]')?.textContent==='Updates');
 await page.getByRole('tab',{name:'Alerts',exact:false}).focus();await page.keyboard.press('ArrowRight');

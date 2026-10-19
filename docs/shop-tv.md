@@ -83,3 +83,7 @@ independently verify image capture order or customer approval.
 
 Under reduced motion, completed jobs use three-job pages advanced by Next so
 long completion lists stay within the wall display instead of wrapping forever.
+
+Review cards show the public review author name beneath the quote, separately
+from attributed crew credit. Missing author names display “Reviewer name
+unavailable”; names are never inferred from job/customer matches.

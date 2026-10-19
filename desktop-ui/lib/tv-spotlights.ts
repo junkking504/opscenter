@@ -2,7 +2,7 @@ import type { DesktopCommandSnapshot } from './live-contract';
 import type { DesktopKreweSnapshot } from './people-fleet-contract';
 import { isCompletedTvJob } from './shop-tv-completion';
 
-export type TvCard = { id: string; kind: 'review' | 'record' | 'birthday' | 'anniversary' | 'welcome' | 'contest' | 'win'; title: string; body: string; credit: string; detail: string; before?: string; after?: string };
+export type TvCard = { id: string; kind: 'review' | 'record' | 'birthday' | 'anniversary' | 'welcome' | 'contest' | 'win'; title: string; body: string; author?: string; credit: string; detail: string; before?: string; after?: string };
 export type TvSpotlights = { date: string; generatedAt: string; reviewsAt: string | null; historyAt: string | null; cards: TvCard[]; notices: string[] };
 
 export function tvTruckStandings(snapshot: DesktopCommandSnapshot) {

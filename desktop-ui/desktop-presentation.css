@@ -211,3 +211,6 @@
   .tv-spotlight .tv-card-win>small { font-size:14px; line-height:1.2; }
   .tv-photo-pair img { height:120px; }
 }
+
+.tv-review-author { font-size:20px; line-height:1.2; color:#b8c9d9; margin:0 0 14px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media(min-width:1401px) { .tv-spotlight .tv-card-review p { -webkit-line-clamp:2; margin-bottom:8px; } }

@@ -22,7 +22,7 @@ export function curatedTvCards(value: unknown, date: string): TvCard[] {
     // Only existing JunkWare media belonging to the curated appointment is accepted.
     const photo = (key: string) => verifiedAppointmentMedia([text(key, 500)], text('appointmentId', 12))[0]?.url;
     const before = photo('before'), after = photo('after');
-    return [{ id: `curated-${index}`, kind: kind as TvCard['kind'], title: text('title', 100), body: text('body', 500), credit: text('credit', 160), detail: `${start}–${end}`, ...(before && after ? { before, after } : {}) }];
+    return [{ id: `curated-${index}`, kind: kind as TvCard['kind'], title: text('title', 100), body: text('body', 500), credit: text('credit', 160), detail: `${start}–${end}`, ...(before && after && before !== after ? { before, after } : {}) }];
   });
 }
 

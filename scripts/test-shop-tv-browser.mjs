@@ -23,6 +23,8 @@ assert.ok(await page.evaluate(()=>window.tvReads>=1));assert.equal(await page.ev
 assert.deepEqual(errors,[]);
 assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'TV fits the wall display');
 if(process.env.HUDDLE_SCREENSHOT)await page.screenshot({path:process.env.HUDDLE_SCREENSHOT,fullPage:true});
+await page.evaluate(()=>{document.querySelector('.tv-spotlight article p').textContent='An excellent cleanup and a wonderful experience with the team. '.repeat(8);const row=document.querySelector('.tv-truck-row:not(.tv-truck-head)');for(let i=0;i<3;i++)row.after(row.cloneNode(true));for(let i=0;i<3;i++){const note=document.createElement('small');note.textContent='Source history incomplete; scheduled celebration content unavailable.';document.querySelector('.tv-spotlight footer').append(note);}});
+assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'Four truck rows and source notices fit the wall display');
 await page.emulateMedia({reducedMotion:'reduce'});
 await page.getByText(/Manual rotation/).waitFor();
 assert.ok((await page.locator('.tv-spotlight').innerText()).includes('Manual rotation'));

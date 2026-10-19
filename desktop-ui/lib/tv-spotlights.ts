@@ -28,7 +28,7 @@ export function tvPersonalRecords(history: DesktopKreweSnapshot, date: string): 
   return history.members.flatMap(member => {
     const today = member.days.find(day => day.date === date);
     const previous = member.days.filter(day => day.date < date);
-    if (!today || today.revenue == null || today.revenue <= 0 || !previous.length || previous.some(day => day.revenue == null)) return [];
+    if (!today || today.revenue == null || !Number.isFinite(today.revenue) || today.revenue <= 0 || !previous.length || previous.some(day => day.revenue == null || !Number.isFinite(day.revenue))) return [];
     const best = Math.max(...previous.map(day => day.revenue!));
     if (today.revenue <= best) return [];
     return [{ id: `record-${member.id}`, kind: 'record' as const, title: 'New month-to-date best!', body: `${member.name} just set a new daily credited-revenue best this month.`, credit: member.name, detail: `$${Math.round(today.revenue).toLocaleString('en-US')} today · previous best $${Math.round(best).toLocaleString('en-US')} · ${history.start} through ${date} · day in progress` }];

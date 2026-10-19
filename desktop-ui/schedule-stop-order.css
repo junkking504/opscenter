@@ -51,3 +51,6 @@
 }
 
 .stop-order-pin.approximate-location{outline:2px dashed var(--oc-status-warn-accent);outline-offset:3px}
+
+/* Keep the dialog typography independent of its schedule-header trigger. */
+.ops-live .live-schedule.schedule-dispatch .schedule-board-shell .schedule-stop-order header h2 { margin: 0; font-family: inherit; font-size: var(--oc-type-16); font-weight: inherit; line-height: inherit; letter-spacing: normal; }

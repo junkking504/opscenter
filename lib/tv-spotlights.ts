@@ -5,6 +5,7 @@ import { readDesktopKrewe } from './desktop-krewe';
 import { addDays, chicagoDateKey } from './report-dates';
 import { verifiedAppointmentMedia } from './verified-job-photos';
 import type { InteractiveOpsRole } from './ops-roles';
+import { opsRoleCan } from './ops-roles';
 import { tvPersonalRecords, type TvCard, type TvSpotlights } from '../desktop-ui/lib/tv-spotlights';
 
 // Curated public-facing text only. This file never reads employee birth dates or payroll notes.
@@ -35,13 +36,14 @@ export function readTvSpotlights(date: string, role: InteractiveOpsRole): TvSpot
     else result.cards.push(...reviews.locations.flatMap(location => location.reviews.map(review => ({...review, location: location.name}))).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).filter(review => review.rating === 5 && review.body.trim() && Number.isFinite(Date.parse(review.createdAt)) && chicagoDateKey(new Date(review.createdAt)) >= addDays(date, -30) && chicagoDateKey(new Date(review.createdAt)) <= date).map(review => ({ id: `review-${review.uid}`, kind: 'review' as const, title: 'Five stars for the crew!', body: review.body.slice(0, 500), credit: review.attribution?.status === 'matched' && review.attribution.crew?.length ? review.attribution.crew.join(' & ') : 'Team shout-out · crew attribution unavailable', detail: `${review.location} · ${chicagoDateKey(new Date(review.createdAt))}` })).slice(0, 12));
   } catch { result.notices.push('Customer review source unavailable.'); }
   try {
+    if (!opsRoleCan(role, 'finance.read')) throw new Error('Personal records require manager finance access.');
     const history = readDesktopKrewe(date, 'monthly', role, false);
     result.historyAt = history.sourceUpdatedAt;
     result.cards.push(...tvPersonalRecords(history, date).slice(0, 10));
     if (history.missingDates.length) result.notices.push('Personal records paused: month-to-date history is incomplete.');
-  } catch { result.notices.push('Personal-record history unavailable.'); }
+  } catch { result.notices.push(opsRoleCan(role, 'finance.read') ? 'Personal-record history unavailable.' : 'Personal records require manager finance access.'); }
   try {
-    const filename = path.join(process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'shop-tv', 'celebrations.json');
+    const filename = path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'), 'shop-tv', 'celebrations.json');
     if (fs.statSync(filename).size > 100_000) throw new Error('Oversized content');
     result.cards.push(...curatedTvCards(JSON.parse(fs.readFileSync(filename, 'utf8')), date));
   } catch (error) { result.notices.push((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'Birthdays, anniversaries, welcomes, photo wins and contests appear when scheduled.' : 'Scheduled celebration content unavailable.'); }

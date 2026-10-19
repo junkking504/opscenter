@@ -28,4 +28,11 @@ assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHe
 await page.emulateMedia({reducedMotion:'reduce'});
 await page.getByText(/Manual rotation/).waitFor();
 assert.ok((await page.locator('.tv-spotlight').innerText()).includes('Manual rotation'));
+await page.goto(`${process.env.DESKTOP_TEST_ORIGIN || 'http://127.0.0.1:3158'}/tests/aspect-ratio.html?tv=1&commandMap=1&huddleStress=1`);
+await page.waitForSelector('.tv-card-win img');
+await page.locator('.tv-card-win img').evaluateAll(images=>Promise.all(images.map(image=>image.decode())));
+assert.equal(await page.locator('.tv-truck-row:not(.tv-truck-head)').count(),4);
+assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'Photo win, four trucks, long names and all source notices fit 1080p');
+await page.getByRole('button',{name:'Next',exact:true}).click();
+assert.ok((await page.locator('.tv-trucks').innerText()).includes('Truck 5'),'Next exposes remaining trucks under reduced motion');
 await browser.close();console.log('The Huddle top-five ranking, RPH, automatic read refresh, no writes and 1080p fit passed.');

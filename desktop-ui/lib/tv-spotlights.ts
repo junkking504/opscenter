@@ -14,7 +14,7 @@ export function tvTruckStandings(snapshot: DesktopCommandSnapshot) {
     seen.add(job.id);
     const row = trucks.get(job.truck) || { truck: job.truck, crew: new Set<string>(), jobs: 0, revenue: 0, priced: 0 };
     row.jobs++;
-    if (job.crew && !/unavailable|unassigned/i.test(job.crew)) row.crew.add(job.crew);
+    for (const name of job.crew.split(' · ')) if (name.trim() && !/unavailable|unassigned|not recorded/i.test(name)) row.crew.add(name.trim());
     const total = job.completion.total?.trim();
     if (total && /^\$?[\d,]+(?:\.\d+)?$/.test(total)) { row.revenue += Number(total.replace(/[$,]/g, '')); row.priced++; }
     trucks.set(job.truck, row);

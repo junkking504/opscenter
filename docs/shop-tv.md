@@ -70,3 +70,16 @@ and `after`; both must pass existing JunkWare media and appointment-identity
 validation. The manager chooses the pair and credits; the system does not infer
 which images represent before/after. Missing content is shown as waiting, never
 replaced with an invented celebration. Invalid/oversized files report unavailable.
+
+Truck pages share the spotlight controls: Pause pauses both; reduced motion
+requires Next to reveal remaining truck pages. Personal records require the
+session's existing finance permission; operations-only sessions receive a clear
+permission notice. Credited revenue and previous-best figures are intended for
+the existing manager viewing audience, not a public or unauthenticated kiosk.
+With no configured data root, curated content resolves under the user's existing
+OpsBot runtime data folder, never an immutable release. The paired-photo check
+validates the existing allowed URL/appointment filename pattern; it does not
+independently verify image capture order or customer approval.
+
+Under reduced motion, completed jobs use three-job pages advanced by Next so
+long completion lists stay within the wall display instead of wrapping forever.

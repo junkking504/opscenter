@@ -9,10 +9,13 @@ const completed = snapshot.crewProgress!.jobs.find(job => job.completion.total)!
 completed.status = 'Completed Duration: 65 min(s)';
 completed.completion.total = '$450.00';
 assert.deepEqual(tvTruckStandings(snapshot).map(row => [row.jobs,row.revenue,row.average]), [[1,450,450]]);
+completed.crew='Example driver · Example navigator';
 snapshot.crewProgress!.jobs.push(completed);
 assert.equal(tvTruckStandings(snapshot)[0].jobs,1,'Duplicate source job cannot add revenue');
 delete completed.completion.total;
 assert.equal(tvTruckStandings(snapshot)[0].revenue,null,'Missing prices do not become zero');
+snapshot.crewProgress!.jobs.push({...completed,id:'second',crew:'Example driver · Another navigator',completion:{...completed.completion}});
+assert.equal(tvTruckStandings(snapshot)[0].crew,'Example driver · Example navigator · Another navigator');
 snapshot.crewProgress!.scheduleCurrent=false;
 assert.deepEqual(tvTruckStandings(snapshot),[],'Stale schedule cannot establish standings');
 
@@ -32,5 +35,6 @@ assert.equal(curatedTvCards([{...celebration,start:'2026-02-30'}],'2026-10-19').
 const before='https://junkware.junk-king.com/system/aspnet/local/media/2026-09/test-4075431-unique-before.jpg';
 const paired=curatedTvCards([{...celebration,kind:'win',appointmentId:'4075431',before,after:before.replace('before','after')}],'2026-10-19')[0];
 assert.ok(paired.before&&paired.after);
+assert.equal(curatedTvCards([{...celebration,appointmentId:'4075431',before,after:before}],'2026-10-19')[0].before,undefined,'Same image cannot represent a before/after pair');
 assert.equal(curatedTvCards([{...celebration,before:'https://evil.example/a.jpg',after:before}],'2026-10-19')[0].before,undefined);
 console.log('The Huddle: completed-job authority, missing values, deduplication, personal-record coverage and dated curated-media validation passed.');

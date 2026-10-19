@@ -120,4 +120,4 @@ cleanup, task completion and daily storage checks.
 - [Address verification completion](address-verification-completion.md)
 
 - [Desktop presentation and navigation](desktop-presentation.md)
-- [Shop TV](shop-tv.md)
+- [The Huddle](shop-tv.md)

@@ -148,3 +148,53 @@
 .release-update-toast button:last-child { background: var(--ops-brand-red); color: var(--oc-surface-raised); border-color: var(--ops-brand-red); }
 .release-update-toast button:disabled { opacity: .5; cursor: default; }
 .release-update-toast small { display: block; margin-top: 6px; color: var(--oc-text-muted); font-size: var(--oc-type-11); }
+
+/* Wall scoreboard: keep the goal and standings visible beside one large story. */
+.ops-app.shop-tv { gap: 12px; padding: 20px 32px; }
+.shop-tv .command-revenue-hero { min-height: 150px; padding: 18px 24px; }
+.tv-win-strip { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:12px 20px; border-radius:12px; background:#20384d; color:#fff; font-size:20px; }
+.tv-win-strip strong { color:#ffda75; letter-spacing:.04em; }
+.tv-goal-reached { background:#165a42; }
+.tv-main-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; flex:1; min-height:0; }
+.tv-scoreboards { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.shop-tv .tv-leaderboard { flex:initial; padding:16px 20px; }
+.shop-tv .tv-ranking { grid-template-columns:36px minmax(120px,1fr) 120px 100px 110px; font-size:23px; padding:10px 0; gap:12px; }
+.shop-tv .tv-ranking-head { font-size:14px; padding:10px 0 6px; }
+.shop-tv .tv-leaderboard header { gap:12px; }
+.shop-tv .tv-leaderboard header>span { font-size:13px; max-width:260px; text-align:right; }
+.tv-trucks { padding:14px 20px; border-radius:12px; background:#fff; color:#152c40; }
+.tv-trucks header { display:flex; align-items:center; justify-content:space-between; }
+.tv-trucks h2 { font-size:24px; margin:0; }
+.tv-truck-row { display:grid; grid-template-columns:minmax(130px,1fr) 55px 110px 110px; gap:12px; padding:8px 0; border-bottom:1px solid #e0e5ea; font-size:22px; }
+.tv-truck-row>:nth-child(n+2) { text-align:right; }
+.tv-truck-row small { display:block; font-size:13px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tv-truck-head { font-size:14px; color:#536476; }
+.tv-trucks>small { display:block; margin-top:8px; color:#536476; }
+.tv-spotlight { display:flex; flex-direction:column; min-width:0; border:1px solid #516477; border-radius:16px; background:#102b42; color:#fff; padding:22px 26px; }
+.tv-spotlight>header { display:flex; align-items:center; justify-content:space-between; font-size:15px; letter-spacing:.12em; color:#b8c9d9; }
+.tv-spotlight button { color:#fff; border:1px solid #6c8195; border-radius:8px; background:transparent; padding:5px 10px; margin-left:8px; font-size:14px; }
+.tv-spotlight button:disabled { opacity:.5; }
+.tv-spotlight article { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:24px 0; overflow-wrap:anywhere; }
+.tv-card-kind { font-size:18px; color:#ffda75; letter-spacing:.06em; }
+.tv-spotlight h2 { font-size:38px; line-height:1.1; margin:16px 0; color:#fff; }
+.tv-spotlight article p { font-size:28px; line-height:1.4; margin:0 0 20px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; overflow:hidden; }
+.tv-spotlight article>strong { font-size:26px; color:#ffda75; }
+.tv-spotlight small { display:block; font-size:13px; color:#b8c9d9; margin-top:5px; }
+.tv-spotlight article>small { font-size:16px; }
+.tv-spotlight footer { border-top:1px solid #516477; padding-top:10px; font-size:13px; color:#b8c9d9; }
+.tv-photo-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; margin-bottom:15px; }
+.tv-photo-pair figure { margin:0; }
+.tv-photo-pair img { width:100%; height:180px; object-fit:contain; }
+.tv-photo-pair figcaption { font-size:15px; text-align:center; }
+.tv-card-win p { -webkit-line-clamp:2; }
+.shop-tv .tv-completed h2 { display:none; }
+@media(max-width:1400px) { .tv-main-grid { grid-template-columns:1fr; } .tv-spotlight { min-height:400px; } }
+@media(min-width:1401px) {
+  .shop-tv .tv-leaderboard { padding:12px 20px; }
+  .shop-tv .tv-ranking { font-size:22px; line-height:1.15; padding:6px 0; }
+  .shop-tv .tv-ranking-head { font-size:14px; padding:8px 0; }
+  .tv-truck-row { font-size:20px; line-height:1.15; padding:4px 0; }
+  .tv-truck-row small { line-height:1.2; }
+  .tv-truck-head { font-size:14px; }
+  .tv-spotlight article p { -webkit-line-clamp:4; }
+}

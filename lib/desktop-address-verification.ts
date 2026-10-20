@@ -18,7 +18,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 19;
+export const ADDRESS_VERIFICATION_POLICY = 20;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -63,13 +63,15 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
   const expectedZip=withoutServiceUnit(address).match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
   const requested = fullFieldStreetAddress(withoutServiceUnit(address));
   const sourceHouse = serviceHouseAndStreet(requested) || (serviceStreetCandidates(requested).length === 0 ? firstHouseAndStreet(requested) : null);
+  const corrected = result.geometry?.location_type === 'ROOFTOP' && house && street
+    && hasMinorStreetCorrection(normalize(requested).replace(/ (\d{5}) \d{4}$/, ' $1'), normalize(house), normalize(street), normalize(component('locality')?.long_name || ''), zip || '', true);
   const streetMatches = house && street && sourceHouse
     && normalizeHouseNumber(sourceHouse.house) === normalizeHouseNumber(house)
-    && matchesStreet(`${normalizeHouseNumber(sourceHouse.house)} ${sourceHouse.street}`, normalizeHouseNumber(house), street, component('locality')?.long_name || '', zip || '');
+    && (matchesStreet(`${normalizeHouseNumber(sourceHouse.house)} ${sourceHouse.street}`, normalizeHouseNumber(house), street, component('locality')?.long_name || '', zip || '') || corrected);
   const point=result.geometry?.location;
   if(result.partial_match || !streetMatches || !expectedZip || zip!==expectedZip || component('administrative_area_level_1')?.short_name!=='LA' || component('country')?.short_name!=='US') return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
   if(!['ROOFTOP','RANGE_INTERPOLATED'].includes(result.geometry?.location_type||'') || !point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng) || point.lat<29 || point.lat>31.3 || point.lng< -93 || point.lng> -89.4) return {location:null,reason:'Precise Service Location Unavailable'};
-  return {location:{latitude:point.lat,longitude:point.lng},reason:'House, Street, And ZIP Verified'};
+  return {location:{latitude:point.lat,longitude:point.lng},reason:corrected?'Minor Street Spelling Correction Verified':'House, Street, And ZIP Verified'};
 }
 
 export function verifyCensusAddress(address:string,payload:unknown):AddressVerification {

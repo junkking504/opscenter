@@ -26,17 +26,28 @@ export async function osmTravelMatrix(origins:Coordinates[],destinations:Coordin
   if(origins.length*destinations.length>1){
     // Truck-to-job comparisons use only the requested rectangular table.
     // Small chunks also keep the public service's coordinate limit bounded.
+    const missing:{originIndex:number;destinationIndex:number}[]=[];
     for(let from=0;from<origins.length;from+=5)for(let to=0;to<destinations.length;to+=5){
       if(Date.now()>=deadline)return result;
       const source=origins.slice(from,from+5),target=destinations.slice(to,to+5),points=[...source,...target];
       const params=new URLSearchParams({sources:source.map((_,i)=>String(i)).join(';'),destinations:target.map((_,i)=>String(i+source.length)).join(';'),annotations:'duration,distance',radiuses:points.map(()=>'150').join(';')});
       const data=await read(`table/v1/driving/${points.map(p=>`${p.longitude},${p.latitude}`).join(';')}?${params}`) as {code?:string;durations?:unknown[][];distances?:unknown[][];sources?:{distance?:number}[];destinations?:{distance?:number}[]}|null;
-      if(data?.code!=='Ok')continue;
-      for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++){
+      // A table can fail because one coordinate cannot snap, or while the
+      // provider still serves individual routes. Recover only missing pairs,
+      // using the same total deadline and shared transport limits.
+      if(data?.code==='Ok')for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++){
         const seconds=data.durations?.[i]?.[j],meters=data.distances?.[i]?.[j];
         if(typeof seconds!=='number' || !Number.isFinite(seconds) || seconds<0 || typeof meters!=='number' || !Number.isFinite(meters) || meters<0 || ![data.sources?.[i]?.distance,data.destinations?.[j]?.distance].every(n=>typeof n==='number' && Number.isFinite(n) && n>=0 && n<=150))continue;
         result.push({originIndex:from+i,destinationIndex:to+j,condition:'ROUTE_EXISTS',duration:`${seconds}s`,distanceMeters:meters});
       }
+      if(data?.code!=='Ok')for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++)missing.push({originIndex:from+i,destinationIndex:to+j});
+    }
+    // Complete table batches first so a failed batch cannot starve later ones.
+    // Explicit missing/off-road table cells are not retried with the same snap limit.
+    for(const pair of missing){
+      if(Date.now()>=deadline)return result;
+      const recovered=await osmTravelMatrix([origins[pair.originIndex]],[destinations[pair.destinationIndex]],send,deadline-Date.now());
+      for(const row of recovered || [])result.push({...row,...pair});
     }
     return result;
   }

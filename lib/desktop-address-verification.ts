@@ -64,7 +64,7 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
   const requested = fullFieldStreetAddress(withoutServiceUnit(address));
   const sourceHouse = serviceHouseAndStreet(requested) || (serviceStreetCandidates(requested).length === 0 ? firstHouseAndStreet(requested) : null);
   const corrected = result.geometry?.location_type === 'ROOFTOP' && house && street
-    && hasMinorStreetCorrection(normalize(requested), normalize(house), normalize(street), normalize(component('locality')?.long_name || ''), zip || '');
+    && hasMinorStreetCorrection(normalize(requested).replace(/ (\d{5}) \d{4}$/, ' $1'), normalize(house), normalize(street), normalize(component('locality')?.long_name || ''), zip || '', true);
   const streetMatches = house && street && sourceHouse
     && normalizeHouseNumber(sourceHouse.house) === normalizeHouseNumber(house)
     && (matchesStreet(`${normalizeHouseNumber(sourceHouse.house)} ${sourceHouse.street}`, normalizeHouseNumber(house), street, component('locality')?.long_name || '', zip || '') || corrected);

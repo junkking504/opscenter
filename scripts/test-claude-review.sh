@@ -36,7 +36,7 @@ write_help() {
   for f in "$@"; do printf '  %s <x>   description\n' "$f" >>"$stub_dir/help.txt"; done
 }
 write_help $flags
-subscription='{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty"}'
+subscription='{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "subscriptionType": "max"}'
 printf '%s\n' "$subscription" >"$stub_dir/auth.json"
 
 # A throwaway repository with a copy of the script and synthetic secrets.
@@ -46,7 +46,14 @@ cd "$repo"
 git init -q
 git config user.email test@example.invalid
 git config user.name test
-cp "$script" ./claude-review.sh
+# Point the managed-settings locations at the test directory; the real ones
+# are system paths this test must not touch.
+sed -e "s|/etc/claude-code|$work/managed|; s|/Library/Application Support/ClaudeCode|$work/managed|" \
+  -e "s|/Library/Managed Preferences|$work/managed-prefs|g" "$script" >./claude-review.sh
+chmod +x ./claude-review.sh
+export HOME="$work/home"
+unset CLAUDE_CONFIG_DIR
+mkdir -p "$HOME/.claude"
 printf 'base\n' >app.ts
 git add -A && git commit -q -m base
 printf 'base\nchanged\n' >app.ts
@@ -63,7 +70,10 @@ printf 'name,SYNTH_CSV\n' >export.csv
 printf 'TOKEN=SYNTH_DEVVARS\n' >.dev.vars
 mkdir -p .auth ignored-data
 printf '{"cookies":"SYNTH_AUTH_STATE"}\n' >.auth/state.json
-printf '.auth/\nignored-data/\n' >.gitignore
+mkdir -p 'ignored (private)' 'odd"	dir'
+printf 'SYNTH_PAREN\n' >'ignored (private)/state.json'
+printf 'SYNTH_ODD\n' >'odd"	dir/state.json'
+printf '.auth/\nignored-data/\nignored (private)/\nodd*/\n' >.gitignore
 printf 'SYNTH_IGNORED\n' >ignored-data/x.json
 
 run() { PATH="$stub_dir:$PATH" "$@"; }
@@ -100,6 +110,8 @@ check "denies prompts" 'grep -A1 -x -- --permission-prompts "$stub_dir/args.txt"
 check "denies reading .npmrc" 'grep -q -x "Read(\*\*/.npmrc)" "$stub_dir/args.txt"'
 check "denies reading gitignored paths" 'grep -q -x "Read(./.auth/\*\*)" "$stub_dir/args.txt" && grep -q -x "Read(./ignored-data/\*\*)" "$stub_dir/args.txt"'
 check "caps turns" 'grep -A1 -x -- --max-turns "$stub_dir/args.txt" | grep -q -x 40'
+check "denies ignored path with parentheses" 'grep -q -x "Read(./ignored ?private?/\*\*)" "$stub_dir/args.txt"'
+check "denies ignored path with a quote and a tab" 'grep -q -x "Read(./odd??dir/\*\*)" "$stub_dir/args.txt"'
 check "focus is in the prompt" 'grep -q "focus text" "$stub_dir/args.txt"'
 
 # Committed secrets are withheld too.
@@ -138,6 +150,47 @@ fail_auth '{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstPa
 fail_auth '{"loggedIn": true, "authMethod": "third_party", "apiProvider": "foundry"}' "Foundry provider"
 fail_auth '{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "bedrock"}' "Bedrock provider"
 fail_auth 'not json' "unreadable auth status"
+printf '%s\n' "$subscription" >"$stub_dir/auth.json"
+
+managed_refusal() {
+  rm -f "$stub_dir/args.txt"
+  expect_exit "$1" 7 ./claude-review.sh
+  check "$1: claude review never called" '[ ! -e "$stub_dir/args.txt" ]'
+}
+mkdir -p "$work/managed"
+printf '{"hooks":{}}\n' >"$work/managed/managed-settings.json"
+managed_refusal "managed settings file"
+rm "$work/managed/managed-settings.json"
+mkdir -p "$work/managed/managed-settings.d"
+managed_refusal "managed settings drop-in"
+rmdir "$work/managed/managed-settings.d"
+printf '{}\n' >"$work/managed/managed-mcp.json"
+managed_refusal "managed MCP file"
+rm "$work/managed/managed-mcp.json"
+mkdir -p "$work/managed-prefs"
+: >"$work/managed-prefs/com.anthropic.claudecode.plist"
+managed_refusal "MDM profile"
+rm "$work/managed-prefs/com.anthropic.claudecode.plist"
+printf '{"hooks":{"SessionStart":[]}}\n' >"$HOME/.claude/remote-settings.json"
+managed_refusal "server-managed settings"
+printf '{ }\n' >"$HOME/.claude/remote-settings.json"
+rm -f "$stub_dir/args.txt"
+run ./claude-review.sh >/dev/null 2>&1 || true
+check "empty server-managed settings still run" '[ -e "$stub_dir/args.txt" ]'
+rm "$HOME/.claude/remote-settings.json"
+
+printf '%s\n' '{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "subscriptionType": "team"}' >"$stub_dir/auth.json"
+managed_refusal "Team plan"
+printf '%s\n' '{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "subscriptionType": "enterprise"}' >"$stub_dir/auth.json"
+managed_refusal "Enterprise plan"
+printf '%s\n' '{"loggedIn": true, "authMethod": "oauth_token", "apiProvider": "firstParty"}' >"$stub_dir/auth.json"
+managed_refusal "unknown plan without a settings cache"
+printf '{}\n' >"$HOME/.claude/remote-settings.json"
+rm -f "$stub_dir/args.txt"
+run ./claude-review.sh >/dev/null 2>&1 || true
+check "unknown plan with an empty settings cache runs" '[ -e "$stub_dir/args.txt" ]'
+rm "$HOME/.claude/remote-settings.json"
+printf '%s\n' "$subscription" >"$stub_dir/auth.json"
 printf '%s\n' "$subscription" >"$stub_dir/auth.json"
 
 write_help --restricted --tools

@@ -69,6 +69,24 @@ for flag in --restricted --safe-mode --strict-mcp-config --setting-sources \
   fi
 done
 
+# Fail closed when admin-managed or server-managed Claude Code settings exist.
+# They still apply under --restricted and --safe-mode and can add hooks, MCP
+# servers, an apiKeyHelper or environment this script cannot remove.
+managed_dir="/etc/claude-code"
+[ "$(uname -s)" = Darwin ] && managed_dir="/Library/Application Support/ClaudeCode"
+managed_paths=(
+  "$managed_dir/managed-settings.json"
+  "$managed_dir/managed-settings.d"
+  "$managed_dir/managed-mcp.json"
+  "/Library/Managed Preferences/com.anthropic.claudecode.plist"
+  "/Library/Managed Preferences/${USER:-}/com.anthropic.claudecode.plist"
+)
+for managed in "${managed_paths[@]}"; do
+  if [ -e "$managed" ]; then
+    echo "claude-review: managed Claude Code settings found at $managed; they may add hooks or billing this review cannot isolate. Not run." >&2
+    exit 7
+  fi
+done
 # Fail closed unless the login is a first-party Claude subscription. An API
 # key, apiKeyHelper, or third-party provider would bill metered API usage
 # (docs/spending-controls.md). auth status runs from an empty directory so no
@@ -106,6 +124,29 @@ case "$auth" in
     exit 5
     ;;
 esac
+
+# Server-managed settings come only with Team and Enterprise plans, which can
+# also bill usage. A Pro or Max login has none; any other plan, or a login
+# that does not report its plan, runs only when the local cache of
+# server-managed settings exists and is empty.
+case "$auth" in
+  *'"subscriptionType":"pro"'* | *'"subscriptionType":"max"'*) personal_plan=1 ;;
+  *'"subscriptionType":'*)
+    echo "claude-review: Claude Code is logged in to a Team or Enterprise plan, which may bill usage and apply server-managed settings. Not run." >&2
+    exit 7
+    ;;
+  *) personal_plan=0 ;;
+esac
+remote_settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/remote-settings.json"
+if [ -e "$remote_settings" ]; then
+  if [ ! -r "$remote_settings" ] || [ -n "$(tr -d ' \t\r\n{}' <"$remote_settings")" ]; then
+    echo "claude-review: server-managed Claude Code settings are in effect ($remote_settings). Not run." >&2
+    exit 7
+  fi
+elif [ "$personal_plan" = 0 ]; then
+  echo "claude-review: cannot confirm there are no server-managed Claude Code settings. Not run." >&2
+  exit 7
+fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
@@ -222,16 +263,23 @@ fi
 #   --permission-prompts none
 #                         anything that would ask is denied
 #   --max-turns           bounds a runaway review (accepted, not in --help)
-# Admin-managed (policy) settings still apply; they are outside the repo.
+# Admin- and server-managed settings would still apply; the script refuses
+# to run when any are present (see above).
 # Gitignored paths (dependencies, build output, local runtime data) are never
 # in the diff, so Claude is denied reading them too.
-while IFS= read -r ignored; do
+# Characters that are special in a permission rule become the single-character
+# wildcard, so the rule still covers the path (and possibly a little more).
+while IFS= read -r -d '' ignored; do
+  [ -n "$ignored" ] || continue
+  rule_path="$ignored"
+  for special in '[' ']' '(' ')' '*' '?' '\' '!' '#' '{' '}' '"' $'\t' $'\n'; do
+    rule_path="${rule_path//"$special"/?}"
+  done
   case "$ignored" in
-    *'('* | *')'*) continue ;;
-    */) deny_rules+=("Read(./${ignored}**)") ;;
-    *) deny_rules+=("Read(./$ignored)") ;;
+    */) deny_rules+=("Read(./${rule_path}**)") ;;
+    *) deny_rules+=("Read(./$rule_path)") ;;
   esac
-done < <(git -c core.quotePath=false ls-files --others --ignored --exclude-standard --directory)
+done < <(git ls-files --others --ignored --exclude-standard --directory -z)
 
 run_claude -p "$prompt" \
   --restricted \

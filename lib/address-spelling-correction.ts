@@ -22,6 +22,9 @@ function minorTypo(left: string, right: string): boolean {
   }
   if (left.length !== right.length) return false;
   const differences = [...left].flatMap((letter, index) => letter === right[index] ? [] : [index]);
+  // A single substitution is tolerated only in long names; the caller still
+  // requires all other address tokens and locality/ZIP to agree.
+  if (left.length >= 8 && differences.length === 1) return true;
   return differences.length === 2 && differences[1] === differences[0] + 1
     && left[differences[0]] === right[differences[1]] && left[differences[1]] === right[differences[0]];
 }

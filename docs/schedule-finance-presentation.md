@@ -1173,3 +1173,11 @@ Validation: `verify:stop-order-map` covers co-located/nearby trucks, stable orde
 selected priority and offscreen placement. `scripts/test-stop-order-browser.mjs`
 checks actual badge rectangles, controls, stale captions and popup persistence
 at 1280×720 and 390×720, in addition to existing save/order/cancel cases.
+
+Address recovery accepts a single spelling substitution only in long street
+names when a unique rooftop result retains the exact house, suffix, direction,
+city, state and ZIP. The original source address remains intact; a building
+point does not confirm a unit entrance. Policy 20 retries older failed checks.
+Road comparisons recover missing table entries through individual road routes
+within the same overall 30-second deadline and shared provider rate limits.
+Unavailable rows remain unavailable and comparisons retain the coverage notice.

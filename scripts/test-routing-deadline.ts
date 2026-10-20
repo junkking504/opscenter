@@ -25,6 +25,13 @@ async function main() {
   assert.equal(partial?.length,5,'Late responses cannot mutate a published partial result');
   assert.deepEqual(await osmTravelMatrix(origins,[destination],async()=>new Promise(()=>{}),10),[],'No completed routes stays unavailable');
   assert.deepEqual(await osmTravelMatrix([origin],[destination],async()=>{throw Error('Synthetic failure');},10),[]);
+  let fallbackCalls=0;
+  const recovered=await osmTravelMatrix(origins.slice(0,2),[destination],async path=>{
+    fallbackCalls++;
+    return path.startsWith('table/') ? {code:'NoSegment'} : {code:'Ok',routes:[{duration:600,distance:5000}],waypoints:[{distance:0},{distance:0}]};
+  });
+  assert.equal(fallbackCalls,3);assert.equal(recovered?.length,2);
+  assert.deepEqual(recovered?.map(row=>row.originIndex),[0,1]);
   console.log('PASS routing deadline: serial-batch timeout reproduced, bounded partial results, no late mutation, failure stays unavailable; all providers mocked.');
 }
 void main();

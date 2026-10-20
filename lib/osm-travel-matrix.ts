@@ -31,11 +31,20 @@ export async function osmTravelMatrix(origins:Coordinates[],destinations:Coordin
       const source=origins.slice(from,from+5),target=destinations.slice(to,to+5),points=[...source,...target];
       const params=new URLSearchParams({sources:source.map((_,i)=>String(i)).join(';'),destinations:target.map((_,i)=>String(i+source.length)).join(';'),annotations:'duration,distance',radiuses:points.map(()=>'150').join(';')});
       const data=await read(`table/v1/driving/${points.map(p=>`${p.longitude},${p.latitude}`).join(';')}?${params}`) as {code?:string;durations?:unknown[][];distances?:unknown[][];sources?:{distance?:number}[];destinations?:{distance?:number}[]}|null;
-      if(data?.code!=='Ok')continue;
-      for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++){
+      // A table can fail because one coordinate cannot snap, or while the
+      // provider still serves individual routes. Recover only missing pairs,
+      // using the same total deadline and shared transport limits.
+      const before=result.length;
+      if(data?.code==='Ok')for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++){
         const seconds=data.durations?.[i]?.[j],meters=data.distances?.[i]?.[j];
         if(typeof seconds!=='number' || !Number.isFinite(seconds) || seconds<0 || typeof meters!=='number' || !Number.isFinite(meters) || meters<0 || ![data.sources?.[i]?.distance,data.destinations?.[j]?.distance].every(n=>typeof n==='number' && Number.isFinite(n) && n>=0 && n<=150))continue;
         result.push({originIndex:from+i,destinationIndex:to+j,condition:'ROUTE_EXISTS',duration:`${seconds}s`,distanceMeters:meters});
+      }
+      for(let i=0;i<source.length;i++)for(let j=0;j<target.length;j++){
+        if(Date.now()>=deadline)return result;
+        if(result.slice(before).some(row=>row.originIndex===from+i && row.destinationIndex===to+j))continue;
+        const recovered=await osmTravelMatrix([source[i]],[target[j]],send,deadline-Date.now());
+        for(const row of recovered || [])result.push({...row,originIndex:from+i,destinationIndex:to+j});
       }
     }
     return result;

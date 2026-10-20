@@ -1,3 +1,4 @@
+import { paymentJobHref } from './lib/payment-job-link';
 import { CapitalSourceLink } from './capital-ui';
 import { commercialMoney as money } from './lib/commercial-contract';
 import { junkwareTransactionHref, qboTransactionHref, type PaymentIssue, type CrosscheckFilter, type Payment } from './lib/payment-crosscheck';
@@ -28,7 +29,7 @@ export function CapitalPaymentCrosscheck({ issues, filter, selected, onFilter, o
         <h4>{current.customer && current.customer !== '—' ? `${current.customer} · ${current.reference}` : `Transaction ${current.reference}`}</h4><p>{current.reasons.join(' · ')}</p>
         <div className="crosscheck-sources"><section><h5>JunkWare payment</h5><strong className="crosscheck-amount">{money(current.recorded)}</strong>
           {current.payment ? <><p>{current.payment.paymentMethod}{current.payment.checkNumber ? ` #${current.payment.checkNumber}` : ''}</p><p>Job {money(current.payment.revenueAmount)} · Tip {money(current.payment.tipAmount)}</p>{current.payment.jobDifference != null && <p>Job difference {money(current.payment.jobDifference)}</p>}</> : <p>{current.recorded == null ? 'No matched JunkWare payment' : `Card ${current.card || 'unavailable'}`}</p>}
-          <div className="crosscheck-links">{junkware ? <CapitalSourceLink href={junkware}>Open JunkWare job</CapitalSourceLink> : <small>Direct JunkWare reference unavailable</small>}{current.payment && <><a className="capital-button" href={`/schedule?date=${current.date}&job=${encodeURIComponent(current.payment.jkNumber)}`}>Open job in OpsCenter</a><button className="capital-button" onClick={() => onReview(current.payment!)}>Review payment evidence</button></>}</div>
+          <div className="crosscheck-links">{junkware ? <CapitalSourceLink href={junkware}>Open JunkWare job</CapitalSourceLink> : <small>Direct JunkWare reference unavailable</small>}{current.payment && <><a className="capital-button" href={paymentJobHref(current.date, current.payment.jkNumber, current.appointmentId)}>Open job in OpsCenter</a><button className="capital-button" onClick={() => onReview(current.payment!)}>Review payment evidence</button></>}</div>
           {!!possibleJobs.length && <div className="crosscheck-candidates"><h5>Possible related payments</h5><p>Same date and card. Not a confirmed match.</p>{possibleJobs.map(issue => <div className="crosscheck-transaction" key={issue.id}><p>{issue.customer} · {issue.reference} · {money(issue.recorded)}</p><button className="capital-button" onClick={() => onSelect(issue.id)}>Compare payment {issue.reference}</button></div>)}</div>}
         </section><section><h5>QuickBooks</h5>
           {!current.qbo.length && <p>No matched QuickBooks transaction</p>}

@@ -1,3 +1,4 @@
+import { paymentJobHref } from './lib/payment-job-link';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
 import { currentOperatingDay, isOperatingDay, operatingDayLabel, shiftOperatingDay } from './lib/operating-day';
@@ -114,7 +115,7 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
     data.dailyFreshness ? combineFinanceEvidence(data.dailyFreshness.dumps, data.dailyFreshness.fuel) : undefined, date, freshness.now);
   const displayAmount = (reading: typeof dailyDisplay.revenue) => reading.state === 'current' ? money(reading.value) : reading.state === 'stale' ? 'Stale' : 'Unavailable';
   const close = () => { if (!busy) { setResale(null); setRecycling(null); setPayment(null); } };
-  const jobLink = (jk: string) => jk ? <a className="finance-job-link" href={`/schedule?date=${date}&job=${encodeURIComponent(jk)}`}>{jk}</a> : <span>Unspecified</span>;
+  const jobLink = (jk: string) => jk ? <a className="finance-job-link" href={paymentJobHref(date, jk)}>{jk}</a> : <span>Unspecified</span>;
   const newResale = () => setResale({ itemId: crypto.randomUUID(), version: emptyVersion, itemName: '', acquiredDate: date, source: '', cost: NaN, askingPrice: NaN, soldPrice: NaN, status: 'to_list', marketplace: '', notes: '', createdAt: '', updatedAt: '' });
   const newRecycling = (runDate: string) => setRecycling({ id: crypto.randomUUID(), version: data.recyclingVersion, date: runDate, paymentDate: '', material: 'Scrap metal', sourceJob: '', yard: '', quantity: '', expectedValue: null, realizedValue: null, ticket: '', paymentReference: '', status: 'Awaiting yard', owner: '', note: '', updatedAt: '' });
   const dailyDelta = (field: 'revenue'|'labor'|'dumps'|'fuel'|'totalCosts'|'net', current: number | null) => <DeltaChip current={current} comparison={data.dailyComparison && {prior:data.dailyComparison[field],label:data.dailyComparison.label}} lowerIsBetter={!['revenue','net'].includes(field)} />;

@@ -1,3 +1,4 @@
+import { paymentJobHref } from '../desktop-ui/lib/payment-job-link';
 import assert from 'node:assert/strict';
 import { exceptionRows, type PaymentReconciliation, type MerchantCenterPayment, type JunkwarePayment } from '../lib/payment-reconciliation';
 import { paymentIssues, qboTransactionHref, junkwareTransactionHref, type Payment } from '../desktop-ui/lib/payment-crosscheck';
@@ -36,3 +37,10 @@ assert.equal(issues[0].payment?.checkNumber,'001');
 issues = paymentIssues({...recon, exceptions:[],paymentsByJob:[{...payment,jobDifference:5}]},()=>'Verified · QBO');
 assert.deepEqual(issues[0].reasons,['Job total differs from payments']);
 console.log('Payment cross-check passed: exact source IDs, distinct unmatched records, same-card hints only, ambiguity preserved, unknown amounts, manager verification, and job differences.');
+
+const paymentDestination = new URL(paymentJobHref('2026-10-19', 'JK123'), 'https://example.test');
+assert.equal(paymentDestination.pathname, '/desktop');
+assert.equal(paymentDestination.searchParams.get('date'), '2026-10-19');
+assert.equal(paymentDestination.searchParams.get('q'), 'JK123');
+assert.equal(paymentDestination.searchParams.get('workspace'), 'Schedule');
+assert.equal(new URL(paymentJobHref('2026-10-19','JK123','456'),'https://example.test').searchParams.get('appointment'),'456');

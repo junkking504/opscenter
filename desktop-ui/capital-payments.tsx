@@ -1,3 +1,4 @@
+import { paymentJobHref } from './lib/payment-job-link';
 import { MetricValue } from './metric-value';
 import { CapitalPaymentCrosscheck } from './capital-payment-crosscheck';
 import { paymentIssues, type CrosscheckFilter } from './lib/payment-crosscheck';
@@ -48,7 +49,7 @@ export function CapitalPayments({ data, date, onReview, reconciliation = false, 
       <header><div><span className="capital-eyebrow">PAYMENT EVIDENCE</span><h3>Payments by job</h3></div><span className="capital-date">{rows.length} of {recon.paymentsByJob.length} records</span></header>
       <div className="capital-toolbar"><div className="capital-filter-group" role="group" aria-label="Filter payments">{([['all','All payments'],['review','Needs verification'],['cash','Cash & checks']] as const).map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>setFilter(key)}>{label}</button>)}</div><label className="capital-search"><Search size={15}/><input aria-label="Search payments" placeholder="Search job, customer or reference" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>
       {rows.length ? <div className="capital-table-scroll"><table className="capital-table capital-payment-table"><thead><tr><th>Job / customer</th><th>Truck</th><th>Job total</th><th>Payment</th><th>Method / reference</th><th>Verification</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((row,index)=><tr key={`${row.jkNumber}:${row.qboTransactionId}:${index}`} className={status(row)==='Needs verification'?'needs-review':''}>
-        <td data-label="Job / customer"><strong><MetricValue value={row.customer || 'Customer unavailable'} /></strong>{row.jkNumber ? <a href={`/schedule?date=${date}&job=${encodeURIComponent(row.jkNumber)}`}>{row.jkNumber}</a> : <small>Job unspecified</small>}</td>
+        <td data-label="Job / customer"><strong><MetricValue value={row.customer || 'Customer unavailable'} /></strong>{row.jkNumber ? <a href={paymentJobHref(date, row.jkNumber, row.appointmentId)}>{row.jkNumber}</a> : <small>Job unspecified</small>}</td>
         <td data-label="Truck">{truckDisplayText(row.truck || 'Unavailable')}</td>
         <td data-label="Job total"><strong><MetricValue value={money(row.revenueAmount)} /></strong><small>Tips {money(row.tipAmount)}</small></td>
         <td data-label="Payment"><strong><MetricValue value={money(row.paidAmount)} /></strong><small>Difference {money(row.jobDifference === undefined ? row.revenueAmount != null && row.tipAmount != null ? row.paidAmount-row.revenueAmount-row.tipAmount : null : row.jobDifference)}</small></td>

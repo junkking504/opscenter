@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import type {OperationalAlert} from './operational-alert-presentation';
 import type {TruckLoadEvent} from './truck-load-status';
 import {geofenceOnsiteSummary} from './geofence-alert-summary';
+import {sourceFileMemo} from './source-file-memo';
 import {trackGeofenceVisits, visitDay, type GeofenceTransition, type TrackedVisit} from './visit-tracking-agent';
 
 // Reuse ICU formatters across GPS observations; constructing one per point
@@ -120,7 +121,23 @@ export function geofencePositionArrivals(date: string, observations: SourceRow[]
     .map(visit=>({id:visit.id,truck:visit.truck,name:visit.name,timestamp:visit.enteredAt!,facility:visit.facility!,resetLocation:null,positionObserved:true}));
 }
 
+// Command, dump expenses, truck loads and visit tracking each read the same
+// day; replaying GPS once per few seconds instead of per caller keeps requests fast.
+const geofenceMemo = sourceFileMemo<ReturnType<typeof computeGeofenceEntries>>(5_000);
 export function readGeofenceEntries(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return computeGeofenceEntries(date);
+  const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
+  const previousDate=new Date(Date.parse(date+'T12:00:00Z')-86_400_000).toISOString().slice(0,10);
+  const linxup = path.join(root,'history','linxup');
+  const files = [path.join(linxup,'alerts',`linxup_alerts_${date}.json`), path.join(linxup,'alerts',`linxup_alerts_${previousDate}.json`),
+    ...[previousDate,date].flatMap(day=>[path.join(linxup,`linxup_location_${day}.json`), path.join(linxup,'geofence_positions',`${day}.json`)]),
+    path.join(linxup,'alerts',`linxup_alerts_${date}_status.json`)];
+  const reading = geofenceMemo(`${root}|${date}`, files, () => computeGeofenceEntries(date));
+  // Fresh arrays per caller; the visit objects themselves are shared read-only.
+  return {...reading,entries:[...reading.entries],arrivals:[...reading.arrivals],visits:[...reading.visits],nativeVisits:[...reading.nativeVisits],trackedVisits:[...reading.trackedVisits]};
+}
+
+function computeGeofenceEntries(date: string) {
   const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],nativeVisits:[] as GeofenceVisit[],trackedVisits:[] as TrackedVisit[],sourceHealth:{alerts:'missing',alertsObservedAt:'',positionsObservedAt:''},available:false,complete:false,observedAt:''};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return unavailable;
   const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');

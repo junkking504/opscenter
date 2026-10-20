@@ -42,7 +42,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
-import type { LiveAnalyticsProps } from '../live-analytics';
+import { LiveAnalytics } from '../deferred-live-analytics';
 import { commandKpiDestination } from '../lib/command-kpi-navigation';
 import { ActionHints } from '../action-hints';
 import MaintenanceMonitor from '../maintenance-monitor';
@@ -52,12 +52,11 @@ const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(()
 const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
-const { Component: LazyAnalytics } = preloadableWorkspace<LiveAnalyticsProps>(() => import('../live-analytics').then(module => ({ default: module.LiveAnalytics })));
-function LiveAnalytics(props: LiveAnalyticsProps) { return <Suspense fallback={<p role="status">Loading charts…</p>}><LazyAnalytics {...props} /></Suspense>; }
 import LiveSearch from '../live-search';
 import OpsWiki from '../second-brain';
 import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
-import LiveSchedule, { dateForDay } from '../live-schedule';
+import LiveSchedule, { preloadLiveSchedule } from '../deferred-live-schedule';
+import { dateForDay } from '../lib/schedule-day';
 import CommandMap from '../command-map';
 import { AlertDetails, AlertPhotos } from '../components/alert-details';
 import { CrewProgressAlerts } from '../components/crew-progress-alerts';
@@ -972,7 +971,7 @@ const initialAuditEvents: AuditEvent[] = [
   { id: 'AE-1001', workspace: 'Finance', action: 'Resale item received', record: 'RR-204', summary: 'Recovered inventory was added with source-job custody.', previous: 'Not in inventory', next: 'Held for disposition', actor: 'Mission Control', source: 'Truck record', time: '9:31 AM', result: 'Completed', refId: 'RR-204' },
 ];
 
-const preloadWorkspace: Record<string, () => Promise<unknown>> = { Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
+const preloadWorkspace: Record<string, () => Promise<unknown>> = { Schedule: preloadLiveSchedule, Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
 
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const prototypeReceiptScope = useId();

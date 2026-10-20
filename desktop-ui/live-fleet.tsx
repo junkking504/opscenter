@@ -4,7 +4,7 @@ import { ConvoyGuide } from './convoy-guide';
 import {fleetServiceTypes} from '../lib/fleet-service-plan';
 import {Mileage} from './convoy-dashboard';
 import { truckDisplayText } from '../lib/junkware-trucks';
-import { LiveAnalytics } from './live-analytics';
+import { LiveAnalytics } from './deferred-live-analytics';
 import TruckAgents from './truck-agents';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';

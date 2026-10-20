@@ -22,7 +22,7 @@ import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, money, type AnyRecord } from '@/lib/opsData';
-import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
+import { buildCommandMapData, summarizeCommandSchedule, summarizeCommandScheduleFromMetrics } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
@@ -151,10 +151,9 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe);
   const priorDate = shiftOperatingDay(date, -7);
   const priorMetrics = readMetrics(priorDate);
-  const priorMap = priorMetrics ? buildCommandMapData(priorDate) : null;
   let priorKrewe: DesktopKreweSnapshot | null = null;
   try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
-  const priorKpis = desktopCommandKpis(priorMetrics, priorMap ? summarizeCommandSchedule(priorMap.jobs) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe);
+  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe);
   for (const kpi of kpis) {
     const old = priorKpis.find(row => row.label === kpi.label);
     const value = old?.value.replace(/[$,]/g, '');

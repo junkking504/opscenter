@@ -55,6 +55,8 @@ export HOME="$work/home"
 unset CLAUDE_CONFIG_DIR
 mkdir -p "$HOME/.claude"
 printf 'base\n' >app.ts
+mkdir -p docs
+printf 'Status:\n<!-- claude-review-extra-usage: confirmed-off -->\n' >docs/spending-controls.md
 git add -A && git commit -q -m base
 printf 'base\nchanged\n' >app.ts
 printf 'export const x = 1\n' >new-file.ts
@@ -186,12 +188,18 @@ managed_refusal "Enterprise plan"
 printf '%s\n' '{"loggedIn": true, "authMethod": "oauth_token", "apiProvider": "firstParty"}' >"$stub_dir/auth.json"
 managed_refusal "unknown plan without a settings cache"
 printf '{}\n' >"$HOME/.claude/remote-settings.json"
-rm -f "$stub_dir/args.txt"
-run ./claude-review.sh >/dev/null 2>&1 || true
-check "unknown plan with an empty settings cache runs" '[ -e "$stub_dir/args.txt" ]'
+managed_refusal "unknown plan with an empty settings cache"
 rm "$HOME/.claude/remote-settings.json"
 printf '%s\n' "$subscription" >"$stub_dir/auth.json"
 printf '%s\n' "$subscription" >"$stub_dir/auth.json"
+
+# No review until the user has confirmed paid extra usage is off.
+cp docs/spending-controls.md "$work/spending.md"
+printf 'Status: pending\n' >docs/spending-controls.md
+rm -f "$stub_dir/args.txt"
+expect_exit "extra usage not confirmed" 8 ./claude-review.sh
+check "extra usage not confirmed: review never called" '[ ! -e "$stub_dir/args.txt" ]'
+cp "$work/spending.md" docs/spending-controls.md
 
 write_help --restricted --tools
 rm -f "$stub_dir/args.txt"

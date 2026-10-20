@@ -117,8 +117,9 @@ do not block on it, and never work around a refusal.
 
 The script runs Claude read-only with a cleared environment, no settings
 files, hooks, MCP servers or plugins, and it refuses to run unless Claude Code
-reports a first-party subscription login and no admin- or server-managed
-Claude Code settings are present (see
+reports a first-party Pro or Max login, no admin- or server-managed Claude
+Code settings are present, and the user has confirmed paid extra usage is off
+(see
 [spending controls](docs/spending-controls.md)). The diff leaves the machine:
 the script withholds paths that may hold credentials or runtime data, but do
 not run it on a change that puts such data in ordinary source files. Treat its

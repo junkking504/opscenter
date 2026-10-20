@@ -291,9 +291,13 @@ the builder's machine and draws on that Claude subscription. **Maximum new
 spend: $0**, on one condition the script cannot check: paid extra usage
 (usage credits) must stay off on the Claude account Claude Code is logged in
 with. With it off, a review that reaches the plan limit fails and Codex
-continues without it; with it on, usage past the limit is billed. Status:
-**pending the user's confirmation that extra usage is off.** Each review is
-capped at 40 turns.
+continues without it; with it on, usage past the limit is billed. Each review
+is capped at 40 turns.
+
+Status: **pending the user's confirmation that extra usage is off.** Until the
+marker line `<!-- claude-review-extra-usage: confirmed-off -->` is added here
+with the user's dated confirmation, `claude-review.sh` refuses to run (exit 8).
+Only the user's own confirmation may add it.
 
 The script fails closed. It calls Claude Code with an allowlisted environment,
 so no API key, auth token, base URL, or Bedrock, Vertex or Foundry switch is
@@ -304,7 +308,7 @@ subscription (`claude.ai` or `oauth_token`), with no API key source.
 Admin-managed Claude Code settings still apply and are checked by the same
 status call, and the script refuses to run when admin-managed settings
 (managed-settings files, an MDM profile) exist, when the login is a Team or
-Enterprise plan, or when server-managed settings are cached or (for a login
-that does not report its plan) cannot be ruled out. OpsCenter, collectors and scheduled jobs never run the script.
+Enterprise plan or does not report a Pro or Max plan, or when server-managed
+settings are cached. OpsCenter, collectors and scheduled jobs never run the script.
 This does not approve hosted or API-key review. Validation:
 `npm run verify:claude-review`.

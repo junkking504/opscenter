@@ -126,16 +126,15 @@ case "$auth" in
 esac
 
 # Server-managed settings come only with Team and Enterprise plans, which can
-# also bill usage. A Pro or Max login has none; any other plan, or a login
-# that does not report its plan, runs only when the local cache of
-# server-managed settings exists and is empty.
+# also bill usage. Only a login that reports a Pro or Max plan runs; any other
+# plan, or a login that does not report one, is refused because its managed
+# policy cannot be established before Claude Code starts.
 case "$auth" in
-  *'"subscriptionType":"pro"'* | *'"subscriptionType":"max"'*) personal_plan=1 ;;
-  *'"subscriptionType":'*)
-    echo "claude-review: Claude Code is logged in to a Team or Enterprise plan, which may bill usage and apply server-managed settings. Not run." >&2
+  *'"subscriptionType":"pro"'* | *'"subscriptionType":"max"'*) ;;
+  *)
+    echo "claude-review: Claude Code must be logged in to a Pro or Max plan (Team, Enterprise and unreported plans may apply server-managed settings or bill usage). Not run." >&2
     exit 7
     ;;
-  *) personal_plan=0 ;;
 esac
 remote_settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/remote-settings.json"
 if [ -e "$remote_settings" ]; then
@@ -143,13 +142,18 @@ if [ -e "$remote_settings" ]; then
     echo "claude-review: server-managed Claude Code settings are in effect ($remote_settings). Not run." >&2
     exit 7
   fi
-elif [ "$personal_plan" = 0 ]; then
-  echo "claude-review: cannot confirm there are no server-managed Claude Code settings. Not run." >&2
-  exit 7
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
+
+# Paid extra usage (usage credits) would bill past the plan limit, and Claude
+# Code cannot report whether it is on. The review runs only after the user has
+# confirmed it is off, recorded in docs/spending-controls.md.
+if ! grep -q -x -F '<!-- claude-review-extra-usage: confirmed-off -->' docs/spending-controls.md 2>/dev/null; then
+  echo "claude-review: the user has not confirmed that paid extra usage is off (docs/spending-controls.md). Not run." >&2
+  exit 8
+fi
 
 if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null; then
   echo "claude-review: base '$base' is not a commit." >&2

@@ -60,7 +60,11 @@ for (const input of [
   '100 Example Dr, New Orleans',
   '100 Exampel Dr, New Orleans, 70126',
   '100 Example Dr New Orleans 70126 or 200 Other St New Orleans 70126',
+  '100 Example Dr New Orleans LA 70128 New Orleans LA 70126',
+  '100 Example Dr New Orleans LA 70126 New Orleans LA 70128',
+  '100 Example Dr, New Orleans, 70128, New Orleans, 70126',
 ]) assert.equal(verifyCensusAddress(input,zipPayload).location,null,input);
+assert.ok(verifyCensusAddress('100 Example Dr New Orleans LA 70126 New Orleans LA 70126',zipPayload).location,'A consistently repeated source locality and ZIP keeps the neighbouring-code rule');
 assert.equal(verifyCensusAddress('100 Example Dr, New Orleans, 70126',{result:{addressMatches:[zipMatch,{...zipMatch,matchedAddress:'100 EXAMPLE DR, NEW ORLEANS, LA, 70127',addressComponents:{...zipMatch.addressComponents,zip:'70127'},coordinates:{x:-90.0,y:30.0}}]}}).location,null,'Competing ZIP candidates remain ambiguous');
 assert.equal(verifyCensusAddress('100 Example Dr, New Orleans, 70126',{result:{addressMatches:[{...zipMatch,coordinates:{x:0,y:0}}]}}).location,null);
 assert.equal(verifyCensusAddress(full.replace(' W St',' E St'),{result:{addressMatches:[hospital]}}).location,null);

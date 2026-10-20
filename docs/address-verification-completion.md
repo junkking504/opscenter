@@ -218,7 +218,8 @@ Census now accepts its single full-address match when the house number, street
 (with the existing normalized aliases), direction, road type and locality are
 exact, the state is Louisiana, and the source and Census ZIPs share their first
 three digits. The ZIP correction is never combined with a street spelling
-correction. The reason reads "Exact House And Street Verified · Source ZIP
+correction, and it is refused when swapping the ZIP would let cleaning collapse
+a repeated locality tail that carried a conflicting ZIP. The reason reads "Exact House And Street Verified · Source ZIP
 Differs" and `matchedAddress` carries the Census ZIP; the source address is
 unchanged. A different postal prefix, competing Census candidates, invalid
 coordinates and every other existing guard still require review. No provider,

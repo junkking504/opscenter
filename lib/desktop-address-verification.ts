@@ -101,7 +101,11 @@ export function verifyCensusAddress(address:string,payload:unknown):AddressVerif
   const censusZip = match.addressComponents?.zip || '';
   if (sourceZip && /^\d{5}$/.test(censusZip) && sourceZip !== censusZip && sourceZip.slice(0,3) === censusZip.slice(0,3)) {
     const at = address.lastIndexOf(sourceZip);
-    const rezoned = verifyAddressResult(address.slice(0,at)+censusZip+address.slice(at+5).replace(/^-\d{4}/,''),payloadForVerification);
+    const rezonedAddress = address.slice(0,at)+censusZip+address.slice(at+5).replace(/^-\d{4}/,'');
+    // The swap must not change what cleaning keeps: a repeated locality tail
+    // with a conflicting ZIP stays contradictory evidence, not a duplicate.
+    const rezoned = cleanServiceAddressForVerification(rezonedAddress) === rezonedAddress
+      ? verifyAddressResult(rezonedAddress,payloadForVerification) : exact;
     if (rezoned.location) return {...rezoned,reason:'Exact House And Street Verified · Source ZIP Differs',matchedAddress:match.matchedAddress};
   }
   const requested = normalize(fullFieldStreetAddress(withoutServiceUnit(address))).replace(/ (\d{5}) \d{4}$/, ' $1');

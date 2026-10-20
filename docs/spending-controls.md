@@ -288,11 +288,18 @@ merge or deploy. See [Web Push activation boundaries](web-push.md).
 The user asked for Codex to call Claude Code for a second-opinion review of its
 changes. `claude-review.sh` runs the locally installed, logged-in Claude Code on
 the builder's machine and draws on that Claude subscription. **Maximum new
-spend: $0.** Usage counts against the subscription's own limits.
+spend: $0.** Usage counts against the subscription's own limits. Do not turn on
+paid extra usage for that subscription to keep reviews running; when the plan
+limit is reached, the review fails and Codex continues without it. Each review
+is capped at 40 turns.
 
-The script unsets `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
-`ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` and `CLAUDE_CODE_USE_VERTEX` so
-the call does not route to metered API billing. An `apiKeyHelper` in Claude Code
-settings would bypass that; do not configure one on the builder's machine.
-OpsCenter, collectors and scheduled jobs never run the script. This does not
-approve hosted or API-key review.
+The script fails closed. It calls Claude Code with an allowlisted environment,
+so no API key, auth token, base URL, or Bedrock, Vertex or Foundry switch is
+inherited, and with `--restricted --setting-sources ""` so no settings file can
+supply an `apiKeyHelper` or environment. Before the review it runs
+`claude auth status` and stops unless the login is first-party, a Claude
+subscription (`claude.ai` or `oauth_token`), with no API key source.
+Admin-managed Claude Code settings still apply and are checked by the same
+status call. OpsCenter, collectors and scheduled jobs never run the script.
+This does not approve hosted or API-key review. Validation:
+`npm run verify:claude-review`.

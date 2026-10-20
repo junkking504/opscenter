@@ -206,3 +206,22 @@ The numeric identifier is unverified. A search candidate has no coordinates and
 cannot establish a unit, building, entrance, route destination or GPS visit.
 Existing ordinary street/business-prefix parsing remains unchanged. Any future
 automatic complex lookup is a separate reviewed feature.
+
+## Census match with a neighbouring source ZIP — October 20, 2026
+
+JunkWare ZIPs are sometimes the neighbouring postal code (for example a New
+Orleans street entered as 70126 when the premises is in 70128). The OSM
+building check already accepted that case; the Census check rejected it, so
+real addresses with a good house and street stayed in Verify Address.
+
+Census now accepts its single full-address match when the house number, street
+(with the existing normalized aliases), direction, road type and locality are
+exact, the state is Louisiana, and the source and Census ZIPs share their first
+three digits. The ZIP correction is never combined with a street spelling
+correction. The reason reads "Exact House And Street Verified · Source ZIP
+Differs" and `matchedAddress` carries the Census ZIP; the source address is
+unchanged. A different postal prefix, competing Census candidates, invalid
+coordinates and every other existing guard still require review. No provider,
+request volume or spending gate changes, and the verification policy number is
+unchanged so existing pins stay valid; failures already retry on their own
+short expiry. Covered by `npm run verify:service-addresses`.

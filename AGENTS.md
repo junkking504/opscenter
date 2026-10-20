@@ -90,6 +90,34 @@ map. Prefer links to one canonical document over duplicated instructions.
   The installed deployment controller refuses a deployment with unreviewed
   commits; never work around it.
 
+## Second-opinion review (Claude)
+
+This is a quick check while building, separate from the review receipt above.
+It does not write `review.md` and does not satisfy the review gate.
+
+For any change that touches more than two files, adds a new feature, or
+touches auth, payments, data migrations, or security-sensitive code:
+
+1. Before telling the user the task is done, run `./claude-review.sh` from the
+   repo root, optionally with a focus, for example
+   `./claude-review.sh "check the new API endpoint"`. It reviews uncommitted
+   changes; in a task worktree with commits, run
+   `CLAUDE_REVIEW_BASE=origin/production ./claude-review.sh`.
+2. For each issue it reports, fix it if it is valid, or explain briefly why
+   you disagree.
+3. In the final summary, include a short "Claude review" section listing what
+   it flagged and what you did about each item. Record the same in
+   `handoff.md` when the task has one.
+
+Skip this for small single-file fixes, formatting, or doc-only changes, and
+when Claude is the builder (Codex reviews those). If the script fails, for
+example because Claude Code is not installed or logged in, say so and
+continue; do not block on it. The script is read-only and uses the logged-in
+Claude subscription, never an API key (see
+[spending controls](docs/spending-controls.md)). The diff leaves the machine:
+the script withholds files that may hold credentials or runtime data, but do
+not run it on a change that puts such data in ordinary source files.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

@@ -282,3 +282,17 @@ This approval does not authorize deployment, database migration, worker scheduli
 live sending, device subscription or a paid reviewer. Independent Claude review
 remains pending. Both host inventories can pass now; that is not permission to
 merge or deploy. See [Web Push activation boundaries](web-push.md).
+
+## Claude second-opinion review — requested October 20, 2026
+
+The user asked for Codex to call Claude Code for a second-opinion review of its
+changes. `claude-review.sh` runs the locally installed, logged-in Claude Code on
+the builder's machine and draws on that Claude subscription. **Maximum new
+spend: $0.** Usage counts against the subscription's own limits.
+
+The script unsets `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` and `CLAUDE_CODE_USE_VERTEX` so
+the call does not route to metered API billing. An `apiKeyHelper` in Claude Code
+settings would bypass that; do not configure one on the builder's machine.
+OpsCenter, collectors and scheduled jobs never run the script. This does not
+approve hosted or API-key review.

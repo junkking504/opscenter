@@ -381,8 +381,14 @@ NOTIFY remain the delivery triggers. The local lease timer is lifecycle safety.
 The API rejects enrollment when the lease disappears/expires. Default owner
 eligibility and the real transport require a `send` lease matching that child
 nonce, checked again after DNS. A child orphaned by a supervisor crash therefore
-loses sending permission within five seconds. Already accepted notices can remain
-within the bounded provider TTL. Observe mode grants no sending permission.
+loses sending permission within five seconds. The supervisor also holds the only
+write end of a liveness pipe whose read end the child inherits
+(`OPSCENTER_WEB_PUSH_PARENT_FD`). Any supervisor exit, including SIGKILL, delivers
+EOF; the child then stops its journal and dispatcher, releasing leadership and
+signing material, and exits. This is event-driven, not a timer. A SIGKILL still
+skips the supervisor's own cleanup, so `sender.json` may remain non-`off`; check
+it before a manual restart. Already accepted notices can remain within the
+bounded provider TTL. Observe mode grants no sending permission.
 
 A signal, child exit/readiness loss, operator configuration change or setup expiry
 removes the lease first, terminates only that child's process group, calls the

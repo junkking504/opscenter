@@ -103,7 +103,7 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
     lock_fd = os.open(state / 'supervisor.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     child = None; stopping = False; lease = state / 'capture-lease.json'
     nonce = uuid.uuid4().hex; ready = state / ('ready-' + nonce + '.json')
-    old_handlers = {}; owns_lock = False
+    old_handlers = {}; owns_lock = False; liveness_write = None
     def stop(_signum=None, _frame=None):
         nonlocal stopping
         stopping = True
@@ -123,7 +123,14 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
             child_env['OPSCENTER_WEB_PUSH_PRIVATE_KEY'] = key()
         for sig in (signal.SIGTERM, signal.SIGINT):
             old_handlers[sig] = signal.signal(sig, stop)
-        child = subprocess.Popen(command, env=child_env, start_new_session=True)
+        # Parent-death detection: this process holds the only write end. Any
+        # supervisor exit, including SIGKILL, closes it and the child sees EOF.
+        liveness_read, liveness_write = os.pipe()
+        child_env['OPSCENTER_WEB_PUSH_PARENT_FD'] = str(liveness_read)
+        try:
+            child = subprocess.Popen(command, env=child_env, start_new_session=True, pass_fds=(liveness_read,))
+        finally:
+            os.close(liveness_read)
         child_env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
         startup_deadline = min(until, time.time() + 45)
         was_ready = False
@@ -168,6 +175,8 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
                         # Even failed recovery cannot silently re-enable a run.
                         atomic(state / 'sender.json', {**config, 'mode': 'off'})
         finally:
+            if liveness_write is not None:
+                os.close(liveness_write)
             for sig, handler in old_handlers.items():
                 signal.signal(sig, handler)
             os.close(lock_fd)

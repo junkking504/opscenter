@@ -3,6 +3,7 @@ import { pushDependencies } from '../lib/web-push-worker';
 import { startPushDispatcher } from '../lib/web-push-dispatcher';
 import { startPushJournal } from '../lib/web-push-journal';
 import { pushEnabled } from '../lib/web-push-policy';
+import { watchSupervisorPipe } from '../lib/web-push-runtime';
 async function main(){
   const observing=process.env.OPSCENTER_RUNTIME==='MISSION_CONTROL'&&process.env.OPSCENTER_PROCESS_ROLE==='push-observer'&&process.env.OPSCENTER_WEB_PUSH_ENABLED==='0'&&process.env.OPSCENTER_WEB_PUSH_CAPTURE==='1';
   if(!pushEnabled()&&!observing){console.log('Web Push disabled; no source, database or network access.');return;}
@@ -28,7 +29,14 @@ async function main(){
   let deadlineTimer:ReturnType<typeof setTimeout>|undefined,stopping=false;
   const readyFile=process.env.OPSCENTER_WEB_PUSH_READY_FILE,nonce=process.env.OPSCENTER_WEB_PUSH_RUN_NONCE;
   if(!readyFile||path.dirname(readyFile)!==path.dirname(root)||!nonce||! /^[a-f0-9]{32}$/.test(nonce)||path.basename(readyFile)!==`ready-${nonce}.json`)throw new Error('supervisor_required');
-  const stop=async()=>{if(stopping)return;stopping=true;clearTimeout(deadlineTimer);try{fs.unlinkSync(readyFile);}catch{}await closeJournal?.();await closeDispatcher?.();};
+  let closeParentWatch:(()=>void)|undefined;
+  const stop=async()=>{if(stopping)return;stopping=true;clearTimeout(deadlineTimer);closeParentWatch?.();try{fs.unlinkSync(readyFile);}catch{}await closeJournal?.();await closeDispatcher?.();};
+  // A crashed or SIGKILLed supervisor must not leave this process holding
+  // leadership or signing material: stop and exit as soon as the pipe closes.
+  closeParentWatch=watchSupervisorPipe(process.env.OPSCENTER_WEB_PUSH_PARENT_FD,()=>{
+    console.error('Web Push supervisor exited; stopping this process.');
+    process.exitCode=1;void stop().finally(()=>process.exit(1));
+  });
   const failed=()=>{process.exitCode=1;void stop();};
   const checkTrial=async()=>{
     if(stopping)return;

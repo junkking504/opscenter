@@ -62,6 +62,41 @@ class SupervisionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 supervisor.supervise(self.root,{'OPSCENTER_WEB_PUSH_ENABLED':'1'},[],lambda:None,self.forbidden_key,.01)
 
+    def test_supervisor_sigkill_stops_child_through_liveness_pipe(self):
+        # A SIGKILLed supervisor runs no cleanup. The child must still notice,
+        # through EOF on the inherited pipe, and must not linger with leadership.
+        import signal, subprocess, stat as stat_module
+        pid_file = self.root / 'child.pid'
+        child = ('import json,os,stat,sys\nfrom pathlib import Path\n'
+                 "fd=int(os.environ['OPSCENTER_WEB_PUSH_PARENT_FD'])\n"
+                 'assert stat.S_ISFIFO(os.fstat(fd).st_mode)\n'
+                 "p=Path(os.environ['OPSCENTER_WEB_PUSH_READY_FILE'])\n"
+                 "p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True}));p.chmod(0o600)\n"
+                 f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
+                 'while os.read(fd,1):\n    pass\nsys.exit(7)\n')
+        supervisor.atomic(self.root / 'sender.json', {'mode': 'observe', 'setupUntil': time.time() + 30})
+        runner = ('import importlib.util,sys\nfrom pathlib import Path\n'
+                  f"spec=importlib.util.spec_from_file_location('s',{str(HERE / 'supervise-web-push.py')!r});m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\n"
+                  f"m.supervise(Path({str(self.root)!r}),{{'OPSCENTER_WEB_PUSH_ENABLED':'0'}},[sys.executable,'-c',{child!r}],lambda:None,None,.05)\n")
+        process = subprocess.Popen([sys.executable, '-c', runner])
+        try:
+            deadline = time.time() + 10
+            while not ((self.root / 'capture-lease.json').exists() and pid_file.exists()) and time.time() < deadline:
+                time.sleep(.05)
+            self.assertTrue((self.root / 'capture-lease.json').exists(), 'child became ready under supervision')
+            child_pid = int(pid_file.read_text())
+        finally:
+            os.kill(process.pid, signal.SIGKILL); process.wait()
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(.05)
+        else:
+            os.kill(child_pid, signal.SIGKILL)
+            self.fail('child outlived a SIGKILLed supervisor')
     def test_second_instance_cannot_remove_live_lease(self):
         supervisor.atomic(self.root/'capture-lease.json', {'sentinel':True})
         with (self.root/'supervisor.lock').open('w') as lock:

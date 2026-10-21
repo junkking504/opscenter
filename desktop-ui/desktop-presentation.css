@@ -54,7 +54,7 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 .page-rail-group { padding: 8px 0; border-bottom: 1px solid var(--oc-border-default); }
 .page-rail-group:last-child { border-bottom: 0; }
 .page-rail-group h2 { padding: 0 8px; margin: 0 0 4px; color: var(--oc-text-muted); font-size: var(--oc-type-10); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.page-rail-link { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; color: var(--oc-text-primary); font-size: 12px; border-radius: var(--radius-sm); text-decoration: none; }
+.page-rail-link { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; color: var(--oc-text-primary); font-size: 14px; border-radius: var(--radius-sm); text-decoration: none; }
 .page-rail-link:hover { background: var(--oc-surface-muted); }
 .page-rail-link.active { color: var(--ops-brand-red); background: var(--oc-status-critical-tint); box-shadow: inset 2px 0 var(--ops-brand-red); font-weight: 650; }
 .page-rail-link[aria-disabled=true] { opacity: .6; }
@@ -220,7 +220,7 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 @media (min-width: 761px) and (max-height: 1100px) {
   .ops-app.ops-live .page-rail-group { padding: 1px 0; }
   .ops-app.ops-live .page-rail-group h2 { font-size: 16px; line-height: 24px; margin-bottom: 0; }
-  .ops-app.ops-live .page-rail-link { min-height: 32px; padding: 4px 12px; font-size: 12px; line-height: 24px; gap: 12px; }
+  .ops-app.ops-live .page-rail-link { min-height: 32px; padding: 4px 12px; font-size: 14px; line-height: 24px; gap: 12px; }
   .ops-app.ops-live .page-rail-link svg { width: 20px; height: 20px; flex-shrink: 0; }
 }
 /* Give each workspace a clear header without taking space from its links. */

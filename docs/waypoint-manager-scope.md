@@ -62,3 +62,21 @@ Deploy source through the installed controller with release preservation enabled
 Install the exact separately approved runtime grant only after release health is
 verified. Report eligible contacts, current enrolled devices, read-only runtime
 verification and physical handset verification as separate evidence.
+
+## Route map and mobile layout
+
+Waypoint shows the selected truck's remaining appointments as numbered map pins
+and a matching Route Order list. Completed work and shared Amazon appointments
+outside that truck remain separately accessible. Existing all-truck readers can
+select a truck to browse; this does not change work context or grant write access.
+
+Locations are projected only after the fresh source's membership/status/truck
+filter, using the existing verified geocode cache or labeled approximate fallback.
+No geocoding, routing-provider request or new polling is added. Missing locations
+stay in the numbered list, and co-located appointments share a marker that exposes
+every stop. Map numbers never depend on whether coordinates are available.
+
+The manager uses compact date/action controls, appointment rows and accessible
+44px earlier/later buttons. Reordering keeps the existing source-key concurrency
+check and changes neither booked times nor truck assignments. Date/time inputs
+have bounded intrinsic widths for narrow iPhone layouts.

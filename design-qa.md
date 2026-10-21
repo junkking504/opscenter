@@ -116,3 +116,34 @@ No open design blockers. Physical iPhone keyboard/safe-area testing remains a de
 - [x] Resolve actionable visual issues.
 
 final result: passed
+
+# Waypoint route and manager polish — 2026-10-21
+
+Source: selected option 1, generated image `exec-1b594d76-1939-4d13-9e79-022a719e1be5.png` in the current task's generated-images directory. Source and rendered crew screen normalized to 390 × 844, deviceScaleFactor 1, app content only, same three fictional appointments/date. Existing application runtime retained.
+
+Evidence outside Git: `Documents/Codex/2026-10-21/we/work/waypoint-cleanup/final-comparison.png`, and `outputs/waypoint-route-preview.png`, `outputs/waypoint-manager-preview.png` in that task. All UI screenshots use synthetic records; no customer screenshots committed.
+
+## Findings and comparison history
+
+1. Initial comparison blocked: P1 map initially fitted too closely, leaving pins outside the viewport. Disabled animated fitting; the same three markers now fit within bounds on initial load and resize.
+2. Initial comparison blocked: P2 local preview icon requests were redirected by the generic localhost authentication path. The production Waypoint public-path list includes only the ten specific SVG assets; preview now uses the Waypoint host. Actual library icons render sharply.
+3. Initial comparison blocked: P2 excess header/row spacing pushed too much content down. Compacted connected header, map, and row rhythm; final comparison shows all three stops plus primary action in the 390 × 844 frame.
+4. Expanded-map check blocked: P1 React's changing map element class removed Leaflet's injected clipping classes. Expansion now changes the wrapper class only. Rechecked expanded width: scrollWidth equals 390; Leaflet classes remain and the map scrolls into view.
+
+## Required fidelity surfaces
+
+- Typography: existing inspection/system font, strong heading and names, 13px time and 12px address text. Readable real text, no cropped names. Actual full source address replaces invented mock neighborhood labels.
+- Spacing/layout: 16px balanced mobile margins, map above numbered grouped rows, light separators, highlighted next stop. Compact manager toolbar and 44 × 44 reorder controls. At 320px, schedule/reschedule date and time inputs remain inside the viewport; scrollWidth 320.
+- Colors/tokens: original charcoal header, gold rule, warm offwhite background, crimson primary/number badges and subtle next-stop tint retained. Approximate pins are dashed and explicitly labeled in text.
+- Images/icons: original crown asset; Lucide line icons exported from the already-installed library with license. Live existing OSM tiles replace the generated illustrative map; real map geography and attribution are intentional. Number circles are data labels, not replacement artwork.
+- Copy/content: title, Route Order explanation, Messages and next-appointment action follow selected concept. Missing pins are disclosed without renumbering. Completed and shared Amazon work remains separately accessible. No invented ETA, route geometry or unread-message counts.
+
+## Interaction and resilience checks
+
+CUA in-app browser, fixture intercepting every API: pin 2 opens matching details; back returns to list; Full map expands, scrolls into view and retains map classes; Messages opens/focuses office disclosure; manager selection and reschedule fields; reorder earlier submits the intended permutation and keeps windows; missing and approximate pins keep numbers; a combined 1,2,3 marker exposes all three choices and choice 3 opens the matching appointment; all-unmapped view retains the full list. Manager and crew examined at 390px and 320px. Production-mode preview console had no warnings/errors. No real writes, enrollment, notifications or payments tested.
+
+## Accepted differences / limits
+
+The real OSM basemap differs from the generated mock's illustrated tiles. Full map sits just below the initial viewport because primary actions maintain accessible touch height and source addresses remain complete. Physical iPhone Safari/native date-picker testing requires the user's handset; browser viewport checks do not claim physical-device verification.
+
+final result: passed

@@ -20,7 +20,7 @@ export default function WaypointNotifications(){
   localStorage.setItem('waypoint-push-device',body.deviceId);setDeviceId(body.deviceId);setEnabled(true);setStatus('Notifications enabled for today’s truck. Enable again after daily phone setup.');
  }catch(e){setError(e instanceof Error?e.message:'Notification setup failed.');}finally{setBusy(false);}}
  async function disable(){setBusy(true);setError('');try{const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unsubscribe',deviceId,notificationKey:localStorage.getItem('waypoint-push-key')})});if(!response.ok)throw Error('Could not disable notifications. Try again.');const registration=await navigator.serviceWorker.getRegistration('/crew-jobs');await (await registration?.pushManager.getSubscription())?.unsubscribe();localStorage.removeItem('waypoint-push-device');setDeviceId('');setEnabled(false);setStatus('Notifications disabled.');}catch(e){setError(e instanceof Error?e.message:'Could not disable.');}finally{setBusy(false);}}
- return <details className={styles.card} open={messages.length>0}><summary>Notifications &amp; office messages{messages.length?` (${messages.length})`:""}</summary>
+ return <details id="waypoint-office-messages" className={styles.card} open={messages.length>0}><summary>Notifications &amp; office messages{messages.length?` (${messages.length})`:""}</summary>
  <p>New jobs, cancellations, schedule changes, route updates and office messages for your current truck.</p>
  {!standalone && <p>On iPhone: Share → Add to Home Screen. Open Waypoint from that icon to enable notifications.</p>}
  {!supported && <p>Push notifications require a supported iPhone with Waypoint on the Home Screen.</p>}

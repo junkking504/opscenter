@@ -1,0 +1,46 @@
+.overview { font-family:var(--font-inspection),system-ui,sans-serif; }
+.heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 16px; }
+.heading h1 { font-size:28px; font-weight:750; line-height:1.15; letter-spacing:-.9px; margin:0 0 8px; }
+.heading p { margin:0; color:#58665e; font-size:15px; }
+.messages { flex-shrink:0; display:grid; place-items:center; gap:5px; min-width:54px; min-height:54px; padding:8px; font:500 11px/1.3 system-ui,sans-serif; color:#25312c; background:transparent; border:1px solid #dfe3da; border-radius:10px; cursor:pointer; }
+.messages img { width:23px; height:23px; }
+.mapWrap { position:relative; }
+.map { height:260px; width:100%; border-radius:10px; z-index:0; background:#e7ece7; }
+.expanded .map { height:65dvh; min-height:360px; }
+.mapEmpty { min-height:180px; display:grid; place-items:center; padding:24px; border-radius:10px; background:#edf0e9; color:#58665e; font-size:14px; text-align:center; }
+.mapNote,.mapWarning { font-size:13px; line-height:1.45; margin:10px 0 !important; color:#58665e; }
+.mapWarning { background:#fff3da; padding:12px; }
+.markerHost { background:none; border:0; }
+.marker { display:flex; align-items:center; justify-content:center; width:100%; height:100%; border:2px solid white; border-radius:50%; background:#b51935; color:white; font:700 16px/1 system-ui,sans-serif; box-shadow:0 2px 5px #0004; box-sizing:border-box; }
+.marker.approximate { border:3px dashed #fff; background:#6c4e12; }
+.mapChoice { display:block; width:100%; min-height:44px; padding:10px; background:white; color:#25312c; border:0; border-bottom:1px solid #ddd; font:600 14px system-ui,sans-serif; text-align:left; cursor:pointer; }
+.sectionHeading { margin:20px 0 12px; }
+.sectionHeading h2 { font-size:23px; letter-spacing:-.6px; margin:0 0 3px; }
+.sectionHeading p { color:#58665e; font-size:14px; margin:0; }
+.stops { list-style:none; padding:0; margin:0; }
+.stops li { border-bottom:1px solid #dfe3da; }
+.stop { display:grid; grid-template-columns:32px minmax(0,1fr) 18px; gap:12px; align-items:start; width:100%; padding:12px 8px; border:0; background:transparent; color:#25312c; text-align:left; font:inherit; cursor:pointer; }
+.stop.next { background:#f7e9ec; border-radius:9px; }
+.stop>img { align-self:center; width:18px; }
+.number { display:flex; align-items:center; justify-content:center; width:32px; height:32px; margin-top:3px; border-radius:50%; background:#b51935; color:white; font-size:17px; font-weight:700; }
+.stopBody { display:grid; gap:4px; min-width:0; }
+.stopBody strong { font-size:16px; font-weight:750; line-height:1.3; overflow-wrap:anywhere; }
+.fact { display:flex; align-items:flex-start; gap:7px; font-size:13px; line-height:1.4; }
+.fact img { width:16px; height:18px; flex-shrink:0; opacity:.75; }
+.stopBody small { font-size:12px; color:#58665e; }
+.routeActions { display:grid; gap:10px; margin:18px 0 24px; }
+.primary,.secondary { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:46px; padding:10px 14px; border-radius:8px; font:650 15px/1.4 system-ui,sans-serif; cursor:pointer; box-sizing:border-box; }
+.primary { background:#b51935; color:white; border:1px solid #b51935; }
+.primary img { filter:brightness(0) invert(1); }
+.secondary { background:transparent; color:#25312c; border:1px solid #bdc7bc; }
+.extra { border-top:1px solid #dfe3da; padding:12px 0; }
+.extra summary { cursor:pointer; min-height:44px; align-content:center; font-size:15px; font-weight:650; }
+.extra p { font-size:14px; color:#58665e; }
+.otherJob { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; font:600 15px system-ui,sans-serif; min-height:48px; padding:12px 0; background:transparent; border:0; border-top:1px solid #dfe3da; color:#25312c; cursor:pointer; }
+.otherJob small { display:block; font-size:12px; font-weight:400; margin-top:5px; }
+.truckSelect { display:flex; align-items:center; gap:12px; margin-bottom:16px; font-size:14px; }
+.truckSelect select { flex:1; min-width:0; min-height:44px; font:inherit; background:white; border:1px solid #bdc7bc; border-radius:8px; padding:8px; }
+@media(min-width:600px) { .map { height:320px; } }
+@media(max-width:360px) { .heading h1 { font-size:25px; } .heading p { font-size:13px; } .stop { gap:8px; padding:14px 6px; } }
+
+.fact:last-of-type { font-size:12px; line-height:1.4; }

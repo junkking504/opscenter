@@ -15,7 +15,7 @@ export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'insp
   const [step, setStep] = useState<Step>('connect');
   const [test,setTest]=useState(false);
   return <div className={styles.app}>
-    <header className={`${styles.header} ${!jobsHref && !managerView && step === 'connect' ? styles.connectionHeader : ''}`}>
+    <header className={`${styles.header} ${!jobsHref && !managerView && step === 'connect' ? styles.connectionHeader : !jobsHref && (managerView || step==='jobs') ? styles.routeHeader : ''}`}>
       <div className={styles.brand}>
         <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-crown-road-v1-192.png` : '/crew-jobs/waypoint-crown-road-v1-192.png'} width="52" height="52" alt="" />
         <div><strong>Waypoint</strong><span>JUNK KING</span></div>

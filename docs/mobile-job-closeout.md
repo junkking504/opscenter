@@ -1009,3 +1009,30 @@ honest; this is an opening-latency improvement, not an instant-source guarantee.
 retry, cancellation/isolation and the actual shared editor under React StrictMode.
 Its browser timings use a controlled 1,000 ms synthetic source delay, not live
 JunkWare measurements. No real operational writes are made by these fixtures.
+
+## Operations WhatsApp setup-code transport — October 21, 2026
+
+The separately approved `operations-linked` delivery policy selects the existing
+local Operations WhatsApp bridge, rather than Meta authentication templates.
+`operationsAccount` pins the sending identity; the bridge reports its connected account before enrollment and checks that same
+socket again immediately at send time. OpsCenter never reads session credentials. No Meta token
+is read and no Cloud API request occurs for this transport. The bridge endpoint
+is fixed to loopback port 18791; destinations come from the approved directory.
+The message contains only the generated Waypoint code and ten-minute expiry.
+The dedicated bridge route does not store the body, log it, or forward it to
+Hermes. Outgoing code echoes are rejected before intake, including after restart.
+Operations sent history remains visible on its trusted handset and linked devices,
+as with any regular WhatsApp sender; those devices must remain trusted.
+Automated linked-device messages also carry WhatsApp account-restriction risk.
+`install-operations-waypoint-bridge.py` requires the reviewed pre-change bridge
+hash and preserves a backup; it never changes credentials or links a new device.
+
+Existing phone identity checks, approval expiry, reservation limits, cooldowns,
+three daily self-requests, durable receipt creation, single-use enrollment and
+no-replay rules remain. Operations uses no new metered provider; existing numeric
+reservations remain conservative rate limits, not a claim of provider charges.
+Bridge errors and lost responses remain uncertain and are never automatically
+retried. Acceptance does not establish arrival on a handset. Activation requires
+the exact Operations account in the protected policy after reviewed deployment.
+Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
+`test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.

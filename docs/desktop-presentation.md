@@ -39,8 +39,8 @@ at the standard 990px content height without scrolling. It explicitly allows
 flex shrinking and independent scrolling as a fallback for shorter windows,
 so source checks remain available at the bottom. OpsBot opens from the
 existing header search; its sidebar card and the static account card are omitted
-to leave room for 32px navigation rows, 14px link labels and 20px icons
-in laptop-height windows. Each workspace has a softly shaded 16px header with semibold text, larger than its 14px page links, so section
+to leave room for 32px navigation rows, 12px link labels and 20px icons
+in laptop-height windows. Each workspace has a softly shaded 14px header with semibold text, larger than its 12px page links, so section
 boundaries remain clear without extra height or a heavy visual band. Mobile retains its workspace selector and shared page tabs.
 Actions, Monitor, Call-in plan and Reconciliation are omitted from the sidebar.
 Convoy Driving and Records & invoices are omitted from the sidebar and page tabs.

@@ -36,3 +36,9 @@ signatures on refresh. It never requests a collector refresh or external service
 Validation: `npm run verify:customer-history`, `npm run build:desktop`, and the
 normal production build. Synthetic browser checks cover details, more/less,
 empty/error/retry, appointment switching and disabled navigation while saving.
+
+The compact selected-appointment card also shows **Booked from estimate**
+directly below the customer heading when a job has an explicit source-estimate
+appointment ID. It includes the estimate number, quoted amount (separate from
+payment), and the same internal dated appointment link. No history request is
+needed: it uses the estimate linkage already in the schedule snapshot.

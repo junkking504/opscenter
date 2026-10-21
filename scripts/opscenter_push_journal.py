@@ -186,8 +186,8 @@ def project(path, payload):
             item = observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
             at = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p").lstrip("0")
             action = "Arrived at" if kind == "geofence_entered" else "Departed"
-            item["notification"] = {"title": f"Truck {str(row['truck_number'])[:20]}",
-                                    "body": f"{action} {str(row['geofence_name'])[:150]} at {at}"}
+            item["notification"] = {"title": f"Truck #{str(row['truck_number'])[:20]}",
+                                    "body": f"{action} {str(row['geofence_name'])[:150]}: {at}"}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches

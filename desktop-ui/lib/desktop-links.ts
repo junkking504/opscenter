@@ -23,6 +23,13 @@ export function desktopAppointmentHref(reference: string, date: string, appointm
   return '/desktop?' + params;
 }
 
+export function desktopCustomerHref(appointmentId?: string, date?: string): string {
+  const params = new URLSearchParams({ data: 'live', workspace: 'Schedule', scheduleView: 'customers' });
+  if (appointmentId && /^\d{1,12}$/.test(appointmentId)) params.set('customer', appointmentId);
+  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) params.set('date', date);
+  return '/desktop?' + params;
+}
+
 /** Use the uniquely linked source appointment; otherwise preserve the source reference. */
 export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
   const sourceHref = desktopSourceHref(alert.href, origin);

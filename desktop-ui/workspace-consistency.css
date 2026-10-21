@@ -68,6 +68,8 @@
 .ops-app.ops-live .record-drawer .record-drawer-header { padding: 16px 20px; background: var(--oc-surface-raised); border-bottom: var(--desktop-card-border); }
 .ops-app.ops-live .record-drawer .record-drawer-header h2 { font-size: var(--oc-type-24); line-height: 1.25; }
 .ops-app.ops-live .record-drawer .record-drawer-header > div > span { color: var(--oc-text-muted); font-size: var(--oc-type-11); }
+.ops-app.ops-live .crew-record-pay > div:last-child { color: var(--oc-text-primary); }
+.ops-app.ops-live .krewe-pay-breakdown > header { background: var(--oc-surface-muted); }
 .ops-app.ops-live .workspace-freshness { color: var(--oc-text-muted); line-height: 1.5; }
 @media (max-width: 760px) {
   .ops-app.ops-live :is(.crew-today-actions,.crew-section-nav,.capital-filter-group,.campaign-queue-tabs,.convoy-table-tools > div,.live-map-territories) > button { min-height: 44px; }

@@ -18,7 +18,7 @@ intents and `pg_notify`. PostgreSQL delivers the wake only after commit. The fir
 complete snapshot seeds a baseline. Identical snapshots do not notify; genuine
 A→B→A transitions get new versions. Schedule removals/reappearances require
 explicit complete authoritative evidence; missing clock/fleet rows are unknown. Moving off today's
-scope is a removal; reporting the destination requires its own source evidence.
+scope records a disappearance; it is not, by itself, proof of cancellation or a reschedule. Reporting a destination requires its own source evidence.
 An incomplete initial baseline is blocked. No Slack-derived history is consumed.
 
 `startPushDispatcher` uses a dedicated PostgreSQL connection for LISTEN and the
@@ -39,6 +39,57 @@ DNS resolution. A network request already initiated may finish after revocation;
 there is no recall guarantee. No retry is performed, including HTTP 429/5xx.
 HTTP 201 means accepted by Apple, not delivered to the handset. 404/410 revoke the
 subscription and clear its approval. Timeouts and unknown outcomes stay uncertain.
+
+## Notification presentation and verified reschedules
+
+OpsCenter's three manager notification categories (schedule, crew clock events,
+and fleet geofence events) use concise titles and plain-text, newline-separated
+labeled details. Schedule details lead with appointment date and Central time,
+then the verified JK job identifier (canonical appointment identity remains
+unchanged), customer, normalized truck, status/type, available address/phone,
+positive recorded job amount and verified crew. Estimate placeholders and empty
+end times are omitted. Fleet includes event, location, date and Central time;
+crew includes name, clock event, date and source time. Display-only metadata does
+not create business transitions or alter audience/role checks. Slack formatting
+syntax is not sent. The separate Waypoint crew app's generic wake-up path is not
+part of these OpsCenter manager categories and is unchanged.
+
+The private observation `notification_json.schedule` context records verified
+date/time/status and labels, but encryption sends only title/body/eventId. The
+worker correlates the same canonical appointment identity across schedule scopes.
+Migration 0012 adds a partial identity lookup index. A unique counterpart requires
+its latest complete source snapshot within 15 minutes of the incoming event;
+a prior absence must also have occurred within that window. Ambiguous, stale,
+future-dated, legacy-without-context, canceled or removed counterparts do not prove
+a reschedule. Same-scope verified time changes are also recognized. A new known
+time replacing an unknown time alone is not proof of a move.
+
+When the old scope disappears first, the notice says **Schedule changed** and
+explicitly leaves cancellation/new date/time unverified. When a later verified
+destination arrives, **Rescheduled** leads with `To: date, time (Central)` and
+`From: date, time (Central)`, followed by destination details. If destination
+arrives first, a reschedule is confirmed only after verified old-scope absence.
+Explicit source canceled/removed statuses retain their meanings. Missing destination
+time never becomes invented timing. This adds no collection, polling, delay,
+replay or rewriting of previously delivered messages. Existing metadata is
+populated by normal canonical publication; legacy entries remain conservative.
+
+The body preserves newlines through encryption and `showNotification`. Application
+limits are 100 title code points and 1,600 body code points plus a clipping ellipsis,
+with title/body JSON bounded to 2,800 UTF-8 bytes (including escapes). This leaves
+space for the event ID beneath the existing 3,000-byte plaintext limit and
+4,096-byte encryption record. Tests independently decrypt and exercise the service
+worker in a VM, without sending or creating an OS notification.
+
+[iOS supports notification expansion](https://support.apple.com/en-euro/guide/iphone/iph6534c01bc/ios),
+but [Web Notifications](https://notifications.spec.whatwg.org/#dictdef-notificationoptions)
+exposes one body, not separate collapsed/expanded layouts or an option to force
+long-press height. iOS/WebKit owns wrapping, truncation and app attribution.
+Passing multiline text proves payload support, not how many lines a particular
+handset shows. The inspected producer/renderer supplies no `from OpsCenter`
+subtitle; that separate attribution cannot be suppressed through these payload
+options. Opening the notification retains the existing authenticated OpsCenter
+landing page. Physical-device acceptance remains separate and unperformed.
 
 ## Device-specific trial gate
 

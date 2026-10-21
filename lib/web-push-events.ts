@@ -1,5 +1,5 @@
 import { pushHash, type PushCategory } from './web-push-policy';
-export type PushObservation = { identity: string; revision: unknown; notification?:{title:string;body:string} };
+export type PushObservation = { identity: string; revision: unknown; notification?:{title:string;body:string;schedule?:import('./web-push-schedule').PushSchedule} };
 /** Ordered, retained canonical snapshots. A watcher over an overwritten file does
  * NOT satisfy this contract. Sequence is durable and contiguous within a scope. */
 export type PushBatch = { scope:string; category:PushCategory; sequence:number;

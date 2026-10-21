@@ -154,7 +154,17 @@ def project(path, payload):
                         facts["crew"] = row["crew"]
                 item = observation(identity, facts)
                 item["facts"] = {key: digest(value) for key, value in facts.items()}
-                item["display"] = {"label": (identity[:80] + (" — " + first(row, "customer_name", "customer", "client_name")[:80] if first(row, "customer_name", "customer", "client_name") else "")), "fields": {key: ((", ".join(str(part) for part in value) if isinstance(value, list) else str(value).title() if key in ("status", "type") else str(value))[:100]) for key, value in facts.items()}}
+                job_id = first(row, "job_id")
+                display_id = job_id if re.fullmatch(r"JK[0-9]+", job_id, re.IGNORECASE) else identity
+                customer = first(row, "customer_name", "customer", "client_name")[:80]
+                item["display"] = {
+                    "label": display_id[:80] + (" — " + customer if customer else ""),
+                    "address": first(row, "address")[:200], "phone": first(row, "phone")[:40],
+                    "amount": first(row, "revenue")[:40] if first(row, "appointment_type").casefold() != "estimate" else "",
+                    "fields": {key: ((", ".join(str(part) for part in value) if isinstance(value, list)
+                                      else str(value).title() if key in ("status", "type") else str(value))[:100])
+                               for key, value in facts.items()},
+                }
                 items_by_id[identity] = item
             items = list(items_by_id.values())
             batch(f"schedule:{day}:market-{market}", "schedule", payload.get("scraped_at"), items)
@@ -176,7 +186,7 @@ def project(path, payload):
                 if value:
                     item = observation([name, kind], value)
                     item["notification"] = {"title": "Crew",
-                                            "body": f"{first(row, 'name', 'employee_name', 'employee', 'crew_member', 'employee_id')[:100] or name[:100]} clocked {'in' if kind == 'in' else 'out'}: {value[:100]}"}
+                                            "body": f"Crew: {first(row, 'name', 'employee_name', 'employee', 'crew_member', 'employee_id')[:100] or name[:100]}\nEvent: Clocked {'in' if kind == 'in' else 'out'}\nDate: {day}\nTime: {value[:100]} (Central)"}
                     items.append(item)
         batch(f"krewe:{day}", "krewe", source.get("as_of"), items)
     elif path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
@@ -191,10 +201,11 @@ def project(path, payload):
                 return []
             stamp(row.get("occurred_at"))
             item = observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
-            at = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p").lstrip("0")
-            action = "Arrived at" if kind == "geofence_entered" else "Departed"
+            occurred = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago"))
+            at = occurred.strftime("%I:%M %p").lstrip("0")
+            action = "Arrived" if kind == "geofence_entered" else "Departed"
             item["notification"] = {"title": truck_notification_title(row["truck_number"]),
-                                    "body": f"{action} {str(row['geofence_name'])[:150]}: {at}"}
+                                    "body": f"Event: {action}\nLocation: {str(row['geofence_name'])[:150]}\nDate: {occurred.date().isoformat()}\nTime: {at} (Central)"}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches
@@ -425,18 +436,40 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
                                if item.get("facts", {}).get(key) == facts.get(key)})
                 label = display.get("label") or old.get("label") or "Appointment"
                 changed = [key for key in facts if prior.get("facts", {}).get(identity, {}).get(key) != facts[key]]
-                parts = []
+                title = "Cancelled" if values.get("status", "").casefold() in ("cancelled", "canceled") else "New appointment" if has_prior and identity not in prior.get("facts", {}) else "Schedule updated"
+                day = scope.split(":")[1]
+                truck = truck_notification_title(values["truck"]) if values.get("truck") else ""
+                appointment_time = values.get("time", "")
+                if values.get("end") and not re.search(r"\s[-–—]\s", appointment_time):
+                    appointment_time = f"{appointment_time or 'Start not verified'} - {values['end']}"
+                context = {"date": day, "time": appointment_time, "label": label,
+                           "status": values.get("status", ""), "truck": truck, "type": values.get("type", "")}
+                job, _, customer = label.partition(" — ")
+                details = [f"Date: {day}", f"Time: {appointment_time or 'Not verified'} (Central)", f"Job: {job}"]
+                if customer:
+                    details.append(f"Customer: {customer}")
+                details += [f"{key}: {value}" for key, value in [("Truck", truck.removeprefix("Truck ")), ("Status", values.get("status")), ("Type", values.get("type"))] if value]
+                accepted_page = all(item.get("facts", {}).get(key) == facts.get(key) for key in PAGE_FIELDS)
+                for key in ("address", "phone"):
+                    value = display.get(key, "") if accepted_page else old.get(key, "")
+                    if value:
+                        details.append(f"{key.title()}: {value}")
+                # Display-only amounts do not become new business-event triggers.
+                amount = display.get("amount", "") if accepted_page else old.get("amount", "")
+                if re.fullmatch(r"\$?[0-9,]+(?:\.[0-9]{2})?", amount) and float(amount.replace('$', '').replace(',', '')) > 0:
+                    details.append(f"Recorded amount: {amount}")
                 for key in changed:
-                    if key not in values:
+                    before, after = old.get("fields", {}).get(key), values.get(key, "")
+                    if before is None or before == after:
                         continue
-                    value = values[key] or "unassigned"
-                    before = old.get("fields", {}).get(key)
-                    description = f"{before or 'unassigned'} → {value}" if before is not None and before != values[key] else value
-                    parts.append(f"{labels.get(key, key)}: {description}")
-                title = "New appointment" if has_prior and identity not in prior.get("facts", {}) else "Schedule updated"
-                body = " · ".join([label, *(parts or [f"{labels.get(key, key)}: {value or 'unassigned'}" for key, value in values.items()])])[:700]
-                next_notifications[identity] = {"label": label, "fields": values}
-                incoming.setdefault(identity, {})["notification"] = {"title": title, "body": body}
+                    if key == "truck":
+                        before = truck_notification_title(before).removeprefix("Truck ") if before else "Unassigned"
+                        after = truck_notification_title(after).removeprefix("Truck ") if after else "Unassigned"
+                    details.append(f"Changed {labels.get(key, key).lower()}: {before or 'Unassigned'} → {after or 'Unassigned'}")
+                details += [f"{labels[key]}: {values[key]}" for key in ("driver", "navigator", "crew") if values.get(key)]
+                body = "\n".join(details)
+                next_notifications[identity] = {"label": label, "fields": values, "amount": amount, **{key: display.get(key, "") if accepted_page else old.get(key, "") for key in ("address", "phone")}}
+                incoming.setdefault(identity, {})["notification"] = {"title": title, "body": body, "schedule": context}
             display_changed = next_notifications != notifications
             notifications = next_notifications
             batch["observations"] = [{"identity": identity, "revision": digest(facts), **({"notification": incoming[identity]["notification"]} if incoming.get(identity, {}).get("notification") else {})} for identity, facts in sorted(next_facts.items())]

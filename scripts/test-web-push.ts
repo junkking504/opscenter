@@ -102,6 +102,9 @@ assert.deepEqual(JSON.parse(JSON.stringify(shown)),{title:'Truck #9',options:{
   tag:'opscenter-'+'b'.repeat(64),renotify:true,data:{path:'/desktop?workspace=Command'}
 }});
 assert.doesNotMatch(JSON.stringify(shown),/from OpsCenter/);
+const expandedBody='Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\n'+('Detail: verified fixture\n'.repeat(40));
+handlers.push({data:{json:()=>({title:'Rescheduled',body:expandedBody,eventId:'c'.repeat(64)})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.equal((shown as {options:{body:string}}).options.body,expandedBody,'multiline details beyond old 700-character cutoff reach showNotification unchanged');
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
 

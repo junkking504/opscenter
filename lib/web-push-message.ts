@@ -5,8 +5,13 @@ export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecor
 export function pushMessage(value:unknown):PushMessage|null {
  const v=value as Partial<PushMessage>|undefined;
  if(!v||typeof v.title!=='string'||typeof v.body!=='string'||!v.title.trim()||!v.body.trim())return null;
- const clean=(s:string,n:number)=>s.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,n);
- return {title:clean(v.title,100),body:clean(v.body,700)};
+ const clean=(s:string,n:number,multiline=false)=>Array.from(s.replace(/\r\n/g,'\n').replace(multiline?/[\u0000-\u0009\u000b-\u001f\u007f]/g:/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,n).join('');
+ const title=clean(v.title,100),body=Array.from(clean(v.body,1600,true));
+ let clipped=Array.from(v.body).length>1600;
+ // Bound the serialized UTF-8 bytes (including JSON escaping), leaving room
+ // for eventId under the encrypted-message limit. Never split a code point.
+ while(Buffer.byteLength(JSON.stringify({title,body:body.join('')+(clipped?'…':'')}))>2800){body.pop();clipped=true;}
+ return {title,body:body.join('')+(clipped?'…':'')};
 }
 /** RFC 8291 / RFC 8188 single-record aes128gcm. Fresh ephemeral key and salt. */
 export function encryptPushMessage(envelope:PushEnvelope):Buffer {

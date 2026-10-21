@@ -109,7 +109,7 @@ async function main(){
  await recordPushBatch({scope:detailScope,category:'schedule',sequence:2,complete:true,observedAt:new Date().toISOString(),observations:[{...detail,notification:{title:'Schedule updated',body:'JK123 · Truck 4'}}]},d);
  assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count),eventCount);
  await recordPushBatch({scope:detailScope,category:'schedule',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[]},d);
- const removal=(await p.query("SELECT notification_json FROM opscenter_kernel.push_events WHERE notification_json->>'title'='Appointment removed'")).rows[0];assert.match(removal.notification_json.body,/JK123.*removed/);
+ const removal=(await p.query("SELECT notification_json FROM opscenter_kernel.push_events WHERE notification_json->>'title'='Schedule changed'")).rows[0];assert.match(removal.notification_json.body,/JK123/);assert.match(removal.notification_json.body,/Cancellation or new date\/time not verified/);
  console.log('PASS: exact verified-handset promotion requires accepted trial; five concurrent ongoing sends; trial history preserved; no replay; competing phone rejected; saves cannot renew; revocation and expiry stop ongoing delivery.');
 
 }

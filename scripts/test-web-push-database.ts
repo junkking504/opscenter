@@ -337,6 +337,40 @@ publish(370,371,status='Arrived')
  gate.invalidate();await gate.maintain();assert.equal(scans,2,'changed eligibility invalidates scan');
  maintenanceNow=new Date(maintenanceNow.getTime()+86400000);await gate.maintain();assert.equal(scans,3,'cutoff rollover scans on next event');
  await gate.maintain(true);assert.equal(scans,4,'consumed old backlog triggers scan');
+ // Presentation correlation uses only committed source observations. All new
+ // cases prohibit delivery creation; the existing sender above is also mocked.
+ {
+ const formatDeps={...d,ownerAllowed:()=>false};
+ const sequence=new Map<string,number>();let formatTime=Date.now()-60000;
+ const formatDay=(offset:number)=>new Date(Date.now()+offset*86400000).toISOString().slice(0,10);
+ const oldDate=formatDay(30),newDate=formatDay(31);
+ const oldScope=`schedule:${oldDate}:market-352`,newScope=`schedule:${newDate}:market-352`;
+ const info=(date:string,time='12:00 PM - 01:00 PM',status='Confirmed')=>({date,time,status,label:'JK123 — Synthetic Customer',truck:'Truck #4',type:'Estimate'});
+ const item=(identity:string,date:string,time='12:00 PM - 01:00 PM',status='Confirmed')=>({identity,revision:`${date}|${time}|${status}`,notification:{title:'Schedule updated',body:`Date: ${date}\nTime: ${time||'Not verified'} (Central)\nJob: JK123\nCustomer: Synthetic Customer\nTruck: #4\nStatus: ${status}`,schedule:info(date,time,status)}});
+ const publish=async(scope:string,observations:PushBatch['observations'],complete=true)=>{const number=(sequence.get(scope)||0)+1;sequence.set(scope,number);await recordPushBatch({scope,category:'schedule',complete,sequence:number,observedAt:new Date(formatTime+=100).toISOString(),observations},formatDeps);};
+ const latest=async(scope:string)=>(await p.query('SELECT notification_json FROM opscenter_kernel.push_events WHERE source_scope=$1 ORDER BY source_recorded_at DESC LIMIT 1',[scope])).rows[0].notification_json;
+ const beforeFormats=sends;
+ await publish(oldScope,[item('move-removal-first',oldDate,'04:00 PM - 05:00 PM')]);await publish(newScope,[]);
+ await publish(oldScope,[],false);assert.equal((await latest(oldScope)).title,'Schedule updated','partial absence is silent');
+ await publish(oldScope,[]);assert.equal((await latest(oldScope)).title,'Schedule changed');assert.match((await latest(oldScope)).body,/not verified/);
+ await publish(newScope,[item('move-removal-first',newDate)]);
+ assert.equal((await latest(newScope)).title,'Rescheduled');assert.match((await latest(newScope)).body,new RegExp(`^To: ${newDate}, 12:00 PM - 01:00 PM`));assert.ok((await latest(newScope)).body.includes(`From: ${oldDate}, 04:00 PM - 05:00 PM`));
+ // Destination first: retained destination detail is used after verified removal.
+ const a=`schedule:${oldDate}:market-477`,b=`schedule:${newDate}:market-477`;
+ await publish(a,[item('move-destination-first',oldDate)]);await publish(b,[]);
+ await publish(b,[item('move-destination-first',newDate)]);assert.equal((await latest(b)).title,'Schedule updated');
+ await publish(a,[]);assert.equal((await latest(a)).title,'Rescheduled');assert.ok((await latest(a)).body.includes('Customer: Synthetic Customer'));
+ // Explicit cancellation/removal, unknown time, fresh same-day time change.
+ const c=`schedule:${oldDate}:market-399`,e=`schedule:${newDate}:market-399`;
+ await publish(c,[item('cancelled',oldDate),item('removed',oldDate),item('unknown',oldDate),item('same-day',oldDate)]);await publish(e,[]);
+ await publish(c,[item('cancelled',oldDate,undefined,'Cancelled'),item('removed',oldDate,undefined,'Removed'),item('same-day',oldDate,'02:00 PM - 03:00 PM')]);
+ const messages=(await p.query('SELECT notification_json FROM opscenter_kernel.push_events WHERE source_scope=$1',[c])).rows.map(r=>r.notification_json);
+ for(const title of ['Cancelled','Removed from schedule','Schedule changed','Rescheduled'])assert.ok(messages.some(m=>m.title===title),title);
+ await publish(e,[item('unknown',newDate,'')]);assert.notEqual((await latest(e)).title,'Rescheduled');assert.match((await latest(e)).body,/Not verified/);
+ assert.equal((await p.query("SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=ANY($1::text[])",[[oldScope,newScope,a,b,c,e]])).rows[0].count,0);
+ assert.equal(sends,beforeFormats,'formatting tests never invoke transport');
+ console.log('PASS: isolated DB verified cross-date moves in both publication orders, same-day change, partial absence, cancellation/removal, unknown destination, retained details and no recipients/deliveries.');
+ }
  console.log('PASS: retirement scan gate: 100 unchanged wakes, eligibility changes, old backlog and cutoff rollover.');
  console.log('PASS: fourteen-day Chicago boundary, pending-delivery and retained-file guards, orphan-gap retirement, compact replay floor, and file-complete/DB-rollback restart recovery.');
  console.log('PASS: independent malformed/expired-scope probes, same-file isolation, restart quarantine, eight-day retained catch-up, fleet removal restraint and explicit generation reset.');

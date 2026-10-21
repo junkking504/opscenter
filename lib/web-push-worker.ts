@@ -1,3 +1,4 @@
+import {pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
 import { pushMessage, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
 import { pushRetirementCutoff } from './web-push-archive';
@@ -87,7 +88,16 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           ON CONFLICT(scope,identity_hash) DO UPDATE SET revision_hash=EXCLUDED.revision_hash,version=EXCLUDED.version,observed_at=EXCLUDED.observed_at,present=EXCLUDED.present`,[batch.scope,change.identity,change.revision,change.version,batch.observedAt,change.present]);
         const item=descriptions.get(change.identity);
         const old=previous.get(change.identity)?.notification_json;
-        const notification=change.present?pushMessage(item?.notification):pushMessage(old?{title:'Appointment removed',body:`${old.body.split(' · ')[0]} · removed from the schedule`}:null);
+        let notification=pushMessage(change.present?item?.notification:old);
+        if(batch.category==='schedule'){
+          const current=pushSchedule(item?.notification?.schedule),previousSchedule=pushSchedule(old?.schedule);
+          let peers:SchedulePeer[]=[];
+          if(!change.present || !previous.get(change.identity)?.present)peers=(await client.query(`SELECT o.scope,o.present,o.observed_at,s.observed_at AS source_observed_at,o.notification_json
+            FROM opscenter_kernel.push_observations o JOIN opscenter_kernel.push_sources s ON s.scope=o.scope
+            WHERE o.identity_hash=$1 AND o.scope<>$2 AND o.scope LIKE 'schedule:%' AND s.baseline_complete=true`,[change.identity,batch.scope])).rows;
+          const peer=scheduleCounterpart(peers,batch.observedAt,!change.present);
+          notification=pushMessage(schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present}));
+        }
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
         await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope,notification_json) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope,notification?JSON.stringify(notification):null]);
         if(!batch.baseline && !batch.silentIdentities?.some(identity=>pushHash(identity)===change.identity) && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
@@ -97,7 +107,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           for(const device of devices.rows)if(d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
-      const metadata=batch.observations.flatMap(item=>{const notification=pushMessage(item.notification);return notification?[{identity:pushHash(item.identity),notification}]:[];});
+      const metadata=batch.observations.flatMap(item=>{const notification=pushMessage(item.notification),schedule=pushSchedule(item.notification?.schedule);return notification?[{identity:pushHash(item.identity),notification:{...notification,...(schedule?{schedule}:{})}}]:[];});
       if(metadata.length)await client.query('UPDATE opscenter_kernel.push_observations o SET notification_json=x.notification FROM jsonb_to_recordset($2::jsonb) AS x(identity text,notification jsonb) WHERE o.scope=$1 AND o.identity_hash=x.identity AND o.notification_json IS DISTINCT FROM x.notification',[batch.scope,JSON.stringify(metadata)]);
       await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete,generation,source_recorded_at) VALUES($1,$2,$3,true,$4,$5)
         ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true,generation=EXCLUDED.generation,source_recorded_at=EXCLUDED.source_recorded_at,archived_sequence=CASE WHEN push_sources.generation<>EXCLUDED.generation THEN 0 ELSE push_sources.archived_sequence END`,[batch.scope,batch.observedAt,batch.sequence,generation,batch.recordedAt||batch.observedAt]);

@@ -4,7 +4,7 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('push', event => {
   let message={};try{message=event.data?(event.data.json()||{}):{};}catch{}
   const title=typeof message.title==='string'?message.title.slice(0,100):'OpsCenter';
-  const body=typeof message.body==='string'?message.body.slice(0,700):'Operational updates are available. Open OpsCenter to review.';
+  const body=typeof message.body==='string'?Array.from(message.body).slice(0,1601).join(''):'Operational updates are available. Open OpsCenter to review.';
   const tag=/^[a-f0-9]{64}$/.test(message.eventId||'')?'opscenter-'+message.eventId:'opscenter-operational-updates';
   event.waitUntil(self.registration.showNotification(title, {
     body,

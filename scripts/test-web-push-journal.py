@@ -177,14 +177,14 @@ class JournalTest(unittest.TestCase):
         labels = [9, "9", "#9", "# 9", "Truck 9", "Truck# 9", "Truck #9",
                   " Truck # 9 ", "tRuCk# 9", "Truck #Truck# 9", "Truck Truck ## 9", "Truck9", "Truck#Truck9"]
         for label in labels:
-            for kind, action in [("geofence_exited", "Departed"), ("geofence_entered", "Arrived at")]:
+            for kind, action in [("geofence_exited", "Departed"), ("geofence_entered", "Arrived")]:
                 with self.subTest(label=label, kind=kind):
                     row = {"alert_id": "synthetic-truck-event", "alert_type_normalized": kind,
                            "truck_number": label, "geofence_name": "Warehouse", "occurred_at": at}
                     payload = {"date": day, "collection_timestamp": at, "pagination_completed": True,
                                "validation_status": "passed", "alerts": [row]}
                     item = journal.project(Path(f"linxup_alerts_{day}.json"), payload)[0]["observations"][0]
-                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action} Warehouse: 5:21 PM"})
+                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"Event: {action}\nLocation: Warehouse\nDate: {day}\nTime: 5:21 PM (Central)"})
                     expected = journal.observation(row["alert_id"], {key: row.get(key) for key in
                         ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
                     self.assertEqual({key: item[key] for key in expected}, expected)
@@ -193,11 +193,55 @@ class JournalTest(unittest.TestCase):
         self.assertEqual(journal.truck_notification_title("Truckster"), "Truck #Truckster")
         self.assertEqual(journal.truck_notification_title("Truck #09"), "Truck #09")
 
+    def test_schedule_multiline_details_and_private_context(self):
+        payload = schedule()
+        row = payload['appointments'][0]
+        row.update(job_id='JK12345', customer_name='Synthetic Customer', appointment_time='12:00 PM - 01:00 PM',
+                   assigned_truck='Truck# 4', appointment_type='Estimate', revenue='$0.00',
+                   address='123 Synthetic Street', phone='555-0100')
+        self.publish(payload)
+        item = self.entries()[-1]['batches'][0]['observations'][0]
+        notification = item['notification']
+        self.assertTrue(notification['body'].startswith(f'Date: {DAY}\nTime: 12:00 PM - 01:00 PM (Central)\nJob: JK12345\n'))
+        for detail in ['Customer: Synthetic Customer', 'Truck: #4', 'Status: Scheduled', 'Type: Estimate', 'Address: 123 Synthetic Street', 'Phone: 555-0100']:
+            self.assertIn(detail, notification['body'])
+        for unwanted in [' · ', 'End: unassigned', 'Recorded amount:', 'synthetic-job', '**', 'from OpsCenter']:
+            self.assertNotIn(unwanted, notification['body'])
+        self.assertEqual(notification['schedule']['date'], DAY)
+        self.assertEqual(notification['schedule']['truck'], 'Truck #4')
+        self.assertEqual(item['identity'], journal.digest('synthetic-job'), 'JK display label never changes canonical identity')
+        row.update(appointment_type='Job', revenue='$125.50', job_status='Cancelled')
+        self.publish(payload)
+        notification = self.entries()[-1]['batches'][0]['observations'][0]['notification']
+        self.assertEqual(notification['title'], 'Cancelled')
+        self.assertIn('Recorded amount: $125.50', notification['body'])
+        prior_revision = self.entries()[-1]['batches'][0]['observations'][0]['revision']
+        row.update(revenue='$150.00')
+        self.publish(payload)
+        self.assertEqual(self.entries()[-1]['batches'][0]['observations'][0]['revision'], prior_revision, 'display amount does not add business events')
+
+    def test_schedule_preserves_separate_end_and_normalizes_truck_changes(self):
+        payload = schedule()
+        row = payload['appointments'][0]
+        row.update(appointment_time='12:00 PM', end_time='01:00 PM', assigned_truck='Truck# 9')
+        self.publish(payload)
+        notification = self.entries()[-1]['batches'][0]['observations'][0]['notification']
+        self.assertEqual(notification['schedule']['time'], '12:00 PM - 01:00 PM')
+        self.assertIn('Time: 12:00 PM - 01:00 PM (Central)', notification['body'])
+        row.update(assigned_truck='Truck# 4', end_time='02:00 PM')
+        self.publish(payload)
+        notification = self.entries()[-1]['batches'][0]['observations'][0]['notification']
+        self.assertEqual(notification['schedule']['time'], '12:00 PM - 02:00 PM')
+        self.assertIn('Changed truck: #9 → #4', notification['body'])
+        self.assertNotIn('Truck#', notification['body'])
+
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}
         batch = journal.project(Path(f"daily_metrics_{DAY}.json"), metrics)[0]
         self.assertEqual(len(batch["observations"]), 2)
+        self.assertEqual(batch["observations"][0]["notification"], {"title": "Crew", "body": f"Crew: Synthetic Person\nEvent: Clocked in\nDate: {DAY}\nTime: 08:00 (Central)"})
+        self.assertIn("Event: Clocked out", batch["observations"][1]["notification"]["body"])
         self.assertNotIn("12345", json.dumps(batch))
         metrics["source_freshness"]["sources"]["junkware_employees"]["status"] = "stale"
         self.assertEqual(journal.project(Path(f"daily_metrics_{DAY}.json"), metrics), [])

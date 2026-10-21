@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {sendAppleWakeup} from '../lib/web-push-transport';
 import {createECDH,createDecipheriv,createHmac,randomBytes} from 'node:crypto';
-import {encryptPushMessage} from '../lib/web-push-message';
+import {encryptPushMessage,pushMessage} from '../lib/web-push-message';
 const ua=createECDH('prime256v1');ua.generateKeys();const auth=randomBytes(16),endpoint='https://web.push.apple.com/Q'+'x'.repeat(64);
-const envelope={subscription:{endpoint,keys:{p256dh:ua.getPublicKey().toString('base64url'),auth:auth.toString('base64url')}},message:{title:'Schedule updated',body:'JK123 · Truck: 2 → 4 · Time: 9 AM → 11 AM',eventId:'a'.repeat(64)}};
+const envelope={subscription:{endpoint,keys:{p256dh:ua.getPublicKey().toString('base64url'),auth:auth.toString('base64url')}},message:{title:'Schedule updated',body:'Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\nTruck: #4',eventId:'a'.repeat(64)}};
 const encrypted=encryptPushMessage(envelope);
 // Independent HKDF extract/expand via HMAC; receiver derives from sender public
 // key, never from implementation internals. No provider or deployed key used.
@@ -22,6 +22,20 @@ assert.notDeepEqual(encryptPushMessage(envelope),encrypted,'fresh key and salt p
 const tampered=Buffer.from(encrypted);tampered[tampered.length-20]^=1;assert.throws(()=>decrypt(tampered));
 const wrong=createECDH('prime256v1');wrong.generateKeys();assert.throws(()=>decrypt(encrypted,wrong));
 assert.throws(()=>encryptPushMessage({...envelope,subscription:{...envelope.subscription,keys:{...envelope.subscription.keys,auth:'bad'}}}));
+const detailed=pushMessage({title:'Rescheduled',body:'Date: 2026-10-22\r\nJob: JK123\n'+('Detail: useful information\n'.repeat(40)),schedule:{private:true}})!;
+assert.ok(detailed.body.length>700&&detailed.body.includes('\nJob: JK123\n'));
+assert.deepEqual(decrypt(encryptPushMessage({...envelope,message:{...detailed,eventId:'b'.repeat(64)}})),{...detailed,eventId:'b'.repeat(64)});
+assert.equal('schedule' in detailed,false,'private correlation context never enters the wire payload');
+assert.equal(pushMessage({title:'New\nappointment',body:'Line 1\r\nLine 2\u0000'})?.body,'Line 1\nLine 2');
+assert.equal(pushMessage({title:'New\nappointment',body:'Body'})?.title,'New appointment');
+for(const fragment of ['😀','"\n','é','字']){
+ const bounded=pushMessage({title:'Truck #9',body:fragment.repeat(3000)})!;
+ assert.ok(Buffer.byteLength(JSON.stringify(bounded))<=2800);
+ assert.ok(bounded.body.endsWith('…'));
+ assert.ok(!/[\uD800-\uDFFF]/u.test(bounded.body),'no isolated surrogate');
+ const decoded=decrypt(encryptPushMessage({...envelope,message:{...bounded,eventId:'c'.repeat(64)}}));
+ assert.deepEqual(decoded,{...bounded,eventId:'c'.repeat(64)});
+}
 console.log('Encrypted Web Push receiver round-trip, separate HMAC HKDF, tampering, wrong handset, fresh salt/key and plaintext exclusion passed.');
 
 let wire:Buffer|undefined,headers:Record<string,string>|undefined;

@@ -389,7 +389,9 @@ function sameTerritory(locationName: string, territory: string): boolean {
   return Boolean(location && candidate && (location === candidate || location.includes(candidate) || candidate.includes(location)));
 }
 
-export const REVIEW_MATCHING_RULES_VERSION = "2026-10-21";
+export const REVIEW_MATCHING_RULES_VERSION = "2026-10-21-rework-1";
+// Nearest-rank p99 of 57 exact labels, measured 2026-10-21; below the 12h cap.
+export const REVIEW_COMPLETION_TOLERANCE_MS = 6_612_000;
 // Exclude common prose and junk-removal vocabulary; never expose matched words.
 const contextStopWords = new Set("a an the and or of for to in on at by from with without this that these those my our your their his her they them was were is are be been very really great good excellent amazing professional friendly helpful quick fast efficient service services junk removal remove removed removing haul hauled hauling pickup pick picked clean cleanup cleanout cleaned cleaning job jobs team crew guys work worked working thanks thank recommend recommended would will had have has did done everything all it as so but not also came come get got out up us we you he she i me yard furniture couch sofa house home items stuff trash debris load truck appointment customer call called need needs please today yesterday street st road rd avenue ave drive dr lane ln boulevard blvd unit suite la louisiana".split(" "));
 function contextTokens(text: string): Set<string> {
@@ -397,8 +399,9 @@ function contextTokens(text: string): Set<string> {
 }
 function eligibleAt(candidate: AppointmentCandidate, createdAt: string): boolean {
   const reviewDate = dateKey(createdAt);
-  // Unknown same-day completion time cannot prove the job preceded the review.
-  return candidate.completedAt !== null ? candidate.completedAt <= Date.parse(createdAt) : candidate.date < reviewDate;
+  return candidate.completedAt !== null
+    ? candidate.completedAt <= Date.parse(createdAt) + REVIEW_COMPLETION_TOLERANCE_MS
+    : Boolean(reviewDate) && candidate.date <= reviewDate;
 }
 
 export function buildPodiumReviewNameSuggestionMap(
@@ -414,7 +417,7 @@ export function buildPodiumReviewNameSuggestionMap(
     const reviewer = preparedName(review.authorName);
     const words = crewMentionTokens(review.body || ""), context = contextTokens(review.body || "");
     const inviteName = review.invite?.customerName ? preparedName(review.invite.customerName) : null;
-    const pool = appointments.filter(({ candidate: c }) => c.date >= earliest && c.date <= reviewDate && eligibleAt(c, review.createdAt));
+    const pool = appointments.filter(({ candidate: c }) => c.date >= earliest && eligibleAt(c, review.createdAt));
     const crewJobs = new Map<string, number>();
     for (const { candidate: c } of pool) if (c.date >= recent && sameTerritory(review.locationName, c.territory)) {
       for (const member of c.crew) crewJobs.set(member, (crewJobs.get(member) || 0) + 1);
@@ -426,7 +429,8 @@ export function buildPodiumReviewNameSuggestionMap(
       if (!nameMatches.has(key)) nameMatches.set(key, nameMatchKind(reviewer, name));
       const kind = nameMatches.get(key) ?? null;
       const days = Math.round((Date.parse(reviewDate) - Date.parse(c.date)) / 86_400_000);
-      const timing = days === 0 ? 30 : days <= 3 ? 20 : days <= 7 ? 10 : days <= 14 ? 3 : 0;
+      const unknownSameDay = days === 0 && c.completedAt === null;
+      const timing = days < 0 ? 0 : days === 0 ? (unknownSameDay ? 20 : 30) : days <= 3 ? 20 : days <= 7 ? 10 : days <= 14 ? 3 : 0;
       const nameScore = kind ? { exact_name: 50, exact_first_last: 50, name_initial: 35, partial_name: 15, name_variation: 30 }[kind] : 0;
       const invite = Boolean(review.inviteNameReferences?.includes(c.appointmentId || c.jkNumber) || (inviteName && reviewer.parts.length >= 2 && reviewer.sorted === inviteName.sorted && ["exact_name", "exact_first_last"].includes(nameMatchKind(inviteName, name) || "")));
       const surname = reviewer.parts.length >= 2 ? reviewer.parts.at(-1)! : "";
@@ -436,7 +440,7 @@ export function buildPodiumReviewNameSuggestionMap(
         invite ? "Invite customer name matches reviewer and job" : "",
         kind ? { exact_name: "Exact customer name", exact_first_last: "First and last name", name_initial: "Name and initial", partial_name: "First or last name", name_variation: "Possible spelling or nickname variation" }[kind] : "",
         email ? "Reviewer name overlaps customer email handle" : "",
-        timing ? (days === 0 ? "Completed same day" : `Completed ${days} day${days === 1 ? "" : "s"} before review`) : "",
+        timing ? (unknownSameDay ? "Completed same date; time unknown" : days === 0 ? "Completed same day" : `Completed ${days} day${days === 1 ? "" : "s"} before review`) : "",
         overlaps ? `${Math.min(overlaps, 2)} service context overlap${overlaps > 1 ? "s" : ""}` : "",
       ].filter(Boolean);
       let score = Number(invite) * 60 + nameScore + Number(email) * 35 + timing + Math.min(overlaps, 2) * 10;
@@ -450,14 +454,15 @@ export function buildPodiumReviewNameSuggestionMap(
         if (crew.length) { score += Math.min(crew.length * 15, 25); evidence.push("Possible crew mention"); }
         if (local) { score += 5; evidence.push("Same location"); }
       }
-      return { candidate: c, score, days, evidence, identity: invite || email || ["exact_name", "exact_first_last", "name_initial"].includes(kind || ""), matchKind: kind || (email ? "email_handle" : overlaps ? "context" : crew.length && uniqueCrew ? "crew_mention" : "timing") as PodiumReviewNameSuggestion["matchKind"] };
+      return { candidate: c, score, days, unknownSameDay, evidence, identity: invite || email || ["exact_name", "exact_first_last", "name_initial"].includes(kind || ""), matchKind: kind || (email ? "email_handle" : overlaps ? "context" : crew.length && uniqueCrew ? "crew_mention" : "timing") as PodiumReviewNameSuggestion["matchKind"] };
     });
     const short = scored.filter(entry => entry.candidate.date >= recent);
     const window = short.some(entry => entry.score >= 40) ? short : scored;
     window.sort((a, b) => b.score - a.score || b.candidate.date.localeCompare(a.candidate.date) || a.candidate.jkNumber.localeCompare(b.candidate.jkNumber));
+    const runnerUp = scored.reduce((best, other) => other === window[0] ? best : Math.max(best, other.score), 0);
     let lows = 0;
     const suggestions = window.filter(entry => entry.score >= 15).map((entry, index) => {
-      const high = index === 0 && entry.score >= 80 && entry.identity && entry.days <= 3 && entry.score - (window[1]?.score || 0) >= 25;
+      const high = index === 0 && entry.score >= 80 && entry.identity && !entry.unknownSameDay && entry.days >= 0 && entry.days <= 3 && entry.score - runnerUp >= 25;
       const confidence = high ? "High" : entry.score >= 40 ? "Medium" : "Low";
       return { ...assignmentOption(entry.candidate), matchKind: entry.matchKind, evidence: entry.evidence, score: entry.score, confidence, rulesVersion: REVIEW_MATCHING_RULES_VERSION } as PodiumReviewNameSuggestion;
     }).filter(entry => entry.confidence !== "Low" || ++lows <= 3);
@@ -529,11 +534,54 @@ export function buildPodiumAppointmentMatcher(dataDir: string) {
     const earliestDate = dateDaysBefore(reviewDate, 90);
     const candidates = appointments.filter((appointment) =>
       appointment.crew.length > 0 && eligibleAt(appointment, reviewCreatedAt) && appointment.date >= earliestDate
-      && appointment.date <= reviewDate
       && appointment.identifiers.has(identifier));
     if (!candidates.length) return { status: "unmatched" };
     const latestDate = candidates.map((candidate) => candidate.date).sort().at(-1) || "";
     const latest = candidates.filter((candidate) => candidate.date === latestDate);
     return latest.length === 1 ? sanitizedMatch(latest[0], method) : { status: "ambiguous" };
+  };
+}
+
+/** Local, aggregate-only calibration. Exact labels never enter inferred scoring. */
+export function evaluatePodiumExactMatches(
+  dataDir: string,
+  reviews: Array<PodiumReviewNameSuggestionInput & { attribution?: PodiumReviewAppointmentAttribution }>,
+) {
+  const exact = [...new Map(reviews.filter(review => review.attribution?.status === "matched"
+    && ["exact_phone", "exact_email"].includes(review.attribution.matchMethod || "")).map(review => [review.uid, review])).values()];
+  const appointments = readAppointments(dataDir).filter(candidate => candidate.crew.length > 0);
+  const inferred = buildPodiumReviewNameSuggestionMap(dataDir, exact);
+  const deltas: number[] = [];
+  const eligible = new Set<AppointmentCandidate>();
+  let top1 = 0, top3 = 0, high = 0, wrongHigh = 0, resolved = 0;
+  for (const review of exact) {
+    const label = review.attribution!;
+    const matches = (candidate: { appointmentId?: string; jkNumber?: string }) => label.appointmentId
+      ? candidate.appointmentId === label.appointmentId
+      : Boolean(label.jkNumber) && candidate.jkNumber === label.jkNumber;
+    const job = appointments.find(matches);
+    if (job) resolved++;
+    if (job?.completedAt != null && Number.isFinite(Date.parse(review.createdAt))) deltas.push(job.completedAt - Date.parse(review.createdAt));
+    const earliest = dateDaysBefore(dateKey(review.createdAt), 90);
+    for (const candidate of appointments) if (earliest && candidate.date >= earliest && eligibleAt(candidate, review.createdAt)) eligible.add(candidate);
+    const ranked = inferred[review.uid] || [];
+    if (ranked[0] && matches(ranked[0])) top1++;
+    if (ranked.slice(0, 3).some(matches)) top3++;
+    if (ranked[0]?.confidence === "High") { high++; if (!matches(ranked[0])) wrongHigh++; }
+  }
+  deltas.sort((a, b) => a - b);
+  // Nearest-rank percentiles over ALL usable exact labels, before chronology
+  // filtering. Negative values are retained; tolerance cannot be negative.
+  const percentile = (p: number) => deltas.length ? deltas[Math.max(0, Math.ceil(p * deltas.length) - 1)] : null;
+  const p99 = percentile(0.99);
+  const usable = [...eligible].filter(candidate => candidate.completedAt !== null).length;
+  return {
+    exactReviews: exact.length, resolvedExactJobs: resolved,
+    top1, top3, top1Agreement: exact.length ? top1 / exact.length : null, top3Agreement: exact.length ? top3 / exact.length : null,
+    high, wrongHigh, eligibleCandidates: eligible.size, candidatesWithCompletedAt: usable,
+    completedAtShare: eligible.size ? usable / eligible.size : null,
+    completionMinusReviewMs: { count: deltas.length, min: percentile(0), p50: percentile(0.5), p90: percentile(0.9), p95: percentile(0.95), p99, max: percentile(1) },
+    recommendedToleranceMs: p99 === null ? 6 * 3_600_000 : Math.max(0, Math.min(12 * 3_600_000, p99)),
+    appliedToleranceMs: REVIEW_COMPLETION_TOLERANCE_MS,
   };
 }

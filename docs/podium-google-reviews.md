@@ -84,7 +84,8 @@ completion time, customer email, notes, business/property and service-area text.
 Metrics remain authoritative for crew, truck and normalized territory. Explicit
 completion time determines the completion date; when unavailable, a completion
 date or the completed daily-metrics date is used. Same-day date-only records
-are excluded because their completion cannot be proven earlier than the review.
+remain eligible with at most 20 timing points and Medium confidence. Known completion may follow the review within the measured
+tolerance; cross-midnight later completion earns no timing points.
 JunkWare wall-clock completion values are interpreted in America/Chicago, not
 the server's timezone. An unreadable input file suppresses suggestions rather
 than allowing a partial candidate pool to produce a false High margin.
@@ -112,11 +113,16 @@ receipt blocks further changes and is checked without replaying the write.
 **High auto-save defaults off.** `PODIUM_REVIEW_HIGH_AUTO_SAVE=true` is the
 collector's activation switch. Keep it unset/false in production until Claude's
 `review.md` approves the exact feature HEAD and that reviewed source is deployed
-through the installed controller. Enable only for the deployed collector; a
-worktree dry run or desktop request must never activate it. This task changes
+through the installed controller, measured wrong-High results are reviewed, and
+the owner explicitly approves activation. Enable only for the deployed
+collector; a worktree dry run or desktop request must never activate it. This task changes
 neither production environment nor collector scheduling. Disabling the switch
 stops future automatic saves; existing decisions and undo records remain intact.
-A crash-held assignment lock needs inspection, never automatic deletion/replay.
+Assignment locks publish PID, creation time and a unique owner marker atomically.
+After five minutes, a dead PID (ESRCH) permits recovery; an active or unknown PID
+is never evicted by age. Old empty legacy locks can also recover. Unknown or
+malformed nonempty locks remain blocked. Any auto-save failure logs a fixed,
+data-free warning and still writes the collected history/current snapshots.
 
 ### Evaluation and dry run
 
@@ -125,11 +131,28 @@ in `scripts/test-review-matching-evaluation.ts`. The evaluation separates one
 anonymized manager-confirmed pair from synthetic worked examples and edge cases;
 it is a regression set, not an estimate of population accuracy. The confirmed
 pair preserves initials, name equality, crew mentions and the completion gap.
-Its recorded completion is 204 seconds after the review, so the new temporal
-rule deliberately excludes it. The synthetic first-name/crew example uses a
-completion before the review and ranks first without auto-saving. No weights
-were tuned to conceal the confirmed-data conflict. Add anonymized confirmations
-with competitors as more manager decisions become available; keep misses visible.
+Its recorded completion is 204 seconds after the review and is now eligible.
+The unchanged email-handle evidence makes this focused pair High under the
+scoring table; the worked-example statement that it must never auto-save needs
+planner reconciliation. Auto-save remains off. The separate first-name/crew-only
+example remains Medium. No weights or private relationships were changed.
+
+`scripts/evaluate-review-matching-exact.ts --data-dir <local data>` reads the
+current snapshot and reports aggregates only. It deduplicates exact_phone/email
+reviews by UID, uses appointment ID (JK only if no ID) as the label, and measures
+inferred top-1/top-3 and High disagreements independently of that label. Missing
+labels count as misses; completion-delay percentiles use every resolved usable
+label **before** chronology filtering, including negative delays. Percentiles use
+nearest rank, with tolerance bounded to 0–12 hours (6 hours if no usable labels).
+Candidate completion coverage is the unique union of eligible, recorded-crew
+90-day candidates across the exact cohort, before score/window pruning.
+
+On 2026-10-21, 57 exact labels gave a p99 delay of 6,612 seconds (1h 50m 12s),
+now fixed as `REVIEW_COMPLETION_TOLERANCE_MS`. All 57 resolved; top-1 was 56/57,
+top-3 57/57, and 41 High had zero disagreements. All 1,390 eligible candidates
+had usable completion times. Full percentiles and snapshot time are in the task
+handoff. This is an existing-exact-match cohort, not a random sample or holdout;
+zero observed wrong High does not establish accuracy for unmatched reviews.
 
 For the historical comparison, extract `lib/podium-review-attribution.ts` from
 base `4ce90d55` to a temporary `.ts` file and pass its absolute path with
@@ -156,8 +179,11 @@ and date order combine with those queues. Twenty reviews appear per page; the
 queue scrolls independently on desktop, while phones show the selected review
 with a back button that preserves the filters.
 
-Crew credit is displayed for saved manual, exact and High inferred attribution. The original-review
-link opens the source for reading/responding; Campaign does not post a reply.
+Crew credit is displayed for saved manual, exact and High inferred attribution.
+Campaign and legacy review cards label inferred credit **Auto-matched**; legacy
+employee/team totals show the auto-matched count, and Shop TV marks inferred
+crew credit. These displays use `matchMethod`, never `assignedBy`, as authority.
+The original-review link opens the source for reading/responding; Campaign does not post a reply.
 Managers can confirm a displayed candidate in one click, or enter a completed appointment ID or JK job number,
 open the appointment for review, and confirm that selection in a separate dialog.
 Uncertain saves stay attached to their receipt and block repeat submissions;

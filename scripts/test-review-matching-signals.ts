@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { buildPodiumReviewNameSuggestionMap, buildPodiumAppointmentMatcher, podiumInviteNameReferences } from '../lib/podium-review-attribution';
-import { assignPodiumReviewToAppointment, readPodiumReviewAssignments, savePodiumHighConfidenceMatches, undoPodiumReviewAutoMatch } from '../lib/podium-review-assignments';
+import { buildPodiumReviewNameSuggestionMap, buildPodiumAppointmentMatcher, podiumInviteNameReferences, REVIEW_COMPLETION_TOLERANCE_MS, evaluatePodiumExactMatches } from '../lib/podium-review-attribution';
+import { assignPodiumReviewToAppointment, readPodiumReviewAssignments, savePodiumHighConfidenceMatches, undoPodiumReviewAutoMatch, REVIEW_ASSIGNMENT_LOCK_STALE_MS } from '../lib/podium-review-assignments';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'review-signals-'));
 process.env.OPSBOT_DATA_DIR = root;
@@ -34,12 +34,28 @@ try {
   assert.equal(rank()[0].confidence, 'Medium', 'ties block High');
   metrics([job('1'), job('2', { customer_name: 'Jane Other', appointment_notes: 'Oakridge storage' })]);
   assert.equal(rank({ body: 'Oakridge storage' })[0].confidence, 'Medium', 'margin uses whole pool before low truncation');
-  metrics([job('1', { completed_at: '2024-05-20T23:00:00Z' }), job('2', { job_status: 'Not completed' }), job('3', { appointment_type: 'Estimate' }), job('4', { driver_name: '' }), job('5', { completed_at: '' })]);
-  assert.deepEqual(rank(), [], 'future, not-complete, estimate, crewless and same-day unknown excluded');
+  metrics([job('1', { completed_at: '2024-05-21T05:00:00Z' }), job('2', { job_status: 'Not completed' }), job('3', { appointment_type: 'Estimate' }), job('4', { driver_name: '' })]);
+  assert.deepEqual(rank(), [], '7-hour-after, not-complete, estimate and crewless excluded');
+  metrics([job('1', { completed_at: '2024-05-20T22:00:00Z' })]);
+  assert.deepEqual(rank({ createdAt: '2024-05-20T15:00:00Z' }), [], 'seven hours after on the same Chicago date stays excluded');
   metrics([job('1', { completed_at: '05/20/2024 4:00:00 PM' })]);
   assert.equal(rank()[0].confidence, 'High', 'Chicago PM parsing');
   metrics([job('1', { completed_at: '05/20/2024 6:00:00 PM' })]);
-  assert.deepEqual(rank(), [], 'Chicago completion after review excluded');
+  assert.equal(rank()[0].confidence, 'High', 'Chicago completion one hour after review allowed');
+  metrics([job('1', { completed_at: new Date(Date.parse(input.createdAt) + REVIEW_COMPLETION_TOLERANCE_MS).toISOString() })]);
+  assert.equal(rank()[0].confidence, 'High', 'inclusive measured tolerance');
+  metrics([job('1', { completed_at: new Date(Date.parse(input.createdAt) + REVIEW_COMPLETION_TOLERANCE_MS + 1).toISOString() })]);
+  assert.deepEqual(rank(), [], 'one millisecond past measured tolerance excluded');
+  metrics([job('1', { completed_at: '', customerEmail: 'jdoe123@example.invalid' })]);
+  assert.equal(rank()[0].score, 110, 'unknown same-day time earns only 20 timing points');
+  assert.equal(rank()[0].confidence, 'Medium', 'unknown same-day never High even above 80');
+  assert.ok(rank()[0].evidence.includes('Completed same date; time unknown'));
+  metrics([job('1', { completed_at: '2024-05-21T05:30:00Z' })]);
+  assert.equal(rank({ createdAt: '2024-05-21T04:30:00Z' })[0].score, 55, 'completion on next Chicago date earns no timing points');
+  assert.equal(rank({ createdAt: '2024-05-21T04:30:00Z' })[0].confidence, 'Medium');
+  metrics([job('1'), job('2', { completed_at: '2024-05-01T15:00:00Z', customerEmail: 'jdoe123@example.invalid' })]);
+  assert.deepEqual(rank().map(c => c.appointmentId), ['1'], 'recent Medium keeps older candidate out of displayed window');
+  assert.equal(rank()[0].confidence, 'Medium', 'older eligible identity still blocks High margin');
   metrics([job('1', { completed_at: '2024-05-01T15:00:00Z' }), job('2', { customer_name: 'Jane Else', completed_at: '2024-05-19T15:00:00Z' })]);
   assert.deepEqual(rank().map(c => c.appointmentId), ['2'], 'recent Medium prevents widening');
   metrics([job('1', { completed_at: '2024-05-01T15:00:00Z' }), job('2', { customer_name: 'Unrelated Person' })]);
@@ -71,14 +87,14 @@ try {
   write('history/junkware/junkware_2024-05-20_raw.json', { completed: [job('1', { customer_name: 'Unrelated Person', customerEmail: 'jdoe123@example.invalid', appointment_notes: 'Oakridge storage' })] });
   assert.equal(rank({ body: 'Oakridge storage' })[0].confidence, 'High');
   write('history/junkware/junkware_2024-05-20_raw.json', { completed: [job('1', { job_id: 'JKOTHER', completed_at: '2024-05-20T15:00:00Z' })] });
-  assert.deepEqual(rank(), [], 'mismatched raw identity not used');
+  assert.equal(rank()[0].score, 25, 'mismatched raw identity not used; unknown-time timing only');
   fs.writeFileSync(path.join(root, 'history/junkware/junkware_2024-05-20_raw.json'), '{broken');
   assert.deepEqual(rank(), [], 'corrupt enrichment never yields a partial-pool High');
   fs.unlinkSync(path.join(root, 'history/junkware/junkware_2024-05-20_raw.json'));
   metrics([job('1', { customerEmail: 'jane1234567890@example.invalid', customer_phone: '2255550100' })]);
   const exact = buildPodiumAppointmentMatcher(root)(input.createdAt, { ...invite, channelIdentifier: 'jane1234567890@example.invalid' });
   assert.equal(exact.matchMethod, 'exact_email', 'digits in email must not become a phone');
-  assert.equal(buildPodiumAppointmentMatcher(root)('2024-05-20T12:00:00Z', { ...invite, channelIdentifier: '2255550100' }).status, 'unmatched');
+  assert.equal(buildPodiumAppointmentMatcher(root)('2024-05-20T07:00:00Z', { ...invite, channelIdentifier: '2255550100' }).status, 'unmatched');
   delete process.env.PODIUM_REVIEW_HIGH_AUTO_SAVE;
   assert.equal(savePodiumHighConfidenceMatches(root, [input]), 0);
   assert.ok(!fs.existsSync(store), 'default-off does not even create store');
@@ -104,6 +120,47 @@ try {
   assert.equal(child.status, 0);
   assert.throws(() => savePodiumHighConfidenceMatches(root, [{ ...input, uid: 'other' }]), /in progress/);
   fs.rmdirSync(`${store}.lock`);
+  const old = new Date(Date.now() - REVIEW_ASSIGNMENT_LOCK_STALE_MS - 10_000);
+  const dead = spawnSync(process.execPath, ['-e', 'process.exit(0)']);
+  assert.equal(dead.status, 0);
+  const makeLock = (pid: number, stale: boolean) => {
+    fs.mkdirSync(`${store}.lock`);
+    fs.writeFileSync(`${store}.lock/owner-12345678.json`, JSON.stringify({ pid, createdAt: stale ? old.getTime() : Date.now() }));
+    if (stale) fs.utimesSync(`${store}.lock`, old, old);
+  };
+  makeLock(process.pid, true);
+  assert.throws(() => savePodiumHighConfidenceMatches(root, [{ ...input, uid: 'live-owner' }]), /in progress/, 'old but live owner never evicted');
+  fs.rmSync(`${store}.lock`, { recursive: true });
+  makeLock(dead.pid, false);
+  assert.throws(() => savePodiumHighConfidenceMatches(root, [{ ...input, uid: 'fresh-dead' }]), /in progress/, 'dead owner needs age threshold');
+  fs.rmSync(`${store}.lock`, { recursive: true });
+  makeLock(dead.pid, true);
+  assert.equal(savePodiumHighConfidenceMatches(root, [{ ...input, uid: 'recovered' }]), 1, 'dead stale owner recovered');
+  assert.ok(!fs.existsSync(`${store}.lock`));
+  fs.mkdirSync(`${store}.lock`); fs.utimesSync(`${store}.lock`, old, old);
+  assert.ok(assignPodiumReviewToAppointment({ reviewUid: 'legacy-recovered', appointmentReference: '1', assignedBy: 'fake' }), 'old empty legacy lock recovered for managers');
+  // Exercise the actual collector persistence boundary with a contended lock.
+  const { persistPodiumReviewSnapshot } = require('./collect-podium-google-reviews') as typeof import('./collect-podium-google-reviews');
+  fs.mkdirSync(`${store}.lock`);
+  const messages: string[][] = [];
+  const previousError = console.error;
+  try {
+    console.error = (...args: unknown[]) => { messages.push(args.map(String)); };
+    persistPodiumReviewSnapshot(root, exactSnapshot);
+  } finally { console.error = previousError; }
+  assert.deepEqual(messages, [['Podium review auto-save failed; preserving collected snapshot.']]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'podium-google-reviews/current.json'), 'utf8')), exactSnapshot);
+  const historyFiles = fs.readdirSync(path.join(root, 'history/podium-google-reviews'));
+  assert.equal(historyFiles.length, 1);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'history/podium-google-reviews', historyFiles[0]), 'utf8')), exactSnapshot);
+  fs.rmdirSync(`${store}.lock`);
+  const measured = evaluatePodiumExactMatches(root, [{ ...input, attribution: exact }, { ...input, attribution: exact }]);
+  assert.equal(measured.exactReviews, 1, 'deduplicate exact reviews');
+  assert.equal(measured.top1, 1);
+  assert.equal(measured.wrongHigh, 0);
+  assert.equal(measured.completionMinusReviewMs.p99, -7 * 3_600_000, 'retain negative completion delays');
+  assert.equal(measured.recommendedToleranceMs, 0, 'negative p99 clamps to zero');
+  assert.equal(measured.completedAtShare, 1);
   // Desktop undo uses the same role/version/idempotent receipt path as confirms.
   const { readDesktopMarketing, updateDesktopMarketing } = require('../lib/desktop-marketing') as typeof import('../lib/desktop-marketing');
   const snapshot = { version: 1, source: 'podium_api', fetchedAt: input.createdAt, locations: [{ uid: 'loc', name: input.locationName, address: '', averageRating: 5, reviewCount: 1, reviews: [{ ...input, authorName: input.authorName, rating: 5, url: '', updatedAt: input.createdAt, needsResponse: false, responseCount: 0 }] }] };
@@ -113,6 +170,9 @@ try {
   const actor = { email: 'synthetic-manager', role: 'manager' as const };
   const current = readDesktopMarketing('2024-05-20', actor.role).reviews[0];
   assert.equal(current.attribution?.matchMethod, 'inferred_high');
+  const autoView = buildPodiumGoogleReviewsViewFromData({ ...exactSnapshot, locations: exactSnapshot.locations.map(location => ({ ...location, reviews: location.reviews.map(review => ({ ...review, attribution: undefined })) })) }, []);
+  assert.equal(autoView.employeeTallies30Days[0].autoMatchedCount, 1);
+  assert.equal(autoView.teamTallies30Days[0].autoMatchedCount, 1);
   const operation = { requestId: randomUUID(), date: '2024-05-20', action: 'review.undo' as const, recordId: input.uid, expectedVersion: current.version, values: {} };
   assert.throws(() => updateDesktopMarketing(operation, { ...actor, role: 'operator' }), /Manager/);
   assert.throws(() => updateDesktopMarketing({ ...operation, expectedVersion: '0'.repeat(64) }, actor), /record changed/);
@@ -123,5 +183,14 @@ try {
   fs.writeFileSync(store, '{broken');
   assert.throws(() => savePodiumHighConfidenceMatches(root, [input]), /unreadable/);
   assert.equal(fs.readFileSync(store, 'utf8'), '{broken', 'corrupt store never overwritten');
+  const newerSnapshot = { ...exactSnapshot, fetchedAt: '2024-05-21T22:00:00Z' };
+  messages.length = 0;
+  try {
+    console.error = (...args: unknown[]) => { messages.push(args.map(String)); };
+    persistPodiumReviewSnapshot(root, newerSnapshot);
+  } finally { console.error = previousError; }
+  assert.deepEqual(messages, [['Podium review auto-save failed; preserving collected snapshot.']]);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'podium-google-reviews/current.json'), 'utf8')).fetchedAt, newerSnapshot.fetchedAt);
+  assert.equal(fs.readFileSync(store, 'utf8'), '{broken', 'collector does not repair or overwrite corrupt assignments');
   console.log('PASS scoring, windows, completion times, source enrichment, privacy, default-off, precedence, shared lock and receipt-backed undo.');
 } finally { fs.rmSync(root, { recursive: true, force: true }); }

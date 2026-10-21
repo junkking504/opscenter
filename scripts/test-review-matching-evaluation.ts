@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import confirmed from '../tests/fixtures/review-matching-confirmed.json';
 import { buildPodiumReviewNameSuggestionMap, type PodiumReviewNameSuggestionInput } from '../lib/podium-review-attribution';
 
-// --baseline-module points at the unchanged 4ce90d55 attribution module for
+// --baseline-module points at an unchanged earlier attribution module for
 // reproducible before/after measurement. All inputs and output are synthetic.
 async function main() {
 const baselineIndex = process.argv.indexOf('--baseline-module');
@@ -18,7 +18,7 @@ const job = (id: string, customer: string, extra = {}) => ({ ...base, appt_id: i
 const review = (authorName: string, body = '') => ({ uid: 'test', authorName, body, createdAt: '2024-05-20T22:00:00Z', locationName: 'Junk King Fixture Bay' });
 type Case = { name: string; expected: string; date: string; review: PodiumReviewNameSuggestionInput; appointments: Record<string, unknown>[]; confidence?: string };
 const cases: Case[] = [
-  { name: 'confirmed pair (completion after review)', ...confirmed },
+  { name: 'confirmed pair (204-second completion delay)', ...confirmed, confidence: 'High' },
   { name: 'worked email and service context', expected: '1', date: '2024-05-20', review: review('Jane Doe', 'Helped with the storage facility in Oakridge.'), appointments: [job('1', 'Pat Baker', { customerEmail: 'jdoe872@example.invalid', appointment_notes: 'Oakridge storage facility', service_address: '1 Synthetic Lane' }), job('2', 'Unrelated Person')], confidence: 'High' },
   { name: 'worked first name and crew', expected: '1', date: '2024-05-20', review: review('Jane Doe', 'Thanks to Eugene for the help.'), appointments: [job('1', 'Jane Baker'), job('2', 'Unrelated Person', { driver_name: 'Zach Fiction' })], confidence: 'Medium' },
   { name: 'initial', expected: '1', date: '2024-05-20', review: review('J. Doe', 'Oakridge storage was cleared.'), appointments: [job('1', 'Jane Doe', { job_notes: 'Oakridge storage' }), job('2', 'Unrelated Person')], confidence: 'High' },
@@ -45,7 +45,7 @@ try {
     const rows = outcomes.filter(row => cohort === 'all' || row.cohort === cohort);
     console.log(JSON.stringify({ mode: baselineIndex < 0 ? 'after' : 'before', cohort, cases: rows.length, top1: rows.filter(row => row.top1).length / rows.length, top3: rows.filter(row => row.top3).length / rows.length, wrongHigh: rows.reduce((sum, row) => sum + row.wrongHigh, 0) }));
   }
-  console.log('Known confirmed miss: recorded completion follows review; chronological exclusion retained. Baseline auto-save did not exist (wrongHigh = 0 by construction).');
+  console.log('Confirmed pair retains its 204-second delay and email-handle evidence. Baseline confidence availability depends on the selected module.');
 } finally { fs.rmSync(root, { recursive: true, force: true }); }
 
 }

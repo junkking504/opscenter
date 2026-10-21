@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   getPodiumGoogleSummary,
   getPodiumReviewInvite,
@@ -125,13 +126,7 @@ async function main(): Promise<void> {
       })),
     })),
   };
-  // Local scoring only: no extra invite requests, scopes, providers or polling.
-  savePodiumHighConfidenceMatches(root, snapshot.locations.flatMap(location => location.reviews.map(review => ({ ...review, locationName: location.name }))));
-  writeJson(
-    path.join(root, "history", "podium-google-reviews", `podium-google-reviews_${chicagoDateKey()}.json`),
-    snapshot,
-  );
-  writeJson(currentFile, snapshot);
+  persistPodiumReviewSnapshot(root, snapshot);
   const recentReviews = Array.from(new Map(
     snapshot.locations.flatMap((location) => location.reviews).map((review) => [review.uid, review]),
   ).values());
@@ -149,7 +144,19 @@ async function main(): Promise<void> {
   }));
 }
 
-main().catch((error) => {
+/** Auto-save is optional; its failure must not discard verified provider data. */
+export function persistPodiumReviewSnapshot(root: string, snapshot: PodiumGoogleReviewsSnapshot): void {
+  try {
+    savePodiumHighConfidenceMatches(root, snapshot.locations.flatMap(location => location.reviews.map(review => ({ ...review, locationName: location.name }))));
+  } catch {
+    // Never log error details: filesystem/provider errors can contain raw data.
+    console.error("Podium review auto-save failed; preserving collected snapshot.");
+  }
+  writeJson(path.join(root, "history", "podium-google-reviews", `podium-google-reviews_${chicagoDateKey()}.json`), snapshot);
+  writeJson(path.join(root, "podium-google-reviews", "current.json"), snapshot);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });

@@ -18,7 +18,17 @@ first.
 - Window: jobs completed from 14 days before the review up to the review time.
   Widen to 90 days only when no candidate in the 14-day window scores at least
   Medium.
-- A job completed after the review was written is never a candidate.
+- Chronology (amended 2026-10-21 after review of the first build): a job is
+  eligible if its recorded completion time is no later than the review time plus
+  a tolerance. Crews often close a job a few minutes after the customer posts
+  (the first confirmed case completed 204 seconds after its review). Default
+  tolerance is 6 hours until measured; replace it with the 99th percentile of
+  (completion time minus review time) over reviews that already have an exact
+  phone/email match, capped at 12 hours. Jobs completed later than that are
+  never candidates. A job completed after the review earns the same-day timing
+  points only if it completed on the same Chicago calendar day.
+- Unknown completion time on the review's Chicago date: eligible, but capped at
+  Medium (never High) and no timing points beyond the 1–3 day band.
 
 ## Signals
 
@@ -57,7 +67,8 @@ Rules on combining:
 
 - **High** (auto-save): score ≥ 80, AND at least one identity signal
   (1, 2, 3 exact/first+last/initial, or 4), AND timing ≤ 3 days, AND the next
-  best candidate is at least 25 points lower.
+  best candidate in the whole eligible pool (not only the 14-day window) is at
+  least 25 points lower.
 - **Medium**: score 40–79, or High score without the margin. Shown first with
   reasons; one click to confirm.
 - **Low**: score 15–39. Shown below Medium, at most 3.

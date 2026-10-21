@@ -46,6 +46,7 @@ export type PodiumReviewLocationView = PodiumReviewLocationSnapshot & {
 
 export type PodiumReviewCreditTally = {
   name: string;
+  autoMatchedCount: number;
   reviewCount: number;
   averageRating: number;
 };
@@ -258,27 +259,29 @@ export function buildPodiumGoogleReviewsViewFromData(
   }
   const unassigned30Days = Array.from(unassignedByUid.values())
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const tally = (entries: Array<{ name: string; rating: number }>): PodiumReviewCreditTally[] => {
-    const values = new Map<string, { name: string; ratings: number[] }>();
+  const tally = (entries: Array<{ name: string; rating: number; automatic: boolean }>): PodiumReviewCreditTally[] => {
+    const values = new Map<string, { name: string; ratings: number[]; autoMatchedCount: number }>();
     for (const entry of entries) {
       const key = entry.name.toLowerCase();
-      const existing = values.get(key) || { name: entry.name, ratings: [] };
+      const existing = values.get(key) || { name: entry.name, ratings: [], autoMatchedCount: 0 };
       existing.ratings.push(entry.rating);
+      if (entry.automatic) existing.autoMatchedCount++;
       values.set(key, existing);
     }
     return Array.from(values.values()).map((entry) => ({
       name: entry.name,
       reviewCount: entry.ratings.length,
+      autoMatchedCount: entry.autoMatchedCount,
       averageRating: entry.ratings.reduce((sum, rating) => sum + rating, 0) / entry.ratings.length,
     })).sort((left, right) => right.reviewCount - left.reviewCount
       || right.averageRating - left.averageRating
       || left.name.localeCompare(right.name));
   };
   const employeeTallies30Days = tally(matched30Days.flatMap((review) =>
-    Array.from(new Set(review.attribution?.crew || [])).map((name) => ({ name, rating: review.rating }))));
+    Array.from(new Set(review.attribution?.crew || [])).map((name) => ({ name, rating: review.rating, automatic: review.attribution?.matchMethod === "inferred_high" }))));
   const teamTallies30Days = tally(matched30Days.flatMap((review) => {
     const crew = Array.from(new Set(review.attribution?.crew || [])).sort((left, right) => left.localeCompare(right));
-    return crew.length ? [{ name: crew.join(" + "), rating: review.rating }] : [];
+    return crew.length ? [{ name: crew.join(" + "), rating: review.rating, automatic: review.attribution?.matchMethod === "inferred_high" }] : [];
   }));
   return {
     available: true,

@@ -52,6 +52,7 @@ without mixing live runtime data or secrets into Git.
 - [Direct Web Push preparation and activation boundary](web-push.md)
 - [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
+- [Appointment customer history](customer-history.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)

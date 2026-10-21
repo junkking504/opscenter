@@ -140,6 +140,7 @@
     "verify:workspace-retention": "python3 scripts/test-workspace-retention.py",
     "verify:spending": "node scripts/verify-spending-boundary.mjs && node --import tsx scripts/test-metered-usage-policy.ts && node scripts/test-spending-boundary.mjs && npm run verify:address-research && npm run verify:ask-opsbot",
     "verify:ask-opsbot": "node --import tsx scripts/test-ask-opsbot.ts && node --import tsx scripts/test-local-crew-performance-answer.ts && node --import tsx scripts/test-local-crew-revenue-answer.ts && node --import tsx scripts/test-local-territory-demand-answer.ts && node --import tsx scripts/test-local-operations-answer.ts",
+    "verify:customer-history": "node --import tsx scripts/test-customer-history.ts",
     "verify:estimates": "node --import tsx scripts/test-estimate-follow-up.ts",
     "verify:recycling": "node --import tsx scripts/test-recycling-income.ts && node --import tsx scripts/test-recycling-monthly.ts && node --import tsx scripts/test-whatsapp-recycling.ts && node --import tsx scripts/test-recycling-ticket-reconciliation.ts",
     "verify:merchant-evidence": "node --import tsx scripts/test-merchant-center-evidence.ts && python3 scripts/test-merchant-center-snapshot.py && python3 scripts/test-merchant-refresh-runner.py",

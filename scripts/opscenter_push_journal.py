@@ -168,7 +168,7 @@ def project(path, payload):
                 if value:
                     items.append(observation([name, kind], value))
         batch(f"krewe:{day}", "krewe", source.get("as_of"), items)
-    elif path.name == f"linxup_alerts_{day}.json":
+    elif path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
         if payload.get("pagination_completed") is not True or payload.get("validation_status") != "passed" or payload.get("collection_errors") or not isinstance(payload.get("alerts"), list):
             return []
         items = []
@@ -199,7 +199,7 @@ def source_scopes(path, payload):
         return [f"schedule:{day}:market-{market}" for market in MARKETS]
     if path.name == f"daily_metrics_{day}.json":
         return [f"krewe:{day}"]
-    if path.name == f"linxup_alerts_{day}.json":
+    if path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
         return [f"fleet:{day}"]
     return []
 

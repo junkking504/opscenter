@@ -82,7 +82,7 @@ async function main(){
     const receipt=await queued.run!();assert.equal(receipt.status,'verified');assert.equal(writes,1);
     assert.equal((await queueCrewCustomer(request,input,deps)).run,null,'Repeated save never writes again');
     assert.equal((await readScheduleReceipt(input.requestId))?.sourceResult?.customerCorrection!==undefined,true,'Durable before/expected and crew audit survive final receipt');
-    assert.equal((await checkCrewCustomer(request,current.assignmentId,input.requestId,false,deps)).status,'verified');
+    const savedReceipt=await checkCrewCustomer(request,current.assignmentId,input.requestId,false,deps);assert.equal(savedReceipt.status,'verified');assert.equal(savedReceipt.customer?.fields.lastName,'Corrected','Only verified read-back is projected to update the active customer card');assert.equal('protectedVersion' in (savedReceipt.customer||{}),false);
     assert.throws(()=>parseScheduleOperation({...input,date,recordId:job.recordId,action:'customer_correction',values:{}}),'General office API does not accept crew correction action');
     lose=true;const lost=await queueCrewCustomer(request,body(),deps);assert.equal((await lost.run!()).status,'uncertain');
     assert.equal((await checkCrewCustomer(request,current.assignmentId,lost.receipt.requestId,true,deps)).status,'verified');assert.equal(writes,2,'Read-back does not replay');lose=false;

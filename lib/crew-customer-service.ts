@@ -11,7 +11,7 @@ import {queueScheduleOperation,finishQueuedScheduleOperation,readPendingSchedule
 
 export const customerDependencies={local:readCrewJobScope,scope:withCrewJob,source:junkwareCustomerCorrection,schedule:readDesktopSchedule};
 const actorFor=(device:string,assignment:string)=>`crew-customer:${device}:${assignment}`;
-export function customerReceipt(receipt:ScheduleReceipt){return {requestId:receipt.requestId,status:receipt.status,message:receipt.status==='verified'?'Customer information saved and verified in JunkWare.':receipt.message};}
+export function customerReceipt(receipt:ScheduleReceipt){const saved=receipt.sourceResult?.customer as CustomerSource|undefined;return {requestId:receipt.requestId,status:receipt.status,message:receipt.status==='verified'?'Customer information saved and verified in JunkWare.':receipt.message,...(receipt.status==='verified'&&saved?{customer:{fields:saved.fields,city:saved.city,state:saved.state}}:{})};}
 function assertSource(source:CustomerSource,appointmentId:string,date:string,truck:string){
   if(source.appointmentId!==appointmentId || source.date!==date || !sameTruck(source.truck,truck) || source.status!=='1')throw new CrewPhoneError('Only open appointments assigned to your truck can be corrected here.',409);
 }

@@ -1,9 +1,9 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {CUSTOMER_FIELDS,normalizeCustomerFields,customerFieldsMatch,type CustomerFields} from '@/lib/crew-customer-contract';
+import {CUSTOMER_FIELDS,normalizeCustomerFields,customerFieldsMatch,type CustomerFields,type SavedCustomerDetails} from '@/lib/crew-customer-contract';
 import styles from './phone-access.module.css';
 import editStyles from './customer-edit.module.css';
-type Receipt={requestId:string;status:string;message:string};
+type Receipt={requestId:string;status:string;message:string;customer?:SavedCustomerDetails};
 type Loaded={canWrite:boolean;fields?:CustomerFields;city?:string;state?:string;sourceVersion?:string;jobVersion?:string;crewVersion?:number;pendingReceipt?:Receipt|null;message?:string};
 async function api(assignmentId:string,query:Record<string,string>={},body?:Record<string,unknown>){
   const response=await fetch('/api/crew-jobs/customer?'+new URLSearchParams({assignmentId,...query}),{cache:'no-store',...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignmentId,...body})}:{})}).catch(()=>{throw new Error('Connection interrupted. Check the saved result before trying again.');});
@@ -11,7 +11,7 @@ async function api(assignmentId:string,query:Record<string,string>={},body?:Reco
   if(!response.ok&&!value.receipt)throw Object.assign(new Error(value.error||'Customer information is unavailable. Try again.'),{status:response.status});
   return value;
 }
-export default function CustomerEdit({assignmentId,deviceId,onBusy,onClose}:{assignmentId:string;deviceId:string;onBusy:(busy:boolean)=>void;onClose:(saved:boolean)=>void}){
+export default function CustomerEdit({assignmentId,deviceId,onBusy,onClose}:{assignmentId:string;deviceId:string;onBusy:(busy:boolean)=>void;onClose:(saved:SavedCustomerDetails|null)=>void}){
   const [loaded,setLoaded]=useState<Loaded|null>(null),[fields,setFields]=useState<CustomerFields|null>(null),[review,setReview]=useState(false),[busy,setBusy]=useState(true),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null),[requestId,setRequestId]=useState('');
   const inFlight=useRef(false),key=`waypoint-customer-receipt:${deviceId}:${assignmentId}`;
   useEffect(()=>{onBusy(true);return()=>onBusy(false);},[onBusy]);
@@ -57,6 +57,6 @@ export default function CustomerEdit({assignmentId,deviceId,onBusy,onClose}:{ass
       </form>}
       {review?<><button className={styles.primary} disabled={busy} onClick={()=>void save()}>Save corrections</button><button className={styles.secondary} disabled={busy} onClick={()=>setReview(false)}>Keep editing</button></>:<button className={styles.primary} type="submit" form="customer-correction-form" disabled={busy||changes.length===0}>Review corrections</button>}
     </>:!busy?<><p>{loaded?.message||'Customer information could not be loaded.'}</p><button className={styles.secondary} onClick={()=>void reload()}>Reload customer information</button></>:null}
-    <button className={styles.secondary} disabled={busy} onClick={()=>{if(receipt?.status==='verified'){localStorage.removeItem(key);onClose(true);}else onClose(false);}}>{receipt?.status==='verified'?'Done':'Back to appointment'}</button>
+    <button className={styles.secondary} disabled={busy} onClick={()=>{if(receipt?.status==='verified'){localStorage.removeItem(key);onClose(receipt.customer||null);}else onClose(null);}}>{receipt?.status==='verified'?'Done':'Back to appointment'}</button>
   </section>;
 }

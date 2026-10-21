@@ -35,3 +35,5 @@ export function customerFieldsMatch(a: CustomerFields, b: CustomerFields): boole
 export function verifyCustomerCorrection(source: CustomerSource, expected: CustomerFields, protectedVersion: string) {
   if (source.status !== '1' || source.protectedVersion !== protectedVersion || !customerFieldsMatch(source.fields, expected)) throw new Error('JunkWare has not verified all customer corrections. Check the saved result before another change.');
 }
+
+export type SavedCustomerDetails = Pick<CustomerSource,'fields'|'city'|'state'>;

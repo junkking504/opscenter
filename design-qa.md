@@ -76,3 +76,43 @@ Follow-up polish: sidebar and operating-day shell retain their established
 production spacing; the supplied design's demonstration sidebar was not shipped.
 
 final result: passed
+
+
+---
+
+# Waypoint phone connection design QA
+
+Source visual truth: /Users/missioncontrol/.codex/generated_images/01a15f2b-16dc-71b1-b603-5e591f6f4228/exec-4d8f54c8-854a-43d7-986e-9373fb7973b4.png
+Implementation: http://127.0.0.1:3198/crew-jobs (production build through local synthetic API fixture).
+Implementation screenshot: /Users/missioncontrol/Documents/Codex/2026-10-21/we/outputs/waypoint-entry-390.png
+Viewport: 390 × 844 CSS px, deviceScaleFactor 1. Source 853 × 1844 pixels normalized to 390 × 844; implementation 390 × 844. No browser/device chrome.
+State: unconnected phone, Phone #1 · NOLA selected, no request sent.
+Full-view comparison: /Users/missioncontrol/Documents/Codex/2026-10-21/we/outputs/waypoint-entry-compare.png
+All typography and controls are readable in the paired 800 × 844 image; a separate focused crop was unnecessary.
+
+## Findings and comparison history
+- Initial P2: header and form spacing pushed primary action/progress too far down. Evidence: waypoint-entry-compare-v1.png. Fixed compact header (36px brand icon, 12px vertical padding), intro gap, action and progress spacing. Post-fix evidence: waypoint-entry-compare.png.
+- Initial P2: a simulated failed network response exposed “Failed to fetch.” Fixed with explicit WhatsApp/status recovery copy. Final browser verification is recorded in task evidence.
+- No remaining actionable P0/P1/P2 visual findings. The source uses smaller generated text than its nominal 390px brief. Implementation uses legible 14px body text and 16px controls; WhatsApp copy wraps naturally at 390px. This accounts for the extra line and lower subsequent content while preserving hierarchy. Header title aligns with the reference; all three steps remain in the viewport.
+
+## Fidelity surfaces
+- Typography: existing Inter variable font, 30px/750 primary heading, 14px secondary instructions, 16px inputs/actions. User's exact wording preserved. At 320px heading is 28px and fits; no truncation.
+- Spacing/layout: 28px horizontal padding, 48px primary targets, same sequence and section grouping. Scoped styles leave connected crew views unchanged. 320 and 430px captures confirm no horizontal overflow.
+- Colors/tokens: existing warm off-white, charcoal, deep red, and gold. Flat button (no raster generation shading). Disabled initial action is distinctly neutral. Visible focus outline retained.
+- Assets: original production crown PNG, not a generated substitute. Its original rounded background is retained intentionally. Native select indicator is platform appropriate; secondary text button needs no decorative chevron.
+- Copy/content: approved large “Connect Your Phone”; requested instructions appear once. Smaller staged progress labels preserved. Existing recovery actions remain available under Need help connecting.
+
+## Interactions checked in the in-app browser
+Manual code entry focuses its input; invalid code shows recovery; reload restores a pending attempt; Choose phone returns to selection and clears current input; a simulated request reveals code entry; accepted and lost-response status retries reuse the same saved request ID after reload; uncertain results remain explicit; ten-minute new-code guard remains; successful synthetic enrollment verifies cookie readback and opens daily truck setup. No real WhatsApp messages or phone enrollment performed. No unexpected console errors; failed network response was intentional.
+
+## Open questions and follow-up polish
+No open design blockers. Physical iPhone keyboard/safe-area testing remains a device verification limit. 14px instructions intentionally favor legibility over the mock's smaller raster text. Future polish of connected screens is outside this entry-screen change.
+
+## Implementation checklist
+- [x] Match selected design and requested wording.
+- [x] Preserve real brand asset and protected enrollment flow.
+- [x] Compare 390px reference and implementation together.
+- [x] Check 320/430px layouts and core fixture interactions.
+- [x] Resolve actionable visual issues.
+
+final result: passed

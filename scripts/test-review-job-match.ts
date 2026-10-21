@@ -19,12 +19,12 @@ try {
   const {buildPodiumReviewNameSuggestionMap} = await import('../lib/podium-review-attribution');
   const input = {uid:'crew-inference', authorName:'Anonymous',createdAt:'2026-10-21T12:00:00Z',locationName:'Junk King New Orleans'};
   for (const body of ['They have gone above and beyond', "Don't hesitate, I don't regret hiring them", "Don’t hesitate", 'Nice guy, gave max effort, a joy to work with, drove miles to jack up the couch', 'eugene was great', 'Will use again, great genes', 'I would like to say they will make it easy, have a nice day, even better than I had seen']) {
-    assert.deepEqual(buildPodiumReviewNameSuggestionMap(root,[{...input,body}])[input.uid],[],body);
+    assert.ok(buildPodiumReviewNameSuggestionMap(root,[{...input,body}])[input.uid].every(candidate => !candidate.evidence.includes('Possible crew mention') && candidate.confidence === 'Low'),body);
   }
   for (const body of ['Eugene was great', 'Thanks to Gene for the help']) {
     assert.equal(buildPodiumReviewNameSuggestionMap(root,[{...input,body}])[input.uid][0]?.matchKind,'crew_mention',body);
   }
-  assert.deepEqual(buildPodiumReviewNameSuggestionMap(root,[{...input,body:'Eugene was great',locationName:'Junk King Baton Rouge'}])[input.uid],[]);
+  assert.ok(buildPodiumReviewNameSuggestionMap(root,[{...input,body:'Eugene was great',locationName:'Junk King Baton Rouge'}])[input.uid].every(candidate => candidate.confidence !== 'High'), 'Timing may support crew evidence across locations, but never grants High without identity');
   const {readDesktopMarketing, updateDesktopMarketing} = await import('../lib/desktop-marketing');
   const {readPodiumReviewAssignments} = await import('../lib/podium-review-assignments');
   const actor = {email:'test@example.invalid',role:'manager' as const};

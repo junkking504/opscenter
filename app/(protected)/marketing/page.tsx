@@ -788,11 +788,11 @@ export default async function MarketingPage({
                   {reviews.employeeTallies30Days.slice(0, 12).map((entry) => (
                     <div className="ops-marketing-review-credit-row" key={entry.name}>
                       <strong>{entry.name}</strong>
-                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★</span>
+                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★{entry.autoMatchedCount > 0 ? ` · ${entry.autoMatchedCount} auto-matched` : ""}</span>
                     </div>
                   ))}
                   {reviews.employeeTallies30Days.length === 0 ? (
-                    <div className="ops-muted">No recent reviews have an exact crew match yet.</div>
+                    <div className="ops-muted">No recent reviews have a saved crew match yet.</div>
                   ) : null}
                 </div>
               </div>
@@ -802,11 +802,11 @@ export default async function MarketingPage({
                   {reviews.teamTallies30Days.slice(0, 12).map((entry) => (
                     <div className="ops-marketing-review-credit-row" key={entry.name}>
                       <strong>{entry.name}</strong>
-                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★</span>
+                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★{entry.autoMatchedCount > 0 ? ` · ${entry.autoMatchedCount} auto-matched` : ""}</span>
                     </div>
                   ))}
                   {reviews.teamTallies30Days.length === 0 ? (
-                    <div className="ops-muted">No recent reviews have an exact team match yet.</div>
+                    <div className="ops-muted">No recent reviews have a saved team match yet.</div>
                   ) : null}
                 </div>
               </div>
@@ -844,7 +844,7 @@ export default async function MarketingPage({
                       {review.attribution?.status === "matched" ? (
                         <div className="ops-marketing-review-attribution">
                           <span>
-                            Credited to {review.attribution.crew?.join(" + ") || "crew not recorded"}
+                            {review.attribution.matchMethod === "inferred_high" ? "Auto-matched · " : ""}Credited to {review.attribution.crew?.join(" + ") || "crew not recorded"}
                             {review.attribution.jkNumber ? ` · ${review.attribution.jkNumber}` : ""}
                             {review.attribution.appointmentDate ? ` · ${review.attribution.appointmentDate}` : ""}
                           </span>

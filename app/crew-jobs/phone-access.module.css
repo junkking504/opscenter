@@ -78,3 +78,42 @@
 .form textarea { width: 100%; min-height: 96px; box-sizing: border-box; font: inherit; padding: 12px; border: 1px solid #bdc7bc; border-radius: 8px; }
 .form input[type="checkbox"] { width: 24px; min-height: 24px; }
 .card { overflow-wrap: anywhere; }
+
+/* Phone connection is a focused first step; enrolled crew screens keep their layout. */
+.connectionPage { padding: 56px 28px max(28px, env(safe-area-inset-bottom)); }
+.connection { font-family: var(--font-inspection), system-ui, sans-serif; }
+.connection h1 { font-size: 30px; font-weight: 750; line-height: 1.15; letter-spacing: -1px; margin-bottom: 14px; }
+.connectionIntro { color: #58665e; margin-bottom: 28px; }
+.connectionIntro p { font-size: 14px; line-height: 1.5; margin: 0 0 4px; }
+.connectionForm { gap: 16px; }
+.connection .form label { gap: 10px; }
+.connection .form select, .connection .form input { min-height: 48px; border-color: #c6cec8; border-radius: 8px; padding: 12px 14px; }
+.connection .form select { font-weight: 650; }
+.connection .primary { min-height: 48px; border-radius: 8px; }
+.connection .primary:disabled { opacity: 1; color: #6b746f; background: #e3e7e1; border-color: #e3e7e1; }
+.connectionLink { display: inline-flex; align-items: center; min-height: 48px; padding: 10px 0; border: 0; background: transparent; color: #b51935; font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
+.connectionLink:disabled { color: #6b746f; cursor: default; }
+.connectionForm + .connectionLink { margin-top: 18px; }
+.connectionSteps { list-style: none; padding: 28px 0 0; margin: 16px 0 0; border-top: 1px solid #dfe3da; }
+.connectionSteps li { display: flex; position: relative; gap: 16px; padding-bottom: 24px; }
+.connectionSteps li:last-child { padding-bottom: 0; }
+.connectionSteps li:not(:last-child)::after { content: ''; position: absolute; top: 35px; bottom: 5px; left: 13px; width: 2px; background: #e1e6df; }
+.stepNumber { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; border-radius: 50%; background: #e3e7e1; color: #65736b; font-weight: 650; font-size: 16px; }
+.connectionSteps li[aria-current] .stepNumber { background: #b51935; color: white; }
+.connectionSteps strong { display: block; font-weight: 700; font-size: 16px; line-height: 28px; }
+.connectionSteps p { color: #58665e; font-size: 14px; line-height: 1.5; margin: 1px 0 0; }
+.codeContext { display: flex; gap: 16px; justify-content: space-between; align-items: center; border-bottom: 1px solid #dfe3da; margin-bottom: 18px; }
+.codeContext p { font-weight: 650; margin: 0; }
+.codeContext .connectionLink { flex-shrink: 0; font-size: 14px; }
+.codeEntry .muted { font-size: 14px; }
+.connectionNotice { padding: 14px; margin: 16px 0 0 !important; background: #edf1e9; border-radius: 8px; font-size: 14px; }
+.connection .error { margin-top: 16px; font-size: 14px; }
+.connectionHelp { margin-top: 32px; color: #58665e; font-size: 14px; }
+.connectionHelp summary { min-height: 44px; padding: 12px 0; box-sizing: border-box; cursor: pointer; }
+.connectionHelp p { margin-bottom: 12px; }
+.connectionHelp .secondary { margin: 0 8px 8px 0; }
+@media (max-width: 360px) {
+  .connectionPage { padding: 36px 20px max(24px, env(safe-area-inset-bottom)); }
+  .connection h1 { font-size: 28px; }
+  .connectionIntro { margin-bottom: 28px; }
+}

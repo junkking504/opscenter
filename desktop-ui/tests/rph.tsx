@@ -19,6 +19,23 @@ const command=fixtureSnapshot();command.date=date;command.actor.role='Manager';
 command.kpis=['Today’s jobs','Revenue','Labor','Dump + Fuel','Net'].map(label=>({label,value:label==='Today’s jobs'?'6':label==='Revenue'?'$8,512.34':label==='Labor'?'$1,842.10':label==='Net'?'-$1,234.56':'$1,234.56',detail:'Synthetic evidence',progress:100,tone:'healthy' as const}));
 command.kpis.push({label:'RPH',value:crewRph(crew).value!.toLocaleString('en-US',{style:'currency',currency:'USD'}),secondaryValue:'Revenue per labor hour',detail:'4 labor hours · 1 crew · 1 excluded',progress:100,tone:'healthy'});
 command.kpis.push({label:'AJS',value:'$320.00',secondaryValue:'Average job size',detail:'2 completed jobs · Gross job values',progress:100,tone:'healthy'});
+// Opt-in full-length presentation evidence for opening-screen layout checks.
+const layoutCase = new URLSearchParams(location.search).get('layout');
+if (layoutCase) {
+  const source = 'Source Oct 21 at 6:32 AM · 0m old';
+  const details = ['16 completed jobs · 2 closed estimates · 0 open', `105% of $5,479.45 · ${source}`, `Goal: under 16% · ${source}`, `Includes $47.00 assumed dump cost · ${source}`, `After recorded and assumed daily costs · ${source}`, `46.75 labor hours · 5 crew · ${source}`, `16 completed jobs · Gross job values · ${source}`];
+  const secondary = ['', '', '13.8% of revenue', 'Dumps $325.50 · Fuel $172.87', '', 'Revenue per labor hour', 'Average job size'];
+  command.kpis.forEach((kpi, i) => {
+    kpi.detail = details[i]; kpi.secondaryValue = secondary[i];
+    kpi.comparison = { prior: i === 0 ? 14 : 4000, label: 'same weekday last week' };
+    if (layoutCase === 'zero') { kpi.value = i === 0 ? '3' : i > 4 ? '—' : '$0.00'; kpi.secondaryValue = ''; kpi.detail = `${i > 4 ? 'Input unavailable' : 'Recorded daily values'} · ${source}`; }
+    if (layoutCase === 'large' && i > 0) kpi.value = i === 4 ? '-$123,456.78' : '$123,456.78';
+    if (layoutCase === 'missing') { kpi.value = '—'; kpi.secondaryValue = ''; kpi.detail = `Input unavailable · ${source}`; }
+    if (layoutCase === 'stale') { kpi.value = '—'; kpi.secondaryValue = ''; kpi.tone = 'warning'; kpi.detail = 'Stale source · Source Oct 21 at 4:32 AM · 2h old'; }
+  });
+  command.kpis[1].goal = 5479.45;
+  command.kpis[1].priorYear = { date: '2025-10-22', value: null };
+}
 window.fetch=async(input,init)=>{if(init?.method&&init.method!=='GET')throw Error('Writes forbidden in RPH fixture');const url=new URL(String(input),location.origin);if(url.pathname==='/api/desktop/krewe'){if(url.searchParams.get('date')!==date)throw Error('Selected date lost');return Response.json(crew);}return Response.json({error:'Disabled in synthetic fixture'},{status:503});};
 class NoEvents {addEventListener(){}close(){}}
 window.EventSource=NoEvents as unknown as typeof EventSource;

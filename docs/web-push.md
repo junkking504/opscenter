@@ -239,6 +239,11 @@ now does not establish that its old clock/geofence facts are new live events. Ea
 scope starts with the owner-approved silent roster baseline; only subsequent
 proven changes are eligible.
 
+LinxUp raw archives under `alerts/raw/` are excluded from capture, even though
+they share the normalized feed filename. Only the validated normalized alert
+publication establishes Fleet coverage; malformed normalized feeds still record
+a coverage gap.
+
 Raw positions, geometry-inferred visits, payroll amounts/finality, computed daily
 summaries, manual correction overlays and provisional legacy metrics remain
 outside this contract. No Slack history or Slack publication state is consumed.

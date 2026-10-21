@@ -53,7 +53,7 @@
     "verify:pay-period": "node --import tsx scripts/test-pay-period.ts",
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
-    "verify:podium-reviews": "node --import tsx scripts/test-podium-reviews.ts && node --import tsx scripts/test-campaign-read-performance.ts",
+    "verify:podium-reviews": "node --import tsx scripts/test-podium-reviews.ts && node --import tsx scripts/test-campaign-read-performance.ts && node --import tsx scripts/test-review-job-match.ts && node --import tsx scripts/test-review-matching-signals.ts && node --import tsx scripts/test-review-matching-evaluation.ts && node --import tsx scripts/test-review-matching-calibration.ts",
     "verify:historical-searchkings": "node --import tsx scripts/test-historical-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-assignment-email": "node --import tsx scripts/test-junkware-assignment-email.ts",
@@ -200,7 +200,9 @@
     "verify:web-push": "node --import tsx scripts/test-web-push.ts && node --import tsx scripts/test-operational-update-preview.ts && node scripts/test-web-push-loader.mjs && node --import tsx scripts/test-web-push-journal-health.ts && python3 scripts/test-web-push-journal.py && node --import tsx scripts/test-web-push-runtime.ts && PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-web-push-supervisor.py",
     "verify:web-push:database": "node --import tsx scripts/test-web-push-database.ts && node --import tsx scripts/test-web-push-trial.ts",
     "verify:web-push:browser": "node scripts/test-web-push-browser.mjs",
-    "verify:huddle": "node --import tsx scripts/test-tv-spotlights.ts"
+    "verify:huddle": "node --import tsx scripts/test-tv-spotlights.ts",
+    "verify:command-ajs": "node --import tsx scripts/test-command-ajs.ts",
+    "verify:command-fold-browser": "node scripts/test-command-fold-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

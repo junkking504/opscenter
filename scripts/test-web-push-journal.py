@@ -136,6 +136,24 @@ class JournalTest(unittest.TestCase):
         self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Enroute")
         self.assertEqual(len(self.entries()), 1)
         self.assertTrue(list((self.journal / "gaps").glob("*.json")))
+    def test_raw_fleet_archive_does_not_interrupt_normalized_capture(self):
+        raw = self.root / "alerts" / "raw" / f"linxup_alerts_{DAY}.json"
+        normalized = raw.parent.parent / raw.name
+        archive = {"date": DAY, "collection_timestamp": STAMP, "response": {"alerts": []}}
+        fleet = {"date": DAY, "collection_timestamp": STAMP, "pagination_completed": True,
+                 "validation_status": "passed", "collection_errors": [], "alerts": []}
+        self.assertEqual(journal.source_scopes(raw, archive), [])
+        self.assertEqual(journal.project(raw, archive), [])
+        for _ in range(2):
+            journal.publish_json(raw, archive, journal_root=self.journal, enabled=True)
+            journal.publish_json(normalized, fleet, journal_root=self.journal, enabled=True)
+        self.assertEqual(json.loads(raw.read_text()), archive)
+        self.assertEqual(len(self.entries()), 1)
+        self.assertEqual(list((self.journal / "gaps").glob("*.json")), [])
+        # A malformed normalized feed must still report missing coverage.
+        journal.publish_json(normalized, archive, journal_root=self.journal, enabled=True)
+        self.assertEqual(len(list((self.journal / "gaps").glob("*.json"))), 1)
+
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}

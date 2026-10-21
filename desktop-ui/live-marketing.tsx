@@ -20,6 +20,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
   const [confirmation, setConfirmation] = useState<'lead' | Review | null>(null);
   const [lastRequest, setLastRequest] = useState(''), [unresolved, setUnresolved] = useState(false);
   const confirmationDialog = useRef<HTMLDialogElement>(null);
+  const submitting = useRef(false);
   const locked = busy || unresolved;
   const editing = locked || Boolean(draft) || Boolean(confirmation) || Object.keys(selections).length > 0;
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
@@ -53,10 +54,11 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
     finally { setBusy(false); }
   }
   async function mutate(operation: Omit<CommercialOperation, 'date' | 'requestId'>) {
-    if (locked) return;
+    if (locked || submitting.current) return;
+    submitting.current = true;
     setBusy(true); setUnresolved(true); onBusyChange?.(true); setActionFeedback('');
-    const requestId = crypto.randomUUID(); setLastRequest(requestId);
     try {
+      const requestId = crypto.randomUUID(); setLastRequest(requestId);
       const response = await fetch('/api/desktop/marketing', { method: 'POST', signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) });
       const result = await response.json();
       if (!response.ok) {
@@ -67,7 +69,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
       }
       acceptReceipt(result.receipt);
     } catch (error) { setActionFeedback(`${error instanceof Error ? error.message : 'Result unavailable.'} Check the saved result before continuing.`); }
-    finally { setBusy(false); }
+    finally { submitting.current = false; setBusy(false); }
   }
   function confirmSave() {
     if (confirmation === 'lead' && draft) void mutate({ action: 'lead.update', recordId: draft.id, expectedVersion: draft.version, values: { status: draft.status, reason: draft.reason, note: draft.note, contacted: draft.contacted } });
@@ -86,7 +88,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
     {Object.keys(selections).length > 0 && !confirmation && <div className="campaign-save-status"><span>Job match not saved yet.</span><Button variant="outline" size="sm" disabled={locked} onClick={() => setSelections({})}>Discard match changes</Button></div>}
     {['overview', 'leads'].includes(view) && ((data.available || data.leads.length > 0) ? <CampaignLeads key={`${date}:${shortcut?.revision || 0}`} initialFilters={shortcut ? campaignShortcutFilters[shortcut.key].leads : undefined} leads={data.leads} draft={draft} locked={locked} onFlag={lead => void mutate({ action: 'lead.flag', recordId: lead.id, expectedVersion: lead.version, values: { flagged: !lead.flagged } })} onDraft={setDraft} onReview={() => { setActionFeedback(''); setConfirmation('lead'); }}/> : <div className="campaign-panel campaign-empty"><h2>Lead source unavailable</h2><p>{data.error || 'SearchKings leads are unavailable for this period.'}</p></div>)}
     {(view === 'reviews' || view === 'performance') && <LiveAnalytics date={date} scope={view === 'reviews' ? 'reviews' : 'marketing'} />}
-    {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews key={`${date}:${shortcut?.revision || 0}`} initialFilters={shortcut ? campaignShortcutFilters[shortcut.key].reviews : undefined} reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
+    {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews key={`${date}:${shortcut?.revision || 0}`} initialFilters={shortcut ? campaignShortcutFilters[shortcut.key].reviews : undefined} reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onConfirm={(review, appointmentId) => void mutate({ action: 'review.assign', recordId: review.id, expectedVersion: review.version, values: { appointmentId } })} onUndo={review => void mutate({ action: 'review.undo', recordId: review.id, expectedVersion: review.version, values: {} })} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
     {view === 'performance' && (data.available ? <CampaignResults data={data}/> : <div className="campaign-panel campaign-empty"><h2>Results unavailable</h2><p>{data.error || 'SearchKings metrics are unavailable for this period. No sample metrics are substituted.'}</p></div>)}
     <footer className="campaign-source-footer"><span>{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings unavailable'}</span><span>{data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable'}</span></footer>
     {confirmation && <dialog ref={confirmationDialog} className="campaign-confirm" aria-labelledby="campaign-confirm-title" onCancel={event => { event.preventDefault(); if (!locked) setConfirmation(null); }}>

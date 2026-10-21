@@ -175,6 +175,10 @@ for (const [authorName, kind] of [
   assert.equal(result.variant?.[0]?.matchKind, kind, authorName);
   assert.equal(result.variant?.[0]?.jkNumber, 'JK4067001');
 }
+for (const [authorName, kind] of [["Google", "partial_name"], ["Customer", "partial_name"], ["Gooogle Custmer", "name_variation"]] as const) {
+  const result = assignmentModule.podiumReviewNameSuggestions([{uid:"partial", authorName, createdAt:"2026-08-31T15:00:00Z", locationName:"Junk King New Orleans"}]);
+  assert.equal(result.partial[0]?.matchKind, kind);
+}
 const outsideWindow = assignmentModule.podiumReviewNameSuggestions([
   {uid:'before-service',authorName:'Google Customer',createdAt:'2026-01-01T15:00:00Z',locationName:''},
   {uid:'after-window',authorName:'Google Customer',createdAt:'2027-01-01T15:00:00Z',locationName:''},
@@ -187,7 +191,7 @@ const noNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
   createdAt: "2026-08-31T15:00:00Z",
   locationName: "Junk King New Orleans",
 }]);
-assert.deepEqual(noNameSuggestions["review-unmatched-name"], []);
+assert.ok(noNameSuggestions["review-unmatched-name"].every(candidate => candidate.confidence === "Low" && candidate.matchKind === "timing"), "Timing alone is a Low suggestion under the rules table");
 
 const previous = {
   version: 1 as const,

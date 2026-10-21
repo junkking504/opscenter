@@ -31,10 +31,10 @@ export default function RequestSetupCode({busy,onBusy}:{busy:boolean;onBusy:(val
     try{localStorage.removeItem(storageKey);setSaved(null);setMessage('');setError('');}catch{setError('Allow browser storage before requesting a new code.');}
   }
   return <section>
-    <p>Choose the phone you are using today. OpsBot will send its setup code on WhatsApp.</p>
+    <p>Choose the phone you are using today. Operations will send its setup code on WhatsApp.</p>
     <form className={styles.form} onSubmit={requestCode}>
       <label>Phone<select value={choiceId} onChange={e=>{setChoiceId(e.target.value);setMessage('');setError('');}} required disabled={busy || !choices.length}><option value="">Choose this phone</option>{choices.map(choice=><option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
-      <button className={styles.primary} disabled={busy || !choiceId}>{busy?'Please wait…':saved?.choiceId===choiceId?'Check send status':'Send setup code via OpsBot'}</button>
+      <button className={styles.primary} disabled={busy || !choiceId}>{busy?'Please wait…':saved?.choiceId===choiceId?'Check send status':'Send setup code on WhatsApp'}</button>
     </form>
     {message && <p role="status">{message}</p>}{error && <p className={styles.error} role="alert">{error}</p>}
     {saved && <button className={styles.secondary} disabled={busy} onClick={newRequest}>Request a new code</button>}

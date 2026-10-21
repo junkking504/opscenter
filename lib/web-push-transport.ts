@@ -20,7 +20,7 @@ export function vapidAuthorization(endpoint: URL, env: NodeJS.ProcessEnv = proce
   const signature = sign('sha256',Buffer.from(input),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
   return `vapid t=${input}.${signature}, k=${pub.toString('base64url')}`;
 }
-const transportDependencies={enabled:supervisedPushDelivery,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
+export const transportDependencies={enabled:supervisedPushDelivery,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
 /** Empty-body standards Web Push: no customer, employee, event or URL payload. */
 export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<boolean>, deadline:number, io=transportDependencies): Promise<number> {
   if (!io.enabled()) throw new Error('Push delivery disabled.');

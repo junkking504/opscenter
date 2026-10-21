@@ -95,6 +95,21 @@ export function verifyCensusAddress(address:string,payload:unknown):AddressVerif
   if (exact.location) return {...exact,matchedAddress:match.matchedAddress};
   if (exact.reason !== 'Address Needs Exact House, Street, And ZIP Match') return exact;
   if (serviceStreetCandidates(address).length > 1) return exact;
+  // JunkWare ZIPs are sometimes a neighbouring code. Like the OSM building
+  // policy, accept Census's single match only for the exact house, street and
+  // locality within the same three-digit postal prefix; never combine this
+  // with a spelling correction. The provider ZIP is kept in matchedAddress.
+  const sourceZip = withoutServiceUnit(address).match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
+  const censusZip = match.addressComponents?.zip || '';
+  if (sourceZip && /^\d{5}$/.test(censusZip) && sourceZip !== censusZip && sourceZip.slice(0,3) === censusZip.slice(0,3)) {
+    const at = address.lastIndexOf(sourceZip);
+    const rezonedAddress = address.slice(0,at)+censusZip+address.slice(at+5).replace(/^-\d{4}/,'');
+    // The swap must not change what cleaning keeps: a repeated locality tail
+    // with a conflicting ZIP stays contradictory evidence, not a duplicate.
+    const rezoned = cleanServiceAddressForVerification(rezonedAddress) === rezonedAddress
+      ? verifyAddressResult(rezonedAddress,payloadForVerification) : exact;
+    if (rezoned.location) return {...rezoned,reason:'Exact House And Street Verified · Source ZIP Differs',matchedAddress:match.matchedAddress};
+  }
   const requested = normalize(fullFieldStreetAddress(withoutServiceUnit(address))).replace(/ (\d{5}) \d{4}$/, ' $1');
   if (!hasMinorStreetCorrection(requested,normalize(street.house),normalize(street.street),normalize(match.addressComponents?.city || ''),match.addressComponents?.zip || '')) return exact;
   // Only Census's single full-address match gets this spelling tolerance. All

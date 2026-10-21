@@ -9,7 +9,7 @@ export const dynamic='force-dynamic';
 export const maxDuration=600;
 function failure(error:unknown){
   if(error instanceof PendingScheduleOperationError)return crewPhoneResponse({error:'An earlier appointment change needs verification. Check its saved result before making a correction.'},409);
-  if(error instanceof Error && /^(This appointment changed|This request ID already)/.test(error.message))return crewPhoneResponse({error:'This appointment changed. Reload customer information before saving.'},409);
+  if(error instanceof Error && /^(This appointment changed|This request ID already|Closed appointments|Canceled appointments)/.test(error.message))return crewPhoneResponse({error:'This appointment changed. Reload customer information before saving.'},409);
   if(error instanceof CustomerCorrectionError)return crewPhoneResponse({error:error.message},409);
   return crewPhoneFailure(error);
 }

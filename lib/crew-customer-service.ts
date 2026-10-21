@@ -64,7 +64,7 @@ export async function checkCrewCustomer(request:Request,assignmentId:string,requ
   if(!receipt || receipt.actor!==actor || receipt.action!=='customer_correction' || receipt.recordId!==`${current.date}:appointment:${current.appointmentId}`)throw new CrewPhoneError('Customer correction receipt not found.',404);
   const checked=reconcile?await reconcileCustomerCorrection(requestId,actor,id=>deps.scope(request,assignmentId,async scope=>{
     if(scope.current.appointmentId!==id || !sameTruck(scope.job.truck,phone.truck))throw new CrewPhoneError('This appointment changed.',409);
-    const source=await deps.source(id);requireCrewReady(request);return source;
+    const source=await deps.source(id);assertSource(source,id,scope.current.date,phone.truck);requireCrewReady(request);return source;
   })):receipt;
   requireCrewReady(request);
   return customerReceipt(checked||receipt);

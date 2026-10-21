@@ -352,6 +352,7 @@ export async function reconcileTruckSwitchMove(id:string,actor:string,readSource
 /** Shared appointment receipts also serialize crew corrections with dispatch and closeout. */
 export async function setPendingCustomerCorrection(receipt:ScheduleReceipt,source:CustomerSource,fields:CustomerFields,crew:Record<string,unknown>) {
   if(receipt.action!=='customer_correction' || receipt.status!=='pending' || receipt.recordId.split(':appointment:')[1]!==source.appointmentId)throw new Error('Customer correction receipt is unavailable.');
+  receipt.updatedAt=new Date().toISOString();
   receipt.sourceResult={customerCorrection:{before:source,expected:fields,crew}};
   await writeReceipt(receipt);
 }
@@ -363,14 +364,26 @@ export async function reconcileCustomerCorrection(id:string,actor:string,read:(a
     const receipt=await readScheduleReceipt(id);
     if(!receipt || receipt.status!=='uncertain')return receipt;
     const intent=receipt.sourceResult?.customerCorrection as {before:CustomerSource;expected:CustomerFields}|undefined;
-    if(!intent)return receipt;
+    if(!intent){
+      // The source child may only start after this intent is durable. Under the
+      // shared operation lock, a stale queued receipt with no intent proves
+      // no submission; a delayed worker will observe this terminal receipt.
+      const failed:ScheduleReceipt={...receipt,status:'failed',updatedAt:new Date().toISOString(),message:'The correction was not submitted to JunkWare. Reload the customer information and review it again.',priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
+      await writeReceipt(failed);return failed;
+    }
     let source:CustomerSource;
     try{source=await read(intent.before.appointmentId);}catch{return receipt;}
     if(source.appointmentId!==intent.before.appointmentId)return receipt;
     let status:ScheduleReceipt['status'];
     try{verifyCustomerCorrection(source,intent.expected,intent.before.protectedVersion);status='verified';}
-    catch{if(source.sourceVersion!==intent.before.sourceVersion || Date.now()-Date.parse(receipt.updatedAt)<10*60_000)return receipt;status='failed';}
-    const resolved:ScheduleReceipt={...receipt,status,updatedAt:new Date().toISOString(),message:status==='verified'?'Customer information saved and verified in JunkWare.':'JunkWare confirms the correction was not saved. Reload the details before trying again.',sourceResult:{...receipt.sourceResult,customer:source},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
+    catch{
+      const age=Date.now()-Date.parse(receipt.updatedAt);
+      if(!Number.isFinite(age) || age<10*60_000)return receipt;
+      // Adopt a fresh authoritative read only after the writer's lifetime has
+      // elapsed. Keep the original outcome unknown; never call a mismatch saved.
+      status=source.sourceVersion===intent.before.sourceVersion?'failed':'reconciled';
+    }
+    const resolved:ScheduleReceipt={...receipt,status,updatedAt:new Date().toISOString(),message:status==='verified'?'Customer information saved and verified in JunkWare.':status==='reconciled'?'JunkWare has different current details. The earlier correction was not confirmed. Reload and review the current customer information before another change.':'JunkWare confirms the correction was not saved. Reload the details before trying again.',sourceResult:{...receipt.sourceResult,customer:source},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
     await writeReceipt(resolved);return resolved;
   });
 }

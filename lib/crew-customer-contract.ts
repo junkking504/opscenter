@@ -21,7 +21,7 @@ export function normalizeCustomerFields(input: unknown): CustomerFields {
   for (const key of ['phone', 'alternatePhone', 'serviceContactPhone'] as const) {
     const digits = result[key].replace(/\D/g, '');
     if ((!digits && key === 'phone') || (result[key] && (!/^[+\d\s().-]+$/.test(result[key]) || digits.length < 10 || digits.length > 15))) throw new Error(`Enter a valid ${CUSTOMER_FIELDS[key].toLowerCase()}.`);
-    result[key] = digits;
+    // Preserve unchanged source formatting; read-back compares phone digits.
   }
   if (result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) throw new Error('Enter a valid email address or leave it blank.');
   return result;

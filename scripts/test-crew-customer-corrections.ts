@@ -7,7 +7,7 @@ import {readyCrewInspection} from './fixtures/crew-ready';
 import {normalizeCustomerFields,customerFieldsMatch,verifyCustomerCorrection,type CustomerSource} from '../lib/crew-customer-contract';
 const fields={firstName:'Alex',lastName:'Sample',phone:'5045550100',alternatePhone:'',email:'alex@example.invalid',serviceAddress:'100 Example St Unit 2',serviceZip:'70119',serviceContactName:'',serviceContactPhone:''};
 async function main(){
-  assert.equal(normalizeCustomerFields({...fields,phone:'(504) 555-0100'}).phone,fields.phone);
+  assert.equal(normalizeCustomerFields({...fields,phone:'(504) 555-0100'}).phone,'(504) 555-0100','Unchanged phone formatting is retained');
   for(const patch of [{firstName:''},{phone:'12'},{email:'not an email'},{serviceZip:'701'},{serviceAddress:'\nBad'},{truck:'Truck 9'},{addPayment:{}},{serviceZip:'70119-123'},{firstName:42}])assert.throws(()=>normalizeCustomerFields({...fields,...patch}));
   assert.ok(customerFieldsMatch(fields,{...fields,phone:'(504) 555-0100'}));
   const {applyCustomerCorrection}=await import('./junkware-customer-correction');
@@ -67,6 +67,13 @@ async function main(){
     job.truck='Truck 9';await assert.rejects(()=>queueCrewCustomer(request,body(),deps));job.truck='Truck 6';
     job.status='Completed';await assert.rejects(()=>loadCrewCustomer(request,current.assignmentId,deps));job.status='Confirmed';
     preflight=true;const rejected=await queueCrewCustomer(request,body(),deps);assert.equal((await rejected.run!()).status,'failed');assert.equal(writes,0);preflight=false;
+    const abandoned=await queueCrewCustomer(request,body(),deps);
+    assert.equal((await checkCrewCustomer(request,current.assignmentId,abandoned.receipt.requestId,true,deps)).status,'pending');
+    const abandonedPath=path.join(root,'operations',abandoned.receipt.requestId+'.json');
+    const abandonedData=JSON.parse(fs.readFileSync(abandonedPath,'utf8'));abandonedData.updatedAt=new Date(Date.now()-11*60_000).toISOString();fs.writeFileSync(abandonedPath,JSON.stringify(abandonedData));
+    const noSourceDeps={...deps,source:async()=>{throw Error('No source read or write allowed for an unsubmitted correction');}};
+    assert.equal((await checkCrewCustomer(request,current.assignmentId,abandoned.receipt.requestId,true,noSourceDeps)).status,'failed','Lost queued worker resolves without source access');
+    assert.equal((await abandoned.run!()).status,'failed','A delayed worker cannot submit the resolved correction');assert.equal(writes,0);
     const input=body(),queued=await queueCrewCustomer(request,input,deps);
     assert.equal(queued.receipt.status,'pending');
     const duplicate=await queueCrewCustomer(request,input,deps);assert.equal(duplicate.run,null);
@@ -85,6 +92,9 @@ async function main(){
     assert.equal((await checkCrewCustomer(request,current.assignmentId,unchanged.receipt.requestId,true,deps)).status,'verified');
     const notSaved=await queueCrewCustomer(request,{...body(),fields:{...fields,lastName:'Not saved'}},{...deps,source:async(id,input)=>{if(input)throw new CustomerCorrectionError('Lost response','uncertain');return deps.source(id);}});await notSaved.run!();assert.equal((await checkCrewCustomer(request,current.assignmentId,notSaved.receipt.requestId,true,deps)).status,'uncertain','Fresh unknown save cannot be retried while a source request could still finish');const oldReceiptPath=path.join(root,'operations',notSaved.receipt.requestId+'.json');const oldReceipt=JSON.parse(fs.readFileSync(oldReceiptPath,'utf8'));oldReceipt.updatedAt=new Date(Date.now()-11*60_000).toISOString();fs.writeFileSync(oldReceiptPath,JSON.stringify(oldReceipt));assert.equal((await checkCrewCustomer(request,current.assignmentId,notSaved.receipt.requestId,true,deps)).status,'failed');
     changed=true;const altered=await queueCrewCustomer(request,body(),deps);assert.equal((await altered.run!()).status,'uncertain');assert.equal((await checkCrewCustomer(request,current.assignmentId,altered.receipt.requestId,true,deps)).status,'uncertain','Unrelated financial/source changes cannot be called success');
+    const alteredPath=path.join(root,'operations',altered.receipt.requestId+'.json'),alteredData=JSON.parse(fs.readFileSync(alteredPath,'utf8'));alteredData.updatedAt=new Date(Date.now()-11*60_000).toISOString();fs.writeFileSync(alteredPath,JSON.stringify(alteredData));
+    assert.equal((await checkCrewCustomer(request,current.assignmentId,altered.receipt.requestId,true,deps)).status,'reconciled','A fresh changed source unblocks old work without claiming the original correction succeeded');
+    const afterRecovery=await queueCrewCustomer(request,body(),deps);assert.ok(afterRecovery.run,'Recovered appointment permits a newly reviewed action');
     assert.throws(()=>verifyCustomerCorrection(source,source.fields,'c'.repeat(64)));
     revokeCrewPhone(phone.deviceId,'fixture');await assert.rejects(()=>checkCrewCustomer(request,current.assignmentId,input.requestId,false,deps));
     console.log('Crew customer corrections: validation, scope, version conflicts, queued receipts, duplicate prevention, closeout interlock, lost response and read-only recovery passed.');

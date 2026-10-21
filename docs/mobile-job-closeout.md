@@ -1082,7 +1082,11 @@ Success requires a fresh source read with every intended field retained and
 protected appointment/account/financial fields unchanged. Unknown results remain
 blocked; **Check saved result** only reads the source. Exact expected values verify
 the change; after ten minutes an exact unchanged baseline proves a failed save
-and permits a new review. Other mismatches remain unresolved for office investigation. No source
+and permits a new review. After ten minutes, other fresh source mismatches are marked reconciled: the
+original outcome remains unconfirmed and the crew must reload the current
+source details before another correction. A stale queued receipt without a
+durable submission intent is marked failed without reading or writing JunkWare;
+a delayed worker cannot replay it. Unavailable or unauthorized sources remain blocked. No source
 write is replayed by recovery. Route/name/phone/map projections adopt the normal
 verified schedule refresh; the editor's verified result is separate from ingestion.
 The browser retains only the request ID for recovery, not customer details.

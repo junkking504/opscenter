@@ -1,6 +1,6 @@
 import {verifyCustomerCorrection,type CustomerSource,type CustomerFields} from './crew-customer-contract';
 
-import {parseCustomerChange,customerMatches} from './customer-edit-contract';
+import {parseCustomerChange,customerMatches,customerNotesMatch} from './customer-edit-contract';
 import {junkwareCustomer,recordCustomerEdit} from './customer-edit';
 import {assertAppointmentNotSwitching,assertTruckNotSwitching} from './crew-truck-switch-store';
 import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
@@ -35,7 +35,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   const action = String(body.action || '') as ScheduleOperation['action'];
   if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'restore', 'call_ahead', 'cancel', 'note', 'closeout', 'classify', 'customer'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
   const values = body.values && typeof body.values === 'object' ? body.values as Record<string, unknown> : {};
-  if (JSON.stringify(values).length > (action==='closeout'?64_000:10_000)) throw new Error('The appointment change is too large.');
+  if (JSON.stringify(values).length > (['closeout','customer'].includes(action)?64_000:10_000)) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
   if (action === 'call_ahead' && typeof values.called !== 'boolean') throw new Error('A call-ahead status is required.');
   if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');
@@ -403,7 +403,7 @@ export async function reconcileCustomerReceipt(id:string,actor:string,read:(id:s
     if(!expected)return receipt;
     let current;try{current=await read(receipt.recordId.split(':appointment:')[1]);}catch{return receipt;}
     if(!current.ok)return receipt;
-    if(customerMatches(current.customer,expected.customer) && current.protectedVersion===expected.protectedVersion){
+    if(customerMatches(current.customer,expected.customer) && current.protectedVersion===expected.protectedVersion && customerNotesMatch(expected.appointmentNotes || [],current.appointmentNotes || [],expected.estimateOutcome)){
       current.verifiedAt=current.checkedAt;recordCustomerEdit(receipt.recordId.split(':appointment:')[1],current);
       const verified={...receipt,status:'verified' as const,updatedAt:new Date().toISOString(),message:'JunkWare verified the customer information. No change was resubmitted.',sourceResult:current as unknown as Record<string,unknown>};await writeReceipt(verified);return verified;
     }

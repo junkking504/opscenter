@@ -2,7 +2,7 @@ import {createRoot} from 'react-dom/client';
 import {useState} from 'react';
 import CustomerEditor from '../customer-editor';
 import type {ScheduleAppointment} from '../lib/schedule-contract';
-const state=window as unknown as {writes:number;saved:boolean};state.writes=0;state.saved=false;
+const state=window as unknown as {writes:number;saved:boolean;lastPayload?:Record<string,unknown>};state.writes=0;state.saved=false;
 const customer={firstName:'Test',lastName:'Customer',phone:'5045550100',secondaryPhone:'',email:'test@example.com',address:'100 Example St',zip:'70112'};
 const parameters=new URLSearchParams(location.search),actorKey=parameters.get('actor') || 'manager-one';
 const realFetch=window.fetch.bind(window);
@@ -10,12 +10,12 @@ window.fetch=async(input,init)=>{
  const url=String(input);
  if(url.includes('/schedule/customer')){
   if(parameters.get('role')==='operator')return Response.json({error:'Not permitted'},{status:403});
-  return Response.json({actorKey,pendingReceipt:null,blockedByOtherActor:false,...(!url.includes('statusOnly')?{customer,sourceVersion:'a'.repeat(64),protectedVersion:'b'.repeat(64)}:{})});
+  return Response.json({actorKey,pendingReceipt:null,blockedByOtherActor:false,...(!url.includes('statusOnly')?{customer,sourceVersion:'a'.repeat(64),protectedVersion:'b'.repeat(64),appointmentNotes:parameters.has('closed')?['Date/Time: Original outcome, no discount: Original explanation (10/20/2026 1:00 PM , Source)']:[],requiresEstimateOutcome:parameters.get('closed')==='estimate' || parameters.get('closed')==='missing',requiresNoDiscountReason:parameters.get('closed')==='estimate' || parameters.get('closed')==='missing',...(parameters.get('closed')==='estimate'?{estimateOutcome:{reason:'Date/Time',explanation:'Original outcome',noDiscountReason:'Original explanation'}}:{})}:{})});
  }
  if(url.includes('/schedule/operations')){
   const data=init?.body ? JSON.parse(String(init.body)) : {};
   if(data.resolveCustomerRequest)return Response.json({receipt:{requestId:data.requestId,status:'reconciled',message:'Manager reviewed source. No source save.'}});
-  if(init?.method==='POST'){state.writes++;return Response.json({receipt:{requestId:data.requestId,status:parameters.get('result') || 'verified',message:'Fixture result'}});}
+  if(init?.method==='POST'){state.lastPayload=data;state.writes++;return Response.json({receipt:{requestId:data.requestId,status:parameters.get('result') || 'verified',message:'Fixture result'}});}
   return Response.json({error:'No receipt found'},{status:404});
  }
  return realFetch(input,init);

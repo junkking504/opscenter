@@ -294,10 +294,14 @@ with. With it off, a review that reaches the plan limit fails and Codex
 continues without it; with it on, usage past the limit is billed. Each review
 is capped at 40 turns.
 
-Status: **pending the user's confirmation that extra usage is off.** Until the
-marker line `<!-- claude-review-extra-usage: confirmed-off -->` is added here
-with the user's dated confirmation, `claude-review.sh` refuses to run (exit 8).
-Only the user's own confirmation may add it.
+Status: **confirmed off by the user on 2026-10-21** (decision card in the
+project thread: "Confirm extra usage is turned off on the Claude account used
+on Mission Control?", answer "It's off"). The marker below lets
+`claude-review.sh` run. If extra usage is ever turned on, remove the marker; the
+script then refuses to run again (exit 8). Only the user's own confirmation may
+add it.
+
+<!-- claude-review-extra-usage: confirmed-off -->
 
 The script fails closed. It calls Claude Code with an allowlisted environment,
 so no API key, auth token, base URL, or Bedrock, Vertex or Foundry switch is

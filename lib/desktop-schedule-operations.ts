@@ -370,3 +370,18 @@ export async function reconcileCustomerReceipt(id:string,actor:string,read:(id:s
     return receipt;
   });
 }
+
+/** Manager-attested source review ends an unresolvable edit without replaying it.
+ * A missing request is tombstoned under the same locks, so a delayed POST cannot
+ * later save using the abandoned request ID. */
+export async function resolveCustomerManualReview(input:{requestId:string;recordId:string;date:string},actor:string) {
+  if(!uuid.test(input.requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !new RegExp(`^${input.date}:appointment:[0-9]{1,12}$`).test(input.recordId))throw new Error('A valid customer edit request is required.');
+  return withScheduleOperationLock(`request-${input.requestId}`,()=>withScheduleOperationLock(`appointment-${input.recordId.split(':appointment:')[1]}`,async()=>{
+    const previous=await readScheduleReceipt(input.requestId);
+    if(previous && (previous.actor!==actor || previous.action!=='customer' || previous.recordId!==input.recordId))throw new Error('This customer request belongs to another operation.');
+    if(previous?.status==='pending')throw new Error('The customer edit is still running. Check its saved result first.');
+    if(previous && ['verified','failed','reconciled'].includes(previous.status))return previous;
+    const receipt:ScheduleReceipt={...(previous || {...input,actor,action:'customer',fingerprint:createHash('sha256').update(`manual-review:${input.requestId}`).digest('hex')}),status:'reconciled',updatedAt:new Date().toISOString(),message:'Manager reviewed the appointment in JunkWare. Customer-only save verification remains unavailable. No source change was submitted by this review.',sourceResult:{manualReview:true}};
+    await writeReceipt(receipt);return receipt;
+  }));
+}

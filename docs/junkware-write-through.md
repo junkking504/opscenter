@@ -369,8 +369,21 @@ a changed source baseline, saves once, reopens the appointment and verifies all
 edited fields plus captured schedule, assignment, status, notes, charges and
 payments. An interrupted save stays blocked; **Check Saved Result** only reads
 JunkWare. It resolves an exact requested result or an unchanged baseline and
-never resubmits the save. The editor retains the request ID across reopening.
+never resubmits the save. The editor retains the request ID per signed-in manager across reopening.
+A manager can review an unresolvable result in JunkWare and finish a manual
+review. This records an attestation, never a verified source save. A missing
+request is tombstoned under the operation locks so a delayed copy cannot save.
+Contact-only edits retain the exact collected address and map cache key.
+Changed addresses use the native street, city, state and ZIP labels.
 Verified customer fields appear immediately using a private timestamped receipt
 until newer collected schedule data takes precedence. No customer is changed by
 validation fixtures or UI acceptance checks. No messages or paid providers are
-added. Validation: `node --import tsx scripts/test-customer-edit.ts`.
+added. Validation: `npm run verify:customer-edit`; UI fixture: `node scripts/test-customer-editor-browser.mjs` against the desktop Vite test server.
+
+The worker reproduces the native `.iu-trig-field` and `.address-entry` change
+markers (`IsUpdatedHF` and `AddressChangedHF`) before one normal Save Appointment
+postback, avoiding an additional scheduled ZIP postback. Native `IsUpdatedHF`
+also drives unsaved-navigation warnings. The worker disables Send Pictures and
+never invokes the separate email or Send ETA controls. Captured schedule,
+status, charges and payments must remain identical. Native server internals are
+not inferred from client-side inspection.

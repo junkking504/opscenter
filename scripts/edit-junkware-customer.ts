@@ -17,9 +17,12 @@ export async function readCustomer(page:Page) {
   }
   const customerId=await page.locator('#ctl00_Content_CustomerIDHF').inputValue();
   if(!/^\d+$/.test(customerId))throw new Error('The source customer identity is unavailable.');
+  const city=(await page.locator('#ctl00_Content_AppointmentCityLbl').textContent() || '').trim();
+  const state=(await page.locator('#ctl00_Content_AppointmentStateLbl').textContent() || '').trim();
+  const displayAddress=city && state ? `${customer.address}, ${city}, ${state} ${customer.zip}` : '';
   const protectedFields=await capture(page);
   const protectedVersion=closeoutSourceVersion({...protectedFields,customerId});
-  return {customer,customerId,protectedVersion,sourceVersion:hash({customer,protectedVersion}),checkedAt:new Date().toISOString()};
+  return {customer,customerId,displayAddress,protectedVersion,sourceVersion:hash({customer,protectedVersion}),checkedAt:new Date().toISOString()};
 }
 export async function editCustomerOnPage(page:Page,change:CustomerChange,reopen:()=>Promise<void>) {
   let submitted=false;
@@ -34,6 +37,9 @@ export async function editCustomerOnPage(page:Page,change:CustomerChange,reopen:
       await field.evaluate((node,value)=>{(node as HTMLInputElement).value=value;},change.customer[key as keyof CustomerDetails]);
     }
     if(before.customer.zip!==change.customer.zip) await setInputWithWebFormsPostback(page,'#ctl00_Content_AppointmentZipTB',change.customer.zip,'the service ZIP update');
+    // Native .iu-trig-field change marks IsUpdatedHF; native .address-entry
+    // change marks AddressChangedHF. Reproduce those markers without scheduling
+    // another ZIP postback. IsUpdatedHF also drives the native unsaved-change guard.
     await page.evaluate(({addressChanged})=>{
       const updated=document.getElementById('ctl00_Content_IsUpdatedHF') as HTMLInputElement|null;if(updated)updated.value='true';
       const address=document.getElementById('ctl00_Content_AddressChangedHF') as HTMLInputElement|null;if(address && addressChanged)address.value='true';
@@ -46,7 +52,7 @@ export async function editCustomerOnPage(page:Page,change:CustomerChange,reopen:
     await reopen();
     const result=await readCustomer(page);
     if(!customerMatches(result.customer,change.customer) || result.protectedVersion!==before.protectedVersion)throw new Error('JunkWare has not verified the requested customer information while preserving appointment details. Check the saved result.');
-    return {ok:true,submitted,...result,verifiedAt:new Date().toISOString()};
+    return {ok:true,submitted,...result,previousCustomer:before.customer,verifiedAt:new Date().toISOString()};
   } catch(error) {return {ok:false,submitted,error:error instanceof Error?error.message:'Customer save could not be verified.'};}
 }
 async function main() {

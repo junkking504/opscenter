@@ -2,7 +2,7 @@ import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {CustomerChange,CustomerDetails} from './customer-edit-contract';
-export type CustomerSource={ok:boolean;customer:CustomerDetails;sourceVersion:string;protectedVersion:string;checkedAt:string;verifiedAt?:string;submitted?:boolean;error?:string};
+export type CustomerSource={ok:boolean;customer:CustomerDetails;sourceVersion:string;protectedVersion:string;checkedAt:string;verifiedAt?:string;submitted?:boolean;error?:string;previousCustomer?:CustomerDetails;displayAddress?:string};
 export function junkwareCustomer(appointmentId:string,change?:CustomerChange):Promise<CustomerSource> {
   if(!/^\d{1,12}$/.test(appointmentId))throw new Error('A valid appointment is required.');
   return new Promise((resolve,reject)=>{
@@ -24,6 +24,6 @@ export function applyCustomerEdits<T extends {appointmentId:string;customerName:
     if(!/^\d{1,12}$/.test(job.appointmentId))return job;
     const result=JSON.parse(fs.readFileSync(path.join(directory(),job.appointmentId+'.json'),'utf8')) as CustomerSource;
     if(!result.ok || !result.verifiedAt || Date.parse(result.verifiedAt)<=sourceObservedAt)return job;
-    const c=result.customer;return {...job,customerName:`${c.firstName} ${c.lastName}`,phone:c.phone,customerEmail:c.email,customerEmailCollected:true,address:`${c.address}, ${c.zip}`};
+    const c=result.customer;const sameDisplayAddress=result.displayAddress && result.displayAddress.replace(/[,\s]+/g,' ').trim().toLowerCase()===job.address.replace(/[,\s]+/g,' ').trim().toLowerCase();return {...job,customerName:`${c.firstName} ${c.lastName}`,phone:c.phone,customerEmail:c.email,customerEmailCollected:true,address:sameDisplayAddress || result.previousCustomer && result.previousCustomer.address===c.address && result.previousCustomer.zip===c.zip ? job.address : result.displayAddress || job.address};
   }catch{return job;}});
 }

@@ -69,31 +69,82 @@ deployment restarts the collector only after it has been explicitly installed.
 
 ## Appointment and crew attribution
 
-OpsCenter first uses the exact phone or email from a Podium review invitation
-to find a completed JunkWare job from the preceding 90 days. Reviews without
-that exact identifier match remain unassigned. For those reviews, Marketing →
-Reviews cross-references the public reviewer name against completed JunkWare
-customer names and proposes matches using full names, first or last names, initials, common
-nicknames, and small spelling differences. Review text mentioning a recorded
-crew member strengthens a suggestion. Crew evidence is labeled as a possible
-mention and uses capitalized exact first names/known nicknames, with
-contractions excluded and extra context required for common-word names; crew-only suggestions require the same
-location. Each desktop suggestion explains its evidence. Customer-name strength,
-crew mentions, location, and recency rank candidates from the preceding 90 days.
-These are inferences requiring manager confirmation, never automatic crew credit.
+The canonical [review matching rules](review-matching-rules.md) define candidate
+eligibility, signals, confidence bands, precedence, saving and evaluation. Keep
+that owner-approved spec unchanged unless the owner approves a rules change.
+The guarded capitalized crew-name tokenizer remains separate from customer-name
+fuzziness; contractions and ambiguous common-word names retain their guards.
 
-A name match is a suggestion, not employee credit. A manager or administrator
-must confirm the displayed JK number or choose a different completed
-appointment. Confirming or re-assigning the review records the appointment,
-territory, truck, and recorded crew in the durable operator store:
+### Local sources and privacy
 
-```text
-data/operator/podium_review_assignments.json
+`lib/podium-review-attribution.ts` starts with completed daily-metrics appointments
+and recorded crew. It joins `history/junkware/junkware_YYYY-MM-DD_raw.json`
+appointments/completed rows by appointment ID and compatible JK number to read
+completion time, customer email, notes, business/property and service-area text.
+Metrics remain authoritative for crew, truck and normalized territory. Explicit
+completion time determines the completion date; when unavailable, a completion
+date or the completed daily-metrics date is used. Same-day date-only records
+are excluded because their completion cannot be proven earlier than the review.
+JunkWare wall-clock completion values are interpreted in America/Chicago, not
+the server's timezone. An unreadable input file suppresses suggestions rather
+than allowing a partial candidate pool to produce a false High margin.
+
+Raw signal values remain in local memory. Reasons describe signal categories and
+counts, never the email handle, matching note words or address. The collector
+retains only appointment references for the invite-name signal, using invites
+already fetched under its existing limits; no new provider requests are added.
+Existing exact matches are retained across refreshes. Desktop reads only project
+saved state and suggestions; they never perform automatic writes.
+
+### Saving and rollout
+
+Assignments live in `data/operator/podium_review_assignments.json` outside Git.
+The collector can save High results with `inferred_high`, score, safe reasons
+and rules version. Automatic and manager writes share an exclusive store lock
+and atomic rename. Corrupt stores fail closed. Manual assignments and durable
+`manual_unassigned` undo records always win; exact collector matches take
+precedence over inferred matches. Automatic runs do not replace prior decisions.
+The desktop **Auto-matched** label displays reasons and provides **Undo
+auto-match**. Undo and one-click candidate confirmation use the existing
+manager-only, version-checked commercial receipt path. A pending or uncertain
+receipt blocks further changes and is checked without replaying the write.
+
+**High auto-save defaults off.** `PODIUM_REVIEW_HIGH_AUTO_SAVE=true` is the
+collector's activation switch. Keep it unset/false in production until Claude's
+`review.md` approves the exact feature HEAD and that reviewed source is deployed
+through the installed controller. Enable only for the deployed collector; a
+worktree dry run or desktop request must never activate it. This task changes
+neither production environment nor collector scheduling. Disabling the switch
+stops future automatic saves; existing decisions and undo records remain intact.
+A crash-held assignment lock needs inspection, never automatic deletion/replay.
+
+### Evaluation and dry run
+
+`npm run verify:podium-reviews` includes signal/safety tests and the evaluation
+in `scripts/test-review-matching-evaluation.ts`. The evaluation separates one
+anonymized manager-confirmed pair from synthetic worked examples and edge cases;
+it is a regression set, not an estimate of population accuracy. The confirmed
+pair preserves initials, name equality, crew mentions and the completion gap.
+Its recorded completion is 204 seconds after the review, so the new temporal
+rule deliberately excludes it. The synthetic first-name/crew example uses a
+completion before the review and ranks first without auto-saving. No weights
+were tuned to conceal the confirmed-data conflict. Add anonymized confirmations
+with competitors as more manager decisions become available; keep misses visible.
+
+For the historical comparison, extract `lib/podium-review-attribution.ts` from
+base `4ce90d55` to a temporary `.ts` file and pass its absolute path with
+`--baseline-module` to the evaluation script. The old matcher has no High
+auto-save, so its wrong-High count is zero by construction.
+
+Read current local data without collecting or writing:
+
+```sh
+node --import tsx scripts/dry-run-review-matching.ts --data-dir /path/to/opsbot/data
 ```
 
-The assignment record excludes the customer name, phone, email, and Podium
-invitation identifier. Confirmed assignments override collector attribution and
-remain editable from the attributed review card after later Podium refreshes.
+Only snapshot time, location and aggregate top-candidate band counts are printed.
+Counts cover all loaded reviews, including ones already assigned; they are not
+a count of new saves. No customer values, raw notes or contact data are emitted.
 
 ## Campaign review navigation
 
@@ -105,10 +156,10 @@ and date order combine with those queues. Twenty reviews appear per page; the
 queue scrolls independently on desktop, while phones show the selected review
 with a back button that preserves the filters.
 
-Crew credit is displayed only for confirmed attribution. The original-review
+Crew credit is displayed for saved manual, exact and High inferred attribution. The original-review
 link opens the source for reading/responding; Campaign does not post a reply.
-Managers can choose a name-match suggestion or enter a completed appointment ID or JK job number,
-open the appointment for review, and confirm the selection in a separate dialog.
+Managers can confirm a displayed candidate in one click, or enter a completed appointment ID or JK job number,
+open the appointment for review, and confirm that selection in a separate dialog.
 Uncertain saves stay attached to their receipt and block repeat submissions;
 **Check saved result** reads the original receipt without replaying the write.
 

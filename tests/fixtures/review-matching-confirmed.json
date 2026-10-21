@@ -1,0 +1,29 @@
+{
+  "provenance": "One manager-confirmed assignment observed 2026-10-21; paired evidence anonymized with matching name tokens/initials, crew mentions and exact completion gap preserved. Candidate universe is a focused pair, not a live-population replay. Recorded completion follows review by 204 seconds; spec exclusion is intentional. Contact values are fictional; surname-handle overlap and capped service-context overlap count are preserved.",
+  "expected": "fixture-confirmed-1",
+  "date": "2024-05-20",
+  "review": {
+    "uid": "confirmed-1",
+    "authorName": "Pavaerton Cavberton",
+    "body": "Thanks to Eavderton for the service.",
+    "createdAt": "2024-05-20T17:56:36+00:00",
+    "locationName": "Junk King Fixture Bay"
+  },
+  "appointments": [
+    {
+      "appt_id": "fixture-confirmed-1",
+      "job_id": "JKTEST1001",
+      "customer_name": "Pavaerton Ravcerton",
+      "job_status": "Completed",
+      "appointment_type": "Job",
+      "completed_at": "2024-05-20T13:00:00-05:00",
+      "driver_name": "Eavderton Daveerton",
+      "additional_crew": [],
+      "territory": "Fixture Bay",
+      "appointment_notes": "Fictional instructions",
+      "service_address": "100 Imaginary Lane",
+      "customer_phone": "2025550100",
+      "customerEmail": "cavberton123@example.invalid"
+    }
+  ]
+}

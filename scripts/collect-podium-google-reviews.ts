@@ -7,7 +7,8 @@ import {
   listRecentPodiumGoogleReviews,
   type PodiumReviewInvite,
 } from "../lib/podium-api";
-import { buildPodiumAppointmentMatcher } from "../lib/podium-review-attribution";
+import { buildPodiumAppointmentMatcher, buildPodiumInviteNameMatcher } from "../lib/podium-review-attribution";
+import { savePodiumHighConfidenceMatches } from "../lib/podium-review-assignments";
 import type { PodiumGoogleReviewsSnapshot } from "../lib/podium-reviews";
 import { chicagoDateKey } from "../lib/report-dates";
 
@@ -86,11 +87,18 @@ async function main(): Promise<void> {
     .slice(0, MAX_INVITES_PER_RUN);
   const invites = await loadReviewInvites(inviteUids);
   const matchAppointment = buildPodiumAppointmentMatcher(root);
+  const matchInviteName = buildPodiumInviteNameMatcher(root);
+  let previous: PodiumGoogleReviewsSnapshot | null = null;
+  try { previous = JSON.parse(fs.readFileSync(currentFile, "utf8")); } catch { /* First collection. */ }
+  const previousReviews = new Map(previous?.locations.flatMap(location => location.reviews).map(review => [review.uid, review]) || []);
+  const nameReferences = new Map<string, string[]>();
   const attributionByReviewUid = new Map(reviews.map((review) => {
     const invite = review.reviewInvitationUids
       .map((uid) => invites.get(uid) || null)
       .find((candidate): candidate is PodiumReviewInvite => Boolean(candidate)) || null;
-    return [review.uid, matchAppointment(review.createdAt, invite)] as const;
+    nameReferences.set(review.uid, invite ? matchInviteName({ ...review, locationName: "", invite }) : previousReviews.get(review.uid)?.inviteNameReferences || []);
+    const prior = previousReviews.get(review.uid)?.attribution;
+    return [review.uid, prior && ["exact_phone", "exact_email"].includes(prior.matchMethod || "") ? prior : matchAppointment(review.createdAt, invite)] as const;
   }));
   const snapshot: PodiumGoogleReviewsSnapshot = {
     version: 1,
@@ -113,9 +121,12 @@ async function main(): Promise<void> {
         needsResponse: review.needsResponse,
         responseCount: review.responseCount,
         attribution: attributionByReviewUid.get(review.uid),
+        inviteNameReferences: nameReferences.get(review.uid),
       })),
     })),
   };
+  // Local scoring only: no extra invite requests, scopes, providers or polling.
+  savePodiumHighConfidenceMatches(root, snapshot.locations.flatMap(location => location.reviews.map(review => ({ ...review, locationName: location.name }))));
   writeJson(
     path.join(root, "history", "podium-google-reviews", `podium-google-reviews_${chicagoDateKey()}.json`),
     snapshot,

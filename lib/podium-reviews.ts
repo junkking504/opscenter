@@ -17,6 +17,7 @@ export type PodiumReviewSnapshotItem = {
   needsResponse: boolean;
   responseCount: number;
   attribution?: PodiumReviewAppointmentAttribution;
+  inviteNameReferences?: string[];
 };
 
 export type PodiumReviewLocationSnapshot = {
@@ -223,7 +224,8 @@ export function buildPodiumGoogleReviewsViewFromData(
       new30Days: location.reviews.filter((review) => withinDays(review.createdAt, 30)).length,
       reviews: location.reviews.map((review) => {
         const manual = manualAssignments.get(review.uid);
-        return manual ? { ...review, attribution: manual.attribution } : review;
+        const exact = ["exact_phone", "exact_email"].includes(review.attribution?.matchMethod || "");
+        return manual && !(exact && manual.attribution.matchMethod === "inferred_high") ? { ...review, attribution: manual.attribution } : review;
       })
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
         .map((review) => ({ ...review, isNew: Boolean(previous) && !previousReviewIds.has(review.uid) })),

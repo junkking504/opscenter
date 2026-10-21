@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   buildPodiumReviewNameSuggestionMap,
   findPodiumReviewAppointment,
+  inferredHighAttribution,
   listPodiumReviewAssignmentOptions,
   type PodiumReviewAppointmentAttribution,
   type PodiumReviewAssignmentOption,
@@ -48,24 +49,25 @@ function validAssignment(value: unknown): value is PodiumReviewManualAssignment 
     assignment
     && typeof assignment.reviewUid === "string"
     && assignment.reviewUid.trim()
-    && assignment.attribution?.status === "matched"
-    && assignment.attribution.matchMethod === "manual_appointment"
-    && Array.isArray(assignment.attribution.crew)
-    && assignment.attribution.crew.length > 0,
+    && ((assignment.attribution?.status === "unmatched" && assignment.attribution.matchMethod === "manual_unassigned")
+      || (assignment.attribution?.status === "matched"
+        && ["manual_appointment", "inferred_high", "exact_phone", "exact_email"].includes(assignment.attribution.matchMethod || "")
+        && Array.isArray(assignment.attribution.crew) && assignment.attribution.crew.length > 0)),
   );
 }
 
-export function readPodiumReviewAssignments(): PodiumReviewManualAssignment[] {
+export function readPodiumReviewAssignments(file = podiumReviewAssignmentStorePath()): PodiumReviewManualAssignment[] {
   try {
-    const payload = JSON.parse(fs.readFileSync(podiumReviewAssignmentStorePath(), "utf8")) as Partial<PodiumReviewAssignmentStore>;
-    return Array.isArray(payload.assignments) ? payload.assignments.filter(validAssignment) : [];
-  } catch {
-    return [];
+    const payload = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<PodiumReviewAssignmentStore>;
+    if (payload.version !== 1 || !Array.isArray(payload.assignments) || !payload.assignments.every(validAssignment)) throw new Error("Review assignment store is unreadable.");
+    return payload.assignments;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw new Error("Review assignment store is unreadable; no assignments were changed.");
   }
 }
 
-function writeAssignments(assignments: PodiumReviewManualAssignment[]): void {
-  const file = podiumReviewAssignmentStorePath();
+function writeAssignments(assignments: PodiumReviewManualAssignment[], file = podiumReviewAssignmentStorePath()): void {
   const directory = path.dirname(file);
   fs.mkdirSync(directory, { recursive: true, mode: 0o770 });
   const payload: PodiumReviewAssignmentStore = {
@@ -96,9 +98,11 @@ export function assignPodiumReviewToAppointment(input: {
     assignedAt: new Date().toISOString(),
     assignedBy: String(input.assignedBy || "").trim(),
   };
-  const remaining = readPodiumReviewAssignments().filter((entry) => entry.reviewUid !== reviewUid);
-  writeAssignments([...remaining, assignment]);
-  return assignment;
+  return withAssignmentLock(podiumReviewAssignmentStorePath(), () => {
+    const remaining = readPodiumReviewAssignments().filter((entry) => entry.reviewUid !== reviewUid);
+    writeAssignments([...remaining, assignment]);
+    return assignment;
+  });
 }
 
 export function podiumReviewAssignmentMap(): Map<string, PodiumReviewManualAssignment> {
@@ -113,4 +117,57 @@ export function podiumReviewNameSuggestions(
   reviews: PodiumReviewNameSuggestionInput[],
 ): Record<string, PodiumReviewNameSuggestion[]> {
   return buildPodiumReviewNameSuggestionMap(podiumReviewAssignmentDataDirectory(), reviews);
+}
+
+// Shared by the collector, desktop and legacy assignment endpoint. Atomic rename
+// alone cannot stop a collector read/modify/write from losing a manager change.
+function withAssignmentLock<T>(file: string, write: () => T): T {
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o770 });
+  const lock = `${file}.lock`;
+  try { fs.mkdirSync(lock); } catch { throw new Error("Another review assignment is in progress or requires recovery."); }
+  try { return write(); } finally { fs.rmdirSync(lock); }
+}
+
+export function undoPodiumReviewAutoMatch(reviewUid: string, assignedBy: string): boolean {
+  return withAssignmentLock(podiumReviewAssignmentStorePath(), () => {
+    const assignments = readPodiumReviewAssignments();
+    const current = assignments.find(entry => entry.reviewUid === reviewUid);
+    if (current?.attribution.matchMethod !== "inferred_high") return false;
+    // Tombstone survives future collections; a manager action always wins.
+    const replacement: PodiumReviewManualAssignment = {
+      reviewUid, assignedBy, assignedAt: new Date().toISOString(),
+      attribution: { status: "unmatched", matchMethod: "manual_unassigned" },
+    };
+    writeAssignments([...assignments.filter(entry => entry.reviewUid !== reviewUid), replacement]);
+    return readPodiumReviewAssignments().some(entry => entry.reviewUid === reviewUid && entry.attribution.matchMethod === "manual_unassigned");
+  });
+}
+
+/** Default-off rollout gate. Enable only in the reviewed deployed release. */
+export function podiumHighAutoSaveEnabled(): boolean {
+  return process.env.PODIUM_REVIEW_HIGH_AUTO_SAVE === "true";
+}
+
+export function savePodiumHighConfidenceMatches(
+  dataDir: string,
+  reviews: Array<PodiumReviewNameSuggestionInput & { attribution?: PodiumReviewAppointmentAttribution }>,
+  file = path.join(dataDir, "operator", "podium_review_assignments.json"),
+): number {
+  if (!podiumHighAutoSaveEnabled()) return 0;
+  const suggestions = buildPodiumReviewNameSuggestionMap(dataDir, reviews);
+  return withAssignmentLock(file, () => {
+    const assignments = readPodiumReviewAssignments(file);
+    const saved = new Set(assignments.map(entry => entry.reviewUid));
+    let count = 0;
+    for (const review of reviews) {
+      // Preserve every prior decision, including undo and exact collector matches.
+      if (saved.has(review.uid) || review.attribution?.status === "matched" || review.attribution?.matchMethod === "manual_unassigned") continue;
+      const suggestion = suggestions[review.uid]?.[0];
+      if (suggestion?.confidence !== "High") continue;
+      assignments.push({ reviewUid: review.uid, assignedBy: "opscenter:review-matcher", assignedAt: new Date().toISOString(), attribution: inferredHighAttribution(suggestion) });
+      saved.add(review.uid); count++;
+    }
+    if (count) writeAssignments(assignments, file);
+    return count;
+  });
 }

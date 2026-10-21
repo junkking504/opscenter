@@ -14,7 +14,10 @@ export type PodiumReviewInviteIdentity = {
 
 export type PodiumReviewAppointmentAttribution = {
   status: "matched" | "ambiguous" | "unmatched";
-  matchMethod?: "exact_phone" | "exact_email" | "manual_appointment";
+  matchMethod?: "exact_phone" | "exact_email" | "manual_appointment" | "inferred_high" | "manual_unassigned";
+  score?: number;
+  reasons?: string[];
+  rulesVersion?: string;
   appointmentId?: string;
   jkNumber?: string;
   appointmentDate?: string;
@@ -34,6 +37,9 @@ type AppointmentCandidate = {
   truck: string;
   crew: string[];
   identifiers: Set<string>;
+  completedAt: number | null;
+  emailHandle: string;
+  contextTokens: Set<string>;
 };
 
 function clean(value: unknown): string {
@@ -93,7 +99,7 @@ function crewNames(row: AnyRecord): string[] {
 function completedServiceAppointment(row: AnyRecord): boolean {
   const status = clean(row.job_status || row.final_status || row.complete_status_text).toLowerCase();
   const type = clean(row.appointment_type || row.final_appointment_type).toLowerCase();
-  return /complete|closed|paid/.test(status) && !/estimate/.test(type);
+  return /^(completed?|closed|paid)(?:\b|$)/.test(status) && !/estimate/.test(type);
 }
 
 function appointmentIdentifiers(row: AnyRecord): Set<string> {
@@ -102,6 +108,7 @@ function appointmentIdentifiers(row: AnyRecord): Set<string> {
     normalizePhone(row.phone),
     normalizeEmail(row.customerEmail),
     normalizeEmail(row.customer_email),
+    normalizeEmail(row.email),
   ].filter(Boolean));
 }
 
@@ -118,39 +125,76 @@ function readAppointments(dataDir: string): AppointmentCandidate[] {
   } catch {
     return [];
   }
-  return appointmentMemo(directory, names.map((file) => path.join(directory, file)), () => parseAppointments(directory, names));
+  const rawFiles = names.map(file => path.join(dataDir, "history", "junkware", `junkware_${DAILY_METRICS_FILE.exec(file)![1]}_raw.json`));
+  return appointmentMemo(directory, [...names.map(file => path.join(directory, file)), ...rawFiles], () => parseAppointments(directory, names));
+}
+
+// Only explicit completion evidence is used; scheduled/GPS departure times are
+// not completion. Parse JunkWare's Chicago wall clock without host-TZ dependence.
+const completionClock = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+function completionTime(value: unknown): number | null {
+  const text = clean(value);
+  if (!text) return null;
+  if (/T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)) {
+    const stamp = Date.parse(text);
+    return Number.isFinite(stamp) ? stamp : null;
+  }
+  const parts = /^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2})(?::(\d{2}))? (AM|PM)$/i.exec(text);
+  if (!parts) return null;
+  const [, month, day, year, hour, minute, second, period] = parts;
+  if (+hour < 1 || +hour > 12 || +minute > 59 || +(second || 0) > 59 || +month < 1 || +month > 12 || +day < 1 || +day > 31) return null;
+  const wall = Date.UTC(+year, +month - 1, +day, (+hour % 12) + (period.toUpperCase() === "PM" ? 12 : 0), +minute, +(second || 0));
+  const calendar = new Date(wall);
+  if (calendar.getUTCFullYear() !== +year || calendar.getUTCMonth() !== +month - 1 || calendar.getUTCDate() !== +day) return null;
+  // Try both Chicago offsets, validating the round trip (including DST).
+  for (const offset of [5, 6]) {
+    const stamp = wall + offset * 3_600_000;
+    const fields = Object.fromEntries(completionClock.formatToParts(new Date(stamp)).map(part => [part.type, part.value]));
+    if (Date.UTC(+fields.year, +fields.month - 1, +fields.day, +fields.hour, +fields.minute, +fields.second) === wall) return stamp;
+  }
+  return null;
 }
 
 function parseAppointments(directory: string, names: string[]): AppointmentCandidate[] {
   const appointments = new Map<string, AppointmentCandidate>();
-  try {
-    for (const file of names) {
-      const match = DAILY_METRICS_FILE.exec(file);
-      if (!match) continue;
-      const payload = JSON.parse(fs.readFileSync(path.join(directory, file), "utf8")) as AnyRecord;
-      for (const row of recordRows(payload.appointments)) {
-        if (!completedServiceAppointment(row)) continue;
-        const appointmentId = clean(row.appt_id || row.appointment_id);
-        const jkNumber = clean(row.job_id || row.jk_number);
-        const key = `${match[1]}|${appointmentId || jkNumber}`;
-        const appointmentUrl = clean(row.source_page) || (appointmentId
-          ? `https://junkware.junk-king.com/franchise/appointment.aspx?id=${encodeURIComponent(appointmentId)}`
-          : "");
-        appointments.set(key, {
-          date: match[1],
-          appointmentId,
-          jkNumber,
-          customerName: clean(row.customer_name || row.customer),
-          appointmentUrl,
-          territory: clean(row.normalized_territory || row.territory || row.market),
-          truck: clean(row.assigned_truck || row.truck || row.truck_number),
-          crew: crewNames(row),
-          identifiers: appointmentIdentifiers(row),
-        });
-      }
+  for (const file of names.sort()) {
+    const match = DAILY_METRICS_FILE.exec(file);
+    if (!match) continue;
+    let payload: AnyRecord;
+    try { payload = JSON.parse(fs.readFileSync(path.join(directory, file), "utf8")); } catch { return []; }
+    if (!Array.isArray(payload.appointments)) return [];
+    let raw: AnyRecord = {};
+    try { raw = JSON.parse(fs.readFileSync(path.join(directory, "..", "history", "junkware", `junkware_${match[1]}_raw.json`), "utf8")); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") return []; }
+    const details = new Map<string, AnyRecord>();
+    for (const row of [...recordRows(raw.appointments), ...recordRows(raw.completed)]) {
+      const id = clean(row.appt_id || row.appointment_id);
+      if (id) details.set(id, { ...details.get(id), ...Object.fromEntries(Object.entries(row).filter(([, value]) => value !== "" && value != null)) });
     }
-  } catch {
-    return [];
+    for (const metric of recordRows(payload.appointments)) {
+      if (!completedServiceAppointment(metric)) continue;
+      const appointmentId = clean(metric.appt_id || metric.appointment_id);
+      const jkNumber = clean(metric.job_id || metric.jk_number);
+      if (!appointmentId && !jkNumber) continue;
+      const detail = details.get(appointmentId);
+      // Never enrich a recycled/mismatched appointment identity.
+      const row = { ...metric, ...(detail && (!detail.job_id || clean(detail.job_id) === jkNumber) ? detail : {}) };
+      if (!completedServiceAppointment(row)) continue;
+      const completedAt = completionTime(row.completed_at);
+      if (clean(row.completed_at) && completedAt === null) continue;
+      const completionDate = clean(row.completion_date || row.completed_date);
+      const date = completedAt !== null ? chicagoDateKey(new Date(completedAt)) : (/^\d{4}-\d{2}-\d{2}$/.test(completionDate) ? completionDate : match[1]);
+      appointments.set(appointmentId || jkNumber, {
+        date, completedAt, appointmentId, jkNumber,
+        customerName: clean(row.customer_name || row.customer),
+        appointmentUrl: clean(row.source_page) || (appointmentId ? `https://junkware.junk-king.com/franchise/appointment.aspx?id=${encodeURIComponent(appointmentId)}` : ""),
+        territory: clean(metric.normalized_territory || metric.territory || metric.market),
+        truck: clean(metric.assigned_truck || metric.truck || metric.truck_number),
+        crew: crewNames(metric),
+        identifiers: appointmentIdentifiers(row),
+        emailHandle: normalizeEmail(row.customerEmail || row.customer_email || row.email).split("@")[0].replace(/[^a-z0-9]/g, ""),
+        contextTokens: contextTokens([row.appointment_notes, row.customer_notes, row.additional_notes, row.franchise_notes, row.job_description, row.job_notes, row.notes, row.business_name, row.property_name, row.service_street, row.neighbourhood, row.neighborhood, row.service_address, row.address, row.parish].map(clean).join(" ")),
+      });
+    }
   }
   return Array.from(appointments.values());
 }
@@ -168,7 +212,7 @@ function dateDaysBefore(value: string, days: number): string {
 
 function sanitizedMatch(
   candidate: AppointmentCandidate,
-  method: "exact_phone" | "exact_email" | "manual_appointment",
+  method: NonNullable<PodiumReviewAppointmentAttribution["matchMethod"]>,
 ): PodiumReviewAppointmentAttribution {
   return {
     status: "matched",
@@ -197,7 +241,10 @@ export type PodiumReviewAssignmentOption = {
 };
 
 export type PodiumReviewNameSuggestion = PodiumReviewAssignmentOption & {
-  matchKind: "exact_name" | "exact_first_last" | "name_initial" | "partial_name" | "name_variation" | "crew_mention";
+  matchKind: "exact_name" | "exact_first_last" | "name_initial" | "partial_name" | "name_variation" | "crew_mention" | "email_handle" | "context" | "timing";
+  score: number;
+  confidence: "High" | "Medium" | "Low";
+  rulesVersion: string;
   evidence: string[];
 };
 
@@ -207,6 +254,9 @@ export type PodiumReviewNameSuggestionInput = {
   createdAt: string;
   locationName: string;
   body?: string;
+  invite?: PodiumReviewInviteIdentity | null;
+  // Sanitized signal 2 is retained by the collector, never invite contact data.
+  inviteNameReferences?: string[];
 };
 
 function assignmentOption(candidate: AppointmentCandidate): PodiumReviewAssignmentOption {
@@ -253,16 +303,22 @@ function preparedName(value: string) {
 function nameMatchKind(
   reviewerName: ReturnType<typeof preparedName>,
   customerName: ReturnType<typeof preparedName>,
-): Exclude<PodiumReviewNameSuggestion["matchKind"], "crew_mention"> | null {
+): "exact_name" | "exact_first_last" | "name_initial" | "partial_name" | "name_variation" | null {
   const reviewer = reviewerName.parts;
   const customer = customerName.parts;
   if (!reviewer.length || !customer.length) return null;
-  if (reviewerName.sorted === customerName.sorted) return "exact_name";
+  if (reviewer.length === 1 || customer.length === 1) {
+    return reviewer.some(part => part.length >= 3 && customer.includes(part)) ? "partial_name" : null;
+  }
+  if (reviewerName.sorted === customerName.sorted) {
+    if (reviewer.every(part => part.length === 1)) return null;
+    return reviewer.some(part => part.length === 1) ? "name_initial" : "exact_name";
+  }
   const reviewerFirst = reviewer[0];
   const reviewerLast = reviewer.at(-1) || "";
   const customerFirst = customer[0];
   const customerLast = customer.at(-1) || "";
-  if (reviewerFirst === customerFirst && reviewerLast === customerLast) return "exact_first_last";
+  if (reviewerFirst.length > 1 && reviewerLast.length > 1 && reviewerFirst === customerFirst && reviewerLast === customerLast) return "exact_first_last";
   if (reviewerFirst === customerFirst && reviewerLast.length === 1 && customerLast.startsWith(reviewerLast)) {
     return "name_initial";
   }
@@ -272,8 +328,8 @@ function nameMatchKind(
   if (reviewerFirst.length === 1 && customerFirst.startsWith(reviewerFirst) && reviewerLast === customerLast) {
     return "name_initial";
   }
+  if (reviewer.length >= 2 && customer.length >= 2 && similarName(reviewerFirst, customerFirst) && similarName(reviewerLast, customerLast)) return "name_variation";
   if ([reviewerFirst, reviewerLast].some(part => part.length >= 3 && [customerFirst, customerLast].includes(part))) return "partial_name";
-  if ([reviewerFirst, reviewerLast].some(part => [customerFirst, customerLast].some(other => similarName(part, other)))) return "name_variation";
   return null;
 }
 
@@ -333,48 +389,108 @@ function sameTerritory(locationName: string, territory: string): boolean {
   return Boolean(location && candidate && (location === candidate || location.includes(candidate) || candidate.includes(location)));
 }
 
+export const REVIEW_MATCHING_RULES_VERSION = "2026-10-21";
+// Exclude common prose and junk-removal vocabulary; never expose matched words.
+const contextStopWords = new Set("a an the and or of for to in on at by from with without this that these those my our your their his her they them was were is are be been very really great good excellent amazing professional friendly helpful quick fast efficient service services junk removal remove removed removing haul hauled hauling pickup pick picked clean cleanup cleanout cleaned cleaning job jobs team crew guys work worked working thanks thank recommend recommended would will had have has did done everything all it as so but not also came come get got out up us we you he she i me yard furniture couch sofa house home items stuff trash debris load truck appointment customer call called need needs please today yesterday street st road rd avenue ave drive dr lane ln boulevard blvd unit suite la louisiana".split(" "));
+function contextTokens(text: string): Set<string> {
+  return new Set(nameParts(text).filter(word => word.length >= 3 && /[a-z]/.test(word) && !contextStopWords.has(word)));
+}
+function eligibleAt(candidate: AppointmentCandidate, createdAt: string): boolean {
+  const reviewDate = dateKey(createdAt);
+  // Unknown same-day completion time cannot prove the job preceded the review.
+  return candidate.completedAt !== null ? candidate.completedAt <= Date.parse(createdAt) : candidate.date < reviewDate;
+}
+
 export function buildPodiumReviewNameSuggestionMap(
   dataDir: string,
   reviews: PodiumReviewNameSuggestionInput[],
 ): Record<string, PodiumReviewNameSuggestion[]> {
-  // Normalize each name once per call, rather than once per review pair.
-  // Appointments are reread whenever a daily metrics file changes.
-  const appointments = readAppointments(dataDir)
-    .filter((candidate) => candidate.crew.length > 0 && candidate.customerName)
-    .map((candidate) => ({ candidate, name: preparedName(candidate.customerName) }));
-  return Object.fromEntries(reviews.map((review) => {
+  const appointments = readAppointments(dataDir).filter(candidate => candidate.crew.length > 0)
+    .map(candidate => ({ candidate, name: preparedName(candidate.customerName) }));
+  return Object.fromEntries(reviews.map(review => {
     const reviewDate = dateKey(review.createdAt);
-    const earliestDate = reviewDate ? dateDaysBefore(reviewDate, 90) : "";
-    const reviewerName = preparedName(review.authorName);
-    const words = crewMentionTokens(review.body || "");
-    const crewMentions = new Map<string, boolean>();
+    if (!reviewDate) return [review.uid, []];
+    const earliest = dateDaysBefore(reviewDate, 90), recent = dateDaysBefore(reviewDate, 14);
+    const reviewer = preparedName(review.authorName);
+    const words = crewMentionTokens(review.body || ""), context = contextTokens(review.body || "");
+    const inviteName = review.invite?.customerName ? preparedName(review.invite.customerName) : null;
+    const pool = appointments.filter(({ candidate: c }) => c.date >= earliest && c.date <= reviewDate && eligibleAt(c, review.createdAt));
+    const crewJobs = new Map<string, number>();
+    for (const { candidate: c } of pool) if (c.date >= recent && sameTerritory(review.locationName, c.territory)) {
+      for (const member of c.crew) crewJobs.set(member, (crewJobs.get(member) || 0) + 1);
+    }
     const nameMatches = new Map<string, ReturnType<typeof nameMatchKind>>();
-    const suggestions = reviewDate ? appointments
-      .filter(({ candidate }) => candidate.date >= earliestDate && candidate.date <= reviewDate)
-      .map(({ candidate, name }) => {
-        if (!nameMatches.has(name.parts.join(" "))) nameMatches.set(name.parts.join(" "), nameMatchKind(reviewerName, name));
-        const nameKind = nameMatches.get(name.parts.join(" ")) ?? null;
-        const crew = candidate.crew.filter(member => {
-          if (!crewMentions.has(member)) {
-            const first = nameParts(member)[0];
-            crewMentions.set(member, Boolean(first && first.length >= 3 && crewNameMentioned(first, words)));
-          }
-          return crewMentions.get(member);
-        });
-        const local = sameTerritory(review.locationName, candidate.territory);
-        const matchKind = nameKind || (crew.length && local ? "crew_mention" as const : null);
-        const evidence = [nameKind ? ({exact_name:"Exact customer name",exact_first_last:"First and last name",name_initial:"Name and initial",partial_name:"First or last name",name_variation:"Possible spelling or nickname variation"} as const)[nameKind] : "", crew.length ? `Possible crew mention: ${crew.join(" + ")}` : "", local ? "Same location" : ""].filter(Boolean);
-        const rank = nameKind ? ({exact_name:100,exact_first_last:95,name_initial:75,partial_name:40,name_variation:30} as const)[nameKind] : 0;
-        return {candidate, matchKind, evidence, score: rank + crew.length * 25 + Number(local) * 10};
-      })
-      .filter(entry => entry.matchKind !== null)
-      .sort((left, right) => right.score - left.score
-        || right.candidate.date.localeCompare(left.candidate.date)
-        || left.candidate.jkNumber.localeCompare(right.candidate.jkNumber))
-      .slice(0, 5)
-      .map(({ candidate, matchKind, evidence }) => ({ ...assignmentOption(candidate), matchKind: matchKind!, evidence })) : [];
+    const mentions = new Map<string, boolean>();
+    const scored = pool.map(({ candidate: c, name }) => {
+      const key = name.parts.join(" ");
+      if (!nameMatches.has(key)) nameMatches.set(key, nameMatchKind(reviewer, name));
+      const kind = nameMatches.get(key) ?? null;
+      const days = Math.round((Date.parse(reviewDate) - Date.parse(c.date)) / 86_400_000);
+      const timing = days === 0 ? 30 : days <= 3 ? 20 : days <= 7 ? 10 : days <= 14 ? 3 : 0;
+      const nameScore = kind ? { exact_name: 50, exact_first_last: 50, name_initial: 35, partial_name: 15, name_variation: 30 }[kind] : 0;
+      const invite = Boolean(review.inviteNameReferences?.includes(c.appointmentId || c.jkNumber) || (inviteName && reviewer.parts.length >= 2 && reviewer.sorted === inviteName.sorted && ["exact_name", "exact_first_last"].includes(nameMatchKind(inviteName, name) || "")));
+      const surname = reviewer.parts.length >= 2 ? reviewer.parts.at(-1)! : "";
+      const email = Boolean(surname.length >= 3 && c.emailHandle.includes(surname));
+      const overlaps = [...context].filter(word => c.contextTokens.has(word)).length;
+      const evidence = [
+        invite ? "Invite customer name matches reviewer and job" : "",
+        kind ? { exact_name: "Exact customer name", exact_first_last: "First and last name", name_initial: "Name and initial", partial_name: "First or last name", name_variation: "Possible spelling or nickname variation" }[kind] : "",
+        email ? "Reviewer name overlaps customer email handle" : "",
+        timing ? (days === 0 ? "Completed same day" : `Completed ${days} day${days === 1 ? "" : "s"} before review`) : "",
+        overlaps ? `${Math.min(overlaps, 2)} service context overlap${overlaps > 1 ? "s" : ""}` : "",
+      ].filter(Boolean);
+      let score = Number(invite) * 60 + nameScore + Number(email) * 35 + timing + Math.min(overlaps, 2) * 10;
+      const crew = c.crew.filter(member => {
+        if (!mentions.has(member)) mentions.set(member, crewNameMentioned(nameParts(member)[0] || "", words));
+        return mentions.get(member);
+      });
+      const local = sameTerritory(review.locationName, c.territory);
+      const uniqueCrew = c.date >= recent && local && crew.some(member => crewJobs.get(member) === 1);
+      if (score > 0 || uniqueCrew) {
+        if (crew.length) { score += Math.min(crew.length * 15, 25); evidence.push("Possible crew mention"); }
+        if (local) { score += 5; evidence.push("Same location"); }
+      }
+      return { candidate: c, score, days, evidence, identity: invite || email || ["exact_name", "exact_first_last", "name_initial"].includes(kind || ""), matchKind: kind || (email ? "email_handle" : overlaps ? "context" : crew.length && uniqueCrew ? "crew_mention" : "timing") as PodiumReviewNameSuggestion["matchKind"] };
+    });
+    const short = scored.filter(entry => entry.candidate.date >= recent);
+    const window = short.some(entry => entry.score >= 40) ? short : scored;
+    window.sort((a, b) => b.score - a.score || b.candidate.date.localeCompare(a.candidate.date) || a.candidate.jkNumber.localeCompare(b.candidate.jkNumber));
+    let lows = 0;
+    const suggestions = window.filter(entry => entry.score >= 15).map((entry, index) => {
+      const high = index === 0 && entry.score >= 80 && entry.identity && entry.days <= 3 && entry.score - (window[1]?.score || 0) >= 25;
+      const confidence = high ? "High" : entry.score >= 40 ? "Medium" : "Low";
+      return { ...assignmentOption(entry.candidate), matchKind: entry.matchKind, evidence: entry.evidence, score: entry.score, confidence, rulesVersion: REVIEW_MATCHING_RULES_VERSION } as PodiumReviewNameSuggestion;
+    }).filter(entry => entry.confidence !== "Low" || ++lows <= 3);
     return [review.uid, suggestions];
   }));
+}
+
+/** Keep signal 2 across collector snapshots without persisting invite PII. */
+export function buildPodiumInviteNameMatcher(dataDir: string) {
+  const appointments = readAppointments(dataDir).map(candidate => ({ candidate, name: preparedName(candidate.customerName) }));
+  return (review: PodiumReviewNameSuggestionInput): string[] => {
+    const invite = review.invite?.customerName ? preparedName(review.invite.customerName) : null;
+    const reviewer = preparedName(review.authorName);
+    if (!invite || reviewer.parts.length < 2 || reviewer.sorted !== invite.sorted) return [];
+    const earliest = dateDaysBefore(dateKey(review.createdAt), 90);
+    return appointments.filter(({ candidate: c, name }) => c.crew.length && eligibleAt(c, review.createdAt) && c.date >= earliest
+      && ["exact_name", "exact_first_last"].includes(nameMatchKind(invite, name) || ""))
+      .map(({ candidate: c }) => c.appointmentId || c.jkNumber);
+  };
+}
+
+export function podiumInviteNameReferences(dataDir: string, review: PodiumReviewNameSuggestionInput): string[] {
+  return buildPodiumInviteNameMatcher(dataDir)(review);
+}
+
+export function inferredHighAttribution(suggestion: PodiumReviewNameSuggestion): PodiumReviewAppointmentAttribution {
+  return {
+    status: "matched", matchMethod: "inferred_high", appointmentId: suggestion.appointmentId,
+    jkNumber: suggestion.jkNumber, appointmentDate: suggestion.appointmentDate,
+    appointmentUrl: suggestion.appointmentUrl, territory: suggestion.territory,
+    truck: suggestion.truck, crew: suggestion.crew, score: suggestion.score,
+    reasons: suggestion.evidence, rulesVersion: suggestion.rulesVersion,
+  };
 }
 
 export function listPodiumReviewAssignmentOptions(
@@ -406,12 +522,13 @@ export function buildPodiumAppointmentMatcher(dataDir: string) {
   const appointments = readAppointments(dataDir);
   return (reviewCreatedAt: string, invite: PodiumReviewInviteIdentity | null): PodiumReviewAppointmentAttribution => {
     const reviewDate = dateKey(reviewCreatedAt);
-    const identifier = normalizePhone(invite?.channelIdentifier) || normalizeEmail(invite?.channelIdentifier);
+    const email = normalizeEmail(invite?.channelIdentifier);
+    const identifier = email || normalizePhone(invite?.channelIdentifier);
     if (!reviewDate || !identifier) return { status: "unmatched" };
-    const method = normalizePhone(invite?.channelIdentifier) ? "exact_phone" : "exact_email";
+    const method = email ? "exact_email" : "exact_phone";
     const earliestDate = dateDaysBefore(reviewDate, 90);
     const candidates = appointments.filter((appointment) =>
-      appointment.date >= earliestDate
+      appointment.crew.length > 0 && eligibleAt(appointment, reviewCreatedAt) && appointment.date >= earliestDate
       && appointment.date <= reviewDate
       && appointment.identifiers.has(identifier));
     if (!candidates.length) return { status: "unmatched" };

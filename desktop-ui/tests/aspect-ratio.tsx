@@ -27,9 +27,11 @@ const syntheticPace = Array.from({length:730},(_,i)=>{const day=new Date(`${date
 const priorValues={revenue:16000,jobs:55,averageJob:16000/55,costs:9500,profit:6500,margin:40.625};
 const currentValues={revenue:18000,jobs:60,averageJob:300,costs:9000,profit:9000,margin:50};
 // Synthetic API data only; every write is blocked.
+let failReads = false;
 window.fetch=async(input,init)=>{
  if(init?.method && init.method!=='GET')return Response.json({error:'Read-only fixture'},{status:403});
  const url=new URL(String(input),location.origin), selected=url.searchParams.get('date')||date;
+ if(failReads && ['/api/desktop/finance','/api/desktop/fleet'].includes(url.pathname))throw new Error('Synthetic read failure');
  const snapshots:Record<string,unknown>={
  schedule:{date:selected,observedAt:stamp,appointments:scheduleJobs,truckLoads:loads,fleet:{isToday:true,lastUpdatedAt:stamp,trucks:commandMap?mapTrucks:[]}},
  krewe:{comparison:{label:'Synthetic prior comparable period',totals:{...amounts,revenue:560,totalPay:90},count:7,rph:140},date,start:date,end:date,view:'today',sourceUpdatedAt:stamp,missingDates:[],payrollVisible:true,canWrite:new URLSearchParams(location.search).has('consistency'),members,totals:amounts,callIn:null},
@@ -43,6 +45,6 @@ window.fetch=async(input,init)=>{
 };
 class NoEvents {addEventListener(){}close(){}}
 window.EventSource=NoEvents as unknown as typeof EventSource;
-createRoot(document.getElementById('root')!).render(<Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>);
+createRoot(document.getElementById('root')!).render(<><Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>{new URLSearchParams(location.search).has('consistency')&&<section aria-label="Synthetic test controls"><button onClick={()=>{failReads=true;window.dispatchEvent(new Event('online'));}}>Fail workspace reads</button><button onClick={()=>{failReads=false;window.dispatchEvent(new Event('online'));}}>Recover workspace reads</button></section>}</>);
 
 import '../approved-workbench.css';

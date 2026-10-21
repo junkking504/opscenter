@@ -128,8 +128,8 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
   const sourceStatus = `${data.available ? `Published daily metrics · ${date}` : `Daily metrics unavailable for ${date}`} · Payment verification ${verification.status}`;
   const sourceFreshness = <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Source age shown on each financial card"/>;
   const sourceDetails = <div className="capital-source-details">
-    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Source details</span></summary>{sourceFreshness}<p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
-    {freshness.error && <WorkspaceFreshness state={freshness} />}
+    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Source details</span></summary>{!freshness.error && sourceFreshness}<p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
+    {freshness.error && sourceFreshness}
   </div>;
   return <section className={`finance-workspace capital-workspace finance-view-${overview ? 'overview' : financeView}`}>
     {!overview && sourceFreshness}

@@ -421,7 +421,7 @@ const healthSources = [
 ];
 
 const referenceConnectedSources = [
-  { ...healthSources[0], workspace: 'Schedule', action: 'Open Schedule' },
+  { ...healthSources[0], workspace: 'Schedule', action: 'Open Command' },
   { ...healthSources[1], workspace: 'Fleet', action: 'Open Fleet' },
   { ...healthSources[2], workspace: 'Finance', action: 'Open Finance' },
   { ...healthSources[3], workspace: 'Marketing', action: 'Open Lead Recovery' },
@@ -3960,17 +3960,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     openRecordDrawer({ actionQueueId: item.id, kicker: `${item.workspace} · ${item.status}`, title: item.title, summary: item.detail, action: item.action, source: item.source, updated: item.due, facts: [] });
   };
   const linkedActionForAlert = (item: WorkItem) => actionQueue.find((actionItem) => actionItem.alertId === item.id);
-  const alertWorkflowStatus = (item: WorkItem) => live ? ({ active: 'Active', acknowledged: 'Acknowledged', 'in-control': 'In Control', resolved: 'Resolved' } as const)[liveAlert(item)?.workflowState || 'active'] : alertOutcomes[item.id]
+  const alertWorkflowStatus = (item: WorkItem) => live ? ({ active: 'Active', acknowledged: 'Acknowledged', 'in-control': 'In Operating Control', resolved: 'Resolved' } as const)[liveAlert(item)?.workflowState || 'active'] : alertOutcomes[item.id]
     ? 'Resolved'
     : linkedActionForAlert(item)
-      ? 'In Control'
+      ? 'In Operating Control'
       : completed.includes(item.id)
         ? 'Acknowledged'
         : 'Active';
   const alertViewCounts: Record<AlertViewFilter, number> = {
     open: workItems.filter((item) => alertWorkflowStatus(item) !== 'Resolved').length,
     action: workItems.filter((item) => alertWorkflowStatus(item) === 'Active' && (!live || liveAlert(item)?.needsAction)).length,
-    control: workItems.filter((item) => alertWorkflowStatus(item) === 'In Control').length,
+    control: workItems.filter((item) => alertWorkflowStatus(item) === 'In Operating Control').length,
     acknowledged: workItems.filter((item) => alertWorkflowStatus(item) === 'Acknowledged').length,
     resolved: workItems.filter((item) => alertWorkflowStatus(item) === 'Resolved').length,
     all: workItems.length,
@@ -3980,7 +3980,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (alertViewFilter === 'all') return true;
     if (alertViewFilter === 'open') return status !== 'Resolved';
     if (alertViewFilter === 'action') return status === 'Active' && (!live || liveAlert(item)?.needsAction);
-    if (alertViewFilter === 'control') return status === 'In Control';
+    if (alertViewFilter === 'control') return status === 'In Operating Control';
     if (alertViewFilter === 'acknowledged') return status === 'Acknowledged';
     return status === 'Resolved';
   });
@@ -4278,7 +4278,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
                 {canFinance && <PushSettings />}
                 <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Dashboard <ArrowRight size={14} /></button></header>
-                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
+                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Operating Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Operating Control'}</button></div></article>; })}</div>
                   : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Dashboard.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
@@ -4443,7 +4443,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="alert-triage-bar" role="toolbar" aria-label="Filter alerts by workflow state">
                   <span>Workflow State</span>
                   <div>
-                    {([['open', 'Open'], ['action', 'Needs Action'], ['control', 'In Control'], ['acknowledged', 'Acknowledged'], ['resolved', 'Resolved'], ['all', 'All']] as Array<[AlertViewFilter, string]>).map(([filter, label]) => (
+                    {([['open', 'Open'], ['action', 'Needs Action'], ['control', 'In Operating Control'], ['acknowledged', 'Acknowledged'], ['resolved', 'Resolved'], ['all', 'All']] as Array<[AlertViewFilter, string]>).map(([filter, label]) => (
                       <button className={alertViewFilter === filter ? 'active' : ''} aria-pressed={alertViewFilter === filter} onClick={() => setAlertViewFilter(filter)} key={filter}>{label}<b>{live && !live.snapshot.sources.alerts ? '—' : alertViewCounts[filter]}</b></button>
                     ))}
                   </div>
@@ -4460,7 +4460,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           </div>
                           <div className="alert-card-actions">
                             {!completed.includes(item.id) && !outcome && (!live || liveAlert(item)?.workflowState === 'active' || liveAlert(item)?.workflowState === 'in-control') && <Button variant="outline" size="sm" disabled={Boolean(live && (!live.snapshot.sources.workflow || live.pendingAlertId))} onClick={() => acknowledgeAlert(item)}>Acknowledge</Button>}
-                            <Button variant={live || outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
+                            <Button variant={live || outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Operating Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
                             {!live && <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>}
                           </div>
                         </div>
@@ -4596,7 +4596,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer className="action-queue-note"><ShieldCheck size={13} /><span>Opening source context never approves or resolves an action. Resolution requires a recorded source check.</span></footer>
               </section>
               <section className="routes-panel control-route-panel">
-                <div className="section-title"><div><span className="section-kicker">4 active routes · 12 stops</span><h2>Live Operations</h2><p>Current route context supporting today’s decisions.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); setScheduleDay('today'); setScheduleView('board'); }}>Open Schedule <ArrowRight /></Button></div>
+                <div className="section-title"><div><span className="section-kicker">4 active routes · 12 stops</span><h2>Live Operations</h2><p>Current route context supporting today’s decisions.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); setScheduleDay('today'); setScheduleView('board'); }}>Open Command <ArrowRight /></Button></div>
                 <div className="control-route-list">
                   {schedule.map((route) => (
                     <article className={route.tone} key={route.truck}>

@@ -61,7 +61,6 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   const activeChecklist=active?.truck.checklists[(draft.cadence||'daily') as 'daily'|'weekly'|'monthly'];
   const field=(key:string,label:string,type='text')=><label key={key}><span>{label}</span><Input type={type} value={draft[key]||''} onChange={event=>setDraft({...draft,[key]:event.target.value})}/></label>;
   return <section className={`fleet-workspace live-fleet convoy-workspace fleet-view-${view}`}>
-    {freshness.error&&<WorkspaceFreshness state={freshness}/>}
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}
     {lastRequest&&<Button variant="outline" size="sm" disabled={pending} onClick={()=>void checkSavedResult()}>Check Saved Result</Button>}
     {!snapshot.sourceAvailable&&view!=='service'&&view!=='overview'&&<p className="convoy-source-alert">GPS source unavailable for this viewing day. Stored inspections and repairs remain visible.</p>}

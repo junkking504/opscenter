@@ -4,6 +4,7 @@
   border-color: var(--ops-brand-red);
   color: white;
 }
+.ops-app.ops-live .crew-today-actions .crew-today-edit:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
 .ops-app.ops-live .crew-today-actions .crew-today-edit:hover {
   background: var(--ops-brand-red-hover);
   border-color: var(--ops-brand-red-hover);

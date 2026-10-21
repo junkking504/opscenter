@@ -93,6 +93,7 @@ vm.runInNewContext(sw,{URL,self:{location:{origin:'https://ops.example.test'},ad
 let pending=Promise.resolve();handlers.push({data:{url:'https://evil.test',customer:'Private'},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
 assert.doesNotMatch(JSON.stringify(shown),/Private|evil/);assert.match(JSON.stringify(shown),/Operational updates are available/);
 handlers.notificationclick({notification:{close:()=>{},data:{path:'https://evil.test'}},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.equal(opened,'https://ops.example.test/desktop?workspace=Command');
+handlers.push({data:{json:()=>({title:'Truck 2 departed',body:'Truck 2 left BRHQ at 10:47 AM',eventId:'a'.repeat(64),url:'https://evil.test'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.match(JSON.stringify(shown),/Truck 2 left BRHQ/);assert.doesNotMatch(JSON.stringify(shown),/evil/);
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
 

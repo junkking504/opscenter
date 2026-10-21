@@ -147,6 +147,7 @@ def project(path, payload):
                         facts["crew"] = row["crew"]
                 item = observation(identity, facts)
                 item["facts"] = {key: digest(value) for key, value in facts.items()}
+                item["display"] = {"label": (identity[:80] + (" — " + first(row, "customer_name", "customer", "client_name")[:80] if first(row, "customer_name", "customer", "client_name") else "")), "fields": {key: str(value)[:100] for key, value in facts.items()}}
                 items_by_id[identity] = item
             items = list(items_by_id.values())
             batch(f"schedule:{day}:market-{market}", "schedule", payload.get("scraped_at"), items)
@@ -166,7 +167,10 @@ def project(path, payload):
             for kind, keys in (("in", ("clock_in", "time_in", "clockIn", "timeIn")), ("out", ("clock_out", "time_out", "clockOut", "timeOut"))):
                 value = first(row, *keys)
                 if value:
-                    items.append(observation([name, kind], value))
+                    item = observation([name, kind], value)
+                    item["notification"] = {"title": "Crew clock-in" if kind == "in" else "Crew clock-out",
+                                            "body": f"{first(row, 'name', 'employee_name', 'employee', 'crew_member', 'employee_id')[:100] or name[:100]} clocked {'in' if kind == 'in' else 'out'} at {value[:100]}"}
+                    items.append(item)
         batch(f"krewe:{day}", "krewe", source.get("as_of"), items)
     elif path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
         if payload.get("pagination_completed") is not True or payload.get("validation_status") != "passed" or payload.get("collection_errors") or not isinstance(payload.get("alerts"), list):
@@ -179,7 +183,12 @@ def project(path, payload):
             if not row.get("alert_id") or not row.get("truck_number") or not row.get("geofence_name"):
                 return []
             stamp(row.get("occurred_at"))
-            items.append(observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")}))
+            item = observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
+            at = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p").lstrip("0")
+            action = "entered" if kind == "geofence_entered" else "left"
+            item["notification"] = {"title": f"Truck {str(row['truck_number'])[:20]} {action} location",
+                                    "body": f"Truck {str(row['truck_number'])[:20]} {action} {str(row['geofence_name'])[:150]} at {at}"}
+            items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches
 
@@ -392,15 +401,45 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
         collected_at = stamp(started_at or batch["observedAt"])
         schedule_facts = batch["category"] == "schedule" and all("facts" in item for item in batch["observations"])
         next_facts = merge_schedule(root, batch, prior, owner, collected_at, recorded_at) if schedule_facts else {}
+        notifications = dict(prior.get("notifications", {}))
+        display_changed = False
         if schedule_facts:
-            batch["observations"] = [{"identity": identity, "revision": digest(facts)} for identity, facts in sorted(next_facts.items())]
+            incoming = {item["identity"]: item for item in batch["observations"]}
+            next_notifications = {}
+            labels = {"status": "Status", "type": "Type", "truck": "Truck", "time": "Time", "end": "End", "driver": "Driver", "navigator": "Navigator", "crew": "Crew"}
+            for identity, facts in next_facts.items():
+                item = incoming.get(identity, {})
+                old = notifications.get(identity, {})
+                display = item.get("display", {})
+                values = dict(old.get("fields", {}))
+                # Include only display values whose fact hashes survived source
+                # interval reconciliation; ambiguous reads cannot describe a change.
+                values.update({key: value for key, value in display.get("fields", {}).items()
+                               if item.get("facts", {}).get(key) == facts.get(key)})
+                label = display.get("label") or old.get("label") or "Appointment"
+                changed = [key for key in facts if prior.get("facts", {}).get(identity, {}).get(key) != facts[key]]
+                parts = []
+                for key in changed:
+                    if key not in values:
+                        continue
+                    value = values[key] or "unassigned"
+                    before = old.get("fields", {}).get(key)
+                    description = f"{before or 'unassigned'} → {value}" if before is not None and before != values[key] else value
+                    parts.append(f"{labels.get(key, key)}: {description}")
+                title = "New appointment" if has_prior and identity not in prior.get("facts", {}) else "Schedule updated"
+                body = " · ".join([label, *(parts or [f"{labels.get(key, key)}: {value or 'unassigned'}" for key, value in values.items()])])[:700]
+                next_notifications[identity] = {"label": label, "fields": values}
+                incoming.setdefault(identity, {})["notification"] = {"title": title, "body": body}
+            display_changed = next_notifications != notifications
+            notifications = next_notifications
+            batch["observations"] = [{"identity": identity, "revision": digest(facts), **({"notification": incoming[identity]["notification"]} if incoming.get(identity, {}).get("notification") else {})} for identity, facts in sorted(next_facts.items())]
         observations = batch["observations"]
-        signature = digest({"complete": batch["complete"], "observations": observations})
+        signature = digest({"complete": batch["complete"], "observations": [{"identity": item["identity"], "revision": item["revision"]} for item in observations]})
         token = gap_token(root, scope)
         reset = token is not None and token != prior.get("gapToken")
         # Equal facts establish duplication, regardless of which collection began
         # first. Do not lower the accepted writer's observation watermark.
-        if not reset and prior.get("signature") == signature:
+        if not reset and not display_changed and prior.get("signature") == signature:
             if prior.get("writer") == owner and collected_at >= prior.get("collectedAt", ""):
                 prior["observedAt"] = max(prior["observedAt"], batch["observedAt"])
                 prior["collectedAt"] = collected_at
@@ -434,7 +473,7 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
             batch["gapIds"] = [json.loads(gap_file(root, key).read_text())["id"] for key in (scope, "journal:global") if gap_file(root, key).exists()]
         state["scopes"][scope] = {"sequence": batch["sequence"], "signature": signature,
             "observedAt": batch["observedAt"], "generation": generation, "gapToken": token,
-            "writer": owner, "collectedAt": collected_at, "facts": next_facts,
+            "writer": owner, "collectedAt": collected_at, "facts": next_facts, "notifications": notifications,
             "pageCheckpoint": prior.get("pageCheckpoint", {}), "detailCheckpoints": prior.get("detailCheckpoints", {})}
         selected.append(batch)
     return selected

@@ -86,6 +86,18 @@ async function main(){
  await queue(id,1,'accept');await drainPushOutbox(d);await promote();
  await p.query("UPDATE opscenter_kernel.push_trial SET ongoing_started_at=clock_timestamp()-interval '1 hour',ongoing_expires_at=clock_timestamp()-interval '1 second'");
  await queue(id,1,'ongoing-expired');await drainPushOutbox(d);assert.equal(sends,1);assert.equal((await readPushTrial('owner',p)).status,'ongoing_expired');await assert.rejects(candidate(1),/trial_enrollment_closed/);
+ // A retained descriptive observation reaches only the approved handset;
+ // updating display metadata alone cannot create a business event.
+ await reset();id=await ready();await queue(id,1,'accepted-details');await drainPushOutbox(d);await promote();
+ const detailedDay=new Date().toISOString().slice(0,10),detailScope=`schedule:${detailedDay}:market-352`;
+ const detail={identity:'synthetic-job',revision:'one',notification:{title:'Schedule updated',body:'JK123 · Truck: 2 → 4'}};
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:1,baseline:false,complete:true,observedAt:new Date().toISOString(),observations:[detail]},d);
+ let received=false;await drainPushOutbox({...d,send:async(endpoint,authorize,_deadline,envelope)=>{assert.equal(await authorize(),true);assert.equal(envelope?.subscription.endpoint,endpoint);assert.equal(envelope?.message.body,detail.notification.body);assert.match(envelope?.message.eventId||'',/^[a-f0-9]{64}$/);received=true;return 201;}});assert.equal(received,true);
+ const eventCount=Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count);
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:2,complete:true,observedAt:new Date().toISOString(),observations:[{...detail,notification:{title:'Schedule updated',body:'JK123 · Truck 4'}}]},d);
+ assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count),eventCount);
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[]},d);
+ const removal=(await p.query("SELECT notification_json FROM opscenter_kernel.push_events WHERE notification_json->>'title'='Appointment removed'")).rows[0];assert.match(removal.notification_json.body,/JK123.*removed/);
  console.log('PASS: exact verified-handset promotion requires accepted trial; five concurrent ongoing sends; trial history preserved; no replay; competing phone rejected; saves cannot renew; revocation and expiry stop ongoing delivery.');
 
 }

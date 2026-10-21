@@ -37,6 +37,7 @@ export function PushSettings() {
     void reload().then(async activated=>{
       if(!available || !activated)return;
       const reg=await navigator.serviceWorker.register('/opscenter-push-sw.js',{scope:'/',updateViaCache:'none'});
+      await reg.update();
       // Registration may install in the background. Permission is never requested here.
       if(!reg.active) await new Promise<void>((resolve,reject)=>{
         const worker=reg.installing || reg.waiting;
@@ -85,6 +86,6 @@ export function PushSettings() {
     {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · {device.approved?'Device approved':'Awaiting device approval'} · expires {new Date(device.expires_at).toLocaleString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button>{device.id===currentId&&<div><small>Device verification ID: {device.id}<br/>Fingerprint: <code style={{overflowWrap:'anywhere'}}>{device.fingerprint}</code></small></div>}</div>)}
     <PushJournalStatus health={journal}/>
     <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>
-    <small>{trial?.maxAttempts===null?'Schedule, crew and fleet changes notify individually after they are recorded. Device expiry and Disable device stop later sends. Lock screen shows only that updates are available.':'Lock screen shows only that updates are available. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.'}</small>
+    <small>{trial?.maxAttempts===null?'Schedule, crew and fleet changes notify individually after they are recorded. Device expiry and Disable device stop later sends. Alerts describe the recorded change on this phone’s lock screen.':'Alerts describe the recorded change on this phone’s lock screen. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.'}</small>
   </section>;
 }

@@ -73,9 +73,10 @@ class JournalTest(unittest.TestCase):
         self.publish(schedule())
         batches = [entry["batches"][0] for entry in self.entries()]
         self.assertEqual([b["sequence"] for b in batches], [1, 2, 3, 4, 5])
-        self.assertEqual(batches[0]["observations"], batches[-1]["observations"])
+        self.assertEqual([(x["identity"], x["revision"]) for x in batches[0]["observations"]], [(x["identity"], x["revision"]) for x in batches[-1]["observations"]])
         self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Scheduled")
-        self.assertNotIn("synthetic-job", json.dumps(self.entries()))
+        self.assertIn("synthetic-job", batches[-1]["observations"][0]["notification"]["body"])
+        self.assertIn("completed → scheduled", batches[-1]["observations"][0]["notification"]["body"])
         self.assertNotIn("New Orleans", json.dumps(self.entries()))
     def test_schedule_aliases_do_not_fabricate_transitions(self):
         first = schedule()
@@ -153,6 +154,21 @@ class JournalTest(unittest.TestCase):
         # A malformed normalized feed must still report missing coverage.
         journal.publish_json(normalized, archive, journal_root=self.journal, enabled=True)
         self.assertEqual(len(list((self.journal / "gaps").glob("*.json"))), 1)
+
+    def test_descriptions_do_not_change_fact_identity_or_create_format_events(self):
+        payload = schedule()
+        payload['appointments'][0]['customer_name'] = 'Synthetic Customer'
+        self.publish(payload)
+        second = schedule('Enroute');second['appointments'][0]['customer_name'] = 'Synthetic Customer'
+        self.publish(second)
+        description = self.entries()[-1]['batches'][0]['observations'][0]['notification']
+        self.assertIn('Synthetic Customer', description['body'])
+        self.assertIn('scheduled → enroute', description['body'])
+        second['appointments'][0]['customer_name'] = 'Corrected Display'
+        self.publish(second)
+        batches = [entry['batches'][0] for entry in self.entries()]
+        self.assertEqual(batches[-1]['observations'][0]['revision'], batches[-2]['observations'][0]['revision'])
+        self.assertIn('Corrected Display', batches[-1]['observations'][0]['notification']['body'])
 
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},

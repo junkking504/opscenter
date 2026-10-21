@@ -286,8 +286,9 @@ Enable Notifications. On iPhone use an iOS 16.4+ Home Screen web app. Permission
 never requested on mount. Devices belong to authenticated accounts; shared-login
 users consequently share device ownership. Signing out is not revocation.
 
-The lock screen says only that operational updates are available. The empty push
-body contains no customer information, event IDs, counts or locations. The fixed
+The owner explicitly requested detailed lock-screen alerts on October 21. Selected
+source descriptions are encrypted end-to-end to the verified subscription using
+RFC 8291 / RFC 8188 aes128gcm; no plaintext message is sent to Apple. The fixed
 same-origin link opens `/desktop?workspace=Command` through normal authentication.
 The service worker has no fetch/cache handler, is served no-store and uses a
 shared tag with renotify. Actual Safari behavior is unverified.
@@ -502,3 +503,33 @@ leadership and helper matching remain required, and every supervisor stop pauses
 capture. The operator may set RunAtLoad for this authorized configuration;
 KeepAlive stays false, so anomalies require investigation rather than automatic
 restart. Reboot resumes only the saved, still-valid explicitly approved session.
+
+## Detailed alerts — owner requested October 21
+
+Schedule changes include appointment ID/customer label and the supported changed
+fields (status, time, truck and verified crew), with known before/after values.
+Crew alerts include the source employee name, clock-in/out and source time. Fleet
+alerts include the truck, entered/left geofence and local event time. No address,
+raw GPS track, payroll amount, financial record or whole source payload is added.
+
+Selected bounded display metadata now lives in the private journal/state and
+notification/observation tables under the existing 14-day source/event retention;
+this supersedes the earlier hash-only/generic-lock-screen preparation policy.
+Message formatting never drives event identity or weakens ambiguity handling.
+Metadata-only upgrades record descriptions without manufacturing an event.
+Schedule text includes only field values accepted by interval reconciliation.
+
+Each push uses a fresh ephemeral P-256 key and salt with the handset's subscription
+keys. Payloads are bounded, authenticated and encrypted. Built-in Node crypto
+implements RFC 8291 and RFC 8188, with independent receiver-side HMAC derivation,
+wrong-handset and tampering tests. No new dependency, provider, endpoint or paid
+usage is added. Messages have event-specific tags, so distinct changes retain
+distinct notifications. Clicks still open the fixed authenticated Command URL.
+
+The service worker immediately activates an updated installed version and claims
+clients, with no fetch/cache handler. The phone must revisit/reload OpsCenter to
+check the new worker; real detailed handset presentation remains an acceptance
+check distinct from encryption tests and Apple HTTP acceptance.
+
+Protocol sources: https://www.rfc-editor.org/rfc/rfc8291.html and
+https://www.rfc-editor.org/rfc/rfc8188.html.

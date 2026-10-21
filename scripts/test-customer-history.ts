@@ -33,6 +33,15 @@ assert.deepEqual(source('8', { closeout: { total: '120', tip: '20', balance: '0'
 assert.ok(source('8', { closeout: { total: '120', tip: '20', balance: '0', payments: [{ method: 'Card', amount: '120' }, { method: 'Card', amount: '-120' }] } }).amounts.includes('Recorded adjustment -$120.00 · Card · including tips'));
 assert.deepEqual(source('8', { closeout: { total: '120', tip: '20', payments: [{ method: 'Card', amount: '10' }] } }).amounts, ['Recorded amounts conflict · payment details unavailable']);
 assert.deepEqual(source('8', { closeout: { total: '75', balance: '-10', payments: [{ method: 'Bill', amount: '75' }] } }).amounts, ['Charges $75.00', 'Billed $75.00 · Bill', 'Recorded credit $10.00']);
+for (const missing of ['', '  ', null, undefined]) {
+  assert.deepEqual(source('8', { closeout: { total: '$300.00', tip: missing, balance: '0.00', payments: [{ method: 'Billed', amount: '$300.00' }] } }).amounts, ['Charges $300.00', 'Billed $300.00 · Billed'], 'blank tip must not hide valid billed amounts or imply collection');
+  assert.deepEqual(source('8', { closeout: { total: missing, tip: missing, balance: missing } }).amounts, [], 'missing amounts remain unknown, not zero');
+  assert.deepEqual(source('8', { closeout: { total: missing, tip: missing, balance: missing, payments: [{ method: 'Cash', amount: '50' }] } }).amounts, ['Recorded payment $50.00 · Cash']);
+  assert.deepEqual(source('8', { closeout: { payments: [{ method: 'Cash', amount: missing }] } }).amounts, ['Recorded amounts conflict · payment details unavailable'], 'a payment row still requires a valid amount');
+}
+for (const invalid of ['unknown', false, {}, [], 'NaN']) {
+  assert.deepEqual(source('8', { closeout: { total: '300', tip: invalid, payments: [{ method: 'Billed', amount: '300' }] } }).amounts, ['Recorded amounts conflict · payment details unavailable']);
+}
 assert.equal(new URL(desktopAppointmentHref('JK4', '2026-10-20', '4'), 'https://example.com').searchParams.get('appointment'), '4');
 assert.equal(relatedHistory([source('1', { phone: '', customerEmail: 'Person@Example.com' }), source('2', { phone: '', customerEmail: 'person@example.com' })], '1')!.length, 1);
 

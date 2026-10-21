@@ -13,6 +13,7 @@ const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, 
 const phoneKey = (value: string) => { const digits = value.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''); return /^\d{10}$/.test(digits) && !/^(\d)\1+$/.test(digits) ? digits : ''; };
 const emailKey = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value.toLowerCase() : '';
 const amount = (value: unknown) => { const raw = text(value).replace(/[$,]/g, ''); return /^-?\d+(?:\.\d{1,2})?$/.test(raw) && Number.isFinite(Number(raw)) ? Number(raw) : null; };
+const amountMissing = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
 function recordedAmounts(closeout: Raw, estimate: boolean, pending: boolean): string[] {
@@ -24,7 +25,9 @@ function recordedAmounts(closeout: Raw, estimate: boolean, pending: boolean): st
   const payments = rows.map(payment => ({ amount: payment && typeof payment === 'object' ? amount(payment.amount) : null, method: text(payment?.method) }));
   const billed = (method: string) => /\bbill(?:ed|ing)?\b|invoice|accounts? receivable/i.test(method);
   const received = payments.filter(row => !billed(row.method)).reduce((sum, row) => sum + (row.amount || 0), 0);
-  const invalid = ['total', 'tip', 'balance'].some(key => closeout[key] !== undefined && amount(closeout[key]) === null)
+  // Older closeouts leave optional amount fields blank. Missing is unknown,
+  // not a contradiction; retain the other recorded amounts without inventing zero.
+  const invalid = ['total', 'tip', 'balance'].some(key => !amountMissing(closeout[key]) && amount(closeout[key]) === null)
     || (closeout.payments !== undefined && !Array.isArray(closeout.payments)) || payments.some(row => row.amount === null)
     || (total !== null && total < 0) || (tip !== null && (tip < 0 || (total !== null && tip > total)))
     || (tip !== null && received > 0 && tip > received);

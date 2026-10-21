@@ -27,6 +27,9 @@ methods. Tip-inclusive figures and signed adjustments remain explicit; malformed
 conflicting amounts are unavailable, and pending closeout refreshes hide stale
 amounts. Saved detail timestamps remain visible, including when a newer schedule
 observation updates status. Unsupported/missing values are unavailable, not zero.
+Blank or null total, tip, and balance fields in older closeouts are missing values;
+they do not invalidate other recorded amounts. A payment row with a missing or
+malformed amount still prevents a reliable summary. Billed rows never imply collection.
 
 History loads only while an appointment drawer is mounted. Closing/changing it
 aborts the request; schedule polling does not repeat it. The server coalesces

@@ -84,6 +84,13 @@ def first(row, *keys):
     return next((str(row[key]).strip() for key in keys if row.get(key) not in (None, "")), "")
 
 
+def truck_notification_title(value):
+    # LinxUp supplies labels such as "Truck# 9" as well as bare numbers.
+    # Normalize display only: source facts and event hashes stay unchanged.
+    number = re.sub(r"^(?:(?:truck(?=\s|#|[0-9]|$)|#)\s*)+", "", str(value).strip(), flags=re.IGNORECASE)
+    return f"Truck #{number[:20]}"
+
+
 def observation(identity, revision):
     return {"identity": digest(identity), "revision": digest(revision)}
 
@@ -186,7 +193,7 @@ def project(path, payload):
             item = observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
             at = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p").lstrip("0")
             action = "Arrived at" if kind == "geofence_entered" else "Departed"
-            item["notification"] = {"title": f"Truck #{str(row['truck_number'])[:20]}",
+            item["notification"] = {"title": truck_notification_title(row["truck_number"]),
                                     "body": f"{action} {str(row['geofence_name'])[:150]}: {at}"}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)

@@ -170,6 +170,29 @@ class JournalTest(unittest.TestCase):
         self.assertEqual(batches[-1]['observations'][0]['revision'], batches[-2]['observations'][0]['revision'])
         self.assertIn('Corrected Display', batches[-1]['observations'][0]['notification']['body'])
 
+    def test_fleet_notification_normalizes_labels_without_changing_facts(self):
+        local = (datetime.now(journal.ZoneInfo("America/Chicago")) - timedelta(days=1)).replace(hour=17, minute=21, second=0, microsecond=0)
+        day = local.date().isoformat()
+        at = local.astimezone(timezone.utc).isoformat()
+        labels = [9, "9", "#9", "# 9", "Truck 9", "Truck# 9", "Truck #9",
+                  " Truck # 9 ", "tRuCk# 9", "Truck #Truck# 9", "Truck Truck ## 9", "Truck9", "Truck#Truck9"]
+        for label in labels:
+            for kind, action in [("geofence_exited", "Departed"), ("geofence_entered", "Arrived at")]:
+                with self.subTest(label=label, kind=kind):
+                    row = {"alert_id": "synthetic-truck-event", "alert_type_normalized": kind,
+                           "truck_number": label, "geofence_name": "Warehouse", "occurred_at": at}
+                    payload = {"date": day, "collection_timestamp": at, "pagination_completed": True,
+                               "validation_status": "passed", "alerts": [row]}
+                    item = journal.project(Path(f"linxup_alerts_{day}.json"), payload)[0]["observations"][0]
+                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action} Warehouse: 5:21 PM"})
+                    expected = journal.observation(row["alert_id"], {key: row.get(key) for key in
+                        ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
+                    self.assertEqual({key: item[key] for key in expected}, expected)
+                    self.assertEqual(row["truck_number"], label)
+                    self.assertEqual(journal.truck_notification_title(item["notification"]["title"]), "Truck #9")
+        self.assertEqual(journal.truck_notification_title("Truckster"), "Truck #Truckster")
+        self.assertEqual(journal.truck_notification_title("Truck #09"), "Truck #09")
+
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}

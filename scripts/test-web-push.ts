@@ -94,6 +94,14 @@ let pending=Promise.resolve();handlers.push({data:{url:'https://evil.test',custo
 assert.doesNotMatch(JSON.stringify(shown),/Private|evil/);assert.match(JSON.stringify(shown),/Operational updates are available/);
 handlers.notificationclick({notification:{close:()=>{},data:{path:'https://evil.test'}},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.equal(opened,'https://ops.example.test/desktop?workspace=Command');
 handlers.push({data:{json:()=>({title:'Truck 2 departed',body:'Truck 2 left BRHQ at 10:47 AM',eventId:'a'.repeat(64),url:'https://evil.test'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.match(JSON.stringify(shown),/Truck 2 left BRHQ/);assert.doesNotMatch(JSON.stringify(shown),/evil/);
+// The web payload owns title/body only; iOS owns app attribution. No browser or
+// OS notification is created: showNotification is the VM double above.
+handlers.push({data:{json:()=>({title:'Truck #9',body:'Departed Warehouse: 5:21 PM',eventId:'b'.repeat(64),subtitle:'from OpsCenter'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.deepEqual(JSON.parse(JSON.stringify(shown)),{title:'Truck #9',options:{
+  body:'Departed Warehouse: 5:21 PM',icon:'/opscenter-app-192.png',badge:'/opscenter-app-192.png',
+  tag:'opscenter-'+'b'.repeat(64),renotify:true,data:{path:'/desktop?workspace=Command'}
+}});
+assert.doesNotMatch(JSON.stringify(shown),/from OpsCenter/);
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
 

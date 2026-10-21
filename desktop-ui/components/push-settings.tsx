@@ -27,7 +27,7 @@ export function PushSettings() {
     if(health.some((row:{reason?:string})=>row.reason==='ordering_uncertain'))messages.push('Some notification facts are withheld because their order is uncertain. Other verified updates can still notify.');
     if(!health.length||health.some((row:{code:string})=>row.code==='source_unknown'))messages.push('Notification source coverage is unknown.');
     if(health.some((row:{code:string})=>row.code==='recovered_gap'))messages.push('Capture recovered after a recorded gap. Some earlier updates may be missing.');
-    setMessage(body.enabled?(messages.join(' ')||'Choose categories for this device.'):'Phone notifications are awaiting activation.');
+    setMessage(body.enabled?(messages.join(' ')||'Choose categories for this device.'):(body.trial?.maxAttempts===null?'Notification sending is paused.':'Phone notifications are awaiting activation.'));
     return body.enabled as boolean;
   }
   useEffect(()=>{
@@ -82,7 +82,7 @@ export function PushSettings() {
     <fieldset disabled={busy}><legend>Updates for this device</legend>{categories.map(category=><label key={category}><input type="checkbox" checked={selected.includes(category)} onChange={event=>setSelected(event.target.checked?[...selected,category]:selected.filter(c=>c!==category))}/>{category==='krewe'?'Krewe clock changes':category==='fleet'?'Fleet arrivals and departures':'Schedule changes'}</label>)}</fieldset>
     <button type="button" disabled={busy || !enabled || !supported || !registration || !selected.length} onClick={()=>void save()}>Enable Notifications / Save Categories</button>
     <p role="status">{message}{!supported?' This browser cannot enable Web Push; open the Home Screen app.':''}</p>
-    {trial&&trial.maxAttempts===null?<p>Ongoing notifications: {trial.status==='ongoing'?'enabled':trial.status.replaceAll('_',' ')}{trial.deadline?` · device authorization ends ${new Date(trial.deadline).toLocaleString()}`:''}</p>:trial&&<p>Trial: {trial.status.replaceAll('_',' ')} · {trial.attemptsUsed}/{trial.maxAttempts} send attempts used{trial.deadline?` · ends ${new Date(trial.deadline).toLocaleString()}`:' · clock has not started'}</p>}
+    {trial&&trial.maxAttempts===null?<p>Ongoing notifications: {trial.status==='ongoing'?(enabled?'enabled':'paused'):trial.status.replaceAll('_',' ')}{trial.deadline?` · device authorization ends ${new Date(trial.deadline).toLocaleString()}`:''}</p>:trial&&<p>Trial: {trial.status.replaceAll('_',' ')} · {trial.attemptsUsed}/{trial.maxAttempts} send attempts used{trial.deadline?` · ends ${new Date(trial.deadline).toLocaleString()}`:' · clock has not started'}</p>}
     {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · {device.approved?'Device approved':'Awaiting device approval'} · expires {new Date(device.expires_at).toLocaleString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button>{device.id===currentId&&<div><small>Device verification ID: {device.id}<br/>Fingerprint: <code style={{overflowWrap:'anywhere'}}>{device.fingerprint}</code></small></div>}</div>)}
     <PushJournalStatus health={journal}/>
     <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>

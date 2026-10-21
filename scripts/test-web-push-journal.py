@@ -76,7 +76,7 @@ class JournalTest(unittest.TestCase):
         self.assertEqual([(x["identity"], x["revision"]) for x in batches[0]["observations"]], [(x["identity"], x["revision"]) for x in batches[-1]["observations"]])
         self.assertEqual(json.loads(self.target.read_text())["appointments"][0]["job_status"], "Scheduled")
         self.assertIn("synthetic-job", batches[-1]["observations"][0]["notification"]["body"])
-        self.assertIn("completed → scheduled", batches[-1]["observations"][0]["notification"]["body"])
+        self.assertIn("Completed → Scheduled", batches[-1]["observations"][0]["notification"]["body"])
         self.assertNotIn("New Orleans", json.dumps(self.entries()))
     def test_schedule_aliases_do_not_fabricate_transitions(self):
         first = schedule()
@@ -163,7 +163,7 @@ class JournalTest(unittest.TestCase):
         self.publish(second)
         description = self.entries()[-1]['batches'][0]['observations'][0]['notification']
         self.assertIn('Synthetic Customer', description['body'])
-        self.assertIn('scheduled → enroute', description['body'])
+        self.assertIn('Scheduled → Enroute', description['body'])
         second['appointments'][0]['customer_name'] = 'Corrected Display'
         self.publish(second)
         batches = [entry['batches'][0] for entry in self.entries()]

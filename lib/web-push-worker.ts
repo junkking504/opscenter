@@ -93,7 +93,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
         if(!batch.baseline && !batch.silentIdentities?.some(identity=>pushHash(identity)===change.identity) && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
           const devices=await client.query(`SELECT d.id,d.owner_id,d.subscription_json,t.subscription_hash FROM opscenter_kernel.push_devices d JOIN opscenter_kernel.push_trial t ON t.singleton=true AND t.device_id=d.id AND t.owner_id=d.owner_id
             WHERE $1=ANY(d.categories) AND d.revoked_at IS NULL AND d.expires_at>clock_timestamp() AND d.created_at<=$2
-              AND t.stopped_at IS NULL AND ((t.ongoing_started_at IS NOT NULL AND t.ongoing_started_at<=$2 AND t.ongoing_expires_at>clock_timestamp()) OR (t.ongoing_started_at IS NULL AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.attempts_used<3))`,[batch.category,batch.recordedAt||batch.observedAt]);
+              AND t.stopped_at IS NULL AND ((t.ongoing_started_at IS NOT NULL AND NOT $3::boolean AND t.ongoing_started_at<=$2 AND t.ongoing_expires_at>clock_timestamp()) OR (t.ongoing_started_at IS NULL AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.attempts_used<3))`,[batch.category,batch.recordedAt||batch.observedAt,Boolean(batch.reconcile)]);
           for(const device of devices.rows)if(d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
@@ -153,7 +153,7 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
       let status='skipped',reason='disabled_before_send';
       const reserved=claim;
       const authorize=async()=>d.enabled()&&d.ownerAllowed(reserved.owner)&&Date.now()<reserved.deadline&&await authorizePushAttempt(d.pool,reserved.token,reserved.endpoint);
-      if(await authorize()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint,authorize,claim.deadline,claim.envelope));reason=status;}catch {status='uncertain';reason='transport_unknown';}}
+      if(await authorize()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint,authorize,claim.deadline,claim.envelope));reason=status;}catch(error) {const invalid=(error as {code?:string})?.code==='push_message_invalid';status=invalid?'rejected':'uncertain';reason=invalid?'message_invalid':'transport_unknown';}}
       else reason='trial_or_device_changed_before_send';
       const receipt=await d.pool.connect();
       try {await transaction(receipt,async()=>{

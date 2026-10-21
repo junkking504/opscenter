@@ -147,7 +147,7 @@ def project(path, payload):
                         facts["crew"] = row["crew"]
                 item = observation(identity, facts)
                 item["facts"] = {key: digest(value) for key, value in facts.items()}
-                item["display"] = {"label": (identity[:80] + (" — " + first(row, "customer_name", "customer", "client_name")[:80] if first(row, "customer_name", "customer", "client_name") else "")), "fields": {key: str(value)[:100] for key, value in facts.items()}}
+                item["display"] = {"label": (identity[:80] + (" — " + first(row, "customer_name", "customer", "client_name")[:80] if first(row, "customer_name", "customer", "client_name") else "")), "fields": {key: ((", ".join(str(part) for part in value) if isinstance(value, list) else str(value).title() if key in ("status", "type") else str(value))[:100]) for key, value in facts.items()}}
                 items_by_id[identity] = item
             items = list(items_by_id.values())
             batch(f"schedule:{day}:market-{market}", "schedule", payload.get("scraped_at"), items)

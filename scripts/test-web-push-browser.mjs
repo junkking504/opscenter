@@ -22,6 +22,7 @@ try {
    }
    if(mode==='journal-error'){await route.fulfill({status:503,json:{error:'Unavailable'}});return;}
    if(mode==='journal-unknown'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',sampledAt:'2026-10-18T19:00:00Z',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[{key:'ready',status:'unknown',limitFiles:10000,limitBytes:134217728}]}}});return;}
+   if(mode==='ongoing-paused'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown'},trial:{status:'ongoing',deadline:'2026-11-20T15:23:33Z',attemptsUsed:1,maxAttempts:null}}});return;}
    if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
    if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
    await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),trial:{status:mode==='ongoing'?'ongoing':approved?'awaiting_start':'awaiting_device',deadline:mode==='ongoing'?'2026-11-20T15:23:33Z':null,attemptsUsed:1,maxAttempts:mode==='ongoing'?null:3},devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z',approved,fingerprint:'a'.repeat(64)}]:[]}});
@@ -42,6 +43,7 @@ try {
  await page.getByRole('button',{name:'Disable device 1'}).click();await page.getByText('Device disabled.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
  mode='ongoing';await page.reload();await page.getByText('Ongoing notifications: enabled',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/3 send attempts|Trial:/);
+ mode='ongoing-paused';await page.reload();await page.getByText('Ongoing notifications: paused',{exact:false}).waitFor();
  mode='recovered';await page.reload();await page.getByText('Capture recovered after a recorded gap.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='withheld';await page.reload();await page.getByText('Some notification facts are withheld',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='journal';await page.reload();await page.getByRole('heading',{name:'Notification queue status'}).waitFor();

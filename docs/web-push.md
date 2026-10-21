@@ -483,8 +483,9 @@ attempt count. There is no reset or automatic promotion.
 Ongoing delivery records separate durable reservations, has no three-attempt cap,
 and individually sends subsequent supported schedule, crew and Fleet transitions.
 It preserves canonical-source deduplication and the same owner/device/category,
-role, lease, expiry, endpoint and pre-network/DNS checks. History before promotion
-is skipped; uncertain attempts are never retried. Disable device and operator stop
+role, lease, expiry, endpoint and pre-network/DNS checks. Retained history recorded before promotion and ongoing reconcile/gap-recovery
+transitions are withheld from delivery; the fresh reconciled snapshot restores
+the baseline for subsequent changes. This avoids a historical burst on resume; uncertain attempts are never retried. Disable device and operator stop
 remain effective. Replacement and expired grants require a new reviewed procedure;
 browser saves cannot extend approval or replace the verified phone.
 
@@ -502,7 +503,10 @@ the one-hour setup bound. The lease still expires within five seconds, child
 leadership and helper matching remain required, and every supervisor stop pauses
 capture. The operator may set RunAtLoad for this authorized configuration;
 KeepAlive stays false, so anomalies require investigation rather than automatic
-restart. Reboot resumes only the saved, still-valid explicitly approved session.
+restart. A graceful stop, including shutdown, persists mode off and requires an operator
+restart. RunAtLoad can resume a still-valid saved send configuration after an
+abrupt power loss; it does not undo a graceful stop. The panel shows paused
+when the supervisor lease is absent.
 
 ## Detailed alerts — owner requested October 21
 
@@ -513,7 +517,9 @@ alerts include the truck, entered/left geofence and local event time. No address
 raw GPS track, payroll amount, financial record or whole source payload is added.
 
 Selected bounded display metadata now lives in the private journal/state and
-notification/observation tables under the existing 14-day source/event retention;
+notification/observation tables under existing retention (events retain 14 days; observation/journal scope
+metadata retires after its operating day plus 14 days, including future-dated
+schedule scopes);
 this supersedes the earlier hash-only/generic-lock-screen preparation policy.
 Message formatting never drives event identity or weakens ambiguity handling.
 Metadata-only upgrades record descriptions without manufacturing an event.
@@ -533,3 +539,8 @@ check distinct from encryption tests and Apple HTTP acceptance.
 
 Protocol sources: https://www.rfc-editor.org/rfc/rfc8291.html and
 https://www.rfc-editor.org/rfc/rfc8188.html.
+
+The owner explicitly selected individual alerts for each supported change; bulk
+appointment edits can consequently produce multiple alerts. No coalescing or
+per-window batching is imposed. Local encryption validation failures are recorded
+as rejected/message_invalid, with the reservation retained and no retry.

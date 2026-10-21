@@ -86,6 +86,18 @@ async function main(){
  await queue(id,1,'accept');await drainPushOutbox(d);await promote();
  await p.query("UPDATE opscenter_kernel.push_trial SET ongoing_started_at=clock_timestamp()-interval '1 hour',ongoing_expires_at=clock_timestamp()-interval '1 second'");
  await queue(id,1,'ongoing-expired');await drainPushOutbox(d);assert.equal(sends,1);assert.equal((await readPushTrial('owner',p)).status,'ongoing_expired');await assert.rejects(candidate(1),/trial_enrollment_closed/);
+ // Same-day clock/fleet changes recovered after pause/promotion must not
+ // flood the phone. The first subsequent uninterrupted transition may notify.
+ await reset();id=await ready();await p.query("UPDATE opscenter_kernel.push_devices SET categories=ARRAY['schedule','krewe','fleet']");
+ await queue(id,1,'accepted-pause');await drainPushOutbox(d);
+ const gapDay=new Date().toISOString().slice(0,10),oldTime=new Date(Date.now()-30000).toISOString();
+ for(const category of ['krewe','fleet'] as const)await recordPushBatch({scope:`${category}:${gapDay}`,category,sequence:1,baseline:true,complete:true,observedAt:oldTime,observations:[{identity:'original',revision:'before'}]},d);
+ await promote();const beforeRecovery=sends;
+ for(const category of ['krewe','fleet'] as const)await recordPushBatch({scope:`${category}:${gapDay}`,category,sequence:2,reconcile:true,complete:true,observedAt:oldTime,recordedAt:new Date().toISOString(),observations:[{identity:'original',revision:'while-paused'},{identity:'old-new-row',revision:'before-promotion'}]},d);
+ await drainPushOutbox(d);assert.equal(sends,beforeRecovery,'recovered pre-promotion facts never fan out in ongoing mode');
+ await new Promise(r=>setTimeout(r,5));await recordPushBatch({scope:`fleet:${gapDay}`,category:'fleet',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[{identity:'original',revision:'genuine-post-baseline'},{identity:'old-new-row',revision:'before-promotion'}]},d);
+ await drainPushOutbox(d);assert.equal(sends,beforeRecovery+1,'future live change follows the fresh baseline');
+ console.log('PASS: pause/promote/resume suppresses same-day fleet and crew history; a later uninterrupted change sends once.');
  // A retained descriptive observation reaches only the approved handset;
  // updating display metadata alone cannot create a business event.
  await reset();id=await ready();await queue(id,1,'accepted-details');await drainPushOutbox(d);await promote();

@@ -27,7 +27,7 @@ export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<bo
   if (!io.enabled()) throw new Error('Push delivery disabled.');
   const url = pushEndpoint(endpoint);
   if(envelope&&envelope.subscription.endpoint!==endpoint)throw new Error('Push encryption destination mismatch.');
-  const body=envelope?encryptPushMessage(envelope):Buffer.alloc(0);
+  let body:Buffer;try{body=envelope?encryptPushMessage(envelope):Buffer.alloc(0);}catch{throw Object.assign(new Error('Push message encryption rejected before network I/O.'),{code:'push_message_invalid'});}
   let dnsTimer:ReturnType<typeof setTimeout>|undefined;
   const addresses = await Promise.race([io.resolve(url.hostname),new Promise<never>((_,reject)=>{dnsTimer=setTimeout(()=>reject(new Error('Push DNS timed out.')),3000);})]).finally(()=>clearTimeout(dnsTimer));
   if (!addresses.length || addresses.some(row => !publicPushAddress(row.address))) throw new Error('Push DNS rejected.');

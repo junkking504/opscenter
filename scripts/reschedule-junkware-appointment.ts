@@ -56,7 +56,7 @@ async function logIn(page: Page, targetUrl: string): Promise<void> {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
 }
 
-async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void> {
+export async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void> {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
   if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
   if (!page.url().startsWith(ORIGIN) || page.url().toLowerCase().includes(LOGIN_FRAGMENT)) {

@@ -353,3 +353,24 @@ has not changed since that attempt. Unknown mismatches, unavailable/stale reads,
 other dates and newer dispatch decisions stay protected. Attempted values and
 the failure remain in the audit receipt; the board briefly explains an automatic
 restoration and enables dragging once its refreshed source assignment is verified.
+
+## Customer information
+
+Control appointment details includes **Edit Customer**. It reads the current
+JunkWare appointment form on demand, then offers first/last name, primary and
+secondary phone, email, service address and five-digit ZIP. Contact fields
+belong to the customer and may appear on their other appointments; the service
+address belongs to the selected appointment. Empty email and secondary phone
+are supported. Billing address and customer merges remain in JunkWare.
+
+The existing authenticated schedule-operation endpoint owns request identity,
+role/origin checks, appointment locking and durable receipts. The worker rejects
+a changed source baseline, saves once, reopens the appointment and verifies all
+edited fields plus captured schedule, assignment, status, notes, charges and
+payments. An interrupted save stays blocked; **Check Saved Result** only reads
+JunkWare. It resolves an exact requested result or an unchanged baseline and
+never resubmits the save. The editor retains the request ID across reopening.
+Verified customer fields appear immediately using a private timestamped receipt
+until newer collected schedule data takes precedence. No customer is changed by
+validation fixtures or UI acceptance checks. No messages or paid providers are
+added. Validation: `node --import tsx scripts/test-customer-edit.ts`.

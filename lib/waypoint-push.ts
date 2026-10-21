@@ -68,7 +68,7 @@ export async function manageWaypointPush(phone:CrewPhone,input:Record<string,unk
 export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={active:activeNotificationPhone,snapshot:crewAssignedDay,messages:waypointMessages}) {
  const devices=(await pool.query('SELECT id,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE enabled=true')).rows;
  for(const device of devices){
-  const phone=sources.active(device.phone_id);if(!phone)continue;
+  const phone=sources.active(device.phone_id);if(!phone){await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2',[device.id,device.phone_id]);continue;}
   const snapshot=sources.snapshot(phone,chicagoDateKey());
   const messages=await sources.messages(phone.truck,pool),scope=`${chicagoDateKey()}:${phone.truck}`,revisions=[{kind:'messages',revision:waypointRevision([],messages)},...(snapshot.state==='unavailable'?[]:[{kind:'schedule',revision:waypointRevision(snapshot.jobs || [],[])}])];
   for(const {kind,revision} of revisions){

@@ -7,8 +7,8 @@ export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endp
  async function allowed(row:{device_id:string;phone_id:string;truck:string;service_date:Date}){
   if(!enabled() || new Date(row.service_date).toISOString().slice(0,10)!==chicagoDateKey())return false;
   const phone=phones.active(row.phone_id,row.truck);if(!phone)return false;
-  const device=(await pool.query('SELECT enabled,owner_id,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[row.device_id])).rows[0];
-  return Boolean(device?.enabled && device.phone_id===row.phone_id && device.owner_id===phones.owner(phone));
+  const device=(await pool.query('SELECT enabled,owner_id,phone_id,subscription_json FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[row.device_id])).rows[0];
+  return Boolean(device?.enabled && (!device.subscription_json.expirationTime || device.subscription_json.expirationTime>Date.now()) && device.phone_id===row.phone_id && device.owner_id===phones.owner(phone));
  }
  async function drain(){
   for(let n=0;n<1000 && enabled();n++){

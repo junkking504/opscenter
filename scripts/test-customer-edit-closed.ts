@@ -19,7 +19,7 @@ async function main(){
   if(req.method==='POST'){
    if(data.has('save')){
     initialSaves++;const next=Object.fromEntries(Object.keys(customerFields).map(key=>[key,data.get(key)||''])) as CustomerDetails;
-    if(isEstimate() && status()==='8'){pending=next;phase=true;}else{state=next;if(mode==='job-lost'){res.writeHead(500);res.end('lost');return;}}
+    if(isEstimate() && status()==='8'){pending=next;phase=true;if(mode==='estimate-stage-financial-change')money='200.00';}else{state=next;if(mode==='job-lost'){res.writeHead(500);res.end('lost');return;}}
    }
    if(data.has('finish')){
     finalSaves++;assert.equal(data.has('save'),false,'The initial Save is not repeated');
@@ -36,14 +36,14 @@ async function main(){
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const url=`http://127.0.0.1:${(server.address() as {port:number}).port}/franchise/appointment.aspx?id=123`;
  const browser=await chromium.launch();
  try{
-  for(const scenario of ['job','job-lost','estimate','estimate-discount','estimate-lost','estimate-mismatch','estimate-financial-change','estimate-removed-note','estimate-missing-confirmation','estimate-stale-note','estimate-changed-outcome','canceled']){
+  for(const scenario of ['job','job-lost','estimate','estimate-discount','estimate-lost','estimate-mismatch','estimate-financial-change','estimate-stage-financial-change','estimate-removed-note','estimate-missing-confirmation','estimate-stale-note','estimate-changed-outcome','canceled']){
    mode=scenario;state={...original};notes=[originalNote];pending=null;initialSaves=0;finalSaves=0;phase=false;money='100.00';const page=await browser.newPage();await page.goto(url);const before=await readCustomer(page);
    assert.equal(before.requiresEstimateOutcome,isEstimate()&&status()==='8',scenario);
    const change=parseCustomerChange({customer:{...original,lastName:'Corrected'},expectedSourceVersion:before.sourceVersion,protectedVersion:before.protectedVersion,appointmentNotes:scenario==='estimate-stale-note'?[]:before.appointmentNotes,...(before.requiresEstimateOutcome && scenario!=='estimate-missing-confirmation'?{estimateOutcome:{...outcome,...(scenario==='estimate-changed-outcome'?{reason:'Other'}:{}),...(scenario==='estimate-discount'?{noDiscountReason:undefined}:{})}}:{})});
    const result=await editCustomerOnPage(page,change,async()=>{await page.goto(url);});
    const preflight=['estimate-missing-confirmation','estimate-stale-note','estimate-changed-outcome'].includes(scenario);
-   assert.equal(initialSaves,preflight?0:1,scenario);assert.equal(finalSaves,!preflight&&isEstimate()&&status()==='8'?1:0,scenario);
-   const expected=!preflight&&!['estimate-mismatch','estimate-financial-change','estimate-removed-note'].includes(scenario);
+   assert.equal(initialSaves,preflight?0:1,scenario);assert.equal(finalSaves,!preflight&&isEstimate()&&status()==='8'&&scenario!=='estimate-stage-financial-change'?1:0,scenario);
+   const expected=!preflight&&!['estimate-mismatch','estimate-financial-change','estimate-stage-financial-change','estimate-removed-note'].includes(scenario);
    assert.equal(result.ok,expected,scenario);
    if(expected){assert.equal(state.lastName,'Corrected');assert.equal(money,'100.00');assert.ok(notes.includes(originalNote));}
    await page.close();

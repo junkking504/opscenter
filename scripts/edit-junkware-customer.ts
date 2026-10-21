@@ -62,6 +62,8 @@ export async function editCustomerOnPage(page:Page,change:CustomerChange,reopen:
     const outcomeButton=page.locator('#ctl00_Content_UENoteOkBtn');
     if(await outcomeButton.isVisible()){
       if(!before.requiresEstimateOutcome || !change.estimateOutcome)throw new Error('JunkWare requested an unexpected estimate outcome. Check the saved result.');
+      const confirmation=await readCustomer(page);
+      if(!customerMatches(confirmation.customer,change.customer) || confirmation.protectedVersion!==before.protectedVersion || !customerNotesMatch(before.appointmentNotes,confirmation.appointmentNotes))throw new Error('JunkWare changed appointment details before the outcome confirmation. Do not finish this save.');
       const outcome=change.estimateOutcome;
       await page.locator('#ctl00_Content_UEReasonDD').evaluate((node,reason)=>{const select=node as HTMLSelectElement;if(![...select.options].some(option=>option.value===reason))throw new Error('The estimate outcome option is unavailable.');select.value=reason;},outcome.reason);
       await page.locator('#ctl00_Content_UENoteTB').fill(outcome.explanation);

@@ -88,7 +88,11 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
     if mode == 'off':
         return 0
     until = config.get('setupUntil')
-    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not time.time() < until <= time.time() + 3600:
+    ongoing = config.get('ongoing') is True
+    maximum = 30 * 86400 if ongoing and mode == 'send' else 3600
+    if ongoing and mode != 'send':
+        raise ValueError('ongoing_send_only')
+    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not time.time() < until <= time.time() + maximum:
         raise ValueError('bounded_setup_required')
     if env.get('OPSCENTER_WEB_PUSH_ENABLED') != ('1' if mode == 'send' else '0'):
         raise ValueError('mode_configuration_mismatch')

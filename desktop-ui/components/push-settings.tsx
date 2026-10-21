@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PushJournalHealth } from '../../lib/web-push-journal-health';
 import { PushJournalStatus } from './push-journal-status';
 type Device={id:string;categories:string[];expires_at:string;fingerprint:string;approved:boolean};
-type Trial={status:string;deadline:string|null;attemptsUsed:number;maxAttempts:number};
+type Trial={status:string;deadline:string|null;attemptsUsed:number;maxAttempts:number|null};
 const categories=['schedule','krewe','fleet'];
 export function PushSettings() {
   const [hidden,setHidden]=useState(true);
@@ -61,7 +61,7 @@ export function PushSettings() {
       const res=await fetch('/api/push/devices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',subscription:subscription.toJSON(),categories:selected})});
       if(!res.ok)throw new Error('Could not save this device. Refresh settings and retry.');
       const saved=await res.json();localStorage.setItem('opscenter-push-device',saved.deviceId);
-      await reload();setMessage('Device saved. It must be explicitly verified and approved before the trial can send. No test notification was sent.');
+      await reload();setMessage('Device saved. It must be explicitly verified and approved before notifications can send. No test notification was sent.');
     } catch(error) {if(created)await created.unsubscribe().catch(()=>false);setMessage(error instanceof Error?error.message:'Could not enable notifications.');}
     finally {setBusy(false);}
   }
@@ -81,10 +81,10 @@ export function PushSettings() {
     <fieldset disabled={busy}><legend>Updates for this device</legend>{categories.map(category=><label key={category}><input type="checkbox" checked={selected.includes(category)} onChange={event=>setSelected(event.target.checked?[...selected,category]:selected.filter(c=>c!==category))}/>{category==='krewe'?'Krewe clock changes':category==='fleet'?'Fleet arrivals and departures':'Schedule changes'}</label>)}</fieldset>
     <button type="button" disabled={busy || !enabled || !supported || !registration || !selected.length} onClick={()=>void save()}>Enable Notifications / Save Categories</button>
     <p role="status">{message}{!supported?' This browser cannot enable Web Push; open the Home Screen app.':''}</p>
-    {trial&&<p>Trial: {trial.status.replaceAll('_',' ')} · {trial.attemptsUsed}/{trial.maxAttempts} send attempts used{trial.deadline?` · ends ${new Date(trial.deadline).toLocaleString()}`:' · clock has not started'}</p>}
+    {trial&&trial.maxAttempts===null?<p>Ongoing notifications: {trial.status==='ongoing'?'enabled':trial.status.replaceAll('_',' ')}{trial.deadline?` · device authorization ends ${new Date(trial.deadline).toLocaleString()}`:''}</p>:trial&&<p>Trial: {trial.status.replaceAll('_',' ')} · {trial.attemptsUsed}/{trial.maxAttempts} send attempts used{trial.deadline?` · ends ${new Date(trial.deadline).toLocaleString()}`:' · clock has not started'}</p>}
     {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · {device.approved?'Device approved':'Awaiting device approval'} · expires {new Date(device.expires_at).toLocaleString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button>{device.id===currentId&&<div><small>Device verification ID: {device.id}<br/>Fingerprint: <code style={{overflowWrap:'anywhere'}}>{device.fingerprint}</code></small></div>}</div>)}
     <PushJournalStatus health={journal}/>
     <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>
-    <small>Lock screen shows only that updates are available. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.</small>
+    <small>{trial?.maxAttempts===null?'Schedule, crew and fleet changes notify individually after they are recorded. Device expiry and Disable device stop later sends. Lock screen shows only that updates are available.':'Lock screen shows only that updates are available. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.'}</small>
   </section>;
 }

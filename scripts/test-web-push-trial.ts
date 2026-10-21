@@ -64,5 +64,29 @@ async function main(){
  await reset();id=await ready();await queue(id,1,'lock-deadline');await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '30 minutes'+interval '150 milliseconds',deadline=statement_timestamp()+interval '150 milliseconds'");
  const held=await p.connect();await held.query('BEGIN');await held.query('SELECT id FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[id]);const waiting=drainPushOutbox(d);await new Promise(r=>setTimeout(r,250));await held.query('COMMIT');held.release();await waiting;assert.equal(sends,0);assert.equal((await state()).attempts_used,0,'deadline after lock wait prevents reservation');
  console.log('PASS: deadline, stopped trial, canonical fan-out approval and pretrial-history exclusion. All sends mocked; no handset delivery tested.');
+ // Promotion preserves the historical trial and binds ongoing delivery to the
+ // same handset. More than three ongoing events use a separate durable ledger.
+ await reset();id=await ready();await queue(id,1,'accepted-trial');await drainPushOutbox(d);
+ const historical=await state(),oldToken=(await p.query('SELECT claim_token FROM opscenter_kernel.push_trial_attempts')).rows[0].claim_token;
+ const promote=()=>controlPushTrial({action:'promote',owner:'owner',deviceId:id,fingerprint:trialFingerprint(sub(1)),verifiedEnrollmentExpiresAt:new Date(Date.now()+3600000),handsetConfirmed:true},ref,p);
+ await queue(id,1,'before-promotion');await promote();
+ assert.equal((await readPushTrial('owner',p)).status,'ongoing');assert.equal((await readPushTrial('owner',p)).maxAttempts,null);
+ assert.deepEqual((await state()).deadline,historical.deadline);assert.deepEqual((await state()).started_at,historical.started_at);assert.equal((await state()).attempts_used,1);
+ assert.equal((await p.query("SELECT status FROM opscenter_kernel.push_deliveries WHERE event_id='before-promotion0'")).rows[0].status,'skipped');
+ await new Promise(r=>setTimeout(r,5));await queue(id,5,'ongoing');await Promise.all([drainPushOutbox(d),drainPushOutbox(d)]);
+ assert.equal(sends,6);assert.equal((await state()).attempts_used,1);assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_ongoing_attempts')).rows[0].count),5);
+ await drainPushOutbox(d);assert.equal(sends,6,'no repeated or uncertain retry');
+ await assert.rejects(candidate(2),/different_device_not_approved/);await assert.rejects(promote(),/verified_handset_required/);
+ const ongoingExpiry=(await state()).ongoing_expires_at;await candidate(1);assert.deepEqual((await state()).ongoing_expires_at,ongoingExpiry,'browser save cannot extend ongoing approval');
+ await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '31 minutes',deadline=statement_timestamp()-interval '1 minute'");
+ await queue(id,1,'past-trial');await drainPushOutbox(d);assert.equal(sends,7,'ongoing mode is independent of preserved trial deadline');
+ await queue(id,1,'ongoing-revoke');await drainPushOutbox({...d,send:async(_endpoint,authorize)=>{await managePushDevice('owner',{action:'unsubscribe',deviceId:id,expiresAt:new Date()},p);assert.equal(await authorize(),false);return 0;}});
+ assert.equal(sends,7);assert.equal((await readPushTrial('owner',p)).status,'ongoing_revoked');await assert.rejects(candidate(1),/new_device_approval_required/);
+ await reset();await prepare();id=await candidate(1);await approve(id,1);await start();await assert.rejects(promote(),/accepted_trial_required/);
+ await queue(id,1,'accept');await drainPushOutbox(d);await promote();
+ await p.query("UPDATE opscenter_kernel.push_trial SET ongoing_started_at=clock_timestamp()-interval '1 hour',ongoing_expires_at=clock_timestamp()-interval '1 second'");
+ await queue(id,1,'ongoing-expired');await drainPushOutbox(d);assert.equal(sends,1);assert.equal((await readPushTrial('owner',p)).status,'ongoing_expired');await assert.rejects(candidate(1),/trial_enrollment_closed/);
+ console.log('PASS: exact verified-handset promotion requires accepted trial; five concurrent ongoing sends; trial history preserved; no replay; competing phone rejected; saves cannot renew; revocation and expiry stop ongoing delivery.');
+
 }
 main().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{await stop?.();await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

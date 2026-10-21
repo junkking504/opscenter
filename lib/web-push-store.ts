@@ -19,23 +19,24 @@ export async function managePushDevice(owner: string, input: {action:'subscribe'
       await client.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason='revoked' WHERE device_id=$1 AND status='pending'",[id]);
       await client.query('UPDATE opscenter_kernel.push_trial SET device_id=NULL,subscription_hash=NULL,approved_at=NULL WHERE singleton=true AND device_id=$1',[id]);
     } else {
-      if(trial.owner_id!==owner||trial.stopped_at||trial.deadline&&trial.deadline<=trial.now||trial.attempts_used>=3)throw new Error('trial_enrollment_closed');
+      if(trial.ongoing_started_at&&!trial.device_id)throw new Error('new_device_approval_required');
+      if(trial.owner_id!==owner||trial.stopped_at||(trial.ongoing_started_at?(!trial.ongoing_expires_at||trial.ongoing_expires_at<=trial.now):(trial.deadline&&trial.deadline<=trial.now||trial.attempts_used>=3)))throw new Error('trial_enrollment_closed');
       const hash=pushHash(input.subscription!.endpoint);
       const existing=await client.query('SELECT id,owner_id,revoked_at,expires_at FROM opscenter_kernel.push_devices WHERE endpoint_hash=$1 FOR UPDATE',[hash]);
       trial.now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
-      if(trial.deadline&&trial.deadline<=trial.now)throw new Error('trial_enrollment_closed');
+      if(trial.ongoing_started_at?(!trial.ongoing_expires_at||trial.ongoing_expires_at<=trial.now):(trial.deadline&&trial.deadline<=trial.now))throw new Error('trial_enrollment_closed');
       if(existing.rows[0] && existing.rows[0].owner_id!==owner) throw new Error('Device belongs to another account.');
       id=existing.rows[0]?.id || id;
       const approved=trial.device_id===id;
       if(trial.device_id && (!approved||trial.subscription_hash!==trialFingerprint(input.subscription!)))throw new Error('different_device_not_approved');
       // An expired/revoked approval cannot be renewed by a shared-login request.
       if(approved && (existing.rows[0]?.revoked_at||existing.rows[0]?.expires_at<=trial.now))throw new Error('new_device_approval_required');
-      const expiresAt=new Date(Math.min(input.expiresAt.getTime(),trial.deadline?.getTime()||Infinity,approved?existing.rows[0].expires_at.getTime():Infinity));
+      const expiresAt=new Date(Math.min(input.expiresAt.getTime(),(trial.ongoing_started_at?trial.ongoing_expires_at:trial.deadline)?.getTime()||Infinity,approved?existing.rows[0].expires_at.getTime():Infinity));
       if(expiresAt<=trial.now)throw new Error('device_expired');
       const count=await client.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_devices WHERE owner_id=$1 AND revoked_at IS NULL AND expires_at>now()',[owner]);
       if((!existing.rows.length || existing.rows[0].revoked_at || new Date(existing.rows[0].expires_at).getTime()<=Date.now()) && count.rows[0].count>=10) throw new Error('Device limit reached.');
-      const saved=await client.query(`INSERT INTO opscenter_kernel.push_devices(id,owner_id,endpoint_hash,subscription_json,categories,expires_at)
-        VALUES($1,$2,$3,$4::jsonb,$5,$6) ON CONFLICT(endpoint_hash) DO UPDATE SET subscription_json=EXCLUDED.subscription_json,categories=EXCLUDED.categories,expires_at=EXCLUDED.expires_at,revoked_at=NULL,created_at=CASE WHEN push_devices.revoked_at IS NOT NULL OR push_devices.expires_at<=now() THEN now() ELSE push_devices.created_at END WHERE push_devices.owner_id=EXCLUDED.owner_id RETURNING id`,[id,owner,hash,JSON.stringify(input.subscription),input.categories,expiresAt]);
+      const saved=await client.query(`INSERT INTO opscenter_kernel.push_devices(id,owner_id,endpoint_hash,subscription_json,categories,expires_at,enrollment_expires_at)
+        VALUES($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT(endpoint_hash) DO UPDATE SET subscription_json=EXCLUDED.subscription_json,categories=EXCLUDED.categories,expires_at=EXCLUDED.expires_at,enrollment_expires_at=EXCLUDED.enrollment_expires_at,revoked_at=NULL,created_at=CASE WHEN push_devices.revoked_at IS NOT NULL OR push_devices.expires_at<=now() THEN now() ELSE push_devices.created_at END WHERE push_devices.owner_id=EXCLUDED.owner_id RETURNING id`,[id,owner,hash,JSON.stringify(input.subscription),input.categories,expiresAt,input.expiresAt]);
       if(saved.rows.length!==1)throw new Error('Device ownership changed.');
     }
     if(input.action==='subscribe') await client.query("UPDATE opscenter_kernel.push_deliveries q SET status='skipped',reason='category_disabled' FROM opscenter_kernel.push_events e WHERE q.event_id=e.id AND q.device_id=$1 AND q.status='pending' AND NOT(e.category=ANY($2::text[]))",[id,input.categories]);

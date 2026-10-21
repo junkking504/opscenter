@@ -48,6 +48,20 @@ class SupervisionTests(unittest.TestCase):
         self.assertFalse((self.root/'capture-lease.json').exists())
         self.assertEqual(json.loads((self.root/'sender.json').read_text())['mode'],'off')
         self.assertFalse(list(self.root.glob('ready-*')))
+    def test_ongoing_requires_explicit_send_mode_and_retains_private_lease(self):
+        config={'mode':'send','ongoing':True,'setupUntil':time.time()+86400}
+        supervisor.atomic(self.root/'sender.json',config)
+        result=supervisor.supervise(self.root,{'OPSCENTER_WEB_PUSH_ENABLED':'1'},[sys.executable,'-c',CHILD],lambda:None,lambda:'synthetic-key',.01)
+        self.assertEqual(result,0)
+        self.assertEqual(json.loads((self.root/'sender.json').read_text())['mode'],'off')
+        self.assertFalse((self.root/'capture-lease.json').exists())
+        for config in [{'mode':'observe','ongoing':True,'setupUntil':time.time()+86400},
+                       {'mode':'send','ongoing':True,'setupUntil':time.time()+31*86400},
+                       {'mode':'send','setupUntil':time.time()+86400}]:
+            supervisor.atomic(self.root/'sender.json',config)
+            with self.assertRaises(ValueError):
+                supervisor.supervise(self.root,{'OPSCENTER_WEB_PUSH_ENABLED':'1'},[],lambda:None,self.forbidden_key,.01)
+
     def test_second_instance_cannot_remove_live_lease(self):
         supervisor.atomic(self.root/'capture-lease.json', {'sentinel':True})
         with (self.root/'supervisor.lock').open('w') as lock:

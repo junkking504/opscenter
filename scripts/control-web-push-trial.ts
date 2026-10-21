@@ -8,14 +8,14 @@ async function main() {
  const args=process.argv.slice(2),action=args.shift();
  const value=(name:string)=>{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;};
  const owner=value('--owner')||'';
- if(!['status','prepare','approve','revoke','start','stop'].includes(action||''))throw new Error('Use status, prepare, approve, revoke, start or stop. Mutations require --apply and --approval-reference.');
+ if(!['status','prepare','approve','promote','revoke','start','stop'].includes(action||''))throw new Error('Use status, prepare, approve, promote, revoke, start or stop. Mutations require --apply and --approval-reference.');
  const config=resolveKernelDatabaseConfig();
  if(process.env.OPSCENTER_RUNTIME!=='MISSION_CONTROL'||config.status!=='ready'||config.databaseName!=='opscenter_production')throw new Error('Explicit Mission Control production configuration is required.');
  if(process.env.OPSCENTER_WEB_PUSH_PRIVATE_KEY)throw new Error('Operator controls do not require signing secrets; use an environment without them.');
  if(action==='status'){if(!owner)throw new Error('--owner is required');console.log(JSON.stringify(await readPushTrial(owner)));return;}
  if(!args.includes('--apply')||!value('--approval-reference'))throw new Error('Explicit --apply and --approval-reference required; authorization must be obtained separately.');
- if(['prepare','approve','revoke'].includes(action!)&&(!allowedSessionIdentity(owner)||!opsRoleCan(opsAuthRole(owner),'sensitive.write')))throw new Error('Verified eligible owner identity required.');
- const input:TrialAction=action==='prepare'?{action,owner}:action==='approve'?{action,owner,deviceId:value('--device')||'',fingerprint:value('--fingerprint')||'',expiresInMinutes:Number(value('--expires-minutes'))}:action==='revoke'?{action,owner,deviceId:value('--device')||''}:{action:action as 'start'|'stop'};
+ if(['prepare','approve','promote','revoke'].includes(action!)&&(!allowedSessionIdentity(owner)||!opsRoleCan(opsAuthRole(owner),'sensitive.write')))throw new Error('Verified eligible owner identity required.');
+ const input:TrialAction=action==='prepare'?{action,owner}:action==='approve'?{action,owner,deviceId:value('--device')||'',fingerprint:value('--fingerprint')||'',expiresInMinutes:Number(value('--expires-minutes'))}:action==='promote'?{action,owner,deviceId:value('--device')||'',fingerprint:value('--fingerprint')||'',verifiedEnrollmentExpiresAt:new Date(value('--verified-enrollment-expires-at')||''),handsetConfirmed:args.includes('--handset-confirmed') as true}:action==='revoke'?{action,owner,deviceId:value('--device')||''}:{action:action as 'start'|'stop'};
  await controlPushTrial(input,value('--approval-reference')!);
  console.log(`Trial ${action} recorded. This command does not enable capture, sending or services.`);
 }

@@ -32,12 +32,13 @@ async function main(){
   const failed=()=>{process.exitCode=1;void stop();};
   const checkTrial=async()=>{
     if(stopping)return;
-    const trial=(await deps.pool.query('SELECT started_at,deadline,stopped_at,attempts_used,clock_timestamp() AS now FROM opscenter_kernel.push_trial WHERE singleton=true')).rows[0];
+    const trial=(await deps.pool.query('SELECT started_at,deadline,stopped_at,attempts_used,ongoing_started_at,ongoing_expires_at,clock_timestamp() AS now FROM opscenter_kernel.push_trial WHERE singleton=true')).rows[0];
     if(stopping)return;
     if(!trial)throw new Error('trial_missing');
     clearTimeout(deadlineTimer);
-    if(trial.stopped_at||trial.attempts_used>=3||trial.deadline&&trial.deadline<=trial.now||observing&&trial.started_at){void stop();return;}
-    if(trial.deadline)deadlineTimer=setTimeout(()=>{void stop();},Math.max(0,trial.deadline.getTime()-trial.now.getTime()));
+    const expires=trial.ongoing_started_at?trial.ongoing_expires_at:trial.deadline;
+    if(trial.stopped_at||(!trial.ongoing_started_at&&trial.attempts_used>=3)||expires&&expires<=trial.now||observing&&trial.started_at){void stop();return;}
+    if(expires)deadlineTimer=setTimeout(()=>{trialChanged();},Math.min(2147483647,Math.max(0,expires.getTime()-trial.now.getTime())));
   };
   const trialChanged=()=>{void checkTrial().catch(failed);};
   const maintenance=createPushMaintenance(async()=>{await archivePushScopes(deps,async(cutoff,acks)=>{

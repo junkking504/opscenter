@@ -131,7 +131,7 @@ class ProductionMigrations(unittest.TestCase):
                 fourth.write_text(original)
                 resumed=run(); self.assertEqual(resumed.returncode,0,resumed.stderr)
                 versions=sql('SELECT version || checksum || applied_at FROM opscenter_kernel.schema_migrations ORDER BY version')
-                self.assertEqual(len(versions.splitlines()),8)
+                self.assertEqual(len(versions.splitlines()),len(list((ROOT / "lib/platform/persistence/migrations").glob("*.sql"))))
                 repeated=run(); self.assertEqual(repeated.returncode,0,repeated.stderr)
                 self.assertEqual(sql('SELECT version || checksum || applied_at FROM opscenter_kernel.schema_migrations ORDER BY version'),versions)
                 fourth.write_text(original+'\n-- checksum drift fixture\n')

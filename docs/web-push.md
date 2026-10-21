@@ -468,3 +468,37 @@ References: [WebKit](https://webkit.org/blog/13878/),
 [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers),
 [RFC 8030](https://www.rfc-editor.org/rfc/rfc8030),
 [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292).
+
+## Verified-phone ongoing delivery
+
+After actual handset presentation and authenticated deep-link acceptance, a local
+operator may explicitly `promote` the same approved device/fingerprint. Migration
+0009 is inert: deployments never promote. The command requires the verified owner,
+full device ID/fingerprint, `--handset-confirmed`, the original verified enrollment
+expiry, `--apply`, and the human approval reference. Promotion requires an accepted
+trial reservation and preserves the original trial clock, three-slot ledger and
+attempt count. There is no reset or automatic promotion.
+
+Ongoing delivery records separate durable reservations, has no three-attempt cap,
+and individually sends subsequent supported schedule, crew and Fleet transitions.
+It preserves canonical-source deduplication and the same owner/device/category,
+role, lease, expiry, endpoint and pre-network/DNS checks. History before promotion
+is skipped; uncertain attempts are never retried. Disable device and operator stop
+remain effective. Replacement and expired grants require a new reviewed procedure;
+browser saves cannot extend approval or replace the verified phone.
+
+Authorization is bounded by the original authenticated enrollment/subscription
+expiry and at most 30 days from enrollment. New subscriptions persist their
+enrollment expiry separately; legacy promotion must supply the previously verified
+ceiling, additionally capped by creation + 30 days and Apple subscription expiry.
+The panel displays the authorization expiry. Ongoing attempt receipts retain 90
+days, preserving pending/sending claims. No new provider, polling or collection
+frequency is introduced.
+
+An explicitly installed sender configuration may set `ongoing: true`, `mode: send`
+and `setupUntil` equal to the grant expiry (at most 30 days). Other sessions retain
+the one-hour setup bound. The lease still expires within five seconds, child
+leadership and helper matching remain required, and every supervisor stop pauses
+capture. The operator may set RunAtLoad for this authorized configuration;
+KeepAlive stays false, so anomalies require investigation rather than automatic
+restart. Reboot resumes only the saved, still-valid explicitly approved session.

@@ -231,3 +231,74 @@ main.ops-app.ops-live { grid-template-columns: 256px minmax(0, 1fr); }
   border-radius: 3px;
   font-weight: 700;
 }
+
+/* Command phone overview: reclaim header and hero space before reducing cards.
+   Keep the original source text and all drilldown controls in normal flow. */
+@media (max-width: 760px) {
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation { height: 48px; min-height: 48px; padding: 2px 8px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation select { appearance: none; min-height: 44px; height: 44px; padding: 0 26px 0 10px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation label { position: relative; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation label::after { content: "⌄"; position: absolute; right: 8px; pointer-events: none; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    grid-template-areas: "day day day" "controls controls controls" "search wiki alerts";
+    column-gap: 4px; padding: 0 8px 4px;
+  }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context { padding: 4px 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context > div { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context strong { font-size: 12px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls { padding: 0; gap: 4px; justify-content: space-between; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls form { flex: 1; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls input { width: 100%; flex: 1; font-size: 16px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls :is(button,input) { min-height: 44px; height: 44px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .live-search-below-day { padding: 4px 0 0; min-height: 44px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .global-search input { font-size: 16px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .brain-launch { width: 44px; min-height: 44px; padding: 0; margin: 0; font-size: 0; gap: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .brain-launch svg { width: 18px; height: 18px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center { margin: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .workspace { padding: 4px 8px max(8px, env(safe-area-inset-bottom)); }
+  /* Workspace is already named in the always-visible mobile selector. */
+  .ops-app.ops-live[data-css-phase-two="Command"] .workspace-heading > div:first-child { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .workspace-heading { margin-bottom: 6px; gap: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .shared-workspace-tabs > button { min-height: 40px; padding: 6px 10px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero { padding: 7px 8px; gap: 2px; margin-bottom: 6px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-label { font-size: 12px; padding-right: 70px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-value { font-size: 30px; line-height: 1.1; min-height: 36px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero small { font-size: 11px; line-height: 1.25; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > div { font-size: 12px; flex-wrap: wrap; gap: 2px 8px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace progress { height: 4px; margin: 4px 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace p { font-size: 11px; line-height: 1.25; margin: 2px 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .metric-strip.command-metrics { gap: 6px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button.kpi-card { padding: 6px; gap: 2px; min-height: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading { padding-right: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading > span:first-child { font-size: 10px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button > strong { font-size: clamp(18px, 5.5vw, 24px); line-height: 1.1; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-secondary,
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button > small { font-size: 11px; line-height: 1.2; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .delta-chip { position: static; flex: 0 0 auto; font-size: 10px; padding: 0 3px; }
+}
+
+@media (max-width: 760px) {
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 13px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading:has(.delta-chip) .kpi-card-affordance { display: none !important; }
+}
+
+@media (max-width: 760px) {
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "label comparison" "value goal" "source source" "pace pace" "previous previous" "basis basis";
+    column-gap: 8px; row-gap: 2px;
+  }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero > div { display: contents; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-label { grid-area: label; padding: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .delta-chip { grid-area: comparison; position: static; justify-self: end; padding: 0 4px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-value { grid-area: value; justify-self: start; font-size: clamp(24px, 7vw, 30px); }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero > div:first-child > small { grid-area: source; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > div { grid-area: goal; display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; gap: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > :is(progress,.hero-pace-empty) { grid-area: pace; margin: 2px 0; height: 4px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > p { grid-area: previous; margin: 0; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > small { grid-area: basis; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace .missing-value { font-size: inherit; line-height: inherit; }
+}

@@ -45,7 +45,16 @@ console.log('Capital Overview contains trends; controls and legacy links work.')
 
 const command=page.getByRole('button',{name:'Command',exact:true});
 await command.focus();await page.keyboard.press('ArrowRight');
+await page.waitForFunction(()=>document.activeElement?.textContent==='Updates'&&document.activeElement?.classList.contains('workspace-rail-page'));
 assert.equal(await page.locator('#workspace-menu-Command').getByRole('link',{name:'Updates',exact:true}).evaluate(e=>e===document.activeElement),true);
+await page.keyboard.press('ArrowDown');
+await page.waitForFunction(()=>document.activeElement?.textContent==='Operating Control');
+await page.keyboard.press('ArrowUp');
+await page.waitForFunction(()=>document.activeElement?.textContent==='Updates');
+await page.keyboard.press('ArrowLeft');
+assert.equal(await command.getAttribute('aria-expanded'),'false');
+await command.press('ArrowRight');
+await page.waitForFunction(()=>document.activeElement?.textContent==='Updates'&&document.activeElement?.classList.contains('workspace-rail-page'));
 await page.keyboard.press('Escape');
 assert.equal(await command.evaluate(e=>e===document.activeElement),true);
 assert.equal(await command.getAttribute('aria-expanded'),'false');
@@ -55,7 +64,7 @@ assert.equal(new URL(tv,page.url()).searchParams.get('tv'),'1');
 assert.equal(new URL(tv,page.url()).searchParams.has('date'),false);
 await page.getByRole('heading',{level:1}).click();
 assert.equal(await command.getAttribute('aria-expanded'),'false');
-for(const [width,height]of [[1280,720],[1024,480],[390,844]]){
+for(const [width,height]of [[1280,720],[1024,480],[768,480],[390,844]]){
  await page.setViewportSize({width,height});
  const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,rail:document.querySelector('.ops-sidebar').getBoundingClientRect().width,footer:document.querySelector('.sidebar-footer').getBoundingClientRect().bottom}));
  assert.equal(geometry.overflow,false);assert.equal(geometry.rail,width>760?80:0);

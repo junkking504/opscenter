@@ -38,8 +38,8 @@ Command includes Updates, Operating Control, Monitor, Forecast and The Huddle.
 Capital and restricted Crew/Command areas retain financial permission checks.
 
 Workspace buttons have visible focus and expanded state. Arrow Right/Down opens
-and focuses the first area; Tab moves through links; Escape closes and restores
-focus. Clicking or tabbing outside closes the menu. Mutation busy state continues
+and focuses the first area; Tab and Up/Down move through links; Left or Escape
+closes and restores focus. Clicking or tabbing outside closes the menu. Mutation busy state continues
 to block navigation. The compact brand icon and Source Health control stay in
 the rail; mobile retains its workspace selector and page tabs. Menus remain
 above content and fit short desktop windows.

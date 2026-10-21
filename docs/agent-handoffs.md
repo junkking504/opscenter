@@ -232,6 +232,8 @@ A task opts in with a line in its brief, under the planner line:
 
 Receipts are read with `check-review-gate.py` (opening-block review lines, different model families, exact `approve`, no open `[blocking]`), so a receipt the gate would reject never shows as ready. Only `Auto: codex-build` tasks may be built or fixed by the relay.
 
+A stop before the agent has started leaves a cancel marker; the runner checks it before it launches anything, so no agent runs. If a runner never publishes itself, the lock stays and the task is marked; after confirming with `ps` that no codex or claude process is running, remove `task-evidence/handoff-relay/lock` by hand. The relay never deletes a lock it did not take, and never on a guess.
+
 Guardrails: the relay does nothing unless `vault/Tasks/.relay-on` exists
 (delete it to stop new steps), holds one lock for one running step, allows at
 most 3 reviews per task and 6 agent runs per day, ends a step's whole process group (SIGTERM, then SIGKILL) after 60

@@ -16,9 +16,9 @@ const days=Array.from({length:14},(_,i)=>{const day=new Date(Date.UTC(2026,9,5+i
 const hoursSnapshot={date,start:'2026-10-05',end:'2026-10-18',generatedAt:new Date().toISOString(),missingDates:[],employees:[{id:member.id,name:member.name,total:6,weeks:[{start:'2026-10-05',end:'2026-10-11',total:4,regular:4,overtime:0,incomplete:false,days:days.slice(0,7)},{start:'2026-10-12',end:'2026-10-18',total:2,regular:2,overtime:0,incomplete:false,days:days.slice(7)}]}]};
 const crew:DesktopKreweSnapshot={date,view:'today',start:date,end:date,sourceUpdatedAt:new Date().toISOString(),missingDates:[],payrollVisible:true,canWrite:false,members:[member,missing],totals:base,callIn:null,hoursSnapshot};
 const command=fixtureSnapshot();command.date=date;command.actor.role='Manager';
-command.kpis=['Today’s jobs','Revenue','Labor','Dump + Fuel','Net'].map(label=>({label,value:'$100.00',detail:'Synthetic evidence',progress:100,tone:'healthy' as const}));
+command.kpis=['Today’s jobs','Revenue','Labor','Dump + Fuel','Net'].map(label=>({label,value:label==='Today’s jobs'?'6':label==='Revenue'?'$8,512.34':label==='Labor'?'$1,842.10':label==='Net'?'-$1,234.56':'$1,234.56',detail:'Synthetic evidence',progress:100,tone:'healthy' as const}));
 command.kpis.push({label:'RPH',value:crewRph(crew).value!.toLocaleString('en-US',{style:'currency',currency:'USD'}),secondaryValue:'Revenue per labor hour',detail:'4 labor hours · 1 crew · 1 excluded',progress:100,tone:'healthy'});
-command.kpis.push({label:'AJS',value:'$320.00',secondaryValue:'Average job size',detail:'2 completed jobs · Full job values',progress:100,tone:'healthy'});
+command.kpis.push({label:'AJS',value:'$320.00',secondaryValue:'Average job size',detail:'2 completed jobs · Gross job values',progress:100,tone:'healthy'});
 window.fetch=async(input,init)=>{if(init?.method&&init.method!=='GET')throw Error('Writes forbidden in RPH fixture');const url=new URL(String(input),location.origin);if(url.pathname==='/api/desktop/krewe'){if(url.searchParams.get('date')!==date)throw Error('Selected date lost');return Response.json(crew);}return Response.json({error:'Disabled in synthetic fixture'},{status:503});};
 class NoEvents {addEventListener(){}close(){}}
 window.EventSource=NoEvents as unknown as typeof EventSource;

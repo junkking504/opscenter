@@ -80,7 +80,7 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
   // Revenue and completed jobs share the JunkWare completed-job source contract.
   // The Revenue headline may use Truck Records sales; AJS uses Finance's gross job values.
   const ajsEvidence = dailyFinanceEvidence(metrics, { ...finance, revenue: daily.revenue }, date, wex).revenue;
-  const ajsDetail = daily.averageJob === null ? 'Revenue or completed jobs unavailable' : `${daily.jobs} completed jobs · Full job values`;
+  const ajsDetail = daily.averageJob === null ? 'Revenue or completed jobs unavailable' : `${daily.jobs} completed jobs · Gross job values`;
   agedCards.push(ageFinanceKpi({ label: 'AJS', value: amount(daily.averageJob), secondaryValue: 'Average job size',
     detail: ajsDetail, progress: daily.averageJob === null ? 0 : 100, tone: daily.averageJob === null ? 'warning' : 'healthy',
     financeEvidence: { date, recorded: daily.averageJob, evidence: ajsEvidence, currentDetail: ajsDetail },

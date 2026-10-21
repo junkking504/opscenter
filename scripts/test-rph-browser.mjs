@@ -10,13 +10,14 @@ const browser=await chromium.launch({headless:true});
 const errors=[];
 try {
  const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
- for(const width of [1440,768,430,390,320]) {
+ for(const width of [1440,1241,1240,1180,1024,1001,768,430,390,320]) {
   await page.setViewportSize({width,height:1000});
   await page.goto(preview);
   const card=page.getByRole('button',{name:'Open RPH details',exact:true});await card.waitFor();
   assert.match(await card.innerText(),/\$160.00/);
   assert.equal(await page.locator('.command-metrics .kpi-card').count(),6);
   assert.equal(await page.locator('.command-metrics').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Command cards fit ${width}`);
+  assert.equal(await page.locator('.command-metrics .kpi-card').evaluateAll(cards=>cards.every(el=>el.scrollWidth<=el.clientWidth+1)),true,`Each money card fits ${width}`);
   const ajs=page.getByRole('button',{name:'Open AJS details',exact:true});
   assert.match(await ajs.innerText(),/\$320.00/);
   const rphBox=await card.boundingBox(), ajsBox=await ajs.boundingBox();
@@ -26,6 +27,7 @@ try {
   await ajs.click();
   await page.getByRole('heading',{name:`AJS · 2026-10-13`,exact:true}).waitFor();
   assert.match(await page.locator('.command-metric-detail').innerText(),/\$320.00/);
+  await page.getByText('AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.',{exact:true}).waitFor();
   assert.match(page.url(),/workspace=Finance/);
   assert.match(page.url(),/financeView=trends/);
   await page.getByRole('button',{name:'Back to Command',exact:true}).click();
@@ -46,5 +48,5 @@ try {
   assert.equal(await page.locator('.hours-employee-card').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Pay-period card fits ${width}`);
   await page.screenshot({path:`${output}/period-${width}.png`});
  }
- assert.deepEqual(errors,[]);console.log('PASS browser: six Command cards beside revenue hero, adjacent RPH/AJS, AJS Finance navigation, selected-date Crew navigation, individual unavailable states, period/week RPH and 1440/768/430/390/320px layouts.');
+ assert.deepEqual(errors,[]);console.log('PASS browser: six Command cards beside revenue hero, adjacent RPH/AJS, AJS Finance navigation, selected-date Crew navigation, individual unavailable states, period/week RPH and 1440/1241/1240/1180/1024/1001/768/430/390/320px layouts with four-digit amounts and negative Net.');
 } finally {await browser.close();}

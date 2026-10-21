@@ -99,4 +99,8 @@ completed-job count or missing input displays unavailable; zero revenue with
 positive completed jobs displays $0.00. The completed-job revenue freshness
 contract governs both inputs, including retained-browser aging and historical
 snapshots. Opening AJS shows the existing average-job Finance trend for the
-selected date. No new source read or collection is introduced.
+selected date, with a note that the existing operating chart uses Truck Records
+values and may differ from the gross-job card. The card also labels its gross
+job-value basis. The three-column layout extends through 1240px so four-digit
+amounts and negative Net values fit before switching to six columns. No new
+source read or collection is introduced.

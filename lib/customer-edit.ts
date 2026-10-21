@@ -1,8 +1,8 @@
 import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import type {CustomerChange,CustomerDetails} from './customer-edit-contract';
-export type CustomerSource={ok:boolean;customer:CustomerDetails;sourceVersion:string;protectedVersion:string;checkedAt:string;verifiedAt?:string;submitted?:boolean;error?:string;previousCustomer?:CustomerDetails;displayAddress?:string};
+import type {CustomerChange,CustomerDetails,CustomerEstimateOutcome} from './customer-edit-contract';
+export type CustomerSource={ok:boolean;customer:CustomerDetails;sourceVersion:string;protectedVersion:string;checkedAt:string;verifiedAt?:string;submitted?:boolean;error?:string;previousCustomer?:CustomerDetails;displayAddress?:string;appointmentNotes?:string[];requiresEstimateOutcome?:boolean;requiresNoDiscountReason?:boolean;estimateOutcome?:CustomerEstimateOutcome};
 export function junkwareCustomer(appointmentId:string,change?:CustomerChange):Promise<CustomerSource> {
   if(!/^\d{1,12}$/.test(appointmentId))throw new Error('A valid appointment is required.');
   return new Promise((resolve,reject)=>{

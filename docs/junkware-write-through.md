@@ -387,3 +387,21 @@ also drives unsaved-navigation warnings. The worker disables Send Pictures and
 never invokes the separate email or Send ETA controls. Captured schedule,
 status, charges and payments must remain identical. Native server internals are
 not inferred from client-side inspection.
+
+Completed jobs and closed estimates keep **Edit Customer** available. Closed
+jobs use the normal source save without changing status. For a closed estimate,
+OpsCenter shows the existing outcome, prefilled from the latest recognized
+native outcome note. Existing outcome fields are read-only; missing required
+source details can be supplied in the editor. Saving retains that outcome and
+completes JunkWare's native outcome confirmation inside OpsCenter. The estimate
+stays closed. JunkWare may append the explicitly reviewed outcome confirmation
+note; all previous notes must remain, and no other note addition is accepted.
+
+The first Save Appointment and any required outcome confirmation are distinct
+phases of one source operation. Each phase is submitted at most once. A lost
+response is resolved by fresh read-back, and receipt recovery only reads. Source
+versions include the baseline note history; financial/status preservation is
+checked independently of the one allowed confirmation note. Outcome changes
+are rejected when an existing source outcome is recognized. Regression coverage
+includes closed jobs, closed estimates, discounted estimates, both save phases,
+lost final responses, stale notes, changed financial values and deleted notes.

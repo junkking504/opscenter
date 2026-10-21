@@ -29,6 +29,13 @@ async function main(){
     assert.equal((await resolveCustomerManualReview({requestId:op.requestId,recordId:op.recordId,date:op.date},'test-actor')).status,'reconciled');
    }
   }
+  for(const [index,validNote] of [true,false].entries()){
+   const id=String(900+index),existingNote='Original note',outcome={reason:'Date/Time',explanation:'Existing outcome',noDiscountReason:'Existing explanation'};
+   const op=parseScheduleOperation({...operation(id),values:{...values,appointmentNotes:[existingNote],estimateOutcome:outcome}});
+   await executeScheduleOperation(op,'test-actor',()=>({...job(id),status:'Completed'}),async()=>({status:202,body:{ok:false}}));
+   const resolved=await reconcileCustomerReceipt(op.requestId,'test-actor',async()=>({ok:true,customer,sourceVersion:'d'.repeat(64),protectedVersion:values.protectedVersion,appointmentNotes:[existingNote,validNote?'Date/Time: Existing outcome, no discount: Existing explanation (10/21/2026 2:00 PM , Manager)':'Other: Unexpected note (10/21/2026 2:00 PM , Manager)'],checkedAt:new Date().toISOString()}));
+   assert.equal(resolved?.status,validNote?'verified':'uncertain','Closed-estimate recovery verifies only the explicitly reviewed native note.');
+  }
   const delayed=operation('700');
   assert.equal((await resolveCustomerManualReview({requestId:delayed.requestId,recordId:delayed.recordId,date:delayed.date},'test-actor')).status,'reconciled');
   await assert.rejects(()=>executeScheduleOperation(delayed,'test-actor',()=>job('700'),async()=>{writes++;return {status:200,body:{ok:true}};}),/different change/);

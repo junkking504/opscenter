@@ -20,6 +20,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
   const [confirmation, setConfirmation] = useState<'lead' | Review | null>(null);
   const [lastRequest, setLastRequest] = useState(''), [unresolved, setUnresolved] = useState(false);
   const confirmationDialog = useRef<HTMLDialogElement>(null);
+  const submitting = useRef(false);
   const locked = busy || unresolved;
   const editing = locked || Boolean(draft) || Boolean(confirmation) || Object.keys(selections).length > 0;
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
@@ -53,10 +54,11 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
     finally { setBusy(false); }
   }
   async function mutate(operation: Omit<CommercialOperation, 'date' | 'requestId'>) {
-    if (locked) return;
+    if (locked || submitting.current) return;
+    submitting.current = true;
     setBusy(true); setUnresolved(true); onBusyChange?.(true); setActionFeedback('');
-    const requestId = crypto.randomUUID(); setLastRequest(requestId);
     try {
+      const requestId = crypto.randomUUID(); setLastRequest(requestId);
       const response = await fetch('/api/desktop/marketing', { method: 'POST', signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) });
       const result = await response.json();
       if (!response.ok) {
@@ -67,7 +69,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
       }
       acceptReceipt(result.receipt);
     } catch (error) { setActionFeedback(`${error instanceof Error ? error.message : 'Result unavailable.'} Check the saved result before continuing.`); }
-    finally { setBusy(false); }
+    finally { submitting.current = false; setBusy(false); }
   }
   function confirmSave() {
     if (confirmation === 'lead' && draft) void mutate({ action: 'lead.update', recordId: draft.id, expectedVersion: draft.version, values: { status: draft.status, reason: draft.reason, note: draft.note, contacted: draft.contacted } });

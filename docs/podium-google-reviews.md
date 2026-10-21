@@ -73,9 +73,14 @@ OpsCenter first uses the exact phone or email from a Podium review invitation
 to find a completed JunkWare job from the preceding 90 days. Reviews without
 that exact identifier match remain unassigned. For those reviews, Marketing →
 Reviews cross-references the public reviewer name against completed JunkWare
-customer names and proposes only conservative matches: exact full name, exact
-first and last name, or a first/last-initial match. Same-territory and more
-recent completed jobs rank first when more than one candidate exists.
+customer names and proposes matches using full names, first or last names, initials, common
+nicknames, and small spelling differences. Review text mentioning a recorded
+crew member strengthens a suggestion. Crew evidence is labeled as a possible
+mention and uses capitalized exact first names/known nicknames, with
+contractions excluded and extra context required for common-word names; crew-only suggestions require the same
+location. Each desktop suggestion explains its evidence. Customer-name strength,
+crew mentions, location, and recency rank candidates from the preceding 90 days.
+These are inferences requiring manager confirmation, never automatic crew credit.
 
 A name match is a suggestion, not employee credit. A manager or administrator
 must confirm the displayed JK number or choose a different completed
@@ -102,7 +107,7 @@ with a back button that preserves the filters.
 
 Crew credit is displayed only for confirmed attribution. The original-review
 link opens the source for reading/responding; Campaign does not post a reply.
-Managers can choose a name-match suggestion or enter a completed appointment ID,
+Managers can choose a name-match suggestion or enter a completed appointment ID or JK job number,
 open the appointment for review, and confirm the selection in a separate dialog.
 Uncertain saves stay attached to their receipt and block repeat submissions;
 **Check saved result** reads the original receipt without replaying the write.

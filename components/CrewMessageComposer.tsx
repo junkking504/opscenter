@@ -1,0 +1,10 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import styles from '@/app/crew-jobs/phone-access.module.css';
+type Draft={id:string;truck:string;body:string};
+export default function CrewMessageComposer({truck}:{truck:string}){
+ const [body,setBody]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[locked,setLocked]=useState(false);const pending=useRef<Draft|null>(null),sending=useRef(false);const storage=`waypoint-office-message:${truck}`;
+ useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(storage) || 'null');if(saved?.truck===truck && typeof saved.id==='string' && typeof saved.body==='string'){pending.current=saved;setBody(saved.body);setLocked(true);}}catch{setStatus('Saved message state is unavailable. Contact dispatch before sending again.');setLocked(true);}},[storage,truck]);
+ async function send(){if(sending.current)return;sending.current=true;setBusy(true);setStatus('');try{const request=pending.current || {id:crypto.randomUUID(),truck,body};localStorage.setItem(storage,JSON.stringify(request));pending.current=request;setLocked(true);const response=await fetch('/api/crew-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)}),result=await response.json();if(!response.ok)throw Error(result.error || 'Message result unknown. Check the same message again.');localStorage.removeItem(storage);pending.current=null;setBody('');setLocked(false);setStatus('Message saved for the crew. Push arrival is not confirmed.');}catch(e){setStatus(e instanceof Error?e.message:'Message result unknown.');}finally{sending.current=false;setBusy(false);}}
+ return <section className={styles.card}><h2>Message {truck}</h2><label className={styles.form}>Office message<textarea maxLength={1000} value={body} disabled={busy || locked} onChange={e=>setBody(e.target.value)}/></label><button className={styles.primary} disabled={busy || !body.trim() || locked && !pending.current} onClick={()=>void send()}>{busy?'Saving…':pending.current?'Check same message':'Send to truck'}</button><p role="status">{status}</p></section>;
+}

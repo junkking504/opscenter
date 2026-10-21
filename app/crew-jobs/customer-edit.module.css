@@ -1,0 +1,9 @@
+.editor { border-top: 1px solid #d8ddd5; margin-top: 1rem; padding-top: 1rem; min-width: 0; }
+.editor h2 { font-size: 1.35rem; margin-top: 0; }
+.editor > button { width: 100%; margin-top: .75rem; }
+.editor input { min-height: 48px; font-size: 16px; }
+.changes { margin: 1rem 0; overflow-wrap: anywhere; }
+.changes > div { padding: .875rem 0; border-bottom: 1px solid #d8ddd5; }
+.changes dt { font-weight: 700; margin-bottom: .5rem; }
+.changes dd { margin: .375rem 0; }
+.changes dd span { display: block; color: #5b6962; font-size: .8rem; margin-bottom: .2rem; }

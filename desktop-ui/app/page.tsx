@@ -48,6 +48,7 @@ import { ActionHints } from '../action-hints';
 import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
+const { Component: Customers } = preloadableWorkspace(() => import('../customers'));
 const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
 const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
@@ -101,7 +102,7 @@ type RecordNavigationEntry = {
     operatingDate: string;
     calendarDateDraft: string;
     scheduleDay: ScheduleDay;
-    scheduleView: 'board' | 'calendar' | 'followup' | 'history' | 'estimates';
+    scheduleView: 'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers';
     scheduleScope: string;
     scheduleStatusFilter: ScheduleStatusFilter;
     followupFilter: 'all' | 'estimates' | 'closed' | 'unclosed' | 'photos';
@@ -1001,7 +1002,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       // Returning through workspace navigation opens the default board. Direct
       // appointment links still apply when the page is first opened.
       const url = new URL(window.location.href);
-      for (const key of ['appointment', 'q', 'truck']) url.searchParams.delete(key);
+      for (const key of ['appointment', 'customer', 'q', 'truck']) url.searchParams.delete(key);
       window.history.replaceState(window.history.state, '', url);
     }
     if (value !== activeNav) startWorkspaceNavigation(value);
@@ -1082,11 +1083,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
   const operatingDateHeading = live ? new Date(live.snapshot.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Sunday, August 31';
-  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates'], 'board') : 'board');
-  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates') => {
+  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates', 'customers'], 'board') : 'board');
+  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers') => {
 
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
+    { const url = new URL(window.location.href); url.searchParams.delete('customer'); window.history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }
   };
   const warmDate = live?.snapshot.date;
   const warmLoading = live?.snapshot.loading;
@@ -1202,7 +1204,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const currentPageLabel = activeNav === 'Command'
     ? `Command · ${view === 'now' ? 'Alerts' : view === 'today' ? 'Control' : view === 'forecast' ? 'Forecast' : 'Monitor'}`
     : activeNav === 'Schedule'
-      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : 'History'}`
+      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : scheduleView === 'customers' ? 'Customers' : 'History'}`
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
@@ -4221,8 +4223,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>
-          <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />
-          <small style={{ marginTop: 8 }}>Junk King Louisiana</small>
+          <img src="/opscenter-icon.svg" alt="OpsCenter" width={40} height={40} className="workspace-rail-brand" />
         </div>
 
         <NavigationDiagnostics />
@@ -4230,7 +4231,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           if (mutationBusyRef.current) return;
           if (workspace === 'Command' && page === 'tv') { const url = new URL(window.location.href); url.searchParams.set('tv','1'); url.searchParams.delete('date'); window.location.assign(url.href); return; }
           const pageUrl = new URL(window.location.href);
-          for (const key of ['appointment','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
+          for (const key of ['appointment','customer','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
           window.history.replaceState(window.history.state, '', pageUrl);
           setActiveNav(workspace);
           if (workspace === 'Command') setView(page as typeof view);
@@ -4242,7 +4243,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         }} />
 
         <div className="sidebar-footer">
-          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Source checks current' : 'All sources healthy'}</button>
+          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth} aria-label={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'} title={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'}><span aria-hidden="true" /><small>Sources</small>{sourceAttentionCount > 0 && <em>{sourceAttentionCount}</em>}</button>
         </div>
       </aside>
 
@@ -4360,6 +4361,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <WorkspaceTabs label="Control views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
+                  {live && <button className={scheduleView === 'customers' ? 'active' : ''} onClick={() => setScheduleView('customers')}>Customers</button>}
                   {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
                   <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
@@ -4755,7 +4757,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} hideCharts={showingDrilldown} />}
           </Suspense></WorkspaceBoundary>
           {activeNav === 'Schedule' && live && scheduleView === 'estimates' && <Estimates onBusyChange={onBusyChange} />}
-          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
+          {activeNav === 'Schedule' && live && scheduleView === 'customers' && <Customers />}
+          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && scheduleView !== 'customers' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
 
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">

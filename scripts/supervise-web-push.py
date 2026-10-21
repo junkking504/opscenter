@@ -78,7 +78,7 @@ def signing_key():
         raise ValueError('signing_unavailable')
     return value
 
-def supervise(state, env, command, pause, key=signing_key, tick=0.5):
+def supervise(state, env, command, pause, key=signing_key, tick=2.0):
     # Importable for synthetic tests. Production CLI pins all paths and commands.
     info = state.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:

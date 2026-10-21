@@ -1,7 +1,9 @@
 import type {WaypointDaySummary} from './waypoint-day-summary';
 export type CrewAssignment = { assignmentId: string; appointmentId: string; date: string; releasedAt: string };
 export type CrewDispatch = { truck: string; version: number; current: CrewAssignment | null; queued: CrewAssignment | null };
+export type CrewMapLocation = {latitude:number;longitude:number;approximate:boolean;detail?:string};
 export type CrewCurrentJob = {
+  mapLocation?:CrewMapLocation|null;
   truck?:string; sharedAmazon?:boolean; assignmentId: string; appointmentId: string; date: string; jkNumber: string;
   draftScope?: string; draftAssignmentIds?: string[];
   customerName: string; phone: string; address: string; appointmentTime: string;

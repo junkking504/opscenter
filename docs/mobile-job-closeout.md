@@ -1036,3 +1036,70 @@ retried. Acceptance does not establish arrival on a handset. Activation requires
 the exact Operations account in the protected policy after reviewed deployment.
 Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
 `test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.
+
+### Phone connection presentation — October 21, 2026
+
+The public entry screen uses **Connect Your Phone**, a phone selector and one
+primary **Send setup code** action. The code field appears after the request
+returns or when the crew selects **Already have a code?**. A retained request or
+enrollment attempt restores code entry after reload. **Choose phone** returns to
+the selector and clears the entered code; it does not discard the retained send
+request. Uncertain-send messages remain visible with **Check send status**, which
+reuses that request ID. **Need help connecting?** contains connection recovery and
+the existing ten-minute new-code guard. No message is sent on page load.
+
+The entry screen shows Connect phone, Truck setup and Inspection beneath the
+form; the existing header steps resume once a phone is connected. Operations
+WhatsApp delivery, approved recipients, enrollment verification and subsequent
+crew workflows are unchanged by this presentation update.
+
+## Crew customer corrections — October 21, 2026
+
+Open appointment details expose **Edit customer information** for ordinary live
+crew phones. Crews review before/after values before saving first and last name,
+phone, alternate phone, email, service street/unit and ZIP, and on-site contact
+name/phone. Customer account identity, billing, financial fields, status, booked
+window and truck/crew assignments are not editable through this action.
+
+`/api/crew-jobs/customer` requires the existing secure phone session, saved daily
+crew, inspection and fresh assignment scope. Corrections are limited to open
+appointments on that phone's current truck, including when a manager browses all
+trucks; shared cross-truck visibility does not grant correction permission. Test
+phones and dry runs cannot reach live customer writes. Same-origin JSON, strict
+field validation, source version and crew revision checks remain server enforced.
+
+The `customer_correction` action shares durable appointment operation receipts and
+locks with dispatch/closeout. The office's generic action parser cannot invoke it.
+A queued request writes once; repeated request IDs return the receipt. Before
+submission the worker reopens the source, revalidates scope and the reviewed
+version, and stores the before/expected customer fields plus server-owned crew
+attribution in the private receipt. It changes only allowlisted controls; ZIP uses
+JunkWare's existing unsaved postback and address-change flag. Customer details
+travel over child-process stdin rather than process arguments. The worker does
+not select address suggestions, send messages or complete an appointment.
+
+Success requires a fresh source read with every intended field retained and
+protected appointment/account/financial fields unchanged. Unknown results remain
+blocked; **Check saved result** only reads the source. Exact expected values verify
+the change; after ten minutes an exact unchanged baseline proves a failed save
+and permits a new review. After ten minutes, other fresh source mismatches are marked reconciled: the
+original outcome remains unconfirmed and the crew must reload the current
+source details before another correction. A stale queued receipt without a
+durable submission intent is marked failed without reading or writing JunkWare;
+a delayed worker cannot replay it. Unavailable sources remain blocked. Actor-bound receipt checks are read-only
+and do not require the appointment to remain on the original truck or date.
+If the phone expires or is revoked, an OpsCenter manager/admin opens the
+appointment closeout and selects **Check Saved Result** on the pending customer
+correction. The office receives a status-only receipt and uses the same read-only
+reconciler, even after source completion or reassignment. This never submits a
+correction, closeout or payment. No source
+write is replayed by recovery. The active appointment card adopts the verified name, phone and address read-back
+immediately; a changed address clears the old map pin. The normal verified
+schedule refresh supplies the route projection and new cached location. The
+editor's verified result remains separate from schedule ingestion.
+The browser retains only the request ID for recovery, not customer details.
+
+Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
+`verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
+`verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
+and receipt recovery. No real customer correction is a deployment test.

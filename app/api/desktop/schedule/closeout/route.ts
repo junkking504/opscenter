@@ -1,3 +1,4 @@
+import {canRecoverCustomerCorrection,customerRecoveryProjection} from '@/lib/customer-correction-recovery';
 import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
@@ -13,5 +14,5 @@ export async function GET(request: Request) {
   const body = await response.json();
   const appointmentId = new URL(request.url).searchParams.get('appointmentId') || '';
   const pending = /^\d{1,12}$/.test(appointmentId) ? await readPendingScheduleReceipt(`:appointment:${appointmentId}`) : null;
-  return Response.json({ ...body, ...(body.closeout ? { sourceVersion: closeoutSourceVersion(body.closeout), canWrite: authorizeOpsRequest(actor.role, '/api/job-closeout', 'POST').allowed && (!pending || pending.actor === actor.email), pendingReceipt: pending?.actor === actor.email ? pending : null } : {}) }, { status: response.status, headers: { 'Cache-Control': 'private, no-store' } });
+  return Response.json({ ...body, ...(body.closeout ? { sourceVersion: closeoutSourceVersion(body.closeout), canWrite: authorizeOpsRequest(actor.role, '/api/job-closeout', 'POST').allowed && (!pending || pending.actor === actor.email), pendingReceipt: canRecoverCustomerCorrection(actor.role,pending) && pending ? customerRecoveryProjection(pending) : pending?.actor === actor.email ? pending : null } : {}) }, { status: response.status, headers: { 'Cache-Control': 'private, no-store' } });
 }

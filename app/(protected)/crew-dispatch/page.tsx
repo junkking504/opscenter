@@ -1,4 +1,5 @@
 'use client';
+import CrewMessageComposer from '@/components/CrewMessageComposer';
 import { truckDisplayText } from '../../../lib/junkware-trucks';
 import { useEffect, useRef, useState } from 'react';
 import type { CrewDispatch } from '@/lib/crew-dispatch';
@@ -52,6 +53,6 @@ export default function CrewDispatchPage(){
       {!snapshot.sourceFresh && <p className={styles.error}>Schedule data is unavailable or more than ten minutes old. Refresh the schedule before assigning a job.</p>}
       <form className={styles.form} onSubmit={event=>{event.preventDefault();void send('release');}}><label>{snapshot.dispatch.current?'Next assignment':'Assign current job'}<select value={selected} onChange={event=>setSelected(event.target.value)} disabled={busy || !snapshot.sourceFresh || Boolean(snapshot.dispatch.queued)} required><option value="">Choose a confirmed job</option>{jobs.map(job=><option key={job.appointmentId} value={job.appointmentId}>{job.appointmentTime} · {job.customerName}</option>)}</select></label><button className={styles.primary} disabled={busy || !selected || !snapshot.sourceFresh || Boolean(snapshot.dispatch.queued)}>{busy?'Checking JunkWare…':snapshot.dispatch.current?'Queue next job':'Assign job'}</button></form>
     </>}
-    <p><a href="/crew-phones">Manage company phones</a></p>
+    <CrewMessageComposer key={truck} truck={truck}/><p><a href="/crew-phones">Manage company phones</a></p>
   </div></main>;
 }

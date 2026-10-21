@@ -505,7 +505,8 @@ frequency is introduced.
 
 An explicitly installed sender configuration may set `ongoing: true`, `mode: send`
 and `setupUntil` equal to the grant expiry (at most 30 days). Other sessions retain
-the one-hour setup bound. The lease still expires within five seconds, child
+the one-hour setup bound. The supervisor refreshes its lease every two seconds (rather than 0.5 seconds)
+to reduce ongoing disk writes. The lease still expires within five seconds, child
 leadership and helper matching remain required, and every supervisor stop pauses
 capture. The operator may set RunAtLoad for this authorized configuration;
 KeepAlive stays false, so anomalies require investigation rather than automatic

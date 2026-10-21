@@ -585,7 +585,7 @@ async function main(): Promise<void> {
   const application = argument("application") || "waypoint";
   if (application !== "opscenter" && application !== "waypoint") throw new Error("The closeout application is not valid.");
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid JunkWare appointment ID is required.");
-  if (!/^(read|write|classify)$/.test(mode)) throw new Error("The closeout action is not valid.");
+  if (!/^(read|write|classify|customer-read|customer-write)$/.test(mode)) throw new Error("The closeout action is not valid.");
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -599,6 +599,18 @@ async function main(): Promise<void> {
     page.setDefaultTimeout(45_000);
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
+    if (mode === 'customer-read' || mode === 'customer-write') {
+      const {captureCustomer,applyCustomerCorrection}=await import('./junkware-customer-correction');
+      let customer=await captureCustomer(page,appointmentId);
+      if(mode==='customer-write'){
+        const chunks:Buffer[]=[];for await(const chunk of process.stdin)chunks.push(Buffer.from(chunk));
+        const input=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if(customer.sourceVersion!==input.expectedSourceVersion || customer.date!==input.date || customer.truck!==input.truck || customer.status!=='1')throw new Error('The source appointment changed. Reload customer information before saving.');
+        customer=await applyCustomerCorrection(page,customer,input.fields,()=>{writeStarted=true;});
+      }
+      process.stdout.write(JSON.stringify({ok:true,appointmentId,customer,verifiedAt:new Date().toISOString()})+'\n');
+      await context.close();return;
+    }
     if (mode === 'read' && argument('diagnostics') === 'classification') {
       const diagnostics = await page.evaluate(() => ({
         clientValidation: String((window as unknown as {ValidateForm?:unknown}).ValidateForm || ''),

@@ -17,7 +17,7 @@ const write = (relative: string, value: unknown) => {
   fs.writeFileSync(file, JSON.stringify(value));
 };
 const metrics = (date: string, revenue: number) => ({
-  appointments: [{ appt_id: `A-${date}`, job_id: `JK-${date}`, customer_name: "Pat Reed", customer_phone: "5045550100", territory: "Nashville", revenue, job_status: "Completed", driver_name: "Alex Crew" }],
+  appointments: [{ appt_id: `A-${date}`, job_id: `JK-${date}`, completed_at: `${date}T14:00:00Z`, customer_name: "Pat Reed", customer_phone: "5045550100", territory: "Nashville", revenue, job_status: "Completed", driver_name: "Alex Crew" }],
   completed_appointment_ids: [`A-${date}`],
 });
 const reviews = (fetchedAt: string, count: number) => ({

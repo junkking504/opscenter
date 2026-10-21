@@ -287,3 +287,13 @@ merge or deploy. See [Web Push activation boundaries](web-push.md).
 
 On October 21, 2026 the user confirmed Claude paid extra usage is off for the
 subscription-only Waypoint Operations code-delivery review. No paid fallback.
+
+## Waypoint crew notifications — October 21, 2026
+
+User approved ongoing iPhone crew alerts for schedule/route updates and office
+messages. Reuses the existing Apple Web Push host and VAPID key via a separate
+crew-only sender. No new provider/SDK, billable inference, subscription or Meta
+call. Existing source cadence is unchanged. Permission is an explicit crew tap;
+phone/truck/day authorization remains distinct from manager notification grants.
+See [Waypoint notifications](waypoint-push.md). This does not reset/promote the
+manager trial or change its limits.

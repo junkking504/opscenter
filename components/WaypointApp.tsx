@@ -7,20 +7,20 @@ import styles from './waypoint-app.module.css';
 import { CREW_JOBS_ORIGIN } from '@/lib/crew-phone';
 import TruckInspectionApp from './TruckInspectionApp';
 
-type Step = 'setup' | 'inspection' | 'jobs';
+type Step = 'connect' | 'setup' | 'inspection' | 'jobs';
 
 export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'inspections'; jobsHref?: string }) {
   const [manager,setManager]=useState(false),[managerView,setManagerView]=useState(false);
   useEffect(()=>{if(jobsHref)return;let active=true;void fetch('/api/crew-jobs/session',{cache:'no-store'}).then(r=>r.json()).then(body=>{if(active){setManager(body.manager===true);setManagerView(body.manager===true);}}).catch(()=>{});return()=>{active=false;};},[jobsHref]);
-  const [step, setStep] = useState<Step>('setup');
+  const [step, setStep] = useState<Step>('connect');
   const [test,setTest]=useState(false);
   return <div className={styles.app}>
-    <header className={styles.header}>
+    <header className={`${styles.header} ${!jobsHref && !managerView && step === 'connect' ? styles.connectionHeader : !jobsHref && (managerView || step==='jobs') ? styles.routeHeader : ''}`}>
       <div className={styles.brand}>
         <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-crown-road-v1-192.png` : '/crew-jobs/waypoint-crown-road-v1-192.png'} width="52" height="52" alt="" />
         <div><strong>Waypoint</strong><span>JUNK KING</span></div>
       </div>
-      {jobsHref ? <a className={styles.legacyEntry} href={jobsHref}>Open Waypoint daily setup →</a> : !managerView && step !== 'jobs' ? <ol className={styles.steps} aria-label="Start your day">
+      {jobsHref ? <a className={styles.legacyEntry} href={jobsHref}>Open Waypoint daily setup →</a> : !managerView && step !== 'jobs' && step !== 'connect' ? <ol className={styles.steps} aria-label="Start your day">
         <li aria-current={step === 'setup' ? 'step' : undefined}><span>1</span>Truck setup</li>
         <li aria-current={step === 'inspection' ? 'step' : undefined}><span>2</span>Inspection</li>
         <li><span>3</span>Assignments</li>

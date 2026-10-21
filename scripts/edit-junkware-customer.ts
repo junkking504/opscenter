@@ -60,6 +60,11 @@ export async function editCustomerOnPage(page:Page,change:CustomerChange,reopen:
     submitted=true;
     try {await clickWithWebFormsCompletion(page,'#ctl00_Content_SaveAppointmentBtn','the customer update');} catch { /* A lost save response requires read-back, never a second save. */ }
     const outcomeButton=page.locator('#ctl00_Content_UENoteOkBtn');
+    // The native save response can finish before its startup script opens the modal.
+    if(before.requiresEstimateOutcome){
+      try{await outcomeButton.waitFor({state:'visible',timeout:15000});}
+      catch{/* Fresh read-back below must prove whether a modal-free save completed. */}
+    }
     if(await outcomeButton.isVisible()){
       if(!before.requiresEstimateOutcome || !change.estimateOutcome)throw new Error('JunkWare requested an unexpected estimate outcome. Check the saved result.');
       const confirmation=await readCustomer(page);

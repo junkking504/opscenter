@@ -1052,3 +1052,42 @@ The entry screen shows Connect phone, Truck setup and Inspection beneath the
 form; the existing header steps resume once a phone is connected. Operations
 WhatsApp delivery, approved recipients, enrollment verification and subsequent
 crew workflows are unchanged by this presentation update.
+
+## Crew customer corrections — October 21, 2026
+
+Open appointment details expose **Edit customer information** for ordinary live
+crew phones. Crews review before/after values before saving first and last name,
+phone, alternate phone, email, service street/unit and ZIP, and on-site contact
+name/phone. Customer account identity, billing, financial fields, status, booked
+window and truck/crew assignments are not editable through this action.
+
+`/api/crew-jobs/customer` requires the existing secure phone session, saved daily
+crew, inspection and fresh assignment scope. Corrections are limited to open
+appointments on that phone's current truck, including when a manager browses all
+trucks; shared cross-truck visibility does not grant correction permission. Test
+phones and dry runs cannot reach live customer writes. Same-origin JSON, strict
+field validation, source version and crew revision checks remain server enforced.
+
+The `customer_correction` action shares durable appointment operation receipts and
+locks with dispatch/closeout. The office's generic action parser cannot invoke it.
+A queued request writes once; repeated request IDs return the receipt. Before
+submission the worker reopens the source, revalidates scope and the reviewed
+version, and stores the before/expected customer fields plus server-owned crew
+attribution in the private receipt. It changes only allowlisted controls; ZIP uses
+JunkWare's existing unsaved postback and address-change flag. Customer details
+travel over child-process stdin rather than process arguments. The worker does
+not select address suggestions, send messages or complete an appointment.
+
+Success requires a fresh source read with every intended field retained and
+protected appointment/account/financial fields unchanged. Unknown results remain
+blocked; **Check saved result** only reads the source. Exact expected values verify
+the change; after ten minutes an exact unchanged baseline proves a failed save
+and permits a new review. Other mismatches remain unresolved for office investigation. No source
+write is replayed by recovery. Route/name/phone/map projections adopt the normal
+verified schedule refresh; the editor's verified result is separate from ingestion.
+The browser retains only the request ID for recovery, not customer details.
+
+Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
+`verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
+`verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
+and receipt recovery. No real customer correction is a deployment test.

@@ -55,6 +55,7 @@ export async function POST(request: Request) {
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try {
     const operation = parseScheduleOperation(await request.json());
+    if(operation.action==='customer_correction')return Response.json({error:'Use the crew customer correction screen.'},{status:403,headers});
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
     const recovered = await reconcileStaleRescheduleForAppointment(operation.recordId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));

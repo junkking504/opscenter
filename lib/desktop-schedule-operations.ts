@@ -1,3 +1,4 @@
+import {verifyCustomerCorrection,type CustomerSource,type CustomerFields} from './crew-customer-contract';
 import {assertAppointmentNotSwitching,assertTruckNotSwitching} from './crew-truck-switch-store';
 import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
 import type { CrewDispatchSources } from './crew-dispatch-service';
@@ -12,7 +13,7 @@ import { withScheduleOperationLock, readJobRouteAssignmentOverrides, saveJobRout
 import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
-export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
+export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify' | 'customer_correction'; values: Record<string, unknown> };
 export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; createdAt?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; crewAssignment?: ScheduleCrewAssignment; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
 export type QueuedScheduleOperation = { operation: ScheduleOperation; actor: string; receipt: ScheduleReceipt; job: DesktopAppointment | null; created: boolean };
 export class PendingScheduleOperationError extends Error {
@@ -138,7 +139,7 @@ export async function finishQueuedScheduleOperation(queued: QueuedScheduleOperat
     try {
       const result = await run(queued.job!, receipt);
       const verified = result.status >= 200 && result.status < 300 && result.status !== 202 && result.body.ok !== false;
-      receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: result.body };
+      receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: operation.action==='customer_correction'?{...receipt.sourceResult,...result.body}:result.body };
       if (verified && operation.action === 'classify' && typeof result.body.warning === 'string') receipt.message += ` ${result.body.warning}`;
     } catch {
       receipt = { ...receipt, status: 'uncertain', updatedAt: new Date().toISOString(), message: 'The result could not be confirmed. Verify the source before trying again.' };
@@ -346,4 +347,30 @@ export async function reconcileTruckSwitchMove(id:string,actor:string,readSource
   const saved:ScheduleReceipt={...receipt,status:'verified',updatedAt:new Date().toISOString(),message:'JunkWare confirms the truck switch. The move was not resubmitted.',sourceResult:{...receipt.sourceResult,assignment,junkwareSynced:true},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
   await writeReceipt(saved);return saved;
  });
+}
+
+/** Shared appointment receipts also serialize crew corrections with dispatch and closeout. */
+export async function setPendingCustomerCorrection(receipt:ScheduleReceipt,source:CustomerSource,fields:CustomerFields,crew:Record<string,unknown>) {
+  if(receipt.action!=='customer_correction' || receipt.status!=='pending' || receipt.recordId.split(':appointment:')[1]!==source.appointmentId)throw new Error('Customer correction receipt is unavailable.');
+  receipt.sourceResult={customerCorrection:{before:source,expected:fields,crew}};
+  await writeReceipt(receipt);
+}
+export async function reconcileCustomerCorrection(id:string,actor:string,read:(appointmentId:string)=>Promise<CustomerSource>):Promise<ScheduleReceipt|null>{
+  const initial=await readScheduleReceipt(id);
+  if(!initial || initial.actor!==actor || initial.action!=='customer_correction')return null;
+  if(initial.status!=='uncertain')return initial;
+  return withScheduleOperationLock('appointment-'+initial.recordId.split(':appointment:')[1],async()=>{
+    const receipt=await readScheduleReceipt(id);
+    if(!receipt || receipt.status!=='uncertain')return receipt;
+    const intent=receipt.sourceResult?.customerCorrection as {before:CustomerSource;expected:CustomerFields}|undefined;
+    if(!intent)return receipt;
+    let source:CustomerSource;
+    try{source=await read(intent.before.appointmentId);}catch{return receipt;}
+    if(source.appointmentId!==intent.before.appointmentId)return receipt;
+    let status:ScheduleReceipt['status'];
+    try{verifyCustomerCorrection(source,intent.expected,intent.before.protectedVersion);status='verified';}
+    catch{if(source.sourceVersion!==intent.before.sourceVersion || Date.now()-Date.parse(receipt.updatedAt)<10*60_000)return receipt;status='failed';}
+    const resolved:ScheduleReceipt={...receipt,status,updatedAt:new Date().toISOString(),message:status==='verified'?'Customer information saved and verified in JunkWare.':'JunkWare confirms the correction was not saved. Reload the details before trying again.',sourceResult:{...receipt.sourceResult,customer:source},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
+    await writeReceipt(resolved);return resolved;
+  });
 }

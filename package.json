@@ -11,6 +11,7 @@
     "verify:campaign-flags": "node --import tsx scripts/test-campaign-flags.ts && node --import tsx scripts/test-lead-browser.ts && node --import tsx scripts/test-campaign-shortcuts.ts",
     "verify:review-gate": "python3 scripts/test-review-gate.py",
     "verify:vault-digest": "python3 scripts/test-vault-digest.py",
+    "verify:handoff-relay": "python3 scripts/test-handoff-relay.py",
     "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts && node --import tsx scripts/test-crew-publication-months.ts",
     "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",

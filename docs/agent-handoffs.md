@@ -203,3 +203,53 @@ Install it after the change is deployed, from the active release:
 
 Validation: `npm run verify:vault-digest`. Slack, email, and call notes are not
 read yet; each new source needs its own privacy review first.
+
+## Handoff relay
+
+`deploy/macmini/handoff-relay.py` moves opted-in tasks between Codex and Claude
+without anyone starting the next step by hand. launchd runs it every two
+minutes on Mission Control. Each run starts at most one step for one task and
+exits; it never merges, deploys, or sends a message. Claude sessions still
+cannot launch Codex themselves (Claude Code's auto mode blocks it); launchd
+does the launch under rules the user installed.
+
+A task opts in with a line in its brief, under the planner line:
+
+- `Auto: codex-build`: Codex builds in `worktrees/<task>` on `codex/<task>`,
+  Claude reviews, Codex fixes `changes requested` findings.
+- `Auto: review`: someone else builds; the relay only starts the reviewer from
+  the other model family once `handoff.md` names a head.
+
+| Task files | Step the relay starts |
+| --- | --- |
+| Brief, no handoff (`codex-build`) | Codex build |
+| Handoff head not named in `review.md`, builder Codex | Claude review (`claude -p`, Sonnet; Opus when the diff touches sending, money, payroll, auth, secrets, or deploy paths) |
+| Same, builder Claude | Codex review, run inside the vault task folder so it cannot edit source |
+| `changes requested`, builder Codex | Codex fix, which appends a handoff update with the new head |
+| `changes requested`, builder Claude | Nothing: waits for the Claude thread |
+| `approve` for the handoff head | Nothing: ready for the user to merge |
+| Open questions, a failed or timed-out step, or anything unexpected | Nothing: needs the user |
+
+Guardrails: the relay does nothing unless `vault/Tasks/.relay-on` exists
+(delete it to stop new steps), holds one lock for one running step, allows at
+most 3 reviews per task and 6 agent runs per day, kills a step after 60
+minutes, and never retries a failed step. Claude runs without API key or
+Bedrock/Vertex variables, so they stay on the subscription login. Each decision
+is one line in `task-evidence/handoff-relay/relay.log`, and each task folder
+gets a `relay.md` with its state.
+
+```sh
+python3 deploy/macmini/handoff-relay.py --dry-run   # print the next step; writes and launches nothing
+python3 deploy/macmini/handoff-relay.py status
+python3 deploy/macmini/handoff-relay.py stop        # kill the running step, halt its task
+python3 deploy/macmini/handoff-relay.py reset <task>
+```
+
+Install it after the change is deployed and the user has approved it, from the
+active release; it stays idle until the switch file exists:
+
+```sh
+~/opscenter-v2/opscenter/deploy/macmini/install-handoff-relay.sh
+```
+
+Validation: `npm run verify:handoff-relay`.

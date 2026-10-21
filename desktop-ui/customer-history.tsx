@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CustomerHistory } from './lib/customer-history-contract';
 import type { ScheduleAppointment } from './lib/schedule-contract';
-import { desktopAppointmentHref } from './lib/desktop-links';
+import { desktopAppointmentHref, desktopCustomerHref } from './lib/desktop-links';
 import { schedulePayment } from './lib/schedule-payment';
 import './customer-history.css';
 
@@ -28,6 +28,7 @@ export function AppointmentCustomerHistory({ job, date, busy = false }: { job: S
   const currentAmount = missingQuote ? 'Quote unavailable' : payment.label === 'Job paid · excluding tips' ? 'Recorded payment · excluding tips' : payment.label === 'Payment needs review' ? 'Recorded amounts conflict' : payment.label;
   return <section className="customer-history" aria-label="Customer history">
     <div className="customer-history-heading"><strong>Customer history</strong><span>Estimates · jobs · payments</span></div>
+    {!busy && /^\d{1,12}$/.test(id) && <a className="customer-history-account" href={desktopCustomerHref(id, date)}>Open customer account →</a>}
     <div className="customer-history-current"><span>This appointment</span><strong>{currentAmount}{payment.amount && !missingQuote ? ` · ${payment.amount}` : ''}</strong><small>{payment.details.join(' · ')}</small>{payment.balance && <small>{payment.balance} · recorded in JunkWare</small>}</div>
     {error ? <p role="status">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></p> : !history ? <p role="status">Loading saved history…</p> : <>
       {!history.total && <p>No related appointments found in the available saved history.</p>}
@@ -36,6 +37,8 @@ export function AppointmentCustomerHistory({ job, date, busy = false }: { job: S
         <div className="customer-history-row-heading"><span>{row.relationship === 'estimate' ? 'Linked estimate' : row.relationship === 'job' ? 'Linked job' : 'Contact match'}</span><time dateTime={row.date}>{dateLabel(row.date)}</time></div>
         {busy ? <strong>{row.jk || row.id} · {row.type || 'Appointment'}</strong> : <a href={desktopAppointmentHref(row.jk, row.date, row.id)}>{row.jk || row.id} · {row.type || 'Appointment'} <span aria-hidden="true">→</span></a>}
         <small>{row.status || 'Status unavailable'}</small>
+        <small>{row.volumes?.join(' · ') || 'Volume not recorded'}</small>
+        {row.prices?.map((price, index) => <small key={index}>{price}</small>)}
         <small>{row.amounts.join(' · ') || 'Payment / quote details unavailable'}</small>
         <details><summary>Details</summary><p>{row.customer}{row.address ? ` · ${row.address}` : ''}</p>{row.notes.map((note, index) => <p key={index}>{note}</p>)}<small>{row.observedAt ? `Details saved ${new Date(row.observedAt).toLocaleString('en-US')}` : 'Observation time unavailable'}</small></details>
       </li>)}</ul>

@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 
 export const workspacePages = [
   { workspace: 'Command', label: 'Command', key: 'commandView', icon: Activity, pages: [['now','Updates'],['forecast','Forecast'],['tv','The Huddle']] },
-  { workspace: 'Schedule', label: 'Control', key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
+  { workspace: 'Schedule', label: 'Control', key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['customers','Customers'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
   { workspace: 'Krewe', label: 'Crew', key: 'kreweView', icon: Users, pages: [['today','Today'],['payperiod','Pay period'],['monthly','Monthly']] },
   { workspace: 'Fleet', label: 'Convoy', key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['maintenance','Repairs'],['service','Maintenance']] },
   { workspace: 'Finance', label: 'Capital', key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['payments','Payments'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling']] },
@@ -11,7 +11,7 @@ export const workspacePages = [
 ] as const;
 export function pageHref(workspace: string, key: string, page: string, href = window.location.href) {
   const url = new URL(href);
-  for (const stale of ['appointment','q','truck','member','inspectionReports','knowledge','report','tv']) url.searchParams.delete(stale);
+  for (const stale of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv']) url.searchParams.delete(stale);
   url.searchParams.set('workspace',workspace); url.searchParams.set(key,page); url.searchParams.set('scheduleDay','today');
   if (workspace === 'Command' && page === 'tv') { url.searchParams.set('tv','1'); url.searchParams.delete('date'); url.searchParams.set('commandView','now'); }
   return url.pathname + url.search;

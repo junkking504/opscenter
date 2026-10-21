@@ -2,6 +2,7 @@
 import json
 import os
 import pathlib
+import signal
 import subprocess
 import sys
 import tempfile
@@ -11,11 +12,14 @@ RELAY = pathlib.Path(__file__).resolve().parent.parent / "deploy" / "macmini" / 
 
 # Stand-ins record their arguments and environment, then do what the real agent would to the task files.
 STUB = r'''#!/usr/bin/env python3
-import json, os, pathlib, re, subprocess, sys, time
+import json, os, pathlib, re, signal, subprocess, sys, time
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 with open(os.environ["STUB_CALLS"], "a") as fh:
-    fh.write(json.dumps({"tool": name, "args": args, "api_key": "ANTHROPIC_API_KEY" in os.environ, "cwd": os.getcwd()}) + "\n")
+    fh.write(json.dumps({"tool": name, "args": args, "api_key": "ANTHROPIC_API_KEY" in os.environ, "cwd": os.getcwd(),
+                         "pid": os.getpid(), "runner_published": os.path.exists(os.environ["STUB_LOCK"])}) + "\n")
+if os.environ.get("STUB_IGNORE_TERM"):
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 if os.environ.get("STUB_SLEEP"):
     time.sleep(int(os.environ["STUB_SLEEP"]))
 prompt = args[-1] if name == "codex" else args[args.index("-p") + 1]
@@ -77,6 +81,7 @@ def sh(*args, cwd=None):
 
 
 with tempfile.TemporaryDirectory() as temp:
+    temp = os.path.realpath(temp)  # macOS reports /private/var for /var
     root = pathlib.Path(temp) / "opscenter-v2"
     (root / "vault" / "Tasks").mkdir(parents=True)
     (root / "worktrees").mkdir()
@@ -95,7 +100,8 @@ with tempfile.TemporaryDirectory() as temp:
     for name in ("codex", "claude"):
         (bin_dir / name).write_text(STUB)
         (bin_dir / name).chmod(0o700)
-    env = {**os.environ, "STUB_CALLS": str(root / "stub-calls"), "RELAY_CODEX_BIN": str(bin_dir / "codex"),
+    env = {**os.environ, "STUB_CALLS": str(root / "stub-calls"),
+           "STUB_LOCK": str(root / "task-evidence/handoff-relay/lock/runner.json"), "RELAY_CODEX_BIN": str(bin_dir / "codex"),
            "RELAY_CLAUDE_BIN": str(bin_dir / "claude"), "ANTHROPIC_API_KEY": "must-not-reach-claude",
            "STUB_VERDICT": "changes requested"}
     evidence = root / "task-evidence" / "handoff-relay"
@@ -132,6 +138,7 @@ with tempfile.TemporaryDirectory() as temp:
     codex_build = calls()[0]["args"]
     assert codex_build[:4] == ["exec", "-C", str(root / "worktrees/loop-task"), "--approve-for-me"]
     assert all("-s" not in c["args"] for c in calls() if c["tool"] == "codex"), "--approve-for-me already implies the sandbox; -s makes codex exit"
+    assert all(c["runner_published"] for c in calls()), "the runner is published in the lock before any agent starts"
     log = (evidence / "relay.log").read_text()
     assert log.count("loop-task: start") == 6 and "loop-task: needs-user (loop limit" in log
     assert log.count("loop-task: needs-user") == 1, "a resting state is logged once, not every tick"
@@ -185,11 +192,86 @@ with tempfile.TemporaryDirectory() as temp:
     assert "needs T'Jean" in (root / "vault/Tasks/slow-task/relay.md").read_text() and len(calls()) == count + 1
     run(env, "reset", "slow-task")
     assert not (evidence / "state" / "slow-task.json").exists()
+    brief("slow-task", auto="")  # a reset task would run again, so take it out of the relay
+
+    # Review-only tasks never fix: a Codex-built branch with changes requested waits for its builder.
+    fake = "a" * 40
+    def receipt(task, builder_line, review_text, auto="Auto: review"):
+        brief(task, auto=auto)
+        folder = root / "vault/Tasks" / task
+        (folder / "handoff.md").write_text(f"# Handoff\n\n{builder_line}  ·  Branch: codex/x @ {fake}  ·  Base: x\n")
+        time.sleep(0.02)
+        (folder / "review.md").write_text(review_text)
+        run(env)
+        return (folder / "relay.md").read_text()
+    verdict_changes = f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n\n## Verdict\nchanges requested\n"
+    count = len(calls())
+    note = receipt("review-only", "Builder: Codex", verdict_changes)
+    assert "State: waiting " in note and "review-only" in note and len(calls()) == count, note
+
+    # The relay reads receipts the way the deployment gate does: bad ones need a person, never "ready".
+    blocking = f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n\n## Verdict\napprove\n\n## Findings\n- [blocking] x.py:1 broken\n"
+    same_family = f"Reviewer: Codex  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n\n## Verdict\napprove\n"
+    addendum_only = f"# Review\n\n## Verdict\napprove\n\n## Addendum\nReviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n"
+    for task, text in (("open-blocker", blocking), ("same-family", same_family), ("addendum-only", addendum_only)):
+        note = receipt(task, "Builder: Codex", text)
+        assert "needs T'Jean" in note and "ready" not in note, (task, note)
+    note = receipt("good-receipt", "Builder: Codex", f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n\n## Verdict\napprove\n")
+    assert "ready for T'Jean" in note and len(calls()) == count, note
+    two_heads = f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {'c' * 40}\nReviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ {fake}\n\n## Verdict\napprove\n"
+    folder = root / "vault/Tasks/two-heads"
+    brief("two-heads", auto="Auto: review")
+    (folder / "review.md").write_text(two_heads)
+    time.sleep(0.02)
+    (folder / "handoff.md").write_text(f"# Handoff\n\nBuilder: Codex  ·  Branch: codex/x @ {fake}  ·  Base: x\n")
+    run(env)
+    assert "needs T'Jean" in (folder / "relay.md").read_text(), "an older receipt that lists several heads is not trusted"
+
+    # A step that ignores SIGTERM is killed, the lock stays until the group is gone, and nothing else starts meanwhile.
+    def alive(pid):
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        stat = pathlib.Path(f"/proc/{pid}/stat")
+        return not (stat.exists() and stat.read_text().rsplit(")", 1)[1].split()[0] == "Z")
+    def wait_started(count):
+        end = time.time() + 10
+        while len(calls()) == count:
+            assert time.time() < end, "step never started"
+            time.sleep(0.1)
+    fast = {**env, "RELAY_STEP_TIMEOUT": "1", "RELAY_TERM_GRACE": "1", "STUB_SLEEP": "60", "STUB_IGNORE_TERM": "1"}
+    brief("stuck-task")
+    count = len(calls())
+    run(fast)
+    wait_started(count)
+    pid = calls()[-1]["pid"]
+    end = time.time() + 20
+    while alive(pid):
+        assert time.time() < end, "the SIGTERM-resistant agent was never killed"
+        time.sleep(0.2)
+    run(fast)  # the next tick clears the lock once the whole group is confirmed gone
+    assert not (evidence / "lock").exists()
+    assert "timed out" in state("stuck-task")["halted"], state("stuck-task")
+    assert len(calls()) == count + 1
+
+    # Manual stop escalates to SIGKILL and waits for the group before releasing the lock.
+    brief("stop-task")
+    run(fast_stop := {**fast, "RELAY_STEP_TIMEOUT": "600"})
+    wait_started(count + 1)
+    pid = calls()[-1]["pid"]
+    assert (evidence / "lock").exists() and alive(pid)
+    assert run(fast_stop, "stop").returncode == 0
+    assert not alive(pid) and not (evidence / "lock").exists()
+    assert "stopped by hand" in state("stop-task")["halted"]
+    run(env, "reset", "stuck-task"); run(env, "reset", "stop-task")
+    brief("stuck-task", auto=""); brief("stop-task", auto="")
+    count = len(calls())
 
     # Kill switch: without the switch file, nothing new starts.
     (root / "vault" / "Tasks" / ".relay-on").unlink()
     (evidence / "runs.json").write_text("{}")
     run(env)
-    assert not (evidence / "lock").exists() and len(calls()) == count + 1
+    assert not (evidence / "lock").exists() and len(calls()) == count
 
 print("handoff relay: all checks passed")

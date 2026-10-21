@@ -230,10 +230,12 @@ A task opts in with a line in its brief, under the planner line:
 | `approve` for the handoff head | Nothing: ready for the user to merge |
 | Open questions, a failed or timed-out step, or anything unexpected | Nothing: needs the user |
 
+Receipts are read with `check-review-gate.py` (opening-block review lines, different model families, exact `approve`, no open `[blocking]`), so a receipt the gate would reject never shows as ready. Only `Auto: codex-build` tasks may be built or fixed by the relay.
+
 Guardrails: the relay does nothing unless `vault/Tasks/.relay-on` exists
 (delete it to stop new steps), holds one lock for one running step, allows at
-most 3 reviews per task and 6 agent runs per day, kills a step after 60
-minutes, and never retries a failed step. Claude runs without API key or
+most 3 reviews per task and 6 agent runs per day, ends a step's whole process group (SIGTERM, then SIGKILL) after 60
+minutes and keeps the lock until the group is confirmed gone, and never retries a failed step. Claude runs without API key or
 Bedrock/Vertex variables, so they stay on the subscription login. Each decision
 is one line in `task-evidence/handoff-relay/relay.log`, and each task folder
 gets a `relay.md` with its state.

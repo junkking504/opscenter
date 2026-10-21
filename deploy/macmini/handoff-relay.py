@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
@@ -28,7 +29,10 @@ from pathlib import Path
 
 MAX_REVIEWS = 3          # build + up to two fix rounds, then the user decides
 MAX_RUNS_PER_DAY = 6     # agent runs across all tasks, to stay inside the included allowance
-STEP_TIMEOUT = 60 * 60   # seconds per step
+STEP_TIMEOUT = int(os.environ.get("RELAY_STEP_TIMEOUT", 60 * 60))  # seconds per step
+TERM_GRACE = int(os.environ.get("RELAY_TERM_GRACE", 15))           # seconds between SIGTERM and SIGKILL
+START_GRACE = 120        # seconds a freshly started runner may take to publish itself
+GATE_HINTS: list[Path] = []  # extra places to look for check-review-gate.py, set in main()
 CODEX_DEFAULT = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
 # A diff touching any of these gets the Opus reviewer instead of Sonnet.
 SENSITIVE = re.compile(
@@ -101,6 +105,32 @@ def open_questions(brief: str) -> bool:
     return False
 
 
+def review_gate():
+    """The production review-gate module, so the relay reads receipts exactly as the gate does."""
+    for folder in (Path(__file__).resolve().parent, *GATE_HINTS):
+        path = folder / "check-review-gate.py"
+        if path.is_file():
+            spec = importlib.util.spec_from_file_location("check_review_gate", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+    return None
+
+
+def parse_receipt(text: str) -> dict | None:
+    if not text.strip():
+        return None
+    gate = review_gate()
+    if gate is None:
+        return {"error": "check-review-gate.py not found next to the relay"}
+    shas, problem = gate.review_lines(text)
+    if problem:
+        return {"error": problem}
+    state = gate.verdict(text).strip().lower()
+    return {"shas": shas, "verdict": state,
+            "approve_problem": gate.receipt_problem(text) if state == "approve" else None}
+
+
 def parse_task(folder: Path) -> dict:
     brief, handoff, review = (read(folder / n) for n in ("brief.md", "handoff.md", "review.md"))
     mode = re.search(r"(?mi)^Auto:\s*(codex-build|review)\s*$", brief)
@@ -110,10 +140,11 @@ def parse_task(folder: Path) -> dict:
     info["builder"] = builder.group(1).strip() if builder else ""
     heads = re.findall(r"Branch:\s*(\S+)\s*@\s*([0-9a-f]{7,40})", handoff)
     info["branch"], info["head"] = heads[-1] if heads else ("", "")
-    reviewed = re.findall(r"Reviewed:\s*\S+\s*@\s*([0-9a-f]{7,40})", review)
-    info["reviewed"] = reviewed[-1] if reviewed else ""
-    verdict = section(review, "Verdict").strip().splitlines()
-    info["verdict"] = verdict[0].strip().lower() if verdict else ""
+    info["receipt"] = parse_receipt(review)
+    try:
+        info["review_newer"] = (folder / "review.md").stat().st_mtime >= (folder / "handoff.md").stat().st_mtime
+    except OSError:
+        info["review_newer"] = False
     return info
 
 
@@ -164,18 +195,29 @@ def decide(p: Paths, task: str, info: dict, state: dict) -> tuple[str, str]:
     if actual and not same_sha(actual, head):
         return "wait", f"worktree HEAD {actual[:12]} is not the handoff head {head[:12]}"
     reviews = sum(1 for d in done if d.startswith("review@"))
-    if not same_sha(info["reviewed"], head):
+    receipt = info["receipt"]
+    if receipt and receipt.get("error"):
+        return "needs-user", f"review.md is not a valid receipt: {receipt['error']}"
+    if not receipt or not same_sha(receipt["shas"][-1], head):
         if f"review@{head}" in done:
             return "needs-user", f"the reviewer ran for {head[:12]} but review.md does not name it"
         if reviews >= MAX_REVIEWS:
             return "needs-user", f"loop limit: {reviews} reviews already"
         return ("review-claude" if fam == "openai" else "review-codex"), f"head {head[:12]} unreviewed"
-    verdict = info["verdict"]
-    if verdict.startswith("approve"):
+    if len({s[:7] for s in receipt["shas"]}) > 1 and not info["review_newer"]:
+        return "needs-user", "review.md names several heads and is older than handoff.md; a person checks which one it covers"
+    verdict = receipt["verdict"]
+    if verdict.startswith("waived"):
+        return "ready", f"waived at {head[:12]}; merge and deploy are T'Jean's call"
+    if verdict == "approve":
+        if receipt["approve_problem"]:
+            return "needs-user", f"approval does not hold: {receipt['approve_problem']}"
         return "ready", f"approved at {head[:12]}; merge and deploy are T'Jean's call"
-    if verdict.startswith("changes requested"):
+    if verdict == "changes requested":
         if fam != "openai":
             return "waiting-claude", "changes requested on a Claude-built branch"
+        if info["auto"] != "codex-build":
+            return "wait", "changes requested, but this task is review-only; the builder fixes it"
         if reviews >= MAX_REVIEWS:
             return "needs-user", f"loop limit: {reviews} reviews, still changes requested"
         if f"fix@{head}" in done:
@@ -224,12 +266,43 @@ def command(p: Paths, task: str, action: str) -> tuple[list[str], Path, dict]:
     return cmd, worktree, env
 
 
-def pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, TypeError):
+def group_alive(pgid) -> bool:
+    """True while any live process is in the process group. Zombies do not count."""
+    if not pgid:
         return False
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    if Path("/proc/self/stat").exists():  # Linux: a group of only zombies is finished
+        for stat in Path("/proc").glob("[0-9]*/stat"):
+            try:
+                fields = stat.read_text().rsplit(")", 1)[1].split()
+            except (OSError, IndexError):
+                continue
+            if fields[0] != "Z" and int(fields[2]) == pgid:
+                return True
+        return False
+    return True
+
+
+def end_group(pgid: int) -> bool:
+    """SIGTERM, then SIGKILL, the whole group. True only once it is confirmed gone."""
+    for sig, wait in ((signal.SIGTERM, TERM_GRACE), (signal.SIGKILL, 10)):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            return True
+        except OSError:
+            pass
+        end = time.time() + wait
+        while time.time() < end:
+            if not group_alive(pgid):
+                return True
+            time.sleep(0.2)
+    return not group_alive(pgid)
 
 
 def write_status(p: Paths, task: str, action: str, detail: str, state: dict) -> None:
@@ -252,9 +325,15 @@ def tick(p: Paths, dry: bool) -> int:
     if not dry and not p.switch.exists():
         return 0
     held = load(p.lock / "step.json", None) if p.lock.exists() else None
+    if p.lock.exists() and not held:
+        log(p, "lock exists without a step record; leaving it for a person to check", dry)
+        return 0
     if held:
-        if pid_alive(held.get("pid")):
-            if time.time() - held.get("started", 0) > STEP_TIMEOUT + 300:
+        runner = load(p.lock / "runner.json", {}).get("pid")
+        if not runner and time.time() - held.get("started", 0) < START_GRACE:
+            return 0  # the runner is still starting
+        if group_alive(runner):
+            if time.time() - held.get("started", 0) > STEP_TIMEOUT + 2 * TERM_GRACE + 60:
                 log(p, f"{held['task']}: step {held['action']} overran; stopping it", dry)
                 if not dry:
                     stop(p, f"step {held['action']} overran the time limit")
@@ -291,17 +370,27 @@ def tick(p: Paths, dry: bool) -> int:
         log(p, f"{task}: start {action} ({detail}) -> {cmd[0]} {' '.join(cmd[1:3])} ... in {cwd}", dry)
         if dry:
             return 0
-        p.lock.mkdir(parents=True)  # raises if another tick won the race
-        child = subprocess.Popen([sys.executable, os.path.abspath(__file__), "--root", str(p.root), "_step", task, action],
-                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                 start_new_session=True)
-        save(p.lock / "step.json", {"pid": child.pid, "task": task, "action": action, "started": time.time()})
+        try:
+            p.lock.mkdir(parents=True)  # raises if another tick won the race
+            save(p.lock / "step.json", {"task": task, "action": action, "started": time.time()})
+            subprocess.Popen([sys.executable, os.path.abspath(__file__), "--root", str(p.root), "_step", task, action],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        except Exception as exc:  # nothing was started, so nothing is owned
+            shutil.rmtree(p.lock, ignore_errors=True)
+            log(p, f"{task}: could not start {action}: {exc}", False)
         return 0
     return 0
 
 
 def step(p: Paths, task: str, action: str) -> int:
-    """Runs detached: prepare the worktree if needed, run one agent, record the result, release the lock."""
+    """Runs detached as its own process group leader; the agent joins that group.
+
+    The group id (this process's pid) is published in runner.json before any agent starts, so
+    `stop` and the next tick always know what to wait for. The lock is released only on a clean
+    finish; a kill takes the runner too, and the next tick clears the lock once the group is gone.
+    """
+    save(p.lock / "runner.json", {"pid": os.getpid()})
     state = load(p.state / f"{task}.json", {})
     head = parse_task(p.tasks / task)["head"]
     key = "build" if action == "build" else f"{'fix' if action == 'fix' else 'review'}@{head}"
@@ -309,6 +398,7 @@ def step(p: Paths, task: str, action: str) -> int:
     today = datetime.date.today().isoformat()
     save(p.runs, {today: runs.get(today, 0) + 1})
     agent_log = p.evidence / f"{task}-{action}.log"
+    release = True
     try:
         if action == "build" and not (p.worktrees / task).exists():
             git(p, p.repo, "fetch", "origin", "production")
@@ -318,15 +408,20 @@ def step(p: Paths, task: str, action: str) -> int:
                 raise RuntimeError(f"git worktree add failed: {made.stderr.strip()[:200]}")
         cmd, cwd, env = command(p, task, action)
         with agent_log.open("a") as out:
-            proc = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out,
-                                    start_new_session=True)
-            save(p.lock / "step.json", {**load(p.lock / "step.json", {}), "agent_pgid": proc.pid})
+            proc = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out)
             try:
                 code = proc.wait(timeout=STEP_TIMEOUT)
             except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGTERM)
-                proc.wait(timeout=30)
-                raise RuntimeError(f"timed out after {STEP_TIMEOUT // 60} minutes")
+                # Record the outcome first: the final SIGKILL takes this runner down with the agent.
+                state.setdefault("done", []).append(key)
+                state["halted"] = f"{action} timed out after {STEP_TIMEOUT // 60} minutes and was killed"
+                save(p.state / f"{task}.json", state)
+                log(p, f"{task}: {action} timed out; ending its process group", False)
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+                release = False
+                if not end_group(os.getpid()):
+                    log(p, f"{task}: {action} would not end; the lock stays until it does", False)
+                return 1
         state.setdefault("done", []).append(key)
         if code != 0:
             state["halted"] = f"{action} exited with code {code}; see task-evidence/handoff-relay/{agent_log.name}"
@@ -338,14 +433,15 @@ def step(p: Paths, task: str, action: str) -> int:
         save(p.state / f"{task}.json", state)
         log(p, f"{task}: {action} failed: {exc}", False)
     finally:
-        shutil.rmtree(p.lock, ignore_errors=True)
+        if release:
+            shutil.rmtree(p.lock, ignore_errors=True)
     return 0
 
 
 def halt(p: Paths, task: str, reason: str) -> None:
     if task:
         state = load(p.state / f"{task}.json", {})
-        state["halted"] = reason
+        state.setdefault("halted", reason)  # the first reason is the real one
         save(p.state / f"{task}.json", state)
 
 
@@ -354,12 +450,10 @@ def stop(p: Paths, reason: str = "stopped by hand") -> int:
     if not held:
         print("No step is running.")
         return 0
-    for pid in (held.get("agent_pgid"), held.get("pid")):
-        if pid:
-            try:
-                os.killpg(pid, signal.SIGTERM)
-            except OSError:
-                pass
+    runner = load(p.lock / "runner.json", {}).get("pid")
+    if runner and not end_group(runner):
+        log(p, f"{held.get('task')}: {held.get('action')} did not end after SIGKILL; the lock stays", False)
+        return 1
     halt(p, held.get("task", ""), reason)
     shutil.rmtree(p.lock, ignore_errors=True)
     log(p, f"{held.get('task')}: {held.get('action')} stopped ({reason})", False)
@@ -370,7 +464,7 @@ def status(p: Paths) -> int:
     print(f"Relay {'ON' if p.switch.exists() else 'OFF'}; runs today {runs_today(p)} of {MAX_RUNS_PER_DAY}")
     held = load(p.lock / "step.json", None)
     if held:
-        print(f"Running: {held.get('task')} {held.get('action')} (pid {held.get('pid')})")
+        print(f"Running: {held.get('task')} {held.get('action')} (group {load(p.lock / 'runner.json', {}).get('pid')})")
     if p.tasks.is_dir():
         for folder in sorted(p.tasks.iterdir()):
             if folder.is_dir() and parse_task(folder)["auto"]:
@@ -387,6 +481,7 @@ def main() -> int:
     ap.add_argument("args", nargs="*")
     a = ap.parse_args()
     p = Paths(Path(a.root))
+    GATE_HINTS.append(p.root / "opscenter" / "deploy" / "macmini")
     if a.command == "status":
         return status(p)
     if a.command == "stop":

@@ -8,6 +8,11 @@
 .brand img { border-radius: 12px; flex-shrink: 0; }
 .brand strong { display: block; font-size: 26px; letter-spacing: -.6px; }
 .brand span { display: block; font-size: 10px; letter-spacing: 3px; color: #e2c675; }
+.connectionHeader { padding: max(12px, env(safe-area-inset-top)) 28px 12px; }
+.connectionHeader .brand { max-width: 480px; margin-bottom: 0; gap: 10px; }
+.connectionHeader .brand img { width: 36px; height: 36px; }
+.connectionHeader .brand strong { font-size: 22px; line-height: 1.15; }
+.connectionHeader .brand span { margin-top: 4px; font-size: 8px; }
 .navigation { display: flex; gap: 8px; max-width: 584px; margin: auto; }
 .navigation button, .navigation a { flex: 1; min-height: 48px; padding: 10px 16px; border-radius: 10px; border: 1px solid #666; color: #fff; background: transparent; font: inherit; font-weight: 650; cursor: pointer; text-align: center; text-decoration: none; box-sizing: border-box; }
 .navigation button[aria-current] { background: #b51935; border-color: #b51935; }

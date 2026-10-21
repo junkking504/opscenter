@@ -1036,3 +1036,19 @@ retried. Acceptance does not establish arrival on a handset. Activation requires
 the exact Operations account in the protected policy after reviewed deployment.
 Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
 `test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.
+
+### Phone connection presentation — October 21, 2026
+
+The public entry screen uses **Connect Your Phone**, a phone selector and one
+primary **Send setup code** action. The code field appears after the request
+returns or when the crew selects **Already have a code?**. A retained request or
+enrollment attempt restores code entry after reload. **Choose phone** returns to
+the selector and clears the entered code; it does not discard the retained send
+request. Uncertain-send messages remain visible with **Check send status**, which
+reuses that request ID. **Need help connecting?** contains connection recovery and
+the existing ten-minute new-code guard. No message is sent on page load.
+
+The entry screen shows Connect phone, Truck setup and Inspection beneath the
+form; the existing header steps resume once a phone is connected. Operations
+WhatsApp delivery, approved recipients, enrollment verification and subsequent
+crew workflows are unchanged by this presentation update.

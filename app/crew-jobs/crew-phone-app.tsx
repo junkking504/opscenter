@@ -22,7 +22,7 @@ import {HANDOFF_EVENT,readHandoffs,retireHandoff,resumeHandoff,saveHandoff,type 
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 type Pending = { code: string; connectionKey: string };
-export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'setup' | 'inspection' | 'jobs') => void }) {
+export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'connect' | 'setup' | 'inspection' | 'jobs') => void }) {
   const [viewGuard]=useState(createWaypointViewGuard);
   const [phone, setPhone] = useState<CrewPhone | null>(null);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrewState]=useState(false);
@@ -57,7 +57,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const setSwitching=useCallback((value:boolean)=>{viewGuard.set('switching',value);setSwitchingState(value);},[viewGuard]);
   const setEditingCrew=useCallback((value:boolean)=>{viewGuard.set('editingCrew',value);setEditingCrewState(value);},[viewGuard]);
   const setSelectedAppointment=(value:string|null)=>{viewGuard.select(value);setSelectedAppointmentState(value);};
-  const step=!phone || !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
+  const step=!phone ? 'connect' : !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
   async function loadJob() {
     if(viewGuard.blocked()){viewGuard.defer();return;}
@@ -264,8 +264,8 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     <TruckInspectionApp key={`${phone.deviceId}:${day.date}:${day.version}`} apiPath="/api/crew-jobs/inspection" onBusyChange={setBusy} onContinue={()=>void loadJob()}/>
     <div className={styles.workflowActions}><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setCloseout(false);setSwitching(true);}}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>setEditingCrew(true)}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void loadJob()}>Check inspection status</button>{error && <p role="alert">{error}</p>}</div>
   </>;
-  return <main className={styles.page}><div className={styles.content}>
-    {step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
+  return <main className={`${styles.page} ${!phone ? styles.connectionPage : ''}`}><div className={styles.content}>
+    {phone && step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
     {loading ? <p role="status">Checking this phone…</p> : phone ? <>
       {backgroundNotice && <p className={pendingCloseout?styles.backgroundProgress:styles.backgroundNotice} role={pendingCloseout?'status':'alert'}>{backgroundNotice}</p>}
       {handoff && ['transferring','submitting'].includes(handoff.phase) && <button className={styles.secondary} onClick={()=>void resumeHandoff(handoff).catch(()=>showBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.',handoff.assignmentId))}>Resume transfer</button>}
@@ -285,12 +285,11 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       <button className={styles.secondary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh assignments':'Refresh setup'}</button>
       {day && !phone.test && !details && <WaypointNotifications key={`${phone.deviceId}:${day.truck}`}/>}
       {day && !editingCrew && <details className={styles.card}><summary>Truck &amp; phone</summary><h2>{truckDisplayText(day.truck)} · Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setCloseout(false);setSwitching(true);}}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setEditingCrew(true);setCloseout(false);}}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>void disconnect()}>Disconnect company phone</button><button className={styles.secondary} disabled={busy || jobLoading || details} onClick={()=>void refresh()}>Check connection</button>{phone.test && <button className={styles.secondary} disabled={busy || jobLoading} onClick={async()=>{setBusy(true);try{const response=await fetch('/api/crew-jobs/day',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset-test-assignments'})});const body=await response.json();if(!response.ok)throw new Error(body.error || 'Reset failed.');await loadJob();}catch(e){setError(e instanceof Error?e.message:'Reset failed.');}finally{setBusy(false);}}}>Reset three test assignments</button>}</details>}
-    </> : <><h1>Choose your phone</h1><RequestSetupCode busy={busy} onBusy={setBusy}/><p>Enter the 6-digit code from Operations to connect this phone for today.</p>
-      <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
+    </> : <RequestSetupCode busy={busy} onBusy={setBusy} hasPendingCode={Boolean(code)} onChoosePhone={()=>{setCode('');setError('');}} connectionError={error} onCheckConnection={()=>void refresh()}>
+      <form className={styles.form} onSubmit={enroll}><label>Verification code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
-    </>}
+    </RequestSetupCode>}
     {phone && !day && <button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>void disconnect()}>Disconnect company phone</button>}
-    {error && <p className={styles.error} role="alert">{error}</p>}
-    {!loading && !phone && <button className={styles.secondary} onClick={() => void refresh()} disabled={busy || jobLoading}>Check connection</button>}
+    {(phone || loading) && error && <p className={styles.error} role="alert">{error}</p>}
   </div></main>;
 }

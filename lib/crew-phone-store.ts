@@ -175,3 +175,11 @@ function effectivePhone(phone: CrewPhone): CrewPhone {
   const {test:_test,...live}=projected;
   return live;
 }
+
+/** Stable verified phone identity for scoped notification ownership; no keys exposed. */
+export function crewPhoneNotificationOwner(phone:CrewPhone):string {
+  if(!uuid.test(phone.deviceId))throw new CrewPhoneError('Invalid phone.');
+  const saved=read<Binding>(path.join(directory('bindings'),`${phone.deviceId}.json`));
+  if(!saved || !validBinding(saved) || saved.phone.deviceId!==phone.deviceId || revoked(phone.deviceId))throw new CrewPhoneError('Phone access expired.',401);
+  return hash(saved.actor);
+}

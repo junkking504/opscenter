@@ -1,0 +1,4 @@
+export function GET(){return new Response(`
+self.addEventListener('push',event=>event.waitUntil(self.registration.showNotification('Waypoint',{body:'Your truck has an update. Open Waypoint for assignments and office messages.',icon:'/crew-jobs/waypoint-crown-road-v1-192.png',badge:'/crew-jobs/waypoint-crown-road-v1-192.png',tag:'waypoint-truck-update',renotify:true})));
+self.addEventListener('notificationclick',event=>{event.notification.close();const url=new URL('/crew-jobs',self.location.origin).href;event.waitUntil((async()=>{const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});const existing=windows.find(w=>w.url.startsWith(url));if(existing){await existing.navigate(url);return existing.focus();}return self.clients.openWindow(url);})());});
+`,{headers:{'Content-Type':'application/javascript','Cache-Control':'no-store','Service-Worker-Allowed':'/crew-jobs'}});}

@@ -23,7 +23,9 @@ Names, addresses and JK numbers alone cannot join records.
 
 Amounts are recorded JunkWare evidence, not independently verified collections.
 Estimates show quotes only; billed amounts remain separate from recorded payment
-methods. Saved detail timestamps remain visible, including when a newer schedule
+methods. Tip-inclusive figures and signed adjustments remain explicit; malformed or
+conflicting amounts are unavailable, and pending closeout refreshes hide stale
+amounts. Saved detail timestamps remain visible, including when a newer schedule
 observation updates status. Unsupported/missing values are unavailable, not zero.
 
 History loads only while an appointment drawer is mounted. Closing/changing it

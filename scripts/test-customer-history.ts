@@ -27,8 +27,12 @@ assert.deepEqual(result[0].amounts, ['Quote $650.00']);
 assert.deepEqual(relatedHistory(rows, '2')!.filter(row => row.relationship === 'job').map(row => row.id), ['1', '3']);
 assert.equal(relatedHistory(rows, '999'), null);
 assert.equal(JSON.stringify(result).includes('phone'), false, 'contact match keys are not sent to the browser');
-assert.deepEqual(source('8', { closeout: { total: 'bad', payments: [{ method: 'Cash', amount: '25' }, { method: 'Bill', amount: '50' }, { method: 'Card', amount: 'bad' }] } }).amounts, ['Recorded payment $25.00 · Cash', 'Billed $50.00 · Bill']);
-assert.deepEqual(source('8', { closeout_refresh_pending: true, closeout: { total: '75', payments: [{ method: 'Cash', amount: '75' }] } }).amounts, ['Charges $75.00']);
+assert.deepEqual(source('8', { closeout: { total: 'bad', payments: [{ method: 'Cash', amount: '25' }, { method: 'Bill', amount: '50' }, { method: 'Card', amount: 'bad' }] } }).amounts, ['Recorded amounts conflict · payment details unavailable']);
+assert.deepEqual(source('8', { closeout_refresh_pending: true, closeout: { total: '75', payments: [{ method: 'Cash', amount: '75' }] } }).amounts, ['Payment updating']);
+assert.deepEqual(source('8', { closeout: { total: '120', tip: '20', balance: '0', payments: [{ method: 'Card', amount: '120' }] } }).amounts, ['Charges $120.00 · including tips', 'Recorded payment $120.00 · Card · including tips', 'Tip $20.00 included above']);
+assert.ok(source('8', { closeout: { total: '120', tip: '20', balance: '0', payments: [{ method: 'Card', amount: '120' }, { method: 'Card', amount: '-120' }] } }).amounts.includes('Recorded adjustment -$120.00 · Card · including tips'));
+assert.deepEqual(source('8', { closeout: { total: '120', tip: '20', payments: [{ method: 'Card', amount: '10' }] } }).amounts, ['Recorded amounts conflict · payment details unavailable']);
+assert.deepEqual(source('8', { closeout: { total: '75', balance: '-10', payments: [{ method: 'Bill', amount: '75' }] } }).amounts, ['Charges $75.00', 'Billed $75.00 · Bill', 'Recorded credit $10.00']);
 assert.equal(new URL(desktopAppointmentHref('JK4', '2026-10-20', '4'), 'https://example.com').searchParams.get('appointment'), '4');
 assert.equal(relatedHistory([source('1', { phone: '', customerEmail: 'Person@Example.com' }), source('2', { phone: '', customerEmail: 'person@example.com' })], '1')!.length, 1);
 

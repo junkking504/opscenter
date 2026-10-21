@@ -12,8 +12,36 @@ export const historyDateValid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(va
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 const phoneKey = (value: string) => { const digits = value.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''); return /^\d{10}$/.test(digits) && !/^(\d)\1+$/.test(digits) ? digits : ''; };
 const emailKey = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value.toLowerCase() : '';
-const amount = (value: unknown) => { const raw = text(value).replace(/[$,]/g, ''); return /^\d+(?:\.\d{1,2})?$/.test(raw) && Number.isFinite(Number(raw)) ? Number(raw) : null; };
+const amount = (value: unknown) => { const raw = text(value).replace(/[$,]/g, ''); return /^-?\d+(?:\.\d{1,2})?$/.test(raw) && Number.isFinite(Number(raw)) ? Number(raw) : null; };
 const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
+function recordedAmounts(closeout: Raw, estimate: boolean, pending: boolean): string[] {
+  if (pending) return ['Payment updating'];
+  const total = amount(closeout.total), tip = amount(closeout.tip), balance = amount(closeout.balance);
+  if (estimate) return total !== null && total >= 0 ? [`Quote ${money(total)}`] : [];
+  const amounts: string[] = [];
+  const rows = Array.isArray(closeout.payments) ? closeout.payments : [];
+  const payments = rows.map(payment => ({ amount: payment && typeof payment === 'object' ? amount(payment.amount) : null, method: text(payment?.method) }));
+  const billed = (method: string) => /\bbill(?:ed|ing)?\b|invoice|accounts? receivable/i.test(method);
+  const received = payments.filter(row => !billed(row.method)).reduce((sum, row) => sum + (row.amount || 0), 0);
+  const invalid = ['total', 'tip', 'balance'].some(key => closeout[key] !== undefined && amount(closeout[key]) === null)
+    || (closeout.payments !== undefined && !Array.isArray(closeout.payments)) || payments.some(row => row.amount === null)
+    || (total !== null && total < 0) || (tip !== null && (tip < 0 || (total !== null && tip > total)))
+    || (tip !== null && received > 0 && tip > received);
+  // Keep signed adjustments visible. Do not silently turn a refund, unknown
+  // amount, or inconsistent tip into an apparently fully collected payment.
+  if (invalid) return ['Recorded amounts conflict · payment details unavailable'];
+  const tipSuffix = tip !== null && tip > 0 ? ' · including tips' : '';
+  if (total !== null) amounts.push(`Charges ${money(total)}${tipSuffix}`);
+  for (const payment of payments) {
+    if (payment.amount === null || payment.amount === 0) continue;
+    const label = payment.amount < 0 ? 'Recorded adjustment' : billed(payment.method) ? 'Billed' : 'Recorded payment';
+    amounts.push(`${label} ${money(payment.amount)}${payment.method ? ` · ${payment.method}` : ''}${tipSuffix}`);
+  }
+  if (tip !== null && tip > 0) amounts.push(`Tip ${money(tip)} included above`);
+  if (balance !== null && balance !== 0) amounts.push(`Recorded ${balance < 0 ? 'credit' : 'balance'} ${money(Math.abs(balance))}`);
+  return amounts;
+}
 
 export function historySource(row: Raw, day: string, observation: string): Source | null {
   const id = text(row.appt_id || row.appointment_id), date = text(row.appointment_date) || day;
@@ -21,16 +49,7 @@ export function historySource(row: Raw, day: string, observation: string): Sourc
   const type = text(row.final_appointment_type || row.appointment_type), stamp = text(row.collection_timestamp) || observation;
   const observedAt = Number.isFinite(Date.parse(stamp)) ? new Date(stamp).toISOString() : null;
   const closeout = row.closeout && typeof row.closeout === 'object' ? row.closeout as Raw : {};
-  const total = amount(closeout.total), amounts: string[] = [];
-  if (total !== null) amounts.push(`${/estimate/i.test(type) ? 'Quote' : 'Charges'} ${money(total)}`);
-  // A recorded method/amount is source evidence, not independent payment verification.
-  if (!/estimate/i.test(type) && !row.closeout_refresh_pending) {
-    for (const payment of Array.isArray(closeout.payments) ? closeout.payments : []) {
-      if (!payment || typeof payment !== 'object') continue;
-      const value = amount(payment.amount), method = text(payment.method);
-      if (value !== null && value > 0) amounts.push(`${/\bbill(?:ed|ing)?\b|invoice|accounts? receivable/i.test(method) ? 'Billed' : 'Recorded payment'} ${money(value)}${method ? ` · ${method}` : ''}`);
-    }
-  }
+  const amounts = recordedAmounts(closeout, /estimate/i.test(type), row.closeout_refresh_pending === true || row.closeout_refresh_pending === 'true');
   const notes = [...(Array.isArray(row.appointment_notes) ? row.appointment_notes.map(text) : []), ...['franchise_notes', 'customer_notes', 'additional_notes'].map(key => text(row[key]))].filter(Boolean);
   return { id, jk: text(row.job_id || row.jk_number), date, customer: text(row.customer_name), address: text(row.address), type, status: text(row.final_status || row.job_status), phone: phoneKey(text(row.phone)), email: emailKey(text(row.customerEmail || row.customer_email)), estimateId: text(row.source_estimate_appointment_id), amounts, notes: [...new Set(notes)].slice(-2).map(note => note.slice(0, 1000)), observedAt, order: observedAt ? Date.parse(observedAt) : 0 };
 }

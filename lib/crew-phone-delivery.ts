@@ -10,13 +10,14 @@ import { chicagoDateKey } from './chicago-date';
 // Separate, explicit approval: routine deployment must never create this file.
 const approvalPath = () => process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL || path.join(process.env.HOME || '', 'Library/Application Support/OpsCenter/crew-phone-delivery-approval.json');
 const root = () => path.join(process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'crew-phones'), 'deliveries');
-type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp'; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string; testRecipientName?: string; testRequestId?: string; selfSetupTestRecipientName?: string; selfSetupTestRecipientNames?: string[]; selfSetupLiveRecipientNames?: string[] };
+type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp' | 'operations-linked'; operationsAccount?: string; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string; testRecipientName?: string; testRequestId?: string; selfSetupTestRecipientName?: string; selfSetupTestRecipientNames?: string[]; selfSetupLiveRecipientNames?: string[] };
 type Saved = CrewPhoneDelivery & { schema: 1; actor: string; month: string; reservedMicros: number };
 function approval(): Approval {
   let value: Approval;
   try { value = JSON.parse(fs.readFileSync(approvalPath(), 'utf8')); }
   catch { throw new CrewPhoneError('OpsBot setup-code delivery needs spending approval and an approved WhatsApp authentication template.', 503); }
-  if (value.schema !== 1 || value.enabled !== true || value.provider !== 'meta-whatsapp' || value.purpose !== 'crew-phone-setup'
+  if (value.schema !== 1 || value.enabled !== true || !['meta-whatsapp','operations-linked'].includes(value.provider) || value.purpose !== 'crew-phone-setup'
+    || (value.provider === 'operations-linked' && !/^1[2-9]\d{9}$/.test(value.operationsAccount || ''))
     || !value.approvedBy || !Number.isFinite(Date.parse(value.approvedAt)) || Date.parse(value.approvedAt) > Date.now()
     || !Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) <= Date.now()
     || !Number.isSafeInteger(value.monthlyBudgetMicros) || value.monthlyBudgetMicros < 1 || value.monthlyBudgetMicros > 8_370_000
@@ -26,7 +27,7 @@ function approval(): Approval {
     || (value.selfSetupTestRecipientName!==undefined && !validTestName(value.selfSetupTestRecipientName))
     || (value.selfSetupTestRecipientNames!==undefined && (!Array.isArray(value.selfSetupTestRecipientNames) || value.selfSetupTestRecipientNames.length>50 || !value.selfSetupTestRecipientNames.every(validTestName)))
     || (value.selfSetupLiveRecipientNames!==undefined && (!Array.isArray(value.selfSetupLiveRecipientNames) || value.selfSetupLiveRecipientNames.length>50 || !value.selfSetupLiveRecipientNames.every(validTestName)))) {
-    throw new CrewPhoneError('OpsBot setup-code delivery approval is unavailable or expired.', 503);
+    throw new CrewPhoneError('WhatsApp setup-code delivery approval is unavailable or expired.', 503);
   }
   return value;
 }
@@ -59,13 +60,14 @@ export function crewPhoneSetupChoices():CrewPhoneSetupChoice[] {
 }
 function configuration() {
   const value = approval();
+  if(value.provider==='operations-linked') return {...value,phoneNumberId:'',version:''};
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
   const version = process.env.WHATSAPP_GRAPH_API_VERSION || '';
   if (!/^\d+$/.test(phoneNumberId) || !/^v\d+\.\d+$/.test(version)) throw new CrewPhoneError('OpsBot WhatsApp connection is unavailable.', 503);
   return { ...value, phoneNumberId, version };
 }
 export function crewPhoneDeliveryAvailability() {
-  try { const config = configuration(); return { available: true, message: 'OpsBot sends the code to this company phone on WhatsApp.', ...(config.testRecipientName && config.testRequestId ? {testRecipientName:config.testRecipientName,testRequestId:config.testRequestId}: {}) }; }
+  try { const config = configuration(); return { available: true, message: 'WhatsApp sends the code to this approved phone.', ...(config.testRecipientName && config.testRequestId ? {testRecipientName:config.testRecipientName,testRequestId:config.testRequestId}: {}) }; }
   catch (error) { return { available: false, message: error instanceof CrewPhoneError ? error.message : 'OpsBot setup-code delivery is unavailable.' }; }
 }
 /** Number possession is proven by the one-use code, never by this public request. */
@@ -82,12 +84,12 @@ export async function requestCrewPhoneSetup(rawNumber:unknown,rawRequestId:unkno
       throw new CrewPhoneError('No code was sent. This number is not enabled for Waypoint setup. Check the company phone number or contact your manager.',403);
     test=true;
   }
-  const message='WhatsApp accepted the OpsBot setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.';
+  const message='WhatsApp accepted the setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.';
   const actor=selfSetupActor(digits);
   // The test binding uses the existing test default; daily setup still requires
   // choosing the actual truck before any inspection or job access.
   const receipt=await sendCrewPhoneSetup(test?'Truck 6':contacts[0].truck,rawRequestId,actor,test);
-  if(receipt.status==='failed')throw new CrewPhoneError('OpsBot could not send the setup code. Contact your manager.',503);
+  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503);
   if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
   if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
   if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
@@ -99,11 +101,11 @@ export async function requestCrewPhoneSetupChoice(rawChoiceId:unknown,rawRequest
   if(contacts.length!==1)throw new CrewPhoneError('This phone is not enabled for Waypoint setup. Contact your manager.',403);
   const contact=contacts[0],actor=selfSetupActor(contact.number.replace(/-/g,''));
   const receipt=await sendCrewPhoneSetup(contact.truck,rawRequestId,actor,false,{label:contact.label,number:contact.number});
-  if(receipt.status==='failed')throw new CrewPhoneError('OpsBot could not send the setup code. Contact your manager.',503);
+  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503);
   if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
   if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
   if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
-  return {message:'WhatsApp accepted the OpsBot setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.'};
+  return {message:'WhatsApp accepted the setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.'};
 }
 function token() {
   const configured = process.env.WHATSAPP_ACCESS_TOKEN_BASE64 ? Buffer.from(process.env.WHATSAPP_ACCESS_TOKEN_BASE64, 'base64').toString('utf8').trim() : process.env.WHATSAPP_ACCESS_TOKEN?.trim();
@@ -175,8 +177,9 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
   const contacts = selectedContact ? [selectedContact] : test ? testContacts.map(phone => ({label:`${phone.name} test`,number:phone.number})) : directory.company.filter(phone => phone.truck === truck);
   if (contacts.length !== 1) throw new CrewPhoneError('Choose a truck with exactly one saved company phone.');
   const contact = contacts[0];
-  const accessToken = token();
-  if (!accessToken) throw new CrewPhoneError('OpsBot WhatsApp connection is unavailable.', 503);
+  const accessToken = config.provider==='meta-whatsapp' ? token() : '';
+  if (config.provider==='meta-whatsapp' && !accessToken) throw new CrewPhoneError('OpsBot WhatsApp connection is unavailable.', 503);
+  if(config.provider==='operations-linked') await requireOperationsBridge(config.operationsAccount!);
   const lock = path.join(root(), '.reserve-lock');
   try { fs.mkdirSync(lock); } catch { throw new CrewPhoneError('Another setup send is being prepared. Check recent sends before trying again.', 409); }
   let receipt: Saved, code: string;
@@ -201,6 +204,13 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
     save(receipt);
   } finally { fs.rmdirSync(lock); }
   try {
+    if(config.provider==='operations-linked') {
+      const response=await fetch('http://127.0.0.1:18791/send',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',signal:AbortSignal.timeout(25_000),body:JSON.stringify({chatId:`1${contact.number.replace(/-/g,'')}@s.whatsapp.net`,message:`Waypoint access code: ${code}\nExpires in 10 minutes. Do not share this code.`})});
+      const result=await response.json() as {success?:boolean;messageId?:string};
+      if(!response.ok || result.success!==true || typeof result.messageId!=='string' || !result.messageId.trim())throw new Error('Operations acceptance unconfirmed');
+      receipt.status='accepted';receipt.providerMessageId=result.messageId;
+      receipt.message='Operations WhatsApp accepted the setup message. Phone delivery is not yet confirmed.';
+    } else {
     const response = await fetch(`https://graph.facebook.com/${config.version}/${config.phoneNumberId}/messages`, {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(20_000),
       body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: `1${contact.number.replace(/-/g, '')}`, type: 'template', template: {
@@ -219,9 +229,21 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
       receipt.status = 'accepted'; receipt.providerMessageId = body.messages[0].id;
       receipt.message = 'WhatsApp accepted the setup message. Phone delivery is not yet confirmed.';
     } else throw new Error('Missing provider receipt.');
+    }
   } catch {
     receipt.status = 'uncertain'; receipt.message = 'WhatsApp send could not be confirmed. Check the phone before sending another code.';
   }
   save(receipt);
   return project(receipt);
+}
+
+async function requireOperationsBridge(account:string) {
+  try {
+    const session=path.join(process.env.HOME || '', 'Library/HermesPilot/state/whatsapp/session');
+    const credentials=JSON.parse(fs.readFileSync(path.join(session,'creds.json'),'utf8'));
+    if(typeof credentials.me?.id!=='string' || credentials.me.id.split(':')[0].split('@')[0]!==account)throw new Error('Wrong account');
+    const response=await fetch('http://127.0.0.1:18791/health',{cache:'no-store',signal:AbortSignal.timeout(3_000)});
+    const health=await response.json() as {status?:string;session?:string};
+    if(!response.ok || health.status!=='connected' || health.session!==session)throw new Error('Unavailable bridge');
+  } catch {throw new CrewPhoneError('Operations WhatsApp is unavailable. Contact your manager.',503);}
 }

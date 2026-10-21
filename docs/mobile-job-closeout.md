@@ -1009,3 +1009,23 @@ honest; this is an opening-latency improvement, not an instant-source guarantee.
 retry, cancellation/isolation and the actual shared editor under React StrictMode.
 Its browser timings use a controlled 1,000 ms synthetic source delay, not live
 JunkWare measurements. No real operational writes are made by these fixtures.
+
+## Operations WhatsApp setup-code transport — October 21, 2026
+
+The separately approved `operations-linked` delivery policy selects the existing
+local Operations WhatsApp bridge, rather than Meta authentication templates.
+`operationsAccount` pins the sending identity; the local credential identity and
+connected bridge session must match before creating an enrollment. No Meta token
+is read and no Cloud API request occurs for this transport. The bridge endpoint
+is fixed to loopback port 18791; destinations come from the approved directory.
+The message contains only the generated Waypoint code and ten-minute expiry.
+
+Existing phone identity checks, approval expiry, reservation limits, cooldowns,
+three daily self-requests, durable receipt creation, single-use enrollment and
+no-replay rules remain. Operations uses no new metered provider; existing numeric
+reservations remain conservative rate limits, not a claim of provider charges.
+Bridge errors and lost responses remain uncertain and are never automatically
+retried. Acceptance does not establish arrival on a handset. Activation requires
+the exact Operations account in the protected policy after reviewed deployment.
+Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
+`test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.

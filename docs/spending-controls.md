@@ -282,3 +282,8 @@ This approval does not authorize deployment, database migration, worker scheduli
 live sending, device subscription or a paid reviewer. Independent Claude review
 remains pending. Both host inventories can pass now; that is not permission to
 merge or deploy. See [Web Push activation boundaries](web-push.md).
+
+<!-- claude-review-extra-usage: confirmed-off -->
+
+On October 21, 2026 the user confirmed Claude paid extra usage is off for the
+subscription-only Waypoint Operations code-delivery review. No paid fallback.

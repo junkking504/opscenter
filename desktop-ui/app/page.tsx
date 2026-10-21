@@ -4003,7 +4003,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       setFleetView(label === 'Revenue / truck' ? 'reports' : 'overview');
       return;
     }
-    if (label === 'Revenue' || label === 'Dump + Fuel' || label === 'Net') {
+    if (label === 'Revenue' || label === 'AJS' || label === 'Dump + Fuel' || label === 'Net') {
       setActiveNav('Finance');
       setFinanceView(label === 'Dump + Fuel' ? 'expenses' : 'trends');
       return;
@@ -4398,6 +4398,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
           {live && showingDrilldown && drilldown && <section aria-label={`${drilldownLabel} details and trends`}>
             <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Command</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
+            {drilldownLabel === 'AJS' && <p>AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.</p>}
             <LiveAnalytics key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
           </section>}
           {activeNav === 'Command' && view !== 'forecast' && <CommandRevenueHero kpi={commandKpiRows.find(kpi => kpi.label === 'Revenue')} date={live?.snapshot.date || operatingDate} onOpen={() => openCommandKpi('Revenue')} disabled={mutationBusy} />}

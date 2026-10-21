@@ -15,11 +15,14 @@ merges, deploys or sends anything; an approved task waits for the user.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
+import fcntl
 import importlib.util
 import json
 import os
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -294,21 +297,28 @@ def group_alive(pgid) -> bool:
     return True
 
 
-def end_group(pgid: int) -> bool:
-    """SIGTERM, then SIGKILL, the whole group. True only once it is confirmed gone."""
+def end_group(pgid: int, proc: subprocess.Popen | None = None) -> bool:
+    """SIGTERM, then SIGKILL, the whole group. True only once it is confirmed gone.
+
+    When the group leader is our own child (`proc`), it is reaped on every check: a killed
+    but unreaped child is a zombie that keeps the group looking alive on macOS.
+    """
+    def leader_done() -> bool:
+        return proc is None or proc.poll() is not None
+
     for sig, wait in ((signal.SIGTERM, TERM_GRACE), (signal.SIGKILL, 10)):
         try:
             os.killpg(pgid, sig)
-        except ProcessLookupError:
-            return True
         except OSError:
             pass
         end = time.time() + wait
-        while time.time() < end:
-            if not group_alive(pgid):
+        while True:
+            if leader_done() and not group_alive(pgid):
                 return True
+            if time.time() >= end:
+                break
             time.sleep(0.2)
-    return not group_alive(pgid)
+    return leader_done() and not group_alive(pgid)
 
 
 def write_status(p: Paths, task: str, action: str, detail: str, state: dict) -> None:
@@ -327,45 +337,101 @@ def runs_today(p: Paths) -> int:
     return load(p.runs, {}).get(datetime.date.today().isoformat(), 0)
 
 
-def acquire(p: Paths, task: str, action: str) -> bool:
+@contextlib.contextmanager
+def guard(p: Paths):
+    """Serialises every change to the lock and its records. Held briefly, never across a wait."""
+    p.evidence.mkdir(parents=True, exist_ok=True)
+    with (p.evidence / "guard").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def owned(p: Paths, token) -> bool:
+    """Must be called under guard."""
+    return bool(token) and load(p.lock / "step.json", {}).get("token") == token
+
+
+def release(p: Paths, token) -> bool:
+    """Remove the lock only while this step still owns it; never another step's lock."""
+    with guard(p):
+        if p.lock.exists() and owned(p, token):
+            shutil.rmtree(p.lock, ignore_errors=True)
+            return True
+    return False
+
+
+def update_state(p: Paths, task: str, change) -> dict:
+    """Read, change and save a task's state in one step, so no writer overwrites another's halt."""
+    with guard(p):
+        state = load(p.state / f"{task}.json", {})
+        change(state)
+        save(p.state / f"{task}.json", state)
+    return state
+
+
+def halt(p: Paths, task: str, reason: str) -> None:
+    if task:
+        update_state(p, task, lambda s: s.setdefault("halted", reason))  # the first reason is the real one
+
+
+def halt_by_hand(p: Paths, task: str, reason: str) -> None:
+    if task:
+        update_state(p, task, lambda s: s.__setitem__("halted", reason))
+
+
+def acquire(p: Paths, task: str, action: str, token: str) -> bool:
     """Take the single lock. Returns False, touching nothing, when another step holds it."""
-    try:
-        p.lock.mkdir(parents=True)
-    except FileExistsError:
-        return False
-    try:
-        save(p.lock / "step.json", {"task": task, "action": action, "started": time.time()})
-    except Exception:
-        shutil.rmtree(p.lock, ignore_errors=True)  # this call created the lock, so it removes it
-        raise
+    with guard(p):
+        try:
+            p.lock.mkdir(parents=True)
+        except FileExistsError:
+            return False
+        try:
+            save(p.lock / "step.json", {"task": task, "action": action, "started": time.time(), "token": token})
+        except Exception:
+            shutil.rmtree(p.lock, ignore_errors=True)  # this call created the lock, so it removes it
+            raise
     return True
 
 
 def tick(p: Paths, dry: bool) -> int:
     if not dry and not p.switch.exists():
         return 0
-    if p.lock.exists():
-        held = load(p.lock / "step.json", None)
+    with contextlib.nullcontext() if dry else guard(p):  # a dry run only reads, so it creates nothing
+        exists = p.lock.exists()
+        held = load(p.lock / "step.json", None) if exists else None
+        runner = load(p.lock / "runner.json", None) if exists else None
+    if exists:
         if not held:
             log(p, "lock exists without a step record; leaving it for a person to check", dry)
             return 0
-        runner = load(p.lock / "runner.json", None)
+        task, action = held.get("task", ""), held.get("action", "")
         if runner is None:  # the runner has not published itself yet
             if time.time() - held.get("started", 0) < START_GRACE or dry:
                 return 0
-            if not load(p.state / f"{held['task']}.json", {}).get("halted"):
-                halt(p, held.get("task", ""), "the step never started; check for codex or claude processes, then remove task-evidence/handoff-relay/lock by hand")
-                log(p, f"{held.get('task')}: step {held.get('action')} never published its runner; the lock stays", False)
+            if not load(p.state / f"{task}.json", {}).get("halted"):
+                halt(p, task, "the step never started; check for codex or claude processes, then remove task-evidence/handoff-relay/lock by hand")
+                log(p, f"{task}: step {action} never published its runner; the lock stays", False)
             return 0
-        if group_alive(runner.get("pid")) or group_alive(runner.get("agent")):
+        if group_alive(runner.get("pid")):
             if time.time() - held.get("started", 0) > STEP_TIMEOUT + 2 * TERM_GRACE + 60 and not dry:
-                log(p, f"{held['task']}: step {held['action']} overran; stopping it", dry)
-                stop(p, f"step {held['action']} overran the time limit")
+                log(p, f"{task}: step {action} overran; stopping it", dry)
+                stop(p, f"step {action} overran the time limit")
             return 0
-        log(p, f"{held.get('task')}: step {held.get('action')} ended without releasing the lock", dry)
+        if not runner.get("agent") or group_alive(runner.get("agent")):
+            # The runner died before recording its agent, or the agent outlived its runner:
+            # ownership is uncertain, so the lock stays for a person.
+            if not dry and not load(p.state / f"{task}.json", {}).get("halted"):
+                halt(p, task, f"{action} lost its runner while an agent may still run; check for codex or claude processes, then remove the lock by hand")
+                log(p, f"{task}: step {action} lost its runner with an agent unaccounted for; the lock stays", False)
+            return 0
+        log(p, f"{task}: step {action} ended without releasing the lock", dry)
         if not dry:
-            halt(p, held.get("task", ""), "the last step ended unexpectedly; check the log")
-            shutil.rmtree(p.lock, ignore_errors=True)
+            halt(p, task, "the last step ended unexpectedly; check the log")
+            release(p, held.get("token"))
         return 0
     if not p.tasks.is_dir():
         return 0
@@ -384,8 +450,7 @@ def tick(p: Paths, dry: bool) -> int:
             if dry or state.get("last_logged") != f"{action}:{detail}":
                 log(p, f"{task}: {action} ({detail})", dry)
                 if not dry:
-                    state["last_logged"] = f"{action}:{detail}"
-                    save(p.state / f"{task}.json", state)
+                    update_state(p, task, lambda s: s.__setitem__("last_logged", f"{action}:{detail}"))
             continue
         if runs_today(p) >= MAX_RUNS_PER_DAY:
             log(p, f"{task}: {action} held, daily cap of {MAX_RUNS_PER_DAY} runs reached", dry)
@@ -394,42 +459,49 @@ def tick(p: Paths, dry: bool) -> int:
         log(p, f"{task}: start {action} ({detail}) -> {cmd[0]} {' '.join(cmd[1:3])} ... in {cwd}", dry)
         if dry:
             return 0
-        if not acquire(p, task, action):
+        token = secrets.token_hex(16)
+        if not acquire(p, task, action, token):
             log(p, f"{task}: {action} not started; another step holds the lock", False)
             return 0
         try:
-            subprocess.Popen([sys.executable, os.path.abspath(__file__), "--root", str(p.root), "_step", task, action],
+            subprocess.Popen([sys.executable, os.path.abspath(__file__), "--root", str(p.root), "_step", task, action, token],
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
         except OSError as exc:  # nothing was started, so nothing is owned
-            shutil.rmtree(p.lock, ignore_errors=True)
+            release(p, token)
             log(p, f"{task}: could not start {action}: {exc}", False)
         return 0
     return 0
 
 
-def step(p: Paths, task: str, action: str) -> int:
+def step(p: Paths, task: str, action: str, token: str) -> int:
     """Runs detached, as the leader of its own process group.
 
-    The lock is released only when the agent's process group is confirmed gone. A stop
-    that arrives before the agent exists leaves a cancel marker, and the runner honours it
-    before and after it starts the agent, so no agent can outlive a stop.
+    Ownership is the token in the lock. The runner records its own pid, then its agent's pid,
+    always under the token. The lock is released only once the agent's group is confirmed gone;
+    any uncertainty keeps it. A stop before the agent exists leaves a cancel marker that the
+    runner honours before and after it starts the agent.
     """
-    lock_file = p.lock / "runner.json"
-    save(lock_file, {"pid": os.getpid()})
+    with guard(p):
+        if not owned(p, token):
+            return 0  # another step owns the lock now; this one must not run
+        save(p.lock / "runner.json", {"pid": os.getpid(), "token": token})
     if (p.lock / "cancel").exists():
         halt(p, task, "stopped by hand before the step started")
         log(p, f"{task}: {action} cancelled before it started", False)
-        shutil.rmtree(p.lock, ignore_errors=True)
+        release(p, token)
         return 0
-    state = load(p.state / f"{task}.json", {})
     head = parse_task(p.tasks / task)["head"]
     key = "build" if action == "build" else f"{'fix' if action == 'fix' else 'review'}@{head}"
     runs = load(p.runs, {})
     today = datetime.date.today().isoformat()
     save(p.runs, {today: runs.get(today, 0) + 1})
     agent_log = p.evidence / f"{task}-{action}.log"
-    release, proc = True, None
+    release_lock, proc = True, None
+
+    def finish(change) -> None:
+        update_state(p, task, change)
+
     try:
         if action == "build" and not (p.worktrees / task).exists():
             git(p, p.repo, "fetch", "origin", "production")
@@ -441,70 +513,68 @@ def step(p: Paths, task: str, action: str) -> int:
         with agent_log.open("a") as out:
             proc = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out,
                                     start_new_session=True)
-            save(lock_file, {"pid": os.getpid(), "agent": proc.pid})
+            with guard(p):
+                if not owned(p, token):
+                    raise RuntimeError("lost the lock before recording the agent")
+                save(p.lock / "runner.json", {"pid": os.getpid(), "agent": proc.pid, "token": token})
             if (p.lock / "cancel").exists():
                 halt(p, task, "stopped by hand before the step started")
-                if not end_group(proc.pid):
-                    release = False
+                release_lock = end_group(proc.pid, proc)
                 log(p, f"{task}: {action} cancelled as it started", False)
-                return 1 if not release else 0
-            timed_out = False
+                return 0 if release_lock else 1
+            timed_out, code = False, None
             try:
                 code = proc.wait(timeout=STEP_TIMEOUT)
             except subprocess.TimeoutExpired:
-                code, timed_out = None, True
+                timed_out = True
             # Whatever the agent left in its process group must be gone before the lock is released.
-            if not end_group(proc.pid):
-                release = False
-                state.setdefault("done", []).append(key)
-                state.setdefault("halted", f"{action} left processes that would not stop; the lock stays until a person checks")
-                save(p.state / f"{task}.json", state)
+            if not end_group(proc.pid, proc):
+                release_lock = False
+                finish(lambda s: (s.setdefault("done", []).append(key),
+                                  s.setdefault("halted", f"{action} left processes that would not stop; the lock stays until a person checks")))
                 log(p, f"{task}: {action} processes would not stop; the lock stays", False)
                 return 1
-        state.setdefault("done", []).append(key)
-        if timed_out:
-            state.setdefault("halted", f"{action} timed out after {STEP_TIMEOUT} seconds and was killed")
-        elif code != 0:
-            state.setdefault("halted", f"{action} exited with code {code}; see task-evidence/handoff-relay/{agent_log.name}")
-        save(p.state / f"{task}.json", state)
+
+        def record(s):
+            s.setdefault("done", []).append(key)
+            if timed_out:
+                s.setdefault("halted", f"{action} timed out after {STEP_TIMEOUT} seconds and was killed")
+            elif code != 0:
+                s.setdefault("halted", f"{action} exited with code {code}; see task-evidence/handoff-relay/{agent_log.name}")
+        finish(record)
         log(p, f"{task}: {action} {'timed out' if timed_out else f'finished, exit {code}'}", False)
     except Exception as exc:  # any failure halts the task for the user, never retries
-        if proc is not None and group_alive(proc.pid):
-            release = False
-        state.setdefault("done", []).append(key)
-        state.setdefault("halted", f"{action} failed: {exc}")
-        save(p.state / f"{task}.json", state)
+        if proc is not None and not end_group(proc.pid, proc):
+            release_lock = False
+        finish(lambda s: (s.setdefault("done", []).append(key), s.setdefault("halted", f"{action} failed: {exc}")))
         log(p, f"{task}: {action} failed: {exc}", False)
     finally:
-        if release:
-            shutil.rmtree(p.lock, ignore_errors=True)
+        if release_lock:
+            release(p, token)
     return 0
 
 
-def halt(p: Paths, task: str, reason: str) -> None:
-    if task:
-        state = load(p.state / f"{task}.json", {})
-        state.setdefault("halted", reason)  # the first reason is the real one
-        save(p.state / f"{task}.json", state)
-
-
 def stop(p: Paths, reason: str = "stopped by hand") -> int:
-    held = load(p.lock / "step.json", None)
+    with guard(p):
+        held = load(p.lock / "step.json", None)
+        runner = load(p.lock / "runner.json", None) if held else None
+        if held and (not runner or not runner.get("agent")):
+            # Not started yet: the runner checks this marker before and after it starts the agent.
+            if owned(p, held.get("token")):
+                (p.lock / "cancel").write_text(now())
     if not held:
         print("No step is running.")
         return 0
-    runner = load(p.lock / "runner.json", None)
     if not runner or not runner.get("agent"):
-        # Not started yet: the runner checks this marker before and after it starts the agent.
-        (p.lock / "cancel").write_text(now())
         log(p, f"{held.get('task')}: {held.get('action')} is starting; cancel recorded", False)
         print("The step is starting. It was cancelled and will not run; check again in a minute.")
         return 1
-    halt(p, held.get("task", ""), reason)  # recorded first, so a racing runner cannot override it
-    if not end_group(runner["agent"]) or not end_group(runner["pid"]):
+    halt_by_hand(p, held.get("task", ""), reason)  # recorded first; a runner finishing now cannot override it
+    # The runner goes first, so the agent is left to its own group; then the agent's group is ended.
+    if not end_group(runner["pid"]) or not end_group(runner["agent"]):
         log(p, f"{held.get('task')}: {held.get('action')} did not end; the lock stays", False)
         return 1
-    shutil.rmtree(p.lock, ignore_errors=True)
+    release(p, held.get("token"))
     log(p, f"{held.get('task')}: {held.get('action')} stopped ({reason})", False)
     return 0
 
@@ -542,7 +612,7 @@ def main() -> int:
         log(p, f"{a.args[0]}: relay state reset by hand", False)
         return 0
     if a.command == "_step":
-        return step(p, *a.args)
+        return step(p, *a.args)  # task, action, token
     return tick(p, a.dry_run)
 
 

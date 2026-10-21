@@ -105,7 +105,12 @@ def sh(*args, cwd=None):
 def load_relay_module():
     spec = importlib.util.spec_from_file_location("handoff_relay_under_test", RELAY)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    was = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True  # the repo gets no __pycache__ from the test
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = was
     return module
 
 
@@ -250,24 +255,74 @@ with tempfile.TemporaryDirectory() as tmp:
     # The lock: a second contender never touches the first one's lock.
     relay = load_relay_module()
     paths = relay.Paths(root)
-    assert relay.acquire(paths, "winner", "build") is True
+    assert relay.acquire(paths, "winner", "build", "token-a") is True
     before = (lock / "step.json").read_text()
-    assert relay.acquire(paths, "loser", "build") is False
+    assert relay.acquire(paths, "loser", "build", "token-b") is False
     assert (lock / "step.json").read_text() == before and lock.exists(), "a losing contender leaves the winner's lock alone"
-    shutil.rmtree(lock)
+
+    # Release is conditional on ownership: a stale step cannot remove a newer step's lock.
+    assert relay.release(paths, "token-stale") is False and lock.exists()
+    assert relay.release(paths, "token-a") is True and not lock.exists()
+
+    # State changes are read and saved together, so a runner's save cannot erase a stop's halt.
+    brief("halt-race")
+    relay.halt_by_hand(paths, "halt-race", "stopped by hand")
+    relay.update_state(paths, "halt-race", lambda s: s.setdefault("done", []).append("build"))
+    assert state("halt-race")["halted"] == "stopped by hand" and state("halt-race")["done"] == ["build"]
+    brief("halt-race", auto="")
 
     # Stop during startup: no runner or agent yet, so stop records a cancel and leaves the lock in place.
     brief("starting-task")
-    (lock).mkdir(parents=True)
-    (lock / "step.json").write_text(json.dumps({"task": "starting-task", "action": "build", "started": time.time()}))
+    lock.mkdir(parents=True)
+    (lock / "step.json").write_text(json.dumps({"task": "starting-task", "action": "build", "started": time.time(), "token": "t1"}))
     stopped = run(env, "stop")
     assert stopped.returncode == 1 and (lock / "cancel").exists() and lock.exists(), stopped.stdout
     # The runner that then starts honours the cancel: no agent runs, the task halts, and the lock is released.
     before_calls = len(calls())
-    run_step = subprocess.run([sys.executable, str(RELAY), "--root", str(root), "_step", "starting-task", "build"],
+    run_step = subprocess.run([sys.executable, str(RELAY), "--root", str(root), "_step", "starting-task", "build", "t1"],
                               capture_output=True, text=True, env=env)
     assert run_step.returncode == 0 and len(calls()) == before_calls, run_step.stderr
     assert not lock.exists() and "before the step started" in state("starting-task")["halted"]
+
+    # A runner that does not own the lock does nothing at all.
+    lock.mkdir(parents=True)
+    (lock / "step.json").write_text(json.dumps({"task": "starting-task", "action": "build", "started": time.time(), "token": "t2"}))
+    before_calls = len(calls())
+    not_owner = subprocess.run([sys.executable, str(RELAY), "--root", str(root), "_step", "starting-task", "build", "t1"],
+                               capture_output=True, text=True, env=env)
+    assert not_owner.returncode == 0 and len(calls()) == before_calls and not (lock / "runner.json").exists()
+    shutil.rmtree(lock)
+
+    # A failed publication of the agent's pid: the agent is ended, nothing runs beside it, and the lock is released.
+    saved_env = {k: os.environ.get(k) for k in ("STUB_CALLS", "RELAY_CODEX_BIN", "RELAY_CLAUDE_BIN", "STUB_SLEEP")}
+    os.environ.update({"STUB_CALLS": env["STUB_CALLS"], "RELAY_CODEX_BIN": env["RELAY_CODEX_BIN"],
+                       "RELAY_CLAUDE_BIN": env["RELAY_CLAUDE_BIN"], "STUB_SLEEP": "60"})
+    brief("publish-fail")
+    real_save = relay.save
+
+    orphans = []
+
+    def failing_save(path, data):
+        if path.name == "runner.json" and "agent" in data:
+            orphans.append(data["agent"])  # the agent may die before it logs its call, so take its pid here
+            raise OSError("disk full")
+        return real_save(path, data)
+
+    relay.save = failing_save
+    try:
+        count = len(calls())
+        assert relay.acquire(paths, "publish-fail", "build", "t3")
+        relay.step(paths, "publish-fail", "build", "t3")
+    finally:
+        relay.save = real_save
+        for key, value in saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    assert len(orphans) == 1 and not alive(orphans[0]), "an agent whose pid could not be recorded is ended"
+    assert not lock.exists() and "failed" in state("publish-fail")["halted"]
+    brief("publish-fail", auto="")
 
     # A step that ignores SIGTERM is killed; the lock is released only once its group is gone.
     fast = {**env, "RELAY_STEP_TIMEOUT": "1", "STUB_SLEEP": "60", "STUB_IGNORE_TERM": "1"}
@@ -294,6 +349,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # Manual stop of a running step ends the agent group, then the runner, then releases the lock.
     brief("stop-task")
     count = len(calls())
+    (evidence / "runs.json").write_text("{}")  # earlier cases used the day's runs
     run({**env, "RELAY_STEP_TIMEOUT": "600", "STUB_SLEEP": "60", "STUB_IGNORE_TERM": "1"})
     wait_until(lambda: len(calls()) > count, "the stop step never started")
     wait_until(lambda: (lock / "runner.json").exists() and json.loads((lock / "runner.json").read_text()).get("agent"),

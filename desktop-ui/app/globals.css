@@ -2353,3 +2353,9 @@ button { cursor: pointer; }
   .finance-heading-actions { max-width: 100%; overflow-x: auto; }.finance-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }.finance-close-grid, .finance-monthly-grid { grid-template-columns: 1fr; }.finance-close-list > article { grid-template-columns: 31px minmax(180px, 1fr) 78px; }.finance-close-list article > span { display: none; }.finance-payment-summary, .finance-monthly-kpis { grid-template-columns: repeat(2, 1fr); }.finance-trend-cards { grid-template-columns: repeat(2, 1fr); }.finance-territory-shell { overflow-x: auto; }.finance-territory-head, .finance-territory-list > article { min-width: 560px; }
   .finance-recovery-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }.finance-recovery-ledger-summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+.appointment-info-title { margin: 0; padding: 12px; border-bottom: 1px solid var(--oc-border-neutral-01); font-size: var(--oc-type-15); }
+.drawer-facts .appointment-customer-links { display: flex; flex-wrap: wrap; gap: 6px 12px; text-transform: none; letter-spacing: normal; }
+.drawer-facts > .appointment-info-notes { display: block; padding: 0; }
+.appointment-info-notes .appointment-source-notes { border: 0; border-radius: 0; }
+.appointment-info-notes .appointment-source-notes span { text-transform: none; letter-spacing: normal; font-weight: inherit; }

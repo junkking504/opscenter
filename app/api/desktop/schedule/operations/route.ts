@@ -1,3 +1,4 @@
+import {canRecoverCustomerCorrection,recoverCustomerCorrectionForOffice,customerRecoveryProjection} from '@/lib/customer-correction-recovery';
 import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
@@ -34,6 +35,11 @@ export async function GET(request: Request) {
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   const parameters = new URL(request.url).searchParams;
   const requestId = parameters.get('requestId') || '';
+  const pendingCustomer=await readScheduleReceipt(requestId);
+  if(canRecoverCustomerCorrection(actor.role,pendingCustomer)){
+    const receipt=await recoverCustomerCorrectionForOffice(actor.role,requestId,parameters.get('reconcile')==='1');
+    return Response.json({receipt:customerRecoveryProjection(receipt)},{headers});
+  }
   let receipt = parameters.get('reconcile') === '1' ? await reconcileCloseoutReceipt(requestId, actor.email, async id => {
     const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id));
     return result.closeout;

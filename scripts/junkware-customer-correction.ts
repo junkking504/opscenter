@@ -1,3 +1,4 @@
+import {prepareJunkwareEmailSubmission} from '../lib/junkware-email';
 import type {Page} from '@playwright/test';
 import {createHash} from 'node:crypto';
 import {capture} from './sync-junkware-job-closeout';
@@ -13,7 +14,7 @@ export async function captureCustomer(page:Page,appointmentId:string):Promise<Cu
     const fields={} as CustomerFields;
     for(const key of Object.keys(controls) as Array<keyof CustomerFields>){
       const node=document.getElementById('ctl00_Content_'+controls[key]);
-      if(!(node instanceof HTMLInputElement) || node.disabled || node.readOnly)throw new Error('A customer correction field is unavailable.');
+      if(!(node instanceof HTMLInputElement))throw new Error('A customer correction field is unavailable.');
       fields[key]=node.value.trim();
     }
     const protectedFields=Object.fromEntries(['CustomerIDHF','FirstAppointmentHF','BillingAddressTB','BillingZipTB','BillingEmailTB','CompanyTB','OptOutCB'].map(key=>{
@@ -50,6 +51,7 @@ async function stageCustomerCorrection(page:Page,before:CustomerSource,fields:Cu
 const correctionSteps={capture:captureCustomer,stage:stageCustomerCorrection,submit:(page:Page)=>clickWithWebFormsCompletion(page,'#ctl00_Content_SaveAppointmentBtn','the customer correction')};
 export async function applyCustomerCorrection(page:Page,before:CustomerSource,input:unknown,markSubmission:()=>void,steps=correctionSteps) {
   const fields=normalizeCustomerFields(input);
+  fields.email=prepareJunkwareEmailSubmission(fields.email).controlValue;
   if(before.status!=='1')throw new Error('Only open appointments can be corrected by the crew.');
   await steps.stage(page,before,fields);
   verifyCustomerCorrection(await steps.capture(page,before.appointmentId),fields,before.protectedVersion);

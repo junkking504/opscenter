@@ -1,4 +1,4 @@
-import {crewPhoneBody,crewPhoneFailure,crewPhoneResponse,requireCrewReady} from '@/lib/crew-phone-http';
+import {crewPhoneBody,crewPhoneFailure,crewPhoneResponse,requireCrewReady,requireCrewPhone} from '@/lib/crew-phone-http';
 import {CrewPhoneError} from '@/lib/crew-phone';
 import {trackedAfter as after} from '@/lib/release-after';
 import {loadCrewCustomer,queueCrewCustomer,checkCrewCustomer} from '@/lib/crew-customer-service';
@@ -14,7 +14,7 @@ function failure(error:unknown){
   return crewPhoneFailure(error);
 }
 export async function GET(request:Request){try{
-  requireCrewReady(request);const query=new URL(request.url).searchParams;
+  requireCrewPhone(request);const query=new URL(request.url).searchParams;
   if([...query.keys()].some(key=>!['assignmentId','requestId','reconcile'].includes(key)) || query.has('reconcile')&&query.get('reconcile')!=='1')throw new CrewPhoneError('Use the customer correction form.');
   const assignmentId=query.get('assignmentId')||'',requestId=query.get('requestId');
   return crewPhoneResponse(requestId?{receipt:await checkCrewCustomer(request,assignmentId,requestId,query.get('reconcile')==='1')}:await loadCrewCustomer(request,assignmentId));

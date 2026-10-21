@@ -1086,7 +1086,13 @@ and permits a new review. After ten minutes, other fresh source mismatches are m
 original outcome remains unconfirmed and the crew must reload the current
 source details before another correction. A stale queued receipt without a
 durable submission intent is marked failed without reading or writing JunkWare;
-a delayed worker cannot replay it. Unavailable or unauthorized sources remain blocked. No source
+a delayed worker cannot replay it. Unavailable sources remain blocked. Actor-bound receipt checks are read-only
+and do not require the appointment to remain on the original truck or date.
+If the phone expires or is revoked, an OpsCenter manager/admin opens the
+appointment closeout and selects **Check Saved Result** on the pending customer
+correction. The office receives a status-only receipt and uses the same read-only
+reconciler, even after source completion or reassignment. This never submits a
+correction, closeout or payment. No source
 write is replayed by recovery. The active appointment card adopts the verified name, phone and address read-back
 immediately; a changed address clears the old map pin. The normal verified
 schedule refresh supplies the route projection and new cached location. The

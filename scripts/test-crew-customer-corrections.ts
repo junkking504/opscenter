@@ -96,7 +96,20 @@ async function main(){
     assert.equal((await checkCrewCustomer(request,current.assignmentId,altered.receipt.requestId,true,deps)).status,'reconciled','A fresh changed source unblocks old work without claiming the original correction succeeded');
     const afterRecovery=await queueCrewCustomer(request,body(),deps);assert.ok(afterRecovery.run,'Recovered appointment permits a newly reviewed action');
     assert.throws(()=>verifyCustomerCorrection(source,source.fields,'c'.repeat(64)));
-    revokeCrewPhone(phone.deviceId,'fixture');await assert.rejects(()=>checkCrewCustomer(request,current.assignmentId,input.requestId,false,deps));
+    changed=false;lose=true;await afterRecovery.run!();
+    source={...source,status:'8',truck:'Truck 9',date:'2026-10-22',sourceVersion:'f'.repeat(64)};
+    const movedPath=path.join(root,'operations',afterRecovery.receipt.requestId+'.json'),movedReceipt=JSON.parse(fs.readFileSync(movedPath,'utf8'));movedReceipt.updatedAt=new Date(Date.now()-11*60_000).toISOString();fs.writeFileSync(movedPath,JSON.stringify(movedReceipt));
+    const noAssignmentDeps={...deps,local:()=>{throw Error('No current assignment');},scope:async()=>{throw Error('No writable crew scope');}};
+    const priorWrites=writes;assert.equal((await checkCrewCustomer(request,current.assignmentId,afterRecovery.receipt.requestId,true,noAssignmentDeps)).status,'reconciled','Actor-bound read-only recovery works after source completion, reassignment and day change');assert.equal(writes,priorWrites);
+    const {recoverCustomerCorrectionForOffice,canRecoverCustomerCorrection}=await import('../lib/customer-correction-recovery');
+    fs.writeFileSync(movedPath,JSON.stringify({...movedReceipt,status:'uncertain'}));
+    revokeCrewPhone(phone.deviceId,'fixture');
+    assert.equal(canRecoverCustomerCorrection('operator',await readScheduleReceipt(afterRecovery.receipt.requestId)),false);
+    await assert.rejects(()=>recoverCustomerCorrectionForOffice('operator',afterRecovery.receipt.requestId,true,deps.source));
+    assert.equal((await recoverCustomerCorrectionForOffice('manager',afterRecovery.receipt.requestId,true,deps.source)).status,'reconciled','Manager can resolve the revoked phone receipt from current source without a source write');assert.equal(writes,priorWrites);
+    fs.writeFileSync(abandonedPath,JSON.stringify({...abandonedData,status:'pending'}));
+    assert.equal((await recoverCustomerCorrectionForOffice('admin',abandoned.receipt.requestId,true,async()=>{throw Error('No source access for unsubmitted correction');})).status,'failed','Office resolves stale no-intent receipt after revocation/day changes');
+    await assert.rejects(()=>checkCrewCustomer(request,current.assignmentId,input.requestId,false,deps));
     console.log('Crew customer corrections: validation, scope, version conflicts, queued receipts, duplicate prevention, closeout interlock, lost response and read-only recovery passed.');
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 }

@@ -52,7 +52,7 @@ async function loadFreshCrewCloseout(request:Request,assignmentId:string,deps=cr
     const day=result.closeout.status?.value==='1' && !pending?requireCrewDay(phone,current.date):null;
     return {arrival:crewCloseoutArrival(job,phone.truck,current.date),dryRun:crewCheckoutDryRun(current,phone.truck),crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),sourceFieldsVersion:closeoutSourceVersion({...result.closeout,photoEvidence:null}),jobVersion:job.version,
       canWrite:result.closeout.status?.value==='1' && (!pending || pending.actor===actor),pendingReceipt:pending?.actor===actor?crewReceiptProjection(pending):null,
-      message:pending && pending.actor!==actor?'The office must verify an earlier change before this appointment can be closed.':result.closeout.status?.value==='8'?'This appointment is already completed in JunkWare. Refresh your assignment.':undefined};
+      message:pending && pending.actor!==actor?(pending.action==='customer_correction'&&pending.actor.startsWith(`crew-customer:${phone.deviceId}:`)?'Open Edit customer information and check the saved result. The office can also recover this correction.':'The office must verify an earlier change before this appointment can be closed.'):result.closeout.status?.value==='8'?'This appointment is already completed in JunkWare. Refresh your assignment.':undefined};
   });
 }
 function savedCloseoutScope(request:Request,assignmentId:string) {
@@ -80,7 +80,7 @@ export async function loadCrewCloseout(request:Request,assignmentId:string,deps=
     crewVersion:day.version,crewDefaults:confirmed&&!pending?closeoutCrewDefaults(day,closeout):undefined,
     sourceVersion:closeoutSourceVersion(closeout),sourceFieldsVersion:closeoutSourceVersion({...closeout,photoEvidence:null}),
     savedAt:saved.savedAt,canWrite:confirmed&&(!pending||pending.actor===actor),pendingReceipt:pending?.actor===actor?crewReceiptProjection(pending):null,
-    message:pending&&pending.actor!==actor?'The office must verify an earlier change before this appointment can be closed.':!confirmed?'This appointment is closed. Refresh assignments.':'Saved closeout form. Prices and payments are checked again when you submit.'};
+    message:pending&&pending.actor!==actor?(pending.action==='customer_correction'&&pending.actor.startsWith(`crew-customer:${phone.deviceId}:`)?'Open Edit customer information and check the saved result. The office can also recover this correction.':'The office must verify an earlier change before this appointment can be closed.'):!confirmed?'This appointment is closed. Refresh assignments.':'Saved closeout form. Prices and payments are checked again when you submit.'};
 }
 const warmRetry=new Map<string,number>();
 export async function warmCrewCloseout(request:Request,assignmentId:string) {

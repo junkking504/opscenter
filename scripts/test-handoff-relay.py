@@ -130,7 +130,8 @@ with tempfile.TemporaryDirectory() as temp:
     assert "Write(//" in allowed and allowed.count("review.md") == 2 and "Bash(git push" not in allowed
     assert "Bash(git push:*)" in claude_calls[0]["args"][claude_calls[0]["args"].index("--disallowedTools") + 1]
     codex_build = calls()[0]["args"]
-    assert codex_build[:6] == ["exec", "-C", str(root / "worktrees/loop-task"), "-s", "workspace-write", "--approve-for-me"]
+    assert codex_build[:4] == ["exec", "-C", str(root / "worktrees/loop-task"), "--approve-for-me"]
+    assert all("-s" not in c["args"] for c in calls() if c["tool"] == "codex"), "--approve-for-me already implies the sandbox; -s makes codex exit"
     log = (evidence / "relay.log").read_text()
     assert log.count("loop-task: start") == 6 and "loop-task: needs-user (loop limit" in log
     assert log.count("loop-task: needs-user") == 1, "a resting state is logged once, not every tick"

@@ -207,7 +207,7 @@ def command(p: Paths, task: str, action: str) -> tuple[list[str], Path, dict]:
                 "Fix the [blocking] findings in {v}/review.md for vault task {t}, then add an update section to handoff.md naming the new head.")
         prompt = (what.format(t=task, v=vault) + f" Work only in this worktree on branch codex/{task}. Commit and push only that branch. "
                   f"Write {vault}/handoff.md when ready. Do not merge, deploy, edit review.md, or send any message.")
-        cmd = [codex, "exec", "-C", str(worktree), "-s", "workspace-write", "--approve-for-me",
+        cmd = [codex, "exec", "-C", str(worktree), "--approve-for-me",
                "-c", "sandbox_workspace_write.network_access=true",
                "--add-dir", str(p.repo / ".git"), "--add-dir", str(vault), "-o", str(out), prompt]
         return cmd, worktree, env
@@ -215,7 +215,7 @@ def command(p: Paths, task: str, action: str) -> tuple[list[str], Path, dict]:
               "using the exact opening line format from docs/agent-handoffs.md. Do not edit any other file, push, merge, deploy, or send anything.")
     if action == "review-codex":
         # Writable root is the vault task folder only, so source files cannot change.
-        return [codex, "exec", "-C", str(vault), "-s", "workspace-write", "--approve-for-me", "-o", str(out), review], vault, env
+        return [codex, "exec", "-C", str(vault), "--approve-for-me", "-o", str(out), review], vault, env
     target = f"//{str(vault / 'review.md').lstrip('/')}"
     cmd = [find_claude() or "claude", "-p", review, "--model", reviewer_model(p, task), "--add-dir", str(vault),
            "--allowedTools", f"Read,Grep,Glob,Write({target}),Edit({target}),Bash(git diff:*),Bash(git log:*),Bash(git show:*)",

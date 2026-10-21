@@ -148,10 +148,12 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
 # Paid extra usage (usage credits) would bill past the plan limit, and Claude
-# Code cannot report whether it is on. The review runs only after the user has
-# confirmed it is off, recorded in docs/spending-controls.md.
-if ! grep -q -x -F '<!-- claude-review-extra-usage: confirmed-off -->' docs/spending-controls.md 2>/dev/null; then
-  echo "claude-review: the user has not confirmed that paid extra usage is off (docs/spending-controls.md). Not run." >&2
+# Code cannot report whether it is on or what its limit is. The review runs
+# only after the user has approved a monthly dollar cap, recorded in
+# docs/spending-controls.md as <!-- claude-review-extra-usage: capped-usd-N-monthly -->.
+# The cap itself is set on the Claude account; this only checks the approval.
+if ! grep -q -x -E '<!-- claude-review-extra-usage: capped-usd-[1-9][0-9]*-monthly -->' docs/spending-controls.md 2>/dev/null; then
+  echo "claude-review: the user has not approved a monthly cap for paid extra usage (docs/spending-controls.md). Not run." >&2
   exit 8
 fi
 

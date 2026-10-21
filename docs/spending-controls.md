@@ -287,21 +287,26 @@ merge or deploy. See [Web Push activation boundaries](web-push.md).
 
 The user asked for Codex to call Claude Code for a second-opinion review of its
 changes. `claude-review.sh` runs the locally installed, logged-in Claude Code on
-the builder's machine and draws on that Claude subscription. **Maximum new
-spend: $0**, on one condition the script cannot check: paid extra usage
-(usage credits) must stay off on the Claude account Claude Code is logged in
-with. With it off, a review that reaches the plan limit fails and Codex
-continues without it; with it on, usage past the limit is billed. Each review
-is capped at 40 turns.
+the builder's machine and draws on that Claude subscription. Each review is
+capped at 40 turns.
 
-Status: **confirmed off by the user on 2026-10-21** (decision card in the
-project thread: "Confirm extra usage is turned off on the Claude account used
-on Mission Control?", answer "It's off"). The marker below lets
-`claude-review.sh` run. If extra usage is ever turned on, remove the marker; the
-script then refuses to run again (exit 8). Only the user's own confirmation may
-add it.
+**Approved: October 21, 2026.** The user first confirmed paid extra usage was
+off, then asked to use credits and set a **maximum of $20 per month** for paid
+extra usage (usage credits) on the Claude account Claude Code is logged in with.
+That cap is the maximum new spend for this feature. It is not enforced by the
+script, which cannot read the account's limit: the user sets $20 as the monthly
+spend limit in the account's usage settings, and no auto-reload or higher limit
+is approved. Reviews past the plan limit may bill against that credit until the
+limit is reached; then the review fails and Codex continues without it.
 
-<!-- claude-review-extra-usage: confirmed-off -->
+`claude-review.sh` refuses to run (exit 8) unless the line below, which only the
+user's own approval may add, is present. Remove it to stop reviews, for example
+if the cap is lowered or removed.
+
+<!-- claude-review-extra-usage: capped-usd-20-monthly -->
+
+The earlier `confirmed-off` line in the Waypoint section below is a separate
+statement for another review and does not enable this script.
 
 The script fails closed. It calls Claude Code with an allowlisted environment,
 so no API key, auth token, base URL, or Bedrock, Vertex or Foundry switch is

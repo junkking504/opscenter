@@ -56,7 +56,7 @@ unset CLAUDE_CONFIG_DIR
 mkdir -p "$HOME/.claude"
 printf 'base\n' >app.ts
 mkdir -p docs
-printf 'Status:\n<!-- claude-review-extra-usage: confirmed-off -->\n' >docs/spending-controls.md
+printf 'Status:\n<!-- claude-review-extra-usage: capped-usd-20-monthly -->\n' >docs/spending-controls.md
 git add -A && git commit -q -m base
 printf 'base\nchanged\n' >app.ts
 printf 'export const x = 1\n' >new-file.ts
@@ -199,6 +199,12 @@ printf 'Status: pending\n' >docs/spending-controls.md
 rm -f "$stub_dir/args.txt"
 expect_exit "extra usage not confirmed" 8 ./claude-review.sh
 check "extra usage not confirmed: review never called" '[ ! -e "$stub_dir/args.txt" ]'
+printf 'Status:\n<!-- claude-review-extra-usage: confirmed-off -->\n' >docs/spending-controls.md
+expect_exit "old confirmed-off marker no longer enough" 8 ./claude-review.sh
+printf 'Status:\n<!-- claude-review-extra-usage: capped-usd-0-monthly -->\n' >docs/spending-controls.md
+expect_exit "zero cap is not a cap" 8 ./claude-review.sh
+printf 'Status: <!-- claude-review-extra-usage: capped-usd-20-monthly --> pending\n' >docs/spending-controls.md
+expect_exit "marker must be on its own line" 8 ./claude-review.sh
 cp "$work/spending.md" docs/spending-controls.md
 
 write_help --restricted --tools

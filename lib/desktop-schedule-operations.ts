@@ -1,4 +1,7 @@
 import {verifyCustomerCorrection,type CustomerSource,type CustomerFields} from './crew-customer-contract';
+
+import {parseCustomerChange,customerMatches} from './customer-edit-contract';
+import {junkwareCustomer,recordCustomerEdit} from './customer-edit';
 import {assertAppointmentNotSwitching,assertTruckNotSwitching} from './crew-truck-switch-store';
 import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
 import type { CrewDispatchSources } from './crew-dispatch-service';
@@ -13,7 +16,7 @@ import { withScheduleOperationLock, readJobRouteAssignmentOverrides, saveJobRout
 import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
-export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify' | 'customer_correction'; values: Record<string, unknown> };
+export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify' | 'customer_correction' | 'customer'; values: Record<string, unknown> };
 export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; createdAt?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; crewAssignment?: ScheduleCrewAssignment; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
 export type QueuedScheduleOperation = { operation: ScheduleOperation; actor: string; receipt: ScheduleReceipt; job: DesktopAppointment | null; created: boolean };
 export class PendingScheduleOperationError extends Error {
@@ -30,7 +33,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   const recordId = String(body.recordId || '');
   const expectedVersion = String(body.expectedVersion || '');
   const action = String(body.action || '') as ScheduleOperation['action'];
-  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'restore', 'call_ahead', 'cancel', 'note', 'closeout', 'classify'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
+  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'restore', 'call_ahead', 'cancel', 'note', 'closeout', 'classify', 'customer'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
   const values = body.values && typeof body.values === 'object' ? body.values as Record<string, unknown> : {};
   if (JSON.stringify(values).length > (action==='closeout'?64_000:10_000)) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
@@ -47,6 +50,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
       if (typeof start !== 'number' || !Number.isInteger(start) || start < 0 || start % 60 !== 0 || typeof duration !== 'number' || !Number.isInteger(duration) || duration < 1 || duration > 12 || start + duration * 60 > 1440) throw new Error('An hourly appointment window within the operating day is required.');
     } else if (values.durationHours !== undefined) throw new Error('A start time is required to change the appointment duration.');
   }
+  if (action === 'customer') parseCustomerChange(values);
   if (action === 'classify') parseClassificationChange(values);
   if (['reschedule','restore'].includes(action) && (!validRescheduleDate(values.destinationDate) || typeof values.appointmentStartMinutes !== 'number' || !Number.isInteger(values.appointmentStartMinutes) || values.appointmentStartMinutes < 0 || values.appointmentStartMinutes >= 1440 || values.appointmentStartMinutes % 60 !== 0)) throw new Error('A valid destination date and hourly appointment time are required.');
   return { requestId, date, recordId, expectedVersion, action, values };
@@ -114,8 +118,8 @@ export async function queueScheduleOperation(operation: ScheduleOperation, actor
       if (job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change. Check its saved result before rescheduling.');
     }
     if (operation.action === 'restore' && !/cancel/i.test(job.status)) throw new Error('Only canceled appointments can be restored. Refresh the source record.');
-    if (/cancel/i.test(job.status) && !['note','restore'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
-    if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
+    if (/cancel/i.test(job.status) && !['note','restore','customer'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
+    if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move', 'customer'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
     // A reserved crew truck-switch transfers existing assignment identities after
     // all moves finish; it must not create an independent Schedule release.
@@ -124,6 +128,7 @@ export async function queueScheduleOperation(operation: ScheduleOperation, actor
     if (crewAssignment) receipt.crewAssignment = crewAssignment;
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
     if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
+    if(operation.action==='customer') receipt.sourceResult={expected:parseCustomerChange(operation.values)};
     await writeReceipt(receipt);
     return { operation, actor, receipt, job, created: true };
   }));
@@ -139,7 +144,7 @@ export async function finishQueuedScheduleOperation(queued: QueuedScheduleOperat
     try {
       const result = await run(queued.job!, receipt);
       const verified = result.status >= 200 && result.status < 300 && result.status !== 202 && result.body.ok !== false;
-      receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: operation.action==='customer_correction'?{...receipt.sourceResult,...result.body}:result.body };
+      receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: operation.action==='customer_correction'?{...receipt.sourceResult,...result.body}:operation.action==='customer'?{...result.body,expected:parseCustomerChange(operation.values)}:result.body };
       if (verified && operation.action === 'classify' && typeof result.body.warning === 'string') receipt.message += ` ${result.body.warning}`;
     } catch {
       receipt = { ...receipt, status: 'uncertain', updatedAt: new Date().toISOString(), message: 'The result could not be confirmed. Verify the source before trying again.' };
@@ -386,4 +391,38 @@ export async function reconcileCustomerCorrection(id:string,actor:string,read:(a
     const resolved:ScheduleReceipt={...receipt,status,updatedAt:new Date().toISOString(),message:status==='verified'?'Customer information saved and verified in JunkWare.':status==='reconciled'?'JunkWare has different current details. The earlier correction was not confirmed. Reload and review the current customer information before another change.':'JunkWare confirms the correction was not saved. Reload the details before trying again.',sourceResult:{...receipt.sourceResult,customer:source},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
     await writeReceipt(resolved);return resolved;
   });
+}
+
+/** Reopens the source only. Never repeats a customer save. */
+export async function reconcileCustomerReceipt(id:string,actor:string,read:(id:string)=>ReturnType<typeof junkwareCustomer>) {
+  const initial=await readScheduleReceipt(id);
+  if(!initial || initial.actor!==actor || initial.action!=='customer' || initial.status!=='uncertain')return initial;
+  return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`,async()=>{
+    const receipt=await readScheduleReceipt(id);if(!receipt || receipt.status!=='uncertain')return receipt;
+    const expected=receipt.sourceResult?.expected as ReturnType<typeof parseCustomerChange>|undefined;
+    if(!expected)return receipt;
+    let current;try{current=await read(receipt.recordId.split(':appointment:')[1]);}catch{return receipt;}
+    if(!current.ok)return receipt;
+    if(customerMatches(current.customer,expected.customer) && current.protectedVersion===expected.protectedVersion){
+      current.verifiedAt=current.checkedAt;recordCustomerEdit(receipt.recordId.split(':appointment:')[1],current);
+      const verified={...receipt,status:'verified' as const,updatedAt:new Date().toISOString(),message:'JunkWare verified the customer information. No change was resubmitted.',sourceResult:current as unknown as Record<string,unknown>};await writeReceipt(verified);return verified;
+    }
+    if(current.sourceVersion===expected.expectedSourceVersion){const failed={...receipt,status:'failed' as const,updatedAt:new Date().toISOString(),message:'JunkWare confirms the customer change was not saved. Reload and review before trying again.'};await writeReceipt(failed);return failed;}
+    return receipt;
+  });
+}
+
+/** Manager-attested source review ends an unresolvable edit without replaying it.
+ * A missing request is tombstoned under the same locks, so a delayed POST cannot
+ * later save using the abandoned request ID. */
+export async function resolveCustomerManualReview(input:{requestId:string;recordId:string;date:string},actor:string) {
+  if(!uuid.test(input.requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !new RegExp(`^${input.date}:appointment:[0-9]{1,12}$`).test(input.recordId))throw new Error('A valid customer edit request is required.');
+  return withScheduleOperationLock(`request-${input.requestId}`,()=>withScheduleOperationLock(`appointment-${input.recordId.split(':appointment:')[1]}`,async()=>{
+    const previous=await readScheduleReceipt(input.requestId);
+    if(previous && (previous.actor!==actor || previous.action!=='customer' || previous.recordId!==input.recordId))throw new Error('This customer request belongs to another operation.');
+    if(previous?.status==='pending')throw new Error('The customer edit is still running. Check its saved result first.');
+    if(previous && ['verified','failed','reconciled'].includes(previous.status))return previous;
+    const receipt:ScheduleReceipt={...(previous || {...input,actor,action:'customer',fingerprint:createHash('sha256').update(`manual-review:${input.requestId}`).digest('hex')}),status:'reconciled',updatedAt:new Date().toISOString(),message:'Manager reviewed the appointment in JunkWare. Customer-only save verification remains unavailable. No source change was submitted by this review.',sourceResult:{manualReview:true}};
+    await writeReceipt(receipt);return receipt;
+  }));
 }

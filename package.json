@@ -203,7 +203,8 @@
     "verify:huddle": "node --import tsx scripts/test-tv-spotlights.ts",
     "verify:command-ajs": "node --import tsx scripts/test-command-ajs.ts",
     "verify:command-fold-browser": "node scripts/test-command-fold-browser.mjs",
-    "verify:crew-customer": "node --import tsx scripts/test-crew-customer-corrections.ts"
+    "verify:crew-customer": "node --import tsx scripts/test-crew-customer-corrections.ts",
+    "verify:customer-edit": "node --import tsx scripts/test-customer-edit.ts && node --import tsx scripts/test-customer-edit-recovery.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

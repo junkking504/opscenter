@@ -1,4 +1,7 @@
 import {canRecoverCustomerCorrection,recoverCustomerCorrectionForOffice,customerRecoveryProjection} from '@/lib/customer-correction-recovery';
+import {parseCustomerChange} from '@/lib/customer-edit-contract';
+import {junkwareCustomer,recordCustomerEdit} from '@/lib/customer-edit';
+import {reconcileCustomerReceipt,resolveCustomerManualReview} from '@/lib/desktop-schedule-operations';
 import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
@@ -23,7 +26,7 @@ import { POST as note } from '@/app/api/junkware-appointment-note/route';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 export const dynamic = 'force-dynamic';
-const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout], classify: ['/api/job-closeout', classify] } as const;
+const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout], classify: ['/api/job-closeout', classify], customer: ['/api/job-closeout', null] } as const;
 function checkMoveAfterResponse(requestId: string, actor: string) {
   after(async () => {
     try { await automaticallyCheckMove(requestId, actor, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))); await finishScheduleCrewAssignment(requestId, actor, crewDispatchSources); }
@@ -47,6 +50,7 @@ export async function GET(request: Request) {
   if (parameters.get('reconcile') === '1' && receipt?.actor === actor.email && receipt.action === 'move' && authorizeOpsRequest(actor.role, '/api/job-route-assignments', 'POST').allowed) {
     receipt = await reconcileMoveReceipt(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
   }
+  if(parameters.get('reconcile')==='1' && receipt?.action==='customer' && authorizeOpsRequest(actor.role,'/api/job-closeout','POST').allowed) receipt=await reconcileCustomerReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>junkwareCustomer(id)));
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
   if (parameters.get('reconcile') !== '1' && receipt.action === 'move' && authorizeOpsRequest(actor.role, '/api/job-route-assignments', 'POST').allowed) {
     if (receipt.status === 'uncertain') checkMoveAfterResponse(requestId, actor.email);
@@ -60,7 +64,14 @@ export async function POST(request: Request) {
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try {
-    const operation = parseScheduleOperation(await request.json());
+    const body=await request.json();
+    if(body.resolveCustomerRequest===true){
+      if(!authorizeOpsRequest(actor.role,'/api/job-closeout','POST').allowed)return Response.json({error:'Customer editing is not permitted.'},{status:403,headers});
+      if(body.reviewedInJunkware!==true)throw new Error('Review the appointment in JunkWare first.');
+      const receipt=await resolveCustomerManualReview({requestId:String(body.requestId || ''),recordId:String(body.recordId || ''),date:String(body.date || '')},actor.email);
+      return Response.json({receipt},{headers});
+    }
+    const operation = parseScheduleOperation(body);
     if(operation.action==='customer_correction')return Response.json({error:'Use the crew customer correction screen.'},{status:403,headers});
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
@@ -70,12 +81,19 @@ export async function POST(request: Request) {
       assertRecoveredScheduleMatches(job,operation.date,recovered);
       return job;
     }, async job => {
+      if(operation.action==='customer'){
+        const expected=parseCustomerChange(operation.values);
+        const result=await withJunkwareAppointmentSyncLock(job.appointmentId,()=>junkwareCustomer(job.appointmentId,expected));
+        if(result.ok)recordCustomerEdit(job.appointmentId,result);
+        return {status:result.ok?200:result.submitted===false?409:202,body:{...result,expected}};
+      }
       if(['reschedule','restore'].includes(operation.action)) return rescheduleAppointment(job,operation.date,operation.values,operation.action==='restore');
       const values = operation.values;
       const payload = operation.action === 'move' ? { truck: String(values.truck || ''), ...(Number.isInteger(values.appointmentStartMinutes) ? { appointmentStartMinutes: values.appointmentStartMinutes, durationHours: values.durationHours } : {}) }
         : operation.action === 'cancel' ? { cancellationReason: String(values.reason || ''), jkNumber: job.jkNumber, customerName: job.customerName }
         : operation.action === 'call_ahead' ? { status: values.called === true ? 'called' : 'not_called' }
         : ['closeout','classify'].includes(operation.action) ? { ...values, serviceDate: operation.date } : { note: String(values.note || '') };
+      if(!handler)throw new Error('A customer operation must use the customer writer.');
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });

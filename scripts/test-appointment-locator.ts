@@ -20,9 +20,10 @@ for(const road of ['I-12','I 12','Interstate 12']) {
  const prefixed='Facility 99, '+source;
  assert.equal(fullFieldStreetAddress(prefixed),source,'Numeric business label does not obscure the service street');
 }
-for(const source of [address.replace('1234','1235'),address.replace('I-12','I-10'),address.replace(' N ',' S '),address.replace('Rd W','Rd E'),address.replace('70002','70003')]) {
- assert.equal(verifyCensusAddress(source,census).location,null,'House, highway, directions and ZIP remain exact');
+for(const source of [address.replace('1234','1235'),address.replace('I-12','I-10'),address.replace(' N ',' S '),address.replace('Rd W','Rd E'),address.replace('70002','70402')]) {
+ assert.equal(verifyCensusAddress(source,census).location,null,'House, highway, directions and postal prefix remain exact');
 }
+assert.equal(verifyCensusAddress(address.replace('70002','70003'),census).reason,'Exact House And Street Verified · Source ZIP Differs','A neighbouring ZIP is reported on the exact premises');
 assert.equal(serviceStreetCandidates(address+' or 999 Other St, Metairie, LA 70002').length,2);
 assert.equal(geocodioAddressQuery(address+' or 999 Other St, Metairie, LA 70002'),null);
 const job={address,territory:'New Orleans',sourceTerritory:'New Orleans',recordId:'one',appointmentId:'one',jkNumber:'JK1',status:'Confirmed',truck:'Unassigned',location:null} as ScheduleAppointment;

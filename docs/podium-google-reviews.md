@@ -75,7 +75,9 @@ that exact identifier match remain unassigned. For those reviews, Marketing →
 Reviews cross-references the public reviewer name against completed JunkWare
 customer names and proposes matches using full names, first or last names, initials, common
 nicknames, and small spelling differences. Review text mentioning a recorded
-crew member strengthens a suggestion; crew-only suggestions require the same
+crew member strengthens a suggestion. Crew evidence is labeled as a possible
+mention and uses capitalized exact first names/known nicknames, with
+contractions excluded and extra context required for common-word names; crew-only suggestions require the same
 location. Each desktop suggestion explains its evidence. Customer-name strength,
 crew mentions, location, and recency rank candidates from the preceding 90 days.
 These are inferences requiring manager confirmation, never automatic crew credit.

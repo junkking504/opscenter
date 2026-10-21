@@ -294,10 +294,11 @@ function similarName(left: string, right: string): boolean {
 
 // Body prose needs stricter matching than public reviewer/customer names:
 // edit distance turns ordinary words (like/have) into crew names (Mike/Dave).
-const ambiguousCrewWords = new Set(["will", "bill", "rob", "gene", "mark", "grant", "chase", "pat", "hope", "faith", "rose", "summer", "may", "april", "june", "art", "ray", "chip", "clay", "rich", "frank", "drew", "dusty"]);
+const ambiguousCrewWords = new Set(["will", "bill", "rob", "gene", "mark", "grant", "chase", "pat", "hope", "faith", "rose", "summer", "may", "april", "june", "art", "ray", "chip", "clay", "rich", "frank", "drew", "dusty", "guy", "max", "joy", "miles", "jack", "don", "hunter", "winter", "chance", "major", "angel"]);
 function crewMentionTokens(body: string): Set<string> {
   const tokens = new Set<string>();
-  for (const match of body.matchAll(/[\p{L}]+/gu)) {
+  for (const match of body.matchAll(/[\p{L}]+(?:['’][\p{L}]+)*/gu)) {
+    if (/['’]/.test(match[0]) || !/^[A-Z]/.test(match[0])) continue;
     const token = nameParts(match[0])[0];
     if (!token || token.length < 3) continue;
     if (ambiguousCrewWords.has(token)) {
@@ -351,8 +352,8 @@ export function buildPodiumReviewNameSuggestionMap(
     const suggestions = reviewDate ? appointments
       .filter(({ candidate }) => candidate.date >= earliestDate && candidate.date <= reviewDate)
       .map(({ candidate, name }) => {
-        if (!nameMatches.has(name.sorted)) nameMatches.set(name.sorted, nameMatchKind(reviewerName, name));
-        const nameKind = nameMatches.get(name.sorted) ?? null;
+        if (!nameMatches.has(name.parts.join(" "))) nameMatches.set(name.parts.join(" "), nameMatchKind(reviewerName, name));
+        const nameKind = nameMatches.get(name.parts.join(" ")) ?? null;
         const crew = candidate.crew.filter(member => {
           if (!crewMentions.has(member)) {
             const first = nameParts(member)[0];
@@ -362,7 +363,7 @@ export function buildPodiumReviewNameSuggestionMap(
         });
         const local = sameTerritory(review.locationName, candidate.territory);
         const matchKind = nameKind || (crew.length && local ? "crew_mention" as const : null);
-        const evidence = [nameKind ? ({exact_name:"Exact customer name",exact_first_last:"First and last name",name_initial:"Name and initial",partial_name:"First or last name",name_variation:"Possible spelling or nickname variation"} as const)[nameKind] : "", crew.length ? `Review mentions recorded crew: ${crew.join(" + ")}` : "", local ? "Same location" : ""].filter(Boolean);
+        const evidence = [nameKind ? ({exact_name:"Exact customer name",exact_first_last:"First and last name",name_initial:"Name and initial",partial_name:"First or last name",name_variation:"Possible spelling or nickname variation"} as const)[nameKind] : "", crew.length ? `Possible crew mention: ${crew.join(" + ")}` : "", local ? "Same location" : ""].filter(Boolean);
         const rank = nameKind ? ({exact_name:100,exact_first_last:95,name_initial:75,partial_name:40,name_variation:30} as const)[nameKind] : 0;
         return {candidate, matchKind, evidence, score: rank + crew.length * 25 + Number(local) * 10};
       })

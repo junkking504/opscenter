@@ -3,6 +3,8 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { buildSearchKingsView, buildSearchKingsInquiryHistory, saveLostLeadOverride, type LostLeadStatus, type LostLeadReason, type SearchKingsLead } from '@/lib/searchkings';
 import { buildPodiumGoogleReviewsView } from '@/lib/podium-reviews';
+import { findPodiumReviewAppointment } from '@/lib/podium-review-attribution';
+import { podiumReviewAssignmentDataDirectory } from '@/lib/podium-review-assignments';
 import { assignPodiumReviewToAppointment, podiumReviewNameSuggestions, readPodiumReviewAssignments } from '@/lib/podium-review-assignments';
 import { addDays } from '@/lib/report-dates';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
@@ -21,7 +23,7 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
   const flags = readConversationFlags();
   const podium = buildPodiumGoogleReviewsView();
   const reviews = podium.locations.flatMap(location => location.reviews.map(review => ({ ...review, location: location.name })));
-  const suggestions = podiumReviewNameSuggestions(reviews.map(review => ({ uid: review.uid, authorName: review.authorName, createdAt: review.createdAt, locationName: review.location })));
+  const suggestions = podiumReviewNameSuggestions(reviews.map(review => ({ uid: review.uid, authorName: review.authorName, createdAt: review.createdAt, locationName: review.location, body: review.body })));
   const totals = authoritativeMarketingTotals(source.leads);
   const end = source.snapshot?.range.endDate;
   const recentStart = end ? addDays(end, -6) : '';
@@ -31,7 +33,7 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
   const previous = authoritativeMarketingTotals(source.leads.filter(lead => lead.calledDate >= previousStart && lead.calledDate < recentStart)).bookings;
   return { date, range: source.rangeLabel, fetchedAt: source.snapshot?.fetchedAt || null, available: source.available, error: source.error || null, canAssignReviews: opsRoleCan(role, 'sensitive.write'), reviewAvailable: podium.available, reviewFetchedAt: podium.snapshot?.fetchedAt || null, reviewError: podium.error || null,
     leads: inquiryLeads.map(lead => ({ id: lead.callId, version: commercialVersion({ ...lead, flag: flags[lead.callId] || null }), flagged: flags[lead.callId]?.flagged === true, customer: lead.callerName || 'Name unavailable', phone: lead.phone, duration: lead.duration, recordingUrl: lead.recordingUrl, territory: lead.territory, intent: lead.summary || 'Call intent unavailable', quotedValue: lead.potentialRevenue, status: lead.status, reason: lead.reason, note: lead.note, contacted: lead.franchiseContacted, calledAt: lead.calledAt, updatedAt: lead.updatedAt, source: lead.source, sourceUrl: lead.searchKingsUrl, appointmentId: lead.matchedAppointment?.appointmentId || null, jk: lead.matchedAppointment?.jobId || null, completed: lead.matchedAppointment?.completed || false, revenue: lead.matchedAppointment?.revenue ?? null })),
-    reviews: reviews.map(review => ({ id: review.uid, version: commercialVersion(review), customer: review.authorName, location: review.location, excerpt: review.body, stars: review.rating, createdAt: review.createdAt, sourceUrl: review.url, needsResponse: review.needsResponse, attribution: review.attribution || null, candidates: (suggestions[review.uid] || []).map(candidate => ({ appointmentId: candidate.appointmentId, jkNumber: candidate.jkNumber, label: candidate.label })) })),
+    reviews: reviews.map(review => ({ id: review.uid, version: commercialVersion(review), customer: review.authorName, location: review.location, excerpt: review.body, stars: review.rating, createdAt: review.createdAt, sourceUrl: review.url, needsResponse: review.needsResponse, attribution: review.attribution || null, candidates: (suggestions[review.uid] || []).map(candidate => ({ appointmentId: candidate.appointmentId, jkNumber: candidate.jkNumber, label: `${candidate.label} · ${candidate.evidence.join("; ")}` })) })),
     totals: { calls: source.totalCalls, qualified: source.qualifiedCalls, ...totals, cost: source.spend },
     sources: source.territoryRows.map(row => { const leads = source.leads.filter(lead => lead.territory === row.territory); return { source: row.territory, calls: leads.length, qualified: row.qualifiedCalls, ...authoritativeMarketingTotals(leads), cost: row.spend }; }),
     jobChange: comparisonAvailable ? `Matched appointments: last 7 days ${recent} · prior 7 days ${previous}` : 'Prior 7-day comparison unavailable' };
@@ -119,9 +121,10 @@ export function updateDesktopMarketing(operation: CommercialOperation, actor: { 
   }
   if (operation.action !== 'review.assign') throw new CommercialActionError('Unsupported Marketing action.');
   const reference = String(operation.values.appointmentId || '').trim();
-  if (!/^\d{1,12}$/.test(reference)) throw new CommercialActionError('Select a source appointment ID, not a JK-only reference.');
+  const appointment = findPodiumReviewAppointment(podiumReviewAssignmentDataDirectory(), reference);
+  if (!appointment?.appointmentId) throw new CommercialActionError('No completed appointment with recorded crew was found for that appointment ID or JK number.');
   return executeCommercialOperation(operation, actor, () => readDesktopMarketing(operation.date, actor.role).reviews.find(review => review.id === operation.recordId)?.version, () => {
-    const assignment = assignPodiumReviewToAppointment({ reviewUid: operation.recordId, appointmentReference: reference, assignedBy: actor.email });
+    const assignment = assignPodiumReviewToAppointment({ reviewUid: operation.recordId, appointmentReference: appointment.appointmentId!, assignedBy: actor.email });
     return Boolean(assignment && readPodiumReviewAssignments().some(saved => saved.reviewUid === operation.recordId && saved.attribution.appointmentId === assignment.attribution.appointmentId && saved.assignedBy === actor.email));
   });
 }

@@ -197,7 +197,8 @@ export type PodiumReviewAssignmentOption = {
 };
 
 export type PodiumReviewNameSuggestion = PodiumReviewAssignmentOption & {
-  matchKind: "exact_name" | "exact_first_last" | "name_initial";
+  matchKind: "exact_name" | "exact_first_last" | "name_initial" | "partial_name" | "name_variation" | "crew_mention";
+  evidence: string[];
 };
 
 export type PodiumReviewNameSuggestionInput = {
@@ -205,6 +206,7 @@ export type PodiumReviewNameSuggestionInput = {
   authorName: string;
   createdAt: string;
   locationName: string;
+  body?: string;
 };
 
 function assignmentOption(candidate: AppointmentCandidate): PodiumReviewAssignmentOption {
@@ -251,10 +253,10 @@ function preparedName(value: string) {
 function nameMatchKind(
   reviewerName: ReturnType<typeof preparedName>,
   customerName: ReturnType<typeof preparedName>,
-): PodiumReviewNameSuggestion["matchKind"] | null {
+): Exclude<PodiumReviewNameSuggestion["matchKind"], "crew_mention"> | null {
   const reviewer = reviewerName.parts;
   const customer = customerName.parts;
-  if (reviewer.length < 2 || customer.length < 2) return null;
+  if (!reviewer.length || !customer.length) return null;
   if (reviewerName.sorted === customerName.sorted) return "exact_name";
   const reviewerFirst = reviewer[0];
   const reviewerLast = reviewer.at(-1) || "";
@@ -270,7 +272,24 @@ function nameMatchKind(
   if (reviewerFirst.length === 1 && customerFirst.startsWith(reviewerFirst) && reviewerLast === customerLast) {
     return "name_initial";
   }
+  if ([reviewerFirst, reviewerLast].some(part => part.length >= 3 && [customerFirst, customerLast].includes(part))) return "partial_name";
+  if ([reviewerFirst, reviewerLast].some(part => [customerFirst, customerLast].some(other => similarName(part, other)))) return "name_variation";
   return null;
+}
+
+const nicknameGroups = ["robert bob rob bobby", "william bill will billy", "james jim jimmy", "michael mike", "christopher chris", "joseph joe joey", "elizabeth liz beth", "katherine catherine kate katie", "eugene gene", "anthony tony", "richard rick dick", "alexander alex", "benjamin ben", "daniel dan danny", "thomas tom tommy"];
+function similarName(left: string, right: string): boolean {
+  if (left.length < 3 || right.length < 3) return false;
+  if (left === right) return true;
+  if (nicknameGroups.some(group => { const names = group.split(" "); return names.includes(left) && names.includes(right); })) return true;
+  if (Math.min(left.length, right.length) < 4 || Math.abs(left.length - right.length) > 2) return false;
+  let previous = Array.from({ length: right.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= left.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= right.length; j++) current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + Number(left[i - 1] !== right[j - 1]));
+    previous = current;
+  }
+  return previous[right.length] <= (Math.min(left.length, right.length) >= 7 ? 2 : 1);
 }
 
 function normalizedTerritory(value: string): string {
@@ -304,22 +323,25 @@ export function buildPodiumReviewNameSuggestionMap(
     const reviewerName = preparedName(review.authorName);
     const suggestions = reviewDate ? appointments
       .filter(({ candidate }) => candidate.date >= earliestDate && candidate.date <= reviewDate)
-      .map(({ candidate, name }) => ({
-        candidate,
-        matchKind: nameMatchKind(reviewerName, name),
-      }))
-      .filter((entry): entry is { candidate: AppointmentCandidate; matchKind: PodiumReviewNameSuggestion["matchKind"] } =>
-        Boolean(entry.matchKind))
-      .sort((left, right) => {
-        const matchRank = { exact_name: 3, exact_first_last: 2, name_initial: 1 } as const;
-        return matchRank[right.matchKind] - matchRank[left.matchKind]
-          || Number(sameTerritory(review.locationName, right.candidate.territory))
-            - Number(sameTerritory(review.locationName, left.candidate.territory))
-          || right.candidate.date.localeCompare(left.candidate.date)
-          || left.candidate.jkNumber.localeCompare(right.candidate.jkNumber);
+      .map(({ candidate, name }) => {
+        const nameKind = nameMatchKind(reviewerName, name);
+        const words = nameParts(review.body || "");
+        const crew = candidate.crew.filter(member => {
+          const first = nameParts(member)[0];
+          return first && first.length >= 3 && words.some(word => similarName(first, word));
+        });
+        const local = sameTerritory(review.locationName, candidate.territory);
+        const matchKind = nameKind || (crew.length && local ? "crew_mention" as const : null);
+        const evidence = [nameKind ? ({exact_name:"Exact customer name",exact_first_last:"First and last name",name_initial:"Name and initial",partial_name:"First or last name",name_variation:"Possible spelling or nickname variation"} as const)[nameKind] : "", crew.length ? `Review mentions recorded crew: ${crew.join(" + ")}` : "", local ? "Same location" : ""].filter(Boolean);
+        const rank = nameKind ? ({exact_name:100,exact_first_last:95,name_initial:75,partial_name:40,name_variation:30} as const)[nameKind] : 0;
+        return {candidate, matchKind, evidence, score: rank + crew.length * 25 + Number(local) * 10};
       })
+      .filter(entry => entry.matchKind !== null)
+      .sort((left, right) => right.score - left.score
+        || right.candidate.date.localeCompare(left.candidate.date)
+        || left.candidate.jkNumber.localeCompare(right.candidate.jkNumber))
       .slice(0, 5)
-      .map(({ candidate, matchKind }) => ({ ...assignmentOption(candidate), matchKind })) : [];
+      .map(({ candidate, matchKind, evidence }) => ({ ...assignmentOption(candidate), matchKind: matchKind!, evidence })) : [];
     return [review.uid, suggestions];
   }));
 }

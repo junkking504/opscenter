@@ -175,6 +175,17 @@ for (const [authorName, kind] of [
   assert.equal(result.variant?.[0]?.matchKind, kind, authorName);
   assert.equal(result.variant?.[0]?.jkNumber, 'JK4067001');
 }
+for (const [authorName, kind] of [["Google", "partial_name"], ["Customer", "partial_name"], ["Gooogle Custmer", "name_variation"]] as const) {
+  const result = assignmentModule.podiumReviewNameSuggestions([{uid:"partial", authorName, createdAt:"2026-08-31T15:00:00Z", locationName:"Junk King New Orleans"}]);
+  assert.equal(result.partial[0]?.matchKind, kind);
+}
+const crewSuggestions = assignmentModule.podiumReviewNameSuggestions([
+  {uid:"crew", authorName:"Anonymous", body:"Driver was excellent", createdAt:"2026-08-31T15:00:00Z", locationName:"Junk King New Orleans"},
+  {uid:"other-location", authorName:"Anonymous", body:"Driver was excellent", createdAt:"2026-08-31T15:00:00Z", locationName:"Junk King Baton Rouge"},
+]);
+assert.equal(crewSuggestions.crew[0]?.matchKind, "crew_mention");
+assert.ok(crewSuggestions.crew[0]?.evidence.some(value => value.includes("recorded crew")));
+assert.deepEqual(crewSuggestions["other-location"], []);
 const outsideWindow = assignmentModule.podiumReviewNameSuggestions([
   {uid:'before-service',authorName:'Google Customer',createdAt:'2026-01-01T15:00:00Z',locationName:''},
   {uid:'after-window',authorName:'Google Customer',createdAt:'2027-01-01T15:00:00Z',locationName:''},

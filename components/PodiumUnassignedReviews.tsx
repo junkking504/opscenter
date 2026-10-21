@@ -24,6 +24,9 @@ function reviewDate(value: string): string {
 function nameMatchLabel(kind: PodiumReviewNameSuggestion["matchKind"]): string {
   if (kind === "name_initial") return "Customer name and initial match";
   if (kind === "exact_first_last") return "Customer first and last name match";
+  if (kind === "partial_name") return "First or last name suggestion";
+  if (kind === "name_variation") return "Possible spelling or nickname variation";
+  if (kind === "crew_mention") return "Review mentions recorded crew";
   return "Exact customer-name match";
 }
 

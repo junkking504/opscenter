@@ -168,8 +168,8 @@ def project(path, payload):
                 value = first(row, *keys)
                 if value:
                     item = observation([name, kind], value)
-                    item["notification"] = {"title": "Crew clock-in" if kind == "in" else "Crew clock-out",
-                                            "body": f"{first(row, 'name', 'employee_name', 'employee', 'crew_member', 'employee_id')[:100] or name[:100]} clocked {'in' if kind == 'in' else 'out'} at {value[:100]}"}
+                    item["notification"] = {"title": "Crew",
+                                            "body": f"{first(row, 'name', 'employee_name', 'employee', 'crew_member', 'employee_id')[:100] or name[:100]} clocked {'in' if kind == 'in' else 'out'}: {value[:100]}"}
                     items.append(item)
         batch(f"krewe:{day}", "krewe", source.get("as_of"), items)
     elif path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
@@ -185,9 +185,9 @@ def project(path, payload):
             stamp(row.get("occurred_at"))
             item = observation(row["alert_id"], {key: row.get(key) for key in ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
             at = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p").lstrip("0")
-            action = "entered" if kind == "geofence_entered" else "left"
-            item["notification"] = {"title": f"Truck {str(row['truck_number'])[:20]} {action} location",
-                                    "body": f"Truck {str(row['truck_number'])[:20]} {action} {str(row['geofence_name'])[:150]} at {at}"}
+            action = "Arrived at" if kind == "geofence_entered" else "Departed"
+            item["notification"] = {"title": f"Truck {str(row['truck_number'])[:20]}",
+                                    "body": f"{action} {str(row['geofence_name'])[:150]} at {at}"}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches

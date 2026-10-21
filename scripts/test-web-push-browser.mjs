@@ -10,7 +10,7 @@ try {
    const sub={toJSON:()=>({endpoint:'https://web.push.apple.com/Q'+'x'.repeat(64),keys:{p256dh:'fixture',auth:'fixture'}}),unsubscribe:async()=>true};
    Object.defineProperty(window,'Notification',{value:{requestPermission:async()=>{window.pushCalls.permission++;window.pushCalls.gesture=navigator.userActivation.isActive;return 'granted';}}});
    Object.defineProperty(window,'PushManager',{value:class {}});
-   Object.defineProperty(navigator,'serviceWorker',{value:{register:async()=>({active:{},pushManager:{getSubscription:async()=>null,subscribe:async()=>{window.pushCalls.subscribe++;return sub;}}})}});
+   Object.defineProperty(navigator,'serviceWorker',{value:{register:async()=>({active:{},update:async()=>{},pushManager:{getSubscription:async()=>null,subscribe:async()=>{window.pushCalls.subscribe++;return sub;}}})}});
  });
  let device=false,approved=false,mode='enabled';const writes=[];
  await page.route('**/api/push/devices',async route=>{
@@ -24,7 +24,7 @@ try {
    if(mode==='journal-unknown'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',sampledAt:'2026-10-18T19:00:00Z',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[{key:'ready',status:'unknown',limitFiles:10000,limitBytes:134217728}]}}});return;}
    if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
    if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
-   await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),trial:{status:approved?'awaiting_start':'awaiting_device',deadline:null,attemptsUsed:0,maxAttempts:3},devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z',approved,fingerprint:'a'.repeat(64)}]:[]}});
+   await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),trial:{status:mode==='ongoing'?'ongoing':approved?'awaiting_start':'awaiting_device',deadline:mode==='ongoing'?'2026-11-20T15:23:33Z':null,attemptsUsed:1,maxAttempts:mode==='ongoing'?null:3},devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z',approved,fingerprint:'a'.repeat(64)}]:[]}});
  });
  await page.goto(process.env.PUSH_PREVIEW_URL || 'http://127.0.0.1:3137/desktop-assets/tests/web-push.html');
  const enable=page.getByRole('button',{name:'Enable Notifications / Save Categories'});await enable.waitFor();await page.waitForFunction(()=>!document.querySelector('.push-settings button').disabled);
@@ -41,6 +41,7 @@ try {
  approved=true;await page.getByRole('button',{name:'Refresh status'}).click();await page.getByText('Device approved',{exact:false}).waitFor();assert.equal((await page.evaluate(()=>window.pushCalls)).permission,1,'approval refresh does not request permission or subscribe');
  await page.getByRole('button',{name:'Disable device 1'}).click();await page.getByText('Device disabled.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
+ mode='ongoing';await page.reload();await page.getByText('Ongoing notifications: enabled',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/3 send attempts|Trial:/);
  mode='recovered';await page.reload();await page.getByText('Capture recovered after a recorded gap.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='withheld';await page.reload();await page.getByText('Some notification facts are withheld',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='journal';await page.reload();await page.getByRole('heading',{name:'Notification queue status'}).waitFor();

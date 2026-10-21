@@ -292,6 +292,30 @@ function similarName(left: string, right: string): boolean {
   return previous[right.length] <= (Math.min(left.length, right.length) >= 7 ? 2 : 1);
 }
 
+// Body prose needs stricter matching than public reviewer/customer names:
+// edit distance turns ordinary words (like/have) into crew names (Mike/Dave).
+const ambiguousCrewWords = new Set(["will", "bill", "rob", "gene", "mark", "grant", "chase", "pat", "hope", "faith", "rose", "summer", "may", "april", "june", "art", "ray", "chip", "clay", "rich", "frank", "drew", "dusty"]);
+function crewMentionTokens(body: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const match of body.matchAll(/[\p{L}]+/gu)) {
+    const token = nameParts(match[0])[0];
+    if (!token || token.length < 3) continue;
+    if (ambiguousCrewWords.has(token)) {
+      const before = body.slice(0, match.index).trimEnd();
+      if (!/^[A-Z]/.test(match[0]) || !before || /[.!?]$/.test(before)) continue;
+    }
+    tokens.add(token);
+  }
+  return tokens;
+}
+function crewNameMentioned(first: string, tokens: Set<string>): boolean {
+  if (tokens.has(first)) return true;
+  return nicknameGroups.some(group => {
+    const aliases = group.split(" ");
+    return aliases.includes(first) && aliases.some(alias => tokens.has(alias));
+  });
+}
+
 function normalizedTerritory(value: string): string {
   return clean(value)
     .normalize("NFKD")
@@ -321,7 +345,7 @@ export function buildPodiumReviewNameSuggestionMap(
     const reviewDate = dateKey(review.createdAt);
     const earliestDate = reviewDate ? dateDaysBefore(reviewDate, 90) : "";
     const reviewerName = preparedName(review.authorName);
-    const words = nameParts(review.body || "");
+    const words = crewMentionTokens(review.body || "");
     const crewMentions = new Map<string, boolean>();
     const nameMatches = new Map<string, ReturnType<typeof nameMatchKind>>();
     const suggestions = reviewDate ? appointments
@@ -332,7 +356,7 @@ export function buildPodiumReviewNameSuggestionMap(
         const crew = candidate.crew.filter(member => {
           if (!crewMentions.has(member)) {
             const first = nameParts(member)[0];
-            crewMentions.set(member, Boolean(first && first.length >= 3 && words.some(word => similarName(first, word))));
+            crewMentions.set(member, Boolean(first && first.length >= 3 && crewNameMentioned(first, words)));
           }
           return crewMentions.get(member);
         });

@@ -23,15 +23,15 @@ function volumeAndPrices(closeout: Raw, pending: boolean) {
   for (const [prefix, label] of [['load', 'Load'], ['bedload', 'Bedload']]) {
     const size = text(closeout[`${prefix}Size`]), quantity = amount(closeout[`${prefix}Quantity`]), price = amount(closeout[`${prefix}Price`]);
     if (size) volumes.push(`${label}: ${quantity !== null && quantity > 0 ? `${quantity} × ` : ''}${size}`);
-    if (price !== null && price >= 0) prices.push(`${label} price ${money(price)}`);
+    if (price !== null && price >= 0) prices.push(`${label} total ${money(price)}`);
   }
   for (const raw of Array.isArray(closeout.otherCharges) ? closeout.otherCharges : []) {
     if (!raw || typeof raw !== 'object') continue;
-    const name = text(raw.name), quantity = amount(raw.quantity), unit = amount(raw.unitPrice), total = amount(raw.total);
-    if (name) prices.push(`${name}${quantity !== null && quantity > 0 ? ` · ${quantity}${unit !== null ? ` × ${money(unit)}` : ''}` : ''}${total !== null ? ` = ${money(total)}` : ' · price unavailable'}`);
+    const name = text(raw.name) || 'Additional charge', quantity = amount(raw.quantity), unit = amount(raw.unitPrice), total = amount(raw.total);
+    if (text(raw.name) || total !== null) prices.push(`${name}${quantity !== null && quantity > 0 ? ` · ${quantity}${unit !== null ? ` × ${money(unit)}` : ''}` : ''}${total !== null ? ` = ${money(total)}` : ' · price unavailable'}`);
   }
   const discount = amount(closeout.discount);
-  if (discount !== null && discount !== 0) prices.push(`Discount ${money(discount)}`);
+  if (discount !== null && discount !== 0) prices.push(`Discount field (source) ${money(discount)}`);
   return { volumes, prices };
 }
 
@@ -76,7 +76,7 @@ export function historySource(row: Raw, day: string, observation: string): Sourc
   // Older archives may contain only a revenue summary. Preserve its source
   // label; a payment method or zero balance cannot establish collection.
   const revenue = amount(row.revenue);
-  if (!pending && !amounts.length && revenue !== null && revenue >= 0) amounts.push(`${/estimate/i.test(type) ? 'Recorded quote' : 'Recorded revenue'} ${money(revenue)}`, `Payment detail unavailable${text(row.payment_type) ? ` · source method: ${text(row.payment_type)}` : ''}`);
+  if (!pending && !/estimate/i.test(type) && !amounts.length && revenue !== null && revenue > 0) amounts.push(`Recorded revenue ${money(revenue)}`, `Payment detail unavailable${text(row.payment_type) ? ` · source method: ${text(row.payment_type)}` : ''}`);
   const detail = volumeAndPrices(closeout, pending);
   const notes = [...(Array.isArray(row.appointment_notes) ? row.appointment_notes.map(text) : []), ...['franchise_notes', 'customer_notes', 'additional_notes'].map(key => text(row[key]))].filter(Boolean);
   return { id, jk: text(row.job_id || row.jk_number), date, customer: text(row.customer_name), address: text(row.address), type, status: text(row.final_status || row.job_status), phone: phoneKey(text(row.phone)), email: emailKey(text(row.customerEmail || row.customer_email)), estimateId: text(row.source_estimate_appointment_id), amounts, ...detail, work: text(row.job_description), truck: text(row.assigned_truck || row.truck), notes: [...new Set(notes)].slice(-2).map(note => note.slice(0, 1000)), observedAt, order: observedAt ? Date.parse(observedAt) : 0 };

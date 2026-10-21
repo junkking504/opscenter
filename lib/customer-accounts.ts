@@ -23,7 +23,7 @@ export function customerDirectory(rows: HistorySource[], query = '', offset = 0,
     const haystack = [row.customer, row.phone, row.email, row.address, row.jk].join(' ').toLowerCase();
     return words.every(word => haystack.includes(word)) || digits.length >= 7 && row.phone.includes(digits.replace(/^1(?=\d{10}$)/, ''));
   })).map(group => { group.sort(newest); return summary(group[0], group.length); }).sort((a, b) => b.latestDate.localeCompare(a.latestDate) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return { customers: matches.slice(offset, offset + limit), total: matches.length, offset };
+  return { customers: matches.slice(offset, offset + limit).map(customer => ({ ...customer, appointments: (relatedHistory(rows, customer.id)?.length || 0) + 1 })), total: matches.length, offset };
 }
 
 export function customerAccount(rows: HistorySource[], id: string, offset = 0, limit = 50): Omit<CustomerAccount, 'coverage'> | null {
@@ -41,8 +41,8 @@ export function customerAccount(rows: HistorySource[], id: string, offset = 0, l
   return { customer: { ...summary(latest, records.length), id }, phones: unique(contacts.map(row => row.phone)), emails: unique(contacts.map(row => row.email)), addresses: unique(contacts.map(row => row.address)), records: records.slice(offset, offset + limit), total: records.length, offset };
 }
 
-export async function readCustomers(query: string, offset: number, id?: string, dataDirectory?: string) {
-  const { rows, coverage } = await readHistorySources(chicagoDateKey(), dataDirectory);
+export async function readCustomers(query: string, offset: number, id?: string, dataDirectory?: string, date = chicagoDateKey()) {
+  const { rows, coverage } = await readHistorySources(date, dataDirectory);
   const result = id ? customerAccount(rows, id, offset) : customerDirectory(rows, query, offset);
   return result ? { ...result, coverage } : null;
 }

@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 
 export const workspacePages = [
   { workspace: 'Command', label: 'Command', key: 'commandView', icon: Activity, pages: [['now','Updates'],['forecast','Forecast'],['tv','The Huddle']] },
-  { workspace: 'Schedule', label: 'Control', key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['estimates','Estimates'],['followup','Follow-Up'],['history','History'],['customers','Customers']] },
+  { workspace: 'Schedule', label: 'Control', key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['customers','Customers'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
   { workspace: 'Krewe', label: 'Crew', key: 'kreweView', icon: Users, pages: [['today','Today'],['payperiod','Pay period'],['monthly','Monthly']] },
   { workspace: 'Fleet', label: 'Convoy', key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['maintenance','Repairs'],['service','Maintenance']] },
   { workspace: 'Finance', label: 'Capital', key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['payments','Payments'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling']] },

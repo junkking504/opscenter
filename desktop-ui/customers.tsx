@@ -8,17 +8,20 @@ const phoneLabel = (value: string) => value.length === 10 ? `(${value.slice(0,3)
 const initialCustomer = () => new URLSearchParams(window.location.search).get('customer') || '';
 export default function Customers() {
   const [id, setId] = useState(initialCustomer);
+  const date = new URLSearchParams(window.location.search).get('date') || '';
+  const customerHref = (value = '') => desktopCustomerHref(value, date);
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{key: string; data?: CustomerAccount | CustomerDirectory; error?: string} | null>(null);
-  const key = `${id}|${search}|${offset}|${retry}`;
+  const key = `${id}|${date}|${search}|${offset}|${retry}`;
   useEffect(() => { const timer = setTimeout(() => { setSearch(query.trim()); setOffset(0); }, 250); return () => clearTimeout(timer); }, [query]);
   useEffect(() => { const change = () => { setId(initialCustomer()); setOffset(0); }; window.addEventListener('popstate', change); return () => window.removeEventListener('popstate', change); }, []);
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams({ offset: String(offset) });
+    if (date) params.set('date', date);
     if (id) params.set('customer', id); else if (search) params.set('q', search);
     fetch(`/api/desktop/customers?${params}`, { signal: controller.signal, cache: 'no-store' }).then(async response => {
       const data = await response.json().catch(() => null);
@@ -26,15 +29,15 @@ export default function Customers() {
       if (!controller.signal.aborted) setResult({key, data});
     }).catch(error => { if (!controller.signal.aborted) setResult({key, error: error instanceof Error ? error.message : 'Customer information is unavailable.'}); });
     return () => controller.abort();
-  }, [id, search, offset, retry, key]);
+  }, [id, date, search, offset, retry, key]);
   const current = result?.key === key ? result : null;
   const account = current?.data && 'customer' in current.data ? current.data as CustomerAccount : null;
   const directory = current?.data && 'customers' in current.data ? current.data as CustomerDirectory : null;
-  const go = (customer: string) => { window.history.pushState(null, '', desktopCustomerHref(customer)); setId(customer); setOffset(0); setQuery(''); setSearch(''); };
+  const go = (customer: string) => { window.history.pushState(null, '', customerHref(customer)); setId(customer); setOffset(0); setQuery(''); setSearch(''); };
   const data = current?.data;
   const count = account?.records.length ?? directory?.customers.length ?? 0;
   return <section className="control-customers" aria-label={id ? 'Customer account' : 'Customers'}>
-    <header className="customers-heading"><div><h2>{account ? account.customer.name : id ? 'Customer account' : 'Customers'}</h2><p>{id ? 'Contact information and appointment history' : 'Find a customer by name, phone, email, address, or appointment number.'}</p></div>{id && <a href={desktopCustomerHref()} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go(''); }}>← All customers</a>}</header>
+    <header className="customers-heading"><div><h2>{account ? account.customer.name : id ? 'Customer account' : 'Customers'}</h2><p>{id ? 'Contact information and appointment history' : 'Find a customer by name, phone, email, address, or appointment number.'}</p></div>{id && <a href={customerHref()} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go(''); }}>← All customers</a>}</header>
     {!id && <label className="customers-search"><span>Search customers</span><input type="search" value={query} maxLength={120} onChange={event => setQuery(event.target.value)} placeholder="Name, phone, email, address, or JK number" /></label>}
     {!current ? <p role="status">Loading saved customer information…</p> : current.error ? <p role="alert">{current.error} <button onClick={() => setRetry(n => n+1)}>Try again</button></p> : <>
       {account && <>
@@ -47,7 +50,8 @@ export default function Customers() {
           <td>{row.amounts.length ? row.amounts.map((value,i) => <span key={i}>{value}</span>) : <span>Payment details unavailable</span>}<small>{row.observedAt ? `Saved ${new Date(row.observedAt).toLocaleDateString('en-US')}` : 'Saved time unavailable'}</small></td>
         </tr>)}</tbody></table></div>
       </>}
-      {directory && <div className="customers-table-scroll"><table className="customer-directory"><caption>{directory.total} {search ? 'matching ' : ''}customers</caption><thead><tr><th>Customer</th><th>Contact</th><th>Latest service address</th><th>Appointments</th><th>Latest appointment</th></tr></thead><tbody>{directory.customers.map(customer => <tr key={customer.id}><td><a href={desktopCustomerHref(customer.id)} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go(customer.id); }}>{customer.name} →</a></td><td><span>{phoneLabel(customer.phone) || 'Phone not recorded'}</span><span>{customer.email}</span></td><td>{customer.address || 'Address not recorded'}</td><td>{customer.appointments}</td><td>{dateLabel(customer.latestDate)}</td></tr>)}</tbody></table>{!directory.customers.length && <p>No customers match this search.</p>}</div>}
+      {directory && <p className="customers-source-note">Customers are grouped by name and contact details. Changed contact details may appear as separate, overlapping entries.</p>}
+      {directory && <div className="customers-table-scroll"><table className="customer-directory"><caption>{directory.total} {search ? 'matching ' : ''}customers</caption><thead><tr><th>Customer</th><th>Contact</th><th>Latest service address</th><th>Appointments</th><th>Latest appointment</th></tr></thead><tbody>{directory.customers.map(customer => <tr key={customer.id}><td><a href={customerHref(customer.id)} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go(customer.id); }}>{customer.name} →</a></td><td><span>{phoneLabel(customer.phone) || 'Phone not recorded'}</span><span>{customer.email}</span></td><td>{customer.address || 'Address not recorded'}</td><td>{customer.appointments}</td><td>{dateLabel(customer.latestDate)}</td></tr>)}</tbody></table>{!directory.customers.length && <p>No customers match this search.</p>}</div>}
       {data && <><nav className="customers-pagination" aria-label="Customer results pages"><span>{data.total ? `${offset+1}–${Math.min(offset+count,data.total)} of ${data.total}` : '0 results'}</span><button disabled={offset === 0} onClick={() => setOffset(n=>Math.max(0,n-50))}>Previous</button><button disabled={offset+count >= data.total} onClick={() => setOffset(n=>n+50)}>Next</button></nav><p className="customers-source-note">Saved history: {dateLabel(data.coverage.from)}–{dateLabel(data.coverage.through)}. {data.coverage.unreadable > 0 ? `${data.coverage.unreadable} archives unavailable; history is incomplete.` : 'Newer saved schedule updates are included when available.'} Missing volume or payment detail means it was not captured in the saved record.</p></>}
     </>}
   </section>;

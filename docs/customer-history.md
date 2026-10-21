@@ -72,7 +72,7 @@ This matching basis is visible to operators. No parent-company, billing-contact,
 or collections state is inferred. Contact changes can result in separate
 directory entries when no reliable shared identifier remains.
 
-Older summary-only archives retain their recorded revenue/quote and source
+Older summary-only archives retain their positive recorded job revenue and source
 payment method, with missing payment detail stated explicitly. Revenue and
 billed amounts never establish collection. Missing volume or price breakdown
 is shown as not recorded; no zero or volume is inferred. Pending closeout
@@ -83,3 +83,5 @@ shared contact/name collisions, explicit links, no transitive merges, search,
 complete pagination, source volume/price fields, legacy revenue, and pending
 detail. Customer-history tests, desktop build, authenticated API checks and
 browser navigation checks remain required.
+
+Customer links preserve the viewed operating date so its saved fast snapshot can resolve the anchor. Directory counts use the same membership as the account; changed contacts may produce overlapping entries, disclosed in the directory. Revenue summary defaults of zero are omitted, and estimate revenue is never treated as a quote. Load prices are labeled line totals.

@@ -1002,7 +1002,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       // Returning through workspace navigation opens the default board. Direct
       // appointment links still apply when the page is first opened.
       const url = new URL(window.location.href);
-      for (const key of ['appointment', 'q', 'truck']) url.searchParams.delete(key);
+      for (const key of ['appointment', 'customer', 'q', 'truck']) url.searchParams.delete(key);
       window.history.replaceState(window.history.state, '', url);
     }
     if (value !== activeNav) startWorkspaceNavigation(value);
@@ -1088,7 +1088,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
-    if (value !== 'customers') { const url = new URL(window.location.href); url.searchParams.delete('customer'); window.history.replaceState(null, '', url); }
+    { const url = new URL(window.location.href); url.searchParams.delete('customer'); window.history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }
   };
   const warmDate = live?.snapshot.date;
   const warmLoading = live?.snapshot.loading;
@@ -4232,7 +4232,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           if (mutationBusyRef.current) return;
           if (workspace === 'Command' && page === 'tv') { const url = new URL(window.location.href); url.searchParams.set('tv','1'); url.searchParams.delete('date'); window.location.assign(url.href); return; }
           const pageUrl = new URL(window.location.href);
-          for (const key of ['appointment','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
+          for (const key of ['appointment','customer','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
           window.history.replaceState(window.history.state, '', pageUrl);
           setActiveNav(workspace);
           if (workspace === 'Command') setView(page as typeof view);

@@ -29,7 +29,7 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The 256px page rail lists the selected primary pages under Command, Control, Crew,
+The 240px page rail lists the selected primary pages under Command, Control, Crew,
 Convoy, Capital and Campaign. Capital and restricted Crew reports follow the
 existing financial permission boundary. Every item is a real link (including
 open-in-new-tab), retains the operating date and clears unrelated record filters.
@@ -40,7 +40,7 @@ flex shrinking and independent scrolling as a fallback for shorter windows,
 so source checks remain available at the bottom. OpsBot opens from the
 existing header search; its sidebar card and the static account card are omitted
 to leave room for 32px navigation rows, 16px labels and 20px icons
-in laptop-height windows. Each workspace has a softly shaded header with bold text so section
+in laptop-height windows. Each workspace has a softly shaded 10px header with medium-weight text, smaller than its 16px page links, so section
 boundaries remain clear without extra height or a heavy visual band. Mobile retains its workspace selector and shared page tabs.
 Actions, Monitor, Call-in plan and Reconciliation are omitted from the sidebar.
 Convoy Driving and Records & invoices are omitted from the sidebar and page tabs.

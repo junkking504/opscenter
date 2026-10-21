@@ -66,6 +66,14 @@ Keep runtime knowledge and conversation details outside Git. Historical fixes
 are diagnostic evidence, not current verification or authorization to replay an
 action. Preserve manager edits and label incomplete outcomes honestly.
 
+## System styling
+
+- New and updated interfaces must match the existing system styling. Use shared
+  typography, color, spacing, card, table and control tokens/components; do not
+  introduce independent page palettes or visual conventions.
+- Verify the changed screen against adjacent system pages at desktop and phone
+  widths before release. Styling exceptions require the user's explicit request.
+
 ## Documentation
 
 Update the relevant document in `docs/` when changing architecture,

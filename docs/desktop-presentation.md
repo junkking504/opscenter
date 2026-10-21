@@ -1,5 +1,10 @@
 # Desktop presentation
 
+New and updated screens must use the shared system styling. Reuse existing
+typography, palette, spacing, card and control tokens/components. Compare changed
+screens with adjacent pages at desktop and phone widths before release. Introduce
+a different visual treatment only when the user explicitly requests it.
+
 Command leads with recorded revenue for the selected operating date, the existing
 `dailyRevenueTarget()` goal, remaining revenue, and a 52-week (364-day) comparison
 so weekdays match. A live partial day is explicitly compared with a completed day.

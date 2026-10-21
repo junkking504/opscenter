@@ -4223,8 +4223,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>
-          <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />
-          <small style={{ marginTop: 8 }}>Junk King Louisiana</small>
+          <img src="/opscenter-icon.svg" alt="OpsCenter" width={40} height={40} className="workspace-rail-brand" />
         </div>
 
         <NavigationDiagnostics />
@@ -4244,7 +4243,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         }} />
 
         <div className="sidebar-footer">
-          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Source checks current' : 'All sources healthy'}</button>
+          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth} aria-label={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'} title={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'}><span aria-hidden="true" /><small>Sources</small>{sourceAttentionCount > 0 && <em>{sourceAttentionCount}</em>}</button>
         </div>
       </aside>
 

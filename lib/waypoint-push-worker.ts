@@ -22,7 +22,7 @@ export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endp
    let result='uncertain';
    try{if(await allowed(row)){const status=await send(row.subscription_json.endpoint,()=>allowed(row),Date.now()+8000);result=status===201?'accepted':[404,410].includes(status)?'expired':'rejected';}else result='skipped';}catch{/* Uncertain sends retain their reservation. */}
    await pool.query('UPDATE opscenter_kernel.waypoint_push_deliveries SET status=$2 WHERE id=$1',[row.id,result]);
-   if(result==='expired')await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1',[row.device_id]);
+   if(result==='expired')await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2 AND subscription_json=$3::jsonb',[row.device_id,row.phone_id,JSON.stringify(row.subscription_json)]);
   }
  }
 

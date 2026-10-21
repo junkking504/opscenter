@@ -2,15 +2,29 @@
 import importlib.util
 import os
 from pathlib import Path
-import subprocess
 
-app = Path('/Users/missioncontrol/opscenter-v2/opscenter').resolve()
-spec = importlib.util.spec_from_file_location('push_supervisor', app / 'scripts/supervise-web-push.py')
-supervisor = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(supervisor)
-env = supervisor.environment(supervisor.SUPPORT / 'production.env')
-env['OPSCENTER_PROCESS_ROLE'] = 'waypoint-push-dispatcher'
-env['OPSBOT_DATA_DIR'] = str(Path.home() / '.openclaw/workspace/opsbot/data')
-env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
-os.chdir(app)
-os.execve('/opt/homebrew/bin/node', ['/opt/homebrew/bin/node','--import','tsx','scripts/run-waypoint-push.ts'], env)
+
+def build_environment(app, config):
+    spec = importlib.util.spec_from_file_location('push_supervisor', app / 'scripts/supervise-web-push.py')
+    supervisor = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(supervisor)
+    # Daily crew eligibility needs the same roster as the web process, but never
+    # its login secrets, payroll credentials or customer/provider credentials.
+    supervisor.ALLOWED |= {'OPS_CREW_ROSTER_JSON', 'OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON'}
+    env = supervisor.environment(config)
+    env['OPSCENTER_PROCESS_ROLE'] = 'waypoint-push-dispatcher'
+    env['OPSBOT_DATA_DIR'] = str(Path.home() / '.openclaw/workspace/opsbot/data')
+    env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
+    return env
+
+
+def main():
+    app = Path('/Users/missioncontrol/opscenter-v2/opscenter').resolve()
+    config = Path.home() / 'Library/Application Support/OpsCenter/production.env'
+    env = build_environment(app, config)
+    os.chdir(app)
+    os.execve('/opt/homebrew/bin/node', ['/opt/homebrew/bin/node','--import','tsx','scripts/run-waypoint-push.ts'], env)
+
+
+if __name__ == '__main__':
+    main()

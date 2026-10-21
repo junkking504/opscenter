@@ -41,6 +41,13 @@ async function main(){
  current={...phone,truck:'Truck 2'};await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Old truck queue denied after switch');await recordWaypointChanges(p,source);assert.equal(await counts(),3,'New truck starts silent baseline');
  snapshot={...snapshot,jobs:[job]};await recordWaypointChanges(p,source);live=false;await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Expired daily access denies send');
  live=true;await manageWaypointPush(phone,{action:'unsubscribe',deviceId:device},p,auth);snapshot={...snapshot,jobs:[]};await recordWaypointChanges(p,source);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Disabled subscription denied');
+ await manageWaypointPush(phone,{action:'subscribe',subscription},p,auth);
+ await saveWaypointMessage({id:randomUUID(),truck:'Truck 2',body:'Synthetic message during source parse failure'},'synthetic-manager',p);
+ const before=await counts();await recordWaypointChanges(p,{...source,snapshot:()=>{throw Error('Synthetic source parse failure');}});assert.equal(await counts(),before+1,'Malformed schedule cannot suppress independent office message');
+ await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,3);
+ snapshot={...snapshot,jobs:[job]};await recordWaypointChanges(p,source);
+ await drainWaypointPush(p,()=>true,async()=>{await p.query('UPDATE opscenter_kernel.waypoint_push_devices SET phone_id=$2 WHERE id=$1',[device,randomUUID()]);return 410;},workerPhones);
+ assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[device])).rows[0].enabled,true,'Late expiry of an old binding cannot revoke a replacement');
  console.log('PASS Waypoint push: private readiness, ownership, idempotent office messages, truck isolation/switch, source outages, new/change/removal snapshots, accepted/uncertain no-replay and expired daily access. Isolated PostgreSQL; no Keychain or provider.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

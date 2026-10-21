@@ -1,6 +1,7 @@
 """Private local launcher; existing production configuration, dedicated sender only."""
 import importlib.util
 import os
+import re
 from pathlib import Path
 
 
@@ -10,16 +11,18 @@ def build_environment(app, config):
     spec.loader.exec_module(supervisor)
     # Daily crew eligibility needs the same roster as the web process, but never
     # its login secrets, payroll credentials or customer/provider credentials.
-    supervisor.ALLOWED |= {'OPS_CREW_ROSTER_JSON', 'OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON'}
+    supervisor.ALLOWED |= {'OPS_CREW_ROSTER_JSON', 'OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON', 'OPSBOT_DATA_DIR', 'OPSCENTER_DATA_DIR', 'OPS_CREW_PHONE_DIR', 'OPS_CREW_DISPATCH_DIR', 'SCHEDULE_STOP_ORDER_DIR', 'JOB_ROUTE_ASSIGNMENTS_FILE'}
     env = supervisor.environment(config)
     env['OPSCENTER_PROCESS_ROLE'] = 'waypoint-push-dispatcher'
-    env['OPSBOT_DATA_DIR'] = str(Path.home() / '.openclaw/workspace/opsbot/data')
+    env.setdefault('OPSBOT_DATA_DIR', str(Path.home() / '.openclaw/workspace/opsbot/data'))
     env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
     return env
 
 
 def main():
     app = Path('/Users/missioncontrol/opscenter-v2/opscenter').resolve()
+    if app.parent != Path('/Users/missioncontrol/opscenter-v2/releases') or not re.fullmatch(r'[a-f0-9]{40}', app.name):
+        raise SystemExit('Active release is not a pinned production snapshot.')
     config = Path.home() / 'Library/Application Support/OpsCenter/production.env'
     env = build_environment(app, config)
     os.chdir(app)

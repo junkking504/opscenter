@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {execFileSync} from 'node:child_process';import {randomUUID,createECDH} from 'node:crypto';import {Pool} from 'pg';
-import {manageWaypointPush,recordWaypointChanges,saveWaypointMessage,waypointMessages,waypointPushEnabled,waypointPushReady} from '../lib/waypoint-push';
+import {manageWaypointPush,recordWaypointChanges,saveWaypointMessage,waypointMessages,waypointPushEnabled,waypointPushReady,waypointNotificationOwner,waypointNotificationStatus,retainWaypointPush} from '../lib/waypoint-push';
 import {drainWaypointPush} from '../lib/waypoint-push-worker';
 import {chicagoDateKey} from '../lib/chicago-date';
+import {createCrewPhoneEnrollment,enrollCrewPhone} from '../lib/crew-phone-store';
+import {saveCrewDay} from '../lib/crew-phone-day';
+import {activeNotificationPhone} from '../lib/waypoint-push';
 import type {CrewPhone} from '../lib/crew-phone';import type {CrewCurrent} from '../lib/crew-dispatch';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'waypoint-push-test-')),socket=path.join(root,'socket'),data=path.join(root,'db');fs.mkdirSync(socket);
 const env:NodeJS.ProcessEnv={NODE_ENV:'test',PATH:process.env.PATH,LANG:'C',LC_ALL:'C'},bin='/opt/homebrew/opt/postgresql@18/bin';
@@ -17,11 +20,11 @@ async function main(){
  const phone:CrewPhone={deviceId:randomUUID(),truck:'Truck 1',label:'Synthetic',enrolledAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString()};
  let current=phone,live=true;const active=()=>live?{...current,access:'live' as const,state:'active' as const}:null;
  const key=createECDH('prime256v1');key.generateKeys();const subscription={endpoint:'https://web.push.apple.com/Q'+'a'.repeat(24),keys:{p256dh:key.getPublicKey().toString('base64url'),auth:Buffer.alloc(16,1).toString('base64url')}};
- const auth={owner:()=> 'synthetic-owner',ready:()=>true,active};
- const registration=await manageWaypointPush(phone,{action:'subscribe',subscription},p,auth);const device=registration.deviceId!;
- assert.equal((await manageWaypointPush(phone,{action:'subscribe',subscription},p,auth)).deviceId,device);
- await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription},p,{...auth,owner:()=> 'other-owner'}),/another phone/);
- await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription},p,{...auth,ready:()=>false}),/not available/);
+ const auth={ready:()=>true,active};
+ const registration=await manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'a'.repeat(64)},p,auth);const device=registration.deviceId!;
+ assert.equal((await manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'a'.repeat(64)},p,auth)).deviceId,device);
+ await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'b'.repeat(64)},p,auth),/another phone/);
+ await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'a'.repeat(64)},p,{...auth,ready:()=>false}),/not available/);
  const job={appointmentId:'1',status:'Confirmed',appointmentTime:'8 AM',address:'Synthetic',appointmentNotes:[],junkItems:[],routePosition:1,date:chicagoDateKey(),jkNumber:'test',customerName:'Synthetic',phone:'',driver:'',navigator:''};
  let snapshot:CrewCurrent={state:'waiting',truck:phone.truck,job:null,observedAt:new Date().toISOString(),jobs:[job]};
  const source={active,snapshot:()=>snapshot,messages:(truck:string)=>waypointMessages(truck,p)};
@@ -30,9 +33,9 @@ async function main(){
  await recordWaypointChanges(p,source);assert.equal(await counts(),0,'Identical snapshots are silent');
  snapshot={...snapshot,jobs:[{...job,appointmentTime:'10 AM'}]};await recordWaypointChanges(p,source);assert.equal(await counts(),1);
  let sends=0;const send=async(_endpoint:string,authorize:()=>Promise<boolean>)=>{assert.equal(await authorize(),true);sends++;return 201;};
- const workerPhones={active:(_id:string,truck?:string)=>live && (!truck || truck===current.truck)?active():null,owner:()=> 'synthetic-owner'};
+ const workerPhones={active:(_id:string,truck?:string)=>live && (!truck || truck===current.truck)?active():null,owner:()=> waypointNotificationOwner('a'.repeat(64))};
  await drainWaypointPush(p,()=>true,send,workerPhones);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,1,'Accepted delivery not replayed');
- const message={id:randomUUID(),truck:'Truck 1',body:'Synthetic office instruction'};await saveWaypointMessage(message,'synthetic-manager',p);await saveWaypointMessage(message,'synthetic-manager',p);assert.equal((await waypointMessages('Truck 1',p)).length,1,'Message replay is idempotent');assert.equal((await waypointMessages('Truck 2',p)).length,0,'Other truck cannot read message');
+ const message={id:randomUUID(),truck:'Truck 1',body:'Synthetic office instruction',date:chicagoDateKey()};await saveWaypointMessage(message,'synthetic-manager',p);await saveWaypointMessage(message,'synthetic-manager',p);assert.equal((await waypointMessages('Truck 1',p)).length,1,'Message replay is idempotent');assert.equal((await waypointMessages('Truck 2',p)).length,0,'Other truck cannot read message');
  await assert.rejects(saveWaypointMessage({...message,body:'Different'},'synthetic-manager',p),/another message/);
  snapshot={...snapshot,state:'unavailable',jobs:[]};await recordWaypointChanges(p,source);assert.equal(await counts(),2,'Office update queues even when schedule is unavailable; outage is not cancellation');
  await drainWaypointPush(p,()=>true,async()=>{sends++;throw Error('Synthetic lost acceptance');},workerPhones);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Uncertain delivery not replayed');
@@ -40,14 +43,30 @@ async function main(){
  snapshot={...snapshot,state:'waiting',jobs:[]};await recordWaypointChanges(p,source);assert.equal(await counts(),3);
  current={...phone,truck:'Truck 2'};await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Old truck queue denied after switch');await recordWaypointChanges(p,source);assert.equal(await counts(),3,'New truck starts silent baseline');
  snapshot={...snapshot,jobs:[job]};await recordWaypointChanges(p,source);live=false;await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Expired daily access denies send');
- live=true;await manageWaypointPush(phone,{action:'unsubscribe',deviceId:device},p,auth);snapshot={...snapshot,jobs:[]};await recordWaypointChanges(p,source);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Disabled subscription denied');
- await manageWaypointPush(phone,{action:'subscribe',subscription},p,auth);
- await saveWaypointMessage({id:randomUUID(),truck:'Truck 2',body:'Synthetic message during source parse failure'},'synthetic-manager',p);
+ live=true;await manageWaypointPush(phone,{action:'unsubscribe',deviceId:device,notificationKey:'a'.repeat(64)},p,auth);snapshot={...snapshot,jobs:[]};await recordWaypointChanges(p,source);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Disabled subscription denied');
+ await manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'a'.repeat(64)},p,auth);
+ await recordWaypointChanges(p,source);
+ await saveWaypointMessage({id:randomUUID(),truck:'Truck 2',body:'Synthetic message during source parse failure',date:chicagoDateKey()},'synthetic-manager',p);
  const before=await counts();await recordWaypointChanges(p,{...source,snapshot:()=>{throw Error('Synthetic source parse failure');}});assert.equal(await counts(),before+1,'Malformed schedule cannot suppress independent office message');
  await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,3);
  snapshot={...snapshot,jobs:[job]};await recordWaypointChanges(p,source);
  await drainWaypointPush(p,()=>true,async()=>{await p.query('UPDATE opscenter_kernel.waypoint_push_devices SET phone_id=$2 WHERE id=$1',[device,randomUUID()]);return 410;},workerPhones);
  assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[device])).rows[0].enabled,true,'Late expiry of an old binding cannot revoke a replacement');
+ const oldEnv={...process.env};try{
+ process.env.OPS_CREW_PHONE_DIR=path.join(root,'real-phones');process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(root,'real-rate-limit');process.env.OPS_CREW_ROSTER_JSON='[]';process.env.OPS_WAYPOINT_CREW_EXTRA_NAMES_JSON='["Synthetic Crew"]';
+ const realPhones=[];for(const [index,actor] of ['synthetic-manager-a','synthetic-manager-b'].entries()){const invitation=createCrewPhoneEnrollment('Truck 1','Synthetic actual binding',actor),bound=enrollCrewPhone(invitation.code,String(index+1).repeat(64));saveCrewDay(bound,{date:chicagoDateKey(),requestId:randomUUID(),expectedVersion:0,driver:'Synthetic Crew',responsible:'Synthetic Crew',navigators:[]},new Date(),['Synthetic Crew']);realPhones.push(bound);}
+ const realSub={...subscription,endpoint:'https://web.push.apple.com/Q'+'c'.repeat(24)},request={action:'subscribe',subscription:realSub,notificationKey:'c'.repeat(64)},realAuth={ready:()=>true,active:activeNotificationPhone};
+ const first=await manageWaypointPush(realPhones[0],request,p,realAuth),second=await manageWaypointPush(realPhones[1],request,p,realAuth);assert.equal(first.deviceId,second.deviceId,'Browser ownership survives a different enrolling actor and phone enrollment');
+ assert.equal((await waypointNotificationStatus(realPhones[1],'c'.repeat(64),second.deviceId,p)).enabled,true);assert.equal((await waypointNotificationStatus(realPhones[0],'c'.repeat(64),second.deviceId,p)).enabled,false);assert.equal((await waypointNotificationStatus(realPhones[1],'d'.repeat(64),second.deviceId,p)).enabled,false);
+ const saved=(await p.query('SELECT owner_id,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[second.deviceId])).rows[0];assert.equal(saved.owner_id,waypointNotificationOwner('c'.repeat(64)));assert.equal(saved.phone_id,realPhones[1].deviceId);
+ }finally{process.env=oldEnv;}
+ const yesterday=new Date(Date.now()-86400000).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});await p.query('UPDATE opscenter_kernel.waypoint_messages SET service_date=$2 WHERE id=$1',[message.id,yesterday]);await saveWaypointMessage({...message,date:yesterday},'synthetic-manager',p);await assert.rejects(saveWaypointMessage({...message,id:randomUUID(),date:yesterday},'synthetic-manager',p),/previous day/);
+ const capKey='e'.repeat(64),capSubscriptions=[];for(let n=0;n<10;n++){const sub={...subscription,endpoint:'https://web.push.apple.com/Q'+String(n).padStart(24,'0')};capSubscriptions.push(sub);await manageWaypointPush(phone,{action:'subscribe',subscription:sub,notificationKey:capKey},p,auth);}
+ await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription:{...subscription,endpoint:'https://web.push.apple.com/Q'+'z'.repeat(24)},notificationKey:capKey},p,auth),/too many/);
+ const disabled=(await p.query("SELECT id FROM opscenter_kernel.waypoint_push_devices WHERE subscription_json->>'endpoint'=$1",[capSubscriptions[0].endpoint])).rows[0].id;
+ await manageWaypointPush(phone,{action:'unsubscribe',deviceId:disabled,notificationKey:capKey},p,auth);await manageWaypointPush(phone,{action:'subscribe',subscription:{...subscription,endpoint:'https://web.push.apple.com/Q'+'z'.repeat(24)},notificationKey:capKey},p,auth);
+ await assert.rejects(manageWaypointPush(phone,{action:'subscribe',subscription:capSubscriptions[0],notificationKey:capKey},p,auth),/too many/);
+ const retired=randomUUID();await p.query("INSERT INTO opscenter_kernel.waypoint_push_devices(id,owner_id,phone_id,endpoint_hash,subscription_json,enabled,updated_at) VALUES($1,'retired',$2,'retired','{}',false,now()-interval '20 days')",[retired,randomUUID()]);await retainWaypointPush(p);assert.equal((await p.query('SELECT id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[retired])).rowCount,0);assert.ok((await p.query('SELECT id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[device])).rowCount);
  console.log('PASS Waypoint push: private readiness, ownership, idempotent office messages, truck isolation/switch, source outages, new/change/removal snapshots, accepted/uncertain no-replay and expired daily access. Isolated PostgreSQL; no Keychain or provider.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

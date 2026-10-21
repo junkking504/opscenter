@@ -4003,7 +4003,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       setFleetView(label === 'Revenue / truck' ? 'reports' : 'overview');
       return;
     }
-    if (label === 'Revenue' || label === 'Dump + Fuel' || label === 'Net') {
+    if (label === 'Revenue' || label === 'AJS' || label === 'Dump + Fuel' || label === 'Net') {
       setActiveNav('Finance');
       setFinanceView(label === 'Dump + Fuel' ? 'expenses' : 'trends');
       return;

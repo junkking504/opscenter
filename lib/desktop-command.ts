@@ -1,3 +1,4 @@
+import { fromDailyFinanceMetrics } from './finance-trend-comparison';
 import { operationalUpdateGaps } from './operational-update-health';
 import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
 import { financeReading } from './daily-finance-freshness';
@@ -75,6 +76,15 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     tone: rph.value === null ? 'warning' : 'healthy', financeEvidence: {
       date, recorded: rph.value, evidence: combineFinanceEvidence(evidence.revenue, evidence.labor), currentDetail: rphDetail,
     } }, now));
+  const daily = fromDailyFinanceMetrics(metrics);
+  // Revenue and completed jobs share the JunkWare completed-job source contract.
+  // The Revenue headline may use Truck Records sales; AJS uses Finance's gross job values.
+  const ajsEvidence = dailyFinanceEvidence(metrics, { ...finance, revenue: daily.revenue }, date, wex).revenue;
+  const ajsDetail = daily.averageJob === null ? 'Revenue or completed jobs unavailable' : `${daily.jobs} completed jobs · Full job values`;
+  agedCards.push(ageFinanceKpi({ label: 'AJS', value: amount(daily.averageJob), secondaryValue: 'Average job size',
+    detail: ajsDetail, progress: daily.averageJob === null ? 0 : 100, tone: daily.averageJob === null ? 'warning' : 'healthy',
+    financeEvidence: { date, recorded: daily.averageJob, evidence: ajsEvidence, currentDetail: ajsDetail },
+  }, now));
   return agedCards;
 }
 

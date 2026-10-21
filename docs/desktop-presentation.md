@@ -88,3 +88,15 @@ The release proxy supplies the header when enabled. Legacy origins also expose
 the exact Git build SHA on the wordmark request with `release-check=1`, using
 Next.js response headers and `no-store`. Ordinary wordmark requests retain their
 existing caching. Builds without a valid Git identity omit the fallback header.
+
+## Command average job size
+
+Command > Alerts shows AJS beside RPH in the responsive metric grid. AJS reuses
+Finance’s published daily gross revenue / completed jobs calculation, including
+its field precedence and market totals. Closed estimates, schedule appointment
+totals, and split employee credits are not the denominator or numerator. A zero
+completed-job count or missing input displays unavailable; zero revenue with
+positive completed jobs displays $0.00. The completed-job revenue freshness
+contract governs both inputs, including retained-browser aging and historical
+snapshots. Opening AJS shows the existing average-job Finance trend for the
+selected date. No new source read or collection is introduced.

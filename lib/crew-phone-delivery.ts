@@ -205,8 +205,9 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
   } finally { fs.rmdirSync(lock); }
   try {
     if(config.provider==='operations-linked') {
-      const response=await fetch('http://127.0.0.1:18791/send',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',signal:AbortSignal.timeout(25_000),body:JSON.stringify({chatId:`1${contact.number.replace(/-/g,'')}@s.whatsapp.net`,message:`Waypoint access code: ${code}\nExpires in 10 minutes. Do not share this code.`})});
-      const result=await response.json() as {success?:boolean;messageId?:string};
+      const response=await fetch('http://127.0.0.1:18791/waypoint-code/send',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',signal:AbortSignal.timeout(25_000),body:JSON.stringify({account:config.operationsAccount,to:`1${contact.number.replace(/-/g,'')}@s.whatsapp.net`,code})});
+      const result=await response.json() as {success?:boolean;messageId?:string;rejected?:boolean};
+      if([400,409].includes(response.status) && result.rejected===true){receipt.status='failed';receipt.message='Operations rejected the setup request before sending.';revokeCrewPhone(receipt.deviceId,actor);save(receipt);return project(receipt);}
       if(!response.ok || result.success!==true || typeof result.messageId!=='string' || !result.messageId.trim())throw new Error('Operations acceptance unconfirmed');
       receipt.status='accepted';receipt.providerMessageId=result.messageId;
       receipt.message='Operations WhatsApp accepted the setup message. Phone delivery is not yet confirmed.';
@@ -239,11 +240,8 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
 
 async function requireOperationsBridge(account:string) {
   try {
-    const session=path.join(process.env.HOME || '', 'Library/HermesPilot/state/whatsapp/session');
-    const credentials=JSON.parse(fs.readFileSync(path.join(session,'creds.json'),'utf8'));
-    if(typeof credentials.me?.id!=='string' || credentials.me.id.split(':')[0].split('@')[0]!==account)throw new Error('Wrong account');
-    const response=await fetch('http://127.0.0.1:18791/health',{cache:'no-store',signal:AbortSignal.timeout(3_000)});
-    const health=await response.json() as {status?:string;session?:string};
-    if(!response.ok || health.status!=='connected' || health.session!==session)throw new Error('Unavailable bridge');
+    const response=await fetch('http://127.0.0.1:18791/waypoint-code/health',{cache:'no-store',signal:AbortSignal.timeout(3_000)});
+    const health=await response.json() as {status?:string;account?:string};
+    if(!response.ok || health.status!=='connected' || health.account!==account)throw new Error('Unavailable bridge');
   } catch {throw new CrewPhoneError('Operations WhatsApp is unavailable. Contact your manager.',503);}
 }

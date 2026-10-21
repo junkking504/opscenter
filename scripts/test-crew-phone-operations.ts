@@ -12,23 +12,20 @@ async function main(){
  try{
  process.env.HOME=dir;process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL=path.join(dir,'approval.json');
  fs.mkdirSync(process.env.OPS_CREW_PHONE_DIR,{recursive:true});
- const session=path.join(dir,'Library/HermesPilot/state/whatsapp/session');fs.mkdirSync(session,{recursive:true});
- fs.writeFileSync(path.join(session,'creds.json'),JSON.stringify({me:{id:'15045550199:1@s.whatsapp.net'}}));
  fs.writeFileSync(path.join(process.env.OPS_CREW_PHONE_DIR,'directory.json'),JSON.stringify({schema:1,company:[{truck:'Truck 1',label:'Synthetic phone',number:'504-555-0100'}],managers:[]}));
  fs.writeFileSync(process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL,JSON.stringify({schema:1,enabled:true,provider:'operations-linked',operationsAccount:'15045550199',purpose:'crew-phone-setup',approvedBy:'Synthetic',approvedAt:new Date(Date.now()-1000).toISOString(),validUntil:new Date(Date.now()+3600000).toISOString(),monthlyBudgetMicros:8370000,maxAttemptsPerMonth:837,reserveMicros:10000,template:'unused_template',language:'en_US'}));
  globalThis.fetch=async (url,init)=>{
  assert.ok(String(url).startsWith('http://127.0.0.1:18791/'),'No Meta or external requests');
- if(String(url).endsWith('/health'))return Response.json({status:mode==='offline'?'disconnected':'connected',session});
- sends++;const body=JSON.parse(String(init?.body));assert.equal(body.chatId,'15045550100@s.whatsapp.net');code=body.message.match(/\b\d{6}\b/)[0];
+ if(String(url).endsWith('/health'))return Response.json({status:mode==='offline'?'disconnected':'connected',account:mode==='wrong-account'?'15045550198':'15045550199'});
+ sends++;const body=JSON.parse(String(init?.body));assert.equal(body.to,'15045550100@s.whatsapp.net');assert.equal(body.account,'15045550199');code=body.code;assert.match(code,/^\d{6}$/);
  if(mode==='uncertain')throw new Error('lost response');
  return Response.json({success:true,messageId:'synthetic-operation-id'});
  };
  const choice=crewPhoneSetupChoices()[0].id,id=randomUUID();
- fs.writeFileSync(path.join(session,'creds.json'),JSON.stringify({me:{id:'15045550198:1@s.whatsapp.net'}}));
+ mode='wrong-account';
  await assert.rejects(requestCrewPhoneSetupChoice(choice,id),/Operations WhatsApp is unavailable/);assert.equal(sends,0);
- fs.writeFileSync(path.join(session,'creds.json'),JSON.stringify({me:{id:'15045550199:1@s.whatsapp.net'}}));
  mode='offline';await assert.rejects(requestCrewPhoneSetupChoice(choice,id),/Operations WhatsApp is unavailable/);assert.equal(sends,0);
- mode='ok';await requestCrewPhoneSetupChoice(choice,id);await requestCrewPhoneSetupChoice(choice,id);assert.equal(sends,1);
+ mode='ok';const publicResult=await requestCrewPhoneSetupChoice(choice,id);assert.ok(!JSON.stringify(publicResult).includes(code));assert.equal(JSON.parse(fs.readFileSync(path.join(process.env.OPS_CREW_PHONE_DIR,'deliveries',id+'.json'),'utf8')).providerMessageId,'synthetic-operation-id');await requestCrewPhoneSetupChoice(choice,id);assert.equal(sends,1);
  assert.ok(!fs.readFileSync(path.join(process.env.OPS_CREW_PHONE_DIR,'deliveries',id+'.json'),'utf8').includes(code),'Receipt never contains code');
  const enrolled=enrollCrewPhone(code,'a'.repeat(64));assert.ok(enrolled.deviceId);
  await assert.rejects(requestCrewPhoneSetupChoice(choice,randomUUID()),/already requested/);

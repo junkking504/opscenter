@@ -1014,11 +1014,18 @@ JunkWare measurements. No real operational writes are made by these fixtures.
 
 The separately approved `operations-linked` delivery policy selects the existing
 local Operations WhatsApp bridge, rather than Meta authentication templates.
-`operationsAccount` pins the sending identity; the local credential identity and
-connected bridge session must match before creating an enrollment. No Meta token
+`operationsAccount` pins the sending identity; the bridge reports its connected account before enrollment and checks that same
+socket again immediately at send time. OpsCenter never reads session credentials. No Meta token
 is read and no Cloud API request occurs for this transport. The bridge endpoint
 is fixed to loopback port 18791; destinations come from the approved directory.
 The message contains only the generated Waypoint code and ten-minute expiry.
+The dedicated bridge route does not store the body, log it, or forward it to
+Hermes. Outgoing code echoes are rejected before intake, including after restart.
+Operations sent history remains visible on its trusted handset and linked devices,
+as with any regular WhatsApp sender; those devices must remain trusted.
+Automated linked-device messages also carry WhatsApp account-restriction risk.
+`install-operations-waypoint-bridge.py` requires the reviewed pre-change bridge
+hash and preserves a backup; it never changes credentials or links a new device.
 
 Existing phone identity checks, approval expiry, reservation limits, cooldowns,
 three daily self-requests, durable receipt creation, single-use enrollment and

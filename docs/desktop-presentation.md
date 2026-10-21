@@ -11,7 +11,7 @@ retained from the production layout. Revenue is recorded, not verified cash;
 assumed disposal costs and all source/freshness explanations remain visible.
 The historical operating-day controls, map and OpsBot remain available.
 
-All comparison chips share the top-right position. Daily KPIs compare the same
+Comparison chips sit at the top right; phone Command cards place them in the heading row. Daily KPIs compare the same
 weekday last week; Crew compares the previous weekday, pay period or equally
 elapsed month. Capital uses its existing matched-period financial comparisons.
 Tooltips identify the period. Green means favorable (lower for costs), red means
@@ -104,3 +104,21 @@ values and may differ from the gross-job card. The card also labels its gross
 job-value basis. The three-column layout extends through 1240px so four-digit
 amounts and negative Net values fit before switching to six columns. No new
 source read or collection is introduced.
+
+## Command on phones
+
+At widths up to 760px, Command uses a compact opening overview: workspace
+navigation, one date-control row, then search with icon buttons for OpsWiki and
+alerts. The workspace heading remains accessible to screen readers; its visible
+name is already present in the mobile selector. Revenue and remaining goal share
+a row, with the complete source, comparison and basis text below. The six other
+KPIs retain their values, descriptions, source timestamps and drilldown actions.
+Comparison badges share the card heading instead of consuming a separate row.
+No finance calculation, freshness rule, query or operational action changes.
+
+The height regression uses the complete live header and realistic source text,
+not an isolated grid. At 375–430px wide, the full KPI section fits a 740px content
+viewport with a 34px bottom reserve (browser/status chrome is outside the content
+viewport); 320px uses 800px. Shorter windows and enlarged text can scroll normally:
+never clip content, hide a metric, scale the entire page, or trap scrolling to
+force a fit. Physical handset acceptance remains separate from browser tests.

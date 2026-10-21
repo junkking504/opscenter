@@ -200,7 +200,8 @@
     "verify:web-push:database": "node --import tsx scripts/test-web-push-database.ts && node --import tsx scripts/test-web-push-trial.ts",
     "verify:web-push:browser": "node scripts/test-web-push-browser.mjs",
     "verify:huddle": "node --import tsx scripts/test-tv-spotlights.ts",
-    "verify:command-ajs": "node --import tsx scripts/test-command-ajs.ts"
+    "verify:command-ajs": "node --import tsx scripts/test-command-ajs.ts",
+    "verify:command-fold-browser": "node scripts/test-command-fold-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

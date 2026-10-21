@@ -2355,7 +2355,7 @@ button { cursor: pointer; }
 }
 
 .appointment-info-title { margin: 0; padding: 12px; border-bottom: 1px solid var(--oc-border-neutral-01); font-size: var(--oc-type-15); }
-.drawer-facts .appointment-customer-links { display: flex; flex-wrap: wrap; gap: 6px 12px; text-transform: none; letter-spacing: normal; }
+.drawer-facts .appointment-customer-links { display: flex; flex-wrap: wrap; gap: 6px 12px; color: inherit; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; }
 .drawer-facts > .appointment-info-notes { display: block; padding: 0; }
 .appointment-info-notes .appointment-source-notes { border: 0; border-radius: 0; }
 .appointment-info-notes .appointment-source-notes span { text-transform: none; letter-spacing: normal; font-weight: inherit; }

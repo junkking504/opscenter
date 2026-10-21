@@ -2359,3 +2359,5 @@ button { cursor: pointer; }
 .drawer-facts > .appointment-info-notes { display: block; padding: 0; }
 .appointment-info-notes .appointment-source-notes { border: 0; border-radius: 0; }
 .appointment-info-notes .appointment-source-notes span { text-transform: none; letter-spacing: normal; font-weight: inherit; }
+.appointment-info-notes .appointment-note-list header span { color: inherit; font-size: inherit; }
+.appointment-info-notes .appointment-source-notes h3 > span { color: inherit; }

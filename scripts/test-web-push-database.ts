@@ -367,6 +367,16 @@ publish(370,371,status='Arrived')
  const messages=(await p.query('SELECT notification_json FROM opscenter_kernel.push_events WHERE source_scope=$1',[c])).rows.map(r=>r.notification_json);
  for(const title of ['Cancelled','Removed from schedule','Schedule changed','Rescheduled'])assert.ok(messages.some(m=>m.title===title),title);
  await publish(e,[item('unknown',newDate,'')]);assert.notEqual((await latest(e)).title,'Rescheduled');assert.match((await latest(e)).body,/Not verified/);
+ // A later partial read must not refresh stale destination evidence.
+ const staleDate=formatDay(32),staleA=`schedule:${oldDate}:market-484`,staleB=`schedule:${staleDate}:market-484`;
+ await publish(staleA,[item('stale-destination',oldDate)]);await publish(staleB,[item('stale-destination',staleDate)]);
+ await p.query("UPDATE opscenter_kernel.push_observations SET observed_at=now()-interval '30 minutes' WHERE scope=$1",[staleB]);
+ await publish(staleB,[],false);await publish(staleA,[]);
+ assert.equal((await latest(staleA)).title,'Schedule changed','partial source read does not refresh old destination');
+ // Time display correction has no reschedule meaning even if upstream revision changes.
+ await publish(e,[item('unknown',newDate,''),item('format-only',newDate,'12:00 PM - 01:00 PM')]);
+ await publish(e,[item('unknown',newDate,''),item('format-only',newDate,'12:00PM – 1:00PM')]);
+ assert.equal((await latest(e)).title,'Schedule updated');
  assert.equal((await p.query("SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=ANY($1::text[])",[[oldScope,newScope,a,b,c,e]])).rows[0].count,0);
  assert.equal(sends,beforeFormats,'formatting tests never invoke transport');
  console.log('PASS: isolated DB verified cross-date moves in both publication orders, same-day change, partial absence, cancellation/removal, unknown destination, retained details and no recipients/deliveries.');

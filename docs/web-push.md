@@ -58,11 +58,14 @@ The private observation `notification_json.schedule` context records verified
 date/time/status and labels, but encryption sends only title/body/eventId. The
 worker correlates the same canonical appointment identity across schedule scopes.
 Migration 0012 adds a partial identity lookup index. A unique counterpart requires
-its latest complete source snapshot within 15 minutes of the incoming event;
-a prior absence must also have occurred within that window. Ambiguous, stale,
+both its observation transition and latest source snapshot within 15 minutes of
+the incoming event. Later partial or unchanged reads cannot refresh old evidence.
+Uniqueness is checked across both present and absent peers, including conflicting
+statuses. Ambiguous, stale,
 future-dated, legacy-without-context, canceled or removed counterparts do not prove
 a reschedule. Same-scope verified time changes are also recognized. A new known
-time replacing an unknown time alone is not proof of a move.
+time replacing an unknown time alone is not proof of a move. Equivalent clock
+formats and newly supplied end times are not treated as moves.
 
 When the old scope disappears first, the notice says **Schedule changed** and
 explicitly leaves cancellation/new date/time unverified. When a later verified

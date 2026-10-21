@@ -12,25 +12,49 @@ export function pushSchedule(value:unknown):PushSchedule|null {
 }
 const cancelled=(s:PushSchedule)=>/^(cancelled|canceled)$/i.test(s.status);
 const removed=(s:PushSchedule)=>/^(removed|deleted)$/i.test(s.status);
-const timed=(s:PushSchedule)=>/(?:\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:1[0-2]|[1-9])\s*(?:AM|PM)\b)/i.test(s.time)&&!/(unknown|unassigned|not verified|tbd)/i.test(s.time);
+/** Parse only complete source clock labels; formatting changes are not moves.
+ * Unknown/malformed timing cannot establish a destination. */
+function interval(value:string):number[]|null {
+ const parts=value.trim().split(/\s*[-–—]\s*/);
+ if(parts.length<1||parts.length>2)return null;
+ const times:number[]=[];
+ for(const part of parts){
+  const match=part.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if(!match||(!match[2]&&!match[3]))return null;
+  let hour=Number(match[1]);const minute=Number(match[2]||0),period=match[3]?.toUpperCase();
+  if(minute>59||(period?(hour<1||hour>12):hour>23))return null;
+  if(period)hour=hour%12+(period==='PM'?12:0);
+  times.push(hour*60+minute);
+ }
+ return times;
+}
 const when=(s:PushSchedule)=>`${s.date}, ${s.time||'Time not verified'} (Central)`;
-const moved=(a:PushSchedule,b:PushSchedule)=>!cancelled(a)&&!cancelled(b)&&!removed(a)&&!removed(b)&&timed(b)&&(a.date!==b.date||(timed(a)&&a.time!==b.time));
+function moved(a:PushSchedule,b:PushSchedule):boolean {
+ if(cancelled(a)||cancelled(b)||removed(a)||removed(b))return false;
+ const before=interval(a.time),after=interval(b.time);
+ if(!after)return false;
+ return a.date!==b.date||Boolean(before&&(before[0]!==after[0]||
+  (before.length===2&&after.length===2&&before[1]!==after[1])));
+}
 export type SchedulePeer={scope:string;present:boolean;observed_at:Date|string;source_observed_at:Date|string;notification_json:unknown};
 /** Fresh, unique, verified destination plus a verified disappearance is required.
- * The other scope's latest complete read must be within 15 minutes; no lookups,
+ * The other scope's transition and latest read must be within 15 minutes; no lookups,
  * new collection, delivery delay or polling is introduced. Ambiguity stays unknown. */
 export function scheduleCounterpart(peers:SchedulePeer[],at:string,present:boolean):PushSchedule|null {
- const candidates=peers.filter(row=>row.present===present).flatMap(row=>{
+ const candidates=peers.flatMap(row=>{
   const age=Date.parse(at)-new Date(row.source_observed_at).getTime();
   const transitionAge=Date.parse(at)-new Date(row.observed_at).getTime();
   const notification=row.notification_json as {schedule?:unknown};
   const schedule=pushSchedule(notification?.schedule);
-  // Absence must itself be recent, not an old tombstone refreshed by later reads.
-  if(!(age>=0&&age<=15*60000)||(!present&&!(transitionAge>=0&&transitionAge<=15*60000))||
-     !schedule||row.scope.split(':')[1]!==schedule.date||cancelled(schedule)||removed(schedule))return [];
-  return [{...schedule,details:pushMessage(notification)?.body}];
+  // Both the transition and current source read must be recent. A partial or
+  // unchanged later read cannot refresh an old location/removal into evidence.
+  if(!(age>=0&&age<=15*60000)||!(transitionAge>=0&&transitionAge<=15*60000))return [];
+  return [{present:row.present,schedule:schedule&&row.scope.split(':')[1]===schedule.date?{...schedule,details:pushMessage(notification)?.body}:null}];
  });
- return candidates.length===1?candidates[0]:null;
+ // Check uniqueness before choosing present/absent or status: contradictory
+ // locations/statuses must never disappear merely because they are not wanted.
+ const candidate=candidates.length===1?candidates[0]:null;
+ return candidate&&candidate.schedule&&candidate.present===present&&!cancelled(candidate.schedule)&&!removed(candidate.schedule)?candidate.schedule:null;
 }
 export function schedulePushMessage(input:{current?:PushSchedule|null;previous?:PushSchedule|null;peer?:PushSchedule|null;fallback?:PushMessage|null;removed?:boolean}):PushMessage {
  const {current,previous,peer,fallback}=input;

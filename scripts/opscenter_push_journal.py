@@ -160,7 +160,7 @@ def project(path, payload):
                 item["display"] = {
                     "label": display_id[:80] + (" — " + customer if customer else ""),
                     "address": first(row, "address")[:200], "phone": first(row, "phone")[:40],
-                    "amount": first(row, "revenue")[:40] if first(row, "appointment_type").casefold() != "estimate" else "",
+                    "amount": first(row, "revenue")[:40] if facts.get("type", "").casefold() != "estimate" else "",
                     "fields": {key: ((", ".join(str(part) for part in value) if isinstance(value, list)
                                       else str(value).title() if key in ("status", "type") else str(value))[:100])
                                for key, value in facts.items()},
@@ -456,8 +456,8 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
                         details.append(f"{key.title()}: {value}")
                 # Display-only amounts do not become new business-event triggers.
                 amount = display.get("amount", "") if accepted_page else old.get("amount", "")
-                if re.fullmatch(r"\$?[0-9,]+(?:\.[0-9]{2})?", amount) and float(amount.replace('$', '').replace(',', '')) > 0:
-                    details.append(f"Recorded amount: {amount}")
+                if re.fullmatch(r"\$?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]{1,2})?", amount) and float(amount.replace('$', '').replace(',', '')) > 0:
+                    details.append(f"Recorded amount: ${float(amount.replace('$', '').replace(',', '')):,.2f}")
                 for key in changed:
                     before, after = old.get("fields", {}).get(key), values.get(key, "")
                     if before is None or before == after:

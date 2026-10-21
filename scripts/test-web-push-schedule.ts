@@ -28,7 +28,15 @@ assert.equal(schedulePushMessage({current:{...after,status:'Removed'},fallback})
 assert.equal(schedulePushMessage({previous:{...before,status:'Removed'},removed:true}).title,'Removed from schedule');
 assert.equal(schedulePushMessage({previous:before,current:{...after,time:'2026-10-22'},fallback}).title,'New appointment','a date is not a verified destination time');
 for(const peer of [row({...before,status:'Cancelled'}),row({...before,status:'Removed'}),{...row(),source_observed_at:'2026-10-21T22:00:00Z'},{...row(),observed_at:'2026-10-20T23:10:00Z'},{...row(),source_observed_at:'2026-10-21T23:13:00Z'},{...row(),scope:'schedule:2026-10-20:market-477'}])assert.equal(scheduleCounterpart([peer],at,false),null);
+assert.equal(scheduleCounterpart([row(),{...row(after,true),notification_json:{title:'Legacy',body:'No context'}}],at,false),null,'legacy competing identity location remains ambiguous');
 assert.equal(scheduleCounterpart([row(),row()],at,false),null,'ambiguous prior scopes do not prove a move');
 assert.equal(scheduleCounterpart([row(before,true)],at,false),null,'still-present prior appointment does not prove a disappearance');
 assert.equal(schedulePushMessage({removed:true,fallback:{title:'Old',body:'Legacy appointment details'}}).body,'No longer listed. Cancellation or new date/time not verified.\nLegacy appointment details');
+assert.equal(scheduleCounterpart([row(),row({...after,date:'2026-10-20'},true)],at,false),null,'contradictory recent presence cannot be filtered away');
+assert.equal(scheduleCounterpart([row(),row({...after,status:'Cancelled'})],at,false),null,'conflicting cancellation also blocks pairing');
+assert.equal(scheduleCounterpart([{...row(after,true),observed_at:'2026-10-20T23:10:00Z'}],at,true),null,'fresh source read cannot refresh old transition evidence');
+for(const time of ['12:00 PM - 1:00 PM','12:00PM–01:00PM','12:00 pm — 1:00 pm','12:00 - 13:00'])assert.equal(schedulePushMessage({previous:after,current:{...after,time},fallback}).title,'New appointment','equivalent interval formatting is not a reschedule');
+assert.equal(schedulePushMessage({previous:{...after,time:'12:00 PM'},current:after,fallback}).title,'New appointment','newly known end alone is not a reschedule');
+assert.equal(schedulePushMessage({previous:after,current:{...after,time:'12:00 PM - 02:00 PM'},fallback}).title,'Rescheduled','verified end-time change');
+for(const time of ['25:00','12:99 PM','0 PM','Unknown','Not verified - 1 PM'])assert.equal(schedulePushMessage({previous:before,current:{...after,time},fallback}).title,'New appointment','unverified destination timing');
 console.log('PASS: verified reschedules in both orders, same-day change, cancellation/removal, missing time, stale/future/ambiguous evidence, reinstatement and legacy metadata.');

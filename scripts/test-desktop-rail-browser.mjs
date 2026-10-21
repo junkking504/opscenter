@@ -43,7 +43,7 @@ assert.equal(await page.locator('.capital-hub').count(),1);
 await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
 console.log('Capital Overview contains trends; controls and legacy links work.');
 
-const command=page.getByRole('button',{name:'Command',exact:true});
+const command=page.getByRole('button',{name:'Dashboard',exact:true});
 await command.focus();await page.keyboard.press('ArrowRight');
 await page.waitForFunction(()=>document.activeElement?.textContent==='Updates'&&document.activeElement?.classList.contains('workspace-rail-page'));
 assert.equal(await page.locator('#workspace-menu-Command').getByRole('link',{name:'Updates',exact:true}).evaluate(e=>e===document.activeElement),true);

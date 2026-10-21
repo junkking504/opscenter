@@ -1202,15 +1202,15 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       || record.followupId || record.kreweId || `${record.kicker}:${record.title}`
     : 'page';
   const currentPageLabel = activeNav === 'Command'
-    ? `Command · ${view === 'now' ? 'Alerts' : view === 'today' ? 'Control' : view === 'forecast' ? 'Forecast' : 'Monitor'}`
+    ? `Dashboard · ${view === 'now' ? 'Updates' : view === 'today' ? 'Operating Control' : view === 'forecast' ? 'Forecast' : 'Monitor'}`
     : activeNav === 'Schedule'
-      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : scheduleView === 'customers' ? 'Customers' : 'History'}`
+      ? `Command · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : scheduleView === 'customers' ? 'Customers' : 'History'}`
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
-          ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
+          ? `Fleet · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
-            ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
+            ? `Marketing · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
             : `Finance · ${financeView === 'overview' || financeView === 'trends' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
@@ -4277,13 +4277,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
                 {canFinance && <PushSettings />}
-                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
+                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Dashboard <ArrowRight size={14} /></button></header>
                 {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
-                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Command.</p></>}</div>}
+                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Dashboard.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Command loading…' : 'Command checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
+            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Dashboard loading…' : 'Dashboard checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
             {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
@@ -4321,7 +4321,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{activeNav==='Fleet'&&live?(fleetView==='overview'?'Fleet overview':fleetView==='service'?'Maintenance planner':fleetView==='maintenance'?'Repairs & inspections':fleetView==='scores'?'Driving':'Records & invoices'):workspaceLabel(activeNav)}</h1>
+              <h1>{workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
@@ -4350,15 +4350,15 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       : view === 'forecast' ? 'Plan the coming week with source-backed jobs, revenue and expense baselines.' : 'Watch operational trends and emerging risks; system health remains supporting context.'}</p>
             </div>
             {activeNav === 'Command' ? (
-              <WorkspaceTabs label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
-                <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
+              <WorkspaceTabs label="Dashboard views">
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Updates <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
+                <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Operating Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
                 {live && canFinance && <button onClick={() => setView('forecast')} className={view === 'forecast' ? 'active' : ''}>Forecast</button>}
               </WorkspaceTabs>
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
-                <WorkspaceTabs label="Control views">
+                <WorkspaceTabs label="Command views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
                   {live && <button className={scheduleView === 'customers' ? 'active' : ''} onClick={() => setScheduleView('customers')}>Customers</button>}
@@ -4369,7 +4369,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
-                <WorkspaceTabs label="Crew views">
+                <WorkspaceTabs label="Krewe views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
                   ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
@@ -4377,19 +4377,19 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
-                <WorkspaceTabs label="Convoy views">
+                <WorkspaceTabs label="Fleet views">
                   {(convoyTabs).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
-                <WorkspaceTabs label="Campaign views">
+                <WorkspaceTabs label="Marketing views">
                   {(live ? [['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
-                <WorkspaceTabs label="Capital views">
+                <WorkspaceTabs label="Finance views">
                   {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling']] as const).map(([key, label]) => <button className={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation' ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation'} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
@@ -4399,7 +4399,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
 
           {live && showingDrilldown && drilldown && <section aria-label={`${drilldownLabel} details and trends`}>
-            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Command</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
+            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Dashboard</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
             {drilldownLabel === 'AJS' && <p>AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.</p>}
             <LiveAnalytics key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
           </section>}
@@ -4420,7 +4420,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ))}
           </section>}
 
-          {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Command records…'}</div>}
+          {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Dashboard records…'}</div>}
           {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <div className="command-overview">
             <div className="command-feed">
               <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />

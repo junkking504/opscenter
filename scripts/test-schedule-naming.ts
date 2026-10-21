@@ -14,7 +14,7 @@ const addOnNotifications = source("../components/AddOnNotifications.tsx");
 const readme = source("../README.md");
 const constitution = source("../docs/OPSCENTER_OS_CONSTITUTION.md");
 
-assert.match(navItems, /href: "\/jobs", label: "Schedule", mobileLabel: "Schedule"/);
+assert.match(navItems, /href: "\/jobs", label: "Command", mobileLabel: "Command"/);
 assert.ok(!opsNav.includes('label: "Dispatch"'), "Schedule sidebar still exposes the retired Dispatch section name.");
 assert.ok(opsNav.includes('label: "Schedule"'), "Schedule sidebar label is missing.");
 

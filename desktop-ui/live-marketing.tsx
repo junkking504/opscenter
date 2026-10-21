@@ -77,10 +77,10 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
   }
   const selectedAppointment = confirmation && confirmation !== 'lead' ? selections[confirmation.id] ?? confirmation.attribution?.appointmentId ?? '' : '';
   const selectedCandidate = confirmation && confirmation !== 'lead' ? confirmation.candidates.find(candidate => candidate.appointmentId === selectedAppointment) : null;
-  if (!data) return <section className="campaign-workspace"><WorkspaceFreshness state={freshness}/><div className="campaign-empty" role="status">{freshness.error || 'Loading Campaign sources…'}</div></section>;
-  return <section className="campaign-workspace" aria-label="Campaign">
+  if (!data) return <section className="campaign-workspace"><WorkspaceFreshness state={freshness}/><div className="campaign-empty" role="status">{freshness.error ? 'Marketing records could not load. Use Retry above.' : 'Loading Marketing sources…'}</div></section>;
+  return <section className="campaign-workspace" aria-label="Marketing">
     <WorkspaceFreshness state={freshness} sourceAt={view === 'reviews' ? data.reviewFetchedAt : data.fetchedAt} budgetMinutes={20}/>
-    <nav className="campaign-kpi-strip" aria-label="Campaign records">{(Object.keys(campaignShortcutFilters) as CampaignShortcut[]).map(key => {
+    <nav className="campaign-kpi-strip" aria-label="Marketing records">{(Object.keys(campaignShortcutFilters) as CampaignShortcut[]).map(key => {
       const item = campaignShortcutFilters[key]; const count = campaignShortcutCount(data, key);
       return <button type="button" key={key} disabled={editing || count === null} onClick={() => { setShortcut(current => ({key, revision: (current?.revision || 0) + 1})); onViewChange?.(item.view); }}><strong>{count ?? '—'}</strong><span>{item.label}</span>{count === null && <small>Source unavailable</small>}</button>;
     })}</nav>

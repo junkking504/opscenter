@@ -321,14 +321,20 @@ export function buildPodiumReviewNameSuggestionMap(
     const reviewDate = dateKey(review.createdAt);
     const earliestDate = reviewDate ? dateDaysBefore(reviewDate, 90) : "";
     const reviewerName = preparedName(review.authorName);
+    const words = nameParts(review.body || "");
+    const crewMentions = new Map<string, boolean>();
+    const nameMatches = new Map<string, ReturnType<typeof nameMatchKind>>();
     const suggestions = reviewDate ? appointments
       .filter(({ candidate }) => candidate.date >= earliestDate && candidate.date <= reviewDate)
       .map(({ candidate, name }) => {
-        const nameKind = nameMatchKind(reviewerName, name);
-        const words = nameParts(review.body || "");
+        if (!nameMatches.has(name.sorted)) nameMatches.set(name.sorted, nameMatchKind(reviewerName, name));
+        const nameKind = nameMatches.get(name.sorted) ?? null;
         const crew = candidate.crew.filter(member => {
-          const first = nameParts(member)[0];
-          return first && first.length >= 3 && words.some(word => similarName(first, word));
+          if (!crewMentions.has(member)) {
+            const first = nameParts(member)[0];
+            crewMentions.set(member, Boolean(first && first.length >= 3 && words.some(word => similarName(first, word))));
+          }
+          return crewMentions.get(member);
         });
         const local = sameTerritory(review.locationName, candidate.territory);
         const matchKind = nameKind || (crew.length && local ? "crew_mention" as const : null);

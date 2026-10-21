@@ -6,7 +6,7 @@ try {
  const errors=[]; page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.env.CAMPAIGN_PREVIEW_URL || 'http://127.0.0.1:3186/tests/campaign.html');
  await page.getByRole('tab',{name:'Reviews',exact:true}).click();
- const input=page.getByRole('textbox',{name:'Appointment ID or JK number'});
+ const input=page.getByRole('combobox',{name:'Appointment ID or JK number'});
  await input.fill('JK1001');
  await page.getByRole('button',{name:'Review job match',exact:true}).click();
  const dialog=page.getByRole('dialog'); await dialog.waitFor();

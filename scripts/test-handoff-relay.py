@@ -162,6 +162,7 @@ with tempfile.TemporaryDirectory() as temp:
         run(env)
         wait_idle()
     assert calls()[-1]["tool"] == "codex" and calls()[-1]["cwd"] == str(root / "vault/Tasks/claude-built")
+    assert "--skip-git-repo-check" in calls()[-1]["args"], "the vault is not a Git repo"
     assert "waiting for Claude thread" in (root / "vault/Tasks/claude-built/relay.md").read_text()
 
     # Open questions in the brief stop the relay before anything runs.

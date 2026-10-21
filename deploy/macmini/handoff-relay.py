@@ -215,7 +215,8 @@ def command(p: Paths, task: str, action: str) -> tuple[list[str], Path, dict]:
               "using the exact opening line format from docs/agent-handoffs.md. Do not edit any other file, push, merge, deploy, or send anything.")
     if action == "review-codex":
         # Writable root is the vault task folder only, so source files cannot change.
-        return [codex, "exec", "-C", str(vault), "--approve-for-me", "-o", str(out), review], vault, env
+        # The vault is not a Git repo, so codex needs --skip-git-repo-check there.
+        return [codex, "exec", "-C", str(vault), "--approve-for-me", "--skip-git-repo-check", "-o", str(out), review], vault, env
     target = f"//{str(vault / 'review.md').lstrip('/')}"
     cmd = [find_claude() or "claude", "-p", review, "--model", reviewer_model(p, task), "--add-dir", str(vault),
            "--allowedTools", f"Read,Grep,Glob,Write({target}),Edit({target}),Bash(git diff:*),Bash(git log:*),Bash(git show:*)",

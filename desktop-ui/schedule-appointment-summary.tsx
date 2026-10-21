@@ -1,3 +1,4 @@
+import { CustomerLink } from './customer-link';
 import {appointmentDirectionsHref} from '../lib/appointment-navigation';
 import {propertyNameSearch} from '../lib/property-name-search';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -43,7 +44,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
   return <section className={`schedule-appointment-summary ${appointmentColorClass(job)}`} aria-label={`Selected job ${job.jkNumber}`}>
     <div className="selected-job-main">
       <span className="selected-job-area">{appointmentRegion(job).area}</span>
-      <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2>{scheduleCustomerLabel(job)}</h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
+      <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2><CustomerLink id={job.appointmentId} name={scheduleCustomerLabel(job)} busy={busy}/></h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
       {estimateId && <div className="selected-job-estimate" aria-label="Booked from estimate"><strong>Booked from estimate</strong>{estimateHref && !busy ? <a href={estimateHref}>{estimate?.jkNumber || `Estimate #${estimateId}`} <ArrowRight size={12} aria-hidden="true" /></a> : <span>{estimate?.jkNumber || `Estimate #${estimateId}`}</span>}<small>{quote ? `Quoted ${quote} · not a payment` : 'Quote unavailable'}</small></div>}
       <div className="selected-job-facts"><span><Clock3 size={14} />{job.appointmentTime || 'Time not set'}</span><span><Truck size={14} />{truckDisplayText(scheduleDisplayTruck(job))}</span>{truckMismatch && <strong className="selected-job-warning">GPS confirmed · JunkWare says {truckDisplayText(truckMismatch.junkwareTruck)}</strong>}{job.truckOnSite && job.onsiteTruck && truckLabel(job.onsiteTruck) !== truckLabel(job.truck) && <span>{truckDisplayText(truckLabel(job.onsiteTruck))} on site</span>}{partner && <span className="appointment-partner-badge">{partner.name}</span>}{assignmentNeedsVerification(job) && <strong className="selected-job-warning">Assignment not verified</strong>}</div>
       {onsiteClocks && <div className="selected-job-facts"><span>{onsiteClocks}</span></div>}

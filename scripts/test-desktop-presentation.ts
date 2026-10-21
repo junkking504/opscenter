@@ -39,3 +39,18 @@ for (const status of ['Estimate completed', 'Estimate · Completed Duration: 60 
   assert.equal(isCompletedTvJob(status), false, status);
 }
 console.log('Shop TV recognizes completed duration statuses and excludes estimates, cancellations and unconfirmed completions.');
+
+// Display renames must not migrate stored workspace keys or break dated bookmarks.
+import { workspaceLabel } from '../desktop-ui/lib/workspace-labels';
+import { workspacePages, pageHref } from '../desktop-ui/page-rail';
+const finalNames = { Command: 'Dashboard', Schedule: 'Command', Krewe: 'Krewe', Fleet: 'Fleet', Finance: 'Finance', Marketing: 'Marketing' };
+for (const [key, label] of Object.entries(finalNames)) {
+  assert.equal(workspaceLabel(key), label);
+  const group = workspacePages.find(group => group.workspace === key)!;
+  assert.equal(group.label, label);
+  const destination = new URL(pageHref(key, group.key, group.pages[0][0], 'https://example.test/desktop?date=2026-10-21&appointment=old'), 'https://example.test');
+  assert.equal(destination.searchParams.get('workspace'), key);
+  assert.equal(destination.searchParams.get('date'), '2026-10-21');
+  assert.equal(destination.searchParams.has('appointment'), false);
+}
+console.log('Final workspace names preserve dated links and internal keys.');

@@ -1,0 +1,79 @@
+/* Shared recipes for workspace controls. Status and territory colors retain their meaning. */
+.ops-app.ops-live .crew-today-actions .crew-today-edit {
+  background: var(--ops-brand-red);
+  border-color: var(--ops-brand-red);
+  color: white;
+}
+.ops-app.ops-live .crew-today-actions .crew-today-edit:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
+.ops-app.ops-live .crew-today-actions .crew-today-edit:hover {
+  background: var(--ops-brand-red-hover);
+  border-color: var(--ops-brand-red-hover);
+  color: white;
+}
+.ops-app.ops-live :is(.capital-page-header,.crew-today-heading) h2 {
+  font-size: var(--oc-type-18);
+  line-height: 1.3;
+}
+.ops-app.ops-live :is(.krewe-kpi-strip > article,.capital-metric,.capital-stat,.campaign-kpi-strip > button,.convoy-metric) {
+  height: auto;
+  min-height: 92px;
+  padding: 12px;
+  overflow: visible;
+}
+.ops-app.ops-live .capital-workspace .capital-metric-primary > strong,
+.ops-app.ops-live .krewe-kpi-strip > article:nth-child(2) > strong,
+.ops-app.ops-live .convoy-workspace .convoy-compact-overview .convoy-metric > strong,
+.ops-app.ops-live :is(.krewe-kpi-strip > article,.capital-metric,.capital-stat,.campaign-kpi-strip > button) > strong {
+  font-size: var(--oc-type-24);
+  line-height: 1.2;
+}
+.ops-app.ops-live .capital-day .finance-capital-metrics .kpi-card {
+  height: auto;
+  min-height: 100px;
+  padding: 12px;
+  justify-content: flex-start;
+  overflow: visible;
+}
+.ops-app.ops-live .capital-day .finance-capital-metrics .kpi-card:has(.delta-chip) { padding-top: 32px; }
+.ops-app.ops-live .capital-day .finance-capital-metrics .kpi-card :is(.kpi-label,small) {
+  white-space: normal;
+  overflow: visible;
+  font-size: var(--oc-type-11);
+  line-height: 1.4;
+}
+.ops-app.ops-live :is(.crew-section-nav,.capital-filter-group,.campaign-queue-tabs,.convoy-table-tools > div) > button {
+  min-height: 36px;
+  font-size: var(--oc-type-12);
+}
+.ops-app.ops-live :is(.crew-section-nav,.capital-filter-group,.campaign-queue-tabs,.convoy-table-tools > div,.schedule-summary-strip,.live-map-territories) > button[aria-pressed=true] {
+  background: var(--oc-status-critical-tint);
+  color: var(--ops-brand-red);
+  border-color: var(--ops-brand-red);
+  box-shadow: inset 0 0 0 1px var(--ops-brand-red);
+}
+.ops-app.ops-live .live-map-territories > button {
+  min-height: 36px;
+  padding: 5px 8px;
+  font-size: var(--oc-type-11);
+}
+.ops-app.ops-live .live-map-territories > button[aria-pressed=true] { border-bottom-color: var(--territory-color); }
+.ops-app.ops-live .live-map-territories > button small { font-size: var(--oc-type-10); }
+.ops-app.ops-live .convoy-search {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: var(--desktop-card-border);
+  border-radius: var(--radius-sm);
+  background: var(--oc-surface-raised);
+}
+.ops-app.ops-live .convoy-workspace .convoy-status-table td small { font-size: var(--oc-type-11); line-height: 1.4; }
+.ops-app.ops-live .record-drawer .record-drawer-header { padding: 16px 20px; background: var(--oc-surface-raised); border-bottom: var(--desktop-card-border); }
+.ops-app.ops-live .record-drawer .record-drawer-header h2 { font-size: var(--oc-type-24); line-height: 1.25; }
+.ops-app.ops-live .record-drawer .record-drawer-header > div > span { color: var(--oc-text-muted); font-size: var(--oc-type-11); }
+.ops-app.ops-live .crew-record-pay > div:last-child { color: var(--oc-text-primary); }
+.ops-app.ops-live .krewe-pay-breakdown > header { background: var(--oc-surface-muted); }
+.ops-app.ops-live .workspace-freshness { color: var(--oc-text-muted); line-height: 1.5; }
+@media (max-width: 760px) {
+  .ops-app.ops-live :is(.crew-today-actions,.crew-section-nav,.capital-filter-group,.campaign-queue-tabs,.convoy-table-tools > div,.live-map-territories) > button { min-height: 44px; }
+  .ops-app.ops-live .capital-day .finance-capital-metrics .kpi-card { padding: 12px !important; }
+  .ops-app.ops-live .capital-day .finance-capital-metrics .kpi-card:has(.delta-chip) { padding-top: 32px !important; }
+}

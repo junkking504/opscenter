@@ -1,6 +1,6 @@
 # Desktop presentation
 
-Command leads with recorded revenue for the selected operating date, the existing
+Dashboard leads with recorded revenue for the selected operating date, the existing
 `dailyRevenueTarget()` goal, remaining revenue, and a 52-week (364-day) comparison
 so weekdays match. A live partial day is explicitly compared with a completed day.
 Only saved metrics are read; absent or stale evidence remains unavailable. The
@@ -11,8 +11,8 @@ retained from the production layout. Revenue is recorded, not verified cash;
 assumed disposal costs and all source/freshness explanations remain visible.
 The historical operating-day controls, map and OpsBot remain available.
 
-Comparison chips sit at the top right; phone Command cards place them in the heading row. Daily KPIs compare the same
-weekday last week; Crew compares the previous weekday, pay period or equally
+Comparison chips sit at the top right; phone Dashboard cards place them in the heading row. Daily KPIs compare the same
+weekday last week; Krewe compares the previous weekday, pay period or equally
 elapsed month. Capital uses its existing matched-period financial comparisons.
 Tooltips identify the period. Green means favorable (lower for costs), red means
 unfavorable. Actual zero change is neutral; absent, non-finite and zero prior
@@ -124,3 +124,17 @@ viewport with a 34px bottom reserve (browser/status chrome is outside the conten
 viewport); 320px uses 800px. Shorter windows and enlarged text can scroll normally:
 never clip content, hide a metric, scale the entire page, or trap scrolling to
 force a fit. Physical handset acceptance remains separate from browser tests.
+
+## Final workspace names
+
+The display names are Dashboard, Command, Krewe, Fleet, Finance, and Marketing.
+`desktop-ui/lib/workspace-labels.ts` owns the desktop mapping. Persisted keys and
+bookmarks remain `Command`, `Schedule`, `Krewe`, `Fleet`, `Finance`, and `Marketing`,
+respectively. The legacy navigation labels match these names. The Operating
+Control area stays within Dashboard; it is distinct from the Command dispatch workspace.
+
+Shared workspace controls and cards use `workspace-consistency.css`: brand red
+for actions and selected filters, semantic status colors for evidence, and
+content-sized financial cards so comparison chips cannot hide their labels.
+Release notices wait until the current record review or edit closes. Failed
+refreshes offer Retry and distinguish retained data from an initial load failure.

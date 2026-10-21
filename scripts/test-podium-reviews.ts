@@ -191,7 +191,7 @@ const noNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
   createdAt: "2026-08-31T15:00:00Z",
   locationName: "Junk King New Orleans",
 }]);
-assert.deepEqual(noNameSuggestions["review-unmatched-name"], []);
+assert.ok(noNameSuggestions["review-unmatched-name"].every(candidate => candidate.confidence === "Low" && candidate.matchKind === "timing"), "Timing alone is a Low suggestion under the rules table");
 
 const previous = {
   version: 1 as const,

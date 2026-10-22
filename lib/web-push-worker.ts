@@ -9,14 +9,14 @@ import type { Pool, PoolClient } from 'pg';
 import { getKernelPool } from './platform/persistence/pool';
 import { pushEnabled, pushOutcome, pushHash, PUSH_CATEGORIES } from './web-push-policy';
 import { pushTransitions, type PushBatch } from './web-push-events';
-import { sendAppleNotification } from './web-push-transport';
+import { sendManagerNotification } from './pushover-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { supervisedPushDelivery } from './web-push-runtime';
 import { opsRoleCan } from './ops-roles';
 export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;truckMoveOwner?:(input:TruckMove)=>string|null};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
-  return {truckMoveOwner:input=>truckMoveOwner(input,process.env.OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER),pool:getKernelPool(),enabled:pushEnabled,send:sendAppleNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
+  return {truckMoveOwner:input=>truckMoveOwner(input,process.env.OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER),pool:getKernelPool(),enabled:pushEnabled,send:sendManagerNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
 }
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
@@ -162,7 +162,7 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
           else {await client.query('INSERT INTO opscenter_kernel.push_trial_attempts(ordinal,claim_token,event_id,device_id) VALUES($1,$2,$3,$4)',[trial.attempts_used+1,token,row.event_id,row.device_id]);
           await client.query('UPDATE opscenter_kernel.push_trial SET attempts_used=attempts_used+1 WHERE singleton=true');}
           const message=pushMessage(delivery.notification_json)||{title:`OpsCenter ${delivery.category} update`,body:`A new ${delivery.category} change was recorded. Open OpsCenter for the source record.`};
-          return {envelope:{subscription:device.subscription_json,message:{...message,eventId:row.event_id}},endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min((trial.ongoing_started_at?trial.ongoing_expires_at!:trial.deadline!).getTime(),device.expires_at.getTime())};
+          return {envelope:{subscription:device.subscription_json,recordedAt:new Date(delivery.source_recorded_at||delivery.occurred_at).toISOString(),message:{...message,eventId:row.event_id}},endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min((trial.ongoing_started_at?trial.ongoing_expires_at!:trial.deadline!).getTime(),device.expires_at.getTime())};
         });
       } finally {client.release();}
       if(!claim)continue;

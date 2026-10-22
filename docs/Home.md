@@ -50,6 +50,7 @@ without mixing live runtime data or secrets into Git.
 - [Slack and OpsCenter](slack-opscenter.md)
 - [Waypoint iPhone notifications and office messages](waypoint-push.md)
 - [Direct Web Push preparation and activation boundary](web-push.md)
+- [Optional Pushover manager alert delivery (prepared, disabled)](pushover.md)
 - [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [Appointment customer history](customer-history.md)

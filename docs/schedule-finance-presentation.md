@@ -1181,3 +1181,11 @@ point does not confirm a unit entrance. Policy 20 retries older failed checks.
 Road comparisons recover missing table entries through individual road routes
 within the same overall 30-second deadline and shared provider rate limits.
 Unavailable rows remain unavailable and comparisons retain the coverage notice.
+
+A fresh cached Geocodio street center can provide a labeled approximate street
+pin when the complete street name, direction, suffix, locality, state and ZIP
+match, confidence is at least 0.7, and there is only one distinct matching
+center across query variants. Unrelated fuzzy street suggestions are ignored.
+No house number is added to the matched street evidence. The property remains
+unverified; the center is navigation-only and cannot establish GPS visits.
+This consumes existing cache evidence without additional provider requests.

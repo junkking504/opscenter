@@ -29,20 +29,24 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The desktop uses an 80px workspace rail for Command, Control, Crew, Convoy,
-Capital and Campaign. Clicking a workspace opens its areas without navigating;
-choosing an area jumps directly to that view. The current workspace remains
-highlighted while another workspace's menu is being explored. Area entries are
-real links, preserve the operating date, and clear unrelated record filters.
-Command includes Updates, Operating Control, Monitor, Forecast and The Huddle.
-Capital and restricted Crew/Command areas retain financial permission checks.
+The desktop uses an 80px workspace rail. Each workspace is a direct link to its
+main page: Dashboard Updates, Command Board, Krewe Today, Fleet Overview,
+Finance Overview, and Marketing Follow up. Settings appears in the footer above
+Sources. There are no sidebar area menus; the existing in-page tabs and saved
+area links remain available. Links preserve the selected operating date and clear
+unrelated record filters. Finance retains its role check. Enter activates links;
+modifier clicks open the same main-page destination in a new tab. Mutation busy
+state blocks navigation. The mobile selector uses the same main-page defaults.
 
-Workspace buttons have visible focus and expanded state. Arrow Right/Down opens
-and focuses the first area; Tab and Up/Down move through links; Left or Escape
-closes and restores focus. Clicking or tabbing outside closes the menu. Mutation busy state continues
-to block navigation. The compact brand icon and Source Health control stay in
-the rail; mobile retains its workspace selector and page tabs. Menus remain
-above content and fit short desktop windows.
+Settings initially provides My Preferences, Notifications, and Connections.
+The default opening workspace is stored in versioned browser local storage,
+shared by users of that browser, and applies only to the bare desktop URL.
+The Settings page omits daily operating controls but retains the selected date when returning to workspaces. Explicit page/date links take precedence and Finance preferences are ignored
+without financial access. Storage failures are reported rather than shown as saved.
+Existing manager notification controls live here; opening Settings does not send
+a test, request notification permission, approve a device, or enable delivery.
+Connections reuses the existing source health observations and freshness labels.
+No collector, provider connection, or new polling is introduced.
 
 Actions, Call-in plan and Reconciliation are omitted from the sidebar.
 Convoy Driving and Records & invoices are omitted from the sidebar and page tabs.

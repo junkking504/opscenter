@@ -320,13 +320,7 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .workspace-rail-link.active { color:var(--ops-brand-red); background:transparent; }
   .workspace-rail-icon { display:grid; place-items:center; width:36px; height:36px; border-radius:9px; }
   .workspace-rail-link.active .workspace-rail-icon { background:var(--oc-status-critical-tint); }
-  .workspace-rail-link:focus-visible,.workspace-rail-page:focus-visible { outline:2px solid var(--ops-brand-red); outline-offset:2px; }
-  .workspace-rail-flyout { display:none; position:absolute; top:0; left:100%; width:192px; max-height:calc(100vh - 100px); overflow-y:auto; z-index:90; padding:10px; border:var(--desktop-card-border); border-radius:10px; background:var(--oc-surface-raised); box-shadow:0 8px 24px rgb(20 40 60 / 12%); }
-  .workspace-rail-group.is-open .workspace-rail-flyout { display:block; }
-  .workspace-rail-flyout h2 { margin:0; padding:6px 10px 10px; font-size:14px; font-weight:650; }
-  .workspace-rail-page { display:block; padding:9px 10px; border-radius:6px; font-size:12px; line-height:18px; text-decoration:none; color:var(--oc-text-primary); }
-  .workspace-rail-page:hover { background:var(--oc-surface-muted); }
-  .workspace-rail-page.active { color:var(--ops-brand-red); background:var(--oc-status-critical-tint); font-weight:600; }
+  .workspace-rail-link:focus-visible { outline:2px solid var(--ops-brand-red); outline-offset:2px; }
   .ops-app.ops-live:has(.workspace-rail) .sidebar-footer { padding:12px 0 0; }
   .ops-app.ops-live:has(.workspace-rail) .health-pulse { position:relative; width:100%; display:flex; flex-direction:column; gap:8px; align-items:center; padding:4px 0; text-align:center; text-transform:none; letter-spacing:0; }
   .ops-app.ops-live:has(.workspace-rail) .health-pulse small { font-size:10px; font-weight:600; }
@@ -337,5 +331,3 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .workspace-rail-icon { width:30px; height:30px; }
   .workspace-rail-group { margin-bottom:2px; }
 }
-
-.workspace-rail-group:nth-last-child(-n+2) .workspace-rail-flyout { top:auto; bottom:0; }

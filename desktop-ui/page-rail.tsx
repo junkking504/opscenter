@@ -1,6 +1,6 @@
 import { workspaceLabel } from './lib/workspace-labels';
-import { Activity, CalendarDays, CircleDollarSign, Megaphone, Truck, Users } from 'lucide-react';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { Activity, CalendarDays, CircleDollarSign, Megaphone, Settings, Truck, Users } from 'lucide-react';
+import type { MouseEvent } from 'react';
 
 export const workspacePages = [
   { workspace: 'Command', label: workspaceLabel('Command'), key: 'commandView', icon: Activity, pages: [['now','Updates'],['today','Operating Control'],['monitor','Monitor'],['forecast','Forecast'],['tv','The Huddle']] },
@@ -9,55 +9,34 @@ export const workspacePages = [
   { workspace: 'Fleet', label: workspaceLabel('Fleet'), key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['maintenance','Repairs & inspections'],['service','Maintenance']] },
   { workspace: 'Finance', label: workspaceLabel('Finance'), key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['payments','Payments'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling']] },
   { workspace: 'Marketing', label: workspaceLabel('Marketing'), key: 'marketingView', icon: Megaphone, pages: [['overview','Follow up'],['reviews','Reviews'],['performance','Results']] },
+  { workspace: 'Settings', label: 'Settings', key: 'settingsView', icon: Settings, pages: [['overview','Settings']] },
 ] as const;
 export function pageHref(workspace: string, key: string, page: string, href = window.location.href) {
   const url = new URL(href);
-  for (const stale of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv']) url.searchParams.delete(stale);
+  for (const stale of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(stale);
   url.searchParams.set('workspace',workspace); url.searchParams.set(key,page); url.searchParams.set('scheduleDay','today');
   if (workspace === 'Command' && page === 'tv') { url.searchParams.set('tv','1'); url.searchParams.delete('date'); url.searchParams.set('commandView','now'); }
   return url.pathname + url.search;
 }
-export function PageRail({ workspace, selected, canFinance, disabled, navigate, preload }: {
-  workspace: string; selected: Record<string,string>; canFinance: boolean; disabled: boolean;
+type RailProps = {
+  workspace: string; canFinance: boolean; disabled: boolean;
   navigate: (workspace: string, page: string) => void; preload: (workspace: string) => void;
-}) {
-  const [openWorkspace, setOpenWorkspace] = useState<string | null>(null);
-  const railRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const closeOutside = (event: PointerEvent) => {
-      if (!railRef.current?.contains(event.target as Node)) setOpenWorkspace(null);
-    };
-    document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
-  }, []);
-  const open = (event: MouseEvent<HTMLAnchorElement>, target: string, page: string) => {
+};
+export function WorkspaceRailLink({ group, workspace, disabled, navigate, preload }: Omit<RailProps, 'canFinance'> & { group: typeof workspacePages[number] }) {
+  const active = workspace === group.workspace;
+  const open = (event: MouseEvent<HTMLAnchorElement>) => {
     if (disabled) { event.preventDefault(); return; }
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-    event.preventDefault(); setOpenWorkspace(null); navigate(target, page);
+    event.preventDefault(); navigate(group.workspace, group.pages[0][0]);
   };
-  return <nav ref={railRef} className="page-rail workspace-rail" aria-label="Workspaces" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpenWorkspace(null); }} onKeyDown={event => {
-    const target = event.target as HTMLElement;
-    const group = target.closest('.workspace-rail-group');
-    if (event.key === 'Escape' || event.key === 'ArrowLeft') {
-      event.preventDefault(); setOpenWorkspace(null);
-      (group?.querySelector('.workspace-rail-link') as HTMLButtonElement | null)?.focus();
-    } else if (target.matches('.workspace-rail-page') && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-      event.preventDefault();
-      const links = Array.from(group?.querySelectorAll<HTMLAnchorElement>('.workspace-rail-page') ?? []);
-      const index = links.indexOf(target as HTMLAnchorElement);
-      links[(index + (event.key === 'ArrowDown' ? 1 : links.length - 1)) % links.length]?.focus();
-    }
-  }}>{workspacePages.filter(group => group.workspace !== 'Finance' || canFinance).map(group => {
-    const pages = group.pages.filter(([id]) => !(group.workspace === 'Command' && ['forecast','tv'].includes(id) && !canFinance) && !(group.workspace === 'Krewe' && ['payperiod','monthly'].includes(id) && !canFinance));
-    const active = workspace === group.workspace;
-    return <div className={`workspace-rail-group${openWorkspace === group.workspace ? ' is-open' : ''}`} key={group.workspace} onPointerEnter={() => { if (!disabled) preload(group.workspace); }}>
-      <button type="button" className={`workspace-rail-link${active ? ' active' : ''}`} aria-current={active ? 'location' : undefined} disabled={disabled} aria-label={group.label} aria-expanded={openWorkspace === group.workspace} aria-controls={`workspace-menu-${group.workspace}`} onFocus={() => { setOpenWorkspace(current => current === group.workspace ? current : null); preload(group.workspace); }} onClick={() => setOpenWorkspace(current => current === group.workspace ? null : group.workspace)} onKeyDown={event => { if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { event.preventDefault(); const button = event.currentTarget; setOpenWorkspace(group.workspace); requestAnimationFrame(() => (button.parentElement?.querySelector('.workspace-rail-page') as HTMLAnchorElement | null)?.focus()); } }}><span className="workspace-rail-icon"><group.icon size={20} aria-hidden="true" /></span><span>{group.label}</span></button>
-      <div id={`workspace-menu-${group.workspace}`} className="workspace-rail-flyout" role="group" aria-label={`${group.label} areas`}>
-        <h2>{group.label}</h2>{pages.map(([id,label]) => {
-          const current = active && (selected[group.workspace] === id || group.workspace === 'Finance' && id === 'overview' && selected[group.workspace] === 'trends' || group.workspace === 'Marketing' && id === 'overview' && selected[group.workspace] === 'leads');
-          return <a key={id} href={pageHref(group.workspace,group.key,id)} className={`workspace-rail-page${current ? ' active' : ''}`} aria-current={current ? 'page' : undefined} aria-disabled={disabled || undefined} onClick={event => open(event,group.workspace,id)}>{label}</a>;
-        })}
-      </div>
-    </div>;
-  })}</nav>;
+  return <div className="workspace-rail-group">
+    <a href={pageHref(group.workspace, group.key, group.pages[0][0])} className={`workspace-rail-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} aria-disabled={disabled || undefined} aria-label={group.label} onClick={open} onPointerEnter={() => { if (!disabled) preload(group.workspace); }} onFocus={() => { if (!disabled) preload(group.workspace); }}>
+      <span className="workspace-rail-icon"><group.icon size={20} aria-hidden="true" /></span><span>{group.label}</span>
+    </a>
+  </div>;
+}
+export function PageRail(props: RailProps) {
+  return <nav className="page-rail workspace-rail" aria-label="Workspaces">
+    {workspacePages.filter(group => group.workspace !== 'Settings' && (group.workspace !== 'Finance' || props.canFinance)).map(group => <WorkspaceRailLink key={group.workspace} group={group} {...props} />)}
+  </nav>;
 }

@@ -54,3 +54,21 @@ for (const [key, label] of Object.entries(finalNames)) {
   assert.equal(destination.searchParams.has('appointment'), false);
 }
 console.log('Final workspace names preserve dated links and internal keys.');
+
+import { readOpeningWorkspace, saveOpeningWorkspace } from '../desktop-ui/lib/workspace-preferences';
+const storageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+let stored: string | null = null;
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => stored, setItem: (_key: string, value: string) => { stored = value; } } });
+assert.equal(saveOpeningWorkspace('Finance'), true);
+assert.equal(readOpeningWorkspace(true), 'Finance');
+assert.equal(readOpeningWorkspace(false), 'Command', 'A saved Finance preference cannot grant access');
+stored = '{broken';
+assert.equal(readOpeningWorkspace(true), 'Command');
+stored = JSON.stringify({openingWorkspace: 'unknown'});
+assert.equal(readOpeningWorkspace(true), 'Command');
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new Error('Storage blocked'); } });
+assert.equal(readOpeningWorkspace(true), 'Command');
+assert.equal(saveOpeningWorkspace('Fleet'), false);
+if (storageDescriptor) Object.defineProperty(globalThis, 'localStorage', storageDescriptor);
+else Reflect.deleteProperty(globalThis, 'localStorage');
+console.log('Opening preferences preserve role checks and tolerate invalid or unavailable browser storage.');

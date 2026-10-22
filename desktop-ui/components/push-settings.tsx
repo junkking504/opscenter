@@ -4,19 +4,20 @@ import { PushJournalStatus } from './push-journal-status';
 type Device={id:string;categories:string[];expires_at:string;fingerprint:string;approved:boolean};
 type Trial={status:string;deadline:string|null;attemptsUsed:number;maxAttempts:number|null};
 const categories=['schedule','krewe','fleet'];
-export function PushSettings() {
-  const [hidden,setHidden]=useState(true);
+export function PushSettings({ showUnavailable = false, onBusyChange }: { showUnavailable?: boolean; onBusyChange?: (busy: boolean) => void } = {}) {
+  const [hidden,setHidden]=useState(!showUnavailable);
   const [trial,setTrial]=useState<Trial|null>(null);
   const [journal,setJournal]=useState<PushJournalHealth|null>(null);
   const [enabled,setEnabled]=useState(false),[key,setKey]=useState(''),[devices,setDevices]=useState<Device[]>([]);
   const [selected,setSelected]=useState(categories),[message,setMessage]=useState('Checking notification availability…'),[busy,setBusy]=useState(false);
   const [registration,setRegistration]=useState<ServiceWorkerRegistration|null>(null);
   const [supported,setSupported]=useState(false),[currentId,setCurrentId]=useState('');
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   async function reload() {
     const res=await fetch('/api/push/devices',{cache:'no-store'});const body=await res.json();
-    if(res.status===401 || res.status===403){setHidden(true);return false;}
+    if(res.status===401 || res.status===403){setHidden(!showUnavailable);setMessage('Notification settings are not available for this account.');return false;}
     if(!res.ok)throw new Error('Notification settings unavailable.');
-    setHidden(!body.enabled && !(body.devices || []).length && !body.journal?.configured);
+    setHidden(!showUnavailable && !body.enabled && !(body.devices || []).length && !body.journal?.configured);
     setJournal(body.journal || null);setTrial(body.trial || null);
     setEnabled(body.enabled);setKey(body.publicKey || '');setDevices(body.devices || []);
     const saved=localStorage.getItem('opscenter-push-device') || '';setCurrentId(saved);
@@ -86,6 +87,6 @@ export function PushSettings() {
     {devices.map((device,index)=><div key={device.id}>{device.id===currentId?'This device':`Device ${index+1}`} · {device.categories.join(', ')} · {device.approved?'Device approved':'Awaiting device approval'} · expires {new Date(device.expires_at).toLocaleString()} <button type="button" disabled={busy} onClick={()=>void remove(device)}>Disable device {index+1}</button>{device.id===currentId&&<div><small>Device verification ID: {device.id}<br/>Fingerprint: <code style={{overflowWrap:'anywhere'}}>{device.fingerprint}</code></small></div>}</div>)}
     <PushJournalStatus health={journal}/>
     <button type="button" disabled={busy} onClick={()=>{setBusy(true);void reload().catch(()=>{setJournal(null);setMessage('Notification status unavailable.');}).finally(()=>setBusy(false));}}>Refresh status</button>
-    <small>{trial?.maxAttempts===null?'Schedule, crew and fleet changes notify individually after they are recorded. Device expiry and Disable device stop later sends. Alerts describe the recorded change on this phone’s lock screen.':'Alerts describe the recorded change on this phone’s lock screen. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.'}</small>
+    <small>{!trial?'Notification status must be available before device settings can be saved. Saving a device does not approve it or start notification delivery.':trial.maxAttempts===null?'Schedule, crew and fleet changes notify individually after they are recorded. Device expiry and Disable device stop later sends. Alerts describe the recorded change on this phone’s lock screen.':'Alerts describe the recorded change on this phone’s lock screen. The trial requires separate approval of this exact device, lasts at most 30 minutes after an explicit start, and permits three send attempts total. Saving does not restart or extend it. Device expiry and revocation stop later sends.'}</small>
   </section>;
 }

@@ -5,7 +5,7 @@ import '../app/globals.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
 const date=new URLSearchParams(location.search).has('tv') ? new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) : '2026-09-12', stamp=new Date().toISOString();
-const command=fixtureSnapshot();command.date=date;command.actor={displayName:'Synthetic operator',role:'Administrator'};
+const command=fixtureSnapshot();command.date=date;command.actor={displayName:'Synthetic operator',role:new URLSearchParams(location.search).get('testRole') || 'Administrator'};
 const huddleStress=new URLSearchParams(location.search).has('huddleStress');
 if(huddleStress&&command.crewProgress){const base=command.crewProgress.jobs[0];command.crewProgress.jobs=Array.from({length:9},(_,i)=>({...base,id:`stress-${i}`,truck:`Truck ${i+1}`,status:'Completed',crew:'Example Long Driver Name · Example Long Navigator Name',completion:{...base.completion,total:'$450.00'}}));}
 const loads=Array.from({length:9},(_,i)=>({truck:`Truck ${i+1}`,label:i===8?'Empty · provisional':i===6?'Load unknown':i===0?'Full truck':'1/3 full',percent:33,note:'Synthetic load',needsVerification:i===8}));

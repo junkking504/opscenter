@@ -1,6 +1,6 @@
-import {chromium} from 'playwright';
+import {chromium,webkit} from 'playwright';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({headless:true});
+const browser=await (process.env.DRAWER_BROWSER==='webkit'?webkit:chromium).launch({headless:true});
 try {
  for(const width of [1440,390,320]) for(const reducedMotion of ['reduce','no-preference']) {
   const page=await browser.newPage({viewport:{width,height:800},reducedMotion});

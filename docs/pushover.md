@@ -1,7 +1,9 @@
 # Optional Pushover delivery for one manager
 
-Prepared only. No deployed integration, enabled provider, credential installation,
-live test, or handset acceptance is implied. No SDK or new polling is added.
+User approved the single-phone integration on October 22, 2026, including
+existing alert details, replacement of native delivery, up to 10,000 attempts over
+30 days, $0 API spend and one setup test. Deployment and physical handset
+acceptance remain separate evidence. No SDK or new polling is added.
 
 The existing manager dispatcher can substitute Pushover for Apple delivery for
 one separately approved subscription fingerprint. Existing role, category, device,
@@ -71,5 +73,13 @@ and sending. This is account delivery, not a cryptographic phone guarantee.
 Mock verification: `node --import tsx scripts/test-pushover.ts` and the existing
 Web Push regressions. A separately approved synthetic live test and user confirmation
 of sound, phone receipt and link behavior are required before claiming success.
+
+The supervisor passes only the configuration path to its send-mode child and
+clears it in observe mode. The local operator command
+`scripts/send-pushover-setup-test.ts --apply --approval-reference <reference>`
+requires Mission Control runtime and the protected configuration path. It sends
+only a fixed synthetic message, reserves quota, and creates an exclusive durable
+receipt before I/O. It never runs on startup and cannot automatically repeat an
+uncertain test. Run it only for the separately approved one-message setup test.
 
 Sources: https://pushover.net/api and https://pushover.net/pricing.

@@ -23,7 +23,7 @@ ALLOWED = {'OPSCENTER_KERNEL_ENABLED', 'OPSCENTER_MISSION_CONTROL_DATABASE_URL',
            'OPS_AUTH_USERNAME', 'OPS_AUTH_ROLE', 'OPS_AUTH_ROLE_BINDINGS', 'OPS_AUTH_DEFAULT_ROLE',
            'OPS_ACCESS_TEAM_DOMAIN', 'OPS_ACCESS_AUD', 'OPS_CREW_ACCESS_TEAM_DOMAIN',
            'OPSCENTER_WEB_PUSH_PUBLIC_KEY', 'OPSCENTER_WEB_PUSH_SUBJECT', 'OPSCENTER_WEB_PUSH_ORIGIN',
-           'OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER',
+           'OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER', 'OPSCENTER_PUSHOVER_CONFIG',
            'OPSCENTER_WEB_PUSH_ENABLED', 'OPSCENTER_WEB_PUSH_ENROLLMENT_ENABLED', 'OPSCENTER_WEB_PUSH_ACTIVATED_AT'}
 
 def private_read(file, limit=65536):
@@ -120,6 +120,8 @@ def supervise(state, env, command, pause, key=signing_key, tick=2.0):
         pause()
         child_env = dict(env, OPSCENTER_PROCESS_ROLE='push-observer' if mode == 'observe' else 'push-dispatcher', OPSCENTER_WEB_PUSH_CAPTURE='1', OPSCENTER_WEB_PUSH_JOURNAL_DIR=str(journal), OPSCENTER_WEB_PUSH_READY_FILE=str(ready), OPSCENTER_WEB_PUSH_RUN_NONCE=nonce)
         child_env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
+        if mode != 'send':
+            child_env.pop('OPSCENTER_PUSHOVER_CONFIG', None)
         if mode == 'send':
             child_env['OPSCENTER_WEB_PUSH_PRIVATE_KEY'] = key()
         for sig in (signal.SIGTERM, signal.SIGINT):

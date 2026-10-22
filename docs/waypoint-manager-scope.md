@@ -80,3 +80,18 @@ The manager uses compact date/action controls, appointment rows and accessible
 44px earlier/later buttons. Reordering keeps the existing source-key concurrency
 check and changes neither booked times nor truck assignments. Date/time inputs
 have bounded intrinsic widths for narrow iPhone layouts.
+
+## Named OpsCenter account sign-in
+
+Waypoint also accepts a current OpsCenter Manager or Administrator session through
+`/login?next=/crew-jobs`. Credentials are the same on both hosts; cookies remain
+host-only, so users sign in separately on each site. The public Waypoint entry
+shows Manager sign-in. Named account configuration is documented in
+[OpsCenter accounts](ops-accounts.md).
+
+The manager gateway authenticates the account before schedule reads and delegates
+only its existing closed resource/action allowlist. Office handlers independently
+check the same account session and retain its audit identity. Phone enrollment is
+not synthesized from an account. Account-only sessions cannot set phone work
+context or bypass crew inspection, assignment, photos or payment rules. The crew
+workflow still requires its ordinary approved phone setup.

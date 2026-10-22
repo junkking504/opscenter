@@ -9,7 +9,7 @@ import {
   clearLegacyAuthCookieNames,
   createAuthSessionCookieValue,
   createTrustedDeviceCookieValue,
-  opsAuthIdentity,
+  opsLoginIdentity,
   sanitizeAuthRedirectTarget,
   trustedDeviceCookieOptionsForRequest,
   verifyOpsCredentials,
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
   }
 
   clearLoginFailures("ops", request.headers, throttleIdentity);
-  const email = opsAuthIdentity();
+  const email = opsLoginIdentity(usernameRaw);
 
   const sessionValue = await createAuthSessionCookieValue(email);
   const response = NextResponse.redirect(new URL(redirectTarget, requestOrigin), 303);

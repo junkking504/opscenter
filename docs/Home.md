@@ -32,6 +32,8 @@ without mixing live runtime data or secrets into Git.
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)
 
+- [OpsCenter named accounts](ops-accounts.md)
+
 ## Integrations and operating areas
 
 

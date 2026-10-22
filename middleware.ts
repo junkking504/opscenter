@@ -12,7 +12,7 @@ import {
   createTrustedDeviceCookieValue,
   isValidJunkKingEmail,
   opsAuthRole,
-  opsAuthIdentity,
+  isLocalOpsIdentity,
   publicAuthRoute,
   protectedApiRoute,
   shouldRefreshTrustedDevice,
@@ -155,6 +155,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
+    if (['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'].includes(pathname)) return NextResponse.next();
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
     if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });
@@ -265,7 +266,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     const accessEmail = accessAssertion ? await verifyOpsAccessJwt(accessAssertion) : null;
     const rememberedEmail = session?.email || trustedDevice?.email || null;
 
-    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && rememberedEmail !== opsAuthIdentity()) {
+    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && !isLocalOpsIdentity(rememberedEmail)) {
       return initializeOpsSession(request, accessEmail, {
         rememberDevice: true,
         redirect: request.method === "GET" || request.method === "HEAD",

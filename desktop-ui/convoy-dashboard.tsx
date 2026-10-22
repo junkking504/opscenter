@@ -357,6 +357,11 @@ export function ConvoyDashboard(props: DashboardProps) {
     (r) => r.status === "scheduled" && r.serviceDate < snapshot.date,
   );
   const repairsKnown = !snapshot.warnings.some((w) => w.startsWith("Repair source"));
+  const dueItems = trucks.flatMap((t) =>
+    plansFor(snapshot, t, now)
+      .filter((p) => p.status === "due" || p.status === "soon")
+      .map((p) => ({ key: `${t.id}:${p.serviceType}`, truckId: t.id, truck: label(t), serviceType: p.serviceType, status: p.status as "due" | "soon", milesRemaining: p.milesRemaining, daysRemaining: p.daysRemaining })),
+  );
   const selected = trucks.find((t) => t.id === truckId);
   if (selected) return <ConvoyTruckDetail {...props} truck={selected} />;
   const visible = trucks.filter(
@@ -370,7 +375,7 @@ export function ConvoyDashboard(props: DashboardProps) {
   );
   return (
     <div className="convoy-dashboard convoy-compact-overview">
-      <ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} />
+      <ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} />
       <div className="convoy-dashboard-grid">
         <section className="convoy-dash-panel">
           <header>

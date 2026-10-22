@@ -1,5 +1,7 @@
 import type { DesktopFleetSnapshot, DesktopFleetTruck } from './people-fleet-contract';
 import { sameTruck } from './convoy-presentation';
+import { isClosed, truckLabel, type ScheduleAppointment } from './schedule-contract';
+import { nextTruckStop } from '../../lib/schedule-next-stop';
 
 export type LiveGroup = 'moving' | 'idle' | 'parked' | 'offline' | 'out';
 export type AttentionKind = 'out_of_service' | 'gps' | 'fuel' | 'inspection' | 'service' | 'scheduled';
@@ -60,4 +62,24 @@ export function attentionItems(snapshot: DesktopFleetSnapshot, trucks: DesktopFl
     if (t) items.push({ key: `sched:${r.recordId}`, kind: 'scheduled', truckId: t.id, truck: name(t), title: 'Scheduled service passed', detail: `${r.serviceType} · completion not recorded` });
   }
   return items;
+}
+
+export type DueItem = { key: string; truckId: string; truck: string; serviceType: string; status: 'due' | 'soon'; milesRemaining: number | null; daysRemaining: number | null };
+const dueDetail = (d: DueItem) => [
+  d.milesRemaining != null ? `${Math.abs(Math.round(d.milesRemaining)).toLocaleString('en-US')} mi ${d.milesRemaining <= 0 ? 'past target' : 'remaining'}` : '',
+  d.daysRemaining != null ? `${Math.abs(d.daysRemaining)} days ${d.daysRemaining <= 0 ? 'past target' : 'remaining'}` : '',
+].filter(Boolean).join(' · ') || 'Check the service planner';
+export { dueDetail };
+
+export type TruckJobs = { total: number; done: number; nextLabel: string | null; presence: 'on_site' | 'at_job' | null };
+
+const clock = (minutes: number | null) => minutes == null ? '' : new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+/** Stops assigned to one truck today, how many are closed, and where it is now. Uses the Command next-stop rules. */
+export function truckJobs(appointments: ScheduleAppointment[], truck: string, isToday: boolean, now: number): TruckJobs {
+  const mine = appointments.filter(a => !/cancel/i.test(a.status) && truckLabel(a.truck) === truckLabel(truck));
+  const plan = nextTruckStop(appointments, truck, isToday, now);
+  const presence = plan?.state === 'on_site' || plan?.state === 'at_job' ? plan.state : null;
+  const nextLabel = plan ? [clock(plan.job.appointmentStartMinutes), plan.job.customerName].filter(Boolean).join(' ') || null : null;
+  return { total: mine.length, done: mine.filter(a => isClosed(a)).length, nextLabel, presence };
 }

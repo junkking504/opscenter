@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Fuel, Truck } from 'lucide-react';
 import { Button } from './components/ui/button';
 import LiveSchedule from './deferred-live-schedule';
-import { attentionItems, fleetDayTotals, liveCounts, liveGroup, type LiveGroup } from './lib/convoy-live';
+import { attentionItems, dueDetail, fleetDayTotals, liveCounts, liveGroup, truckJobs, type DueItem, type LiveGroup } from './lib/convoy-live';
+import { fetchWorkspace } from './lib/workspace-cache';
+import type { ScheduleSnapshot } from './lib/schedule-contract';
 import { sameTruck } from './lib/convoy-presentation';
 import type { DashboardProps } from './convoy-dashboard';
 import './convoy-live-board.css';
@@ -20,21 +22,34 @@ function Level({ label, percent }: { label: string; percent: number | null }) {
 }
 
 /** Dashboard top: day totals, live trucks beside the map, and ranked exceptions. */
-export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, date }: Pick<DashboardProps, 'snapshot' | 'trucks' | 'onTruck' | 'onView'> & { onFilter: (filter: string) => void; date: string }) {
+export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, date, now, dueItems }: Pick<DashboardProps, 'snapshot' | 'trucks' | 'onTruck' | 'onView' | 'now'> & { onFilter: (filter: string) => void; date: string; dueItems: DueItem[] }) {
   const [mapOpen, setMapOpen] = useState(() => { try { return localStorage.getItem(mapKey) !== 'false'; } catch { return true; } });
+  const [appointments, setAppointments] = useState<ScheduleSnapshot['appointments'] | null>(null);
+  useEffect(() => {
+    // Own cache key: an invalid reply here must never reach the Command map cache.
+    const url = `/api/desktop/schedule?date=${date}&load=1`;
+    let live = true, controller = new AbortController();
+    const load = () => { controller.abort(); controller = new AbortController(); fetchWorkspace<ScheduleSnapshot>(url, controller.signal, `convoy-jobs:${date}`).then(body => { if (live && Array.isArray(body.appointments)) setAppointments(body.appointments); }).catch(() => { /* Job progress stays hidden when the schedule is unavailable. */ }); };
+    setAppointments(null); load();
+    const timer = window.setInterval(load, 60_000);
+    return () => { live = false; controller.abort(); window.clearInterval(timer); };
+  }, [date]);
   const repairsKnown = !snapshot.warnings.some(w => w.startsWith('Repair source'));
   const outIds = new Set(trucks.filter(t => snapshot.issues.some(i => i.status !== 'resolved' && i.severity === 'out_of_service' && sameTruck(i.truck, t.id))).map(t => t.id));
   const counts = liveCounts(trucks, outIds);
   const totals = fleetDayTotals(trucks);
   const isToday = date === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(Date.now());
-  const attention = attentionItems(snapshot, trucks, isToday);
+  const attention = [...attentionItems(snapshot, trucks, isToday), ...dueItems.filter(d => d.status === 'due').map(d => ({ key: `due:${d.key}`, kind: 'service' as const, truckId: d.truckId, truck: d.truck, title: `${d.serviceType} due`, detail: dueDetail(d) }))];
+  const jobs = new Map(trucks.map(t => [t.id, appointments ? truckJobs(appointments, t.id, isToday, now) : null]));
+  const stops = appointments ? [...jobs.values()].reduce((a, j) => ({ total: a.total + (j?.total || 0), done: a.done + (j?.done || 0) }), { total: 0, done: 0 }) : null;
+  const soon = dueItems.filter(d => d.status === 'soon');
   const toggle = () => { const next = !mapOpen; setMapOpen(next); try { localStorage.setItem(mapKey, String(next)); } catch { /* optional preference */ } };
   const tiles: Array<[string, React.ReactNode, string, (() => void) | undefined]> = [
     ['Driving now', isToday ? counts.moving : '—', isToday ? `${counts.idle} idling · ${counts.parked} parked` : 'Live status shows for today', undefined],
     ['No GPS', isToday ? counts.offline : '—', 'Stale, offline or unavailable', undefined],
     ['Out of service', repairsKnown ? counts.out : '—', 'Active repairs', () => onFilter('stop')],
     ['Needs attention', attention.length, `${attention.filter(a => a.kind === 'out_of_service').length} critical`, undefined],
-    ['Jobs', num(totals.jobs), `${money(totals.revenue)} revenue`, undefined],
+    stops ? ['Stops done', `${stops.done} / ${stops.total}`, `${money(totals.revenue)} revenue`, undefined] : ['Jobs', num(totals.jobs), `${money(totals.revenue)} revenue`, undefined],
     ['Miles driven', num(totals.miles), totals.idleMinutes == null ? 'Idle time not recorded' : `${num(totals.idleMinutes)} idle min`, undefined],
   ];
   return <div className="clb">
@@ -52,6 +67,8 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
             <small className="clb-where">{t.operatingStatus}{typeof t.speed === 'number' && t.speed > 0 ? ` · ${Math.round(t.speed)} mph` : ''}{t.driver && t.driver !== '—' ? ` · ${t.driver}` : ''}</small>
             <Level label="Fuel" percent={t.fuel ? t.fuel.percent : null} />
             <Level label="Load" percent={t.loadNeedsVerification ? null : t.loadPercent} />
+            {jobs.get(t.id)?.total ? <div className="clb-jobs"><div className="clb-level" role="img" aria-label={`${jobs.get(t.id)!.done} of ${jobs.get(t.id)!.total} stops done`}><span>Stops</span><i><b style={{ width: `${(100 * jobs.get(t.id)!.done) / jobs.get(t.id)!.total}%` }} /></i><em>{jobs.get(t.id)!.done}/{jobs.get(t.id)!.total}</em></div>
+              <small>{jobs.get(t.id)!.presence === 'on_site' ? 'On site · ' : jobs.get(t.id)!.presence === 'at_job' ? 'At job · ' : 'Next · '}{jobs.get(t.id)!.nextLabel || 'No open stops'}</small></div> : null}
             <small className="clb-foot">{t.jobs == null ? 'Jobs —' : `${t.jobs} ${t.jobs === 1 ? 'job' : 'jobs'}`} · {t.miles == null ? '— mi' : `${Math.round(t.miles)} mi`} · {t.nextService || 'Service not set'}</small>
           </button>;
         })}</div>
@@ -66,6 +83,10 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
         <Button variant="outline" size="sm" onClick={() => onView?.('service')}>Open service planner <ArrowRight size={13} /></Button>
       </aside>
     </div>
+    {soon.length > 0 && <section className="convoy-dash-panel clb-soon" aria-labelledby="clb-soon-title">
+      <header><h2 id="clb-soon-title">Service due soon</h2><small>Within 30 days or 1,000 miles</small></header>
+      <ul>{soon.map(d => <li key={d.key}><button onClick={() => { onTruck(d.truckId); onView?.('service'); }}><strong>{d.truck}</strong><span>{d.serviceType}</span><small>{dueDetail(d)}</small><ArrowRight size={12} /></button></li>)}</ul>
+    </section>}
     <section className="convoy-dash-panel clb-map" aria-labelledby="clb-map-title">
       <header><h2 id="clb-map-title">Trucks and appointments map</h2>
         <Button variant="outline" size="sm" aria-expanded={mapOpen} onClick={toggle}>{mapOpen ? 'Hide map' : 'Show map'}{mapOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button></header>

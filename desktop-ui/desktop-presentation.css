@@ -312,7 +312,7 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .ops-app.ops-live:has(.workspace-rail) .ops-sidebar { width:80px; padding:14px 8px 12px; background:#f8fafc; overflow:visible; z-index:100; }
   .ops-app.ops-live:has(.workspace-rail) .brand-lockup { display:flex !important; justify-content:center; padding:0 0 16px; border-bottom:0; }
   .workspace-rail-brand { display:block; width:40px; height:40px; border-radius:10px; box-shadow:0 2px 6px rgb(20 40 60 / 10%); }
-  .ops-app.ops-live .page-rail.workspace-rail { padding:0; overflow:visible; }
+  .ops-app.ops-live .page-rail.workspace-rail { display:flex; flex-direction:column; justify-content:safe center; padding:0; overflow:visible; }
   .workspace-rail-group { position:relative; margin:0 -8px 6px 0; padding-right:8px; }
   .workspace-rail-link { display:flex; width:100%; border:0; background:transparent; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:66px; padding:6px 2px; color:var(--oc-text-primary); border-radius:9px; text-decoration:none; font-size:11px; font-weight:600; line-height:14px; }
   .workspace-rail-link svg { width:20px; height:20px; stroke-width:1.7; }

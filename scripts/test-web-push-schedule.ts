@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {pushSchedule,scheduleCounterpart,schedulePushMessage,type PushSchedule,type SchedulePeer} from '../lib/web-push-schedule';
+import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type PushSchedule,type SchedulePeer} from '../lib/web-push-schedule';
 const before:PushSchedule={date:'2026-10-21',time:'04:00 PM - 05:00 PM',label:'JK123 — Synthetic Customer',status:'Confirmed',truck:'Truck #9',type:'Estimate'};
 const after:PushSchedule={...before,date:'2026-10-22',time:'12:00 PM - 01:00 PM',truck:'Truck #4'};
 const body=`Date: ${after.date}\nTime: ${after.time} (Central)\nJob: JK123\nCustomer: Synthetic Customer\nTruck: #4\nStatus: Confirmed\nType: Estimate\nAddress: Synthetic street`;
@@ -40,3 +40,9 @@ assert.equal(schedulePushMessage({previous:{...after,time:'12:00 PM'},current:af
 assert.equal(schedulePushMessage({previous:after,current:{...after,time:'12:00 PM - 02:00 PM'},fallback}).title,'Rescheduled','verified end-time change');
 for(const time of ['25:00','12:99 PM','0 PM','Unknown','Not verified - 1 PM'])assert.equal(schedulePushMessage({previous:before,current:{...after,time},fallback}).title,'New appointment','unverified destination timing');
 console.log('PASS: verified reschedules in both orders, same-day change, cancellation/removal, missing time, stale/future/ambiguous evidence, reinstatement and legacy metadata.');
+
+const completion={title:'Truck #3',body:'Job Completed\nJK123 — Synthetic Customer\n1/12 load\n$200.00\nBilled'};
+assert.deepEqual(schedulePushMessage({current:{...after,status:'Completed Duration: 60 min(s)'},previous:before,fallback:completion}),completion);
+assert.equal(scheduleCounterpart([row({...after,status:'Completed'},true)],at,true),null);
+assert.equal(schedulePath(after),`/jobs?date=${after.date}#job-${after.label.split(' — ')[0].toLowerCase()}`);
+assert.equal(schedulePath({...after,label:'internal-123 — Synthetic Customer'}),undefined,'internal IDs are never prefixed JK');

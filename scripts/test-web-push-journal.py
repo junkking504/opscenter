@@ -184,7 +184,7 @@ class JournalTest(unittest.TestCase):
                     payload = {"date": day, "collection_timestamp": at, "pagination_completed": True,
                                "validation_status": "passed", "alerts": [row]}
                     item = journal.project(Path(f"linxup_alerts_{day}.json"), payload)[0]["observations"][0]
-                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"Event: {action}\nLocation: Warehouse\nDate: {day}\nTime: 5:21 PM (Central)"})
+                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action}{' at' if kind == 'geofence_entered' else ''} Warehouse: 5:21 PM\nDate: {day} (Central)"})
                     expected = journal.observation(row["alert_id"], {key: row.get(key) for key in
                         ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
                     self.assertEqual({key: item[key] for key in expected}, expected)
@@ -235,13 +235,162 @@ class JournalTest(unittest.TestCase):
         self.assertIn('Changed truck: #9 → #4', notification['body'])
         self.assertNotIn('Truck#', notification['body'])
 
+    def test_completion_detail_template_and_unchanged_event_facts(self):
+        payload = schedule()
+        row = payload['appointments'][0]
+        row.update(job_id='JK12345', customer_name='Synthetic Customer', appointment_type='Job', truck='Truck# 4')
+        self.publish(payload)
+        before = self.entries()[-1]['batches'][0]['observations'][0]
+        row.update(job_status='Completed Duration: 60 min(s)', truck='Truck# 3', revenue='$200.00', payment_type='Billed',
+                   closeout={'loadSize': '.5 (1/12)', 'loadQuantity': '', 'total': '$200.00', 'balance': '0.00',
+                             'payments': [{'method': 'Billed', 'amount': '$200.00', 'detail': 'private reference'}]})
+        self.publish(payload)
+        item = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(item['notification']['title'], 'Truck #3')
+        self.assertEqual(item['notification']['body'], 'Job Completed\nJK12345 — Synthetic Customer\n1/12 load\n$200.00\nBilled')
+        self.assertEqual(item['identity'], before['identity'])
+        for unwanted in ('paid', 'collected', 'Duration', 'private reference', 'synthetic-job'):
+            self.assertNotIn(unwanted, item['notification']['body'])
+        revision = item['revision']
+        row['closeout']['loadSize'] = '1 (1/6)'
+        self.publish(payload)
+        detail_update = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(detail_update['revision'], revision, 'display-only charge detail does not create another business event')
+        self.assertTrue(detail_update['notification']['body'].startswith('Completed Job Updated\n'))
+        row['job_status'] = 'Completed Duration: 61 min(s)'
+        self.publish(payload)
+        self.assertTrue(self.entries()[-1]['batches'][0]['observations'][0]['notification']['body'].startswith('Completed Job Updated\n'))
+
+    def test_completed_estimate_unknown_load_price_and_payment(self):
+        payload = schedule(); row = payload['appointments'][0]
+        row.update(appointment_type='Job', truck='3')
+        self.publish(payload)
+        row.update(job_status='Completed Duration: 60 min(s)', appointment_type='Estimate', revenue='$1,287.50',
+                   closeout={'loadSize':'2', 'loadQuantity':'2', 'total':'$1,287.50', 'payments':[]})
+        self.publish(payload)
+        item = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(item['notification']['body'], 'Estimate Completed\nsynthetic-job\nCrew: Not verified\nLoad: Not verified (size not verified)\nLabor: Not verified\nTotal: $1,287.50\nArrival: Not verified\nDeparture: Not verified\nPhotos: Not verified')
+        self.assertNotIn('JKsynthetic-job', item['notification']['body'])
+        self.assertEqual(journal.completion_details({'closeout': {'loadSize':'3 (1/2)', 'loadQuantity':'2', 'total':'$100.00', 'payments':[{'method':'Credit Card','amount':'$100.00','detail':'private'}]}}),
+                         {'load':'2 full loads + 1/2 load','price':'$100.00','payment':'Credit Card'})
+        self.assertEqual(journal.completion_details({'revenue':'$200.00','closeout':{'total':'$100.00'}})['price'], '')
+        for flag in ('detail_collection_error', 'closeout_refresh_pending'):
+            self.assertEqual(journal.completion_details({flag:True,'closeout':{'loadSize':'1 (1/6)','total':'$100.00'}}), {'load':'','price':'','payment':''})
+        self.assertEqual(journal.completion_details({'closeout_signature':[], 'closeout':{'loadSize':'1 (1/6)','total':'$100.00'}})['load'], '')
+        self.assertEqual(journal.completion_details({'closeout':{'payments':[{'method':'Cash'},{'method':'Billed'}]}})['payment'], 'Billed')
+
+    def test_estimate_template_from_verified_closeout_and_visits(self):
+        payload = schedule(); row = payload['appointments'][0]
+        row.update(job_id='JK12345', customer_name='Synthetic Customer', appointment_type='Estimate', truck='Truck# 9',
+                   crew_assignment_status='verified', driver_name='First, Alex', navigator_name='Second, Sam')
+        self.publish(payload)
+        row.update(job_status='Completed', revenue='$583.00', photos=['/system/aspnet/local/media/fixture.jpg'],
+                   closeout={'loadSize':'3 (1/2)','loadPrice':'508.00','total':'583.00','payments':[],
+                             'otherCharges':[{'name':'Labor','total':'75.00'}]})
+        intervals=[{'arrival':'2026-01-15T22:34:13Z','departure':'2026-01-15T22:47:27Z','duration':'13.2 min'}]
+        with patch.object(journal, 'confirmed_intervals', return_value=intervals):
+            self.publish(payload)
+        item = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(item['notification'], {'title':'Truck #9',
+          'body':'Estimate Completed\nJK12345 — Synthetic Customer\nAlex First  |  Sam Second\nLoad: $508.00 (1/2)\nLabor: $75.00\nTotal: $583.00\nArrival: 4:34 PM\nDeparture: 4:47 PM\nPhotos: 1 available in OpsCenter',
+          'schedule':item['notification']['schedule']})
+        self.assertNotIn('fixture.jpg', json.dumps(item))
+        self.assertNotIn('Paid', item['notification']['body'])
+        self.assertEqual(journal.photo_count({'photos':['https://evil.test/private.jpg','/system/aspnet/local/media/a.jpg','/system/aspnet/local/media/a.jpg']}), 1)
+        self.assertIsNone(journal.photo_count({'photos':[], 'detail_collection_error':'missing'}))
+        for alias in ('name', 'label', 'description'):
+            row['closeout']['otherCharges']=[{alias:'Labor','total':'75.00'}]
+            self.assertEqual(journal.completion_details(row)['labor'], '$75.00')
+        row['closeout']['otherCharges']=[{'total':'75.00'}]
+        self.assertEqual(journal.completion_details(row)['labor'], '')
+        row['closeout']['otherCharges']=[{'name':'Card surcharge','total':'37.50'}]
+        row['closeout']['discount']='10.00'
+        self.assertEqual(journal.completion_details(row)['charges'], ['Card surcharge: $37.50','Discount: $10.00'])
+        row['closeout']['otherCharges']=[{'name':'Labor','total':'invalid'}]
+        self.assertEqual(journal.completion_details(row)['labor'], '')
+
+    def test_confirmed_visit_display_rejects_ambiguous_or_invented_times(self):
+        day=(datetime.now(journal.ZoneInfo('America/Chicago'))-timedelta(days=1)).date().isoformat()
+        start=day+'T16:34:13-05:00'; end=day+'T16:47:27-05:00'
+        row={'appt_id':'fixture','job_id':'JK12345','truck':'Truck# 9'}
+        visit={'appointment_id':'fixture','jk_number':'JK12345','truck_number':'9','match_confidence':'confirmed',
+               'visit_intervals':[{'arrival':start,'departure':end,'departure_confirmed':True,'onsite_minutes':13.23}]}
+        get=lambda visits:journal.confirmed_intervals(row,visits,day,STAMP)
+        self.assertEqual(get([visit]),[{'arrival':start,'departure':end,'duration':'13.2 min'}])
+        for field in ('pass_by_only','operational_confirmation','conflict','supersededAt','departureBounds'):
+            self.assertEqual(get([{**visit,field:True}]),[])
+        self.assertEqual(get([{**visit,'jk_number':'JK999'}]),[])
+        self.assertEqual(get([{**visit,'appointment_id':'sibling'}]),[])
+        self.assertEqual(get([{**visit,'truck_number':'4'}]),[])
+        unconfirmed={**visit,'visit_intervals':[{**visit['visit_intervals'][0],'departure_confirmed':False}]}
+        self.assertEqual(get([unconfirmed])[0]['departure'],'')
+        self.assertEqual(get([unconfirmed,visit]),get([visit]),'stale open copy cannot erase confirmed closure')
+        missing={**visit,'visit_intervals':[{'arrival':start,'departure':end}]}
+        self.assertEqual(get([missing])[0]['duration'],'','never derive GPS minutes from timestamp subtraction')
+        conflict={**visit,'visit_intervals':[{'arrival':start,'departure':day+'T17:00:00-05:00'}]}
+        self.assertEqual(get([visit,conflict]),[])
+        overlap={**visit,'visit_intervals':[{'arrival':day+'T16:35:00-05:00','departure':end}]}
+        self.assertEqual(get([visit,overlap]),[])
+        fallback={**visit,'visit_intervals':[],'first_arrival':start,'final_departure':end,'visit_count':2}
+        self.assertEqual(get([fallback]),[])
+        fallback['visit_count']=1
+        self.assertEqual(get([fallback])[0]['departure'],end)
+
+    def test_related_snapshot_is_bounded_fresh_local_evidence_only(self):
+        day=datetime.now(journal.ZoneInfo('America/Chicago')).date().isoformat()
+        root=self.root/'history';path=root/'junkware'/f'junkware_{day}_raw.json'
+        target=root/'linxup'/'appointment_visits'/f'linxup_appointment_visits_{day}.json'
+        target.parent.mkdir(parents=True)
+        payload={'date':day,'collection_timestamp':STAMP,'visits':[]}
+        target.write_text(json.dumps(payload))
+        self.assertEqual(journal.related_snapshot(path,day,'visits'),payload)
+        payload['collection_timestamp']=(datetime.now(timezone.utc)-timedelta(minutes=20)).isoformat()
+        target.write_text(json.dumps(payload)); self.assertIsNone(journal.related_snapshot(path,day,'visits'))
+        target.write_text('invalid'); self.assertIsNone(journal.related_snapshot(path,day,'visits'))
+        target.unlink();target.symlink_to(self.root/'missing');self.assertIsNone(journal.related_snapshot(path,day,'visits'))
+
+    def test_full_load_quantity_is_added_to_partial_not_multiplied(self):
+        for size, quantity, expected in [('3 (1/2)','0','1/2 load'),('3 (1/2)','2','2 full loads + 1/2 load'),
+             ('','2','2 full loads'),('Bag(s)','3','3 bags'),('Dry Run','2','Dry Run'),('2','2','')]:
+            self.assertEqual(journal.completion_details({'closeout':{'loadSize':size,'loadQuantity':quantity}})['load'],expected)
+        details=journal.completion_details({'appointment_type':'Estimate','closeout':{'loadSize':'3 (1/2)','loadQuantity':'0','loadPrice':'100','bedloadSize':'1 (1/4)','bedloadQuantity':'0','bedloadPrice':'50'}})
+        self.assertEqual(details['estimateLoad'],'$150.00 (1/2 load + Bedload: 1/4 bedload)')
+
+    def test_clock_out_uses_same_final_current_pay_record(self):
+        day = (datetime.now(journal.ZoneInfo('America/Chicago')) - timedelta(days=1)).date().isoformat()
+        row = {'name':'Synthetic Person','clock_out':'06:45 PM','pay_is_final':True,'is_salary':False,'payroll_as_of':STAMP,
+               'total_pay':196, 'hourly_pay':156, 'tip':0, 'total_bonus':40, 'supplemental_daily_pay':0}
+        payload = {'date':day,'payroll_as_of':STAMP,'source_freshness':{'sources':{'junkware_employees':{'status':'current','as_of':STAMP}},
+                   'metrics':{'payroll':{'status':'current','as_of':STAMP}}},'payroll_records':[row]}
+        path = Path(f'daily_metrics_{day}.json')
+        first = journal.project(path,payload)[0]['observations'][0]
+        self.assertEqual(first['notification'], {'title':'Krewe','body':'Synthetic Person clocked out: 6:45 PM\nTotal pay: $196.00\nHourly pay: $156.00\nTips: $0.00\nBonuses: $40.00'})
+        self.assertEqual(first['revision'], journal.observation(['synthetic person','out'],'06:45 PM')['revision'])
+        row['pay_is_final'] = False
+        unknown = journal.project(path,payload)[0]['observations'][0]
+        self.assertEqual(unknown['revision'],first['revision'],'pay-only changes never duplicate clock-out')
+        self.assertIn('Total pay: Not verified', unknown['notification']['body'])
+        self.assertNotIn('$196.00', unknown['notification']['body'])
+        row['pay_is_final'] = True; row['tip'] = None
+        self.assertIn('Tips: Not verified', journal.project(path,payload)[0]['observations'][0]['notification']['body'])
+        row['tip'] = 0; row['total_pay'] = 999
+        self.assertIn('Total pay: Not verified', journal.project(path,payload)[0]['observations'][0]['notification']['body'])
+        row['total_pay'] = 196; row['employee_total_earnings'] = 206; row['supplemental_daily_pay'] = 10
+        body = journal.project(path,payload)[0]['observations'][0]['notification']['body']
+        self.assertIn('Total pay: $206.00',body);self.assertTrue(body.endswith('Supplemental pay: $10.00'))
+        payload['source_freshness']['metrics']['payroll']['status'] = 'stale'
+        self.assertIn('Total pay: Not verified',journal.project(path,payload)[0]['observations'][0]['notification']['body'])
+        payload['source_freshness']['metrics']['payroll']['status'] = 'current'
+        row['payroll_as_of'] = day+'T12:00:00-05:00'
+        self.assertIn('Total pay: Not verified',journal.project(path,payload)[0]['observations'][0]['notification']['body'])
+
     def test_clock_and_native_fleet_contracts(self):
         metrics = {"date": DAY, "source_freshness": {"sources": {"junkware_employees": {"status": "current", "as_of": STAMP}}},
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}
         batch = journal.project(Path(f"daily_metrics_{DAY}.json"), metrics)[0]
         self.assertEqual(len(batch["observations"]), 2)
-        self.assertEqual(batch["observations"][0]["notification"], {"title": "Crew", "body": f"Crew: Synthetic Person\nEvent: Clocked in\nDate: {DAY}\nTime: 08:00 (Central)"})
-        self.assertIn("Event: Clocked out", batch["observations"][1]["notification"]["body"])
+        self.assertEqual(batch["observations"][0]["notification"], {"title": "Krewe", "body": "Synthetic Person clocked in: 8:00 AM"})
+        self.assertEqual(batch["observations"][1]["notification"]["body"], "Synthetic Person clocked out: 9:00 AM\nTotal pay: Not verified\nHourly pay: Not verified\nTips: Not verified\nBonuses: Not verified")
         self.assertNotIn("12345", json.dumps(batch))
         metrics["source_freshness"]["sources"]["junkware_employees"]["status"] = "stale"
         self.assertEqual(journal.project(Path(f"daily_metrics_{DAY}.json"), metrics), [])

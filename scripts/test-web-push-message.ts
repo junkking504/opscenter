@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {sendAppleWakeup} from '../lib/web-push-transport';
 import {createECDH,createDecipheriv,createHmac,randomBytes} from 'node:crypto';
-import {encryptPushMessage,pushMessage} from '../lib/web-push-message';
+import {encryptPushMessage,pushMessage,pushPath} from '../lib/web-push-message';
 const ua=createECDH('prime256v1');ua.generateKeys();const auth=randomBytes(16),endpoint='https://web.push.apple.com/Q'+'x'.repeat(64);
-const envelope={subscription:{endpoint,keys:{p256dh:ua.getPublicKey().toString('base64url'),auth:auth.toString('base64url')}},message:{title:'Schedule updated',body:'Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\nTruck: #4',eventId:'a'.repeat(64)}};
+const envelope={subscription:{endpoint,keys:{p256dh:ua.getPublicKey().toString('base64url'),auth:auth.toString('base64url')}},message:{title:'Schedule updated',body:'Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\nTruck: #4',eventId:'a'.repeat(64),path:'/jobs?date=2026-10-22#job-jk123'}};
 const encrypted=encryptPushMessage(envelope);
 // Independent HKDF extract/expand via HMAC; receiver derives from sender public
 // key, never from implementation internals. No provider or deployed key used.
@@ -29,7 +29,7 @@ assert.equal('schedule' in detailed,false,'private correlation context never ent
 assert.equal(pushMessage({title:'New\nappointment',body:'Line 1\r\nLine 2\u0000'})?.body,'Line 1\nLine 2');
 assert.equal(pushMessage({title:'New\nappointment',body:'Body'})?.title,'New appointment');
 for(const fragment of ['😀','"\n','é','字']){
- const bounded=pushMessage({title:'Truck #9',body:fragment.repeat(3000)})!;
+ const bounded=pushMessage({title:'Truck #9',body:fragment.repeat(3000),path:'/jobs?date=2026-10-22#job-jk123'})!;
  assert.ok(Buffer.byteLength(JSON.stringify(bounded))<=2800);
  assert.ok(bounded.body.endsWith('…'));
  assert.ok(!/[\uD800-\uDFFF]/u.test(bounded.body),'no isolated surrogate');
@@ -52,3 +52,9 @@ async function transport(){
  console.log('Encrypted HTTP body/header and exact encryption-destination checks passed with mocked transport.');
 }
 transport().catch(e=>{console.error(e);process.exitCode=1});
+
+assert.equal(pushPath('/jobs?date=2026-10-22#job-jk123'),'/jobs?date=2026-10-22#job-jk123');
+for(const path of ['https://evil.test/jobs','//evil.test','/jobs?date=2026-02-30#job-jk123','/jobs?date=2026-10-22#job-123','/jobs?date=2026-10-22#job-jk123&next=https://evil.test','/jobs?date=2026-10-22#job-jk123%0a','/jobs?date=2026-10-22#job-jk123\n','/api/private','/jobs?date=2026-10-22#job-jk'+'9'.repeat(13)]) {
+ assert.equal(pushPath(path),undefined);
+ assert.equal('path' in pushMessage({title:'Truck #9',body:'Estimate Completed',path})!,false);
+}

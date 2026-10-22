@@ -1,17 +1,25 @@
 import { createCipheriv, createECDH, hkdfSync, randomBytes } from 'node:crypto';
 import type { PushSubscriptionRecord } from './web-push-store';
-export type PushMessage={title:string;body:string;eventId?:string};
+export type PushMessage={title:string;body:string;eventId?:string;path?:string};
 export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecord};
+/** Only an existing authenticated job route, never a payload URL or media link. */
+export function pushPath(value:unknown):string|undefined {
+ if(typeof value!=='string')return undefined;
+ const match=value.match(/^\/jobs\?date=(\d{4}-\d{2}-\d{2})#job-jk[0-9]{1,12}$/);
+ if(!match)return undefined;
+ const date=new Date(match[1]+'T12:00:00Z');
+ return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===match[1]?value:undefined;
+}
 export function pushMessage(value:unknown):PushMessage|null {
  const v=value as Partial<PushMessage>|undefined;
  if(!v||typeof v.title!=='string'||typeof v.body!=='string'||!v.title.trim()||!v.body.trim())return null;
  const clean=(s:string,n:number,multiline=false)=>Array.from(s.replace(/\r\n/g,'\n').replace(multiline?/[\u0000-\u0009\u000b-\u001f\u007f]/g:/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,n).join('');
- const title=clean(v.title,100),body=Array.from(clean(v.body,1600,true));
+ const title=clean(v.title,100),body=Array.from(clean(v.body,1600,true)),path=pushPath(v.path);
  let clipped=Array.from(v.body).length>1600;
  // Bound the serialized UTF-8 bytes (including JSON escaping), leaving room
  // for eventId under the encrypted-message limit. Never split a code point.
- while(Buffer.byteLength(JSON.stringify({title,body:body.join('')+(clipped?'…':'')}))>2800){body.pop();clipped=true;}
- return {title,body:body.join('')+(clipped?'…':'')};
+ while(Buffer.byteLength(JSON.stringify({title,body:body.join('')+(clipped?'…':''),...(path?{path}:{})}))>2800){body.pop();clipped=true;}
+ return {title,body:body.join('')+(clipped?'…':''),...(path?{path}:{})};
 }
 /** RFC 8291 / RFC 8188 single-record aes128gcm. Fresh ephemeral key and salt. */
 export function encryptPushMessage(envelope:PushEnvelope):Buffer {

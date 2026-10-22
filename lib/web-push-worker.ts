@@ -1,4 +1,4 @@
-import {pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
+import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
 import { pushMessage, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
 import { pushRetirementCutoff } from './web-push-archive';
@@ -96,7 +96,9 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
             FROM opscenter_kernel.push_observations o JOIN opscenter_kernel.push_sources s ON s.scope=o.scope
             WHERE o.identity_hash=$1 AND o.scope<>$2 AND o.scope LIKE 'schedule:%' AND s.baseline_complete=true`,[change.identity,batch.scope])).rows;
           const peer=scheduleCounterpart(peers,batch.observedAt,!change.present);
-          notification=pushMessage(schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present}));
+          const message=schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present});
+          const destination=message.title==='Rescheduled'&&!change.present?peer:current||previousSchedule;
+          notification=pushMessage({...message,path:schedulePath(destination)});
         }
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
         await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope,notification_json) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope,notification?JSON.stringify(notification):null]);

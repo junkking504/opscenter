@@ -378,6 +378,18 @@ publish(370,371,status='Arrived')
  await publish(e,[item('unknown',newDate,''),item('format-only',newDate,'12:00PM – 1:00PM')]);
  assert.equal((await latest(e)).title,'Schedule updated');
  assert.equal((await p.query("SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=ANY($1::text[])",[[oldScope,newScope,a,b,c,e]])).rows[0].count,0);
+ assert.equal((await latest(newScope)).path,`/jobs?date=${newDate}#job-jk123`);
+ assert.equal((await latest(a)).path,`/jobs?date=${newDate}#job-jk123`,'removal-side reschedule opens verified destination');
+ const completionDate=formatDay(33),completionScope=`schedule:${completionDate}:market-352`;
+ const active=item('completed-fixture',completionDate);
+ await publish(completionScope,[active]);
+ const completed={...active,revision:'completed',notification:{title:'Truck #3',body:'Job Completed\nJK123 — Synthetic Customer\n1/12 load\n$200.00\nBilled',schedule:{...active.notification.schedule,status:'Completed Duration: 60 min(s)',time:'02:00 PM - 03:00 PM',type:'Job'}}};
+ await publish(completionScope,[completed]);
+ assert.deepEqual(await latest(completionScope),{title:'Truck #3',body:completed.notification.body,path:`/jobs?date=${completionDate}#job-jk123`},'semantic completion survives worker correlation and receives authenticated job link');
+ const eventCount=(await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_events WHERE source_scope=$1',[completionScope])).rows[0].count;
+ await publish(completionScope,[{...completed,notification:{...completed.notification,body:completed.notification.body.replace('1/12','1/6')}}]);
+ assert.equal((await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_events WHERE source_scope=$1',[completionScope])).rows[0].count,eventCount,'late display-only closeout details do not replay completion');
+ assert.equal((await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=$1',[completionScope])).rows[0].count,0);
  assert.equal(sends,beforeFormats,'formatting tests never invoke transport');
  console.log('PASS: isolated DB verified cross-date moves in both publication orders, same-day change, partial absence, cancellation/removal, unknown destination, retained details and no recipients/deliveries.');
  }

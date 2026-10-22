@@ -1,4 +1,4 @@
-import {pushMessage,type PushMessage} from './web-push-message';
+import {pushMessage,pushPath,type PushMessage} from './web-push-message';
 
 /** Private presentation metadata retained with an observation, never encrypted
  * into the wire payload. Identity still comes from the canonical appointment ID. */
@@ -10,8 +10,13 @@ export function pushSchedule(value:unknown):PushSchedule|null {
  for(const key of ['time','label','status','truck','type'] as const)if(typeof v[key]!=='string'||v[key]!.length>200)return null;
  return {date:v.date,time:v.time!,label:v.label!,status:v.status!,truck:v.truck!,type:v.type!};
 }
+export function schedulePath(schedule:PushSchedule|null|undefined):string|undefined {
+ const job=schedule?.label.split(' — ')[0];
+ return schedule&&job&&/^JK[0-9]{1,12}$/i.test(job)?pushPath(`/jobs?date=${schedule.date}#job-${job.toLowerCase()}`):undefined;
+}
 const cancelled=(s:PushSchedule)=>/^(cancelled|canceled)$/i.test(s.status);
 const removed=(s:PushSchedule)=>/^(removed|deleted)$/i.test(s.status);
+const completed=(s:PushSchedule)=>/^(completed|closed)\b/i.test(s.status);
 /** Parse only complete source clock labels; formatting changes are not moves.
  * Unknown/malformed timing cannot establish a destination. */
 function interval(value:string):number[]|null {
@@ -30,7 +35,7 @@ function interval(value:string):number[]|null {
 }
 const when=(s:PushSchedule)=>`${s.date}, ${s.time||'Time not verified'} (Central)`;
 function moved(a:PushSchedule,b:PushSchedule):boolean {
- if(cancelled(a)||cancelled(b)||removed(a)||removed(b))return false;
+ if(cancelled(a)||cancelled(b)||removed(a)||removed(b)||completed(a)||completed(b))return false;
  const before=interval(a.time),after=interval(b.time);
  if(!after)return false;
  return a.date!==b.date||Boolean(before&&(before[0]!==after[0]||
@@ -54,7 +59,7 @@ export function scheduleCounterpart(peers:SchedulePeer[],at:string,present:boole
  // Check uniqueness before choosing present/absent or status: contradictory
  // locations/statuses must never disappear merely because they are not wanted.
  const candidate=candidates.length===1?candidates[0]:null;
- return candidate&&candidate.schedule&&candidate.present===present&&!cancelled(candidate.schedule)&&!removed(candidate.schedule)?candidate.schedule:null;
+ return candidate&&candidate.schedule&&candidate.present===present&&!cancelled(candidate.schedule)&&!removed(candidate.schedule)&&!completed(candidate.schedule)?candidate.schedule:null;
 }
 export function schedulePushMessage(input:{current?:PushSchedule|null;previous?:PushSchedule|null;peer?:PushSchedule|null;fallback?:PushMessage|null;removed?:boolean}):PushMessage {
  const {current,previous,peer,fallback}=input;
@@ -71,6 +76,9 @@ export function schedulePushMessage(input:{current?:PushSchedule|null;previous?:
   return {title:'Schedule changed',body:lines.join('\n')};
  }
  if(current){
+  // The canonical producer formats semantic completion transitions. A changed
+  // time/truck at completion must not replace that meaning with Rescheduled.
+  if(completed(current)&&fallback)return fallback;
   if(cancelled(current))return {title:'Cancelled',body:fallback?.body||`${when(current)}\n${current.label}`};
   if(removed(current))return {title:'Removed from schedule',body:fallback?.body||`${when(current)}\n${current.label}`};
   const before=previous||peer;

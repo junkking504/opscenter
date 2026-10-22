@@ -49,13 +49,13 @@ then the verified JK job identifier (canonical appointment identity remains
 unchanged), customer, normalized truck, status/type, available address/phone,
 positive recorded job amount and verified crew. Estimate placeholders and empty
 end times are omitted. Fleet includes event, location, date and Central time;
-crew includes name, clock event, date and source time. Display-only metadata does
+crew includes name, clock event and source time, with verified final clock-out pay as described below. Display-only metadata does
 not create business transitions or alter audience/role checks. Slack formatting
 syntax is not sent. The separate Waypoint crew app's generic wake-up path is not
 part of these OpsCenter manager categories and is unchanged.
 
 The private observation `notification_json.schedule` context records verified
-date/time/status and labels, but encryption sends only title/body/eventId. The
+date/time/status and labels, but encryption sends only title/body/eventId and an optional strictly allowlisted job path. The
 worker correlates the same canonical appointment identity across schedule scopes.
 Migration 0012 adds a partial identity lookup index. A unique counterpart requires
 both its observation transition and latest source snapshot within 15 minutes of
@@ -79,7 +79,7 @@ populated by normal canonical publication; legacy entries remain conservative.
 
 The body preserves newlines through encryption and `showNotification`. Application
 limits are 100 title code points and 1,600 body code points plus a clipping ellipsis,
-with title/body JSON bounded to 2,800 UTF-8 bytes (including escapes). This leaves
+with title/body and optional job-path JSON bounded to 2,800 UTF-8 bytes (including escapes). This leaves
 space for the event ID beneath the existing 3,000-byte plaintext limit and
 4,096-byte encryption record. Tests independently decrypt and exercise the service
 worker in a VM, without sending or creating an OS notification.
@@ -91,8 +91,7 @@ long-press height. iOS/WebKit owns wrapping, truncation and app attribution.
 Passing multiline text proves payload support, not how many lines a particular
 handset shows. The inspected producer/renderer supplies no `from OpsCenter`
 subtitle; that separate attribution cannot be suppressed through these payload
-options. Opening the notification retains the existing authenticated OpsCenter
-landing page. Physical-device acceptance remains separate and unperformed.
+options. Opening defaults to authenticated Command, or the existing authenticated job page for a verified date/JK reference. Physical-device acceptance remains separate and unperformed.
 
 ## Device-specific trial gate
 
@@ -342,10 +341,9 @@ users consequently share device ownership. Signing out is not revocation.
 
 The owner explicitly requested detailed lock-screen alerts on October 21. Selected
 source descriptions are encrypted end-to-end to the verified subscription using
-RFC 8291 / RFC 8188 aes128gcm; no plaintext message is sent to Apple. The fixed
-same-origin link opens `/desktop?workspace=Command` through normal authentication.
+RFC 8291 / RFC 8188 aes128gcm; no plaintext message is sent to Apple. The default same-origin link opens `/desktop?workspace=Command`; a verified date/JK reference may open the allowlisted existing job route through normal authentication.
 The service worker has no fetch/cache handler, is served no-store and uses a
-shared tag with renotify. Actual Safari behavior is unverified.
+event-specific tag with renotify. Actual updated Safari presentation is unverified.
 
 Enrollment checks use only public VAPID configuration. The private key loader
 requires enabled Mission Control plus `OPSCENTER_PROCESS_ROLE=push-dispatcher`;
@@ -574,8 +572,7 @@ when the supervisor lease is absent.
 Schedule changes include appointment ID/customer label and the supported changed
 fields (status, time, truck and verified crew), with known before/after values.
 Crew alerts include the source employee name, clock-in/out and source time. Fleet
-alerts include the truck, entered/left geofence and local event time. No address,
-raw GPS track, payroll amount, financial record or whole source payload is added.
+alerts include the truck, entered/left geofence and local event time. This earlier preparation was superseded by the explicitly requested completion/pay and appointment-detail presentation below; whole source records and raw GPS tracks remain excluded.
 
 Selected bounded display metadata now lives in the private journal/state and
 notification/observation tables under existing retention (events retain 14 days; observation/journal scope
@@ -591,7 +588,7 @@ keys. Payloads are bounded, authenticated and encrypted. Built-in Node crypto
 implements RFC 8291 and RFC 8188, with independent receiver-side HMAC derivation,
 wrong-handset and tampering tests. No new dependency, provider, endpoint or paid
 usage is added. Messages have event-specific tags, so distinct changes retain
-distinct notifications. Clicks still open the fixed authenticated Command URL.
+distinct notifications. Clicks default to authenticated Command; verified schedule records may use the strictly allowlisted authenticated job path described below.
 
 The service worker immediately activates an updated installed version and claims
 clients, with no fetch/cache handler. The phone must revisit/reload OpsCenter to
@@ -605,3 +602,76 @@ The owner explicitly selected individual alerts for each supported change; bulk
 appointment edits can consequently produce multiple alerts. No coalescing or
 per-window batching is imposed. Local encryption validation failures are recorded
 as rejected/message_invalid, with the reservation retained and no retry.
+
+## Requested completion and clock-out hierarchy — October 21–22 preparation
+
+This local revision prepares display changes only. No production release, source
+mutation, provider call, test notification or recipient/access change was made.
+The all-alert catalog is a separate private task artifact; Slack-only and internal
+families are designs, not new manager-push subscriptions or emitters.
+
+Genuine transitions from known non-completed status use `Truck #N` with body
+`Job Completed`, verified JK/customer, source load, price and payment method on
+separate lines. Billed tender ends with exactly `Billed`; it never claims paid or
+collected. Already-completed revisions use `Completed Job Updated` (or Estimate).
+Internal appointment IDs are never converted into JK references by prefixing.
+Page/detail price conflicts and stale/failed closeout details remain unknown.
+Load quantity is full units plus the selected partial, as established by
+`closeout-load-price.ts`; bags and dry runs retain their distinct semantics, and
+unlabeled numeric option values never become guessed fractions.
+
+Estimate bodies use `Estimate Completed`, JK/customer, verified driver/navigator,
+Load (recorded load/bedload price and size), Labor, applicable recorded other charges/discount, Total, Arrival, Departure and
+Photos. Total is the source estimate, not paid revenue. Labor accepts the existing
+name/label/description aliases; unidentified or invalid labor evidence is unknown,
+not zero. GPS display uses a bounded read of the existing fresh local appointment
+visit snapshot at projection time, frozen before pending-spool retention. No new
+collection or polling is introduced. It requires date/internal ID/truck/JK match,
+confirmed non-pass-by timing, and excludes operational-only, conflicting,
+superseded, bounded or overlapping intervals. A stale open copy cannot erase a
+confirmed closure. Missing duration is never calculated into a GPS assertion.
+Photo count uses only existing allowed JunkWare media references; no media URL is
+persisted in the push payload or publicly shared.
+
+Clock events use title `Krewe`. Clock-out body is name/time, Total pay, Hourly pay,
+Tips and Bonuses, in that order. Pay must be final/current in the same published
+record with as-of evidence after clock-out. Unknown/provisional amounts remain
+`Not verified`, explicit zero remains currency zero, and inconsistent totals are
+not recalculated. Salary daily extras are not called total salary; applicable
+supplemental pay is a separate line. No payroll record is written or recomputed.
+
+Readiness does not change event identity: late closeout or payroll enrichment
+alone does not replay or replace an already delivered notice. The first event may
+therefore show unknown fields if its detailed source is not ready. Clock-out is
+not delayed or suppressed. A guaranteed later enriched notification needs a
+separately reviewed delivery/update policy, not a misleading completeness claim.
+
+Native facility alerts use compact action/location/time followed by service date
+and Central timezone. Existing confirmed customer on-site/departure notifications
+are a separate Slack family (`buildTruckVisitSlackNotifications`); they are not
+currently input to manager Web Push. Their requested layouts are in the catalog,
+without a new event bridge, cadence, bootstrap or routing change in this repair.
+
+Verified JK schedule records can open only `/jobs?date=YYYY-MM-DD#job-jkNUMBER`.
+Date and JK syntax are allowlisted during serialization and again in the service
+worker at click time. Internal IDs, unknown dates, arbitrary URLs/query strings
+and invalid paths fall back to authenticated Command. The optional path is inside
+the 2,800-byte serialized message budget. Authentication/roles remain unchanged;
+the service worker still has no fetch/cache handler. Sender event identities and
+all delivery gates are unchanged.
+
+There is one plain notification body, no custom expanded layout or forced line
+count. Safari/iOS does not support the notification image field in current
+[MDN compatibility data](https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/Notification.json).
+Use the verified photo count and authenticated job page instead of promising inline
+attachments. iOS may truncate earlier than our payload limit. Unit/VM/encryption
+tests are not physical-handset or long-press verification. The separate app
+attribution line is not supplied by this payload and has no API suppression option.
+
+Regression coverage includes semantic completion precedence, additive load units,
+billed/mixed tender, unknown/conflicting source detail, estimate fields and GPS
+exclusions, final/current versus unknown pay, privacy-safe photo counts, authenticated
+job-link allowlisting, encrypted round trips, VM clicks and zero-recipient database
+presentation cases. Existing journal baseline/recovery and dispatch tests remain
+in the required no-cost suites. No browser test was run under the headless/no-window
+restriction.

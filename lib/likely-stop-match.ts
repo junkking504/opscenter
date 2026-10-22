@@ -6,6 +6,8 @@ export type LikelyStop = {
   truck: string; arrival: string; departure: string | null; stopAddress: string;
   /** Why this stop was suggested; the match is never treated as confirmed. */
   reason: string;
+  /** Dwelled long enough and departed (or the job was closed out): safe to treat as the visit. */
+  confident: boolean;
 };
 type Point = {latitude: number; longitude: number};
 type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point} | null;
@@ -34,7 +36,8 @@ const chicagoMinutes = (stamp: number, day: string) => {
 /** Suggests the assigned truck's recorded GPS stop for an appointment whose
  * address could not be matched exactly (typo, unresolved geocode). Requires the
  * same street and locality, an exact or one-digit-off house number, and a stop
- * that begins near the booked window. Never confirms a visit. */
+ * that begins near the booked window. `confident` stops (dwell then departure, or
+ * closed out) are treated as the visit by the caller; others stay suggestions. */
 export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day: string): LikelyStop | null {
   if (!job.address || /cancel/i.test(job.status || '') || !/^Truck [1-9]\d*$/.test(job.truck) || !trips?.length) return null;
   const want = parts(job.address);
@@ -52,8 +55,12 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     const next = ordered[index + 1];
     const departure = next && Date.parse(next.departure) >= arrival ? next.departure : null;
     const exact = want.house === got.house;
-    return [{distance: Math.abs(start - job.appointmentStartMinutes!), stop: {truck: job.truck, arrival: trip.arrival, departure, stopAddress: trip.to.address,
-      reason: `${exact ? 'Same address' : `GPS stop at ${got.house} ${got.street.toLowerCase()} (booked ${want.house})`} · ${job.truck} · unconfirmed${meters !== null && meters <= NEAR_METERS ? ' · within 400 m of the map pin' : ''}`}}];
+    const closed = /complete|closed|paid/i.test(job.status || '');
+    const dwellMinutes = departure ? (Date.parse(departure) - arrival) / 60_000 : 0;
+    // Present for a while and left, or left after the job was closed out.
+    const confident = !!departure && (dwellMinutes >= 10 || closed && dwellMinutes >= 5);
+    return [{distance: Math.abs(start - job.appointmentStartMinutes!), stop: {confident, truck: job.truck, arrival: trip.arrival, departure, stopAddress: trip.to.address,
+      reason: `${exact ? 'Same address' : `GPS stop at ${got.house} ${got.street.toLowerCase()} (booked ${want.house})`} · ${job.truck} · ${confident ? 'matched by GPS dwell' : 'unconfirmed'}${meters !== null && meters <= NEAR_METERS ? ' · within 400 m of the map pin' : ''}`}}];
   });
   // Several different stops at this address cannot be told apart reliably.
   if (found.length > 1 && new Set(found.map(row => row.stop.stopAddress)).size > 1) return null;

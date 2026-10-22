@@ -14,7 +14,11 @@ const job = {status: 'Completed', truck: 'Truck 3', address: '8330 Cresson Dr, D
 const stop = likelyGpsStop(job, trips, day)!;
 assert.ok(stop, 'one-digit house typo on the same street and town is a likely stop');
 assert.equal(stop.arrival, z('16:05')); assert.equal(stop.departure, z('17:03'), 'departure is the next trip start');
-assert.match(stop.reason, /unconfirmed/);
+assert.equal(stop.confident, true, '58 min dwell then departure on a completed job is inferred');
+assert.match(stop.reason, /matched by GPS dwell/);
+const brief = likelyGpsStop(job, [trip('a', '15:30', '16:05', '8830 Cresson Dr, Denham Springs, LA 70726'), trip('b', '16:08', '17:25', 'Yard, Baton Rouge, LA')], day)!;
+assert.equal(brief.confident, false, '3 min stop is only a suggestion');
+assert.equal(likelyGpsStop(job, [trips[0]], day)!.confident, false, 'no departure yet stays a suggestion');
 assert.ok(likelyGpsStop({...job, address: '8380 Cresson Dr, Denham Springs, LA 70726'}, trips, day), 'transposed digits');
 assert.equal(likelyGpsStop({...job, address: '8720 Cresson Dr, Denham Springs, LA 70726'}, trips, day), null, 'two digits off is not a near match');
 assert.equal(likelyGpsStop({...job, address: '8330 Cresson Dr, Walker, LA 70785'}, trips, day), null, 'different town');
@@ -27,7 +31,7 @@ assert.ok(likelyGpsStop({...job, location: {latitude: 30.4603, longitude: -90.95
 assert.equal(likelyGpsStop(job, [...trips, trip('c', '16:20', '16:30', '8430 Cresson Dr, Denham Springs, LA 70726')], day), null, 'two different candidate stops are ambiguous');
 
 const appt = {recordId: `${day}:appointment:1`, status: 'Completed', truck: 'Truck 3', hasScheduledTime: true, appointmentStartMinutes: 660, appointmentEndMinutes: 720,
-  appointmentTime: '11:00 AM–12:00 PM', truckVisitGaps: [], likelyStop: stop} as unknown as ScheduleAppointment;
+  appointmentTime: '11:00 AM–12:00 PM', truckVisitGaps: [], likelyStop: {...stop, confident: false}} as unknown as ScheduleAppointment;
 const window = timelineWindow(appt, 'Truck 3') as {actual: boolean; likely?: boolean; start: number; end: number; label: string};
 assert.equal(window.likely, true); assert.equal(window.actual, true);
 assert.equal(window.start, 11 * 60 + 5); assert.equal(window.end, 12 * 60 + 3, 'block spans the GPS stop, not the booking');

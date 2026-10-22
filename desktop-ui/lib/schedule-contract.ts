@@ -87,7 +87,7 @@ export type ScheduleAppointment = {
   onsiteTime?: AppointmentOnsiteTime;
   recordedOnsiteTime?: AppointmentOnsiteTime;
   /** Unconfirmed near-match GPS stop awaiting review (see lib/likely-stop-match.ts). */
-  likelyStop?: { truck: string; arrival: string; departure: string | null; stopAddress: string; reason: string };
+  likelyStop?: { truck: string; arrival: string; departure: string | null; stopAddress: string; reason: string; confident: boolean };
   truckVisits?: ScheduleTruckVisit[];
   truckVisitGaps?: ScheduleTruckVisitGap[];
   truck: string;

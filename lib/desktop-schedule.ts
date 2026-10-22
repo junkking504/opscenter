@@ -96,15 +96,19 @@ export function readDesktopSchedule(date: string) {
     job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
     job.truckVisitGaps = scheduleTruckVisitGaps(job.truckVisits, tracked.visits);
   }
-  // Near misses (typo'd house number, unresolved pin) surface as a reviewable
-  // suggestion; they never create a confirmed visit or alter assignments.
+  // Near misses (typo'd house number, unresolved pin): a stop with dwell and
+  // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
   const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
   for (const job of appointments) {
     if (job.truckVisits?.length) continue;
     const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
     if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
     const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date);
-    if (likely) job.likelyStop = likely;
+    if (likely?.confident && likely.departure) {
+      // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
+      job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
+      job.hasVisit = true;
+    } else if (likely) job.likelyStop = likely;
   }
   const geofenceStops = scheduleOperationalStops(date, tracked.visits);
   const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {

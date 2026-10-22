@@ -2,13 +2,14 @@ import {pushMessage,pushPath,type PushMessage} from './web-push-message';
 
 /** Private presentation metadata retained with an observation, never encrypted
  * into the wire payload. Identity still comes from the canonical appointment ID. */
-export type PushSchedule = {date:string;time:string;label:string;status:string;truck:string;type:string;details?:string};
+export type PushSchedule = {date:string;time:string;label:string;status:string;truck:string;type:string;details?:string;changedFields?:string[]};
 export function pushSchedule(value:unknown):PushSchedule|null {
  const v=value as Partial<PushSchedule>|undefined;
  if(!v || typeof v.date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(v.date))return null;
  const date=new Date(v.date+'T12:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==v.date)return null;
  for(const key of ['time','label','status','truck','type'] as const)if(typeof v[key]!=='string'||v[key]!.length>200)return null;
- return {date:v.date,time:v.time!,label:v.label!,status:v.status!,truck:v.truck!,type:v.type!};
+ const changedFields=Array.isArray(v.changedFields)&&v.changedFields.length<=9&&v.changedFields.every(k=>['status','type','truck','time','end','driver','navigator','crew'].includes(k))?[...v.changedFields]:undefined;
+ return {date:v.date,time:v.time!,label:v.label!,status:v.status!,truck:v.truck!,type:v.type!,...(changedFields?{changedFields}:{})};
 }
 export function schedulePath(schedule:PushSchedule|null|undefined):string|undefined {
  const job=schedule?.label.split(' — ')[0];
@@ -33,6 +34,7 @@ function interval(value:string):number[]|null {
  }
  return times;
 }
+export {interval as scheduleInterval};
 const when=(s:PushSchedule)=>`${s.date}, ${s.time||'Time not verified'} (Central)`;
 function moved(a:PushSchedule,b:PushSchedule):boolean {
  if(cancelled(a)||cancelled(b)||removed(a)||removed(b)||completed(a)||completed(b))return false;

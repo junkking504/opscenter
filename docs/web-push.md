@@ -683,3 +683,24 @@ job-link allowlisting, encrypted round trips, VM clicks and zero-recipient datab
 presentation cases. Existing journal baseline/recovery and dispatch tests remain
 in the required no-cost suites. No browser test was run under the headless/no-window
 restriction.
+
+
+### Owner's own truck-move notices
+
+Optional `OPSCENTER_WEB_PUSH_SELF_MOVE_OWNER` is one exact authenticated owner ID,
+not a global category switch. Unset means unchanged delivery. Only that owner's
+manager-push delivery is omitted when the canonical changed fields are exactly
+truck, and one fresh verified Desktop move receipt matches actor, appointment,
+date, old/new truck and unchanged full time interval. Status/type/customer and
+other fact changes must also be unchanged. Events and observations are retained;
+other owners and Waypoint are unaffected. No payment, source or access change.
+
+Receipts must be complete before source observation and within 15 minutes. Missing,
+stale, ambiguous, malformed, failed, pending or unverified receipts leave delivery
+on. Legacy assignment and direct JunkWare edits cannot reliably identify the user;
+Waypoint manager device identities are not guessed to equal an owner account.
+Mixed truck/crew or time changes remain visible. Shared-login attribution identifies
+the account, not the physical person. No collector polling, delay or replay is added.
+The private receipt scan is bounded to 2,000 files and 64 KiB per recent file; failure
+or capacity uncertainty leaves notifications enabled. Configuration is a delivery
+preference, not an enrollment or role grant, and requires separate release approval.

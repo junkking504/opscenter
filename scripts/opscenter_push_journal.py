@@ -693,7 +693,7 @@ def select_batches(root, state, projections, owner, started_at, recorded_at):
                 if values.get("end") and not re.search(r"\s[-–—]\s", appointment_time):
                     appointment_time = f"{appointment_time or 'Start not verified'} - {values['end']}"
                 context = {"date": day, "time": appointment_time, "label": label,
-                           "status": values.get("status", ""), "truck": truck, "type": values.get("type", "")}
+                           "status": values.get("status", ""), "truck": truck, "type": values.get("type", ""), "changedFields": changed}
                 job, _, customer = label.partition(" — ")
                 details = [f"Date: {day}", f"Time: {appointment_time or 'Not verified'} (Central)", f"Job: {job}"]
                 if customer:

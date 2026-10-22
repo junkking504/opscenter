@@ -233,6 +233,7 @@ class JournalTest(unittest.TestCase):
         notification = self.entries()[-1]['batches'][0]['observations'][0]['notification']
         self.assertEqual(notification['schedule']['time'], '12:00 PM - 02:00 PM')
         self.assertIn('Changed truck: #9 → #4', notification['body'])
+        self.assertEqual(set(notification['schedule']['changedFields']), {'truck', 'end'})
         self.assertNotIn('Truck#', notification['body'])
 
     def test_completion_detail_template_and_unchanged_event_facts(self):

@@ -1,3 +1,4 @@
+import {readSelfMoveOwner,type SelfMove} from './web-push-self-move';
 import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
 import { pushMessage, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
@@ -12,10 +13,10 @@ import { sendAppleNotification } from './web-push-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { supervisedPushDelivery } from './web-push-runtime';
 import { opsRoleCan } from './ops-roles';
-export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
+export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;selfMoveOwner?:(input:SelfMove)=>Promise<string|null>};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
-  return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
+  return {selfMoveOwner:readSelfMoveOwner,pool:getKernelPool(),enabled:pushEnabled,send:sendAppleNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
 }
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
@@ -89,6 +90,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
         const item=descriptions.get(change.identity);
         const old=previous.get(change.identity)?.notification_json;
         let notification=pushMessage(change.present?item?.notification:old);
+        let suppressOwner:string|null=null;
         if(batch.category==='schedule'){
           const current=pushSchedule(item?.notification?.schedule),previousSchedule=pushSchedule(old?.schedule);
           let peers:SchedulePeer[]=[];
@@ -99,6 +101,10 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           const message=schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present});
           const destination=message.title==='Rescheduled'&&!change.present?peer:current||previousSchedule;
           notification=pushMessage({...message,path:schedulePath(destination)});
+          if(message.title==='Schedule updated'&&change.present&&previous.get(change.identity)?.present&&item){
+            try {suppressOwner=await d.selfMoveOwner?.({identity:item.identity,observedAt:batch.observedAt,previous:previousSchedule,current})||null;}
+            catch { /* Uncertain attribution must not suppress delivery. */ }
+          }
         }
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
         await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope,notification_json) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope,notification?JSON.stringify(notification):null]);
@@ -106,7 +112,7 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           const devices=await client.query(`SELECT d.id,d.owner_id,d.subscription_json,t.subscription_hash FROM opscenter_kernel.push_devices d JOIN opscenter_kernel.push_trial t ON t.singleton=true AND t.device_id=d.id AND t.owner_id=d.owner_id
             WHERE $1=ANY(d.categories) AND d.revoked_at IS NULL AND d.expires_at>clock_timestamp() AND d.created_at<=$2
               AND t.stopped_at IS NULL AND ((t.ongoing_started_at IS NOT NULL AND NOT $3::boolean AND t.ongoing_started_at<=$2 AND t.ongoing_expires_at>clock_timestamp()) OR (t.ongoing_started_at IS NULL AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.attempts_used<3))`,[batch.category,batch.recordedAt||batch.observedAt,Boolean(batch.reconcile)]);
-          for(const device of devices.rows)if(d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
+          for(const device of devices.rows)if(device.owner_id!==suppressOwner&&d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
       const metadata=batch.observations.flatMap(item=>{const notification=pushMessage(item.notification),schedule=pushSchedule(item.notification?.schedule);return notification?[{identity:pushHash(item.identity),notification:{...notification,...(schedule?{schedule}:{})}}]:[];});

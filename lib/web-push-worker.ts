@@ -1,4 +1,4 @@
-import {readSelfMoveOwner,type SelfMove} from './web-push-self-move';
+import {truckMoveOwner,type TruckMove} from './web-push-truck-move';
 import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
 import { pushMessage, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
@@ -13,10 +13,10 @@ import { sendAppleNotification } from './web-push-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { supervisedPushDelivery } from './web-push-runtime';
 import { opsRoleCan } from './ops-roles';
-export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;selfMoveOwner?:(input:SelfMove)=>Promise<string|null>};
+export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;truckMoveOwner?:(input:TruckMove)=>string|null};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
-  return {selfMoveOwner:readSelfMoveOwner,pool:getKernelPool(),enabled:pushEnabled,send:sendAppleNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
+  return {truckMoveOwner:input=>truckMoveOwner(input,process.env.OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER),pool:getKernelPool(),enabled:pushEnabled,send:sendAppleNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
 }
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
@@ -101,9 +101,9 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
           const message=schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present});
           const destination=message.title==='Rescheduled'&&!change.present?peer:current||previousSchedule;
           notification=pushMessage({...message,path:schedulePath(destination)});
-          if(message.title==='Schedule updated'&&change.present&&previous.get(change.identity)?.present&&item){
-            try {suppressOwner=await d.selfMoveOwner?.({identity:item.identity,observedAt:batch.observedAt,previous:previousSchedule,current})||null;}
-            catch { /* Uncertain attribution must not suppress delivery. */ }
+          if(change.present&&previous.get(change.identity)?.present&&item){
+            try {suppressOwner=d.truckMoveOwner?.({identity:item.identity,observedAt:batch.observedAt,previous:previousSchedule,current})||null;}
+            catch { /* Invalid classification must not suppress delivery. */ }
           }
         }
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);

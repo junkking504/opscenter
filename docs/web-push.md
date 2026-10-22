@@ -688,22 +688,17 @@ in the required no-cost suites. No browser test was run under the headless/no-wi
 restriction.
 
 
-### Owner's own truck-move notices
+### Owner-specific truck-move notices
 
-Optional `OPSCENTER_WEB_PUSH_SELF_MOVE_OWNER` is one exact authenticated owner ID,
+Optional `OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER` is one exact authenticated owner ID,
 not a global category switch. Unset means unchanged delivery. Only that owner's
-manager-push delivery is omitted when the canonical changed fields are exactly
-truck, and one fresh verified Desktop move receipt matches actor, appointment,
-date, old/new truck and unchanged full time interval. Status/type/customer and
-other fact changes must also be unchanged. Events and observations are retained;
-other owners and Waypoint are unaffected. No payment, source or access change.
-
-Receipts must be complete before source observation and within 15 minutes. Missing,
-stale, ambiguous, malformed, failed, pending or unverified receipts leave delivery
-on. Legacy assignment and direct JunkWare edits cannot reliably identify the user;
-Waypoint manager device identities are not guessed to equal an owner account.
-Mixed truck/crew or time changes remain visible. Shared-login attribution identifies
-the account, not the physical person. No collector polling, delay or replay is added.
-The private receipt scan is bounded to 2,000 files and 64 KiB per recent file; failure
-or capacity uncertainty leaves notifications enabled. Configuration is a delivery
-preference, not an enrollment or role grant, and requires separate release approval.
+manager-push delivery is omitted when canonical changed fields are exactly truck,
+with unchanged date, time, status, type and customer label. This applies regardless
+of actor and includes existing appointments assigned from the virtual/unassigned
+truck and truck-only corrections to completed appointments. Genuine completion,
+cancellation, new/removal, crew changes and date/time reschedules remain visible.
+Events and observations are retained; other owners and Waypoint are unaffected.
+Unknown/legacy change metadata leaves delivery on. No actor inference, receipt
+lookup, collection, delay, replay, payment/source write or access change is added.
+The setting is a delivery preference, not an enrollment or role grant, and its
+production activation requires separate release approval.

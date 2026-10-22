@@ -1,4 +1,4 @@
-import {selfMoveOwner} from '../lib/web-push-self-move';
+import {truckMoveOwner} from '../lib/web-push-truck-move';
 import { controlPushTrial, trialFingerprint } from '../lib/web-push-trial';
 import { archivePushScopes,pushRetirementCutoff,createPushMaintenance } from '../lib/web-push-archive';
 import { createHash } from 'node:crypto';
@@ -394,26 +394,32 @@ publish(370,371,status='Arrived')
  assert.equal(sends,beforeFormats,'formatting tests never invoke transport');
  console.log('PASS: isolated DB verified cross-date moves in both publication orders, same-day change, partial absence, cancellation/removal, unknown destination, retained details and no recipients/deliveries.');
  }
- // Recipient-specific self-move suppression reserves no delivery for its author.
+ // Recipient-specific truck-move suppression is independent of actor.
  // Existing device fixtures and private test database only; never call transport.
  {
  await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
  await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '20 minutes'");
  const date=new Date(Date.now()+34*86400000).toISOString().slice(0,10),scope=`schedule:${date}:market-352`;
  const identity=createHash('sha256').update('"123"\n').digest('hex');let sequence=0;
- const at=new Date(Date.now()-1000).toISOString();let actor='owner';
- const receipt=(previousTruck:string,truck:string)=>({action:'move',status:'verified',date,recordId:`${date}:appointment:123`,actor,createdAt:new Date(Date.now()-30000).toISOString(),updatedAt:new Date(Date.now()-2000).toISOString(),sourceResult:{junkware:{appointmentId:'123',date,changed:true,previousTruck,truck,previousAppointmentStartMinutes:720,appointmentStartMinutes:720,appointmentEndMinutes:780,verifiedAt:new Date(Date.now()-3000).toISOString()}}});
- const deps={...d,selfMoveOwner:async(input:import('../lib/web-push-self-move').SelfMove)=>selfMoveOwner(input,[receipt(input.previous!.truck,input.current!.truck)],'owner')};
+ const at=new Date(Date.now()-1000).toISOString();
+ const deps={...d,truckMoveOwner:(input:import('../lib/web-push-truck-move').TruckMove)=>truckMoveOwner(input,'owner')};
  const publish=async(truck:string,time='12:00 PM - 01:00 PM',changedFields=['truck'])=>recordPushBatch({scope,category:'schedule',sequence:++sequence,complete:true,observedAt:at,observations:[{identity,revision:sequence,notification:{title:'Schedule updated',body:'Synthetic truck move',schedule:{date,time,truck,label:'JK123 — Synthetic',status:'Confirmed',type:'Job',changedFields}}}]},deps);
  const deliveries=async()=>Number((await p.query('SELECT count(*)::int AS n FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=$1',[scope])).rows[0].n);
  const sendsBefore=sends;
- await publish('Truck #4');await publish('Truck #9');assert.equal(await deliveries(),0,'author is not notified for own truck-only move');
- actor='other';await publish('Truck #3');assert.equal(await deliveries(),1,'same recipient keeps another actor move');
- actor='owner';await publish('Truck #6','01:00 PM - 02:00 PM',['truck','time']);assert.equal(await deliveries(),2,'own true time reschedule still delivers');
+ await publish('Truck #4');await publish('Truck #9');assert.equal(await deliveries(),0,'selected owner is not notified for a truck-only move');
+ await publish('Truck #3');assert.equal(await deliveries(),0,'actor-independent preference omits any truck-only move for selected owner');
+ // A different authorized recipient retains an opted-in author's own move.
+ await p.query("UPDATE opscenter_kernel.push_devices SET owner_id='other-recipient' WHERE id=$1",[device]);
+ await p.query("UPDATE opscenter_kernel.push_trial SET owner_id='other-recipient'");
+ deps.ownerAllowed=()=>true;await publish('Truck #4');assert.equal(await deliveries(),1,'another recipient still receives the owner-authored move');
+ await p.query("UPDATE opscenter_kernel.push_devices SET owner_id='owner' WHERE id=$1",[device]);
+ await p.query("UPDATE opscenter_kernel.push_trial SET owner_id='owner'");
+ deps.ownerAllowed=d.ownerAllowed;
+ await publish('Truck #6','01:00 PM - 02:00 PM',['truck','time']);assert.equal(await deliveries(),2,'own true time reschedule still delivers');
  await publish('Truck #4','01:00 PM - 02:00 PM',['truck','driver']);assert.equal(await deliveries(),3,'mixed crew change is not broadly suppressed');
- assert.equal((await p.query('SELECT count(*)::int AS n FROM opscenter_kernel.push_events WHERE source_scope=$1',[scope])).rows[0].n,5,'all events remain recorded');
+ assert.equal((await p.query('SELECT count(*)::int AS n FROM opscenter_kernel.push_events WHERE source_scope=$1',[scope])).rows[0].n,6,'all events remain recorded');
  assert.equal(sends,sendsBefore,'suppression tests never invoke even mocked transport');
- console.log('PASS: recipient-specific self-move reservation, other actor and mixed/time changes preserved, events retained and no transport.');
+ console.log('PASS: recipient-specific actor-independent truck-move reservation, other recipients and mixed/time changes preserved, events retained and no transport.');
  }
  console.log('PASS: retirement scan gate: 100 unchanged wakes, eligibility changes, old backlog and cutoff rollover.');
  console.log('PASS: fourteen-day Chicago boundary, pending-delivery and retained-file guards, orphan-gap retirement, compact replay floor, and file-complete/DB-rollback restart recovery.');

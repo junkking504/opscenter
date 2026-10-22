@@ -244,8 +244,12 @@ export function opsLoginIdentity(username: unknown): string {
   return configuredAccounts().some(account => account.active && account.username === normalized) ? `${normalized}@junk-king.com` : '';
 }
 
+export function isNamedOpsIdentity(identity: string | null): boolean {
+  return configuredAccounts().some(account => account.active && `${account.username}@junk-king.com` === identity);
+}
+
 export function isLocalOpsIdentity(identity: string | null): boolean {
-  return identity === opsAuthIdentity() || configuredAccounts().some(account => account.active && `${account.username}@junk-king.com` === identity);
+  return identity === opsAuthIdentity() || isNamedOpsIdentity(identity);
 }
 
 export function opsAuthIdentity(): string {

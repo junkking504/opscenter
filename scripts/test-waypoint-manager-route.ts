@@ -39,6 +39,8 @@ async function main(){
  assert.equal((await post(req('context',{truck:'Truck 9'}))).status,403);assert.equal(contexts,1,'Accounts cannot manufacture phone work context');
  assert.equal((await post(req('operations',{action:'note',values:{note:'account fixture'}}))).status,200);
  assert.equal((await post(req('phones',{action:'send-setup'}))).status,403);
+ allowed=true;const dualSnapshot=await (await get(req('schedule'))).json();assert.equal(dualSnapshot.phone.deviceId,phone.deviceId);
+ assert.equal((await post(req('context',{truck:'Truck 9'}))).status,200);assert.equal(contexts,2,'Named accounts retain approved phone work context');
  console.log('PASS: manager gateway rejects unauthorized/CSRF/unsafe actions before delegates, reads all trucks without mutations, and changes explicit crew context without transferring appointments. Synthetic handlers only.');
 }
 void main().catch(e=>{console.error(e);process.exitCode=1;});

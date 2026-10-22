@@ -23,7 +23,9 @@ const handlers:Record<WaypointManagerResource,{GET?:(r:Request)=>Promise<Respons
  {operations,creation,'creation-check':creationCheck,customers,order,edit,phones,dispatch};
 async function handle(request:Request){try{
  const account=await waypointAccount(request);
- const phone=account?null:requireWaypointManager(request),url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
+ let phone;
+ if(account){try{phone=requireWaypointManager(request);}catch{phone=null;}}else{phone=requireWaypointManager(request);}
+ const url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
  const body=request.method==='POST'?await crewPhoneBody(request,64_000):undefined;
  if(resource==='schedule' && request.method==='GET'){
   const date=url.searchParams.get('date') || chicagoDateKey();

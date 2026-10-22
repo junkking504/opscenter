@@ -15,10 +15,14 @@ device cookies on subsequent checks, including when Cloudflare Access is enabled
 Changes to environment configuration require the existing controlled runtime
 restart/deployment procedure. Back up the protected file before changing it.
 
-These credentials also sign into Waypoint at `/login?next=/crew-jobs`. Manager and
-administrator roles can open its manager portal; operator accounts cannot. Each
+These credentials also sign into Waypoint at `/login?next=/crew-jobs`. Named Manager and
+administrator roles can open its manager portal; operator accounts cannot. The shared login is not a Waypoint account. Each
 hostname retains separate cookies. Phone enrollment and crew closeout safeguards
 remain independent. See [Waypoint access](waypoint-manager-scope.md).
 
 Validation: `verify:named-accounts`, `verify:ops-auth`, `verify:role-access`, and `verify:waypoint-manager`, followed by authenticated
 read-only login/browser checks on both production hosts.
+
+Password rotation alone does not invalidate existing cookies. Keep a compromised
+account disabled; removing and later reusing its username can revive unexpired
+cookies. Use a new username when re-provisioning a compromised account.

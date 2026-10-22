@@ -12,7 +12,7 @@ type Step = 'connect' | 'setup' | 'inspection' | 'jobs';
 export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'inspections'; jobsHref?: string }) {
   const [manager,setManager]=useState(false),[managerView,setManagerView]=useState(false);
   const [accountManager,setAccountManager]=useState(false);
-  useEffect(()=>{if(jobsHref)return;let active=true;void Promise.all([fetch('/api/crew-jobs/session',{cache:'no-store'}).then(r=>r.json()),fetch('/api/crew-jobs/manager-session',{cache:'no-store'}).then(r=>r.json())]).then(([phone,account])=>{if(active){setManager(phone.manager===true);setAccountManager(account.manager===true);setManagerView(phone.manager===true||account.manager===true);}}).catch(()=>{});return()=>{active=false;};},[jobsHref]);
+  useEffect(()=>{if(jobsHref)return;let active=true;void Promise.all([fetch('/api/crew-jobs/session',{cache:'no-store'}).then(r=>r.json()).catch(()=>({})),fetch('/api/crew-jobs/manager-session',{cache:'no-store'}).then(r=>r.json()).catch(()=>({}))]).then(([phone,account])=>{if(active){setManager(phone.manager===true);setAccountManager(account.manager===true);setManagerView(phone.manager===true||account.manager===true);}}).catch(()=>{});return()=>{active=false;};},[jobsHref]);
   const [step, setStep] = useState<Step>('connect');
   const [test,setTest]=useState(false);
   return <div className={styles.app}>

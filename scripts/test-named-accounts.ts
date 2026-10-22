@@ -15,6 +15,8 @@ async function main(){
  for(const name of ['OPS_ACCESS_AUD','OPS_ACCESS_TEAM_DOMAIN','OPS_CREW_ACCESS_TEAM_DOMAIN'])delete process.env[name];
  process.env.OPS_AUTH_ACCOUNTS_JSON=JSON.stringify(rows);
  assert.equal(await verifyOpsCredentials('shared',password),true);
+ const {createAuthSessionCookieValue}=await import('../lib/auth');
+ assert.equal(await waypointAccount(new Request('https://waypoint.junk-king.app/api/crew-jobs/manager',{headers:{cookie:`${AUTH_SESSION_COOKIE}=${await createAuthSessionCookieValue('shared@junk-king.com')}`}})),null,'Shared credentials do not gain Waypoint account access');
  for(const row of rows){
   const request=new Request('https://waypoint.junk-king.app/api/auth/login',{method:'POST',headers:{'content-type':'application/json','user-agent':'named-test'},body:JSON.stringify({username:row.username.toUpperCase(),password,next:'/crew-jobs'})});
   const response=await login(request);assert.equal(response.status,303);assert.equal(response.headers.get('location'),'https://waypoint.junk-king.app/crew-jobs');

@@ -5,7 +5,7 @@ try {
  for(const width of [1440,390,320]) for(const reducedMotion of ['reduce','no-preference']) {
   const page=await browser.newPage({viewport:{width,height:800},reducedMotion});
   let requests=0;page.on('request',r=>{if(r.url().includes('/api/'))requests++;});
-  await page.goto(`${process.env.DRAWER_TEST_ORIGIN||'http://127.0.0.1:3189'}/tests/appointment-drawer-usability.html`);
+  await page.goto(`${process.env.DRAWER_TEST_ORIGIN||'http://127.0.0.1:3190'}/tests/appointment-drawer-usability.html`);
   await page.getByRole('button',{name:'Book Job',exact:true}).click();
   const booking=page.getByRole('region',{name:'Book job from estimate'});
   await booking.scrollIntoViewIfNeeded();

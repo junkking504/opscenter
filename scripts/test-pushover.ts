@@ -2,11 +2,51 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { sendManagerNotification, readPushoverApproval, reservePushover, type PushoverIO } from '../lib/pushover-transport';
+import { EventEmitter } from 'node:events';
+import type https from 'node:https';
+import { sendManagerNotification, readPushoverApproval, reservePushover, postPushover, type PushoverIO } from '../lib/pushover-transport';
 import { trialFingerprint } from '../lib/web-push-trial';
 import type { PushEnvelope } from '../lib/web-push-message';
 
 async function main(){
+ // Exercise the actual HTTP adapter with synthetic DNS and socket objects.
+ // No resolver or network request reaches the system.
+ let requests=0,mode='normal',status=200,raw='{"status":1}',clock=1000;
+ const request=((url:URL,options:https.RequestOptions,callback:(res:EventEmitter&{statusCode:number;destroy:()=>void})=>void)=>{
+  requests++;assert.equal(url.origin,'https://api.pushover.net');assert.equal(options.method,'POST');assert.equal(options.agent,false);
+  const pinned=options.lookup as unknown as (host:string,options:{all?:boolean},callback:(...args:unknown[])=>void)=>void;
+  pinned(url.hostname,{},(...args)=>assert.deepEqual(args,[null,'17.0.0.1',4]));
+  pinned(url.hostname,{all:true},(...args)=>assert.deepEqual(args,[null,[{address:'17.0.0.1',family:4}]]));
+  const req=new EventEmitter() as EventEmitter&{destroy:()=>void;end:(body:string)=>void};
+  req.destroy=()=>{req.emit('close');};
+  req.end=(body:string)=>{
+   assert.equal(new URLSearchParams(body).get('token'),'synthetic');
+   if(mode==='hang')return;
+   queueMicrotask(()=>{
+    if(mode==='error'){req.emit('error',Error('private provider error'));return;}
+    const res=new EventEmitter() as EventEmitter&{statusCode:number;destroy:()=>void};
+    res.statusCode=status;res.destroy=()=>req.emit('close');callback(res);
+    if(status>=300)return;
+    if(mode==='abort'){res.emit('aborted');return;}
+    res.emit('data',Buffer.from(raw));res.emit('end');req.emit('close');
+   });
+  };return req;
+ }) as unknown as typeof https.request;
+ const network={now:()=>clock,resolve:async(host:string)=>{assert.equal(host,'api.pushover.net');return [{address:'17.0.0.1',family:4}];},request};
+ const fields=new URLSearchParams({token:'synthetic'});
+ const post=(overrides:Partial<typeof network>={},authorize=async()=>true,deadline=2000)=>postPushover('/1/messages.json',fields,authorize,deadline,{...network,...overrides});
+ assert.deepEqual(await post(),{status:200,body:{status:1}});assert.equal(requests,1);
+ for(const address of ['127.0.0.1','10.0.0.1','169.254.169.254','::1'])await assert.rejects(post({resolve:async()=>[{address,family:4}]}));
+ assert.equal(requests,1);await assert.rejects(post({},async()=>false));assert.equal(requests,1);
+ let authChecks=0;await assert.rejects(post({},async()=>++authChecks===1));assert.equal(requests,1);
+ await assert.rejects(post({resolve:async()=>{clock=2001;return [{address:'17.0.0.1',family:4}];}}));assert.equal(requests,1);clock=1000;
+ for(const body of ['bad json','null','[]','x'.repeat(8193)]){raw=body;await assert.rejects(post());}
+ raw='{"status":1}';status=302;const beforeRedirect=requests;assert.equal((await post()).status,302);assert.equal(requests,beforeRedirect+1);status=200;
+ mode='error';await assert.rejects(post(),/transport_unknown/);
+ mode='abort';await assert.rejects(post(),/response_failed/);
+ mode='hang';await assert.rejects(post({},async()=>true,1005),/timeout/);mode='normal';
+ await assert.rejects(post({resolve:()=>new Promise(()=>{})},async()=>true,1005),/dns_timeout/);
+ await assert.rejects(post({},async()=>true,NaN));
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'ops-pushover-test-'));
  try{
   const now=Date.now(),file=path.join(root,'config.json');
@@ -42,7 +82,7 @@ async function main(){
   // Approval changes between validation and send prevent the message.
   reset();attempts=0;
   await assert.rejects(send({post:async()=>{attempts++;write({...config,enabled:false});return {status:200,body:{status:1,devices:['testphone']}};}}));assert.equal(attempts,1);
-  for(const patch of [{enabled:false},{expiresAt:new Date(now).toISOString()},{approvedAt:new Date(now+1).toISOString()},{maxAdditionalSpendMicros:1},{maxAttempts:10001},{content:'anything'},{device:'bad,device'},{provider:'other'}]){
+  for(const patch of [{enabled:false},{expiresAt:new Date(now).toISOString()},{approvedAt:new Date(now+1).toISOString()},{maxAdditionalSpendMicros:1},{maxAttempts:10001},{content:'anything'},{device:'bad,device'},{device:undefined},{device:123},{user:['y'.repeat(30)]},{token:['x'.repeat(30)]},{provider:'other'}]){
     reset();write({...config,...patch});await assert.rejects(send());
   }
   reset();fs.chmodSync(file,0o644);await assert.rejects(send());
@@ -53,7 +93,7 @@ async function main(){
   reservePushover(file,approved);reservePushover(file,approved);reservePushover(file,approved);
   assert.throws(()=>reservePushover(file,approved));assert.equal(JSON.parse(fs.readFileSync(file+'.ledger.json','utf8')).attempts,3);
   reset();fs.renameSync(file,file+'.real');fs.symlinkSync(file+'.real',file);await assert.rejects(send());
-  console.log('Pushover mocked checks passed: routing, recipient validation, payload, authorization, quota durability and no-retry/no-fallback. No live requests.');
+  console.log('Pushover mocked checks passed: real HTTP adapter lookup contracts, DNS pinning, response limits/timeouts, routing, recipient validation, payload, authorization, quota durability and no-retry/no-fallback. No live requests.');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

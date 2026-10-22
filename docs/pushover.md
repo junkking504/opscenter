@@ -8,7 +8,10 @@ one separately approved subscription fingerprint. Existing role, category, devic
 ongoing/trial expiry, canonical event ordering and durable no-retry claims remain
 authoritative. Waypoint is unchanged. The Home Screen subscription must remain
 enabled in OpsCenter: revoking it still stops this route. Unconfigured installations
-use Apple exactly as before. Other approved subscriptions still use Apple.
+use Apple exactly as before. With a valid configuration, other approved subscriptions
+still use Apple. An invalid, disabled or expired configured approval blocks every
+manager delivery until an operator repairs/removes it; the current manager
+authorization is a singleton. This fail-closed behavior does not affect Waypoint.
 
 Pushover receives existing alert titles and bodies (including customer/job details
 and any crew/pay details present), plus an authenticated OpsCenter link. This is a
@@ -19,6 +22,8 @@ Sound is omitted to honor the phone's Pushover default. Priority is normal; no
 quiet-hours bypass or repeating emergency messages. Tapping the notification
 opens Pushover; its link opens OpsCenter. Provider acceptance is not proof of
 handset delivery. Existing DB accepted/rejected/uncertain vocabulary is reused.
+Local configuration or preflight exceptions also produce an uncertain receipt;
+that status alone does not establish that Pushover received a request.
 
 ## Activation boundary
 
@@ -26,7 +31,12 @@ Before enabling: obtain explicit approval for `api.pushover.net`, existing alert
 content, recipient account/device, replacement rather than duplicate Apple delivery,
 up to 10,000 attempts over at most 30 days, and $0 additional API spend. Verify the
 account's free sending quota. No upgrades, license purchase, subscriptions or
-overages are performed. Each attempt makes at most one recipient-validation call
+overages are performed. The iPhone app itself requires a separate one-time
+platform license after its 30-day trial (currently $4.99); $0 API spend excludes
+that user-controlled purchase. A maximum of 10,000 attempts makes at most 20,000
+HTTP calls, but at most 10,000 message calls; validation is not a message. Other
+applications on the same account share the free message quota, so the provider
+may reject earlier. Confirm current pricing/quota at activation. Each attempt makes at most one recipient-validation call
 and one message call. Validation/failure/uncertain outcomes consume allowance.
 No retries or automatic renewals exist. Events recorded before approval are rejected.
 

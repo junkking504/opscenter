@@ -45,9 +45,9 @@ export function readPushoverApproval(file: string, now: number): {approval: Appr
     ||!Number.isInteger(a.maxAttempts)||a.maxAttempts<1||a.maxAttempts>10000
     ||!Number.isFinite(start)||!Number.isFinite(end)||start>now||end<=now||end-start>30*86400000
     ||typeof a.approvalReference!=='string'||!a.approvalReference.trim()
-    ||! /^[a-f0-9]{64}$/.test(a.subscriptionFingerprint)
-    ||! /^[a-zA-Z0-9]{30}$/.test(a.token)||! /^[a-zA-Z0-9]{30}$/.test(a.user)
-    ||! /^[a-zA-Z0-9_-]{1,25}$/.test(a.device))fail();
+    ||typeof a.subscriptionFingerprint!=='string'||! /^[a-f0-9]{64}$/.test(a.subscriptionFingerprint)
+    ||typeof a.token!=='string'||typeof a.user!=='string'||! /^[a-zA-Z0-9]{30}$/.test(a.token)||! /^[a-zA-Z0-9]{30}$/.test(a.user)
+    ||typeof a.device!=='string'||! /^[a-zA-Z0-9_-]{1,25}$/.test(a.device))fail();
   return {approval:a,hash:digest(raw)};
 }
 
@@ -74,37 +74,55 @@ export function reservePushover(file: string, approval: Approval): void {
 
 /** Fixed host/path, public pinned IPv4, no redirects, bounded response and time.
  * Secrets and response bodies must never be logged. */
-const postPushover: Post = async (route,fields,authorize,deadline) => {
+export const pushoverNetworkDependencies={
+  resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),request:https.request,now:Date.now,
+};
+export async function postPushover(route: '/1/users/validate.json'|'/1/messages.json',fields: URLSearchParams,
+  authorize: ()=>Promise<boolean>,deadline: number,io=pushoverNetworkDependencies): Promise<Response> {
+  if(!['/1/users/validate.json','/1/messages.json'].includes(route)||!Number.isFinite(deadline))fail();
   let timer:ReturnType<typeof setTimeout>|undefined;
-  const timeout=Math.min(3000,deadline-Date.now());
+  const timeout=Math.min(3000,deadline-io.now());
   if(timeout<1||!await authorize())fail();
   const addresses=await Promise.race([
-    lookup(new URL(origin).hostname,{family:4,all:true}),
+    io.resolve(new URL(origin).hostname),
     new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('pushover_dns_timeout')),timeout);}),
   ]).finally(()=>clearTimeout(timer));
   if(!addresses.length||addresses.some(row=>!publicPushAddress(row.address)))fail();
-  if(!await authorize()||Date.now()>=deadline)fail();
+  if(!await authorize()||io.now()>=deadline)fail();
   const body=fields.toString();
   return new Promise<Response>((resolve,reject)=>{
-    const request=https.request(new URL(route,origin),{
+    let settled=false,requestTimer:ReturnType<typeof setTimeout>|undefined;
+    const done=(error?:string,result?:Response)=>{
+      if(settled)return;settled=true;clearTimeout(requestTimer);
+      if(error)reject(new Error(error));else resolve(result!);
+    };
+    const request=io.request(new URL(route,origin),{
       method:'POST',agent:false,
       headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)},
-      lookup:(_host,_options,callback)=>callback(null,addresses[0].address,4),
+      // Node autoSelectFamily requests all:true; support both lookup contracts.
+      lookup:((_host:string,options:{all?:boolean},callback:(error:null,address:string|Array<{address:string;family:number}>,family?:number)=>void)=>
+        options.all?callback(null,[{address:addresses[0].address,family:4}]):callback(null,addresses[0].address,4)) as NonNullable<https.RequestOptions['lookup']>,
     },response=>{
+      if((response.statusCode||0)>=300){done(undefined,{status:response.statusCode||0,body:{}});response.destroy();return;}
       const chunks:Buffer[]=[];let length=0;
-      response.on('data',(chunk:Buffer)=>{length+=chunk.length;if(length>8192)request.destroy(new Error('pushover_response_too_large'));else chunks.push(chunk);});
-      response.on('error',()=>request.destroy(new Error('pushover_response_failed')));
+      response.on('data',(chunk:Buffer)=>{
+        length+=chunk.length;
+        if(length>8192){done('pushover_response_too_large');request.destroy();}
+        else chunks.push(chunk);
+      });
+      response.on('error',()=>{done('pushover_response_failed');request.destroy();});
+      response.on('aborted',()=>{done('pushover_response_failed');request.destroy();});
       response.on('end',()=>{
-        try{const parsed=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error();resolve({status:response.statusCode||0,body:parsed});}
-        catch{reject(new Error('pushover_response_invalid'));}
+        try{const parsed=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error();done(undefined,{status:response.statusCode||0,body:parsed});}
+        catch{done('pushover_response_invalid');}
       });
     });
-    const requestTimer=setTimeout(()=>request.destroy(new Error('pushover_timeout')),Math.min(8000,Math.max(1,deadline-Date.now())));
-    request.on('close',()=>clearTimeout(requestTimer));
-    request.on('error',()=>reject(new Error('pushover_transport_unknown')));
+    requestTimer=setTimeout(()=>{done('pushover_timeout');request.destroy();},Math.min(8000,Math.max(1,deadline-io.now())));
+    request.on('close',()=>done('pushover_transport_closed'));
+    request.on('error',()=>done('pushover_transport_unknown'));
     request.end(body);
   });
-};
+}
 const defaultIO: PushoverIO={configPath:()=>process.env.OPSCENTER_PUSHOVER_CONFIG,
   enabled:supervisedPushDelivery,now:Date.now,post:postPushover,apple:sendAppleNotification};
 

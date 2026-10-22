@@ -26,6 +26,7 @@ try {
   await page.waitForFunction(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent==='Confirm Reschedule');if(!button)return false;const r=button.getBoundingClientRect(),body=document.querySelector('.record-drawer-body').getBoundingClientRect();return r.top>=body.top && r.bottom<=body.bottom;});
   assert.equal(await page.locator('.drawer-reschedule-review').evaluate(el=>el===document.activeElement),true,'Review summary receives focus without activating confirmation');
   assert.equal(requests,0,'Opening review must not submit any operation');
+  assert.equal(await page.evaluate(()=>Number(document.documentElement.dataset.fetchCalls||0)),0,'Opening review must not even attempt a fetch');
   await page.getByRole('button',{name:'Keep Appointment',exact:true}).click();
   await page.getByRole('button',{name:'Review Reschedule',exact:true}).click();
   await page.waitForFunction(()=>{const r=[...document.querySelectorAll('button')].find(b=>b.textContent==='Confirm Reschedule').getBoundingClientRect();return r.bottom<=document.querySelector('.record-drawer-body').getBoundingClientRect().bottom;});

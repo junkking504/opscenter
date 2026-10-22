@@ -297,3 +297,18 @@ call. Existing source cadence is unchanged. Permission is an explicit crew tap;
 phone/truck/day authorization remains distinct from manager notification grants.
 See [Waypoint notifications](waypoint-push.md). This does not reset/promote the
 manager trial or change its limits.
+
+## Pushover manager notifications — approved October 22, 2026
+
+The user approved replacing native delivery for their one verified manager phone
+with Pushover, sending the existing schedule, crew and fleet alert details, using
+the phone's default Pushover sound and normal priority. Approval includes one
+synthetic setup test, up to 10,000 attempts over at most 30 days, and $0 additional
+API spend. Existing earlier phone authorization expiry still applies. No automatic
+renewal, paid upgrade, subscription, license purchase or overage is authorized.
+
+The reviewed host inventory adds only `api.pushover.net`. Preserve the unchanged
+checker, all other hosts, dependency inventory and protected-file hashes; back up
+and record the installed pair before applying this specifically approved change.
+Private configuration and durable nonrefundable quota state live outside Git. Each
+attempt permits at most one validation and one message request. See [Pushover](pushover.md).

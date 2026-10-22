@@ -35,14 +35,14 @@ class SupervisionTests(unittest.TestCase):
         (self.root / 'journal').mkdir(mode=0o700)
         self.config = {'mode': 'observe', 'setupUntil': time.time() + 5}
         supervisor.atomic(self.root / 'sender.json', self.config)
-        self.env = {'OPSCENTER_WEB_PUSH_ENABLED': '0', 'OPSCENTER_WEB_PUSH_PRIVATE_KEY': 'inherited-must-clear'}
+        self.env = {'OPSCENTER_WEB_PUSH_ENABLED': '0', 'OPSCENTER_WEB_PUSH_PRIVATE_KEY': 'inherited-must-clear', 'OPSCENTER_PUSHOVER_CONFIG':'/private/pushover.json'}
     def tearDown(self):
         self.temp.cleanup()
     def forbidden_key(self):
         self.fail('observe mode must never request signing material')
     def test_observe_ready_then_exit_pauses_and_persists_off(self):
         calls=[]
-        result=supervisor.supervise(self.root, self.env, [sys.executable, '-c', CHILD + "assert 'OPSCENTER_WEB_PUSH_PRIVATE_KEY' not in os.environ\nassert os.environ['OPSCENTER_PROCESS_ROLE']=='push-observer'\n"], lambda:calls.append(True), self.forbidden_key, .01)
+        result=supervisor.supervise(self.root, self.env, [sys.executable, '-c', CHILD + "assert 'OPSCENTER_WEB_PUSH_PRIVATE_KEY' not in os.environ\nassert 'OPSCENTER_PUSHOVER_CONFIG' not in os.environ\nassert os.environ['OPSCENTER_PROCESS_ROLE']=='push-observer'\n"], lambda:calls.append(True), self.forbidden_key, .01)
         self.assertEqual(result,0)
         self.assertEqual(len(calls),2)
         self.assertFalse((self.root/'capture-lease.json').exists())
@@ -51,7 +51,7 @@ class SupervisionTests(unittest.TestCase):
     def test_ongoing_requires_explicit_send_mode_and_retains_private_lease(self):
         config={'mode':'send','ongoing':True,'setupUntil':time.time()+86400}
         supervisor.atomic(self.root/'sender.json',config)
-        result=supervisor.supervise(self.root,{'OPSCENTER_WEB_PUSH_ENABLED':'1'},[sys.executable,'-c',CHILD],lambda:None,lambda:'synthetic-key',.01)
+        result=supervisor.supervise(self.root,{'OPSCENTER_WEB_PUSH_ENABLED':'1','OPSCENTER_PUSHOVER_CONFIG':'/private/pushover.json'},[sys.executable,'-c',CHILD+"assert os.environ['OPSCENTER_PUSHOVER_CONFIG']=='/private/pushover.json'\n"],lambda:None,lambda:'synthetic-key',.01)
         self.assertEqual(result,0)
         self.assertEqual(json.loads((self.root/'sender.json').read_text())['mode'],'off')
         self.assertFalse((self.root/'capture-lease.json').exists())
@@ -144,9 +144,11 @@ class SupervisionTests(unittest.TestCase):
             supervisor.supervise(self.root,self.env,[],lambda:None,self.forbidden_key,.01)
     def test_environment_excludes_secrets_and_does_not_execute(self):
         file=self.root/'environment'
-        file.write_text('OPS_AUTH_USERNAME=fixture\nOPS_AUTH_PASSWORD_HASH=private\nOPSCENTER_WEB_PUSH_PRIVATE_KEY=private\nSLACK_TOKEN=private\nOPSCENTER_WEB_PUSH_ENABLED=0\nOPS_AUTH_ROLE_BINDINGS="$(never-execute)"\n');file.chmod(0o600)
+        file.write_text('OPS_AUTH_USERNAME=fixture\nOPSCENTER_PUSHOVER_CONFIG="/private/config with spaces.json"\nPUSHOVER_TOKEN=private\nOPS_AUTH_PASSWORD_HASH=private\nOPSCENTER_WEB_PUSH_PRIVATE_KEY=private\nSLACK_TOKEN=private\nOPSCENTER_WEB_PUSH_ENABLED=0\nOPS_AUTH_ROLE_BINDINGS="$(never-execute)"\n');file.chmod(0o600)
         value=supervisor.environment(file)
         self.assertEqual(value['OPS_AUTH_ROLE_BINDINGS'],'$(never-execute)')
+        self.assertEqual(value['OPSCENTER_PUSHOVER_CONFIG'],'/private/config with spaces.json')
+        self.assertNotIn('PUSHOVER_TOKEN',value)
         self.assertFalse({'OPS_AUTH_PASSWORD_HASH','SLACK_TOKEN','OPSCENTER_WEB_PUSH_PRIVATE_KEY'} & value.keys())
     def test_capture_lease_fails_closed(self):
         lease=self.root/'capture-lease.json'

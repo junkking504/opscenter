@@ -1,7 +1,7 @@
 import { createCipheriv, createECDH, hkdfSync, randomBytes } from 'node:crypto';
 import type { PushSubscriptionRecord } from './web-push-store';
 export type PushMessage={title:string;body:string;eventId?:string;path?:string};
-export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecord};
+export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecord;recordedAt?:string};
 /** Only an existing authenticated job route, never a payload URL or media link. */
 export function pushPath(value:unknown):string|undefined {
  if(typeof value!=='string')return undefined;

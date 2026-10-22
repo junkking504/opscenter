@@ -261,6 +261,53 @@ class JournalTest(unittest.TestCase):
         self.publish(payload)
         self.assertTrue(self.entries()[-1]['batches'][0]['observations'][0]['notification']['body'].startswith('Completed Job Updated\n'))
 
+    def test_completed_job_price_excludes_tip_but_retains_job_fees(self):
+        payload = schedule(); row = payload['appointments'][0]
+        row.update(job_id='JK12345', customer_name='Synthetic Customer', appointment_type='Job', truck='Truck# 6')
+        self.publish(payload)
+        row.update(job_status='Completed Duration: 60 min(s)', revenue='$370.80', tip='', payment_type='Credit Card',
+                   closeout={'loadSize':'1 (1/6)', 'loadQuantity':'', 'loadPrice':'$300.00',
+                             'otherCharges':[{'name':'Additional item','total':'$60.00'},
+                                             {'name':'CC Surcharge (Card Present)','total':'$10.80'}],
+                             'tip':'$37.08', 'total':'$407.88',
+                             'payments':[{'method':'Credit Card','amount':'$407.88'}]})
+        row['closeout_signature'] = [str(row.get(key, '')) for key in ('truck','appointment_type','job_status','revenue','tip')]
+        self.publish(payload)
+        item = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(item['notification']['title'], 'Truck #6')
+        self.assertEqual(item['notification']['body'], 'Job Completed\nJK12345 — Synthetic Customer\n1/6 load\n$370.80\nCredit Card')
+        revision = item['revision']
+        row['closeout']['payments'][0]['amount'] = '$200.00'
+        self.publish(payload)
+        later = self.entries()[-1]['batches'][0]['observations'][0]
+        self.assertEqual(later['revision'], revision, 'tender enrichment must not create a completion event')
+        self.assertEqual(later['notification']['body'].splitlines()[-2:], ['$370.80', 'Credit Card'])
+
+    def test_completion_price_normalizes_only_recorded_tip(self):
+        cases = [
+            ({'revenue':'100', 'closeout':{'total':'110', 'tip':'10'}}, '$100.00'),
+            ({'revenue':'100', 'tip':'', 'closeout':{'total':'110', 'tip':'10'}}, '$100.00'),
+            ({'revenue':'100', 'tip':'10', 'closeout':{'total':'110'}}, '$100.00'),
+            ({'revenue':'100', 'tip':'10', 'closeout':{'total':'100', 'tip':'0'}}, '$100.00'),
+            ({'revenue':'100', 'closeout':{'total':'120', 'tip':'10'}}, ''),
+            ({'revenue':'0', 'closeout':{'total':'5', 'tip':'5'}}, '$0.00'),
+            ({'closeout':{'total':'110', 'tip':'10'}}, '$100.00'),
+            ({'closeout':{'total':'100', 'tip':''}}, '$100.00'),
+            ({'closeout':{'total':'100', 'tip':'Not available'}}, ''),
+            ({'closeout':{'total':'100', 'tip':'-5'}}, ''),
+            ({'closeout':{'total':'100', 'tip':'101'}}, ''),
+            ({'closeout':{'payments':[{'method':'Credit Card','amount':'110'}]}}, ''),
+            ({'revenue':'100', 'closeout':{'total':'invalid', 'tip':'10'}}, '$100.00'),
+            ({'revenue':'100', 'closeout_refresh_pending':True, 'closeout':{'total':'200','tip':'10'}}, '$100.00'),
+        ]
+        for row, expected in cases:
+            with self.subTest(row=row):
+                self.assertEqual(journal.completion_details(row)['price'], expected)
+        estimate = {'appointment_type':'Estimate', 'revenue':'100',
+                    'closeout':{'total':'110','tip':'10','payments':[{'method':'Billed','amount':'110'}]}}
+        self.assertEqual(journal.completion_details(estimate)['price'], '$100.00')
+        self.assertEqual(journal.completion_details(estimate)['payment'], 'Billed')
+
     def test_completed_estimate_unknown_load_price_and_payment(self):
         payload = schedule(); row = payload['appointments'][0]
         row.update(appointment_type='Job', truck='3')

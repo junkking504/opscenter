@@ -615,7 +615,15 @@ Genuine transitions from known non-completed status use `Truck #N` with body
 separate lines. Billed tender ends with exactly `Billed`; it never claims paid or
 collected. Already-completed revisions use `Completed Job Updated` (or Estimate).
 Internal appointment IDs are never converted into JK references by prefixing.
-Page/detail price conflicts and stale/failed closeout details remain unknown.
+Price uses schedule revenue, excluding gratuity but retaining recorded job
+charges (including card surcharges). Closeout total includes gratuity, so its
+recorded tip is removed before comparing with revenue or using it as a fallback.
+Use the closeout tip first, then the schedule tip; blank tip fields mean no
+recorded tip. Invalid tips or a tip greater than the total cannot provide a
+closeout price fallback. Tender amounts, balance and load price alone never
+substitute for job price. Unexplained net-price conflicts and stale/failed
+closeout details remain unknown; valid schedule revenue is still usable when
+closeout details are unavailable. Payment method remains a separate line.
 Load quantity is full units plus the selected partial, as established by
 `closeout-load-price.ts`; bags and dry runs retain their distinct semantics, and
 unlabeled numeric option values never become guessed fractions.

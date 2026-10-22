@@ -241,7 +241,13 @@ def completion_details(row, intervals=()):
         if value:
             loads.append(label + value)
     price, detail_price = price_text(first(row, "revenue")), price_text(closeout.get("total", ""))
-    # Conflicting page/detail totals are not a verified single price.
+    # Schedule revenue excludes gratuity; closeout total includes it. Compare
+    # the same basis, retaining job fees and never substituting tender amounts.
+    tip = price_text(first(closeout, "tip") or first(row, "tip") or "0")
+    if detail_price:
+        net = Decimal(detail_price.replace('$', '').replace(',', '')) - Decimal(tip.replace('$', '').replace(',', '')) if tip else None
+        detail_price = f"${net:,.2f}" if net is not None and net >= 0 else ""
+    # Unexplained conflicts remain unknown after removing the recorded tip only.
     price = "" if price and detail_price and price != detail_price else price or detail_price
     methods = {"billed": "Billed", "cash": "Cash", "check": "Check", "credit card": "Credit Card",
                "debit card": "Debit Card", "ach": "ACH", "wire": "Wire", "bank transfer": "Bank Transfer"}

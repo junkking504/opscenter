@@ -12,7 +12,7 @@ export function PushSettings({ showUnavailable = false, onBusyChange }: { showUn
   const [selected,setSelected]=useState(categories),[message,setMessage]=useState('Checking notification availability…'),[busy,setBusy]=useState(false);
   const [registration,setRegistration]=useState<ServiceWorkerRegistration|null>(null);
   const [supported,setSupported]=useState(false),[currentId,setCurrentId]=useState('');
-  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
   async function reload() {
     const res=await fetch('/api/push/devices',{cache:'no-store'});const body=await res.json();
     if(res.status===401 || res.status===403){setHidden(!showUnavailable);setMessage('Notification settings are not available for this account.');return false;}

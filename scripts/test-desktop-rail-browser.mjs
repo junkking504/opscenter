@@ -71,7 +71,7 @@ for(const [width,height]of [[1440,900],[1280,720],[1024,480],[768,480],[390,844]
  await page.setViewportSize({width,height});
  const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,rail:document.querySelector('.ops-sidebar').getBoundingClientRect().width}));
  assert.equal(geometry.overflow,false,`No horizontal overflow at ${width}`);assert.equal(geometry.rail,width>760?80:0);
- if(width>760) { await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).scrollIntoViewIfNeeded(); assert.equal(await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).isVisible(),true); }
+ if(width>760) { assert.equal(await page.evaluate(()=>document.querySelector('.page-rail .workspace-rail-group:last-child').getBoundingClientRect().bottom <= document.querySelector('.sidebar-footer').getBoundingClientRect().top),true,'Sidebar links must not overlap Settings in short windows'); await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).scrollIntoViewIfNeeded(); assert.equal(await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).isVisible(),true); }
  else assert.equal(await page.getByRole('combobox',{name:'Choose workspace'}).isVisible(),true);
  if(process.env.DESKTOP_TEST_SCREENSHOTS && [1440,390].includes(width))await page.screenshot({path:`${process.env.DESKTOP_TEST_SCREENSHOTS}/settings-${width}.png`,fullPage:true});
 }

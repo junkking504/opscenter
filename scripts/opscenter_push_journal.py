@@ -93,6 +93,13 @@ def truck_notification_title(value):
     return f"Truck #{number[:20]}"
 
 
+def geofence_display_name(value):
+    # Exact legacy NOHQ alias already used by geofenceAlertLocation. Do not
+    # rename other facilities whose names merely contain "warehouse".
+    name = str(value).strip()
+    return "NOHQ" if name.casefold() == "warehouse" else name[:150]
+
+
 def observation(identity, revision):
     return {"identity": digest(identity), "revision": digest(revision)}
 
@@ -455,7 +462,7 @@ def project(path, payload):
             at = occurred.strftime("%I:%M %p").lstrip("0")
             action = "Arrived" if kind == "geofence_entered" else "Departed"
             item["notification"] = {"title": truck_notification_title(row["truck_number"]),
-                                    "body": f"{action}{' at' if kind == 'geofence_entered' else ''} {str(row['geofence_name'])[:150]}: {at}\nDate: {occurred.date().isoformat()} (Central)"}
+                                    "body": f"{action}{' at' if kind == 'geofence_entered' else ''} {geofence_display_name(row['geofence_name'])}: {at}\nDate: {occurred.date().isoformat()} (Central)"}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches

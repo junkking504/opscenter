@@ -184,7 +184,7 @@ class JournalTest(unittest.TestCase):
                     payload = {"date": day, "collection_timestamp": at, "pagination_completed": True,
                                "validation_status": "passed", "alerts": [row]}
                     item = journal.project(Path(f"linxup_alerts_{day}.json"), payload)[0]["observations"][0]
-                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action}{' at' if kind == 'geofence_entered' else ''} Warehouse: 5:21 PM\nDate: {day} (Central)"})
+                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action}{' at' if kind == 'geofence_entered' else ''} NOHQ: 5:21 PM\nDate: {day} (Central)"})
                     expected = journal.observation(row["alert_id"], {key: row.get(key) for key in
                         ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
                     self.assertEqual({key: item[key] for key in expected}, expected)
@@ -219,6 +219,15 @@ class JournalTest(unittest.TestCase):
         row.update(revenue='$150.00')
         self.publish(payload)
         self.assertEqual(self.entries()[-1]['batches'][0]['observations'][0]['revision'], prior_revision, 'display amount does not add business events')
+
+    def test_nohq_alias_does_not_rename_unrelated_warehouses(self):
+        for name, expected in [('Warehouse','NOHQ'),(' warehouse ','NOHQ'),('NOHQ','NOHQ'),
+                               ('Baton Rouge Warehouse','Baton Rouge Warehouse'),('BRHQ','BRHQ'),
+                               ('Customer Warehouse','Customer Warehouse'),('Warehouse Annex','Warehouse Annex')]:
+            with self.subTest(name=name):
+                self.assertEqual(journal.geofence_display_name(name), expected)
+        # The existing arrival/departure regression also verifies exact event
+        # identity/revision, source label and source timestamp remain unchanged.
 
     def test_schedule_preserves_separate_end_and_normalizes_truck_changes(self):
         payload = schedule()

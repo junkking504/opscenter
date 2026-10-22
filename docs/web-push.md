@@ -655,7 +655,10 @@ not delayed or suppressed. A guaranteed later enriched notification needs a
 separately reviewed delivery/update policy, not a misleading completeness claim.
 
 Native facility alerts use compact action/location/time followed by service date
-and Central timezone. Existing confirmed customer on-site/departure notifications
+and Central timezone. The exact legacy LinxUp location label `Warehouse` renders as
+`NOHQ`, matching the existing geofence display alias. Names such as `Baton Rouge
+Warehouse`, `Warehouse Annex` and other facilities remain unchanged. Source
+geofence names, coordinates, event identity and timestamps are not changed. Existing confirmed customer on-site/departure notifications
 are a separate Slack family (`buildTruckVisitSlackNotifications`); they are not
 currently input to manager Web Push. Their requested layouts are in the catalog,
 without a new event bridge, cadence, bootstrap or routing change in this repair.

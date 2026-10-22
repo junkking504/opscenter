@@ -10,7 +10,7 @@ export function appointmentNoteEntry(original: string) {
   return {body, date: attribution?.[1] || '', author: attribution?.[2].trim() || '', history: /^Appointment moved from\s/i.test(body)};
 }
 
-export default function AppointmentNotes({notes}: {notes: string[]}) {
+export default function AppointmentNotes({notes, compact = false}: {notes: string[]; compact?: boolean}) {
   const entries = notes.filter(note => note.trim()).map(appointmentNoteEntry);
   const notesOnly = entries.filter(note => !note.history);
   const history = entries.filter(note => note.history);
@@ -19,7 +19,7 @@ export default function AppointmentNotes({notes}: {notes: string[]}) {
     <p>{note.body}</p>
   </article></li>)}</ol>;
   return <section className="appointment-source-notes" aria-label="Appointment notes">
-    <h3>Appointment notes <span>{entries.length}</span></h3>
+    {!compact && <h3>Appointment notes <span>{entries.length}</span></h3>}
     {notesOnly.length ? render(notesOnly) : <p className="appointment-notes-empty">{history.length ? 'Only schedule-change history is recorded.' : 'No notes recorded.'}</p>}
     {history.length > 0 && <details className="appointment-note-history"><summary>Schedule-change history ({history.length})</summary>{render(history)}</details>}
   </section>;

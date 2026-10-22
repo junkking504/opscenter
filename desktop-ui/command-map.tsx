@@ -31,7 +31,7 @@ export default function CommandMap({ date, busy, report, onBusyChange, openSched
     <header className="command-map-heading">
       <div><span className="section-kicker">Appointments & trucks</span><h2 id="command-map-title">Operations Map</h2></div>
       <div className="command-map-actions">
-        <Button variant="ghost" size="sm" disabled={busy} onClick={openSchedule}>Open Schedule <ArrowRight size={13} /></Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={openSchedule}>Open Command <ArrowRight size={13} /></Button>
         <Button variant="outline" size="sm" disabled={busy} aria-expanded={expanded} aria-controls="command-map-body" onClick={toggle}>{expanded ? 'Hide Map' : 'Show Map'}{expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button>
       </div>
     </header>

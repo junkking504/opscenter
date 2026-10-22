@@ -18,7 +18,7 @@ intents and `pg_notify`. PostgreSQL delivers the wake only after commit. The fir
 complete snapshot seeds a baseline. Identical snapshots do not notify; genuine
 A→B→A transitions get new versions. Schedule removals/reappearances require
 explicit complete authoritative evidence; missing clock/fleet rows are unknown. Moving off today's
-scope is a removal; reporting the destination requires its own source evidence.
+scope records a disappearance; it is not, by itself, proof of cancellation or a reschedule. Reporting a destination requires its own source evidence.
 An incomplete initial baseline is blocked. No Slack-derived history is consumed.
 
 `startPushDispatcher` uses a dedicated PostgreSQL connection for LISTEN and the
@@ -39,6 +39,59 @@ DNS resolution. A network request already initiated may finish after revocation;
 there is no recall guarantee. No retry is performed, including HTTP 429/5xx.
 HTTP 201 means accepted by Apple, not delivered to the handset. 404/410 revoke the
 subscription and clear its approval. Timeouts and unknown outcomes stay uncertain.
+
+## Notification presentation and verified reschedules
+
+OpsCenter's three manager notification categories (schedule, crew clock events,
+and fleet geofence events) use concise titles and plain-text, newline-separated
+labeled details. Schedule details lead with appointment date and Central time,
+then the verified JK job identifier (canonical appointment identity remains
+unchanged), customer, normalized truck, status/type, available address/phone,
+positive recorded job amount and verified crew. Estimate placeholders and empty
+end times are omitted. Fleet includes event, location, date and Central time;
+crew includes name, clock event and source time, with verified final clock-out pay as described below. Display-only metadata does
+not create business transitions or alter audience/role checks. Slack formatting
+syntax is not sent. The separate Waypoint crew app's generic wake-up path is not
+part of these OpsCenter manager categories and is unchanged.
+
+The private observation `notification_json.schedule` context records verified
+date/time/status and labels, but encryption sends only title/body/eventId and an optional strictly allowlisted job path. The
+worker correlates the same canonical appointment identity across schedule scopes.
+Migration 0012 adds a partial identity lookup index. A unique counterpart requires
+both its observation transition and latest source snapshot within 15 minutes of
+the incoming event. Later partial or unchanged reads cannot refresh old evidence.
+Uniqueness is checked across both present and absent peers, including conflicting
+statuses. Ambiguous, stale,
+future-dated, legacy-without-context, canceled or removed counterparts do not prove
+a reschedule. Same-scope verified time changes are also recognized. A new known
+time replacing an unknown time alone is not proof of a move. Equivalent clock
+formats and newly supplied end times are not treated as moves.
+
+When the old scope disappears first, the notice says **Schedule changed** and
+explicitly leaves cancellation/new date/time unverified. When a later verified
+destination arrives, **Rescheduled** leads with `To: date, time (Central)` and
+`From: date, time (Central)`, followed by destination details. If destination
+arrives first, a reschedule is confirmed only after verified old-scope absence.
+Explicit source canceled/removed statuses retain their meanings. Missing destination
+time never becomes invented timing. This adds no collection, polling, delay,
+replay or rewriting of previously delivered messages. Existing metadata is
+populated by normal canonical publication; legacy entries remain conservative.
+
+The body preserves newlines through encryption and `showNotification`. Application
+limits are 100 title code points and 1,600 body code points plus a clipping ellipsis,
+with title/body and optional job-path JSON bounded to 2,800 UTF-8 bytes (including escapes). This leaves
+space for the event ID beneath the existing 3,000-byte plaintext limit and
+4,096-byte encryption record. Tests independently decrypt and exercise the service
+worker in a VM, without sending or creating an OS notification.
+
+[iOS supports notification expansion](https://support.apple.com/en-euro/guide/iphone/iph6534c01bc/ios),
+but [Web Notifications](https://notifications.spec.whatwg.org/#dictdef-notificationoptions)
+exposes one body, not separate collapsed/expanded layouts or an option to force
+long-press height. iOS/WebKit owns wrapping, truncation and app attribution.
+Passing multiline text proves payload support, not how many lines a particular
+handset shows. The inspected producer/renderer supplies no `from OpsCenter`
+subtitle; that separate attribution cannot be suppressed through these payload
+options. Opening defaults to authenticated Command, or the existing authenticated job page for a verified date/JK reference. Physical-device acceptance remains separate and unperformed.
 
 ## Device-specific trial gate
 
@@ -286,11 +339,11 @@ Enable Notifications. On iPhone use an iOS 16.4+ Home Screen web app. Permission
 never requested on mount. Devices belong to authenticated accounts; shared-login
 users consequently share device ownership. Signing out is not revocation.
 
-The lock screen says only that operational updates are available. The empty push
-body contains no customer information, event IDs, counts or locations. The fixed
-same-origin link opens `/desktop?workspace=Command` through normal authentication.
+The owner explicitly requested detailed lock-screen alerts on October 21. Selected
+source descriptions are encrypted end-to-end to the verified subscription using
+RFC 8291 / RFC 8188 aes128gcm; no plaintext message is sent to Apple. The default same-origin link opens `/desktop?workspace=Command`; a verified date/JK reference may open the allowlisted existing job route through normal authentication.
 The service worker has no fetch/cache handler, is served no-store and uses a
-shared tag with renotify. Actual Safari behavior is unverified.
+event-specific tag with renotify. Actual updated Safari presentation is unverified.
 
 Enrollment checks use only public VAPID configuration. The private key loader
 requires enabled Mission Control plus `OPSCENTER_PROCESS_ROLE=push-dispatcher`;
@@ -380,8 +433,14 @@ NOTIFY remain the delivery triggers. The local lease timer is lifecycle safety.
 The API rejects enrollment when the lease disappears/expires. Default owner
 eligibility and the real transport require a `send` lease matching that child
 nonce, checked again after DNS. A child orphaned by a supervisor crash therefore
-loses sending permission within five seconds. Already accepted notices can remain
-within the bounded provider TTL. Observe mode grants no sending permission.
+loses sending permission within five seconds. The supervisor also holds the only
+write end of a liveness pipe whose read end the child inherits
+(`OPSCENTER_WEB_PUSH_PARENT_FD`). Any supervisor exit, including SIGKILL, delivers
+EOF; the child then stops its journal and dispatcher, releasing leadership and
+signing material, and exits. This is event-driven, not a timer. A SIGKILL still
+skips the supervisor's own cleanup, so `sender.json` may remain non-`off`; check
+it before a manual restart. Already accepted notices can remain within the
+bounded provider TTL. Observe mode grants no sending permission.
 
 A signal, child exit/readiness loss, operator configuration change or setup expiry
 removes the lease first, terminates only that child's process group, calls the
@@ -468,3 +527,151 @@ References: [WebKit](https://webkit.org/blog/13878/),
 [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers),
 [RFC 8030](https://www.rfc-editor.org/rfc/rfc8030),
 [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292).
+
+## Verified-phone ongoing delivery
+
+After actual handset presentation and authenticated deep-link acceptance, a local
+operator may explicitly `promote` the same approved device/fingerprint. Migration
+0009 is inert: deployments never promote. The command requires the verified owner,
+full device ID/fingerprint, `--handset-confirmed`, the original verified enrollment
+expiry, `--apply`, and the human approval reference. Promotion requires an accepted
+trial reservation and preserves the original trial clock, three-slot ledger and
+attempt count. There is no reset or automatic promotion.
+
+Ongoing delivery records separate durable reservations, has no three-attempt cap,
+and individually sends subsequent supported schedule, crew and Fleet transitions.
+It preserves canonical-source deduplication and the same owner/device/category,
+role, lease, expiry, endpoint and pre-network/DNS checks. Retained history recorded before promotion and ongoing reconcile/gap-recovery
+transitions are withheld from delivery; the fresh reconciled snapshot restores
+the baseline for subsequent changes. This avoids a historical burst on resume; uncertain attempts are never retried. Disable device and operator stop
+remain effective. Replacement and expired grants require a new reviewed procedure;
+browser saves cannot extend approval or replace the verified phone.
+
+Authorization is bounded by the original authenticated enrollment/subscription
+expiry and at most 30 days from enrollment. New subscriptions persist their
+enrollment expiry separately; legacy promotion must supply the previously verified
+ceiling, additionally capped by creation + 30 days and Apple subscription expiry.
+The panel displays the authorization expiry. Ongoing attempt receipts retain 90
+days, preserving pending/sending claims. No new provider, polling or collection
+frequency is introduced.
+
+An explicitly installed sender configuration may set `ongoing: true`, `mode: send`
+and `setupUntil` equal to the grant expiry (at most 30 days). Other sessions retain
+the one-hour setup bound. The supervisor refreshes its lease every two seconds (rather than 0.5 seconds)
+to reduce ongoing disk writes. The lease still expires within five seconds, child
+leadership and helper matching remain required, and every supervisor stop pauses
+capture. The operator may set RunAtLoad for this authorized configuration;
+KeepAlive stays false, so anomalies require investigation rather than automatic
+restart. A graceful stop, including shutdown, persists mode off and requires an operator
+restart. RunAtLoad can resume a still-valid saved send configuration after an
+abrupt power loss; it does not undo a graceful stop. The panel shows paused
+when the supervisor lease is absent.
+
+## Detailed alerts — owner requested October 21
+
+Schedule changes include appointment ID/customer label and the supported changed
+fields (status, time, truck and verified crew), with known before/after values.
+Crew alerts include the source employee name, clock-in/out and source time. Fleet
+alerts include the truck, entered/left geofence and local event time. This earlier preparation was superseded by the explicitly requested completion/pay and appointment-detail presentation below; whole source records and raw GPS tracks remain excluded.
+
+Selected bounded display metadata now lives in the private journal/state and
+notification/observation tables under existing retention (events retain 14 days; observation/journal scope
+metadata retires after its operating day plus 14 days, including future-dated
+schedule scopes);
+this supersedes the earlier hash-only/generic-lock-screen preparation policy.
+Message formatting never drives event identity or weakens ambiguity handling.
+Metadata-only upgrades record descriptions without manufacturing an event.
+Schedule text includes only field values accepted by interval reconciliation.
+
+Each push uses a fresh ephemeral P-256 key and salt with the handset's subscription
+keys. Payloads are bounded, authenticated and encrypted. Built-in Node crypto
+implements RFC 8291 and RFC 8188, with independent receiver-side HMAC derivation,
+wrong-handset and tampering tests. No new dependency, provider, endpoint or paid
+usage is added. Messages have event-specific tags, so distinct changes retain
+distinct notifications. Clicks default to authenticated Command; verified schedule records may use the strictly allowlisted authenticated job path described below.
+
+The service worker immediately activates an updated installed version and claims
+clients, with no fetch/cache handler. The phone must revisit/reload OpsCenter to
+check the new worker; real detailed handset presentation remains an acceptance
+check distinct from encryption tests and Apple HTTP acceptance.
+
+Protocol sources: https://www.rfc-editor.org/rfc/rfc8291.html and
+https://www.rfc-editor.org/rfc/rfc8188.html.
+
+The owner explicitly selected individual alerts for each supported change; bulk
+appointment edits can consequently produce multiple alerts. No coalescing or
+per-window batching is imposed. Local encryption validation failures are recorded
+as rejected/message_invalid, with the reservation retained and no retry.
+
+## Requested completion and clock-out hierarchy — October 21–22 preparation
+
+This local revision prepares display changes only. No production release, source
+mutation, provider call, test notification or recipient/access change was made.
+The all-alert catalog is a separate private task artifact; Slack-only and internal
+families are designs, not new manager-push subscriptions or emitters.
+
+Genuine transitions from known non-completed status use `Truck #N` with body
+`Job Completed`, verified JK/customer, source load, price and payment method on
+separate lines. Billed tender ends with exactly `Billed`; it never claims paid or
+collected. Already-completed revisions use `Completed Job Updated` (or Estimate).
+Internal appointment IDs are never converted into JK references by prefixing.
+Page/detail price conflicts and stale/failed closeout details remain unknown.
+Load quantity is full units plus the selected partial, as established by
+`closeout-load-price.ts`; bags and dry runs retain their distinct semantics, and
+unlabeled numeric option values never become guessed fractions.
+
+Estimate bodies use `Estimate Completed`, JK/customer, verified driver/navigator,
+Load (recorded load/bedload price and size), Labor, applicable recorded other charges/discount, Total, Arrival, Departure and
+Photos. Total is the source estimate, not paid revenue. Labor accepts the existing
+name/label/description aliases; unidentified or invalid labor evidence is unknown,
+not zero. GPS display uses a bounded read of the existing fresh local appointment
+visit snapshot at projection time, frozen before pending-spool retention. No new
+collection or polling is introduced. It requires date/internal ID/truck/JK match,
+confirmed non-pass-by timing, and excludes operational-only, conflicting,
+superseded, bounded or overlapping intervals. A stale open copy cannot erase a
+confirmed closure. Missing duration is never calculated into a GPS assertion.
+Photo count uses only existing allowed JunkWare media references; no media URL is
+persisted in the push payload or publicly shared.
+
+Clock events use title `Krewe`. Clock-out body is name/time, Total pay, Hourly pay,
+Tips and Bonuses, in that order. Pay must be final/current in the same published
+record with as-of evidence after clock-out. Unknown/provisional amounts remain
+`Not verified`, explicit zero remains currency zero, and inconsistent totals are
+not recalculated. Salary daily extras are not called total salary; applicable
+supplemental pay is a separate line. No payroll record is written or recomputed.
+
+Readiness does not change event identity: late closeout or payroll enrichment
+alone does not replay or replace an already delivered notice. The first event may
+therefore show unknown fields if its detailed source is not ready. Clock-out is
+not delayed or suppressed. A guaranteed later enriched notification needs a
+separately reviewed delivery/update policy, not a misleading completeness claim.
+
+Native facility alerts use compact action/location/time followed by service date
+and Central timezone. Existing confirmed customer on-site/departure notifications
+are a separate Slack family (`buildTruckVisitSlackNotifications`); they are not
+currently input to manager Web Push. Their requested layouts are in the catalog,
+without a new event bridge, cadence, bootstrap or routing change in this repair.
+
+Verified JK schedule records can open only `/jobs?date=YYYY-MM-DD#job-jkNUMBER`.
+Date and JK syntax are allowlisted during serialization and again in the service
+worker at click time. Internal IDs, unknown dates, arbitrary URLs/query strings
+and invalid paths fall back to authenticated Command. The optional path is inside
+the 2,800-byte serialized message budget. Authentication/roles remain unchanged;
+the service worker still has no fetch/cache handler. Sender event identities and
+all delivery gates are unchanged.
+
+There is one plain notification body, no custom expanded layout or forced line
+count. Safari/iOS does not support the notification image field in current
+[MDN compatibility data](https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/Notification.json).
+Use the verified photo count and authenticated job page instead of promising inline
+attachments. iOS may truncate earlier than our payload limit. Unit/VM/encryption
+tests are not physical-handset or long-press verification. The separate app
+attribution line is not supplied by this payload and has no API suppression option.
+
+Regression coverage includes semantic completion precedence, additive load units,
+billed/mixed tender, unknown/conflicting source detail, estimate fields and GPS
+exclusions, final/current versus unknown pay, privacy-safe photo counts, authenticated
+job-link allowlisting, encrypted round trips, VM clicks and zero-recipient database
+presentation cases. Existing journal baseline/recovery and dispatch tests remain
+in the required no-cost suites. No browser test was run under the headless/no-window
+restriction.

@@ -180,9 +180,15 @@ async function main() {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
       }
-      for(const route of ['/desktop','/crew-phones','/login','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
+      for(const route of ['/desktop','/crew-phones','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
         const denied=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(denied.status,404,`Jobs origin denies ${route}`);
+      }
+      // Manager sign-in is served only on the primary Waypoint origin.
+      for(const route of ['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session']) {
+        const response=await middleware(new NextRequest(`${jobsOrigin}${route}`));
+        if(jobsOrigin==='https://waypoint.junk-king.app')assert.equal(response.headers.get('x-middleware-next'),'1',`Waypoint serves ${route}`);
+        else assert.equal(response.status,404,`${jobsOrigin} denies ${route}`);
       }
       const forwarded=await middleware(new NextRequest('http://localhost:3000/',{headers:{'x-forwarded-host':new URL(jobsOrigin).host,'x-forwarded-proto':'https'}}));
       assert.equal(forwarded.headers.get('location'),`${jobsOrigin}/crew-jobs`);

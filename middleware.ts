@@ -155,7 +155,8 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
-    if (['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'].includes(pathname)) return NextResponse.next();
+    // Manager sign-in is served only on the primary Waypoint origin; the kingpin and legacy jobs hosts stay phone-only.
+    if (jobsOrigin === CREW_JOBS_ORIGIN && ['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'].includes(pathname)) return NextResponse.next();
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
     if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });

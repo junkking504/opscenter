@@ -132,6 +132,11 @@ and write the review receipt to /Users/missioncontrol/opscenter-v2/vault/Tasks/<
 source files."
 ```
 
+While building, Codex can also get a quick read-only second opinion with
+`./claude-review.sh`; see "Second-opinion review (Claude)" in
+[AGENTS.md](../AGENTS.md). That check is not a review receipt and does not
+replace the review above.
+
 The builder may start the reviewer itself as its last step, but must not edit
 `review.md`. Blocking findings go back to the builder, who pushes fixes and
 updates `handoff.md`; the reviewer then adds an addendum for the new commits.

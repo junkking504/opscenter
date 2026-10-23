@@ -9,6 +9,7 @@
     "verify:stop-order-map": "node --import tsx scripts/test-stop-order-map.ts",
     "verify:backup": "python3 scripts/test-backup-sync.py && node --import tsx scripts/test-backup-signal.ts",
     "verify:campaign-flags": "node --import tsx scripts/test-campaign-flags.ts && node --import tsx scripts/test-lead-browser.ts && node --import tsx scripts/test-campaign-shortcuts.ts",
+    "verify:claude-review": "bash scripts/test-claude-review.sh",
     "verify:review-gate": "python3 scripts/test-review-gate.py",
     "verify:vault-digest": "python3 scripts/test-vault-digest.py",
     "verify:handoff-relay": "python3 scripts/test-handoff-relay.py",

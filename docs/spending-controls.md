@@ -283,6 +283,45 @@ live sending, device subscription or a paid reviewer. Independent Claude review
 remains pending. Both host inventories can pass now; that is not permission to
 merge or deploy. See [Web Push activation boundaries](web-push.md).
 
+## Claude second-opinion review — requested October 20, 2026
+
+The user asked for Codex to call Claude Code for a second-opinion review of its
+changes. `claude-review.sh` runs the locally installed, logged-in Claude Code on
+the builder's machine and draws on that Claude subscription. Each review is
+capped at 40 turns.
+
+**Approved: October 21, 2026.** The user first confirmed paid extra usage was
+off, then asked to use credits and set a **maximum of $20 per month** for paid
+extra usage (usage credits) on the Claude account Claude Code is logged in with.
+That cap is the maximum new spend for this feature. It is not enforced by the
+script, which cannot read the account's limit: the user sets $20 as the monthly
+spend limit in the account's usage settings, and no auto-reload or higher limit
+is approved. Reviews past the plan limit may bill against that credit until the
+limit is reached; then the review fails and Codex continues without it.
+
+`claude-review.sh` refuses to run (exit 8) unless the line below, which only the
+user's own approval may add, is present. Remove it to stop reviews, for example
+if the cap is lowered or removed.
+
+<!-- claude-review-extra-usage: capped-usd-20-monthly -->
+
+The earlier `confirmed-off` line in the Waypoint section below is a separate
+statement for another review and does not enable this script.
+
+The script fails closed. It calls Claude Code with an allowlisted environment,
+so no API key, auth token, base URL, or Bedrock, Vertex or Foundry switch is
+inherited, and with `--restricted --setting-sources ""` so no settings file can
+supply an `apiKeyHelper` or environment. Before the review it runs
+`claude auth status` and stops unless the login is first-party, a Claude
+subscription (`claude.ai` or `oauth_token`), with no API key source.
+Admin-managed Claude Code settings still apply and are checked by the same
+status call, and the script refuses to run when admin-managed settings
+(managed-settings files, an MDM profile) exist, when the login is a Team or
+Enterprise plan or does not report a Pro or Max plan, or when server-managed
+settings are cached. OpsCenter, collectors and scheduled jobs never run the script.
+This does not approve hosted or API-key review. Validation:
+`npm run verify:claude-review`.
+
 <!-- claude-review-extra-usage: confirmed-off -->
 
 On October 21, 2026 the user confirmed Claude paid extra usage is off for the

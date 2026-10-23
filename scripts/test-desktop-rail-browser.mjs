@@ -10,7 +10,7 @@ await page.goto(`${fixture}?workspace=Command&date=2026-09-12`);
 await page.waitForSelector('.workspace-rail-link');
 assert.equal(await page.locator('.workspace-rail-link').count(),7);
 assert.equal(await page.locator('.workspace-rail-flyout').count(),0);
-assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).isVisible(),true);
+assert.equal(await page.getByRole('button',{name:'Collapse Dashboard pages',exact:true}).isVisible(),true);
 assert.equal(await page.locator('.sidebar-page-panel').count(),0);
 const targets=[['Dashboard','Command','commandView','now'],['Command','Schedule','scheduleView','board'],['Krewe','Krewe','kreweView','today'],['Fleet','Fleet','fleetView','overview'],['Finance','Finance','financeView','overview'],['Marketing','Marketing','marketingView','overview'],['Settings','Settings',null,null]];
 for(const [label,workspace,key,area] of targets){
@@ -18,34 +18,32 @@ for(const [label,workspace,key,area] of targets){
  await link.click();
  await page.waitForFunction(({workspace,key,area})=>{const url=new URL(location.href);return url.searchParams.get('workspace')===workspace&&(!key||url.searchParams.get(key)===area);},{workspace,key,area});
  assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
- assert.equal(await page.locator('.workspace-rail-link[aria-current="page"]').count(),1);
- assert.equal(await link.getAttribute('aria-current'),'page');
+ assert.equal(await page.locator('.workspace-rail-link.active').count(),1);
+ assert.equal(await link.getAttribute('aria-current'),workspace==='Settings'?'page':'true');
  assert.equal(await link.getAttribute('aria-expanded'),null);
  console.log(`One click reached: ${label}`);
 }
-// Neither panel expansion nor changing its section moves the page or rail rows.
-const geometryOf = () => ({content:document.querySelector('.ops-content').getBoundingClientRect().toJSON(),rows:[...document.querySelectorAll('.workspace-rail-link')].map(el=>el.getBoundingClientRect().toJSON())});
+// Inline disclosure changes only sidebar rows, not the workspace geometry.
+const geometryOf = () => document.querySelector('.ops-content').getBoundingClientRect().toJSON();
 const settingsUrl=page.url(), fixedGeometry=await page.evaluate(geometryOf);
-const openSection = async name => { const box=await page.getByRole('button',{name,exact:true}).boundingBox(); assert.ok(box); await page.mouse.click(box.x+box.width/2,box.y+box.height/2); };
-await openSection('Show Command pages');
+await page.getByRole('button',{name:'Expand Command pages',exact:true}).click();
 assert.equal(page.url(),settingsUrl);
 assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
-await openSection('Show Finance pages');
-assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
-await openSection('Show Command pages');
-await page.locator('.sidebar-page-panel').getByRole('link',{name:'Calendar',exact:true}).press('Enter');
+assert.equal(await page.locator('.sidebar-page-panel,.sidebar-page-backdrop').count(),0);
+await page.locator('#sidebar-pages-Schedule').getByRole('link',{name:'Calendar',exact:true}).press('Enter');
 await page.waitForFunction(()=>new URL(location.href).searchParams.get('scheduleView')==='calendar');
 assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
 assert.equal(await page.getByRole('tab',{name:'Calendar',exact:true}).getAttribute('aria-selected'),'true');
-assert.equal(await page.locator('.sidebar-page-panel').count(),0);
-await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
-await page.getByRole('button',{name:'Close page panel',exact:true}).press('Escape');
-assert.equal(await page.locator('.sidebar-page-panel').count(),0);
-assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).evaluate(el=>el===document.activeElement),true);
-await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),true);
+assert.equal(await page.locator('#sidebar-pages-Schedule').getByRole('link',{name:'Calendar',exact:true}).evaluate(el=>el===document.activeElement),true);
+const calendarGeometry=await page.evaluate(geometryOf);
+await page.getByRole('button',{name:'Collapse Command pages',exact:true}).click();
+assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),false);
+assert.deepEqual(await page.evaluate(geometryOf),calendarGeometry);
+await page.getByRole('button',{name:'Expand Command pages',exact:true}).click();
 await page.reload();
-await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
-assert.equal(await page.locator('.sidebar-page-panel').count(),0);
+await page.getByRole('button',{name:'Collapse Command pages',exact:true}).waitFor();
+assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),true);
 await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).click();
 await page.getByLabel('Default opening page').selectOption('Fleet');
 await page.getByText('Saved for this browser.',{exact:true}).waitFor();
@@ -76,7 +74,7 @@ assert.equal(await page.locator('.capital-hub').count(),1);
 await page.goto(`${fixture}?workspace=Finance&financeView=trends`);
 await page.waitForSelector('#capital-trends .finance-performance');
 assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
-assert.equal(await page.locator('.workspace-rail-link[aria-current="page"]').innerText(),'Finance');
+assert.equal(await page.locator('.workspace-rail-link.active').innerText(),'Finance');
 assert.equal(await page.locator('.capital-hub').count(),1);
 await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
 console.log('Capital Overview contains trends; controls and legacy links work.');
@@ -96,7 +94,7 @@ await page.waitForFunction(()=>!document.querySelector('.workspace-rail-link').h
 for(const [width,height]of [[1440,900],[1280,720],[1024,480],[768,480],[390,844],[320,740]]){
  await page.setViewportSize({width,height});
  const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,rail:document.querySelector('.ops-sidebar').getBoundingClientRect().width}));
- assert.equal(geometry.overflow,false,`No horizontal overflow at ${width}`);assert.equal(geometry.rail,width>760?80:0);
+ assert.equal(geometry.overflow,false,`No horizontal overflow at ${width}`);assert.equal(geometry.rail,width>760?224:0);
  if(width>760) { assert.equal(await page.evaluate(()=>document.querySelector('.page-rail').getBoundingClientRect().bottom <= document.querySelector('.sidebar-footer').getBoundingClientRect().top),true,'Sidebar links must not overlap Settings in short windows'); await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).scrollIntoViewIfNeeded(); assert.equal(await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).isVisible(),true); }
  else assert.equal(await page.getByRole('combobox',{name:'Choose workspace'}).isVisible(),true);
  if(process.env.DESKTOP_TEST_SCREENSHOTS && [1440,390].includes(width))await page.screenshot({path:`${process.env.DESKTOP_TEST_SCREENSHOTS}/settings-${width}.png`,fullPage:true});
@@ -114,8 +112,8 @@ await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('Storage
 await page.getByLabel('Default opening page').selectOption('Marketing');
 await page.getByText('Could not save this preference.',{exact:false}).waitFor();
 await page.setViewportSize({width:1280,height:720});
-await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
-await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).isVisible(),true);
+await page.getByRole('button',{name:'Expand Dashboard pages',exact:true}).click();
+await page.getByRole('button',{name:'Collapse Dashboard pages',exact:true}).click();
+assert.equal(await page.getByRole('button',{name:'Expand Dashboard pages',exact:true}).isVisible(),true);
 assert.deepEqual(errors,[]);
 await browser.close();console.log('Direct navigation, dated subpages, preferences, role gates, mutation guard and responsive Settings passed.');

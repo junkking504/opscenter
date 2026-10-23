@@ -1,6 +1,6 @@
 import { workspaceLabel } from './lib/workspace-labels';
-import { Activity, ChevronRight, X, CalendarDays, CircleDollarSign, Megaphone, Settings, Truck, Users } from 'lucide-react';
-import type { MouseEvent } from 'react';
+import { Activity, ChevronDown, CalendarDays, CircleDollarSign, Megaphone, Settings, Truck, Users } from 'lucide-react';
+import { useState, type MouseEvent } from 'react';
 
 export const workspacePages = [
   { workspace: 'Command', label: workspaceLabel('Command'), key: 'commandView', icon: Activity, pages: [['now','Updates'],['today','Operating Control'],['forecast','Forecast'],['tv','The Huddle']] },
@@ -19,11 +19,10 @@ export function pageHref(workspace: string, key: string, page: string, href = wi
   return url.pathname + url.search;
 }
 type RailProps = {
-  workspace: string; canFinance: boolean; disabled: boolean; collapsed?: boolean; currentPage?: string;
-  expandedWorkspace?: string; showPages?: (workspace: string) => void; closePages?: () => void;
+  workspace: string; canFinance: boolean; disabled: boolean; expanded?: boolean; currentPage?: string;
   navigate: (workspace: string, page: string) => void; preload: (workspace: string) => void;
 };
-export function WorkspaceRailLink({ group, workspace, disabled, navigate, preload, collapsed }: Omit<RailProps, 'canFinance'> & { group: typeof workspacePages[number] }) {
+export function WorkspaceRailLink({ group, workspace, disabled, navigate, preload, expanded }: Omit<RailProps, 'canFinance'> & { group: typeof workspacePages[number] }) {
   const active = workspace === group.workspace;
   const open = (event: MouseEvent<HTMLAnchorElement>) => {
     if (disabled) { event.preventDefault(); return; }
@@ -31,35 +30,36 @@ export function WorkspaceRailLink({ group, workspace, disabled, navigate, preloa
     event.preventDefault(); navigate(group.workspace, group.pages[0][0]);
   };
   return <div className="workspace-rail-group">
-    <a href={pageHref(group.workspace, group.key, group.pages[0][0])} className={`workspace-rail-link${active ? ' active' : ''}`} aria-current={active ? (collapsed === false ? 'true' : 'page') : undefined} aria-disabled={disabled || undefined} aria-label={group.label} onClick={open} onPointerEnter={() => { if (!disabled) preload(group.workspace); }} onFocus={() => { if (!disabled) preload(group.workspace); }}>
+    <a href={pageHref(group.workspace, group.key, group.pages[0][0])} className={`workspace-rail-link${active ? ' active' : ''}`} aria-current={active ? (expanded ? 'true' : 'page') : undefined} aria-disabled={disabled || undefined} aria-label={group.label} onClick={open} onPointerEnter={() => { if (!disabled) preload(group.workspace); }} onFocus={() => { if (!disabled) preload(group.workspace); }}>
       <span className="workspace-rail-icon"><group.icon size={20} aria-hidden="true" /></span><span>{group.label}</span>
     </a>
   </div>;
 }
+function WorkspacePageGroup(props: RailProps & { group: typeof workspacePages[number] }) {
+  const { group, workspace, currentPage, disabled, navigate, preload } = props;
+  const active = workspace === group.workspace;
+  const [expanded, setExpanded] = useState(active);
+  const [wasActive, setWasActive] = useState(active);
+  // Reveal the destination when another control changes workspace, while still
+  // allowing the user to close the active group without changing pages.
+  if (active !== wasActive) { setWasActive(active); setExpanded(active); }
+  const pages = group.pages.filter(([page]) => page !== 'tv' || props.canFinance);
+  return <div className="workspace-page-group">
+    <div className="workspace-group-heading">
+      <WorkspaceRailLink {...props} expanded={expanded} />
+      <button type="button" className="workspace-group-toggle" aria-label={`${expanded ? 'Collapse' : 'Expand'} ${group.label} pages`} aria-expanded={expanded} aria-controls={`sidebar-pages-${group.workspace}`} onClick={() => setExpanded(value => !value)}><ChevronDown size={16} aria-hidden="true" /></button>
+    </div>
+    <div id={`sidebar-pages-${group.workspace}`} className="workspace-page-list" hidden={!expanded}>
+      {pages.map(([page, label]) => <a key={page} className="workspace-page-link" href={pageHref(group.workspace, group.key, page)} aria-current={active && currentPage === page ? 'page' : undefined} aria-disabled={disabled || undefined} onPointerEnter={() => { if (!disabled) preload(group.workspace); }} onFocus={() => { if (!disabled) preload(group.workspace); }} onClick={event => {
+        if (disabled) { event.preventDefault(); return; }
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        event.preventDefault(); navigate(group.workspace, page);
+      }}>{label}</a>)}
+    </div>
+  </div>;
+}
 export function PageRail(props: RailProps) {
-  const { workspace, collapsed, currentPage, disabled, navigate, preload, closePages, showPages } = props;
-  const groups = workspacePages.filter(group => group.workspace !== 'Settings' && (group.workspace !== 'Finance' || props.canFinance));
-  const expandedGroup = [...groups, workspacePages[6]].find(group => group.workspace === (props.expandedWorkspace || workspace)) || groups[0];
-  const pages = expandedGroup.pages.filter(([page]) => page !== 'tv' || props.canFinance);
-  return <>
-    <nav id="workspace-sidebar-navigation" className="page-rail workspace-rail" aria-label="Workspaces">
-      {groups.map(group => <div className="workspace-page-group" key={group.workspace}>
-        <WorkspaceRailLink group={group} {...props} />
-        <button type="button" className="workspace-group-toggle" aria-label={`${!collapsed && expandedGroup === group ? 'Hide' : 'Show'} ${group.label} pages`} aria-expanded={!collapsed && expandedGroup === group} aria-controls={!collapsed && expandedGroup === group ? 'sidebar-page-panel' : undefined} onClick={() => !collapsed && expandedGroup === group ? closePages?.() : showPages?.(group.workspace)}><ChevronRight size={14} aria-hidden="true" /></button>
-      </div>)}
-    </nav>
-    {!collapsed && <>
-      <button type="button" className="sidebar-page-backdrop" aria-label="Close sidebar pages" tabIndex={-1} onClick={closePages} />
-      <section id="sidebar-page-panel" className="sidebar-page-panel" aria-label={`${expandedGroup.label} pages`}>
-        <header><strong>{expandedGroup.label}</strong><button type="button" className="sidebar-panel-close" aria-label="Close page panel" onClick={closePages}><X size={18} aria-hidden="true" /></button></header>
-        <nav className="workspace-page-list" aria-label={`${expandedGroup.label} pages`}>
-          {pages.map(([page, label]) => <a key={page} className="workspace-page-link" href={pageHref(expandedGroup.workspace, expandedGroup.key, page)} aria-current={workspace === expandedGroup.workspace && currentPage === page ? 'page' : undefined} aria-disabled={disabled || undefined} onPointerEnter={() => { if (!disabled) preload(expandedGroup.workspace); }} onFocus={() => { if (!disabled) preload(expandedGroup.workspace); }} onClick={event => {
-            if (disabled) { event.preventDefault(); return; }
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-            event.preventDefault(); navigate(expandedGroup.workspace, page);
-          }}>{label}</a>)}
-        </nav>
-      </section>
-    </>}
-  </>;
+  return <nav id="workspace-sidebar-navigation" className="page-rail workspace-rail" aria-label="Workspaces">
+    {workspacePages.filter(group => group.workspace !== 'Settings' && (group.workspace !== 'Finance' || props.canFinance)).map(group => <WorkspacePageGroup key={group.workspace} group={group} {...props} />)}
+  </nav>;
 }

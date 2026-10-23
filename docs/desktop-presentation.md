@@ -29,14 +29,16 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The desktop sidebar opens expanded at 240px with an 80px compact rail available
-through the labeled header toggle. This browser remembers its collapsed state;
-blocked storage still permits the toggle for the current session. Workspace
-labels open their main page in one click. Separate chevrons show inline page
-links without navigation; selecting a page switches the existing workspace view
-immediately. The active workspace's pages open when the workspace changes.
-Settings and Sources remain in the footer. Short windows scroll the sidebar
-without overlapping its footer. Mobile retains the existing workspace selector.
+The desktop sidebar uses a stationary 80px icon rail. Expanding it reveals a
+200px page panel alongside the rail, over the workspace's edge. The content width,
+workspace rows, header and footer keep the same positions in both states. Section
+chevrons replace the page list in this single fixed panel without pushing other
+workspaces down; the section label still navigates directly to its main page.
+Selecting a page navigates immediately and closes the panel. The header toggle,
+close button, outside click and Escape also dismiss it, restoring toggle focus.
+Collapsed state is remembered in this browser; blocked storage still permits the
+current-session toggle. The rail and page panel scroll independently on short
+screens. Mobile retains the existing workspace selector.
 
 Page links preserve the operating date, clear unrelated record filters, support
 keyboard and modifier clicks, and reuse the existing workspace preload. Finance
@@ -44,6 +46,11 @@ and The Huddle retain financial access checks. Busy mutations block both workspa
 and page navigation. The Huddle retains its full-screen route and current-day
 behavior. Monitor, Actions, Call-in plan, Reconciliation, Driving, Records & invoices
 and standalone Trends stay omitted; existing saved links remain compatible.
+
+For synthetic sidebar QA, run `node desktop-ui/node_modules/vite/bin/vite.js
+--config desktop-ui/tests/sidebar.vite.config.ts` from the repository root, then
+`DESKTOP_TEST_ORIGIN=http://127.0.0.1:3167 node scripts/test-desktop-rail-browser.mjs`.
+The server uses strict port binding so it never replaces another task's server.
 
 Settings initially provides My Preferences, Notifications, and Connections.
 The default opening workspace is stored in versioned browser local storage,

@@ -992,6 +992,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); live?.onBusyChange?.(busy); }, [live?.onBusyChange]);
   const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+  const [sidebarGroup, setSidebarGroup] = useState<string | undefined>();
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
+  const closeSidebarPages = () => { setSidebarCollapsed(true); saveSidebarCollapsed(true); sidebarToggleRef.current?.focus({ preventScroll: true }); };
+  const showSidebarPages = (workspace: string) => { setSidebarGroup(workspace); setSidebarCollapsed(false); saveSidebarCollapsed(false); };
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
     const params = new URLSearchParams(window.location.search);
@@ -4228,6 +4232,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (!group) return;
     const page = requestedPage || group.pages[0][0];
     if (!group.pages.some(([value]) => value === page)) return;
+    closeSidebarPages();
     if (workspace === 'Command' && page === 'tv') {
       if (live && !canFinance) return;
       window.location.assign(pageHref(workspace, group.key, page));
@@ -4253,18 +4258,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-sidebar-collapsed={sidebarCollapsed} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
-      <aside className="ops-sidebar">
+      <aside className="ops-sidebar" onBlur={event => { if (!sidebarCollapsed && event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) { setSidebarCollapsed(true); saveSidebarCollapsed(true); } }} onKeyDown={event => { if (event.key === 'Escape' && !sidebarCollapsed) { event.preventDefault(); closeSidebarPages(); } }}>
         <div className="brand-lockup" style={{ display: 'block' }}>
           <img src="/opscenter-icon.svg" alt="OpsCenter" width={40} height={40} className="workspace-rail-brand" />
-          {!sidebarCollapsed && <strong className="workspace-sidebar-title">OpsCenter</strong>}
-          <button type="button" className="sidebar-collapse-toggle" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="workspace-sidebar-navigation" onClick={() => { const next = !sidebarCollapsed; setSidebarCollapsed(next); saveSidebarCollapsed(next); }}>{sidebarCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
+          <button ref={sidebarToggleRef} type="button" className="sidebar-collapse-toggle" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="workspace-sidebar-navigation" onClick={() => { if (sidebarCollapsed) showSidebarPages(activeNav); else closeSidebarPages(); }}>{sidebarCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
         </div>
 
         <NavigationDiagnostics />
-        <PageRail collapsed={sidebarCollapsed} currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
+        <PageRail expandedWorkspace={sidebarGroup} showPages={showSidebarPages} closePages={closeSidebarPages} collapsed={sidebarCollapsed} currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
 
         <div className="sidebar-footer">
-          <WorkspaceRailLink group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
+          <WorkspaceRailLink collapsed={sidebarCollapsed} group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
           <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth} aria-label={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'} title={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'}><span aria-hidden="true" /><small>Sources</small>{sourceAttentionCount > 0 && <em>{sourceAttentionCount}</em>}</button>
         </div>
       </aside>

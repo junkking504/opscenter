@@ -94,7 +94,7 @@ try {
     const job={address,mapFallback,location:null,territory:'Northshore'} as ScheduleAppointment;
     assert.equal(scheduleDisplayLocator(job).kind,'approximate');
     assert.deepEqual(scheduleMapLocation(job),point,'Existing approximate travel path receives provider point');
-    assert.equal(appointmentVisitPin(job),null);
+    assert.deepEqual(appointmentVisitPin(job)?.location,point);
     assert.equal(planningLocation(address,{}),null,'Display fallback cannot enter verified cache');
     assert.equal(scheduleDisplayLocator({...job,mapFallback:null}).kind,'area');
     assert.equal(scheduleMapLocation({...job,mapFallback:null}),null,'Territory center cannot enter travel');
@@ -104,5 +104,5 @@ try {
     assert.equal(cachedAddressVerification(address),undefined,'Old negative policy retries through the existing worker');
   }
   assert.equal(calls,0,'No geocoder or routing requests');
-  console.log('PASS Number-unit and compact-highway cache recovery; near misses, competing premises, stale evidence, verified/visit isolation; zero provider calls.');
+  console.log('PASS Number-unit and compact-highway cache recovery; near misses, competing premises, stale evidence, verified-address isolation and shared visit coordinates; zero provider calls.');
 } finally {process.env=before.env;globalThis.fetch=before.fetch;fs.rmSync(root,{recursive:true,force:true});}

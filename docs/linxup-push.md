@@ -342,3 +342,15 @@ zero degrees is retained as north. Westbound silhouettes are mirrored before
 rotation, while fleet numbers and speed labels remain upright. Stale reports
 identify the last heading in the tooltip. Missing or invalid headings retain the
 neutral icon and report `Heading unavailable`; no destination bearing is inferred.
+
+
+## Pin confidence and operations — October 23, 2026
+
+Map labels do not gate operations. Schedule and the collector use the shared
+appointment pin selector for both verified and approximate coordinates. GPS
+freshness, valid coordinates, the 200-metre site radius and geometric ambiguity
+still apply; an area-only marker is not an appointment coordinate. Existing
+one-point arrival semantics are unchanged. Arrival/departure processing, on-site
+state and visit-based assignment retain the confidence label as provenance only.
+See [address verification](address-verification-completion.md) for the prospective
+activation cutoff and the limits of building-centre pins on large properties.

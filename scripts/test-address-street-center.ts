@@ -21,7 +21,7 @@ try {
   assert.ok(pin);assert.equal(pin.matchedAddress,'Example Dr, Testville, LA 70726');
   assert.match(pin.detail,/street center; house number not located/);assert.equal(pin.visitEligible,false);
   assert.equal(verifyGeocodioAddress(address,{results:[center,unrelated]}).location,null);
-  assert.equal(appointmentVisitPin({location:null,mapFallback:pin}),null);
+  assert.deepEqual(appointmentVisitPin({location:null,mapFallback:pin})?.location,pin.location);
   save([unrelated,center]);assert.deepEqual(readAddressMapFallback(address,now),pin,'Provider order does not choose the street');
   save([center,center]);assert.ok(readAddressMapFallback(address,now),'Identical duplicates are one center');
   save([center,{...center,location:{lat:30.42,lng:-90.94}}]);assert.equal(readAddressMapFallback(address,now),null);
@@ -32,5 +32,5 @@ try {
     save([{...center,...patch}]);assert.equal(readAddressMapFallback(address,now),null);
   }
   save([center],now-1);assert.equal(readAddressMapFallback(address,now),null);
-  console.log('Exact street centers: matching identity only, labeled approximation, ambiguity/expiry/precision guards, no premises or visit promotion.');
+  console.log('Exact street centers: matching identity only, labeled approximation, ambiguity/expiry/precision guards, no premises promotion; shared operational coordinate.');
 } finally {process.env=old;fs.rmSync(root,{recursive:true,force:true});}

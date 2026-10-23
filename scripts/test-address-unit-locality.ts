@@ -56,16 +56,16 @@ try {
   assert.equal(verifyGeocodioAddress(lot,payload).location,null,'Unit metadata cannot become exact premises verification');
   assert.deepEqual(fs.readFileSync(process.env.GEOCODIO_FREE_STATE_FILE!),bytes,'Cache reader does not rewrite evidence');
   const bridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify([lot]),encoding:'utf8',env:process.env}));
-  assert.equal(bridge[lot],null,'Python bridge never exports an approximate pin');
+  assert.deepEqual(bridge[lot].location,location,'Python bridge shares the displayed coordinate');
   for(const evidence of [fallback,{...fallback,visitEligible:undefined},{...fallback,navigationReviewed:true as const}]) {
-    assert.equal(appointmentVisitPin({location:null,mapFallback:evidence}),null);
+    assert.deepEqual(appointmentVisitPin({location:null,mapFallback:evidence})?.location,location);
     assert.deepEqual(appointmentVisitPin({location,mapFallback:evidence}),{location,approximate:false});
   }
-  assert.equal(visitEvidenceLocation({location},{location,approximate:true}),null,'Recorded approximate pin cannot gain eligibility after later exact verification');
+  assert.deepEqual(visitEvidenceLocation({location},{location,approximate:true}),location,'Recorded coordinates remain usable independent of their label');
   assert.deepEqual(visitEvidenceLocation({location}),location);
   const job={appointmentId:'synthetic',truck:'Truck 3',status:'Confirmed',location:null,mapFallback:fallback};
   const truck={truck:'Truck 3',...location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[]};
-  assert.equal(currentGpsPresence(job,[truck],[job],now),undefined);
+  assert.equal(currentGpsPresence(job,[truck],[job],now)?.current,true);
   assert.equal(currentGpsPresence({...job,location},[truck],[{...job,location}],now)?.current,true);
 
   const duplicate='123 A Street Covington Covington, LA 70433';
@@ -97,4 +97,4 @@ try {
   save(path.join(process.env.SERVICE_ADDRESS_CACHE_DIR!,hash(normal)+'.json'),{schema:ADDRESS_VERIFICATION_POLICY-1,address:normal,expires:now+60000,verified:verifyParishAddress(normal,parish)});
   assert.deepEqual(cachedAddressVerification(normal)?.location,point,'Valid positive evidence survives policy change');
 } finally {process.env=env;globalThis.fetch=fetchBefore;fs.rmSync(root,{recursive:true,force:true});}
-console.log('PASS unit/locality normalization, legacy cache reuse, conflicting-unit rejection, exact identity guards and approximate GPS exclusion; no provider calls.');
+console.log('PASS unit/locality normalization, legacy cache reuse, conflicting-unit rejection, exact identity guards and label-independent GPS eligibility; no provider calls.');

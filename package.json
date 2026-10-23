@@ -211,7 +211,8 @@
     "verify:customer-accounts": "node --import tsx scripts/test-customer-accounts.ts",
     "verify:named-accounts": "node --import tsx scripts/test-named-accounts.ts",
     "verify:waypoint-navigation:browser": "node scripts/test-waypoint-navigation-browser.mjs",
-    "verify:waypoint-push:browser": "node scripts/test-waypoint-push-browser.mjs"
+    "verify:waypoint-push:browser": "node scripts/test-waypoint-push-browser.mjs",
+    "verify:waypoint-manager:presentation": "node --import tsx scripts/test-waypoint-manager-presentation.ts && node scripts/test-waypoint-manager-navigation-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

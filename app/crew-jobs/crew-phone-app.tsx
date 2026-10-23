@@ -26,15 +26,20 @@ import {HANDOFF_EVENT,readHandoffs,retireHandoff,resumeHandoff,saveHandoff,type 
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 const dayViews=[{id:'route',label:'Route',icon:'pin'},{id:'completed',label:'Completed',icon:'completed'},{id:'performance',label:'Performance',icon:'performance'},{id:'notifications',label:'Notifications',icon:'bell'},{id:'messages',label:'Messages',icon:'message'}] as const;
+import type {LeaveGuard} from './manager-navigation';
+export type CrewViewContext={view?:'route'|'completed'|'performance'|'notifications'|'messages';truck?:string;phoneTruck?:string;scroll?:number};
 type Pending = { code: string; connectionKey: string };
-export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'connect' | 'setup' | 'inspection' | 'jobs') => void }) {
-  const [view,setView]=useState<'route'|'completed'|'performance'|'notifications'|'messages'>('route');
+export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange, onGuard, context, onContextChange }: { context?:CrewViewContext;onContextChange?:(context:Partial<CrewViewContext>)=>void;onGuard?:(guard:LeaveGuard|null)=>void; onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'connect' | 'setup' | 'inspection' | 'jobs') => void }) {
+  const [view,setView]=useState<'route'|'completed'|'performance'|'notifications'|'messages'>(context?.view || 'route');
   const [notificationConnection,setNotificationConnection]=useState<NotificationConnection>('checking');
-  const [viewTruck,setViewTruck]=useState('');
+  const [viewTruck,setViewTruck]=useState(context?.truck || '');
+  useEffect(()=>{onContextChange?.({view,truck:viewTruck});},[onContextChange,view,viewTruck]);
   const [editingCustomer,setEditingCustomer]=useState(false);
   const [viewGuard]=useState(createWaypointViewGuard);
   const [phone, setPhone] = useState<CrewPhone | null>(null);
-  useEffect(()=>{setViewTruck('');},[phone?.truck]);
+  const priorPhoneTruck=useRef(context?.phoneTruck);
+  const currentPhoneTruck=phone?.truck;
+  useEffect(()=>{if(!currentPhoneTruck)return;if(priorPhoneTruck.current&&priorPhoneTruck.current!==currentPhoneTruck)setViewTruck('');priorPhoneTruck.current=currentPhoneTruck;onContextChange?.({phoneTruck:currentPhoneTruck});},[currentPhoneTruck,onContextChange]);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrewState]=useState(false);
   const [trucks,setTrucks]=useState<string[]>([]),[inspectionRequired,setInspectionRequired]=useState(true);
   const [switching,setSwitchingState]=useState(false),[truckSwitch,setTruckSwitch]=useState<SwitchSummary|null>(null);
@@ -69,6 +74,13 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const setSelectedAppointment=(value:string|null)=>{viewGuard.select(value);setSelectedAppointmentState(value);};
   const step=!phone ? 'connect' : !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
+  useEffect(()=>{onGuard?.(()=>{
+    if(viewGuard.blocked()||editingCustomer||pendingCloseout||handoff&&['transferring','submitting'].includes(handoff.phase)||phone&&step!=='jobs') {setError('Finish or return from the current crew form and check any pending checkout before switching views.');return false;}
+    onContextChange?.({scroll:window.scrollY});return true;
+  });return()=>onGuard?.(null);},[onGuard,onContextChange,viewGuard,editingCustomer,pendingCloseout,handoff,phone,step]);
+  const restoredScroll=useRef(false);
+  useEffect(()=>{if(step==='jobs'&&!jobLoading&&!restoredScroll.current){const frame=requestAnimationFrame(()=>{restoredScroll.current=true;window.scrollTo({top:context?.scroll || 0});});return()=>cancelAnimationFrame(frame);}},[step,jobLoading,context]);
+
   async function loadJob() {
     if(viewGuard.blocked()){viewGuard.defer();return;}
     const request=++jobRequest.current,viewVersion=viewGuard.version();

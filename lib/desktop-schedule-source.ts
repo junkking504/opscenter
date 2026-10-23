@@ -309,13 +309,13 @@ function cancellationReasonText(value: string, customerName: string, phone: stri
 
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
   const name = String(customerName || "").trim();
-  const phoneDigits = String(phone || "").replace(/\D/g, "");
+  const phoneDigits = String(phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
   if (name && new RegExp(`^${escape(name)}\\s+`, "i").test(reason)) {
     reason = reason.replace(new RegExp(`^${escape(name)}\\s+`, "i"), "");
   }
-  if (phoneDigits) {
-    const phonePattern = phoneDigits.split("").map((digit) => `${digit}\\D*`).join("");
-    reason = reason.replace(new RegExp(`^${phonePattern}\\s*`, "i"), "");
+  if (phoneDigits.length === 10) {
+    const phonePattern = phoneDigits.split("").join("[\\s().+-]*");
+    reason = reason.replace(new RegExp(`^(?:\\+?1[\\s().-]*)?\\(?${phonePattern}[)\\s.-]*`, "i"), "");
   }
 
   const addressMatch = String(address || "").match(/^(.+?),\s*([^,]+?)(?:,\s*([A-Z]{2}))?\s*,?\s*(\d{5}(?:-\d{4})?)$/i);
@@ -335,16 +335,20 @@ export function separateCancellationContact<T extends Pick<JobRow, 'customerName
   const raw = job.customerName.trim();
   let customerName = raw;
   // Only split an obviously contaminated cancellation cell, never ordinary names.
-  const contaminated = /\bcancel(?:led|ed|lation)?\b/i.test(raw);
+  const phoneDigits = job.phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  const phonePattern = phoneDigits.length === 10 ? new RegExp(phoneDigits.split('').join('[\\s().+-]*')) : null;
+  const knownPhoneBoundary = phonePattern ? raw.search(phonePattern) : -1;
+  // Fast cancellation cells contain name + phone + street + reason, even when
+  // the reason never says "cancel". Require contact structure, not prose alone.
+  const contact = raw.match(/(?:^|\s)(?:\+?1[ .-]?)?(?:\(\d{3}\)|\d{3})[ .-]?\d{3}[ .-]?\d{4}\s+(?=\d+\s)/);
+  const boundary = contact ? (contact.index ?? 0) : knownPhoneBoundary;
+  const contaminated = /\bcancel(?:led|ed|lation)?\b/i.test(raw) || Boolean(contact && boundary > 0);
   if (contaminated) {
-    const phoneDigits = job.phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
-    const phonePattern = phoneDigits.length === 10 ? new RegExp(phoneDigits.split('').join('[\\s().+-]*')) : null;
-    const boundary = phonePattern ? raw.search(phonePattern) : -1;
     const cancelBoundary = raw.search(/\b(?:cancelled|canceled|cancellation|called to cancel)\b/i);
     const end = boundary > 0 ? boundary : cancelBoundary;
     customerName = end > 0 ? raw.slice(0, end).replace(/[\s,;:–-]+$/, '') : 'Customer name unavailable';
   }
-  const cancellationReason = cancellationReasonText(job.cancellationReason || (contaminated ? raw : ''), customerName, job.phone, job.address);
+  const cancellationReason = cancellationReasonText(job.cancellationReason || (contaminated ? raw : ''), customerName, job.phone || contact?.[0] || '', job.address);
   return {...job, customerName, cancellationReason,
     appointmentNotes: [...new Set([...job.appointmentNotes, cancellationReason].filter(Boolean))]};
 }
@@ -1108,6 +1112,13 @@ function mergeFastScheduleRows(
     fresh.sourceDate = date;
     fresh.appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]) || fresh.appointmentId;
     if (!existing) return [fresh];
+    const contact = separateCancellationContact({...fresh,
+      phone: present(fresh.phone) ? fresh.phone : existing.phone,
+      address: fresh.address !== 'Address unavailable' ? fresh.address : existing.address});
+    const existingContact = separateCancellationContact(existing);
+    const customerName = contact.customerName !== fresh.customerName
+      ? (present(existingContact.customerName) && existingContact.customerName !== 'Customer name unavailable' ? existingContact.customerName : contact.customerName)
+      : (present(fresh.customerName) ? fresh.customerName : existing.customerName);
     const freshPhotos = fresh.photoAuditAvailable && Number.isFinite(Date.parse(fresh.photoObservedAt || ''))
       && Date.parse(fresh.photoObservedAt || '') >= (Date.parse(existing.photoObservedAt || '') || 0);
 
@@ -1126,7 +1137,7 @@ function mergeFastScheduleRows(
       appointmentStartMinutes: fresh.hasScheduledTime ? fresh.appointmentStartMinutes : existing.appointmentStartMinutes,
       appointmentEndMinutes: fresh.hasScheduledTime ? fresh.appointmentEndMinutes : existing.appointmentEndMinutes,
       hasScheduledTime: fresh.hasScheduledTime || existing.hasScheduledTime,
-      customerName: present(fresh.customerName) ? fresh.customerName : existing.customerName,
+      customerName,
       customerEmail: present(fresh.customerEmail) ? fresh.customerEmail : existing.customerEmail,
       customerEmailCollected: fresh.customerEmailCollected || existing.customerEmailCollected,
       phone: present(fresh.phone) ? fresh.phone : existing.phone,
@@ -1149,7 +1160,7 @@ function mergeFastScheduleRows(
       tipAmount: fresh.tipAmount || existing.tipAmount,
       pickupItems: fresh.pickupItems?.length ? fresh.pickupItems : existing.pickupItems,
       appointmentNotes: fresh.appointmentNotes.length ? fresh.appointmentNotes : existing.appointmentNotes,
-      cancellationReason: fresh.cancellationReason || existing.cancellationReason,
+      cancellationReason: contact.customerName !== fresh.customerName ? contact.cancellationReason : fresh.cancellationReason || existing.cancellationReason,
     }];
   });
 }

@@ -8,18 +8,24 @@ provider, paid SDK, inference call, source polling, or WhatsApp path.
 
 In Waypoint, authenticated live phones with today's truck/crew selected open
 **Notifications & office messages**. On iPhone, use Share → Add to Home Screen,
-then open that icon and tap **Enable notifications for today**. The browser's
+then open that icon and tap **Enable notifications** once. The browser's
 permission request occurs only from that tap. Today’s connection and current truck
 are rechecked before enrollment and before each network attempt, including after
 DNS. The control displays the server’s current enabled state, not just a saved
 browser preference. Revocation, expiration, a truck change and unsubscribe block old queued work.
-Enable again after daily enrollment; browser notification permission persists.
+Daily expiry pauses delivery without clearing the browser’s opt-in. After daily
+truck/crew setup, Waypoint automatically restores the existing enabled subscription
+using its private browser capability, without another permission prompt or tap.
+Returning to Waypoint or refreshing messages retries a missed restore. Server-side
+revocation, provider expiry and an expired subscription are never silently undone.
 Notifications do not bypass inspection or grant appointment access.
 
 The lock screen contains only a generic truck-update notice; no customer name,
 address, office-message body or financial detail is sent. Tap opens Waypoint on
 the same origin. The service worker has no fetch handler, cache or data endpoint.
-Disable revokes the server subscription first, then unsubscribes the browser.
+Waypoint has no in-app disable control. iPhone notification permission remains
+controlled by iOS; server-side unsubscribe/revocation stays available to invalidate
+a subscription and is respected by automatic restore.
 
 Office dispatch uses **Crew dispatch → Message [truck]**. Messages are immutable,
 limited to 1,000 characters and the selected truck/current Central date. An exact
@@ -66,9 +72,14 @@ unchanged. Private subscription material remains in production PostgreSQL.
 Office messages and completed delivery outcomes older than 14 days are retired at
 sender startup; pending/sending work is protected from deletion. Subscriptions belong to a random private browser capability retained on the
 iPhone, independent of the enrolling manager. The server stores only its hash.
-Daily re-enrollment explicitly binds the same browser to the new phone session.
+Daily setup automatically binds an already-enabled browser to the new phone session.
+Restore requires current authorized phone/day access and the existing browser
+capability; it cannot create a subscription or enable a disabled one. An unchanged
+binding is a no-op, preserving its baseline and pending alerts. A new binding skips
+old pending alerts and starts a silent baseline.
 Other browsers cannot claim or unsubscribe its endpoint without that capability.
-Enabled subscriptions are bounded to ten per current daily phone. Re-enabling
+Enabled subscriptions are bounded to ten per current daily phone. Inactive daily
+phone bindings retain the opt-in but cannot queue or send; they wait for restore. Re-enabling
 resets the baseline and skips old pending notifications, keeping old alerts silent.
 Disabled, settled subscriptions older than 14 days are retired at startup under
 row locks; live subscriptions and unresolved delivery references are protected.

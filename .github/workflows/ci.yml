@@ -40,6 +40,11 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci --prefix desktop-ui --no-audit --no-fund
 
+      # desktop-ui has its own dependencies (for example lucide-react) that the
+      # root typecheck resolves from desktop-ui/node_modules.
+      - name: Install desktop-ui
+        run: npm ci --prefix desktop-ui --no-audit --no-fund
+
       - name: Lint
         run: npm run lint
 

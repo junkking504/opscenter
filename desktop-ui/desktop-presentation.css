@@ -339,6 +339,7 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .ops-app.ops-live:has(.workspace-rail) .brand-lockup { flex:0 0 auto; flex-direction:column; align-items:center; gap:8px; padding-bottom:12px; }
   .ops-app.ops-live .page-rail.workspace-rail { flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; justify-content:flex-start; scrollbar-width:thin; }
   .workspace-page-group { position:relative; flex-shrink:0; }
+  .workspace-page-group .workspace-rail-icon { margin-right:20px; }
   .ops-app.ops-live .workspace-rail-group { margin:0 0 6px; padding:0; }
   .sidebar-collapse-toggle,.workspace-group-toggle,.sidebar-panel-close { display:grid; place-items:center; border:0; border-radius:6px; color:var(--oc-text-muted); background:transparent; cursor:pointer; }
   .sidebar-collapse-toggle,.sidebar-panel-close { padding:6px; }

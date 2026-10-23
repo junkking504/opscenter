@@ -36,8 +36,8 @@ chevrons replace the page list in this single fixed panel without pushing other
 workspaces down; the section label still navigates directly to its main page.
 Selecting a page navigates immediately and closes the panel. The header toggle,
 close button, outside click and Escape also dismiss it, restoring toggle focus.
-Collapsed state is remembered in this browser; blocked storage still permits the
-current-session toggle. The rail and page panel scroll independently on short
+The page panel always starts closed, including after a reload; its open state
+is transient and does not use browser storage. The rail and page panel scroll independently on short
 screens. Mobile retains the existing workspace selector.
 
 Page links preserve the operating date, clear unrelated record filters, support

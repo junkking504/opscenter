@@ -1,6 +1,6 @@
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
-import { likelyGpsStop } from './likely-stop-match';
+import { contestedLikelyStops, likelyGpsStop, likelyStopKey, overlapsRecordedVisit, type LikelyStop } from './likely-stop-match';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -99,16 +99,24 @@ export function readDesktopSchedule(date: string) {
   // Near misses (typo'd house number, unresolved pin): a stop with dwell and
   // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
   const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
+  const candidates: Array<[DesktopAppointment, LikelyStop]> = [];
   for (const job of appointments) {
     if (job.truckVisits?.length) continue;
     const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
     if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
     const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date);
-    if (likely?.confident && likely.departure) {
+    if (likely) candidates.push([job, likely]);
+  }
+  // Recorded visits are settled before suggestions are placed.
+  const recorded = appointments.flatMap(job => job.truckVisits || []);
+  const contested = contestedLikelyStops(candidates.map(([, likely]) => likely));
+  for (const [job, likely] of candidates) {
+    if (contested.has(likelyStopKey(likely)) || overlapsRecordedVisit(likely, recorded)) continue;
+    if (likely.confident && likely.departure) {
       // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
-      job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
+      job.truckVisits = [{approximate: true, truck: likely.truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
       job.hasVisit = true;
-    } else if (likely) job.likelyStop = likely;
+    } else job.likelyStop = likely;
   }
   const geofenceStops = scheduleOperationalStops(date, tracked.visits);
   const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {

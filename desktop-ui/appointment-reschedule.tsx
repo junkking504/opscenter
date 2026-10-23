@@ -4,7 +4,7 @@ import {Button} from './components/ui/button';
 import {ChangeReceipt,checkScheduleChange,sendScheduleChange,type Receipt} from './schedule-controls';
 import {assignmentNeedsVerification,isClosed,scheduleMoveWindow,truckLabel,type ScheduleAppointment} from './lib/schedule-contract';
 
-export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{job:ScheduleAppointment;date:string;saved:(destination:string)=>void;onBusyChange:(busy:boolean)=>void;onOpenDate?:(date:string)=>void}) {
+export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate,active=true}:{job:ScheduleAppointment;date:string;active?:boolean;saved:(destination:string)=>void;onBusyChange:(busy:boolean)=>void;onOpenDate?:(date:string)=>void}) {
   const restore=/cancel(?:ed|led)/i.test(job.status);
   const actionLabel=restore?'Restore Appointment':'Reschedule Appointment';
   const [destination,setDestination]=useState(date);
@@ -15,15 +15,17 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
   const [receipt,setReceipt]=useState<Receipt|null>(null);
   const [error,setError]=useState('');
   const inFlight=useRef(false);
+  const dateRef=useRef<HTMLInputElement>(null);
   const reviewRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(!active)setReview(false);},[active]);
   useEffect(()=>{
-    if(!review || receipt) return;
+    if(!active || !review || receipt) return;
     reviewRef.current?.scrollIntoView({
       block:'end',
       behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',
     });
     reviewRef.current?.focus({preventScroll:true});
-  },[review,receipt]);
+  },[review,receipt,active]);
   useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
   const duration=job.appointmentStartMinutes===null || job.appointmentEndMinutes===null?0:job.appointmentEndMinutes-job.appointmentStartMinutes;
   const validDate=/^\d{4}-\d{2}-\d{2}$/.test(destination) && Number.isFinite(Date.parse(destination)) && new Date(destination+'T12:00:00Z').toISOString().slice(0,10)===destination;
@@ -46,7 +48,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
     <h3>{actionLabel}</h3>
     <p>Current: {date} · {job.appointmentTime} · {truckDisplayText(truckLabel(job.truck))}</p>
     <div className="drawer-control-fields">
-      <label><span>New Appointment Date</span><input id="appointment-reschedule-date" type="date" value={destination} disabled={blocked} onChange={event=>{setDestination(event.target.value);setReview(false);setReceipt(null);}} /></label>
+      <label><span>New Appointment Date</span><input ref={dateRef} id="appointment-reschedule-date" type="date" value={destination} disabled={blocked} onChange={event=>{setDestination(event.target.value);setReview(false);setReceipt(null);}} /></label>
       <label><span>New Appointment Window</span><select value={start} disabled={blocked} onChange={event=>{setStart(event.target.value);setReview(false);setReceipt(null);}}>
         {start==='' && <option value="">Choose time</option>}
         {job.appointmentStartMinutes!==null && job.appointmentStartMinutes%60!==0 && <option value={job.appointmentStartMinutes}>{job.appointmentTime}</option>}
@@ -63,7 +65,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
       <p>From {date} · {job.appointmentTime}<br/>To {destination} · {scheduleMoveWindow(job,Number(start)).label}</p>
       <p>{restore?'Confirming restores this canceled appointment in JunkWare.':'Confirming changes this appointment in JunkWare.'}</p>
       {reviewChanged && <p role="alert">This appointment changed during review. Choose Keep Appointment, then review the current details again.</p>}
-      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>setReview(false)}>{restore?'Keep Canceled':'Keep Appointment'}</Button><Button disabled={blocked || !valid || reviewChanged} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':restore?'Confirm Restoration':'Confirm Reschedule'}</Button></div>
+      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>{setReview(false);dateRef.current?.focus();}}>{restore?'Keep Canceled':'Keep Appointment'}</Button><Button disabled={blocked || !valid || reviewChanged} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':restore?'Confirm Restoration':'Confirm Reschedule'}</Button></div>
     </div>}
     {receipt && <ChangeReceipt receipt={receipt} onCheck={()=>{if(inFlight.current)return;inFlight.current=true;setBusy(true);void checkScheduleChange(receipt.requestId).then(value=>{setReceipt(value);if(value.status==='verified')saved(destination);}).catch(error=>setError(error.message)).finally(()=>{setBusy(false);inFlight.current=false;});}}/>}
     {receipt?.status==='failed' && <Button variant="outline" onClick={()=>{setReceipt(null);setReview(false);}}>Review and Correct</Button>}

@@ -10,7 +10,8 @@ await page.goto(`${fixture}?workspace=Command&date=2026-09-12`);
 await page.waitForSelector('.workspace-rail-link');
 assert.equal(await page.locator('.workspace-rail-link').count(),7);
 assert.equal(await page.locator('.workspace-rail-flyout').count(),0);
-assert.equal(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).isVisible(),true);
+assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).isVisible(),true);
+assert.equal(await page.locator('.sidebar-page-panel').count(),0);
 const targets=[['Dashboard','Command','commandView','now'],['Command','Schedule','scheduleView','board'],['Krewe','Krewe','kreweView','today'],['Fleet','Fleet','fleetView','overview'],['Finance','Finance','financeView','overview'],['Marketing','Marketing','marketingView','overview'],['Settings','Settings',null,null]];
 for(const [label,workspace,key,area] of targets){
  const link=page.locator('.ops-sidebar').getByRole('link',{name:label,exact:true});
@@ -22,20 +23,29 @@ for(const [label,workspace,key,area] of targets){
  assert.equal(await link.getAttribute('aria-expanded'),null);
  console.log(`One click reached: ${label}`);
 }
-// Disclosure does not navigate; page links do, preserving the selected date.
-const settingsUrl = page.url();
-await page.getByRole('button',{name:'Expand Command pages',exact:true}).click();
+// Neither panel expansion nor changing its section moves the page or rail rows.
+const geometryOf = () => ({content:document.querySelector('.ops-content').getBoundingClientRect().toJSON(),rows:[...document.querySelectorAll('.workspace-rail-link')].map(el=>el.getBoundingClientRect().toJSON())});
+const settingsUrl=page.url(), fixedGeometry=await page.evaluate(geometryOf);
+const openSection = async name => { const box=await page.getByRole('button',{name,exact:true}).boundingBox(); assert.ok(box); await page.mouse.click(box.x+box.width/2,box.y+box.height/2); };
+await openSection('Show Command pages');
 assert.equal(page.url(),settingsUrl);
-await page.locator('.ops-sidebar').getByRole('link',{name:'Calendar',exact:true}).press('Enter');
+assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
+await openSection('Show Finance pages');
+assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
+await openSection('Show Command pages');
+await page.locator('.sidebar-page-panel').getByRole('link',{name:'Calendar',exact:true}).press('Enter');
 await page.waitForFunction(()=>new URL(location.href).searchParams.get('scheduleView')==='calendar');
 assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
 assert.equal(await page.getByRole('tab',{name:'Calendar',exact:true}).getAttribute('aria-selected'),'true');
-await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-assert.equal(await page.locator('.ops-sidebar').evaluate(el=>el.getBoundingClientRect().width),80);
-assert.equal(await page.locator('.workspace-page-list:not([hidden])').count(),0);
+assert.equal(await page.locator('.sidebar-page-panel').count(),0);
+await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+await page.getByRole('button',{name:'Close page panel',exact:true}).press('Escape');
+assert.equal(await page.locator('.sidebar-page-panel').count(),0);
+assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).evaluate(el=>el===document.activeElement),true);
+await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
 await page.reload();
 await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
-await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+assert.equal(await page.locator('.sidebar-page-panel').count(),0);
 await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).click();
 await page.getByLabel('Default opening page').selectOption('Fleet');
 await page.getByText('Saved for this browser.',{exact:true}).waitFor();
@@ -86,8 +96,8 @@ await page.waitForFunction(()=>!document.querySelector('.workspace-rail-link').h
 for(const [width,height]of [[1440,900],[1280,720],[1024,480],[768,480],[390,844],[320,740]]){
  await page.setViewportSize({width,height});
  const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,rail:document.querySelector('.ops-sidebar').getBoundingClientRect().width}));
- assert.equal(geometry.overflow,false,`No horizontal overflow at ${width}`);assert.equal(geometry.rail,width>760?240:0);
- if(width>760) { assert.equal(await page.evaluate(()=>document.querySelector('.page-rail .workspace-page-group:last-child').getBoundingClientRect().bottom <= document.querySelector('.sidebar-footer').getBoundingClientRect().top),true,'Sidebar links must not overlap Settings in short windows'); await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).scrollIntoViewIfNeeded(); assert.equal(await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).isVisible(),true); }
+ assert.equal(geometry.overflow,false,`No horizontal overflow at ${width}`);assert.equal(geometry.rail,width>760?80:0);
+ if(width>760) { assert.equal(await page.evaluate(()=>document.querySelector('.page-rail').getBoundingClientRect().bottom <= document.querySelector('.sidebar-footer').getBoundingClientRect().top),true,'Sidebar links must not overlap Settings in short windows'); await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).scrollIntoViewIfNeeded(); assert.equal(await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).isVisible(),true); }
  else assert.equal(await page.getByRole('combobox',{name:'Choose workspace'}).isVisible(),true);
  if(process.env.DESKTOP_TEST_SCREENSHOTS && [1440,390].includes(width))await page.screenshot({path:`${process.env.DESKTOP_TEST_SCREENSHOTS}/settings-${width}.png`,fullPage:true});
 }
@@ -104,6 +114,7 @@ await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('Storage
 await page.getByLabel('Default opening page').selectOption('Marketing');
 await page.getByText('Could not save this preference.',{exact:false}).waitFor();
 await page.setViewportSize({width:1280,height:720});
+await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
 await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
 assert.equal(await page.getByRole('button',{name:'Expand sidebar',exact:true}).isVisible(),true);
 assert.deepEqual(errors,[]);

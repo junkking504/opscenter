@@ -32,7 +32,7 @@ import { requiresAlertAttention } from '../lib/alert-attention';
 import {
   Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
   CircleDollarSign, Command, Copy, Gauge, MapPin, Megaphone, Search,
-  PanelLeftClose, PanelLeftOpen, PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
+  PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Suspense, useCallback, useId, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -990,25 +990,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   mutationBusyRef.current = mutationBusy;
   const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); live?.onBusyChange?.(busy); }, [live?.onBusyChange]);
   const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [sidebarGroup, setSidebarGroup] = useState<string | undefined>();
-  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
-  const closeSidebarPages = () => { if (!sidebarCollapsed) { setSidebarCollapsed(true); sidebarToggleRef.current?.focus({ preventScroll: true }); } };
-  const showSidebarPages = (workspace: string) => { setSidebarGroup(workspace); setSidebarCollapsed(false); };
-  useEffect(() => {
-    if (sidebarCollapsed) return;
-    const dismissPages = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      setSidebarCollapsed(true);
-      sidebarToggleRef.current?.focus({ preventScroll: true });
-    };
-    // Capture first so Escape dismisses only this panel, including in Safari
-    // where mouse clicks do not necessarily focus a disclosure button.
-    window.addEventListener('keydown', dismissPages, true);
-    return () => window.removeEventListener('keydown', dismissPages, true);
-  }, [sidebarCollapsed]);
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
     const params = new URLSearchParams(window.location.search);
@@ -4245,7 +4226,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (!group) return;
     const page = requestedPage || group.pages[0][0];
     if (!group.pages.some(([value]) => value === page)) return;
-    closeSidebarPages();
     if (workspace === 'Command' && page === 'tv') {
       if (live && !canFinance) return;
       window.location.assign(pageHref(workspace, group.key, page));
@@ -4268,20 +4248,20 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
 
   return (
-    <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-sidebar-collapsed={sidebarCollapsed} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
+    <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
-      <aside className="ops-sidebar" onBlur={event => { if (!sidebarCollapsed && event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) { setSidebarCollapsed(true); } }}>
-        <div className="brand-lockup" style={{ display: 'block' }}>
-          <img src="/opscenter-icon.svg" alt="OpsCenter" width={40} height={40} className="workspace-rail-brand" />
-          <button ref={sidebarToggleRef} type="button" className="sidebar-collapse-toggle" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls={!sidebarCollapsed ? "sidebar-page-panel" : undefined} onClick={() => { if (sidebarCollapsed) showSidebarPages(activeNav); else closeSidebarPages(); }}>{sidebarCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
+      <aside className="ops-sidebar">
+        <div className="brand-lockup">
+          <img src="/opscenter-icon.svg" alt="" width={36} height={36} className="workspace-rail-brand" />
+          <strong className="workspace-brand-name">OpsCenter</strong>
         </div>
 
         <NavigationDiagnostics />
-        <PageRail expandedWorkspace={sidebarGroup} showPages={showSidebarPages} closePages={closeSidebarPages} collapsed={sidebarCollapsed} currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
+        <PageRail currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
 
         <div className="sidebar-footer">
-          <WorkspaceRailLink collapsed={sidebarCollapsed} group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
+          <WorkspaceRailLink group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
           <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth} aria-label={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'} title={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'}><span aria-hidden="true" /><small>Sources</small>{sourceAttentionCount > 0 && <em>{sourceAttentionCount}</em>}</button>
         </div>
       </aside>

@@ -29,16 +29,18 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The desktop sidebar uses a stationary 80px icon rail. Expanding it reveals a
-200px page panel alongside the rail, over the workspace's edge. The content width,
-workspace rows, header and footer keep the same positions in both states. Section
-chevrons replace the page list in this single fixed panel without pushing other
-workspaces down; the section label still navigates directly to its main page.
-Selecting a page navigates immediately and closes the panel. The header toggle,
-close button, outside click and Escape also dismiss it, restoring toggle focus.
-The page panel always starts closed, including after a reload; its open state
-is transient and does not use browser storage. The rail and page panel scroll independently on short
-screens. Mobile retains the existing workspace selector.
+The desktop sidebar stays 224px wide. Each workspace has a direct main-page
+link and a separate disclosure arrow for its inline page list. Lists open and
+close immediately, without width or height animation; the workspace content
+keeps the same width and horizontal position. Expanding a list moves only the
+following navigation rows, as in the selected fixed-width groups preview.
+There is no flyout, backdrop, global width toggle or overlay dismissal behavior.
+The active workspace opens its group when navigation changes workspaces; users
+can close that group independently. Leaving a workspace keeps its list open;
+only its arrow closes it. Selecting a page keeps its group visible.
+Group disclosure does not use browser storage. Navigation scrolls within the
+sidebar on short screens, keeping Settings and Sources in the footer. Mobile
+retains the existing workspace selector.
 
 Page links preserve the operating date, clear unrelated record filters, support
 keyboard and modifier clicks, and reuse the existing workspace preload. Finance

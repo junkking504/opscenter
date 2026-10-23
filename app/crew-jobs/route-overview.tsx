@@ -7,7 +7,7 @@ import {waypointStops,hasWaypointLocation} from '@/lib/waypoint-route';
 import styles from './route.module.css';
 const RouteMap=dynamic(()=>import('./route-map'),{ssr:false,loading:()=> <div className={styles.mapEmpty} role="status">Loading route map…</div>});
 export function RouteIcon({name}:{name:string}) {return <img src={`/crew-jobs/icons/${name}.svg`} width="20" height="20" alt=""/>;}
-export default function RouteOverview({jobs,truck,date,allTrucks,onSelect,onMessages,pendingId,view='route',chosenTruck,onTruckChange}:{view?:'route'|'completed';chosenTruck?:string;onTruckChange?:(truck:string)=>void;jobs:CrewScheduledJob[];truck:string;date:string;allTrucks:boolean;onSelect:(id:string)=>void;onMessages?:()=>void;pendingId?:string}){
+export default function RouteOverview({jobs,truck,date,allTrucks,onSelect,pendingId,view='route',chosenTruck,onTruckChange}:{view?:'route'|'completed';chosenTruck?:string;onTruckChange?:(truck:string)=>void;jobs:CrewScheduledJob[];truck:string;date:string;allTrucks:boolean;onSelect:(id:string)=>void;pendingId?:string}){
  const mapSection=useRef<HTMLDivElement>(null);
  const [localChosen,setLocalChosen]=useState(truck),[expanded,setExpanded]=useState(false);
  const chosen=chosenTruck ?? localChosen;
@@ -21,7 +21,7 @@ export default function RouteOverview({jobs,truck,date,allTrucks,onSelect,onMess
  const approximate=stops.filter(stop=>hasWaypointLocation(stop) && stop.job.mapLocation?.approximate);
  const dateLabel=/^\d{4}-\d{2}-\d{2}$/.test(date)?new Date(`${date}T12:00:00`).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Today';
  return <section className={styles.overview} aria-label={view==='completed'?'Completed appointments':'Today’s route'}>
-  <div className={styles.heading}><div><p className={styles.eyebrow}>{dateLabel}</p><h1>{view==='completed'?'Completed appointments':'Today’s route'}</h1><p>{truckDisplayText(selected)}</p></div>{onMessages&&<button className={styles.messages} onClick={onMessages}><RouteIcon name="message"/><span>Messages</span></button>}</div>
+  <div className={styles.heading}><div><p className={styles.eyebrow}>{dateLabel}</p><h1>{view==='completed'?'Completed appointments':'Today’s route'}</h1><p>{truckDisplayText(selected)}</p></div></div>
   {allTrucks && <label className={styles.truckSelect}>View truck<select value={truckDisplayText(selected)} onChange={e=>setChosen(e.target.value)}>{[...new Set([truckDisplayText(truck),...trucks])].map(value=><option key={value}>{value}</option>)}</select></label>}
   {view==='completed'?<>{completed.length?<div>{completed.map(job=><button className={styles.otherJob} key={job.appointmentId} onClick={()=>onSelect(job.appointmentId)}><span>{job.customerName}<small>{job.appointmentTime} · Completed</small></span><RouteIcon name="chevron"/></button>)}</div>:<p>No completed appointments for this truck today.</p>}</>:<>
   {stops.some(hasWaypointLocation) && <><div ref={mapSection}><RouteMap stops={stops} onSelect={onSelect} expanded={expanded}/></div>{approximate.length>0&&<p className={styles.mapNote}>Dashed pins are approximate: {approximate.map(stop=>stop.number).join(', ')}. Confirm the service address.</p>}{missing.length>0&&<p className={styles.mapNote}>Not on map: stop{missing.length===1?'':'s'} {missing.map(stop=>stop.number).join(', ')}. Location unavailable.</p>}</>}

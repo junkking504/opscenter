@@ -6,7 +6,7 @@ import {build} from 'esbuild';
 import {chromium,expect} from '@playwright/test';
 const repo=process.cwd();
 const fixture=`
-const phone={deviceId:'fixture-phone',truck:'Truck 4',label:'Sample phone'},date='2026-10-23';
+const phone={deviceId:'fixture-phone',truck:'Truck 4',label:'Sample phone',test:new URLSearchParams(location.search).has('test')},date='2026-10-23';
 const job={assignmentId:'fixture-a',appointmentId:'1',truck:'Truck 4',date,jkNumber:'SAMPLE-A',customerName:'Sample appointment',address:'',appointmentTime:'10 AM – 12 PM',junkItems:['Furniture'],appointmentNotes:[],status:'Confirmed'};
 const mapped=new URLSearchParams(location.search).has('mapped');
 if(mapped){job.address='123 Sample St, New Orleans';job.mapLocation={latitude:29.955,longitude:-90.075,approximate:false};}
@@ -23,7 +23,7 @@ window.fetch=async(url,options={})=>{
  if(route==='/api/crew-jobs/session')body={phone};
  else if(route==='/api/crew-jobs/manager-session')body={manager:false};
  else if(route==='/api/crew-jobs/day')body={phone,date,day:{date,version:1,truck:phone.truck,driver:'Sample Driver',navigators:['Sample Navigator']},inspection:{status:'ready'},trucks:['Truck 4','Truck 2'],roster:[]};
- else if(route==='/api/crew-jobs/current')body={state:window.fixture.empty?'waiting':'assigned',truck:phone.truck,job:window.fixture.empty?null:job,jobs:window.fixture.empty?[]:jobs,visibility:mapped?'truck':'all-trucks',updateToken:'one',summary:window.fixture.summary?summary:null};
+ else if(route==='/api/crew-jobs/current')body={state:window.fixture.empty?'waiting':'assigned',truck:phone.truck,job:window.fixture.empty?null:job,jobs:phone.test?undefined:window.fixture.empty?[]:jobs,visibility:mapped?'truck':'all-trucks',message:phone.test&&window.fixture.empty?'All three test assignments are complete.':undefined,updateToken:'one',summary:window.fixture.summary?summary:null};
  else if(route==='/api/crew-jobs/updates')body={updateToken:'one'};
  else if(route==='/api/crew-jobs/notifications'){window.fixture.notificationReads++;body={enabled:true,available:true,messages:[{id:'1',body:'Sample office message: check supplies before leaving the shop.',created_at:'2026-10-23T14:00:00Z'}]};}
  else throw Error('Unexpected fixture API '+route);
@@ -46,7 +46,7 @@ try{
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin);await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
   const nav=page.getByRole('navigation',{name:'Your day'});
-  for(const label of ['Route','Completed','Performance','Notifications','Messages']){const box=await nav.getByRole('button',{name:label,exact:true}).boundingBox();assert.ok(box.height>=44 && box.y+box.height<=900 && box.y>700);}
+  for(const label of ['Route','Completed','Performance','Notifications','Messages']){const box=await nav.getByRole('button',{name:label,exact:true}).boundingBox();if(label==='Route')await expect(nav.getByRole('button',{name:label,exact:true})).toHaveAttribute('aria-current','page');assert.ok(box.height>=44 && box.y+box.height<=900 && box.y>700);}
   await nav.getByRole('button',{name:'Completed',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed appointments',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Completed sample'})).toBeVisible();
   await page.getByLabel('View truck').selectOption('Truck# 2');await expect(page.getByRole('button',{name:'Other truck sample'})).toBeVisible();
   await nav.getByRole('button',{name:'Performance',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s performance',exact:true})).toBeVisible();await expect(page.getByText('$950.00',{exact:true})).toBeVisible();
@@ -64,5 +64,6 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
   await context.close();
  }
+ const sandbox=await browser.newPage();await sandbox.goto(origin+'/?test=1');const testNav=sandbox.getByRole('navigation',{name:'Your day'});await expect(testNav.getByRole('button')).toHaveCount(3);await testNav.getByRole('button',{name:'Completed',exact:true}).click();await expect(sandbox.getByText('Completed test appointment details are unavailable. See Performance for test totals.')).toBeVisible();await sandbox.evaluate(()=>{window.fixture.empty=true;});await sandbox.getByRole('button',{name:'Refresh assignments',exact:true}).click();await testNav.getByRole('button',{name:'Route',exact:true}).click();await expect(sandbox.getByText('All three test assignments are complete.',{exact:true})).toBeVisible();await expect(sandbox.getByText('You can reset test assignments in Truck & phone.')).toBeVisible();await sandbox.close();
  console.log('PASS Waypoint navigation: five accessible entries, populated/empty views, truck filter retained across navigation, detail guard, persistent notification instance, 320/390/430/1440px; synthetic APIs only.');
 }finally{await browser.close();server.close();}

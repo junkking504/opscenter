@@ -8,13 +8,11 @@
 .inboxHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .panel .inboxHeader h2 { margin:0; font-size:16px; line-height:1.4; }
 .messages { display:grid; gap:8px; min-width:0; }
-.message { display:grid; gap:6px; min-width:0; padding:12px; border-radius:8px; background:#f7f8f3; }
+.message { display:grid; gap:6px; min-width:0; background:#fff; border:1px solid #dfe3da; border-radius:10px; padding:16px; }
 .message time { color:#58665e; font-size:12px; }
 
 .panel [hidden] { display:none; }
-.panel h1 { font-size:24px; line-height:1.25; margin:0 0 16px; }
+section.panel h1 { font-size:28px; line-height:1.25; margin:0 0 24px; }
 
-.panel { background:transparent; border:0; padding:0; margin:8px 0 20px; }
-.panel h1 { font-size:28px; margin:0 0 24px; }
+section.panel { background:transparent; border:0; padding:0; margin:8px 0 20px; }
 .panel>.action { margin-top:16px; }
-.panel .message { background:#fff; border:1px solid #dfe3da; border-radius:10px; padding:16px; }

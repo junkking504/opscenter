@@ -11,7 +11,7 @@ export const normalizeServiceAddress = (text: string) => normalizeStreetOrdinal(
   // retain an explicit US designation so US Highway 59 cannot become LA 59.
   .replace(/(?<!\bUS )\bHWY (\d+)\b/g,'LA $1'));
 const legacyUnits = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
-const units = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
+const units = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space|number)\.?(?:\s*#\s*|\s+)|(?<![A-Z0-9])#\s*)[A-Z0-9]+(?:-[A-Z0-9]+)*\b\s*,?\s*/ig;
 // A bare alphanumeric unit is recognized only after a road suffix and before
 // a complete locality/ZIP tail. Never consume highway identifiers or numbers.
 const bareUnit = /(\b(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|terrace|ter|circle|cir|trail|trl)\.?)[,\s]+([A-Z]{1,2}\d{1,4}[A-Z]?|[A-Z])(?=[,\s]+[A-Z][A-Z .'-]*,?\s+(?:(?:LA|LOUISIANA)[,\s]+)?\d{5}(?:-\d{4})?\s*$)/ig;
@@ -32,7 +32,7 @@ const roadEnd = /\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court
 function recognizedUnit(address:string,unit:string,index:number) {
   // These labels also occur in road names (Space Walk, Trailer Park Rd).
   // Admit them only after a complete street, optionally following other units.
-  return !/^(?:lot|trailer|trlr|space)\b/i.test(unit)
+  return !/^(?:lot|trailer|trlr|space|number)\b/i.test(unit)
     || roadEnd.test(address.slice(0,index).replace(new RegExp(units),' ').trim());
 }
 function replaceServiceUnits(address:string,replacement:(unit:string)=>string) {
@@ -47,7 +47,7 @@ export function normalizeRepeatedServiceLocality(address: string) {
 export function serviceUnitIdentifiers(address: string) {
   const value=explicitServiceUnits(address);
   return [...value.matchAll(units)].filter(match=>recognizedUnit(value,match[0],match.index!)).map(match => match[0]
-    .replace(/^(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space)\.?\s*/i,'')
+    .replace(/^(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|trailer|trlr|space|number)\.?\s*/i,'')
     .replace(/^[#\s]+/,'').replace(/[,\s]+$/,'').toUpperCase().replace(/-/g,''));
 }
 export const withoutServiceUnit = (address: string) => normalizeRepeatedServiceLocality(replaceServiceUnits(address,()=> ' ').replace(/\s+/g,' ').trim());

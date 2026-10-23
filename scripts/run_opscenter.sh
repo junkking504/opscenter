@@ -10,6 +10,12 @@ LOCK_DIR="/tmp/com.openclaw.opscenter.lock"
 PID_FILE="$LOCK_DIR/pid"
 LOG_PREFIX="[run_opscenter]"
 
+# launchctl disable alone does not prevent KeepAlive relaunch on this host.
+# Check before secrets, the legacy PID lock, or any server startup.
+if [[ "$USER_HOME" == /Users/missioncontrol && "$PORT" == 3000 ]]; then
+  /usr/bin/python3 "$APP_DIR/scripts/legacy-launch-guard.py"
+fi
+
 if [[ -n "$ENV_FILE" ]]; then
   [[ -f "$ENV_FILE" ]] || {
     echo "$LOG_PREFIX missing environment file: $ENV_FILE" >&2

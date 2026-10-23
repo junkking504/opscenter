@@ -1,3 +1,4 @@
+import { createAuthRejectionLogger } from './lib/auth-rejection-log';
 import { currentWorkspaceUrl } from './lib/legacy-workspace-redirect';
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -11,7 +12,7 @@ import {
   createTrustedDeviceCookieValue,
   isValidJunkKingEmail,
   opsAuthRole,
-  opsAuthIdentity,
+  isLocalOpsIdentity,
   publicAuthRoute,
   protectedApiRoute,
   shouldRefreshTrustedDevice,
@@ -71,15 +72,9 @@ function roleDeniedResponse(request: NextRequest, email: string): NextResponse |
   return NextResponse.redirect(deniedUrl);
 }
 
-function logSessionRejection(request: NextRequest, reason: string, trustedDeviceValid: boolean): void {
-  console.warn("[auth] session rejected", {
-    reason,
-    requestKind: request.nextUrl.pathname.startsWith("/api/") ? "api" : "page",
-    host: request.headers.get("x-forwarded-host") || request.headers.get("host") || null,
-    method: request.method,
-    trustedDeviceValid,
-    requestId: request.headers.get("cf-ray") || null,
-  });
+const rejectionLogger = createAuthRejectionLogger(entry => console.warn('[auth] session rejection', entry));
+function logSessionRejection(request: NextRequest, reason: string): void {
+  rejectionLogger.record({ reason, pathname: request.nextUrl.pathname, method: request.method, headers: request.headers });
 }
 
 function requestHeadersWithSession(request: NextRequest, sessionValue: string): Headers {
@@ -160,6 +155,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
+    if (['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'].includes(pathname)) return NextResponse.next();
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
     if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });
@@ -262,7 +258,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const trustedDevice = await verifyTrustedDeviceCookie(trustedDeviceCookie, request);
 
   if (!session && !publicAuthRoute(pathname)) {
-    logSessionRejection(request, sessionInspection.reason || "session_unknown", Boolean(trustedDevice));
+    logSessionRejection(request, sessionInspection.reason || "session_unknown");
   }
 
   if (enforceOpsAccess) {
@@ -270,7 +266,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     const accessEmail = accessAssertion ? await verifyOpsAccessJwt(accessAssertion) : null;
     const rememberedEmail = session?.email || trustedDevice?.email || null;
 
-    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && rememberedEmail !== opsAuthIdentity()) {
+    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && !isLocalOpsIdentity(rememberedEmail)) {
       return initializeOpsSession(request, accessEmail, {
         rememberDevice: true,
         redirect: request.method === "GET" || request.method === "HEAD",

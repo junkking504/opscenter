@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import config from '../next.config.mjs';
+const headers=await config.headers();
+const check=headers.find(rule=>rule.source==='/opscenter-wordmark.png');
+assert.deepEqual(check.has,[{type:'query',key:'release-check',value:'1'}]);
+const values=Object.fromEntries(check.headers.map(({key,value})=>[key,value]));
+assert.equal(values['x-opscenter-release'],execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim());
+assert.equal(values['Cache-Control'],'no-store');
+assert.equal(headers.find(rule=>rule.source==='/desktop-assets/assets/:asset').headers[0].value,'public, max-age=31536000, immutable');
+console.log('Release check uses exact build identity, an explicit query and no-store; bundle caching is preserved.');

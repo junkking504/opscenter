@@ -4,11 +4,13 @@ import { cleanJunkwareAddressText, cleanServiceAddressForVerification } from './
 import { cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { verifyParishAddressFallback } from './parish-service-address';
-import { verifyGeocodioAddressFallback } from './geocodio-service-address';
+import { geocodioAddressQuery, verifyGeocodioAddressFallback } from './geocodio-service-address';
+import { approximateMapAddressQuery } from './address-map-query';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
+import {propertyNameSearch} from './property-name-search';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -16,7 +18,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 16;
+export const ADDRESS_VERIFICATION_POLICY = 21;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -48,6 +50,7 @@ function matchesStreet(requested: string, house: string, street: string, city: s
 
 // Match returned components, never a city centroid or a nearby street/house.
 export function verifyAddressResult(address: string, payload: Payload): AddressVerification {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanServiceAddressForVerification(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   if(payload.status!=='OK') return {location:null,reason:`Geocoding ${payload.status || 'Unavailable'}`};
@@ -60,13 +63,15 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
   const expectedZip=withoutServiceUnit(address).match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
   const requested = fullFieldStreetAddress(withoutServiceUnit(address));
   const sourceHouse = serviceHouseAndStreet(requested) || (serviceStreetCandidates(requested).length === 0 ? firstHouseAndStreet(requested) : null);
+  const corrected = result.geometry?.location_type === 'ROOFTOP' && house && street
+    && hasMinorStreetCorrection(normalize(requested).replace(/ (\d{5}) \d{4}$/, ' $1'), normalize(house), normalize(street), normalize(component('locality')?.long_name || ''), zip || '', true);
   const streetMatches = house && street && sourceHouse
     && normalizeHouseNumber(sourceHouse.house) === normalizeHouseNumber(house)
-    && matchesStreet(`${normalizeHouseNumber(sourceHouse.house)} ${sourceHouse.street}`, normalizeHouseNumber(house), street, component('locality')?.long_name || '', zip || '');
+    && (matchesStreet(`${normalizeHouseNumber(sourceHouse.house)} ${sourceHouse.street}`, normalizeHouseNumber(house), street, component('locality')?.long_name || '', zip || '') || corrected);
   const point=result.geometry?.location;
   if(result.partial_match || !streetMatches || !expectedZip || zip!==expectedZip || component('administrative_area_level_1')?.short_name!=='LA' || component('country')?.short_name!=='US') return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
   if(!['ROOFTOP','RANGE_INTERPOLATED'].includes(result.geometry?.location_type||'') || !point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng) || point.lat<29 || point.lat>31.3 || point.lng< -93 || point.lng> -89.4) return {location:null,reason:'Precise Service Location Unavailable'};
-  return {location:{latitude:point.lat,longitude:point.lng},reason:'House, Street, And ZIP Verified'};
+  return {location:{latitude:point.lat,longitude:point.lng},reason:corrected?'Minor Street Spelling Correction Verified':'House, Street, And ZIP Verified'};
 }
 
 export function verifyCensusAddress(address:string,payload:unknown):AddressVerification {
@@ -90,6 +95,21 @@ export function verifyCensusAddress(address:string,payload:unknown):AddressVerif
   if (exact.location) return {...exact,matchedAddress:match.matchedAddress};
   if (exact.reason !== 'Address Needs Exact House, Street, And ZIP Match') return exact;
   if (serviceStreetCandidates(address).length > 1) return exact;
+  // JunkWare ZIPs are sometimes a neighbouring code. Like the OSM building
+  // policy, accept Census's single match only for the exact house, street and
+  // locality within the same three-digit postal prefix; never combine this
+  // with a spelling correction. The provider ZIP is kept in matchedAddress.
+  const sourceZip = withoutServiceUnit(address).match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
+  const censusZip = match.addressComponents?.zip || '';
+  if (sourceZip && /^\d{5}$/.test(censusZip) && sourceZip !== censusZip && sourceZip.slice(0,3) === censusZip.slice(0,3)) {
+    const at = address.lastIndexOf(sourceZip);
+    const rezonedAddress = address.slice(0,at)+censusZip+address.slice(at+5).replace(/^-\d{4}/,'');
+    // The swap must not change what cleaning keeps: a repeated locality tail
+    // with a conflicting ZIP stays contradictory evidence, not a duplicate.
+    const rezoned = cleanServiceAddressForVerification(rezonedAddress) === rezonedAddress
+      ? verifyAddressResult(rezonedAddress,payloadForVerification) : exact;
+    if (rezoned.location) return {...rezoned,reason:'Exact House And Street Verified · Source ZIP Differs',matchedAddress:match.matchedAddress};
+  }
   const requested = normalize(fullFieldStreetAddress(withoutServiceUnit(address))).replace(/ (\d{5}) \d{4}$/, ' $1');
   if (!hasMinorStreetCorrection(requested,normalize(street.house),normalize(street.street),normalize(match.addressComponents?.city || ''),match.addressComponents?.zip || '')) return exact;
   // Only Census's single full-address match gets this spelling tolerance. All
@@ -119,6 +139,7 @@ async function requestGeocode(address:string):Promise<{payload:unknown;failed:bo
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
 const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'),'cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
 export function cachedAddressVerification(address:string):AddressVerification|undefined {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanJunkwareAddressText(address);
   const reviewed = reviewedServiceAddress(address); if (reviewed) return {...reviewed,matchedAddress:reviewed.verifiedAddress};
   const row=cache.get(address);
@@ -146,6 +167,7 @@ export function addressQueries(address: string) {
   return [...new Set([withState,full,street,withoutUnit])];
 }
 export async function verifyDesktopAddress(address:string):Promise<AddressVerification> {
+  if(propertyNameSearch(address))return {location:null,reason:'Property Name Search Available; Service Address Unverified'};
   address = cleanJunkwareAddressText(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   const disk=cachedAddressVerification(address); if(disk) return disk;
@@ -176,8 +198,13 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
     if (!verified.location) {
       // An independent exact premises point can resolve Census ambiguity.
       // No new wall-clock budget, AI call, or paid-provider allowance.
-      const geocodio = await verifyGeocodioAddressFallback(address, Math.max(0, 27_000 - (Date.now() - started)));
-      if (geocodio) verified = geocodio;
+      const mapQuery = approximateMapAddressQuery(address);
+      const displayOnly = !geocodioAddressQuery(address) && mapQuery !== address;
+      const geocodio = await verifyGeocodioAddressFallback(displayOnly ? mapQuery : address, Math.max(0, 27_000 - (Date.now() - started)));
+      // Refresh display evidence through the same single bounded free lookup.
+      // A guessed road suffix must never verify the original service address.
+      if (geocodio && !displayOnly) verified = geocodio;
+      else if (displayOnly && geocodio?.retryAfterMs) verified = {...verified,retryAfterMs:geocodio.retryAfterMs};
     }
     if (!verified.location && parish?.retryAfterMs) verified = {...verified,retryAfterMs:Math.max(60_000,parish.retryAfterMs)};
     if (!verified.location && transientFailure) verified = {...verified, reason:'Address Provider Temporarily Unavailable', retryAfterMs:Math.max(60_000, verified.retryAfterMs || 0)};

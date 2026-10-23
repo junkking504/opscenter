@@ -1,0 +1,151 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+import {calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,defaultCostInputs,validCostInputs} from '../lib/appointment-cost-model';
+import {readAppointmentCost,saveAppointmentCost} from '../lib/appointment-cost-store';
+import {parseWexPriceMessage,chooseWexTruck,importWexRealtimePrices,readWexRealtimePrice} from '../lib/wex-realtime-prices';
+import {authorizeOpsRequest} from '../lib/ops-roles';
+const travel={miles:40,minutes:60,inbound:'HQ',outbound:'HQ',note:'',approximate:false};
+const inputs={...defaultCostInputs,onsiteMinutes:60,disposal:30};
+const result=calculateAppointmentCost(inputs,travel,4,40);
+assert.equal(result.fuel,16);assert.equal(result.travelLabor,40);assert.equal(result.onsiteLabor,40);assert.equal(result.attendance,165);assert.equal(result.breakEven,235);assert.equal(result.minimumCharge,236);
+const fees=calculateAppointmentCost({...inputs,revenueFeePercent:6,marginPercent:20},travel,4,40);
+assert.equal(fees.breakEven,250);assert.equal(fees.minimumCharge,251);assert.equal(fees.targetCharge,318);
+for(const missing of [null,NaN,Infinity,-1])assert.equal(calculateAppointmentCost(inputs,{...travel,miles:missing},4,40).minimumCharge,null);
+assert.equal(calculateAppointmentCost(inputs,travel,null,40).minimumCharge,null);
+assert.equal(calculateAppointmentCost(inputs,travel,4,null).minimumCharge,null);
+assert.equal(calculateAppointmentCost(defaultCostInputs,travel,4,40).minimumCharge,null);
+assert.equal(calculateAppointmentCost({...inputs,onsiteMinutes:0,disposal:0},{...travel,miles:0,minutes:0},4,40).minimumCharge,110);
+assert.equal(validCostInputs({...inputs,mpg:0}),false);assert.equal(validCostInputs({...inputs,revenueFeePercent:40,marginPercent:60}),false);
+assert.equal(validCostInputs({...inputs,disposal:''}),false);
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'appointment-cost-'));process.env.OPS_APPOINTMENT_COST_DIR=path.join(root,'settings');process.env.WEX_FUEL_DATA_DIR=path.join(root,'fuel');
+assert.equal(readAppointmentCost('2026-10-13:synthetic').version,0);
+const saved=saveAppointmentCost('2026-10-13:synthetic',0,inputs,'Synthetic manager');assert.equal(saved.version,1);assert.deepEqual(readAppointmentCost('2026-10-13:synthetic').inputs,inputs);
+assert.throws(()=>saveAppointmentCost('2026-10-13:synthetic',0,inputs,'Synthetic manager'),/changed/);
+assert.throws(()=>saveAppointmentCost('2026-10-13:synthetic',1,{...inputs,mpg:0},'Synthetic manager'),/inputs/);
+const msg={id:'synthetic',sender:'OnlineServices@wexinc.com',receivedAt:'2026-10-13T15:01:00Z',sourceUrl:'https://outlook.office365.com/owa/?synthetic',body:'Tracking Number:| 12345\nReason:| A $80.00 Fuel purchase has exceeded your Real-Time Alert value.\nAuthorization Date & Time:| 10/13/2026 10:00:00\nUnits:| 20\nUnits of Measure:| GA\nDriver First Name:| Sample\nDriver Last Name:| Person\nMerchant Address:| 1 Example Rd\n'};
+assert.equal(parseWexPriceMessage(msg)?.price,4);assert.equal(parseWexPriceMessage({...msg,sender:'other@example.com'}),null);
+assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('Units:| 20','Units:| 0')}),null);
+assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('GA','LT')}),null);
+assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('Fuel purchase','declined purchase')}),null);
+assert.equal(chooseWexTruck(['Truck 4'],null),'Truck 4');assert.equal(chooseWexTruck(['Truck 4','Truck# 4'],'Truck 4'),'Truck 4');assert.equal(chooseWexTruck(['Truck 4'],'Truck 9'),null);assert.equal(chooseWexTruck(['Truck 4','Truck 9'],'Truck 9'),'Truck 9');assert.equal(chooseWexTruck(['Truck 4','Truck 9'],null),null);assert.equal(chooseWexTruck([],null),null);
+const attribute=()=>({status:'unavailable' as const,truck:null,transactionAt:'2026-10-13T15:00:00Z',method:null,evidence:'Synthetic',candidates:[]});
+assert.deepEqual(importWexRealtimePrices([msg],attribute,()=>['Truck 4']),{imported:1,matched:1});
+assert.equal(readWexRealtimePrice('Truck 4',new Date('2026-10-13T16:00:00Z')).price?.price,4);
+assert.equal(readWexRealtimePrice('Truck 9',new Date('2026-10-13T16:00:00Z')).price,null);
+assert.equal(readWexRealtimePrice('Truck 4',new Date('2026-10-13T14:00:00Z')).price,null);
+importWexRealtimePrices([msg],attribute,()=>['Truck 4']);assert.equal(JSON.parse(fs.readFileSync(path.join(root,'fuel/realtime-prices.json'),'utf8')).rows.length,1);
+assert.throws(()=>importWexRealtimePrices([{...msg,body:msg.body.replace('$80.00','$90.00')}],attribute,()=>['Truck 4']),/Conflicting/);
+assert.equal(authorizeOpsRequest('operator','/api/desktop/schedule/cost','GET').allowed,false);assert.equal(authorizeOpsRequest('manager','/api/desktop/schedule/cost','GET').allowed,true);assert.equal(authorizeOpsRequest('operator','/api/desktop/schedule/cost','POST').allowed,false);
+console.log('Appointment cost math, missing inputs, saved revisions, WEX employee attribution and access tests passed.');
+
+const routeA=allocateAppointmentTravel({miles:10,minutes:20},{miles:30,minutes:40},false,true);
+const routeB=allocateAppointmentTravel({miles:30,minutes:40},{miles:20,minutes:30},true,false);
+assert.equal(routeA.miles+routeB.miles,60);assert.equal(routeA.minutes+routeB.minutes,90);
+assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('10/13/2026','02/30/2026')}),null);
+assert.equal(parseWexPriceMessage({...msg,body:msg.body.replace('10:00:00','25:00:00')}),null);
+assert.equal(parseWexPriceMessage({...msg,sourceUrl:'https://untrusted.example/'}),null);
+
+assert.equal(defaultCostWarehouse('Baton Rouge'),'BRHQ');assert.equal(defaultCostWarehouse('BR'),'BRHQ');assert.equal(defaultCostWarehouse('New Orleans'),'NOHQ');
+
+// Recorded labor needs confirmed same-truck visits and continuous transfer coverage.
+import {costOnsiteMinutes,recordedCostTransfer} from '../lib/appointment-cost-recorded';
+const onsite={minutes:47.4,truck:'Truck 6',arrival:'2026-10-12T15:31:42Z',departure:'2026-10-12T16:19:07Z',label:'47.4 min'};
+assert.equal(costOnsiteMinutes(onsite,'Truck# 6'),47.4);
+assert.equal(costOnsiteMinutes(onsite,'Truck 4'),null);
+assert.equal(costOnsiteMinutes({...onsite,departure:null},'Truck 6'),null);
+assert.ok(Math.abs(calculateAppointmentCost({...inputs,onsiteMinutes:47.4},travel,4,33).onsiteLabor!-26.07)<1e-8);
+const before={...onsite,arrival:'2026-10-12T14:50:00Z',departure:'2026-10-12T15:14:00Z'};
+const gps={date:'2026-10-12',truck:'Truck 6',status:'available' as const,observedAt:null,coveredThrough:null,points:[],paths:[[{timestamp:before.departure,latitude:30,longitude:-90},{timestamp:onsite.arrival,latitude:30,longitude:-90}]],gaps:0,rejected:0};
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[]),17.7);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',{...gps,paths:[]},[]),null);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 4',gps,[]),null);
+assert.equal(recordedCostTransfer(before,onsite,'Truck 6',gps,[{id:'dump',truck:'Truck 6',name:'Dump',facility:'dump',kind:'dump',label:'Dump',enteredAt:'2026-10-12T15:20:00Z',departedAt:'2026-10-12T15:25:00Z',observedThrough:'2026-10-12T15:25:00Z',startMinutes:620,endMinutes:625,ongoing:false}]),null);
+
+// A visible subtotal must include on-site labor and fees without treating missing disposal as zero.
+const pendingDisposal=calculateAppointmentCost({...inputs,disposal:null,extraCosts:15,revenueFeePercent:20},travel,4,40);
+assert.equal(pendingDisposal.breakEvenBeforeDisposal,275);
+assert.equal(pendingDisposal.breakEven,null);
+assert.equal(pendingDisposal.minimumCharge,null);
+assert.deepEqual(pendingDisposal.missing,['Disposal cost (enter 0 if none)']);
+assert.equal(calculateAppointmentCost({...inputs,disposal:null,onsiteMinutes:null},travel,4,40).breakEvenBeforeDisposal,null);
+assert.equal(calculateAppointmentCost({...inputs,disposal:null},travel,null,40).breakEvenBeforeDisposal,null);
+assert.equal(calculateAppointmentCost({...inputs,disposal:0},travel,4,40).breakEven,205);
+
+// Cost planning follows the verified card truck, without rewriting booked data.
+import {appointmentCostRoute,appointmentCostOnsite} from '../lib/appointment-cost-route';
+import type {ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
+const unassigned={recordId:'gps-job',truck:'Virtual Truck',status:'Confirmed',driver:'Booked driver',navigator:'',truckVisits:[{truck:'Truck 8'}]} as ScheduleAppointment;
+const [observed]=appointmentCostRoute([unassigned]);
+assert.equal(observed.truck,'Truck 8');
+assert.equal(observed.driver,'Booked driver');
+assert.equal(unassigned.truck,'Virtual Truck');
+assert.equal(unassigned.driver,'Booked driver');
+const [ambiguous]=appointmentCostRoute([{...unassigned,truckVisits:[{truck:'Truck 8'},{truck:'Truck 6'}] as ScheduleAppointment['truckVisits']}]);
+assert.equal(ambiguous.truck,'Unassigned');
+const [completed]=appointmentCostRoute([{...unassigned,truck:'Truck 4',status:'Completed',onsiteTime:{...onsite,truck:'Truck 4'},recordedOnsiteTime:{...onsite,truck:'Truck 8',minutes:20}}]);
+assert.equal(completed.truck,'Truck 8');
+assert.equal(appointmentCostOnsite(completed)?.minutes,20);
+assert.equal(appointmentCostOnsite({...completed,recordedOnsiteTime:undefined}),undefined);
+const [booked]=appointmentCostRoute([{...unassigned,truck:'Truck 6'}]);
+assert.equal(booked.truck,'Truck 6');
+assert.equal(booked.driver,'Booked driver');
+console.log('Verified truck cost projection and matching on-site source tests passed.');
+
+// Provisional labor fills gaps, while real source/explicit settings always take precedence.
+import {appointmentCostLabor} from '../lib/appointment-cost-model';
+import {readWexFleetPlanningPrice} from '../lib/wex-realtime-prices';
+import {scheduleTruckMismatch} from '../desktop-ui/lib/schedule-contract';
+const planning=appointmentCostLabor(defaultCostInputs,null,null);
+assert.equal(planning.crewHourly,40);assert.equal(planning.onsiteMinutes,30);
+assert.equal(planning.attendanceAssumptions.length,1);assert.equal(planning.breakEvenAssumptions.length,2);
+const recovered=appointmentCostLabor(defaultCostInputs,34.5,9.2);
+assert.equal(recovered.crewHourly,34.5);assert.equal(recovered.onsiteMinutes,9.2);
+assert.deepEqual(recovered.breakEvenAssumptions,[]);
+const explicit=appointmentCostLabor({...defaultCostInputs,crewHourly:55,onsiteMinutes:0},34.5,9.2);
+assert.equal(explicit.crewHourly,55);assert.equal(explicit.onsiteMinutes,0);
+assert.deepEqual(explicit.breakEvenAssumptions,[]);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).crewHourly,null);
+assert.equal(appointmentCostLabor(defaultCostInputs,null,null,true).onsiteMinutes,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T16:00:00Z')).price?.price,4);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-21T16:00:00Z')).price,null);
+assert.equal(readWexFleetPlanningPrice(new Date('2026-10-13T14:00:00Z')).price,null);
+assert.equal(scheduleTruckMismatch({...unassigned,truck:'Truck 8',status:'Cancelled by dispatcher'}),null);
+assert.equal(scheduleTruckMismatch(unassigned)?.gpsTruck,'Truck 8');
+console.log('Provisional labor, automatic source replacement, current fleet fuel and cancellation warnings passed.');
+
+// Closest provisional origin needs valid GPS but no fleet-wide provider table.
+import {closestCostTruck} from '../lib/appointment-cost-route';
+import type {ScheduleTruck} from '../desktop-ui/lib/schedule-contract';
+const costFleet=[{truck:'Truck 6',latitude:30.4,longitude:-90.1,lastGpsUpdate:'2026-10-14T15:00:00Z',serviceStatus:'Unavailable',operationalStatus:'Parked'},{truck:'Truck 8',latitude:30.5,longitude:-90.2,serviceStatus:'Unavailable',operationalStatus:'Idle'}] as ScheduleTruck[];
+const target={latitude:30.41,longitude:-90.11};
+assert.equal(closestCostTruck(target,costFleet,true)?.truck,'Truck 6');
+assert.deepEqual(closestCostTruck(target,costFleet,true)?.position,{latitude:30.4,longitude:-90.1});
+assert.equal(costFleet[0].truck,'Truck 6');
+assert.equal(closestCostTruck(target,[{...costFleet[0],serviceStatus:'out_of_service'},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:null},costFleet[1]],true)?.truck,'Truck 8');
+assert.equal(closestCostTruck(target,costFleet,false),null);
+assert.equal(closestCostTruck(null,costFleet,true),null);
+assert.equal(closestCostTruck({latitude:NaN,longitude:0},costFleet,true),null);
+assert.equal(closestCostTruck(target,[],true),null);
+assert.equal(closestCostTruck(target,[{...costFleet[0],latitude:0,longitude:0}],true),null);
+console.log('Closest GPS cost origin, invalid evidence, service status and source preservation passed.');
+
+// A recorded arrival replaces a made-up warehouse origin, never a past trip
+// with the truck's current position or a nearby/ambiguous visit.
+import {recordedCostArrival} from '../lib/appointment-cost-recorded';
+const arrivalJob={truck:'Truck 6',truckVisits:[{truck:'Truck 6',arrival:'2026-10-12T15:00:00Z'}]};
+const arrivalTrip={id:'local-trip',number:1,departure:'2026-10-12T14:40:00Z',arrival:'2026-10-12T15:02:00Z',from:{latitude:30.42,longitude:-90.04,address:'Prior recorded stop'},to:{latitude:30.4,longitude:-90.1,address:'Appointment'}};
+const arrivalGps={...gps,trips:[arrivalTrip]};
+const arrivalPoint={latitude:30.4,longitude:-90.1};
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps)?.minutes,22);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps)?.label,'Prior recorded stop');
+assert.equal(recordedCostArrival({...arrivalJob,truck:'Truck 8'},arrivalPoint,arrivalGps),null);
+assert.equal(recordedCostArrival({...arrivalJob,truckVisits:[]},arrivalPoint,arrivalGps),null);
+assert.equal(recordedCostArrival(arrivalJob,null,arrivalGps),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[arrivalTrip,{...arrivalTrip,id:'ambiguous'}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,to:{...arrivalTrip.to,latitude:30.5}}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,arrival:'2026-10-12T15:06:00Z'}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,{...arrivalGps,trips:[{...arrivalTrip,from:arrivalTrip.to}]}),null);
+assert.equal(recordedCostArrival(arrivalJob,arrivalPoint,arrivalGps,Date.parse('2026-10-12T14:59:00Z')),null);
+assert.deepEqual(calculateAppointmentCost(inputs,{...travel,miles:null,minutes:null},4,40).missing,['Route miles','Travel time']);
+console.log('Recorded arrival origin, timing, truck identity, ambiguous trip and truthful missing inputs passed.');

@@ -1,0 +1,12 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const dir=process.env.CSS_CAPTURE_DIR||'tmp/css-capture';fs.mkdirSync(dir,{recursive:true});const browser=await chromium.launch({headless:true});
+for(const workspace of ['Command','Schedule','Fleet','Finance','Krewe','Marketing']){
+ const page=await browser.newPage({viewport:{width:1280,height:720}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-10-09T18:00:00Z')});
+ await page.route('**/*',async route=>{const url=new URL(route.request().url());if(url.hostname!=='127.0.0.1')return route.fulfill({status:200,contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')});return route.continue();});
+ await page.goto(`http://127.0.0.1:3158/tests/aspect-ratio.html?workspace=${workspace}&commandMap=1`);await page.waitForSelector('.workspace');await page.waitForTimeout(2000);await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:`${dir}/${workspace}.png`});
+ const nodes=await page.evaluate(()=>Array.from(document.querySelectorAll('.ops-app *')).filter(e=>{const r=e.getBoundingClientRect();return r.width&&r.height&&r.top<720&&r.bottom>0}).map(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return{tag:e.tagName,cls:e.className?.baseVal??e.className,text:e.children.length?'':e.textContent?.trim(),x:r.x,y:r.y,w:r.width,h:r.height,font:s.fontSize,color:s.color,bg:s.backgroundColor,border:s.borderColor}}));fs.writeFileSync(`${dir}/${workspace}.json`,JSON.stringify({errors,nodes},null,2));assert.deepEqual(errors,[],`${workspace}: browser errors`);
+ if(process.env.CSS_BASELINE_DIR){const before=JSON.parse(fs.readFileSync(`${process.env.CSS_BASELINE_DIR}/${workspace}.json`,'utf8')).nodes;assert.equal(nodes.length,before.length,`${workspace}: visible element count`);nodes.forEach((node,i)=>{assert.deepEqual([node.tag,node.cls,node.text,node.font],[before[i].tag,before[i].cls,before[i].text,before[i].font],`${workspace}: text/type at ${i}`);for(const key of ['x','y','w','h'])assert.ok(Math.abs(node[key]-before[i][key])<.1,`${workspace}: geometry ${i}/${key}`);});}
+ console.log(`${workspace}: 1280×720 capture, ${nodes.length} visible elements, no browser errors`);await page.close();}
+await browser.close();

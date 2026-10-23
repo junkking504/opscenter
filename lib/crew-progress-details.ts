@@ -23,7 +23,7 @@ export function crewPaymentFacts(job: Job): EssentialFact[] {
   const facts = (job.closeout?.payments || []).map(payment => {
     const method = payment.method.trim() || 'Payment';
     const detail = payment.detail.trim();
-    let label = method;
+    let label = /^billed$/i.test(method) ? 'Billed · receivable' : method;
     if (/check/i.test(method)) {
       const reference = detail.replace(/^(?:check\s*)?(?:number|no\.?)?\s*#?\s*/i, '').trim();
       label = reference ? `Check #${reference}` : 'Check · number unavailable';

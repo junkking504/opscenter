@@ -28,7 +28,7 @@ async function main() {
   assert.match(clientSource, /slackAlertCardPresentation\(message\)/);
   const cssSource = fs.readFileSync(new URL("../components/CommandBrief.module.css", import.meta.url), "utf8");
   assert.match(cssSource, /\.newAppointmentMessage\s*\{\s*background-color:\s*rgba\(250, 204, 21, 0\.25\)/);
-  assert.match(cssSource, /\.cancellationMessage\s*\{\s*background-color:\s*rgba\(239, 68, 68, 0\.25\)/);
+  assert.match(cssSource, /\.cancellationMessage\s*\{\s*background-color:\s*rgb\(var\(--ops-brand-red-rgb\) \/ 0\.25\)/);
   assert.match(cssSource, /\.completedMessage\s*\{\s*background-color:\s*rgba\(34, 197, 94, 0\.25\)/);
 
   const newAppointmentCard = slackAlertCardPresentation({

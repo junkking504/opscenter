@@ -72,3 +72,71 @@ collector is installed by this change.
 
 Operational log/receipt pruning is separate from workspace/release retention.
 Adding its script or plist does not authorize running it or installing its job.
+
+## Backup transfer and latest-attempt evidence
+
+A failed latest backup is a warning even if `lastSuccessAt` is recent. The
+summary includes the exit code when recorded. A success older than
+`OPSCENTER_BACKUP_MAX_AGE_MINUTES` (180 by default) remains critical, including
+when the latest attempt failed. No readable status remains unknown; a recorded
+failure without any success is a warning with the missing success disclosed.
+Rsync exit 24 retains the existing vanished-file treatment and does not advance
+the last fully successful backup time.
+
+Both foreground and background workers append transfer output and exactly one
+completion record to `data/backup-sync/sync.log`; foreground invocations also
+print the completion summary. Inspect that file for transfer diagnostics.
+Worker exceptions are recorded there as an error category. Locking, deadlines
+and preservation of the previous success time apply in both modes.
+
+The initial push and incremental pull exclude lock files/directories and
+`*.tmp`/`*.tmp-*` before broad subtree includes. The main data push excludes the
+same transient patterns. Photo `processing/` records remain included because
+interrupted uploads need that evidence for read-back before retry. Copying live
+queues is not a transactional snapshot; a moved file can still yield exit 24.
+These changes do not change the configured offsite destination or establish
+standby restore readiness. Validation: `npm run verify:backup` uses isolated
+fixtures, real rsync filtering with local transport, and no external writes.
+
+### Short-budget continuity publication
+
+The continuity publisher's 90-second file-copy attempt uses
+`backup-sync/publisher-status.json`. Its own deadline records `deferred`, caller,
+budget and underlying exit 124 there, leaving shared `status.json` unchanged.
+The worker returns zero for this scheduling deferral unless the shared result
+already records a real failure. In that case it returns the prior failure code
+(or 1 when unavailable), so the installed publisher cannot clear that failure.
+Neither consumer can advance freshness without the shared success receipt. It never
+advances freshness on a timeout or clears a prior real failure. Real transfer
+errors (including an explicit child exit 124) and successful copies still publish
+the shared backup result. The shared single-flight lock and process-group
+termination remain in force. Missing or stale full success remains unknown or
+critical through the normal health signal.
+
+`OPSCENTER_BACKUP_CALLER=continuity-publisher` selects this behavior explicitly.
+An unset caller means `collector`, regardless of the configured timeout. A
+lowered collector deadline therefore remains a real failure, not a deferral.
+Before deploying this worker, refresh the separately installed publisher from
+the already-deployed `deploy/vps/publish-continuity-database.py` source that sets
+this caller. Compare it with the installed copy, preserve the prior file, and
+atomically replace only that script while holding its `database-publish.lock`.
+Do not change its schedule, credentials, target, or service state. Confirm the
+explicit caller is installed before releasing the worker change.
+
+The publisher skips its file transfer when the shared full-success timestamp
+is at most **300 seconds** old. This covers the collector's 180-second interval
+plus 120 seconds of transfer/scheduling headroom; it is not a new freshness SLA.
+Malformed, missing, timezone-less and future timestamps cannot qualify. The
+worker checks under the existing single-flight lock, writes a publisher-only
+`skipped` receipt with `reason: recent_success`, and exits without spawning a
+transfer or holding the lock for its 90-second budget. The shared result and
+timestamp remain unchanged. A previously recorded real failure is still
+returned to the publisher, even if an earlier full success is recent. Collector
+transfers always run normally. Database and accounting-snapshot publication
+continue on their existing schedule.
+
+## Log operations
+
+See [PostgreSQL and session log operations](log-hygiene.md) for the owning config,
+reload verification, daily log-only rotation, failure receipts and anonymous
+rejection summaries. This policy does not prune business data.

@@ -240,7 +240,7 @@ async function main(): Promise<void> {
       const duration = Number(await page.locator('#ctl00_Content_DurationDD').inputValue());
       const date = junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue());
       if (start === null || !Number.isFinite(duration) || duration <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('The saved JunkWare assignment is unavailable.');
-      process.stdout.write(JSON.stringify({ok:true,mode:'read-assignment',appointmentId,truck,date,status:(await page.locator('#ctl00_Content_StatusDD option:checked').textContent() || '').trim(),appointmentStartMinutes:start,appointmentEndMinutes:start+duration*60,verifiedAt:new Date().toISOString()})+'\n');
+      process.stdout.write(JSON.stringify({ok:true,mode:'read-assignment',appointmentId,truck,date,companyName:await page.locator('#ctl00_Content_CompanyTB').inputValue(),status:(await page.locator('#ctl00_Content_StatusDD option:checked').textContent() || '').trim(),appointmentStartMinutes:start,appointmentEndMinutes:start+duration*60,verifiedAt:new Date().toISOString()})+'\n');
       await context.close();
       return;
     }

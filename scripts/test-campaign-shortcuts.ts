@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { campaignShortcutCount, campaignShortcutFilters } from '../desktop-ui/lib/campaign-shortcuts';
+import { browseLeads } from '../desktop-ui/lib/lead-browser';
+import { browseReviews } from '../desktop-ui/lib/review-browser';
+import type { MarketingData, Lead, Review } from '../desktop-ui/lib/commercial-contract';
+const lead = (status:string,contacted:boolean,id:string) => ({id,status,contacted,customer:id,phone:'',intent:'',territory:'',source:'',note:'',reason:'',jk:null,calledAt:'2026-10-09'}) as Lead;
+const review = (id:string,needsResponse:boolean|undefined,matched:boolean) => ({id,needsResponse,customer:id,excerpt:'',location:'',stars:5,createdAt:'2026-10-09',attribution:matched?{status:'matched'}:null}) as Review;
+const data={available:true,reviewAvailable:true,leads:[lead('lost',true,'lost'),lead('needs_follow_up',false,'follow'),lead('booked',false,'booked')],reviews:[review('response',true,true),review('match',false,false),review('unknown',undefined,true)]} as MarketingData;
+assert.deepEqual(Object.keys(campaignShortcutFilters).map(k=>campaignShortcutCount(data,k as keyof typeof campaignShortcutFilters)),[2,2,1,1]);
+assert.equal(campaignShortcutFilters.response.view,'reviews');
+assert.equal(campaignShortcutFilters.contact.leads?.queue,'all','No Contact includes every uncontacted record, not just follow-up leads');
+assert.equal(browseLeads(data.leads,campaignShortcutFilters.followup.leads!).total,2);
+assert.equal(browseReviews(data.reviews,campaignShortcutFilters.match.reviews!).rows[0].id,'match');
+assert.equal(campaignShortcutCount({...data,available:false},'followup'),null,'Unavailable is not a zero queue');
+assert.equal(campaignShortcutCount({...data,reviewAvailable:false},'response'),null);
+assert.equal(campaignShortcutCount({...data,reviews:[]},'match'),0,'Confirmed empty remains zero');
+console.log('Campaign shortcuts preserve queue definitions, source availability and response evidence.');

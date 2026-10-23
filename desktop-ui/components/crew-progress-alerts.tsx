@@ -1,3 +1,4 @@
+import { operationalUpdatePreview, operationalUpdateHasEdit } from '../lib/operational-update-preview';
 import { truckDisplayText } from '../../lib/junkware-trucks';
 import { crewAlertContext } from '../lib/crew-alert-context';
 import { requiresAlertAttention } from '../lib/alert-attention';
@@ -11,6 +12,7 @@ import './crew-progress-alerts.css';
 const clock = (stamp?: string) => stamp && Number.isFinite(Date.parse(stamp)) ? new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(stamp)) : 'Time unavailable';
 const eventTime = (alert: DesktopAlert) => Number.isFinite(Date.parse(alert.timestamp || '')) ? Date.parse(alert.timestamp!) : -Infinity;
 const factKey = (label: string) => label.toLowerCase().replace(/[^a-z]/g,'').replace(/^(items|pickupitems)$/, 'items').replace(/^(notes|appointmentnotes|keynotes)$/, 'notes');
+const factClass = (label: string) => /location|address|items|notes/i.test(label) ? 'crew-fact-wide' : undefined;
 const territoryClass = (tone: CrewAlertCardPresentation['territoryTone']) => `crew-territory-${tone}`;
 
 export function CrewProgressAlerts({live, openAlert, openControl}: {live: DesktopLiveProps; openAlert: (alert: DesktopAlert) => void; openControl: () => void}) {
@@ -45,7 +47,12 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     const followUpDetail = job?.needsFollowUp && latestJobUpdates.has(alert.id) ? job.next : '';
     const presentation = crewAlertCardPresentation(alert, job);
     const appointmentContext = crewAlertContext(alert, job, presentation?.kind === 'completed');
-    return <article key={alert.id} className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${presentation?.label === 'Estimate Completed' ? ' crew-update-estimate' : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
+    const customer = [...(job?.customerFacts || []), ...alert.facts].find(fact => /^(customer|customer name)$/i.test(fact.label))?.value;
+    const preview = operationalUpdatePreview(alert, customer);
+    const edited = operationalUpdateHasEdit(alert);
+    return <details key={alert.id} className="crew-compact-update">
+      <summary><time dateTime={alert.timestamp} title={`Original event: ${clock(alert.timestamp)}`}>{clock(alert.timestamp) === 'Time unavailable' ? alert.detected : clock(alert.timestamp)}</time><strong>{presentation?.label || alert.label}</strong><span>{truckDisplayText(alert.truck || job?.truck || '—')}</span><span className="crew-update-customer" title={preview}>{preview}{edited && <small className="crew-update-edit">Original {clock(alert.timestamp)} · Updated {clock(alert.updatedAt)}</small>}</span><span className={requiresAlertAttention(alert) ? 'update-follow-flag' : 'update-reviewed'}>{requiresAlertAttention(alert) ? 'Follow up' : alert.workflowState === 'acknowledged' ? 'Reviewed' : '—'}</span><ChevronRight size={14} aria-hidden="true" /></summary>
+    <article className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${presentation?.label === 'Estimate Completed' ? ' crew-update-estimate' : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
       <header>
@@ -55,7 +62,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
             <div className="crew-event-meta"><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span className="crew-event-window">{presentation.timeSlot}</span>{presentation.truck && <span className="crew-event-truck">{truckDisplayText(presentation.truck)}</span>}</div>
           </div> : <><strong className="crew-update-label">{alert.label}</strong><span>{alert.title === alert.label ? '' : alert.title}{truckDisplayText(job && !alert.truck && !alert.title.includes(job.truck) ? ` · ${job.truck}` : '')}</span></>}
         </div>
-        {alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}
+        {edited && <em>Original {clock(alert.timestamp)} · Updated {clock(alert.updatedAt)}</em>}
       </header>
       {presentation?.kind === 'completed' && presentation.completion ? <div className="crew-completed-summary">
         <dl className="crew-completion-facts">
@@ -63,10 +70,10 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
           <div><dt>Crew</dt><dd className="crew-inline-facts"><span><strong>Driver:</strong> {presentation.completion.driver}</span><span><strong>Navigator:</strong> {presentation.completion.navigator}</span></dd></div>
           {(presentation.completion.load || presentation.completion.labor || presentation.completion.misc) && <div><dt>Charges</dt><dd className="crew-inline-facts">{presentation.completion.load && <span><strong>Load:</strong> {presentation.completion.load}</span>}{presentation.completion.labor && <span><strong>Labor:</strong> {presentation.completion.labor}</span>}{presentation.completion.misc && <span><strong>Misc:</strong> {presentation.completion.misc}</span>}</dd></div>}
           <div className="crew-completion-amount"><dt>{presentation.label === 'Estimate Completed' ? 'Estimate total' : 'Payment'}</dt><dd>{presentation.label === 'Estimate Completed' ? presentation.completion.total || 'Not recorded' : presentation.completion.payment || 'Not recorded'}</dd></div>
-          {facts.filter(fact=>/^(On-site time|Duration|Arrival|Departure|Visited by)$/i.test(fact.label) && !(fact.label === 'Duration' && facts.some(other=>other.label === 'On-site time'))).map(fact=><div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
+          {facts.filter(fact=>/^(On-site time|Duration|Arrival|Departure|Visited by)$/i.test(fact.label) && !(fact.label === 'Duration' && facts.some(other=>other.label === 'On-site time'))).map(fact=><div className={factClass(fact.label)} key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
         </dl>
-      </div> : <dl>{facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
-      {appointmentContext.length > 0 && <dl className="crew-appointment-context" aria-label="Current appointment details">{appointmentContext.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{'href' in fact && fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
+      </div> : <dl>{facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div className={factClass(fact.label)} key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
+      {appointmentContext.length > 0 && <dl className="crew-appointment-context" aria-label="Current appointment details">{appointmentContext.map(fact => <div className={factClass(fact.label)} key={fact.label}><dt>{fact.label}</dt><dd>{'href' in fact && fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
       {followUpDetail && <p className="crew-update-follow-up"><TriangleAlert size={13}/><strong>Follow up:</strong> {followUpDetail}</p>}
       <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>
         <span>{alert.workflowState === 'in-control' ? 'Follow-up in Control' : alert.workflowState === 'acknowledged' ? 'Reviewed' : alert.workflowState === 'resolved' ? 'Follow-up resolved' : ''}</span>
@@ -74,7 +81,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
         {alert.workflowState === 'in-control' ? <button type="button" onClick={openControl}>Open Control</button> : alert.workflowState !== 'resolved' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'add_to_control')}>Follow up in Control</button>}
       </footer>
     </div>
-  </article>;
+  </article></details>;
   };
 
   return <section className="crew-alerts" aria-labelledby="crew-alert-title" id="live-alert-list">
@@ -87,7 +94,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
       {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}
     </div>
     </div>
-    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
+    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && (progress.updateHistoryReasons?.join(' ') || 'Update history is incomplete; source coverage is unknown.')].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
     <section className="crew-all-updates" aria-label="All operational updates, newest first">{visibleUpdates.length ? visibleUpdates.map(renderUpdate) : <p className="crew-empty">{snapshot.sources.alerts ? 'No updates match these filters.' : 'Update history is unavailable.'}</p>}</section>
     {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up actions are unavailable while Control is disconnected. Updates remain visible.</p>}
   </section>;

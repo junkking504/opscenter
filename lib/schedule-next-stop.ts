@@ -32,7 +32,7 @@ export function truckProgressGpsState(truck:ScheduleTruck|undefined, now=Date.no
   if (truckGpsStatus(truck,now).status==='Parked') return 'parked';
   return freshTruckGps(truck,now) ? 'fresh' : 'stale_gps';
 }
-export type TruckProgress = {truck:string; appointmentId:string; appointmentVersion:string; status:string; minutes:number|null; miles:number|null; gpsAt:string|null; calculatedAt:string; arrivalAt:string|null};
+export type TruckProgress = {approximate?:boolean; truck:string; appointmentId:string; appointmentVersion:string; status:string; minutes:number|null; miles:number|null; gpsAt:string|null; calculatedAt:string; arrivalAt:string|null};
 
 export function currentOnsiteTruckGps(truck:ScheduleTruck|undefined, now=Date.now()) {
   const at = Date.parse(truck?.lastGpsUpdate || '');

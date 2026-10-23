@@ -71,7 +71,7 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
  await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
  const open=async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(1).click();await page.getByRole('button',{name:/^(Start closeout · Before photos|Check saved checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
  const charges=async()=>{const next=page.getByRole('button',{name:'Submit before photos & continue',exact:true});if(await next.isVisible())await next.click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();};
- const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await page.getByLabel('Record a collected payment',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
+ const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await page.getByLabel('Record payment or Billed',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
  const review=async()=>{await payment();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();};
  const done=async()=>{assert.deepEqual(state.errors,[]);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'No horizontal overflow');await context.close();};
  return {context,page,state,open,charges,payment,review,done};
@@ -159,8 +159,8 @@ try{
   await t.page.getByLabel('Add after photos',{exact:true}).setInputFiles({name:'after.jpg',mimeType:'image/jpeg',buffer:Buffer.from(selected,'base64')});
   await expect(t.page.getByText('Ready to submit',{exact:true})).toHaveCount(1);
   await t.page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();
-  await expect(t.page.getByLabel('Record a collected payment',{exact:true})).toBeEnabled();
-  await t.page.getByLabel('Record a collected payment',{exact:true}).check();await t.page.getByRole('radio',{name:'Cash',exact:true}).check();
+  await expect(t.page.getByLabel('Record payment or Billed',{exact:true})).toBeEnabled();
+  await t.page.getByLabel('Record payment or Billed',{exact:true}).check();await t.page.getByRole('radio',{name:'Cash',exact:true}).check();
   await t.page.getByRole('button',{name:'Review Closeout',exact:true}).click();
   await expect(t.page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
   assert.equal(t.state.posts.length,0);assert.equal(t.state.photoReceipts.size,0,'Review reached before any upload acknowledgment');

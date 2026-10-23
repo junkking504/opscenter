@@ -1,0 +1,2457 @@
+{
+  "basis": "594 Phase 1 representatives, weighted by original occurrences; descending aggregate frequency, hex tie-break, nearest direct representative <5 CIE76",
+  "before": 594,
+  "after": 244,
+  "candidateMerges": [
+    {
+      "from": "f6f8f5",
+      "to": "ffffff",
+      "deltaE": 3.138438,
+      "originalUses": 239,
+      "token": "--oc-surface-neutral-02"
+    },
+    {
+      "from": "edf0ed",
+      "to": "e5e8e4",
+      "deltaE": 2.875963,
+      "originalUses": 96,
+      "token": "--oc-surface-neutral-01"
+    },
+    {
+      "from": "707a74",
+      "to": "68736d",
+      "deltaE": 2.901953,
+      "originalUses": 73,
+      "token": "--oc-text-neutral-04"
+    },
+    {
+      "from": "dce2dc",
+      "to": "e5e8e4",
+      "deltaE": 2.826846,
+      "originalUses": 60,
+      "token": "--oc-border-neutral-04"
+    },
+    {
+      "from": "d7dbd7",
+      "to": "cfd6d1",
+      "deltaE": 2.366682,
+      "originalUses": 47,
+      "token": "--oc-border-neutral-02"
+    },
+    {
+      "from": "626b66",
+      "to": "68736d",
+      "deltaE": 3.185918,
+      "originalUses": 40,
+      "token": "--oc-text-neutral-06"
+    },
+    {
+      "from": "202529",
+      "to": "252b2e",
+      "deltaE": 2.871846,
+      "originalUses": 36,
+      "token": "--oc-text-blue-02"
+    },
+    {
+      "from": "d8e4dc",
+      "to": "e5e8e4",
+      "deltaE": 4.423636,
+      "originalUses": 31,
+      "token": "--oc-border-neutral-08"
+    },
+    {
+      "from": "53615a",
+      "to": "58665e",
+      "deltaE": 2.106619,
+      "originalUses": 27,
+      "token": "--oc-text-green-11"
+    },
+    {
+      "from": "59635e",
+      "to": "58665e",
+      "deltaE": 2.597986,
+      "originalUses": 27,
+      "token": "--oc-text-neutral-03"
+    },
+    {
+      "from": "fde9eb",
+      "to": "fff0f1",
+      "deltaE": 2.777224,
+      "originalUses": 25,
+      "token": "--oc-status-critical-tint"
+    },
+    {
+      "from": "246742",
+      "to": "276947",
+      "deltaE": 2.154968,
+      "originalUses": 23,
+      "token": "--oc-text-green-03"
+    },
+    {
+      "from": "4f5954",
+      "to": "45534b",
+      "deltaE": 3.947676,
+      "originalUses": 23,
+      "token": "--oc-text-neutral-05"
+    },
+    {
+      "from": "67766c",
+      "to": "68736d",
+      "deltaE": 2.978516,
+      "originalUses": 22,
+      "token": "--oc-text-green-08"
+    },
+    {
+      "from": "eaf3ef",
+      "to": "e8f4ec",
+      "deltaE": 2.329801,
+      "originalUses": 20,
+      "token": "--oc-status-ok-tint"
+    },
+    {
+      "from": "f5f9fc",
+      "to": "edf5fb",
+      "deltaE": 2.59418,
+      "originalUses": 20,
+      "token": "--oc-surface-canvas"
+    },
+    {
+      "from": "c9d7ce",
+      "to": "cfd6d1",
+      "deltaE": 3.322463,
+      "originalUses": 18,
+      "token": "--oc-border-neutral-11"
+    },
+    {
+      "from": "f1f8f3",
+      "to": "e8f4ec",
+      "deltaE": 2.989912,
+      "originalUses": 17,
+      "token": "--oc-surface-neutral-13"
+    },
+    {
+      "from": "fffdf8",
+      "to": "ffffff",
+      "deltaE": 2.71086,
+      "originalUses": 17,
+      "token": "--oc-surface-neutral-05"
+    },
+    {
+      "from": "617168",
+      "to": "68736d",
+      "deltaE": 3.022321,
+      "originalUses": 16,
+      "token": "--oc-text-green-23"
+    },
+    {
+      "from": "c9cfca",
+      "to": "cfd6d1",
+      "deltaE": 2.457744,
+      "originalUses": 15,
+      "token": "--oc-border-neutral-12"
+    },
+    {
+      "from": "edf1f5",
+      "to": "edf5fb",
+      "deltaE": 2.046145,
+      "originalUses": 15,
+      "token": "--oc-surface-muted"
+    },
+    {
+      "from": "252c28",
+      "to": "29312d",
+      "deltaE": 2.283158,
+      "originalUses": 14,
+      "token": "--oc-text-green-04"
+    },
+    {
+      "from": "26312b",
+      "to": "29312d",
+      "deltaE": 2.003148,
+      "originalUses": 13,
+      "token": "--oc-text-green-15"
+    },
+    {
+      "from": "303a35",
+      "to": "29312d",
+      "deltaE": 4.040716,
+      "originalUses": 13,
+      "token": "--oc-text-green-17"
+    },
+    {
+      "from": "52665a",
+      "to": "58665e",
+      "deltaE": 3.548906,
+      "originalUses": 13,
+      "token": "--oc-text-green-14"
+    },
+    {
+      "from": "fffafb",
+      "to": "ffffff",
+      "deltaE": 2.265445,
+      "originalUses": 13,
+      "token": "--oc-surface-neutral-07"
+    },
+    {
+      "from": "828a86",
+      "to": "89918d",
+      "deltaE": 2.700538,
+      "originalUses": 12,
+      "token": "--oc-text-neutral-09"
+    },
+    {
+      "from": "d5d9df",
+      "to": "dce2e8",
+      "deltaE": 3.120197,
+      "originalUses": 12,
+      "token": "--oc-border-neutral-03"
+    },
+    {
+      "from": "69716e",
+      "to": "68736d",
+      "deltaE": 2.219903,
+      "originalUses": 10,
+      "token": "--oc-text-neutral-08"
+    },
+    {
+      "from": "fffaf0",
+      "to": "fff8e8",
+      "deltaE": 3.219607,
+      "originalUses": 10,
+      "token": "--oc-surface-neutral-08"
+    },
+    {
+      "from": "3f9967",
+      "to": "49a36f",
+      "deltaE": 3.742967,
+      "originalUses": 9,
+      "token": "--oc-surface-green-03"
+    },
+    {
+      "from": "d3ded7",
+      "to": "cfd6d1",
+      "deltaE": 3.064715,
+      "originalUses": 9,
+      "token": "--oc-border-neutral-27"
+    },
+    {
+      "from": "e2e8f0",
+      "to": "dce2e8",
+      "deltaE": 2.395039,
+      "originalUses": 9,
+      "token": "--oc-border-neutral-13"
+    },
+    {
+      "from": "3b9b66",
+      "to": "49a36f",
+      "deltaE": 3.588709,
+      "originalUses": 7,
+      "token": "--oc-accent-green-02"
+    },
+    {
+      "from": "5d6c62",
+      "to": "58665e",
+      "deltaE": 2.615571,
+      "originalUses": 7,
+      "token": "--oc-text-green-39"
+    },
+    {
+      "from": "735516",
+      "to": "76520a",
+      "deltaE": 4.899169,
+      "originalUses": 7,
+      "token": "--oc-text-amber-12"
+    },
+    {
+      "from": "e9ae3c",
+      "to": "e3aa32",
+      "deltaE": 2.678917,
+      "originalUses": 7,
+      "token": "--oc-surface-amber-02"
+    },
+    {
+      "from": "fff7df",
+      "to": "fff8e8",
+      "deltaE": 4.113733,
+      "originalUses": 7,
+      "token": "--oc-surface-amber-03"
+    },
+    {
+      "from": "fff8e4",
+      "to": "fff8e8",
+      "deltaE": 2.031825,
+      "originalUses": 7,
+      "token": "--oc-surface-neutral-14"
+    },
+    {
+      "from": "293136",
+      "to": "25323a",
+      "deltaE": 2.699067,
+      "originalUses": 6,
+      "token": "--oc-surface-blue-04"
+    },
+    {
+      "from": "303734",
+      "to": "29312d",
+      "deltaE": 3.009419,
+      "originalUses": 6,
+      "token": "--oc-text-green-81"
+    },
+    {
+      "from": "315f4b",
+      "to": "255e4c",
+      "deltaE": 3.176305,
+      "originalUses": 6,
+      "token": "--oc-text-green-10"
+    },
+    {
+      "from": "dddddd",
+      "to": "dce2e8",
+      "deltaE": 4.013862,
+      "originalUses": 6,
+      "token": "--oc-border-neutral-06"
+    },
+    {
+      "from": "e4f1fb",
+      "to": "edf5fb",
+      "deltaE": 3.102022,
+      "originalUses": 6,
+      "token": "--oc-surface-neutral-24"
+    },
+    {
+      "from": "faf6fd",
+      "to": "f3eefb",
+      "deltaE": 4.034542,
+      "originalUses": 6,
+      "token": "--oc-surface-neutral-15"
+    },
+    {
+      "from": "fff4d8",
+      "to": "fff1cf",
+      "deltaE": 3.449138,
+      "originalUses": 6,
+      "token": "--oc-surface-amber-06"
+    },
+    {
+      "from": "17613b",
+      "to": "276947",
+      "deltaE": 4.84234,
+      "originalUses": 5,
+      "token": "--oc-text-green-18"
+    },
+    {
+      "from": "20342b",
+      "to": "26372e",
+      "deltaE": 2.015193,
+      "originalUses": 5,
+      "token": "--oc-text-green-32"
+    },
+    {
+      "from": "233e54",
+      "to": "173b55",
+      "deltaE": 3.448452,
+      "originalUses": 5,
+      "token": "--oc-text-blue-08"
+    },
+    {
+      "from": "253c31",
+      "to": "26372e",
+      "deltaE": 3.272996,
+      "originalUses": 5,
+      "token": "--oc-text-green-20"
+    },
+    {
+      "from": "286d47",
+      "to": "287047",
+      "deltaE": 2.193041,
+      "originalUses": 5,
+      "token": "--oc-text-green-37"
+    },
+    {
+      "from": "2f6e51",
+      "to": "276947",
+      "deltaE": 4.089162,
+      "originalUses": 5,
+      "token": "--oc-text-green-35"
+    },
+    {
+      "from": "2f7650",
+      "to": "287047",
+      "deltaE": 3.214496,
+      "originalUses": 5,
+      "token": "--oc-accent-green-04"
+    },
+    {
+      "from": "3b9363",
+      "to": "2f895a",
+      "deltaE": 3.806276,
+      "originalUses": 5,
+      "token": "--oc-border-green-03"
+    },
+    {
+      "from": "775217",
+      "to": "76520a",
+      "deltaE": 4.60122,
+      "originalUses": 5,
+      "token": "--oc-text-amber-07"
+    },
+    {
+      "from": "7b570e",
+      "to": "76520a",
+      "deltaE": 2.167227,
+      "originalUses": 5,
+      "token": "--oc-text-amber-57"
+    },
+    {
+      "from": "dddcd5",
+      "to": "cfd6d1",
+      "deltaE": 4.070884,
+      "originalUses": 5,
+      "token": "--oc-border-neutral-10"
+    },
+    {
+      "from": "24292f",
+      "to": "252b2e",
+      "deltaE": 2.326117,
+      "originalUses": 4,
+      "token": "--oc-surface-blue-14"
+    },
+    {
+      "from": "328558",
+      "to": "2f895a",
+      "deltaE": 2.401194,
+      "originalUses": 4,
+      "token": "--oc-accent-green-06"
+    },
+    {
+      "from": "334650",
+      "to": "40515b",
+      "deltaE": 4.927621,
+      "originalUses": 4,
+      "token": "--oc-border-blue-06"
+    },
+    {
+      "from": "516672",
+      "to": "51626b",
+      "deltaE": 2.602724,
+      "originalUses": 4,
+      "token": "--oc-text-blue-13"
+    },
+    {
+      "from": "607585",
+      "to": "617681",
+      "deltaE": 3.006348,
+      "originalUses": 4,
+      "token": "--oc-text-blue-20"
+    },
+    {
+      "from": "627083",
+      "to": "64748b",
+      "deltaE": 2.833281,
+      "originalUses": 4,
+      "token": "--oc-text-blue-09"
+    },
+    {
+      "from": "657c8c",
+      "to": "617681",
+      "deltaE": 3.771674,
+      "originalUses": 4,
+      "token": "--oc-text-muted"
+    },
+    {
+      "from": "9b6a13",
+      "to": "956311",
+      "deltaE": 3.339382,
+      "originalUses": 4,
+      "token": "--oc-border-amber-01"
+    },
+    {
+      "from": "9ca6a0",
+      "to": "98a09d",
+      "deltaE": 2.722437,
+      "originalUses": 4,
+      "token": "--oc-accent-neutral-04"
+    },
+    {
+      "from": "a9c7b3",
+      "to": "a8cdb5",
+      "deltaE": 3.646127,
+      "originalUses": 4,
+      "token": "--oc-border-green-05"
+    },
+    {
+      "from": "d9a32f",
+      "to": "d39b25",
+      "deltaE": 3.089964,
+      "originalUses": 4,
+      "token": "--oc-accent-amber-03"
+    },
+    {
+      "from": "f0e8f7",
+      "to": "f3eefb",
+      "deltaE": 2.360712,
+      "originalUses": 4,
+      "token": "--oc-surface-neutral-09"
+    },
+    {
+      "from": "111419",
+      "to": "171a1d",
+      "deltaE": 3.161476,
+      "originalUses": 3,
+      "token": "--oc-surface-blue-06"
+    },
+    {
+      "from": "202623",
+      "to": "252b2e",
+      "deltaE": 4.976546,
+      "originalUses": 3,
+      "token": "--oc-text-green-12"
+    },
+    {
+      "from": "202932",
+      "to": "17212b",
+      "deltaE": 3.991379,
+      "originalUses": 3,
+      "token": "--oc-surface-blue-13"
+    },
+    {
+      "from": "243b4d",
+      "to": "203746",
+      "deltaE": 2.723809,
+      "originalUses": 3,
+      "token": "--oc-text-primary"
+    },
+    {
+      "from": "2563a5",
+      "to": "245fa4",
+      "deltaE": 2.830409,
+      "originalUses": 3,
+      "token": "--oc-border-blue-02"
+    },
+    {
+      "from": "273d4c",
+      "to": "203746",
+      "deltaE": 2.745847,
+      "originalUses": 3,
+      "token": "--oc-text-blue-37"
+    },
+    {
+      "from": "27633b",
+      "to": "285e3c",
+      "deltaE": 4.351021,
+      "originalUses": 3,
+      "token": "--oc-text-green-19"
+    },
+    {
+      "from": "283f30",
+      "to": "223d2d",
+      "deltaE": 2.133552,
+      "originalUses": 3,
+      "token": "--oc-text-green-51"
+    },
+    {
+      "from": "314f65",
+      "to": "365568",
+      "deltaE": 3.218223,
+      "originalUses": 3,
+      "token": "--oc-text-blue-11"
+    },
+    {
+      "from": "34704d",
+      "to": "397152",
+      "deltaE": 2.932304,
+      "originalUses": 3,
+      "token": "--oc-text-green-87"
+    },
+    {
+      "from": "35463a",
+      "to": "37463f",
+      "deltaE": 3.430761,
+      "originalUses": 3,
+      "token": "--oc-text-green-33"
+    },
+    {
+      "from": "356287",
+      "to": "27638e",
+      "deltaE": 4.152675,
+      "originalUses": 3,
+      "token": "--oc-text-blue-22"
+    },
+    {
+      "from": "364e60",
+      "to": "365568",
+      "deltaE": 3.352718,
+      "originalUses": 3,
+      "token": "--oc-text-blue-25"
+    },
+    {
+      "from": "37413c",
+      "to": "37463f",
+      "deltaE": 3.025293,
+      "originalUses": 3,
+      "token": "--oc-text-green-82"
+    },
+    {
+      "from": "37784f",
+      "to": "287047",
+      "deltaE": 3.815862,
+      "originalUses": 3,
+      "token": "--oc-border-green-04"
+    },
+    {
+      "from": "3f4843",
+      "to": "37463f",
+      "deltaE": 3.250555,
+      "originalUses": 3,
+      "token": "--oc-text-green-78"
+    },
+    {
+      "from": "3f5c4b",
+      "to": "465d4e",
+      "deltaE": 2.864053,
+      "originalUses": 3,
+      "token": "--oc-text-green-28"
+    },
+    {
+      "from": "405449",
+      "to": "45534b",
+      "deltaE": 3.163237,
+      "originalUses": 3,
+      "token": "--oc-text-green-46"
+    },
+    {
+      "from": "405e73",
+      "to": "365568",
+      "deltaE": 4.033417,
+      "originalUses": 3,
+      "token": "--oc-text-blue-21"
+    },
+    {
+      "from": "4b9d70",
+      "to": "49a36f",
+      "deltaE": 4.869399,
+      "originalUses": 3,
+      "token": "--oc-surface-green-04"
+    },
+    {
+      "from": "4d5b53",
+      "to": "45534b",
+      "deltaE": 3.373564,
+      "originalUses": 3,
+      "token": "--oc-text-green-74"
+    },
+    {
+      "from": "4d86b4",
+      "to": "4c88bd",
+      "deltaE": 4.106402,
+      "originalUses": 3,
+      "token": "--oc-accent-blue-05"
+    },
+    {
+      "from": "66707d",
+      "to": "617681",
+      "deltaE": 4.508148,
+      "originalUses": 3,
+      "token": "--oc-text-blue-54"
+    },
+    {
+      "from": "704805",
+      "to": "76520a",
+      "deltaE": 4.843689,
+      "originalUses": 3,
+      "token": "--oc-text-amber-05"
+    },
+    {
+      "from": "82908b",
+      "to": "89918d",
+      "deltaE": 2.527503,
+      "originalUses": 3,
+      "token": "--oc-text-neutral-20"
+    },
+    {
+      "from": "8c650e",
+      "to": "8a6210",
+      "deltaE": 2.014543,
+      "originalUses": 3,
+      "token": "--oc-text-amber-49"
+    },
+    {
+      "from": "b7c7bd",
+      "to": "b4c8bb",
+      "deltaE": 2.190854,
+      "originalUses": 3,
+      "token": "--oc-border-neutral-43"
+    },
+    {
+      "from": "b9d2c2",
+      "to": "bcd9c8",
+      "deltaE": 2.647777,
+      "originalUses": 3,
+      "token": "--oc-border-neutral-21"
+    },
+    {
+      "from": "bbccc0",
+      "to": "b4c8bb",
+      "deltaE": 2.097589,
+      "originalUses": 3,
+      "token": "--oc-border-neutral-30"
+    },
+    {
+      "from": "d6a522",
+      "to": "e3aa32",
+      "deltaE": 4.917342,
+      "originalUses": 3,
+      "token": "--oc-border-amber-07"
+    },
+    {
+      "from": "dce9f1",
+      "to": "dce2e8",
+      "deltaE": 3.266454,
+      "originalUses": 3,
+      "token": "--oc-surface-neutral-18"
+    },
+    {
+      "from": "dcefe5",
+      "to": "e8f4ec",
+      "deltaE": 3.538304,
+      "originalUses": 3,
+      "token": "--oc-surface-neutral-16"
+    },
+    {
+      "from": "e2eee7",
+      "to": "e8f4ec",
+      "deltaE": 2.130244,
+      "originalUses": 3,
+      "token": "--oc-surface-neutral-17"
+    },
+    {
+      "from": "faf7f1",
+      "to": "ffffff",
+      "deltaE": 4.205448,
+      "originalUses": 3,
+      "token": "--oc-surface-neutral-12"
+    },
+    {
+      "from": "fff0ca",
+      "to": "fff1cf",
+      "deltaE": 2.121043,
+      "originalUses": 3,
+      "token": "--oc-surface-amber-05"
+    },
+    {
+      "from": "fff0d6",
+      "to": "fff1cf",
+      "deltaE": 4.051298,
+      "originalUses": 3,
+      "token": "--oc-surface-amber-10"
+    },
+    {
+      "from": "fff7f5",
+      "to": "fff0f1",
+      "deltaE": 3.458913,
+      "originalUses": 3,
+      "token": "--oc-surface-neutral-28"
+    },
+    {
+      "from": "174f3f",
+      "to": "174b34",
+      "deltaE": 4.980247,
+      "originalUses": 2,
+      "token": "--oc-text-green-22"
+    },
+    {
+      "from": "20333f",
+      "to": "203746",
+      "deltaE": 2.736257,
+      "originalUses": 2,
+      "token": "--oc-text-blue-17"
+    },
+    {
+      "from": "204e71",
+      "to": "174e77",
+      "deltaE": 3.8519,
+      "originalUses": 2,
+      "token": "--oc-text-blue-39"
+    },
+    {
+      "from": "23374d",
+      "to": "173b55",
+      "deltaE": 4.483236,
+      "originalUses": 2,
+      "token": "--oc-text-blue-16"
+    },
+    {
+      "from": "24744b",
+      "to": "287047",
+      "deltaE": 2.272155,
+      "originalUses": 2,
+      "token": "--oc-surface-green-14"
+    },
+    {
+      "from": "254c35",
+      "to": "174b34",
+      "deltaE": 3.748382,
+      "originalUses": 2,
+      "token": "--oc-text-green-40"
+    },
+    {
+      "from": "263342",
+      "to": "203746",
+      "deltaE": 3.544069,
+      "originalUses": 2,
+      "token": "--oc-text-blue-19"
+    },
+    {
+      "from": "285b41",
+      "to": "315f45",
+      "deltaE": 2.411516,
+      "originalUses": 2,
+      "token": "--oc-text-green-43"
+    },
+    {
+      "from": "285d3f",
+      "to": "285e3c",
+      "deltaE": 2.50147,
+      "originalUses": 2,
+      "token": "--oc-text-green-63"
+    },
+    {
+      "from": "285f96",
+      "to": "275e91",
+      "deltaE": 2.550822,
+      "originalUses": 2,
+      "token": "--oc-text-blue-58"
+    },
+    {
+      "from": "294a5d",
+      "to": "365568",
+      "deltaE": 4.773099,
+      "originalUses": 2,
+      "token": "--oc-text-blue-48"
+    },
+    {
+      "from": "295f8b",
+      "to": "27638e",
+      "deltaE": 2.168464,
+      "originalUses": 2,
+      "token": "--oc-text-blue-55"
+    },
+    {
+      "from": "2b6342",
+      "to": "285e3c",
+      "deltaE": 2.196035,
+      "originalUses": 2,
+      "token": "--oc-text-green-68"
+    },
+    {
+      "from": "2b7748",
+      "to": "287047",
+      "deltaE": 4.330088,
+      "originalUses": 2,
+      "token": "--oc-text-green-36"
+    },
+    {
+      "from": "30373a",
+      "to": "25323a",
+      "deltaE": 4.787521,
+      "originalUses": 2,
+      "token": "--oc-text-teal-01"
+    },
+    {
+      "from": "315f98",
+      "to": "275e91",
+      "deltaE": 4.528573,
+      "originalUses": 2,
+      "token": "--oc-border-blue-05"
+    },
+    {
+      "from": "316957",
+      "to": "255e4c",
+      "deltaE": 4.503256,
+      "originalUses": 2,
+      "token": "--oc-text-green-79"
+    },
+    {
+      "from": "33413a",
+      "to": "37463f",
+      "deltaE": 2.152545,
+      "originalUses": 2,
+      "token": "--oc-text-green-34"
+    },
+    {
+      "from": "3476a8",
+      "to": "477aa6",
+      "deltaE": 4.57768,
+      "originalUses": 2,
+      "token": "--oc-surface-blue-07"
+    },
+    {
+      "from": "397ca8",
+      "to": "477aa6",
+      "deltaE": 3.408902,
+      "originalUses": 2,
+      "token": "--oc-accent-blue-06"
+    },
+    {
+      "from": "3e4a42",
+      "to": "37463f",
+      "deltaE": 2.386436,
+      "originalUses": 2,
+      "token": "--oc-text-green-67"
+    },
+    {
+      "from": "3f7656",
+      "to": "397152",
+      "deltaE": 2.063289,
+      "originalUses": 2,
+      "token": "--oc-accent-green-07"
+    },
+    {
+      "from": "477d9f",
+      "to": "397aa0",
+      "deltaE": 3.300265,
+      "originalUses": 2,
+      "token": "--oc-border-blue-08"
+    },
+    {
+      "from": "48534e",
+      "to": "45534b",
+      "deltaE": 2.340809,
+      "originalUses": 2,
+      "token": "--oc-text-green-86"
+    },
+    {
+      "from": "48634f",
+      "to": "465d4e",
+      "deltaE": 3.988382,
+      "originalUses": 2,
+      "token": "--oc-text-green-24"
+    },
+    {
+      "from": "4b5e55",
+      "to": "465d4e",
+      "deltaE": 4.258413,
+      "originalUses": 2,
+      "token": "--oc-text-green-21"
+    },
+    {
+      "from": "4c6054",
+      "to": "465d4e",
+      "deltaE": 2.800172,
+      "originalUses": 2,
+      "token": "--oc-text-green-47"
+    },
+    {
+      "from": "4c6253",
+      "to": "465d4e",
+      "deltaE": 2.194227,
+      "originalUses": 2,
+      "token": "--oc-text-green-57"
+    },
+    {
+      "from": "526151",
+      "to": "465d4e",
+      "deltaE": 3.947239,
+      "originalUses": 2,
+      "token": "--oc-text-green-31"
+    },
+    {
+      "from": "555e67",
+      "to": "51626b",
+      "deltaE": 3.159711,
+      "originalUses": 2,
+      "token": "--oc-text-blue-36"
+    },
+    {
+      "from": "65408f",
+      "to": "69458f",
+      "deltaE": 3.566639,
+      "originalUses": 2,
+      "token": "--oc-surface-violet-02"
+    },
+    {
+      "from": "68478a",
+      "to": "69458f",
+      "deltaE": 4.210005,
+      "originalUses": 2,
+      "token": "--oc-text-violet-04"
+    },
+    {
+      "from": "6c4b00",
+      "to": "76520a",
+      "deltaE": 3.381905,
+      "originalUses": 2,
+      "token": "--oc-text-amber-13"
+    },
+    {
+      "from": "70500f",
+      "to": "76520a",
+      "deltaE": 3.610928,
+      "originalUses": 2,
+      "token": "--oc-text-amber-20"
+    },
+    {
+      "from": "72540d",
+      "to": "76520a",
+      "deltaE": 3.253217,
+      "originalUses": 2,
+      "token": "--oc-text-amber-44"
+    },
+    {
+      "from": "74828a",
+      "to": "747a81",
+      "deltaE": 3.927953,
+      "originalUses": 2,
+      "token": "--oc-surface-blue-11"
+    },
+    {
+      "from": "7b5b17",
+      "to": "76520a",
+      "deltaE": 4.327093,
+      "originalUses": 2,
+      "token": "--oc-text-amber-50"
+    },
+    {
+      "from": "7c8b83",
+      "to": "78817c",
+      "deltaE": 4.416291,
+      "originalUses": 2,
+      "token": "--oc-accent-neutral-02"
+    },
+    {
+      "from": "805b0d",
+      "to": "785700",
+      "deltaE": 3.205113,
+      "originalUses": 2,
+      "token": "--oc-text-amber-64"
+    },
+    {
+      "from": "82540d",
+      "to": "825300",
+      "deltaE": 3.562235,
+      "originalUses": 2,
+      "token": "--oc-text-amber-23"
+    },
+    {
+      "from": "876327",
+      "to": "805d21",
+      "deltaE": 2.507508,
+      "originalUses": 2,
+      "token": "--oc-text-amber-28"
+    },
+    {
+      "from": "8c9891",
+      "to": "89918d",
+      "deltaE": 3.229101,
+      "originalUses": 2,
+      "token": "--oc-border-neutral-17"
+    },
+    {
+      "from": "96610b",
+      "to": "956311",
+      "deltaE": 2.054792,
+      "originalUses": 2,
+      "token": "--oc-text-amber-43"
+    },
+    {
+      "from": "9bc6aa",
+      "to": "8dbba0",
+      "deltaE": 4.335904,
+      "originalUses": 2,
+      "token": "--oc-border-green-10"
+    },
+    {
+      "from": "9daebc",
+      "to": "9cb5c7",
+      "deltaE": 3.922923,
+      "originalUses": 2,
+      "token": "--oc-surface-blue-17"
+    },
+    {
+      "from": "9eb2aa",
+      "to": "a9b8b1",
+      "deltaE": 3.250793,
+      "originalUses": 2,
+      "token": "--oc-border-neutral-18"
+    },
+    {
+      "from": "a6bdb0",
+      "to": "b4c8bb",
+      "deltaE": 4.370703,
+      "originalUses": 2,
+      "token": "--oc-border-green-13"
+    },
+    {
+      "from": "aab1ae",
+      "to": "a9b8b1",
+      "deltaE": 4.133921,
+      "originalUses": 2,
+      "token": "--oc-accent-neutral-03"
+    },
+    {
+      "from": "bdd9cf",
+      "to": "bcd9c8",
+      "deltaE": 3.749547,
+      "originalUses": 2,
+      "token": "--oc-border-green-07"
+    },
+    {
+      "from": "cdd5cc",
+      "to": "cfd6d1",
+      "deltaE": 2.211697,
+      "originalUses": 2,
+      "token": "--oc-border-neutral-31"
+    },
+    {
+      "from": "d5dee3",
+      "to": "dce2e8",
+      "deltaE": 2.040098,
+      "originalUses": 2,
+      "token": "--oc-border-neutral-15"
+    },
+    {
+      "from": "d89b28",
+      "to": "d39b25",
+      "deltaE": 2.353153,
+      "originalUses": 2,
+      "token": "--oc-accent-amber-07"
+    },
+    {
+      "from": "dba022",
+      "to": "d39b25",
+      "deltaE": 3.755005,
+      "originalUses": 2,
+      "token": "--oc-surface-amber-16"
+    },
+    {
+      "from": "dda32c",
+      "to": "e3aa32",
+      "deltaE": 2.596411,
+      "originalUses": 2,
+      "token": "--oc-border-amber-28"
+    },
+    {
+      "from": "dec78e",
+      "to": "ead39c",
+      "deltaE": 4.520831,
+      "originalUses": 2,
+      "token": "--oc-border-amber-15"
+    },
+    {
+      "from": "ded0a3",
+      "to": "ead9ac",
+      "deltaE": 3.62452,
+      "originalUses": 2,
+      "token": "--oc-border-amber-31"
+    },
+    {
+      "from": "e0a728",
+      "to": "e3aa32",
+      "deltaE": 2.465346,
+      "originalUses": 2,
+      "token": "--oc-text-amber-62"
+    },
+    {
+      "from": "eaf0e9",
+      "to": "e8f4ec",
+      "deltaE": 2.363622,
+      "originalUses": 2,
+      "token": "--oc-border-neutral-23"
+    },
+    {
+      "from": "f0b338",
+      "to": "e3aa32",
+      "deltaE": 4.126055,
+      "originalUses": 2,
+      "token": "--oc-text-amber-46"
+    },
+    {
+      "from": "f4eddd",
+      "to": "fff8e8",
+      "deltaE": 3.829143,
+      "originalUses": 2,
+      "token": "--oc-surface-neutral-21"
+    },
+    {
+      "from": "f7f0d2",
+      "to": "fff1cf",
+      "deltaE": 3.464776,
+      "originalUses": 2,
+      "token": "--oc-surface-amber-04"
+    },
+    {
+      "from": "111111",
+      "to": "080c10",
+      "deltaE": 2.963853,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-13"
+    },
+    {
+      "from": "111a22",
+      "to": "17212b",
+      "deltaE": 3.709094,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-15"
+    },
+    {
+      "from": "111b20",
+      "to": "171a1d",
+      "deltaE": 3.254499,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-18"
+    },
+    {
+      "from": "165782",
+      "to": "174e77",
+      "deltaE": 4.011834,
+      "originalUses": 1,
+      "token": "--oc-text-blue-41"
+    },
+    {
+      "from": "171d1a",
+      "to": "171a1d",
+      "deltaE": 4.8842,
+      "originalUses": 1,
+      "token": "--oc-surface-green-13"
+    },
+    {
+      "from": "172334",
+      "to": "172033",
+      "deltaE": 2.376277,
+      "originalUses": 1,
+      "token": "--oc-text-blue-33"
+    },
+    {
+      "from": "17251c",
+      "to": "172b20",
+      "deltaE": 3.690631,
+      "originalUses": 1,
+      "token": "--oc-text-green-55"
+    },
+    {
+      "from": "174b30",
+      "to": "174b34",
+      "deltaE": 2.600673,
+      "originalUses": 1,
+      "token": "--oc-text-green-75"
+    },
+    {
+      "from": "174e30",
+      "to": "174b34",
+      "deltaE": 4.685731,
+      "originalUses": 1,
+      "token": "--oc-text-green-72"
+    },
+    {
+      "from": "17533a",
+      "to": "174b34",
+      "deltaE": 3.876821,
+      "originalUses": 1,
+      "token": "--oc-text-green-53"
+    },
+    {
+      "from": "182b23",
+      "to": "172b20",
+      "deltaE": 2.22282,
+      "originalUses": 1,
+      "token": "--oc-text-green-60"
+    },
+    {
+      "from": "183e30",
+      "to": "223d2d",
+      "deltaE": 3.649292,
+      "originalUses": 1,
+      "token": "--oc-text-green-42"
+    },
+    {
+      "from": "19342b",
+      "to": "26372e",
+      "deltaE": 4.305045,
+      "originalUses": 1,
+      "token": "--oc-surface-green-06"
+    },
+    {
+      "from": "1a1f24",
+      "to": "171a1d",
+      "deltaE": 2.883554,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-19"
+    },
+    {
+      "from": "1a638d",
+      "to": "27638e",
+      "deltaE": 2.140184,
+      "originalUses": 1,
+      "token": "--oc-border-blue-23"
+    },
+    {
+      "from": "1c2028",
+      "to": "17212b",
+      "deltaE": 2.683006,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-21"
+    },
+    {
+      "from": "202b24",
+      "to": "29312d",
+      "deltaE": 4.131103,
+      "originalUses": 1,
+      "token": "--oc-text-green-62"
+    },
+    {
+      "from": "215536",
+      "to": "285e3c",
+      "deltaE": 3.926184,
+      "originalUses": 1,
+      "token": "--oc-text-green-73"
+    },
+    {
+      "from": "234b80",
+      "to": "264f80",
+      "deltaE": 3.346688,
+      "originalUses": 1,
+      "token": "--oc-text-blue-46"
+    },
+    {
+      "from": "235a45",
+      "to": "255e4c",
+      "deltaE": 2.601207,
+      "originalUses": 1,
+      "token": "--oc-text-green-54"
+    },
+    {
+      "from": "237858",
+      "to": "087450",
+      "deltaE": 4.473984,
+      "originalUses": 1,
+      "token": "--oc-border-green-12"
+    },
+    {
+      "from": "239e92",
+      "to": "239889",
+      "deltaE": 2.914408,
+      "originalUses": 1,
+      "token": "--oc-border-teal-02"
+    },
+    {
+      "from": "24392b",
+      "to": "223d2d",
+      "deltaE": 3.007676,
+      "originalUses": 1,
+      "token": "--oc-text-green-56"
+    },
+    {
+      "from": "243943",
+      "to": "203746",
+      "deltaE": 3.532291,
+      "originalUses": 1,
+      "token": "--oc-text-blue-27"
+    },
+    {
+      "from": "24483a",
+      "to": "1b493b",
+      "deltaE": 2.882161,
+      "originalUses": 1,
+      "token": "--oc-text-green-66"
+    },
+    {
+      "from": "245777",
+      "to": "205c7e",
+      "deltaE": 2.610102,
+      "originalUses": 1,
+      "token": "--oc-text-blue-38"
+    },
+    {
+      "from": "245e36",
+      "to": "285e3c",
+      "deltaE": 3.964977,
+      "originalUses": 1,
+      "token": "--oc-text-green-70"
+    },
+    {
+      "from": "253f60",
+      "to": "123e63",
+      "deltaE": 3.992547,
+      "originalUses": 1,
+      "token": "--oc-text-blue-44"
+    },
+    {
+      "from": "255d9d",
+      "to": "245fa4",
+      "deltaE": 3.068198,
+      "originalUses": 1,
+      "token": "--oc-text-blue-45"
+    },
+    {
+      "from": "258052",
+      "to": "2f895a",
+      "deltaE": 3.420462,
+      "originalUses": 1,
+      "token": "--oc-border-green-16"
+    },
+    {
+      "from": "266345",
+      "to": "276947",
+      "deltaE": 3.496438,
+      "originalUses": 1,
+      "token": "--oc-text-green-64"
+    },
+    {
+      "from": "275d51",
+      "to": "255e4c",
+      "deltaE": 4.04262,
+      "originalUses": 1,
+      "token": "--oc-border-teal-01"
+    },
+    {
+      "from": "28543e",
+      "to": "31543e",
+      "deltaE": 3.000427,
+      "originalUses": 1,
+      "token": "--oc-text-green-49"
+    },
+    {
+      "from": "294d73",
+      "to": "174e77",
+      "deltaE": 3.477127,
+      "originalUses": 1,
+      "token": "--oc-text-blue-34"
+    },
+    {
+      "from": "2d3f4a",
+      "to": "343b42",
+      "deltaE": 4.784731,
+      "originalUses": 1,
+      "token": "--oc-text-blue-56"
+    },
+    {
+      "from": "30363c",
+      "to": "343b42",
+      "deltaE": 2.315806,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-20"
+    },
+    {
+      "from": "315b77",
+      "to": "205c7e",
+      "deltaE": 4.549006,
+      "originalUses": 1,
+      "token": "--oc-text-blue-60"
+    },
+    {
+      "from": "326747",
+      "to": "276947",
+      "deltaE": 3.883837,
+      "originalUses": 1,
+      "token": "--oc-text-green-76"
+    },
+    {
+      "from": "335744",
+      "to": "31543e",
+      "deltaE": 2.35766,
+      "originalUses": 1,
+      "token": "--oc-text-green-58"
+    },
+    {
+      "from": "337554",
+      "to": "397152",
+      "deltaE": 3.342415,
+      "originalUses": 1,
+      "token": "--oc-text-green-83"
+    },
+    {
+      "from": "344b3e",
+      "to": "2c4938",
+      "deltaE": 3.933678,
+      "originalUses": 1,
+      "token": "--oc-text-green-48"
+    },
+    {
+      "from": "344b55",
+      "to": "40515b",
+      "deltaE": 3.65303,
+      "originalUses": 1,
+      "token": "--oc-text-blue-40"
+    },
+    {
+      "from": "34536e",
+      "to": "254b64",
+      "deltaE": 4.337425,
+      "originalUses": 1,
+      "token": "--oc-accent-blue-11"
+    },
+    {
+      "from": "365a70",
+      "to": "365568",
+      "deltaE": 2.838282,
+      "originalUses": 1,
+      "token": "--oc-text-blue-49"
+    },
+    {
+      "from": "365c48",
+      "to": "31543e",
+      "deltaE": 3.643428,
+      "originalUses": 1,
+      "token": "--oc-text-green-85"
+    },
+    {
+      "from": "3677b4",
+      "to": "397bbb",
+      "deltaE": 2.254423,
+      "originalUses": 1,
+      "token": "--oc-status-info-accent"
+    },
+    {
+      "from": "374151",
+      "to": "334155",
+      "deltaE": 2.839229,
+      "originalUses": 1,
+      "token": "--oc-text-blue-35"
+    },
+    {
+      "from": "386889",
+      "to": "3e6e93",
+      "deltaE": 3.408934,
+      "originalUses": 1,
+      "token": "--oc-text-blue-53"
+    },
+    {
+      "from": "3a694f",
+      "to": "406751",
+      "deltaE": 3.798401,
+      "originalUses": 1,
+      "token": "--oc-text-green-77"
+    },
+    {
+      "from": "3c2d4c",
+      "to": "322544",
+      "deltaE": 3.961108,
+      "originalUses": 1,
+      "token": "--oc-text-violet-09"
+    },
+    {
+      "from": "3c6f91",
+      "to": "3e6e93",
+      "deltaE": 2.190831,
+      "originalUses": 1,
+      "token": "--oc-border-blue-24"
+    },
+    {
+      "from": "3da36a",
+      "to": "49a36f",
+      "deltaE": 4.266435,
+      "originalUses": 1,
+      "token": "--oc-accent-green-08"
+    },
+    {
+      "from": "3f9165",
+      "to": "44976b",
+      "deltaE": 2.250131,
+      "originalUses": 1,
+      "token": "--oc-text-green-80"
+    },
+    {
+      "from": "40584a",
+      "to": "465d4e",
+      "deltaE": 2.233674,
+      "originalUses": 1,
+      "token": "--oc-text-green-71"
+    },
+    {
+      "from": "426457",
+      "to": "465d4e",
+      "deltaE": 4.641185,
+      "originalUses": 1,
+      "token": "--oc-text-green-52"
+    },
+    {
+      "from": "42734f",
+      "to": "397152",
+      "deltaE": 3.569835,
+      "originalUses": 1,
+      "token": "--oc-border-green-20"
+    },
+    {
+      "from": "44c486",
+      "to": "49c985",
+      "deltaE": 3.486192,
+      "originalUses": 1,
+      "token": "--oc-surface-green-10"
+    },
+    {
+      "from": "455f71",
+      "to": "536174",
+      "deltaE": 4.510578,
+      "originalUses": 1,
+      "token": "--oc-text-blue-59"
+    },
+    {
+      "from": "46515a",
+      "to": "40515b",
+      "deltaE": 2.302826,
+      "originalUses": 1,
+      "token": "--oc-border-blue-25"
+    },
+    {
+      "from": "48be82",
+      "to": "49b879",
+      "deltaE": 3.033518,
+      "originalUses": 1,
+      "token": "--oc-accent-green-10"
+    },
+    {
+      "from": "496675",
+      "to": "45687a",
+      "deltaE": 2.438746,
+      "originalUses": 1,
+      "token": "--oc-text-blue-57"
+    },
+    {
+      "from": "4a8270",
+      "to": "3f806a",
+      "deltaE": 4.029376,
+      "originalUses": 1,
+      "token": "--oc-surface-green-11"
+    },
+    {
+      "from": "4b9769",
+      "to": "44976b",
+      "deltaE": 2.034124,
+      "originalUses": 1,
+      "token": "--oc-border-green-24"
+    },
+    {
+      "from": "4d555b",
+      "to": "40515b",
+      "deltaE": 4.67567,
+      "originalUses": 1,
+      "token": "--oc-text-blue-43"
+    },
+    {
+      "from": "526475",
+      "to": "536174",
+      "deltaE": 2.185301,
+      "originalUses": 1,
+      "token": "--oc-text-blue-31"
+    },
+    {
+      "from": "526d79",
+      "to": "617681",
+      "deltaE": 4.508957,
+      "originalUses": 1,
+      "token": "--oc-text-blue-61"
+    },
+    {
+      "from": "54728b",
+      "to": "4d7896",
+      "deltaE": 4.682422,
+      "originalUses": 1,
+      "token": "--oc-accent-blue-10"
+    },
+    {
+      "from": "594317",
+      "to": "57451f",
+      "deltaE": 4.276435,
+      "originalUses": 1,
+      "token": "--oc-text-amber-34"
+    },
+    {
+      "from": "59616d",
+      "to": "51626b",
+      "deltaE": 3.986815,
+      "originalUses": 1,
+      "token": "--oc-text-blue-23"
+    },
+    {
+      "from": "5d3a88",
+      "to": "5b3788",
+      "deltaE": 2.129489,
+      "originalUses": 1,
+      "token": "--oc-text-violet-06"
+    },
+    {
+      "from": "5d447d",
+      "to": "60417d",
+      "deltaE": 2.883996,
+      "originalUses": 1,
+      "token": "--oc-border-violet-09"
+    },
+    {
+      "from": "5d707a",
+      "to": "617681",
+      "deltaE": 2.435033,
+      "originalUses": 1,
+      "token": "--oc-text-blue-29"
+    },
+    {
+      "from": "60717f",
+      "to": "617681",
+      "deltaE": 2.913496,
+      "originalUses": 1,
+      "token": "--oc-border-blue-30"
+    },
+    {
+      "from": "607d8c",
+      "to": "617681",
+      "deltaE": 4.070728,
+      "originalUses": 1,
+      "token": "--oc-border-blue-17"
+    },
+    {
+      "from": "634093",
+      "to": "5b3788",
+      "deltaE": 3.765413,
+      "originalUses": 1,
+      "token": "--oc-border-violet-07"
+    },
+    {
+      "from": "666666",
+      "to": "60666c",
+      "deltaE": 4.295312,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-15"
+    },
+    {
+      "from": "674b9b",
+      "to": "76509f",
+      "deltaE": 4.514434,
+      "originalUses": 1,
+      "token": "--oc-accent-violet-02"
+    },
+    {
+      "from": "6b8375",
+      "to": "68796c",
+      "deltaE": 4.326209,
+      "originalUses": 1,
+      "token": "--oc-border-green-19"
+    },
+    {
+      "from": "6f5318",
+      "to": "674d08",
+      "deltaE": 4.300603,
+      "originalUses": 1,
+      "token": "--oc-text-amber-61"
+    },
+    {
+      "from": "6f808b",
+      "to": "617681",
+      "deltaE": 4.481309,
+      "originalUses": 1,
+      "token": "--oc-border-blue-31"
+    },
+    {
+      "from": "718078",
+      "to": "78817c",
+      "deltaE": 3.117814,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-21"
+    },
+    {
+      "from": "71847a",
+      "to": "68796c",
+      "deltaE": 4.696111,
+      "originalUses": 1,
+      "token": "--oc-text-green-38"
+    },
+    {
+      "from": "738f7d",
+      "to": "698974",
+      "deltaE": 3.636394,
+      "originalUses": 1,
+      "token": "--oc-border-green-17"
+    },
+    {
+      "from": "746881",
+      "to": "71677a",
+      "deltaE": 3.696739,
+      "originalUses": 1,
+      "token": "--oc-text-violet-07"
+    },
+    {
+      "from": "755b18",
+      "to": "725b1d",
+      "deltaE": 2.875851,
+      "originalUses": 1,
+      "token": "--oc-text-amber-18"
+    },
+    {
+      "from": "764d06",
+      "to": "744800",
+      "deltaE": 2.613056,
+      "originalUses": 1,
+      "token": "--oc-text-amber-32"
+    },
+    {
+      "from": "76521e",
+      "to": "715321",
+      "deltaE": 3.483878,
+      "originalUses": 1,
+      "token": "--oc-text-amber-39"
+    },
+    {
+      "from": "775693",
+      "to": "71528b",
+      "deltaE": 2.960611,
+      "originalUses": 1,
+      "token": "--oc-text-violet-13"
+    },
+    {
+      "from": "77857d",
+      "to": "78817c",
+      "deltaE": 2.843342,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-45"
+    },
+    {
+      "from": "79510e",
+      "to": "76520a",
+      "deltaE": 2.374742,
+      "originalUses": 1,
+      "token": "--oc-text-amber-41"
+    },
+    {
+      "from": "795c2b",
+      "to": "715321",
+      "deltaE": 3.803734,
+      "originalUses": 1,
+      "token": "--oc-text-amber-33"
+    },
+    {
+      "from": "7a632d",
+      "to": "766033",
+      "deltaE": 4.932253,
+      "originalUses": 1,
+      "token": "--oc-text-amber-52"
+    },
+    {
+      "from": "7b6125",
+      "to": "725b1d",
+      "deltaE": 3.096327,
+      "originalUses": 1,
+      "token": "--oc-text-amber-29"
+    },
+    {
+      "from": "7d5aa4",
+      "to": "8662b1",
+      "deltaE": 4.218903,
+      "originalUses": 1,
+      "token": "--oc-surface-violet-05"
+    },
+    {
+      "from": "804715",
+      "to": "754510",
+      "deltaE": 4.631283,
+      "originalUses": 1,
+      "token": "--oc-text-amber-24"
+    },
+    {
+      "from": "805710",
+      "to": "76520a",
+      "deltaE": 3.408293,
+      "originalUses": 1,
+      "token": "--oc-text-amber-40"
+    },
+    {
+      "from": "806119",
+      "to": "806623",
+      "deltaE": 4.036283,
+      "originalUses": 1,
+      "token": "--oc-text-amber-65"
+    },
+    {
+      "from": "806127",
+      "to": "805d21",
+      "deltaE": 2.868874,
+      "originalUses": 1,
+      "token": "--oc-text-amber-27"
+    },
+    {
+      "from": "82948d",
+      "to": "7e9990",
+      "deltaE": 3.701767,
+      "originalUses": 1,
+      "token": "--oc-border-green-14"
+    },
+    {
+      "from": "865819",
+      "to": "805014",
+      "deltaE": 3.481624,
+      "originalUses": 1,
+      "token": "--oc-text-amber-17"
+    },
+    {
+      "from": "865d08",
+      "to": "8a6210",
+      "deltaE": 2.085961,
+      "originalUses": 1,
+      "token": "--oc-text-amber-67"
+    },
+    {
+      "from": "895b08",
+      "to": "825300",
+      "deltaE": 3.278161,
+      "originalUses": 1,
+      "token": "--oc-text-amber-42"
+    },
+    {
+      "from": "8963ac",
+      "to": "8060a5",
+      "deltaE": 3.441398,
+      "originalUses": 1,
+      "token": "--oc-border-violet-05"
+    },
+    {
+      "from": "8a611f",
+      "to": "805d21",
+      "deltaE": 4.792296,
+      "originalUses": 1,
+      "token": "--oc-status-warn-ink"
+    },
+    {
+      "from": "8b5316",
+      "to": "805014",
+      "deltaE": 4.475546,
+      "originalUses": 1,
+      "token": "--oc-text-amber-16"
+    },
+    {
+      "from": "8b5a12",
+      "to": "825300",
+      "deltaE": 3.93049,
+      "originalUses": 1,
+      "token": "--oc-text-amber-19"
+    },
+    {
+      "from": "8c5700",
+      "to": "825300",
+      "deltaE": 3.999483,
+      "originalUses": 1,
+      "token": "--oc-text-amber-31"
+    },
+    {
+      "from": "8c5f19",
+      "to": "8a6210",
+      "deltaE": 4.601736,
+      "originalUses": 1,
+      "token": "--oc-text-amber-56"
+    },
+    {
+      "from": "8c68af",
+      "to": "8060a5",
+      "deltaE": 3.886738,
+      "originalUses": 1,
+      "token": "--oc-border-violet-10"
+    },
+    {
+      "from": "8f9897",
+      "to": "89918d",
+      "deltaE": 3.191166,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-16"
+    },
+    {
+      "from": "8fa39a",
+      "to": "9baa9f",
+      "deltaE": 3.616769,
+      "originalUses": 1,
+      "token": "--oc-accent-green-13"
+    },
+    {
+      "from": "91641a",
+      "to": "8a6210",
+      "deltaE": 3.39205,
+      "originalUses": 1,
+      "token": "--oc-text-amber-51"
+    },
+    {
+      "from": "91a99b",
+      "to": "9baa9f",
+      "deltaE": 3.933967,
+      "originalUses": 1,
+      "token": "--oc-border-green-15"
+    },
+    {
+      "from": "92a6b4",
+      "to": "8ca2b5",
+      "deltaE": 3.219537,
+      "originalUses": 1,
+      "token": "--oc-border-blue-22"
+    },
+    {
+      "from": "966115",
+      "to": "956311",
+      "deltaE": 2.338956,
+      "originalUses": 1,
+      "token": "--oc-text-amber-15"
+    },
+    {
+      "from": "9bb6cc",
+      "to": "9cb5c7",
+      "deltaE": 2.248428,
+      "originalUses": 1,
+      "token": "--oc-border-blue-11"
+    },
+    {
+      "from": "9ea6a4",
+      "to": "98a09d",
+      "deltaE": 2.350592,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-17"
+    },
+    {
+      "from": "a27218",
+      "to": "a87818",
+      "deltaE": 3.201287,
+      "originalUses": 1,
+      "token": "--oc-text-amber-48"
+    },
+    {
+      "from": "a37a16",
+      "to": "a87818",
+      "deltaE": 3.487089,
+      "originalUses": 1,
+      "token": "--oc-text-amber-59"
+    },
+    {
+      "from": "a4b5a9",
+      "to": "a9b8b1",
+      "deltaE": 3.182492,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-40"
+    },
+    {
+      "from": "a6b7c5",
+      "to": "9cb5c7",
+      "deltaE": 3.540125,
+      "originalUses": 1,
+      "token": "--oc-border-blue-35"
+    },
+    {
+      "from": "a9680e",
+      "to": "a66b16",
+      "deltaE": 3.589616,
+      "originalUses": 1,
+      "token": "--oc-accent-amber-04"
+    },
+    {
+      "from": "ad6c08",
+      "to": "a66a00",
+      "deltaE": 2.582136,
+      "originalUses": 1,
+      "token": "--oc-border-amber-18"
+    },
+    {
+      "from": "ae7715",
+      "to": "b88021",
+      "deltaE": 3.525216,
+      "originalUses": 1,
+      "token": "--oc-border-amber-22"
+    },
+    {
+      "from": "aebecb",
+      "to": "b5c4cc",
+      "deltaE": 3.453459,
+      "originalUses": 1,
+      "token": "--oc-border-blue-12"
+    },
+    {
+      "from": "afc3d1",
+      "to": "b5c4cc",
+      "deltaE": 3.604407,
+      "originalUses": 1,
+      "token": "--oc-border-blue-20"
+    },
+    {
+      "from": "b6c9df",
+      "to": "b6cddd",
+      "deltaE": 3.735673,
+      "originalUses": 1,
+      "token": "--oc-border-blue-29"
+    },
+    {
+      "from": "b81034",
+      "to": "c11236",
+      "deltaE": 3.343442,
+      "originalUses": 1,
+      "token": "--oc-accent-red-05"
+    },
+    {
+      "from": "b88b31",
+      "to": "be8936",
+      "deltaE": 4.373351,
+      "originalUses": 1,
+      "token": "--oc-border-amber-29"
+    },
+    {
+      "from": "b8c1c7",
+      "to": "b5c4cc",
+      "deltaE": 2.412794,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-11"
+    },
+    {
+      "from": "b8c9cf",
+      "to": "b5c4cc",
+      "deltaE": 2.08139,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-32"
+    },
+    {
+      "from": "b8d8c4",
+      "to": "bcd9c8",
+      "deltaE": 2.060848,
+      "originalUses": 1,
+      "token": "--oc-border-green-23"
+    },
+    {
+      "from": "b9c0bf",
+      "to": "bfc8c2",
+      "deltaE": 3.818674,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-18"
+    },
+    {
+      "from": "ba3636",
+      "to": "b33939",
+      "deltaE": 4.595783,
+      "originalUses": 1,
+      "token": "--oc-accent-red-04"
+    },
+    {
+      "from": "bdcdd7",
+      "to": "b5c4cc",
+      "deltaE": 3.407997,
+      "originalUses": 1,
+      "token": "--oc-border-blue-13"
+    },
+    {
+      "from": "bdd3e6",
+      "to": "b6cddd",
+      "deltaE": 2.819693,
+      "originalUses": 1,
+      "token": "--oc-border-blue-34"
+    },
+    {
+      "from": "bed0df",
+      "to": "b6cddd",
+      "deltaE": 2.220528,
+      "originalUses": 1,
+      "token": "--oc-border-blue-10"
+    },
+    {
+      "from": "c2cdd5",
+      "to": "cbd4df",
+      "deltaE": 3.245087,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-34"
+    },
+    {
+      "from": "c2d5ca",
+      "to": "bcd9c8",
+      "deltaE": 4.845616,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-10"
+    },
+    {
+      "from": "c5a9df",
+      "to": "b9a4df",
+      "deltaE": 4.339783,
+      "originalUses": 1,
+      "token": "--oc-border-violet-11"
+    },
+    {
+      "from": "c8d8e8",
+      "to": "cbd4df",
+      "deltaE": 3.603825,
+      "originalUses": 1,
+      "token": "--oc-border-blue-14"
+    },
+    {
+      "from": "cb9538",
+      "to": "c4942d",
+      "deltaE": 4.46628,
+      "originalUses": 1,
+      "token": "--oc-status-warn-accent"
+    },
+    {
+      "from": "cbdccc",
+      "to": "d3e5d9",
+      "deltaE": 3.875377,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-24"
+    },
+    {
+      "from": "cbdcd5",
+      "to": "cfd6d1",
+      "deltaE": 3.953565,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-28"
+    },
+    {
+      "from": "cdbbde",
+      "to": "c4b5d3",
+      "deltaE": 3.789513,
+      "originalUses": 1,
+      "token": "--oc-border-violet-12"
+    },
+    {
+      "from": "cdd1d4",
+      "to": "cfd6d1",
+      "deltaE": 4.577335,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-41"
+    },
+    {
+      "from": "cdd9e0",
+      "to": "cbd4df",
+      "deltaE": 2.811881,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-29"
+    },
+    {
+      "from": "cfc3dc",
+      "to": "d8c8e7",
+      "deltaE": 4.110385,
+      "originalUses": 1,
+      "token": "--oc-text-neutral-19"
+    },
+    {
+      "from": "d4a7aa",
+      "to": "e2acb0",
+      "deltaE": 4.423926,
+      "originalUses": 1,
+      "token": "--oc-border-red-06"
+    },
+    {
+      "from": "d6a62f",
+      "to": "d0a032",
+      "deltaE": 3.991249,
+      "originalUses": 1,
+      "token": "--oc-accent-amber-09"
+    },
+    {
+      "from": "d8cba8",
+      "to": "decda7",
+      "deltaE": 2.45801,
+      "originalUses": 1,
+      "token": "--oc-border-amber-34"
+    },
+    {
+      "from": "d8d5d3",
+      "to": "cfd6d1",
+      "deltaE": 3.992505,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-39"
+    },
+    {
+      "from": "dabd78",
+      "to": "d6bd7b",
+      "deltaE": 2.429213,
+      "originalUses": 1,
+      "token": "--oc-accent-amber-11"
+    },
+    {
+      "from": "dbc183",
+      "to": "d6bd7b",
+      "deltaE": 2.660588,
+      "originalUses": 1,
+      "token": "--oc-border-amber-25"
+    },
+    {
+      "from": "dceadd",
+      "to": "d3e5d9",
+      "deltaE": 2.510793,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-19"
+    },
+    {
+      "from": "dcecf7",
+      "to": "d2e7f6",
+      "deltaE": 3.285236,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-23"
+    },
+    {
+      "from": "dda92e",
+      "to": "e3aa32",
+      "deltaE": 2.399735,
+      "originalUses": 1,
+      "token": "--oc-border-amber-36"
+    },
+    {
+      "from": "dec893",
+      "to": "ead39c",
+      "deltaE": 4.065128,
+      "originalUses": 1,
+      "token": "--oc-border-amber-30"
+    },
+    {
+      "from": "ded4ef",
+      "to": "ddd5e8",
+      "deltaE": 4.259711,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-36"
+    },
+    {
+      "from": "ded8c7",
+      "to": "ddd9cf",
+      "deltaE": 3.75387,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-26"
+    },
+    {
+      "from": "dfedff",
+      "to": "d2e7f6",
+      "deltaE": 3.916985,
+      "originalUses": 1,
+      "token": "--oc-surface-blue-10"
+    },
+    {
+      "from": "e0c16f",
+      "to": "dfc477",
+      "deltaE": 3.382827,
+      "originalUses": 1,
+      "token": "--oc-border-amber-40"
+    },
+    {
+      "from": "e3a3a9",
+      "to": "df9da2",
+      "deltaE": 2.338271,
+      "originalUses": 1,
+      "token": "--oc-border-red-12"
+    },
+    {
+      "from": "e3a7ac",
+      "to": "e2acb0",
+      "deltaE": 2.784689,
+      "originalUses": 1,
+      "token": "--oc-border-red-13"
+    },
+    {
+      "from": "e4a7b3",
+      "to": "e2acb0",
+      "deltaE": 4.913546,
+      "originalUses": 1,
+      "token": "--oc-border-red-03"
+    },
+    {
+      "from": "e4bc66",
+      "to": "dcb964",
+      "deltaE": 2.663991,
+      "originalUses": 1,
+      "token": "--oc-border-amber-37"
+    },
+    {
+      "from": "e4c985",
+      "to": "d6bd7b",
+      "deltaE": 4.562345,
+      "originalUses": 1,
+      "token": "--oc-border-amber-39"
+    },
+    {
+      "from": "e4d4aa",
+      "to": "ead9ac",
+      "deltaE": 2.351014,
+      "originalUses": 1,
+      "token": "--oc-border-amber-33"
+    },
+    {
+      "from": "e5e1e8",
+      "to": "dce2e8",
+      "deltaE": 3.594697,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-25"
+    },
+    {
+      "from": "e6cc9d",
+      "to": "ead39c",
+      "deltaE": 4.559527,
+      "originalUses": 1,
+      "token": "--oc-border-amber-27"
+    },
+    {
+      "from": "e6e0ef",
+      "to": "ddd5e8",
+      "deltaE": 4.294328,
+      "originalUses": 1,
+      "token": "--oc-border-neutral-37"
+    },
+    {
+      "from": "e7b7bb",
+      "to": "e0b5b5",
+      "deltaE": 3.014527,
+      "originalUses": 1,
+      "token": "--oc-border-red-14"
+    },
+    {
+      "from": "edc6c9",
+      "to": "efc2c6",
+      "deltaE": 2.544702,
+      "originalUses": 1,
+      "token": "--oc-border-red-11"
+    },
+    {
+      "from": "f2f3f3",
+      "to": "edf5fb",
+      "deltaE": 3.884843,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-26"
+    },
+    {
+      "from": "f4dcad",
+      "to": "ead9ac",
+      "deltaE": 3.381725,
+      "originalUses": 1,
+      "token": "--oc-text-amber-35"
+    },
+    {
+      "from": "f4ddfb",
+      "to": "f3ddff",
+      "deltaE": 2.094915,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-20"
+    },
+    {
+      "from": "f8f2e5",
+      "to": "fff8e8",
+      "deltaE": 2.595399,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-22"
+    },
+    {
+      "from": "ffe0e2",
+      "to": "f2dce2",
+      "deltaE": 4.461961,
+      "originalUses": 1,
+      "token": "--oc-surface-red-02"
+    },
+    {
+      "from": "ffedcf",
+      "to": "fff1cf",
+      "deltaE": 2.649281,
+      "originalUses": 1,
+      "token": "--oc-surface-amber-11"
+    },
+    {
+      "from": "ffede7",
+      "to": "fff0f1",
+      "deltaE": 3.88925,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-29"
+    },
+    {
+      "from": "fff0bd",
+      "to": "ffe9b7",
+      "deltaE": 3.363856,
+      "originalUses": 1,
+      "token": "--oc-surface-amber-13"
+    },
+    {
+      "from": "fff0ed",
+      "to": "fff0f1",
+      "deltaE": 2.042237,
+      "originalUses": 1,
+      "token": "--oc-surface-neutral-27"
+    }
+  ]
+}

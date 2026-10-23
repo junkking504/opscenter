@@ -9,6 +9,16 @@ export const fromFinanceMonth = (month?: Month): TrendValues => {
   const basis = month?.operatingRevenue === undefined ? result.revenue : month.operatingRevenue;
   return { ...result, margin: result.profit != null && basis != null && basis > 0 ? result.profit / basis * 100 : null };
 };
+/** Shared published daily gross revenue/completed-job basis; never appointment totals or crew credits. */
+export function fromDailyFinanceMetrics(row: Record<string, unknown> | null): TrendValues {
+  const market = row?.jobs_by_market;
+  const counts = market && typeof market === 'object' && !Array.isArray(market) && Object.keys(market).length
+    ? Object.values(market).map(finite) : null;
+  const jobs = counts ? counts.some(v => v == null) ? null : counts.reduce<number>((a, v) => a + v!, 0)
+    : finite(row?.completed_jobs ?? row?.total_jobs ?? row?.jobs_completed);
+  return values(finite(row?.total_revenue ?? row?.gross_revenue ?? row?.sales), jobs,
+    finite(row?.total_expenses), finite(row?.net_profit));
+}
 const fullMonth = (month: Month) => month.reportingComplete ?? month.complete;
 export function financeTrendComparisons(months: Month[], read: (date: string) => Record<string, unknown> | null, readYearMonth?: (key: string) => TrendValues | null): Record<string, TrendComparison> {
   const cache = new Map<string, Record<string, unknown> | null>();
@@ -22,14 +32,8 @@ export function financeTrendComparisons(months: Month[], read: (date: string) =>
       const entries = rows.map(row => row ? finite(get(row)) : null);
       return entries.some(v => v == null) ? null : entries.reduce<number>((a,v) => a + v!, 0);
     };
-    const result = values(sum(r => r.total_revenue ?? r.gross_revenue ?? r.sales), sum(r => {
-      const market = r.jobs_by_market;
-      if (market && typeof market === 'object' && !Array.isArray(market) && Object.keys(market).length) {
-        const counts = Object.values(market).map(finite);
-        return counts.some(v=>v==null) ? null : counts.reduce<number>((a,v)=>a+v!,0);
-      }
-      return r.completed_jobs ?? r.total_jobs ?? r.jobs_completed;
-    }), sum(r => r.total_expenses), sum(r => r.net_profit));
+    const result = values(sum(r => fromDailyFinanceMetrics(r).revenue), sum(r => fromDailyFinanceMetrics(r).jobs),
+      sum(r => r.total_expenses), sum(r => r.net_profit));
     const sales = sum(r => r.sales ?? r.total_revenue ?? r.gross_revenue);
     return { ...result, margin: result.profit != null && sales != null && sales > 0 ? result.profit / sales * 100 : null };
   };

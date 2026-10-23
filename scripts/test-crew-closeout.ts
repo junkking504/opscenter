@@ -38,6 +38,13 @@ async function main(){
   const values={jobCategoryId:'house',howHeardId:'ref',actualStartHour:'99',actualStartMinute:'99',actualEndHour:'99',actualEndMinute:'99',driverId:'d',navigatorIds:['n','e'],appointmentId:id,serviceDate:date,targetStatus:'8',truck:'Truck 6',appointmentType:'Job',expectedSourceVersion:closeoutSourceVersion(source),addPayment:{methodId:'card',amount:'350.00',reference:'1234'}};
   const body=()=>({assignmentId:current.assignmentId,requestId:randomUUID(),expectedVersion:version,crewVersion:1,values:{...values,expectedSourceVersion:closeoutSourceVersion(source)}});
   const photoRequestIds=Array.from({length:25},()=>randomUUID());
+  const estimateOutcome={reason:'Other',explanation:'Customer requested an estimate only',noDiscountReason:'No removal work was performed'};
+  for(const invalidEstimate of [{appointmentType:'Estimate'},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,explanation:''}},{appointmentType:'Estimate',estimateOutcome:{...estimateOutcome,noDiscountReason:''}},{appointmentType:'Job',estimateOutcome},{skipAfterPhotos:true}])assert.throws(()=>validateCrewCloseout({...values,...invalidEstimate,photoRequestIds},'Truck 6',id,date));
+  source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  const noEstimatePhotos=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}},deps);assert.equal(noEstimatePhotos.status,'failed');assert.equal(writes,0,'Estimate exception never bypasses verified source photos');source=structuredClone(baseline);
+  let estimateWrites=0;
+  const estimate=await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}}, {...deps,write:async(_id,payload)=>{estimateWrites++;assert.equal(payload!.appointmentType,'Estimate');assert.deepEqual(payload!.estimateOutcome,estimateOutcome);return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Estimate'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(estimate.status,'verified','Explicit estimate outcome retains before-photo source evidence without requiring after photos');assert.equal(estimateWrites,1);
   assert.doesNotThrow(()=>validateCrewCloseout({...values,photoRequestIds},'Truck 6',id,date));
   assert.throws(()=>validateCrewCloseout({...values,photoRequestIds:[...photoRequestIds,randomUUID()]},'Truck 6',id,date),/photos selected/);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,true);
@@ -54,9 +61,23 @@ async function main(){
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,truck:'Truck 5'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,targetStatus:'9'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),appointmentId:'900002'},deps),/current closeout/);
-  await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350.00',reference:'1234',cardNumber:'1234'}}},deps),/collected payment/);
+  await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350.00',reference:'1234',cardNumber:'1234'}}},deps),/payment or billed entry/);
   const invalid=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'card',amount:'350',reference:'123'}}},deps);assert.equal(invalid.status,'failed');assert.equal(writes,0);
-  const billed=await submitCrewCloseout(request,{...body(),values:{...values,addPayment:{methodId:'billed',amount:'350'}}},deps);assert.equal(billed.status,'failed');assert.equal(writes,0);
+  let billedWrites=0;
+  const billedBody={...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350.00'}}};
+  const billedDeps={...deps,write:async(_id:string,payload?:Record<string,unknown>)=>{billedWrites++;assert.deepEqual(payload!.addPayment,{methodId:'billed',amount:'350.00'});return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},payments:[...baseline.payments,{description:'Billed',amount:'350.00'}]},verifiedAt:new Date().toISOString()};}};
+  const billed=await submitCrewCloseout(request,billedBody,billedDeps);assert.equal(billed.status,'verified');
+  assert.match(billed.actor || '',/^crew-phone:/,'Billing keeps the device/assignment audit actor');
+  assert.equal((await submitCrewCloseout(request,billedBody,billedDeps)).status,'verified');assert.equal(billedWrites,1,'Billed entries retain durable replay protection');
+  for(const payment of [{methodId:'billed',amount:'0'},{methodId:'billed',amount:'-10'},{methodId:'billed',amount:'350',reference:'1234'},{methodId:'made-up-billed',amount:'350'}]){
+   assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:payment}},billedDeps)).status,'failed');
+  }
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Estimates cannot be billed as completed work');
+  source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Billed cannot bypass source photo evidence');
+  source=structuredClone(baseline);
+  assert.equal(billedWrites,1,'Billed still requires a source method, positive amount and no reference');assert.equal(writes,0);
+
   source={...baseline,photoEvidence:{appointmentId:id,urls:[]}};
   await assert.rejects(submitCrewCloseout(request,{...body(),application:'opscenter'},deps),/current closeout/);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...body().values,application:'opscenter',requirePhotos:false}},deps),/current appointment/);
@@ -87,6 +108,22 @@ async function main(){
   const queued=await queueCrewCloseout(request,body(),deps);assert.equal(queued.receipt.status,'pending');assert.equal(writes,0,'Queue response precedes the provider write');assert.ok(queued.run);
   const backgroundReceipt=await queued.run!();assert.equal(backgroundReceipt.status,'verified');assert.equal(writes,1,'Background worker owns the one closeout write');source=structuredClone(baseline);writes=0;
   const tampered=await submitCrewCloseout(request,{...body(),values:{...values,jobCategoryId:'changed'}},deps);assert.equal(tampered.status,'failed');assert.equal(writes,0);
+  const originalTruck=job.truck;
+  Object.assign(job,{truck:'Truck 2',address:'Amazon Mattress Removal 100 Example St'});
+  source={...baseline,truck:'Truck 2',companyName:'Amazon Mattress Removal',signatureEvidence:null,driver:{value:'amz',label:'Gerard, Lance'},drivers:[...baseline.drivers,{value:'amz',label:'Gerard, Lance'}],navigators:[]};
+  let amazonWrites=0;
+  const amazonDeps={...deps,scope:(req:Request,assignmentId:string,run:Parameters<typeof withCrewJob>[2])=>withCrewJob(req,assignmentId,run,{...scopeSources,assignment:async()=>({appointmentId:id,truck:'Truck 2',date,status:'Confirmed',companyName:'Amazon Mattress Removal'})} as never),write:async(_id:string,input?:Record<string,unknown>)=>{amazonWrites++;assert.equal(input!.driverId,'amz');assert.equal(input!.truck,'Truck 2');assert.deepEqual(input!.navigatorIds,[]);return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},signatureEvidence:{appointmentId:id,sha256:'c'.repeat(64)}},verifiedAt:new Date().toISOString()};}} as typeof deps;
+  const amazonBody=()=>({...body(),values:{...body().values,truck:'Truck 2',driverId:'amz',navigatorIds:[]}});
+  assert.equal((await loadCrewCloseout(request,current.assignmentId,amazonDeps)).crewDefaults?.driver.value,'amz','Different daily crew keeps Lance as source assignee');
+  assert.equal((await submitCrewCloseout(request,amazonBody(),amazonDeps)).status,'failed');assert.equal(amazonWrites,0,'Missing Amazon signature blocks before provider write');
+  const signed={...amazonBody(),values:{...amazonBody().values,signature:{strokes:[[[10,10],[30,50],[70,20]]]}}};
+  assert.equal((await submitCrewCloseout(request,{...signed,requestId:randomUUID(),values:{...signed.values,driverId:'d'}},amazonDeps)).status,'failed');assert.equal(amazonWrites,0,'Daily driver cannot replace the Amazon source assignee');
+  assert.equal((await submitCrewCloseout(request,signed,amazonDeps)).status,'verified');
+  assert.equal((await submitCrewCloseout(request,signed,amazonDeps)).status,'verified');assert.equal(amazonWrites,1,'Signed cross-truck checkout is replay-safe');
+  job.truck='Virtual Truck';source={...source,truck:''};
+  const virtualDeps={...amazonDeps,scope:(req:Request,assignmentId:string,run:Parameters<typeof withCrewJob>[2])=>withCrewJob(req,assignmentId,run,{...scopeSources,assignment:async()=>({appointmentId:id,truck:'',date,status:'Confirmed',companyName:'Amazon Mattress Removal'})} as never),write:async(_id:string,input?:Record<string,unknown>)=>{assert.equal(input!.truck,'Truck 6','Virtual-lane jobs use the completing phone truck required by JunkWare');assert.equal(input!.driverId,'amz','Lance remains the assigned person');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},truck:'Truck 6'},verifiedAt:new Date().toISOString()};}} as typeof deps;
+  assert.equal((await submitCrewCloseout(request,{...amazonBody(),values:{...amazonBody().values,truck:'Truck 6',signature:signed.values.signature}},virtualDeps)).status,'verified');
+  source=structuredClone(baseline);Object.assign(job,{truck:originalTruck,address:''});
   lose=true;const uncertain=body();assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1);
   assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1,'Same request is never replayed');
   await assert.rejects(submitCrewCloseout(request,body(),deps),/unverified change/);assert.equal(writes,1,'New UUID cannot bypass uncertainty');
@@ -101,8 +138,14 @@ async function main(){
   assert.equal(JSON.stringify(crewReceiptProjection(receipt)).includes('crewContext'),false);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,false,'Completed source cannot be charged again through the phone');
   assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2);
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,addPayment:{methodId:'billed',amount:'350'}}},billedDeps)).status,'failed','Completed records cannot receive a new billed entry');assert.equal(billedWrites,1);
+  source=structuredClone(baseline);
+  const mismatchedEstimate={...body(),values:{...body().values,appointmentType:'Estimate',estimateOutcome,addPayment:null}};
+  const mismatch=await submitCrewCloseout(request,mismatchedEstimate,{...deps,write:async()=>({ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},appointmentType:{label:'Job'}},verifiedAt:new Date().toISOString()})});
+  assert.equal(mismatch.status,'uncertain','An estimate request cannot be verified as a completed Job');
+  assert.equal((await checkCrewCloseout(request,current.assignmentId,mismatchedEstimate.requestId,true,deps)).status,'failed','Unchanged source read-back resolves only the synthetic no-save outcome');
   source=structuredClone(baseline);revokeOnRead=true;assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,2,'Revocation during source read prevents payment write');
-  console.log('PASS: collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
+  console.log('PASS: billed receivable and collected-payment authority, truck-day scope, source/photo preflight, stale baseline, durable receipt identity, uncertain write lock, read-only recovery, completed-source denial and revocation. Synthetic sources only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Same-origin request required.' }, { status: 403, headers });
   try {
     const operation = parseCommercialOperation(await request.json().catch(() => null));
-    if (operation.action === "review.assign" && !opsRoleCan(actor.role, "sensitive.write")) return Response.json({ error: "Manager access is required." }, { status: 403, headers });
+    if (operation.action.startsWith("review.") && !opsRoleCan(actor.role, "sensitive.write")) return Response.json({ error: "Manager access is required." }, { status: 403, headers });
     const receipt = updateDesktopMarketing(operation, actor);
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : 202, headers });
   } catch (error) {

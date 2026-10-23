@@ -8,25 +8,25 @@
   min-height: 56px;
   padding: 12px 14px;
   background: var(--ops-brand-red);
-  color: #fff;
-  font-size: 14px;
+  color: var(--oc-surface-raised);
+  font-size: var(--oc-type-14);
   font-weight: 750;
   cursor: pointer;
   list-style: none;
 }
 .ops-live .appointment-closeout-panel > summary::-webkit-details-marker { display: none; }
 .ops-live .appointment-closeout-panel > summary:hover { background: var(--ops-brand-red-hover); }
-.ops-live .appointment-closeout-panel > summary:focus-visible { outline: 3px solid #e5b34c; outline-offset: -3px; }
-.ops-live .closeout-summary-action { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.ops-live .closeout-summary-chevron { font-size: 22px; line-height: 1; }
+.ops-live .appointment-closeout-panel > summary:focus-visible { outline: 3px solid var(--oc-border-amber-03); outline-offset: -3px; }
+.ops-live .closeout-summary-action { display: flex; align-items: center; gap: 8px; font-size: var(--oc-type-12); }
+.ops-live .closeout-summary-chevron { font-size: var(--oc-type-22); line-height: 1; }
 .ops-live .closeout-hide-label, .ops-live .appointment-closeout-panel[open] .closeout-open-label { display: none; }
 .ops-live .appointment-closeout-panel[open] .closeout-hide-label { display: inline; }
 .ops-live .appointment-closeout-panel[open] .closeout-summary-chevron { transform: rotate(180deg); }
-.ops-live .ops-closeout-totals { padding: 12px; border: 1px solid #ced8d0; border-radius: 6px; background: #f3f6f2; }
-.ops-live .ops-closeout-totals > div { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; font-size: 12px; }
-.ops-live .ops-closeout-totals > div:first-child { font-size: 15px; font-weight: 750; }
-.ops-live .ops-closeout-totals small { display: block; margin: 3px 0 10px; color: #57655b; }
-.ops-live .appointment-closeout-body { padding: 10px; font-size: 11px; line-height: 1.35; }
+.ops-live .ops-closeout-totals { padding: 12px; border: 1px solid var(--oc-border-neutral-11); border-radius: 6px; background: var(--oc-surface-neutral-02); }
+.ops-live .ops-closeout-totals > div { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; font-size: var(--oc-type-12); }
+.ops-live .ops-closeout-totals > div:first-child { font-size: var(--oc-type-15); font-weight: 750; }
+.ops-live .ops-closeout-totals small { display: block; margin: 3px 0 10px; color: var(--oc-text-green-02); }
+.ops-live .appointment-closeout-body { padding: 10px; font-size: var(--oc-type-11); line-height: 1.35; }
 .ops-live .appointment-closeout-body label {
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);
@@ -35,12 +35,12 @@
   min-height: 38px;
   margin: 0;
   padding: 5px 12px;
-  border-bottom: 1px solid #e6e9e5;
+  border-bottom: 1px solid var(--oc-border-neutral-01);
 }
 .ops-live .appointment-closeout-body label > span,
 .ops-live .ops-closeout-time-grid > span {
-  color: #7b847f;
-  font-size: 9px;
+  color: var(--oc-text-neutral-01);
+  font-size: var(--oc-type-9);
   font-weight: 730;
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -51,38 +51,38 @@
   min-width: 0;
   min-height: 28px;
   padding: 4px 6px;
-  border: 1px solid #dce2dc;
+  border: 1px solid var(--oc-border-neutral-04);
   border-radius: 5px;
-  background: #fff;
-  color: #202529;
+  background: var(--oc-surface-raised);
+  color: var(--oc-text-blue-02);
   font: inherit;
   font-weight: 700;
 }
-.ops-live .appointment-closeout-body :is(input, select):focus-visible { outline: 2px solid #576e60; outline-offset: 1px; }
+.ops-live .appointment-closeout-body :is(input, select):focus-visible { outline: 2px solid var(--oc-text-green-25); outline-offset: 1px; }
 .ops-live .appointment-closeout-body :is(input, select, button):disabled { opacity: .6; cursor: not-allowed; }
 .ops-live .appointment-closeout-body .appointment-create-section { margin: 10px 0; }
 .ops-live .appointment-closeout-body :is(h4, h5) {
   margin: 0;
   padding: 9px 12px;
-  border-bottom: 1px solid #e6e9e5;
-  background: #f3f5f2;
-  color: #202529;
-  font-size: 11px;
+  border-bottom: 1px solid var(--oc-border-neutral-01);
+  background: var(--oc-surface-neutral-02);
+  color: var(--oc-text-blue-02);
+  font-size: var(--oc-type-11);
   font-weight: 750;
 }
 .ops-live .appointment-closeout-grid,
 .ops-live .ops-closeout-charge-entry { display: block; }
-.ops-live .ops-closeout-crew-row { display: flex; align-items: center; border-bottom: 1px solid #e6e9e5; }
+.ops-live .ops-closeout-crew-row { display: flex; align-items: center; border-bottom: 1px solid var(--oc-border-neutral-01); }
 .ops-live .ops-closeout-crew-row label { flex: 1; min-width: 0; padding-right: 0; border: 0; }
 .ops-live .appointment-closeout-body .ops-button,
 .ops-live .appointment-closeout-body .ops-closeout-text-button {
   min-height: 28px;
   margin: 7px 12px;
   padding: 5px 8px;
-  border: 1px solid #dce2dc;
+  border: 1px solid var(--oc-border-neutral-04);
   border-radius: 5px;
-  background: #fff;
-  color: #202529;
+  background: var(--oc-surface-raised);
+  color: var(--oc-text-blue-02);
   font: inherit;
   font-weight: 650;
 }
@@ -98,20 +98,20 @@
   grid-template-columns: 110px minmax(0, 1fr);
   gap: 12px;
   padding: 11px 12px;
-  border-bottom: 1px solid #e6e9e5;
+  border-bottom: 1px solid var(--oc-border-neutral-01);
 }
-.ops-live .ops-closeout-payments > div > span { color: #7b847f; font-size: 9px; font-weight: 730; text-transform: uppercase; letter-spacing: .06em; }
+.ops-live .ops-closeout-payments > div > span { color: var(--oc-text-neutral-01); font-size: var(--oc-type-9); font-weight: 730; text-transform: uppercase; letter-spacing: .06em; }
 .ops-live .appointment-closeout-body .ops-closeout-payment-toggle { display: flex; justify-content: flex-start; gap: 8px; }
 .ops-live .appointment-closeout-body input[type='checkbox'] { width: 14px; height: 14px; margin: 0; flex: 0 0 auto; accent-color: var(--ops-brand-red); }
 .ops-live .ops-closeout-payment-entry { display: block; }
-.ops-live .ops-closeout-charge-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e6e9e5; }
+.ops-live .ops-closeout-charge-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--oc-border-neutral-01); }
 .ops-live .ops-closeout-charge-list > div > span:first-child { flex: 1; }
-.ops-live .ops-closeout-charge-list small { display: block; color: #7b847f; }
-.ops-live .ops-closeout-charge-list > div.pending-removal { background: #fff3f5; border-color: #e4a7b3; }
+.ops-live .ops-closeout-charge-list small { display: block; color: var(--oc-text-neutral-01); }
+.ops-live .ops-closeout-charge-list > div.pending-removal { background: var(--oc-surface-neutral-03); border-color: var(--oc-border-red-03); }
 .ops-live .ops-closeout-charge-list > div.pending-removal > span { text-decoration: line-through; }
-.ops-live .ops-closeout-payment-summary { margin: 10px 0 14px; padding: 12px; border: 1px solid #d9ded8; border-radius: 10px; background: #f8faf7; }
+.ops-live .ops-closeout-payment-summary { margin: 10px 0 14px; padding: 12px; border: 1px solid var(--oc-border-neutral-04); border-radius: 10px; background: var(--oc-surface-neutral-02); }
 .ops-live .ops-closeout-payment-summary > div { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
-.ops-live .ops-closeout-payment-summary .amount-due { margin-top: 8px; padding-top: 10px; border-top: 1px solid #cdd5cc; font-size: 16px; }
+.ops-live .ops-closeout-payment-summary .amount-due { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--oc-border-neutral-31); font-size: var(--oc-type-16); }
 .ops-live .ops-use-payment-amount { width: 100%; }
 .ops-live .appointment-closeout-body p,
 .ops-live .ops-closeout-editor-message { margin: 0; padding: 9px 12px; }
@@ -126,41 +126,41 @@
   .ops-live .ops-closeout-crew-row .ops-button { margin: 0 8px 7px 106px; }
 }
 
-.ops-live .ops-closeout-payment-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; margin: 8px 12px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; }
+.ops-live .ops-closeout-payment-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; margin: 8px 12px; padding: 8px; border: 1px solid var(--oc-border-neutral-04); border-radius: 5px; }
 .ops-live .ops-closeout-payment-methods legend { padding: 0 4px; font-weight: 700; }
-.ops-live .appointment-closeout-body .ops-closeout-payment-methods label { display: flex; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; cursor: pointer; }
+.ops-live .appointment-closeout-body .ops-closeout-payment-methods label { display: flex; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid var(--oc-border-neutral-04); border-radius: 5px; cursor: pointer; }
 .ops-live .appointment-closeout-body .ops-closeout-payment-methods input { width: 16px; min-height: 16px; flex: 0 0 16px; margin: 0; accent-color: var(--ops-brand-red); }
-.ops-live .appointment-closeout-body .ops-closeout-payment-methods label:has(input:checked) { border-color: var(--ops-brand-red); background: #fff4f4; }
-.ops-live .appointment-closeout-body .ops-closeout-payment-methods label > span { color: #202529; font-size: 11px; text-transform: none; letter-spacing: 0; }
+.ops-live .appointment-closeout-body .ops-closeout-payment-methods label:has(input:checked) { border-color: var(--ops-brand-red); background: var(--oc-surface-neutral-03); }
+.ops-live .appointment-closeout-body .ops-closeout-payment-methods label > span { color: var(--oc-text-blue-02); font-size: var(--oc-type-11); text-transform: none; letter-spacing: 0; }
 
-.ops-live .ops-closeout-status-options { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 8px 12px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; }
+.ops-live .ops-closeout-status-options { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 8px 12px; padding: 8px; border: 1px solid var(--oc-border-neutral-04); border-radius: 5px; }
 .ops-live .ops-closeout-status-options legend { padding: 0 4px; font-weight: 700; }
-.ops-live .appointment-closeout-body .ops-closeout-status-options label { display: flex; flex: 1 1 100px; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; cursor: pointer; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label { display: flex; flex: 1 1 100px; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid var(--oc-border-neutral-04); border-radius: 5px; cursor: pointer; }
 .ops-live .appointment-closeout-body .ops-closeout-status-options input { width: 16px; min-height: 16px; flex: 0 0 16px; margin: 0; accent-color: var(--ops-brand-red); }
-.ops-live .appointment-closeout-body .ops-closeout-status-options label:has(input:checked) { border-color: var(--ops-brand-red); background: #fff4f4; }
-.ops-live .appointment-closeout-body .ops-closeout-status-options label > span { color: #202529; font-size: 11px; text-transform: none; letter-spacing: 0; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label:has(input:checked) { border-color: var(--ops-brand-red); background: var(--oc-surface-neutral-03); }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label > span { color: var(--oc-text-blue-02); font-size: var(--oc-type-11); text-transform: none; letter-spacing: 0; }
 
 /* Closeout owns the drawer footer while open, keeping review and save in reach. */
 .ops-live .closeout-footer-slot { grid-column: 1 / -1; min-width: 0; }
 .ops-live .closeout-footer-slot:empty { display: none; }
 .ops-live .record-drawer-actions:has(.closeout-primary-actions) > :not(.closeout-footer-slot) { display: none; }
-.ops-live .closeout-primary-actions { display: grid; gap: 8px; background: #fff; color: #202529; }
-.ops-live .closeout-action-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 12px; }
-.ops-live .closeout-primary-actions .closeout-primary-button { width: 100%; min-height: 48px; margin: 0; padding: 12px; border: 1px solid var(--ops-brand-red); border-radius: 6px; background: var(--ops-brand-red); color: #fff; font-size: 14px; font-weight: 750; line-height: 1.3; cursor: pointer; }
+.ops-live .closeout-primary-actions { display: grid; gap: 8px; background: var(--oc-surface-raised); color: var(--oc-text-blue-02); }
+.ops-live .closeout-action-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: var(--oc-type-12); }
+.ops-live .closeout-primary-actions .closeout-primary-button { width: 100%; min-height: 48px; margin: 0; padding: 12px; border: 1px solid var(--ops-brand-red); border-radius: 6px; background: var(--ops-brand-red); color: var(--oc-surface-raised); font-size: var(--oc-type-14); font-weight: 750; line-height: 1.3; cursor: pointer; }
 .ops-live .closeout-primary-actions .closeout-primary-button:hover { background: var(--ops-brand-red-hover); }
-.ops-live .closeout-primary-actions button:focus-visible { outline: 3px solid #e5b34c; outline-offset: 2px; }
+.ops-live .closeout-primary-actions button:focus-visible { outline: 3px solid var(--oc-border-amber-03); outline-offset: 2px; }
 .ops-live .closeout-primary-actions button:disabled { opacity: .6; cursor: not-allowed; }
-.ops-live .closeout-primary-actions > p { margin: 0; padding: 8px; max-height: 96px; overflow: auto; border-radius: 4px; background: #fff4dc; color: #713b0c; font-size: 12px; }
+.ops-live .closeout-primary-actions > p { margin: 0; padding: 8px; max-height: 96px; overflow: auto; border-radius: 4px; background: var(--oc-surface-amber-03); color: var(--oc-text-amber-21); font-size: var(--oc-type-12); }
 .ops-live .closeout-secondary-actions { display: flex; justify-content: center; gap: 16px; }
-.ops-live .closeout-secondary-actions button { width: auto; padding: 4px; border: 0; background: transparent; color: #535e57; font-size: 12px; text-decoration: underline; cursor: pointer; }
-.ops-live .closeout-review { margin-bottom: 16px; padding: 12px; border: 2px solid var(--ops-brand-red); border-radius: 6px; background: #fff; font-size: 12px; scroll-margin-top: 12px; }
+.ops-live .closeout-secondary-actions button { width: auto; padding: 4px; border: 0; background: transparent; color: var(--oc-text-green-11); font-size: var(--oc-type-12); text-decoration: underline; cursor: pointer; }
+.ops-live .closeout-review { margin-bottom: 16px; padding: 12px; border: 2px solid var(--ops-brand-red); border-radius: 6px; background: var(--oc-surface-raised); font-size: var(--oc-type-12); scroll-margin-top: 12px; }
 .ops-live .closeout-review:focus { outline: none; }
-.ops-live .closeout-review h3 { margin: 0; font-size: 18px; }
+.ops-live .closeout-review h3 { margin: 0; font-size: var(--oc-type-18); }
 .ops-live .closeout-review p { padding: 8px 0; }
-.ops-live .closeout-review-facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e6e9e5; }
+.ops-live .closeout-review-facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--oc-border-neutral-01); }
 .ops-live .closeout-review-facts span { min-width: 0; overflow-wrap: anywhere; }
 .ops-live .closeout-review-facts strong { text-align: right; overflow-wrap: anywhere; }
-.ops-live .closeout-review-total { font-size: 16px; }
-.ops-live .closeout-payment-difference { margin: 8px 0; padding: 10px; border: 1px solid #dcb964; border-radius: 5px; background: #fff7e4; }
+.ops-live .closeout-review-total { font-size: var(--oc-type-16); }
+.ops-live .closeout-payment-difference { margin: 8px 0; padding: 10px; border: 1px solid var(--oc-border-amber-21); border-radius: 5px; background: var(--oc-status-warn-tint); }
 .ops-live .closeout-payment-difference label { display: flex; gap: 8px; padding: 4px 0; border: 0; }
-.ops-live .closeout-payment-difference label > span { color: #202529; font-size: 12px; text-transform: none; letter-spacing: 0; }
+.ops-live .closeout-payment-difference label > span { color: var(--oc-text-blue-02); font-size: var(--oc-type-12); text-transform: none; letter-spacing: 0; }

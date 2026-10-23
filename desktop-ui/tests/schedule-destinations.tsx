@@ -55,6 +55,12 @@ let orderSaves = 0;
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
   if (injectedSnapshot) return injectedSnapshot.appointments;
+  const streetPin=new URLSearchParams(location.search).get('pin')==='street';
+  if (scenario === 'map-fallback') return [
+    {...baseStackJob(date,1001), customerName:'Approximate location example',address:streetPin?'123 Example St Lacombe, LA 70445':'123 Example Wind Blvd 26-107 Mandeville, LA 70471',location:null,addressCheckReason:streetPin?'No Exact Building Match':'Multiple Address Matches',
+      mapFallback:streetPin?{location:{latitude:30.3178,longitude:-89.9477},matchedAddress:'Example Street, Lacombe, LA 70445',source:'OpenStreetMap',sourceUrl:'https://www.openstreetmap.org/',detail:'Best available address match. Approximate street location; house number not located.',stale:false}:{location:{latitude:30.45,longitude:-90.05},matchedAddress:'123 Example Wind Blvd Unit 26107, Mandeville, LA 70471',source:'Parish address points',sourceUrl:'https://maps.stpgov.org/',detail:'Best available address match. Parish address point.',stale:false}},
+    {...baseStackJob(date,1002),customerName:'Verified location example',address:'100 Example St, Mandeville, LA 70471',location:{latitude:30.44,longitude:-90.07}},
+  ];
   if (scenario === 'travel-order') return Array.from({length:6},(_,i)=>({
     ...baseStackJob(date,1001+i),truck:'Truck 9',customerName:['Earlier visit','Just completed','First planned stop','Second planned stop','Afternoon stop','Evening estimate'][i],
     status:i<2?'Completed':'Confirmed',appointmentStartMinutes:[720,600,720,720,840,1020][i],appointmentEndMinutes:[780,660,780,780,900,1080][i],
@@ -158,6 +164,7 @@ window.fetch=async(input,init)=>{
     const legs=[0,1].map(i=>({truck:'Truck 9',fromAppointmentId:jobs[i].recordId,toAppointmentId:jobs[i+1].recordId,fromJk:jobs[i].jkNumber,toJk:jobs[i+1].jkNumber,fromEndMinutes:jobs[i].appointmentEndMinutes,toStartMinutes:jobs[i+1].appointmentStartMinutes,gapMinutes:i===0 && !overlappingRouteLabels?60:-60,travelMinutes:i===0?31:29,miles:i===0?16.2:20.8,status:'available'}));
     return Response.json({date,calculatedAt:null,legs,closest:[],appointmentId:null,truckProgress:progressEnabled?[{truck:'Truck 9',appointmentId:jobs[1].recordId,appointmentVersion:jobs[1].version,status:progressStage==='onsite'?'on_site':progressStage==='stale'?'stale_gps':'available',minutes:progressStage==='approaching'?12:5,miles:4,gpsAt:progressGps(),calculatedAt:new Date().toISOString(),arrivalAt:new Date(Date.now()+(progressStage==='approaching'?12:5)*60000).toISOString()}]:[]});
   }
+  if(url.pathname==='/api/desktop/schedule/routes' && scenario==='map-fallback') return Response.json({date,calculatedAt:new Date().toISOString(),legs:[],closest:[{truck:'Truck 9',status:'available',minutes:12,miles:6.5,approximate:true,gpsUpdatedAt:new Date().toISOString()}],appointmentId:url.searchParams.get('appointment')});
   if(url.pathname==='/api/desktop/schedule/routes' && routeMode==='failed') return Response.json({error:'Synthetic unavailable routing'},{status:503});
   if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:scenario==='on-site'?[{truck:'Truck 9',status:'available',minutes:62,miles:48.4,gpsUpdatedAt:null}]:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:routeMode==='stale'?'stale_gps':'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails || scenario==='on-site'?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});

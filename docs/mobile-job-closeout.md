@@ -151,7 +151,7 @@ release cycle and a fresh source check; an old receipt with a newly updated
 recovery timestamp cannot unlock the next customer. Legacy receipts without
 creation time do not establish the current cycle.
 
-**Payment decision — September 18:** crews record payments already collected.
+**Historical payment decision — September 18 (Billed exclusion superseded October 16):** crews record payments already collected.
 Recording a card payment does not charge the card. The phone can record cash,
 card or check using the source payment options; office billing is excluded.
 Card references accept only the last four digits. Existing source payments are
@@ -266,6 +266,18 @@ their original receipt and crew evidence.
 
 Run `verify:crew-phone-day` and `verify:crew-closeout` for day/identity/payment
 contracts. Phone browser tests cover daily setup and additional job crew.
+
+## Route order from Control
+
+Control’s Truck Schedule → Route Order → **Push order to Waypoint** saves the
+selected truck’s full remaining-stop sequence, across booked time windows.
+Waypoint reads that durable order on its next assignment refresh and labels
+ranked appointments **Route stop 1**, **Route stop 2**, and so on. Connected
+phones detect the changed assignment token; offline phones receive it after
+reconnecting. Saving the order does not acknowledge delivery to a phone.
+Booked appointment windows, truck assignments, closeout checks and existing
+draft identities stay unchanged. Completed/canceled appointments are outside
+the remaining route; new appointments append until the manager reorders them.
 
 ## Completion and next-assignment rules
 
@@ -840,3 +852,254 @@ or submission. Browser storage remains device/origin-local, not a server backup.
 Validation uses synthetic sources and isolated Chromium contexts, never real
 closeouts or payments: `npm run verify:waypoint-drafts`, the full closeout and
 crew-dispatch suites, and the existing desktop/mobile payment UI checks.
+
+## Amazon signatures and shared closeout — October 16, 2026
+
+Amazon company jobs in the fresh current-day JunkWare schedule are visible to all
+ready, enrolled Waypoint crews. Cards label them as shared Amazon work. Other
+customers retain the truck boundary. Cross-truck access requires both the saved
+schedule's Amazon business label and the live JunkWare Company field; incidental
+notes, street names, driver names, client flags, and stale schedules do not grant
+access. Shared jobs do not occupy another truck's automatic dispatch slots.
+
+Waypoint preserves the source truck and the assigned Eugene Dabezies, Robert
+McLaughlin, or Lance Gerard, including the existing navigators. An unassigned
+truck uses the submitting phone's truck; a missing/other person assignment needs
+an office correction first. The submitting device and declared daily crew remain
+in the closeout receipt separately. Concurrent submissions share the existing
+appointment lock and pending-receipt guard. Ordinary crew defaults stay unchanged.
+
+OpsCenter and Waypoint both require a customer signature for Amazon completion.
+The shared editor provides a finger/stylus/mouse drawing pad on Payment, supports
+clear/redraw, restores compatible Waypoint drafts, and shows signature status in
+Review. A signature already verified on this exact JunkWare appointment satisfies
+the requirement. Server checks also protect direct closeout and completion via
+classification; office photo exemptions never waive an Amazon signature.
+
+Bounded vector strokes (100 strokes / 2,000 points) are rendered to PNG on the
+server and saved using JunkWare's native SignatureHF/SaveSignatureBtn controls
+before staging charges, payments, or Completed status. Reopening must return the
+same nonblank image pixel hash from SignatureImage, and financial source fields
+must remain unchanged. Final completion verifies the signature again. Only its
+appointment-bound hash is projected as saved evidence. Closeout requests allow
+64 KB of values / 72 KiB handset body; other operation limits are unchanged.
+
+A missing, blank, malformed, or unverified signature blocks completion. An
+uncertain native signature save stays uncertain and is never automatically
+replayed. A later financial failure after a signature save also remains subject
+to the existing office source-review recovery, avoiding duplicate payments.
+
+Validation uses synthetic signatures and mocked provider pages; no test signs or
+closes a customer appointment. Existing signatures may be inspected read-only.
+
+Amazon jobs in JunkWare’s Virtual Truck/unassigned lane are shared too. JunkWare requires a numbered truck at completion; Waypoint uses the completing phone’s truck for those jobs while retaining the native Eugene/Robert/Lance assignee. Jobs already assigned to a numbered truck retain that truck. Unknown truck labels fail verification.
+
+## Manager all-truck browsing and crew workflow
+
+The exact-contact Waypoint manager policy enables a separate manager screen with
+all appointments for a selected date, plus all-truck browsing in the crew screen.
+See [Waypoint manager access](waypoint-manager-scope.md) for the capabilities,
+activation schema, identity matching and authorization boundaries.
+
+In the crew screen, `crewAssignedDay` stays truck-scoped (including the existing
+shared Amazon exception). `crewVisibleDay` adds the current day's confirmed and
+completed jobs on numbered trucks as read-only rows without assignment/draft IDs.
+Closeout, photos and payments still use the original job-scope resolver. Managers
+explicitly select their actual work truck/crew in the manager screen to work on
+another truck; this transfers no jobs. Inspection and collected-payment/photo
+safeguards remain. Ordinary users retain their existing scope.
+
+Validation: `npm run verify:waypoint-visibility` covers exact identity matching,
+fail-closed grants, revocation/expiry/sandbox, projection, API/dispatch separation
+and original write-scope denial. `npm run verify:waypoint-manager` covers the
+manager gateway, internal delegation and guarded appointment-edit writer.
+
+## Estimate after-photo exception
+
+An explicit completed Estimate outcome may continue without After photos. Before
+photos and the verified source-photo safeguard remain. The exception requires a
+valid estimate reason, explanation and, where no discount is offered, an
+explanation for that decision. It applies to ordinary crew and managers alike.
+Changing back to Job restores the normal Before/After workflow.
+
+No skip-photo flag is accepted by the server. The crew closeout service validates
+the actual estimate outcome before accepting a write; the native JunkWare flow
+persists and verifies that category and its outcome notes. A returned completed
+Job cannot verify an Estimate request. Source versions, assigned crew, inspection,
+signature, payment, idempotency and receipt recovery remain unchanged.
+
+Validation: `npm run verify:estimate-photos` covers before-only Estimate success,
+invalid outcomes, source-photo rejection, category mismatch, the completed-Job
+after-photo gate, and the ordinary phone UI at 320/390/430 pixels.
+
+## Waypoint Billed method — October 16, 2026
+
+The owner requested Billed and clarified that it counts as revenue. Waypoint now
+allows the appointment-specific JunkWare **Billed** method through the same
+closeout path used for cash, card and check. It records a receivable, never a
+card charge or a collected payment. Both ordinary crew and managers using the
+crew workflow retain their existing assignment, inspection, daily crew, photo,
+signature, source-version and revocation checks. No manager gateway or access
+capability is added. A completed source record still cannot receive another
+crew closeout/payment.
+
+The payment step says **Record payment or Billed**. Selecting Billed labels its
+amount and review as a receivable and explicitly says payment remains owed.
+The suggested new billed amount excludes recorded collections and prior billed
+entries; switching back to a collected method does not treat prior billing as
+collected money. Manual partial amounts and discrepancy review remain available.
+Source method IDs, positive money validation, no payment reference for Billed,
+exact new-row read-back, preserved existing rows and durable retry protection
+remain shared with the existing writer.
+
+Billed is disabled for a final **Estimate** and rejected server-side. JunkWare's
+source reader documents that estimates omit payment controls and temporarily
+stages an unsaved Job only to discover options; those options do not authorize
+billing an estimate. Operators must choose Job only for completed work. Existing
+estimate outcome, photo exception and quote/revenue interpretation are unchanged.
+
+Reporting reuses existing rules: completed billed jobs contribute source job
+revenue once, separately from collected payment. Later collection does not add
+job revenue again. Waypoint day/crew totals use source revenue and deduplicate
+metrics catch-up by appointment; the schedule shows Billed daily revenue, and
+Accounting keeps billed entries as receivables, ineligible for Verify Payment.
+Compact summaries keep billed and collected amounts separate. The crew progress
+view recognizes documented billing while explicitly retaining its uncollected
+status until collected entries cover the job. No revenue, payroll, invoice-sync
+or collection rules are changed.
+
+Validation: `scripts/test-waypoint-billed-browser.ts` covers crew/manager review,
+source IDs, prior billing versus collections, estimate blocking and mobile sizes.
+`verify:crew-closeout`, `verify:waypoint-manager` and source payment fixtures cover
+permissions, source verification and retry safeguards. Schedule and day-summary
+regressions prove revenue is not doubled by later collection. The read-only
+`scripts/test-billed-metrics-source.py <process_daily_metrics.py>` runs only the
+production collector's completed-job revenue block on synthetic rows, proving
+billed revenue/receivable separation and exclusion of estimates/open work.
+
+
+### OpsCenter drawer preparation (October 2026)
+
+The shared editor is bundled with the schedule, but the office appointment drawer
+previously waited until **Appointment Closeout** was expanded to read the native
+JunkWare form. That read may stage unsaved category/status controls to discover
+payment options, then reopen and verify the unchanged saved record. It can require
+several browser round trips; preparation does not shorten that source operation.
+
+Only the selected OpsCenter drawer opts into preparation. After a 150 ms dwell it
+starts one existing authenticated GET, without making the drawer busy. Opening
+closeout joins that pending request or consumes its completed result once. Unused
+results expire 60 seconds after completion. Appointment, service date, schedule
+version, photo revision, transport and mount boundaries isolate the preparation;
+closing the drawer aborts the client request and discards the result. An already
+started server-side browser read may still finish. There is no schedule-wide
+prefetch, persisted client cache, background polling or automatic failure retry.
+Viewing a drawer without opening closeout can now perform one otherwise unused
+read, so the dwell and selected-drawer limit are intentional.
+
+Explicit reload, reconciliation and photo verification bypass the prepared result.
+Collapsing the already opened form retains the current edits as before. The source
+version sent with a closeout remains subject to the existing authoritative read,
+version comparison, authorization and payment/photo checks at submission. No
+server write path or Waypoint crew transport/cache behavior changes. If a user
+opens before preparation finishes, the existing loading/error/retry UI remains
+honest; this is an opening-latency improvement, not an instant-source guarantee.
+
+`npm run verify:closeout-preparation` tests one-use preparation, expiry, failed-read
+retry, cancellation/isolation and the actual shared editor under React StrictMode.
+Its browser timings use a controlled 1,000 ms synthetic source delay, not live
+JunkWare measurements. No real operational writes are made by these fixtures.
+
+## Operations WhatsApp setup-code transport — October 21, 2026
+
+The separately approved `operations-linked` delivery policy selects the existing
+local Operations WhatsApp bridge, rather than Meta authentication templates.
+`operationsAccount` pins the sending identity; the bridge reports its connected account before enrollment and checks that same
+socket again immediately at send time. OpsCenter never reads session credentials. No Meta token
+is read and no Cloud API request occurs for this transport. The bridge endpoint
+is fixed to loopback port 18791; destinations come from the approved directory.
+The message contains only the generated Waypoint code and ten-minute expiry.
+The dedicated bridge route does not store the body, log it, or forward it to
+Hermes. Outgoing code echoes are rejected before intake, including after restart.
+Operations sent history remains visible on its trusted handset and linked devices,
+as with any regular WhatsApp sender; those devices must remain trusted.
+Automated linked-device messages also carry WhatsApp account-restriction risk.
+`install-operations-waypoint-bridge.py` requires the reviewed pre-change bridge
+hash and preserves a backup; it never changes credentials or links a new device.
+
+Existing phone identity checks, approval expiry, reservation limits, cooldowns,
+three daily self-requests, durable receipt creation, single-use enrollment and
+no-replay rules remain. Operations uses no new metered provider; existing numeric
+reservations remain conservative rate limits, not a claim of provider charges.
+Bridge errors and lost responses remain uncertain and are never automatically
+retried. Acceptance does not establish arrival on a handset. Activation requires
+the exact Operations account in the protected policy after reviewed deployment.
+Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
+`test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.
+
+### Phone connection presentation — October 21, 2026
+
+The public entry screen uses **Connect Your Phone**, a phone selector and one
+primary **Send setup code** action. The code field appears after the request
+returns or when the crew selects **Already have a code?**. A retained request or
+enrollment attempt restores code entry after reload. **Choose phone** returns to
+the selector and clears the entered code; it does not discard the retained send
+request. Uncertain-send messages remain visible with **Check send status**, which
+reuses that request ID. **Need help connecting?** contains connection recovery and
+the existing ten-minute new-code guard. No message is sent on page load.
+
+The entry screen shows Connect phone, Truck setup and Inspection beneath the
+form; the existing header steps resume once a phone is connected. Operations
+WhatsApp delivery, approved recipients, enrollment verification and subsequent
+crew workflows are unchanged by this presentation update.
+
+## Crew customer corrections — October 21, 2026
+
+Open appointment details expose **Edit customer information** for ordinary live
+crew phones. Crews review before/after values before saving first and last name,
+phone, alternate phone, email, service street/unit and ZIP, and on-site contact
+name/phone. Customer account identity, billing, financial fields, status, booked
+window and truck/crew assignments are not editable through this action.
+
+`/api/crew-jobs/customer` requires the existing secure phone session, saved daily
+crew, inspection and fresh assignment scope. Corrections are limited to open
+appointments on that phone's current truck, including when a manager browses all
+trucks; shared cross-truck visibility does not grant correction permission. Test
+phones and dry runs cannot reach live customer writes. Same-origin JSON, strict
+field validation, source version and crew revision checks remain server enforced.
+
+The `customer_correction` action shares durable appointment operation receipts and
+locks with dispatch/closeout. The office's generic action parser cannot invoke it.
+A queued request writes once; repeated request IDs return the receipt. Before
+submission the worker reopens the source, revalidates scope and the reviewed
+version, and stores the before/expected customer fields plus server-owned crew
+attribution in the private receipt. It changes only allowlisted controls; ZIP uses
+JunkWare's existing unsaved postback and address-change flag. Customer details
+travel over child-process stdin rather than process arguments. The worker does
+not select address suggestions, send messages or complete an appointment.
+
+Success requires a fresh source read with every intended field retained and
+protected appointment/account/financial fields unchanged. Unknown results remain
+blocked; **Check saved result** only reads the source. Exact expected values verify
+the change; after ten minutes an exact unchanged baseline proves a failed save
+and permits a new review. After ten minutes, other fresh source mismatches are marked reconciled: the
+original outcome remains unconfirmed and the crew must reload the current
+source details before another correction. A stale queued receipt without a
+durable submission intent is marked failed without reading or writing JunkWare;
+a delayed worker cannot replay it. Unavailable sources remain blocked. Actor-bound receipt checks are read-only
+and do not require the appointment to remain on the original truck or date.
+If the phone expires or is revoked, an OpsCenter manager/admin opens the
+appointment closeout and selects **Check Saved Result** on the pending customer
+correction. The office receives a status-only receipt and uses the same read-only
+reconciler, even after source completion or reassignment. This never submits a
+correction, closeout or payment. No source
+write is replayed by recovery. The active appointment card adopts the verified name, phone and address read-back
+immediately; a changed address clears the old map pin. The normal verified
+schedule refresh supplies the route projection and new cached location. The
+editor's verified result remains separate from schedule ingestion.
+The browser retains only the request ID for recovery, not customer details.
+
+Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
+`verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
+`verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
+and receipt recovery. No real customer correction is a deployment test.

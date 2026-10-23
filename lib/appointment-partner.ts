@@ -1,6 +1,7 @@
 import { HOUSE_NUMBER_PATTERN } from './service-house-number';
 import { withoutServiceUnit } from './service-address-format';
 import { cleanJunkwareAddressText } from './junkware-address-text';
+import {propertyNameSearch} from './property-name-search';
 type PartnerSource = { address: string; customerName: string };
 
 // Partner identity belongs to the source business label, never an item brand
@@ -18,10 +19,11 @@ export function appointmentPartner(job: PartnerSource) {
 }
 
 export function serviceStreetCandidates(address: string): number[] {
+  if(propertyNameSearch(address))return [];
   // Scan the whole field. A number inside a business label or suite is not a
   // street number unless followed by a recognizable street expression.
   const start = `(?<![A-Z0-9/#-])${HOUSE_NUMBER_PATTERN}`;
-  const ordinary = [...address.matchAll(new RegExp(`${start}\\s+(?:(?:[A-Z][A-Z.'’-]*|\\d+(?:st|nd|rd|th))\\s+){0,10}?(?:st(?:r|reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|loop|lp|way)\\b`, 'ig'))].map(match=>match.index!);
+  const ordinary = [...address.matchAll(new RegExp(`${start}\\s+(?:(?:I(?:nterstate)?[ -]*\\d+|[A-Z][A-Z.'’-]*|\\d+(?:st|nd|rd|th))\\s+){0,10}?(?:st(?:r|reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|trce|trace|loop|lp|way)\\b`, 'ig'))].map(match=>match.index!);
   const highways = [...address.matchAll(new RegExp(`${start}\\s+(?:LA|Louisiana|US|U\\.S\\.|State)\\s*(?:-\\s*|(?:Highway|Hwy|Route|Rte|Rt)\\s*)?\\d+\\b`, 'ig'))].map(match=>match.index!);
   return [...new Set([...ordinary,...highways])].filter(index => !/\d+\s*[-/–]\s*$/.test(address.slice(0,index))).sort((a,b)=>a-b);
 }

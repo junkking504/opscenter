@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {buildDailyFinanceSummary} from '../lib/daily-finance-summary';
 import { schedulePayment } from '../desktop-ui/lib/schedule-payment';
 import type { ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 const base = { appointmentType: 'Job', status: 'Completed', paymentAmount: 999, tipAmount: 20, closeout: { total: 120, tip: 20, balance: 0, payments: [{method:'Cash',detail:'',amount:60},{method:'Credit Card',detail:'',amount:60}] } } as ScheduleAppointment;
@@ -42,3 +43,9 @@ assert.equal(schedulePayment({...invoice,closeout:{...invoice.closeout,total:NaN
 
 assert.equal(schedulePayment({...invoice,closeout:{total:123,tip:20,balance:0,payments:[{method:'Billed',detail:'',amount:123}]}}).amount,'$103.00','Billed daily revenue excludes tips from the saved total');
 assert.equal(schedulePayment({...invoice,closeout:{...invoice.closeout,tip:104}}).label,'Payment needs review');
+const settledInvoice={...invoice,closeout:{...invoice.closeout,payments:[...invoice.closeout.payments,{method:'Cash',detail:'',amount:103}]}};
+assert.equal(schedulePayment(settledInvoice).amount,'$103.00','Collecting a billed job does not double daily revenue');
+assert.deepEqual(schedulePayment(settledInvoice).details,['Collected $103.00 · excluding tips']);
+assert.equal(schedulePayment({...settledInvoice,appointmentType:'Estimate'}).tone,'quote','Billing never promotes estimate quotes into job revenue');
+
+for(const collected of [0,103])assert.equal(buildDailyFinanceSummary({total_revenue:103,total_payments_collected:collected,open_invoice_total:103-collected}).revenue,103,'Daily Finance uses completed-job revenue, not billed plus collection');

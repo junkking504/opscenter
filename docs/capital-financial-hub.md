@@ -47,11 +47,25 @@ QuickBooks register use the same review date. Register date fields are locked
 to that date in this area. Changing the review date is blocked during source
 loading, action confirmation/submission and payment evidence review.
 
-Verify Payment confirms selected cash, check or card payments and updates
-QuickBooks in the same reviewed action. Billed work uses Update QuickBooks.
+Verify Payment records confirmation of selected cash, check or card payments
+only in OpsCenter. The accountant records verification in QuickBooks separately. Billed work uses Update QuickBooks.
 This reuses the existing cross-check, source evidence and durable accounting actions. Empty queues and missing sources never mark
 a day reconciled. No automatic payment writes or new collectors are added.
 
 Capital navigation uses the same separated, rounded buttons as Convoy: pale
 backgrounds for available views, a solid green selected view, and wrapping on
 narrow screens so every label remains visible.
+
+
+## Compact overview layout
+
+Capital places its title and view tabs on a shared wrapping row. The overview
+starts with the reporting month, compact Reconcile yesterday and Accounting
+buttons, then the financial cards. Reconciliation keeps its previous-calendar-day
+default and existing payment review flow.
+
+The source/payment status appears directly beneath the cards. Source details
+expands the existing publication/retrieval timestamps and Refresh data control;
+refresh failures remain visible even while details are collapsed. Card-level
+freshness, incomplete-cost labels and unavailable values are preserved. Phone
+tabs and the overview action buttons retain 44 px touch targets.

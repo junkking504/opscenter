@@ -1,3 +1,10 @@
+import { fromDailyFinanceMetrics } from './finance-trend-comparison';
+import { operationalUpdateGaps } from './operational-update-health';
+import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
+import { financeReading } from './daily-finance-freshness';
+import { readDesktopKrewe } from './desktop-krewe';
+import { crewRph } from '../desktop-ui/lib/crew-rph';
+import type { DesktopKreweSnapshot } from '../desktop-ui/lib/people-fleet-contract';
 import { ageFinanceKpi, dailyFinanceEvidence, combineFinanceEvidence } from './daily-finance-freshness';
 import { withSavedCloseoutTruck } from './command-closeout-truck';
 import { assumedDumpExpenseAlerts, readDumpExpenses } from './dump-expenses';
@@ -16,7 +23,7 @@ import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, money, type AnyRecord } from '@/lib/opsData';
-import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
+import { buildCommandMapData, summarizeCommandSchedule, summarizeCommandScheduleFromMetrics } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
@@ -35,7 +42,7 @@ const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0): DesktopKpi[] {
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0, krewe: DesktopKreweSnapshot | null = null): DesktopKpi[] {
   const finance = buildDailyFinanceSummary(metrics, wex, assumedDumpExpense);
   const evidence = dailyFinanceEvidence(metrics, finance, date, wex);
   const plan = dailyRevenueTarget();
@@ -47,12 +54,12 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
       { label: 'Closed Estimates', value: progress(schedule.closedEstimates, scheduleCount), tone: 'warning' },
       { label: 'Unclosed', value: progress(schedule.unclosed, scheduleCount), tone: 'critical' },
     ] : undefined },
-    { label: 'Revenue', value: amount(finance.revenue), detail: finance.revenue == null ? 'Revenue source unavailable' : `${Math.round(finance.revenue / plan * 100)}% of ${money(plan)}`, progress: progress(finance.revenue, plan), tone: tone(finance.revenue, plan) },
+    { label: 'Revenue', goal: plan, value: amount(finance.revenue), detail: finance.revenue == null ? 'Revenue source unavailable' : `${Math.round(finance.revenue / plan * 100)}% of ${money(plan)}`, progress: progress(finance.revenue, plan), tone: tone(finance.revenue, plan) },
     { label: 'Labor', value: amount(finance.labor), secondaryValue: payrollPercent == null ? undefined : `${payrollPercent.toFixed(1)}% of revenue`, detail: payrollPercent == null ? 'Labor source unavailable' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
     { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? `Fuel from posted WEX transactions${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : assumedDumpExpense > 0 ? `Includes ${money(assumedDumpExpense)} assumed dump cost` : 'Recorded daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
     { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : assumedDumpExpense > 0 ? 'After recorded and assumed daily costs' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
-  return cards.map((card, index) => {
+  const agedCards = cards.map((card, index) => {
     if (index === 0) return card;
     const field = (['revenue', 'labor', 'dumps', 'net'] as const)[index - 1];
     const recorded = field === 'dumps' ? finance.dumps == null || finance.fuel == null ? null : finance.dumps + finance.fuel : finance[field];
@@ -61,10 +68,31 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     if (field === 'labor' && payrollPercent == null) card.detail = 'Recorded payroll · revenue ratio unavailable';
     return ageFinanceKpi({ ...card, financeEvidence: { date, recorded, evidence: source, currentDetail: card.detail, ratioEvidence: field === 'labor' ? evidence.revenue : undefined } }, now);
   });
+  const rph = crewRph(krewe?.date === date && krewe.view === 'today' ? krewe : null);
+  const rphDetail = rph.value === null ? 'Worked hours or credited revenue unavailable' :
+    `${rph.hours.toLocaleString('en-US', { maximumFractionDigits: 4 })} labor hours · ${rph.included} crew${rph.excluded ? ` · ${rph.excluded} excluded` : ''}`;
+  agedCards.push(ageFinanceKpi({ label: 'RPH', value: rph.value === null ? 'Unavailable' : money(rph.value),
+    secondaryValue: 'Revenue per labor hour', detail: rphDetail, progress: rph.value === null ? 0 : 100,
+    tone: rph.value === null ? 'warning' : 'healthy', financeEvidence: {
+      date, recorded: rph.value, evidence: combineFinanceEvidence(evidence.revenue, evidence.labor), currentDetail: rphDetail,
+    } }, now));
+  const daily = fromDailyFinanceMetrics(metrics);
+  // Revenue and completed jobs share the JunkWare completed-job source contract.
+  // The Revenue headline may use Truck Records sales; AJS uses Finance's gross job values.
+  const ajsEvidence = dailyFinanceEvidence(metrics, { ...finance, revenue: daily.revenue }, date, wex).revenue;
+  const ajsDetail = daily.averageJob === null ? 'Revenue or completed jobs unavailable' : `${daily.jobs} completed jobs · Gross job values`;
+  agedCards.push(ageFinanceKpi({ label: 'AJS', value: amount(daily.averageJob), secondaryValue: 'Average job size',
+    detail: ajsDetail, progress: daily.averageJob === null ? 0 : 100, tone: daily.averageJob === null ? 'warning' : 'healthy',
+    financeEvidence: { date, recorded: daily.averageJob, evidence: ajsEvidence, currentDetail: ajsDetail },
+  }, now));
+  return agedCards;
 }
 
 export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
   const metrics = readMetrics(date);
+  // Local reads only. Keep Command usable if the Crew source cannot be read.
+  let krewe: DesktopKreweSnapshot | null = null;
+  try { krewe = readDesktopKrewe(date, 'today', 'operator', false); } catch { /* RPH remains unavailable. */ }
   const wexFuel = readWexFuelFinance(date);
   const dumpExpenses = readDumpExpenses(date);
   const map = metrics ? buildCommandMapData(date) : null;
@@ -123,18 +151,38 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const crewProgress = buildCrewProgress({date,appointments,visits,alerts,
       scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
       visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
-      updatesComplete: digest.status === 'ready' && digest.complete !== false && geofences.complete,
+      updatesComplete: digest.status === 'ready' && digest.complete === true && geofences.complete,
     });
+  crewProgress.updateHistoryReasons = operationalUpdateGaps(digest, geofences);
   for (const job of crewProgress.jobs.filter(job=>job.needsFollowUp)) {
     const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
     if (latest) latest.needsAction = true;
   }
+  const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe);
+  const priorDate = shiftOperatingDay(date, -7);
+  const priorMetrics = readMetrics(priorDate);
+  let priorKrewe: DesktopKreweSnapshot | null = null;
+  try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
+  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe);
+  for (const kpi of kpis) {
+    const old = priorKpis.find(row => row.label === kpi.label);
+    const value = old?.value.replace(/[$,]/g, '');
+    const prior = value && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : null;
+    kpi.comparison = { prior: dumpExpenses.assumedTotal > 0 && ['Dump + Fuel','Net'].includes(kpi.label) ? null : prior, label: `same weekday last week · ${priorDate} (completed day; recorded costs)` };
+  }
+  // Same weekday, 52 weeks earlier. Only reuse saved metrics; never collect history.
+  const priorYearDate = shiftOperatingDay(date, -364);
+  const priorYearMetrics = readMetrics(priorYearDate);
+  const priorYearFinance = buildDailyFinanceSummary(priorYearMetrics);
+  const priorYearEvidence = dailyFinanceEvidence(priorYearMetrics, priorYearFinance, priorYearDate);
+  const revenueKpi = kpis.find(kpi => kpi.label === 'Revenue');
+  if (revenueKpi) revenueKpi.priorYear = { date: priorYearDate, value: financeReading(priorYearFinance.revenue, priorYearEvidence.revenue, priorYearDate).value };
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal),
+    kpis,
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
-      {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
+      {name:'Slack',area:'Operational alerts',detail:digest.detail,reasonCounts:digest.reasonCounts,workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === true ? 'Current' : digest.complete === false ? 'Incomplete' : 'Unknown'):'Unavailable',tone:digest.status==='ready' && digest.complete === true ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available || alerts.length > 0, workflow: workflow.available },
     alerts,

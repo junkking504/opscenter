@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { crewAssignedDay,crewAppointmentStatus,crewScheduleAssignmentId } from '../lib/crew-assigned-day';
+import { crewAssignedDay,crewVisibleDay,crewAppointmentStatus,crewScheduleAssignmentId } from '../lib/crew-assigned-day';
 import type { CrewPhone } from '../lib/crew-phone';
 
 const date='2026-09-22',now=Date.parse(`${date}T18:00:00Z`);
@@ -66,3 +66,39 @@ assert.equal(crewAppointmentStatus('Cancelled'),null);
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Confirmed'}]};
 assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].closedTotal,undefined,'An open appointment never claims a saved closeout amount');
 console.log('PASS: full assigned day with closeout scope, immediate verified assignment projection and update token, truck isolation, source freshness, pending move exclusion and duplicate identity rejection; no provider calls.');
+
+snapshot={...snapshot,appointments:[{...row('200','Truck 2','* ETA Required * * Assignment Required * Confirmed'),address:'Amazon Mattress Removal 100 Example St'},{...row('201','Truck 3'),address:'100 Amazon Street'},{...row('202',''),address:'Amazon Mattress Removal 300 Example St'}]};
+const shared=crewAssignedDay(phone,date,deps,now).jobs!;
+assert.deepEqual(shared.map(job=>job.appointmentId),['200','202']);
+assert.equal(shared[0].truck,'Truck 2');assert.equal(shared[0].sharedAmazon,true);
+assert.notEqual(shared[0].assignmentId,crewAssignedDay({...phone,truck:'Truck 3'},date,deps,now).jobs![0].assignmentId,'Each phone truck retains an isolated draft and submission scope');
+
+assert.equal(crewAppointmentStatus('* ETA Required * * Assignment Required * Confirmed'),'Confirmed');
+assert.equal(crewAppointmentStatus('* Unknown * Confirmed'),null);
+assert.equal(crewAppointmentStatus('Not Confirmed'),null);
+
+snapshot={...snapshot,appointments:[{...row('203','Virtual Truck'),address:'Amazon Mattress Removal 300 Example St'}]};
+assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].truck,'','Virtual lane is available to every crew and has no physical assigned truck');
+
+// Expanded browsing must never become the write-scope source.
+snapshot={...snapshot,appointments:[row('301','Truck 1'),row('302','Truck 2'),row('303','Truck 9','Completed'),row('304',''),row('305','Unknown Truck'),row('306','Truck 3','Cancelled')]};
+const all=crewVisibleDay(phone,date,true,deps,now);
+assert.equal(all.visibility,'all-trucks');
+assert.deepEqual(all.jobs?.map(job=>job.appointmentId),['301','302','303']);
+assert.equal(all.jobs?.find(job=>job.appointmentId==='301')?.assignmentId,crewAssignedDay(phone,date,deps,now).jobs?.[0].assignmentId);
+for(const job of all.jobs!.filter(job=>job.appointmentId!=='301')){
+ assert.equal(job.readOnly,true);assert.equal(job.assignmentId,undefined);assert.equal(job.draftScope,undefined);assert.equal(job.draftAssignmentIds,undefined);
+}
+assert.deepEqual(crewVisibleDay(phone,date,false,deps,now),crewAssignedDay(phone,date,deps,now));
+assert.deepEqual(crewAssignedDay(phone,date,deps,now).jobs?.map(job=>job.appointmentId),['301'],'Write scope stays on selected truck');
+const otherTruckOnly=crewVisibleDay({...phone,truck:'Truck 8'},date,true,deps,now);
+assert.equal(otherTruckOnly.state,'assigned');assert.equal(otherTruckOnly.job,null);assert.equal(otherTruckOnly.jobs?.length,3,'No own-truck jobs must not hide all-truck browsing');
+const beforeChange=all.updateToken;
+snapshot={...snapshot,appointments:snapshot.appointments.map(row=>row.appt_id==='302'?{...row,customer_name:'Changed fixture customer'}:row)};
+assert.notEqual(crewVisibleDay(phone,date,true,deps,now).updateToken,beforeChange,'Other-truck updates refresh the authorized view');
+overrides.set('appt:302',{truck:'Truck 3',junkwareSyncStatus:'pending'});
+assert.equal(crewVisibleDay(phone,date,true,deps,now).jobs?.some(job=>job.appointmentId==='302'),false);overrides.clear();
+snapshot={...snapshot,appointments:[...snapshot.appointments,row('302','Truck 2')]};
+assert.equal(crewVisibleDay(phone,date,true,deps,now).jobs?.some(job=>job.appointmentId==='302'),false);
+snapshot={...snapshot,freshnessAtMs:now-121_000};assert.equal(crewVisibleDay(phone,date,true,deps,now).state,'unavailable');
+console.log('PASS: all-truck read-only projection, original write scope, no draft/action identifiers for other trucks, unassigned/unknown/cancelled exclusions, freshness and ambiguity gates, update tokens.');

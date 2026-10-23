@@ -39,25 +39,37 @@ function json(res, status, value) {
   res.writeHead(status, {'content-type': 'application/json', 'cache-control': 'no-store'});
   res.end(JSON.stringify(value));
 }
+export function primaryReadiness(health) {
+  return health?.version === 1 && health.ok === true && health.runtime === 'MISSION_CONTROL'
+    && /^[a-f0-9]{40}$/.test(health.release?.sha || '') && health.release.stopping === false
+    && health.platformKernel?.runtime === 'MISSION_CONTROL' && health.platformKernel.enabled === true
+    && health.platformKernel.healthy === true && health.platformKernel.status === 'healthy'
+    && health.platformKernel.databaseName === 'opscenter_production'
+    && /^\d{4}_[a-z0-9_]+\.sql$/.test(health.platformKernel.migrationVersion || '')
+    && health.assignmentStoreWritable === true && health.operatorStateWritable === true;
+}
 function probe(origin, path, timeout, recovery = false, report = () => {}) {
   return new Promise(resolve => {
-    const request = http.get(new URL(path, origin), {agent: false, headers: {'connection': 'close'}}, response => {
-      if (!recovery) {response.resume(); resolve(response.statusCode >= 200 && response.statusCode < 400); return;}
-      let body='';
-      response.on('data', chunk => {body+=chunk; if(body.length>256*1024) request.destroy();});
-      response.on('error',()=>resolve(false));
-      response.on('end',()=>{
-        try {const health=JSON.parse(body);const valid=health.runtime==='VPS'
-          && health.platformKernel?.healthy===true
-          && health.platformKernel?.databaseName==='opscenter_recovery_20260914'
-          && health.assignmentStoreWritable===false && health.operatorStateWritable===false;
-          if(!valid) report({category:'readiness',kernelHealthy:health.platformKernel?.healthy===true,readOnly:health.assignmentStoreWritable===false&&health.operatorStateWritable===false});
-          resolve(valid);}
-        catch {resolve(false);}
+    const request = http.get(new URL(path, origin), {agent:false, headers:{connection:'close'}}, response => {
+      let body = '';
+      response.on('data', chunk => {body += chunk; if (body.length > 256*1024) request.destroy();});
+      response.on('error', () => resolve(false));
+      response.on('end', () => {
+        try {
+          const health=JSON.parse(body);
+          const valid=response.statusCode === 200 && (recovery
+            ? health.runtime==='VPS' && health.platformKernel?.healthy===true
+              && health.platformKernel?.databaseName==='opscenter_recovery_20260914'
+              && health.assignmentStoreWritable===false && health.operatorStateWritable===false
+            : primaryReadiness(health));
+          if (!valid) report({category:recovery?'standby-readiness':'primary-readiness'});
+          resolve(valid);
+        } catch {resolve(false);}
       });
     });
-    request.setTimeout(timeout, () => request.destroy());
-    request.on('error', error => {if(recovery)report({category:'transport',code:error.code || 'unknown'});resolve(false);});
+    const timer=setTimeout(()=>request.destroy(),timeout);
+    request.on('close',()=>clearTimeout(timer));
+    request.on('error', error=>{if(recovery)report({category:'transport',code:error.code||'unknown'});resolve(false);});
   });
 }
 const banner = `<div id="ops-continuity-notice" role="status" style="position:fixed;inset:0 0 auto;z-index:2147483647;background:#ffdd57;color:#171717;padding:10px 16px;font:600 14px/1.4 system-ui;text-align:center">Recovery view — Mission Control is unavailable. Showing the last synchronized records. Changes and source refreshes are paused. Reload after Mission Control recovers.</div><style>html{padding-top:60px!important}</style>`;
@@ -81,7 +93,7 @@ export function createContinuityProxy(options = {}) {
     if (currentCheck) return currentCheck;
     if (Date.now() - lastCheck < (options.probeCacheMs ?? 2000)) return state;
     const recovery = standbyCheck();
-    currentCheck = probe(primary, '/login', timeout).then(async primaryReady => {
+    currentCheck = probe(primary, '/api/health?readiness=primary', timeout).then(async primaryReady => {
       // Cold source reads can delay standby health. Never make a healthy primary
       // wait for that independent check; recovery still requires a current result.
       const standbyReady = primaryReady ? state.standby : await recovery;

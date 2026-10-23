@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test from 'node:test';
-import {createContinuityProxy, PRIMARY_PROBE_TIMEOUT_MS, standbyRequest} from '../deploy/vps/continuity-proxy.mjs';
+import {createContinuityProxy, PRIMARY_PROBE_TIMEOUT_MS, primaryReadiness, standbyRequest} from '../deploy/vps/continuity-proxy.mjs';
 
+const primaryHealth={version:1,ok:true,runtime:'MISSION_CONTROL',release:{sha:'a'.repeat(40),stopping:false},platformKernel:{runtime:'MISSION_CONTROL',enabled:true,healthy:true,status:'healthy',databaseName:'opscenter_production',migrationVersion:'0001_kernel.sql'},assignmentStoreWritable:true,operatorStateWritable:true};
+const primaryBody=req=>req.url==='/api/health?readiness=primary'?JSON.stringify(primaryHealth):'primary';
 const recoveryHealth={runtime:'VPS',platformKernel:{healthy:true,databaseName:'opscenter_recovery_20260914'},assignmentStoreWritable:false,operatorStateWritable:false};
 
 async function listen(server) {
@@ -22,7 +24,7 @@ test('recovery denies writes, hooks, actions, GET verification and unknown route
 
 test('primary -> isolated recovery -> primary; writes never reach recovery', async () => {
   let available = true; const seenPrimary = [], seenStandby = [];
-  const primary = http.createServer((req,res) => {seenPrimary.push([req.method, req.url]); if (!available) {req.socket.destroy(); return;} res.end('primary');});
+  const primary = http.createServer((req,res) => {seenPrimary.push([req.method, req.url]); if (!available) {req.socket.destroy(); return;} res.end(primaryBody(req));});
   const standby = http.createServer((req,res) => {seenStandby.push([req.method, req.url, req.headers.cookie]); if(req.url==='/') {res.setHeader('content-type','text/html');res.end('<html><body><main>Schedule</main></body></html>');} else if(req.url==='/api/health')res.end(JSON.stringify(recoveryHealth));else res.end('standby');});
   const primaryUrl = await listen(primary), standbyUrl = await listen(standby);
   const gateway = createContinuityProxy({primary:primaryUrl,standby:standbyUrl,probeCacheMs:0,timeout:100});
@@ -46,7 +48,7 @@ test('primary -> isolated recovery -> primary; writes never reach recovery', asy
 
 test('lost primary response is never replayed to either origin',async()=>{
   let submitted=0, standbySubmissions=0;
-  const primary=http.createServer((req,res)=>{if(req.method==='POST'){submitted++;req.resume();req.socket.destroy();}else res.end('ready');});
+  const primary=http.createServer((req,res)=>{if(req.method==='POST'){submitted++;req.resume();req.socket.destroy();}else res.end(primaryBody(req));});
   const standby=http.createServer((req,res)=>{if(req.method==='POST')standbySubmissions++;res.end('ready');});
   const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),probeCacheMs:0,timeout:100});
   const base=await listen(gateway);
@@ -87,7 +89,7 @@ test('an open but stalled primary connection falls back within the probe deadlin
 });
 
 test('relay contention beyond the old deadline does not trigger recovery',async()=>{
-  const primary=http.createServer((_req,res)=>setTimeout(()=>res.end('primary'),2700));
+  const primary=http.createServer((req,res)=>setTimeout(()=>res.end(primaryBody(req)),2700));
   const standby=http.createServer((req,res)=>res.end(req.url==='/api/health'?JSON.stringify(recoveryHealth):'recovery'));
   const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),probeCacheMs:0});
   const base=await listen(gateway);
@@ -98,7 +100,7 @@ test('relay contention beyond the old deadline does not trigger recovery',async(
 
 test('cold standby health can take longer without delaying healthy primary traffic',async()=>{
   let available=true;
-  const primary=http.createServer((req,res)=>{if(available)res.end('primary');else req.socket.destroy();});
+  const primary=http.createServer((req,res)=>{if(available)res.end(primaryBody(req));else req.socket.destroy();});
   const standby=http.createServer((req,res)=>{if(req.url==='/api/health')setTimeout(()=>res.end(JSON.stringify(recoveryHealth)),150);else res.end('recovery');});
   const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),timeout:20,recoveryTimeout:300,probeCacheMs:0});
   const base=await listen(gateway);
@@ -113,4 +115,11 @@ test('readiness reuse expires and refuses a changed writable standby',async()=>{
   const base=await listen(gateway);
   try{assert.equal((await fetch(base)).status,200);await Promise.all([fetch(base),fetch(base),fetch(base)]);assert.equal(checks,1);writable=true;await new Promise(resolve=>setTimeout(resolve,80));assert.equal((await fetch(base)).status,503);assert.equal(checks,2);}
   finally{await close(gateway);await close(origin);}
+});
+
+test('primary requires structured served identity, correct database and writable state',()=>{
+  assert.equal(primaryReadiness(primaryHealth),true);
+  for(const patch of [{version:2},{ok:false},{runtime:'VPS'},{release:{sha:'invalid',stopping:false}},{release:{sha:'a'.repeat(40),stopping:true}},
+    {platformKernel:{...primaryHealth.platformKernel,enabled:false}}, {platformKernel:{...primaryHealth.platformKernel,databaseName:'opscenter_preview'}},
+    {platformKernel:{...primaryHealth.platformKernel,migrationVersion:null}}, {assignmentStoreWritable:false},{operatorStateWritable:false}])assert.equal(primaryReadiness({...primaryHealth,...patch}),false);
 });

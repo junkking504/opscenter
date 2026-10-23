@@ -1,0 +1,8 @@
+import {createRoot} from 'react-dom/client';
+import AppointmentCost from '../appointment-cost';
+import {defaultCostInputs,type CostRecord} from '../../lib/appointment-cost-model';
+import '../app/globals.css';
+const mode=new URLSearchParams(location.search).get('mode');
+let record:CostRecord={version:0,inputs:{...defaultCostInputs,onsiteMinutes:60,disposal:30},actor:null,savedAt:null};
+globalThis.fetch=async(input,init)=>{if(!String(input).startsWith('/api/desktop/schedule/cost'))throw new Error('Unexpected fixture request');if(mode==='denied')return Response.json({error:'Manager only'},{status:403});if(mode==='error')return Response.json({error:'Synthetic source unavailable'},{status:503});if(init?.method==='POST'){const body=JSON.parse(String(init.body));record={version:record.version+1,inputs:body.inputs,actor:'Synthetic manager',savedAt:new Date().toISOString()};return Response.json({record});}return Response.json({record,travel:{miles:mode==='missing'?null:40,minutes:mode==='missing'?null:60,inbound:'JK SAMPLE A',outbound:'NOHQ',note:'Half of each shared job leg; full warehouse legs.',approximate:false},fuel:{price:{price:4,at:new Date().toISOString(),amount:80,gallons:20,truck:'Truck 4',trackingNumber:'synthetic',source:'Synthetic WEX',sourceUrl:'https://outlook.office365.com/owa/?synthetic'},importedAt:new Date().toISOString()},priceIsRecent:mode!=='stale',sourceCrewHourly:40,crewCount:2,crewRateDates:['2026-10-13'],observedAt:new Date().toISOString()});};
+createRoot(document.getElementById('root')!).render(<main style={{maxWidth:470,margin:'20px auto',padding:12}}><h1>Synthetic appointment</h1><AppointmentCost date="2026-10-13" id="synthetic"/></main>);

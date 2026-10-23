@@ -1,6 +1,10 @@
 import React, {useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {ReleaseUpdateToast} from '../release-update-toast';
 import {useWorkspaceRefresh, WorkspaceFreshness} from '../workspace-freshness';
+// Isolated release headers: this fixture never reaches a network or writes business data.
+let release = 'a'.repeat(40);
+window.fetch = async () => new Response(null, {status:200, headers:{'x-opscenter-release':release}});
 function Fixture() {
  const source=useRef({version:1,fail:false,slow:false});
  const [snapshot,setSnapshot]=useState('None');
@@ -12,8 +16,9 @@ function Fixture() {
   if(signal.aborted)return;
   if(source.current.fail)throw new Error('Simulated source offline');
   setSnapshot(`${day} version ${version}`);
- },date,paused,1000);
+ },date,paused,new URLSearchParams(location.search).has('manual') ? 60_000 : 1000);
  return <main><h1>Workspace refresh regression fixture</h1><p>Isolated synthetic data; no network requests or business writes.</p>
+ <ReleaseUpdateToast busy={paused}/><button onClick={()=>{release='b'.repeat(40);window.dispatchEvent(new Event('online'));}}>Simulate new release</button>
  <p>Snapshot: {snapshot}</p><p>Requests started: {calls}</p>
  <WorkspaceFreshness state={freshness} sourceAt={new Date().toISOString()}/>
  <button onClick={()=>source.current.version++}>Advance source</button>

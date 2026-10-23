@@ -3,7 +3,7 @@ import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { chicagoDateKey } from '@/lib/report-dates';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
 import {requestScheduleDay} from '@/lib/requested-schedule-day';
-import { after } from 'next/server';
+import {trackedAfter as after} from '@/lib/release-after';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { automaticallyCheckMove, scheduleMoveRecovery } from '@/lib/desktop-schedule-operations';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';

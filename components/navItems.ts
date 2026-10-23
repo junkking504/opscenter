@@ -1,12 +1,12 @@
 import { opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 export const primaryNavItems = [
-  { href: "/", label: "Command", mobileLabel: "Command", icon: "01" },
-  { href: "/jobs", label: "Control", mobileLabel: "Control", icon: "02" },
-  { href: "/crew", label: "Crew", mobileLabel: "Crew", icon: "03" },
-  { href: "/fleet", label: "Convoy", mobileLabel: "Convoy", icon: "04" },
-  { href: "/finance", label: "Capital", mobileLabel: "Capital", icon: "05" },
-  { href: "/marketing", label: "Campaign", mobileLabel: "Campaign", icon: "06" },
+  { href: "/", label: "Dashboard", mobileLabel: "Dashboard", icon: "01" },
+  { href: "/jobs", label: "Command", mobileLabel: "Command", icon: "02" },
+  { href: "/crew", label: "Krewe", mobileLabel: "Krewe", icon: "03" },
+  { href: "/fleet", label: "Fleet", mobileLabel: "Fleet", icon: "04" },
+  { href: "/finance", label: "Finance", mobileLabel: "Finance", icon: "05" },
+  { href: "/marketing", label: "Marketing", mobileLabel: "Marketing", icon: "06" },
 ] as const;
 
 export const inboxNavItem = {

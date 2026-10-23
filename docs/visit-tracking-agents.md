@@ -31,7 +31,7 @@ arrival/duration remain unavailable. Source aliases preserve reconciliation when
 an earlier native arrival later supplements a V3 episode.
 
 Appointment visits require the collector's confirmed appointment/truck
-attribution. Any recorded position inside verified premises counts under the
+attribution. Any recorded position inside eligible verified or labeled approximate pins counts under the
 policy below; legacy unconfirmed pass-by rows are not promoted without replay.
 Separate return intervals remain separate visits.
 A source-linked estimate and job may describe one customer stop. When both
@@ -72,8 +72,8 @@ return starts another facility episode; intervening coordinates never create an
 arrival, unload or expense. This handles repeated dump visits separated by job
 visits even when the native alert feed is unavailable.
 
-For an already-confirmed appointment, the shared reader uses verified service
-coordinates and two later GPS fixes beyond twice the normal site radius, at least
+For an already-confirmed appointment, the shared reader uses the recorded visit pin (or current verified/approximate
+service coordinates for legacy records) and two later GPS fixes beyond twice the normal site radius, at least
 one minute apart. It bounds the departure without changing the collector's raw
 intervals or physical-closeout truck attribution. Command and Schedule consume
 that shared projection. A lone fix, boundary jitter, unknown/ambiguous address,
@@ -92,10 +92,12 @@ Additional validation: `node --import tsx scripts/test-appointment-position-trac
 
 The visit runner matches every recorded GPS point on the selected Central
 operating day, regardless of the appointment window or source completion status.
-One point inside the existing 200-meter verified premises boundary establishes a
+One point inside the existing 200-meter visit-pin boundary establishes a
 visit. There is no minimum dwell, minimum visit duration, maximum visit duration,
 or before/after-booking cutoff. Exact source appointment and truck identities,
-verified coordinates, linked-record reconciliation and duplicate checks remain.
+pin provenance, linked-record reconciliation and duplicate checks remain. Approximate pins
+also use the ambiguity and prospective-activation safeguards in
+[address verification completion](address-verification-completion.md#approximate-arrival-and-departure-pins-october-12-2026).
 
 The application-owned wrapper applies this policy to the installed collector
 in memory; incompatible collector source changes fail its checked anchors.
@@ -107,8 +109,8 @@ A single-point visit remains visible as **GPS** with duration unavailable;
 recorded arrival/departure and gaps determine available duration separately.
 
 Validate with `scripts/test-linxup-instant-arrivals.py` against the installed
-matcher, the Schedule presence/visit/block tests, and a read-only daily replay
-with output writers disabled before release.
+matcher and the Schedule presence/visit/block tests. Use synthetic fixtures and
+mocked writers; a live daily replay is not necessary for the approximate-pin change.
 
 ## Assign unassigned appointments from GPS visits
 
@@ -118,7 +120,7 @@ The existing GPS refresh and push runners launch a separate, nonblocking worker
 to save that truck in JunkWare. The worker preserves the source booking window,
 status, payments and closeout, and publishes the saved assignment only after
 JunkWare read-back. Completed appointments remain eligible; canceled records,
-multiple visiting trucks, missing verified locations and pending changes require
+multiple visiting trucks, approximate visit evidence, missing verified locations and pending changes require
 review. Existing physical assignments are never automatically overwritten.
 
 The worker uses existing appointment/source locks and durable Schedule receipts.

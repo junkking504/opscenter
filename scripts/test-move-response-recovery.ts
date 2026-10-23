@@ -9,7 +9,11 @@ async function main() {
     const state=globalThis.moveResponseFixture;
     export const isDesktopWriteOriginAllowed=()=>true;
     export const cookies=async()=>({get:()=>({value:'synthetic'})});
-    export const after=callback=>state.callbacks.push(callback);
+    export const trackedAfter=callback=>state.callbacks.push(callback);
+    export const waypointManagerActor=()=>null;
+    export class CrewPhoneError extends Error {}
+    export const finishScheduleCrewAssignment=async()=>{};
+    export const crewDispatchSources={};
     export const AUTH_SESSION_COOKIE='fixture';
     export const verifyAuthSessionCookie=async()=>({email:'fixture',role:'admin'});
     export const authorizeOpsRequest=()=>({allowed:true});

@@ -175,3 +175,13 @@ function effectivePhone(phone: CrewPhone): CrewPhone {
   const {test:_test,...live}=projected;
   return live;
 }
+
+/** Background notification lookup only. Public job APIs still require the cookie key. */
+export function activeCrewPhoneById(deviceId:string,now=new Date()):CrewPhone|null {
+ if(!uuid.test(deviceId))return null;
+ const saved=read<Binding>(path.join(directory('bindings'),`${deviceId}.json`));
+ if(!saved || !validBinding(saved) || saved.phone.deviceId!==deviceId || revoked(deviceId)
+  || Date.parse(saved.phone.enrolledAt)>now.getTime() || Date.parse(saved.phone.expiresAt)<=now.getTime()
+  || chicagoDateKey(new Date(saved.phone.enrolledAt))!==chicagoDateKey(now))return null;
+ const phone=effectivePhone(saved.phone);return phone.test?null:phone;
+}

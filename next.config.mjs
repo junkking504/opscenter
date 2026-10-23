@@ -1,8 +1,18 @@
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const cloudflareBuild = process.env.OPSCENTER_BUILD_TARGET === "cloudflare";
 const projectDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+// Freeze the checked-out build identity into the asset header. Legacy origins do
+// not run the release proxy yet; this needs no runtime data or health request.
+function sourceReleaseSha() {
+  try {
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: projectDirectory, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return /^[a-f0-9]{40}$/.test(sha) ? sha : null;
+  } catch { return null; }
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -39,7 +49,11 @@ const nextConfig = {
   },
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
-    return [{ source: '/desktop-assets/assets/:asset', headers: [
+    const sha = sourceReleaseSha();
+    return [{source:'/opscenter-push-sw.js',headers:[{key:'Cache-Control',value:'no-store'},{key:'Service-Worker-Allowed',value:'/'}]}, ...(sha ? [{ source: '/opscenter-wordmark.png', has: [{ type: 'query', key: 'release-check', value: '1' }], headers: [
+      { key: 'x-opscenter-release', value: sha },
+      { key: 'Cache-Control', value: 'no-store' },
+    ] }] : []), { source: '/desktop-assets/assets/:asset', headers: [
       { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
     ] }];
   }

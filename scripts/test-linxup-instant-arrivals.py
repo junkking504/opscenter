@@ -27,6 +27,8 @@ spec = importlib.util.spec_from_file_location('matcher', source_path)
 matcher = importlib.util.module_from_spec(spec)
 exec(compile(policy.appointment_day_policy(source_path.read_text()),str(source_path),'exec'),matcher.__dict__)
 
+policy.configure_visit_pins(matcher, lambda addresses: {}, lambda: datetime(2026,1,1,tzinfo=timezone.utc))
+
 point = {'timestamp':'2026-09-08T15:23:42Z','latitude':30.0,'longitude':-90.0,'truck_number':'Truck 3'}
 with tempfile.TemporaryDirectory() as directory:
     data = Path(directory)
@@ -34,6 +36,7 @@ with tempfile.TemporaryDirectory() as directory:
     matcher.GEOCODE_CACHE_PATH.write_text(json.dumps({'addresses':{geocoder.address_hash('100 EXAMPLE ST'):{'latitude':30,'longitude':-90,'match_confidence':'confirmed'}}}))
     matcher.LINXUP_HISTORY=data
     matcher.DATA=data
+    matcher.VISIT_HISTORY=data/'visits'
     matcher.mappings_for_date=lambda target:[SimpleNamespace(junkware_truck_number='Truck 3',linxup_tracker_id='synthetic')]
     source_job={'appt_id':'job','job_id':'JK_TEST','address':'100 Example St','truck':'Truck 3','appointment_time':'03:00 PM - 04:00 PM','job_status':'Confirmed'}
     matcher.appointment_source=lambda target:[source_job]

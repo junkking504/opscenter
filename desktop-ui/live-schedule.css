@@ -1,6 +1,6 @@
 /* Adapter-only geometry for real coordinates, fractional windows, and overlaps.
    The approved stylesheet and type scale remain unchanged. */
-.live-schedule .schedule-stop-number { border-radius: 3px; background: #edf1ed; padding: 1px 4px; font-size: 10px; }
+.live-schedule .schedule-stop-number { border-radius: 3px; background: var(--oc-surface-neutral-01); padding: 1px 4px; font-size: var(--oc-type-10); }
 .live-schedule-map { position: absolute; inset: 0; z-index: 0; }
 .live-schedule-map .leaflet-tile-pane { filter: saturate(.72) contrast(.94); }
 .live-schedule-map .leaflet-control { font-family: inherit; }
@@ -9,50 +9,50 @@
 /* Header, grid and drag coordinates share the timeline after the route column.
    The hour count follows the source window, including early/late appointments. */
 .live-schedule .schedule-truck-row { display: block; background-image: none; }
-.live-schedule .schedule-time-row > span:not(:first-child) { padding: 4px; border-right: 0; border-left: 1px solid #dce0dc; text-align: left; }
+.live-schedule .schedule-time-row > span:not(:first-child) { padding: 4px; border-right: 0; border-left: 1px solid var(--oc-border-neutral-04); text-align: left; }
 .live-schedule .schedule-time-row > span:first-child { border-right: 0; }
 .live-schedule .schedule-truck-cell { position: absolute; inset: 0 auto 0 0; width: 88px; height: 100%; }
-.live-schedule .live-truck-timeline { position: absolute; inset: 0 0 0 88px; background-image: linear-gradient(to right, #e7eae7 1px, transparent 1px); background-size: calc(100% / var(--schedule-hour-count)) 100%; background-repeat: repeat-x; }
-.ops-live .live-schedule .live-truck-timeline .schedule-appointment { --territory-color: #89918d; position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: color-mix(in srgb, var(--territory-color) 75%, #d8dcd8); border-left-color: var(--territory-color); background: color-mix(in srgb, var(--territory-color) 65%, #fff); }
+.live-schedule .live-truck-timeline { position: absolute; inset: 0 0 0 88px; background-image: linear-gradient(to right, var(--oc-border-neutral-01) 1px, transparent 1px); background-size: calc(100% / var(--schedule-hour-count)) 100%; background-repeat: repeat-x; }
+.ops-live .live-schedule .live-truck-timeline .schedule-appointment { --territory-color: var(--oc-surface-neutral-04); position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: color-mix(in srgb, var(--territory-color) 75%, var(--oc-border-neutral-02)); border-left-color: var(--territory-color); background: color-mix(in srgb, var(--territory-color) 65%, var(--oc-surface-raised)); }
 /* Area colors deliberately override parish colors on individual appointments. */
-.ops-live .live-schedule .territory-wb { --territory-color: #fbbf24 !important; }
-.ops-live .live-schedule .territory-em { --territory-color: #facc15 !important; }
-.ops-live .territory-rp { --territory-color: #9ca3af !important; }
-.ops-live .appointment-territory-group.river-parishes { --territory-accent: #9ca3af; }
-.ops-live .appointment-territory-toolbar button > i.river-parishes { background: #9ca3af; }
+.ops-live .live-schedule .territory-wb { --territory-color: var(--oc-accent-amber-05) !important; }
+.ops-live .live-schedule .territory-em { --territory-color: var(--oc-accent-amber-06) !important; }
+.ops-live .territory-rp { --territory-color: var(--oc-accent-neutral-01) !important; }
+.ops-live .appointment-territory-group.river-parishes { --territory-accent: var(--oc-accent-neutral-01); }
+.ops-live .appointment-territory-toolbar button > i.river-parishes { background: var(--oc-accent-neutral-01); }
 .live-schedule .live-truck-timeline .schedule-appointment.scope-match { position: absolute; }
 .live-schedule .live-truck-timeline .schedule-route-leg { position: absolute; margin: 0; bottom: 1px; height: 16px; }
 .live-schedule .schedule-route-leg small { display: none; }
 .live-schedule .schedule-map-controls .route-candidate-list { max-height: 144px; overflow-y: auto; }
 .live-schedule .route-intelligence-panel footer { white-space: normal; }
 .live-schedule .schedule-map-controls .map-status-list { overflow: hidden; }
-.live-schedule .live-schedule-status { padding: 6px 10px; color: #59635e; font-size: 11px; }
+.live-schedule .live-schedule-status { padding: 6px 10px; color: var(--oc-text-neutral-03); font-size: var(--oc-type-11); }
 .live-schedule .live-schedule-error { color: var(--ops-brand-red); }
-.live-schedule .appointment-register-row .route-leg-inline { display: block; margin-top: 3px; font-weight: 650; color: #3f5c4b; }
+.live-schedule .appointment-register-row .route-leg-inline { display: block; margin-top: 3px; font-weight: 650; color: var(--oc-text-green-28); }
 .live-schedule .appointment-register-row .route-leg-inline.late { color: var(--ops-brand-red); }
 .live-schedule .selected-appointment-proximity,
-.live-schedule .appointment-register-row .appointment-nearest-truck { display: block; color: #174e77; font-weight: 750; }
+.live-schedule .appointment-register-row .appointment-nearest-truck { display: block; color: var(--oc-border-blue-01); font-weight: 750; }
 .live-schedule .selected-appointment-proximity { margin-top: 2px; }
 .live-schedule .record-drawer { z-index: 1100; }
 .live-schedule .record-drawer-backdrop { z-index: 1099; }
 .live-schedule .live-truck-timeline .schedule-drag-preview { position: absolute; inset-block: 0; height: auto; }
 .live-schedule .schedule-appointment[aria-roledescription] { cursor: grab; touch-action: none; user-select: none; }
 .live-schedule .schedule-appointment.is-dragging { opacity: .35; }
-.live-schedule .schedule-grip { position: absolute; top: 3px; right: 1px; color: #68756d; pointer-events: none; }
+.live-schedule .schedule-grip { position: absolute; top: 3px; right: 1px; color: var(--oc-text-green-08); pointer-events: none; }
 .live-schedule .schedule-board-layout { position: relative; }
 .live-schedule .schedule-board-layout.map-open .schedule-board-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .live-schedule .schedule-board-layout.map-open .schedule-board-scroll { height: auto; min-height: 0; }
 .live-schedule .schedule-change-receipt > header { grid-column: 1 / -1; }
-.live-schedule .drawer-cancel-field textarea { width: 100%; min-height: 72px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 11px; }
+.live-schedule .drawer-cancel-field textarea { width: 100%; min-height: 72px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: var(--oc-type-11); }
 .live-schedule .drawer-note-row { display: grid; gap: 7px; margin-top: 11px; }
 .live-schedule .drawer-cancel-confirmation { grid-column: 1 / -1; }
-.live-schedule .drawer-cancel-confirmation > p { margin: 0; color: var(--ops-brand-red); font-size: 11px; }
+.live-schedule .drawer-cancel-confirmation > p { margin: 0; color: var(--ops-brand-red); font-size: var(--oc-type-11); }
 .live-schedule .appointment-register-row .assignment-unverified { color: var(--ops-brand-red); font-weight: 700; }
 
 .desktop-closeout-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .appointment-closeout-body .appointment-create-section { margin-block: 12px; }
-.appointment-closeout-body input, .appointment-closeout-body select { min-width: 0; width: 100%; padding: 6px 8px; color: inherit; background: var(--panel, #fff); border: 1px solid var(--line, #dce2eb); border-radius: 6px; }
-.appointment-closeout-body .ops-button { padding: 6px 10px; border: 1px solid var(--line, #dce2eb); border-radius: 6px; font-size: 12px; }
+.appointment-closeout-body input, .appointment-closeout-body select { min-width: 0; width: 100%; padding: 6px 8px; color: inherit; background: var(--panel, var(--oc-surface-raised)); border: 1px solid var(--line, var(--oc-border-default)); border-radius: 6px; }
+.appointment-closeout-body .ops-button { padding: 6px 10px; border: 1px solid var(--line, var(--oc-border-default)); border-radius: 6px; font-size: var(--oc-type-12); }
 .appointment-closeout-body .ops-closeout-editor-actions { display: flex; gap: 8px; padding-block: 12px; }
 .appointment-create-drawer .appointment-customer-results { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; }
 .appointment-create-drawer .appointment-customer-results small { display: block; }
@@ -60,88 +60,88 @@
 /* Keep map controls visible and selection details scrollable at every size. */
 .live-schedule .schedule-board-layout.map-open .schedule-map-panel { grid-template-rows: auto minmax(200px, 1fr) auto; }
 .live-schedule .schedule-board-layout.map-open .schedule-map-canvas { min-height: 200px; }
-.live-schedule .live-map-territories { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid var(--border); background: #fff; }
-.live-schedule .live-map-territories button { --territory-color: #89918d; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 3px 6px; border: 1px solid #d7ddd7; border-bottom: 3px solid var(--territory-color); border-radius: 5px; background: #fff; color: #25302a; font-size: 10px; font-weight: 750; cursor: pointer; }
-.live-schedule .live-map-territories button[aria-pressed="true"] { background: #252a2e; color: #fff; }
-.live-schedule .live-map-territories small { font-size: 8px; opacity: .7; }
-.live-schedule .live-map-help { color: #68736c; font-size: 10px; }
+.live-schedule .live-map-territories { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid var(--border); background: var(--oc-surface-raised); }
+.live-schedule .live-map-territories button { --territory-color: var(--oc-surface-neutral-04); display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 3px 6px; border: 1px solid var(--oc-border-neutral-02); border-bottom: 3px solid var(--territory-color); border-radius: 5px; background: var(--oc-surface-raised); color: var(--oc-text-green-15); font-size: var(--oc-type-10); font-weight: 750; cursor: pointer; }
+.live-schedule .live-map-territories button[aria-pressed="true"] { background: var(--oc-text-blue-01); color: var(--oc-surface-raised); }
+.live-schedule .live-map-territories small { font-size: var(--oc-type-8); opacity: .7; }
+.live-schedule .live-map-help { color: var(--oc-text-neutral-02); font-size: var(--oc-type-10); }
 .live-schedule .schedule-board-layout.map-open .schedule-map-controls { max-height: 220px; overflow-y: auto; }
 .live-schedule .schedule-map-controls .map-status-list { overflow: visible; }
-.live-schedule .live-map-truck-details { grid-column: 1 / -1; font-size: 11px; }
+.live-schedule .live-map-truck-details { grid-column: 1 / -1; font-size: var(--oc-type-11); }
 .live-schedule .live-map-truck-details header { display: flex; justify-content: space-between; align-items: center; }
-.live-schedule .live-map-truck-details header button { border: 0; background: transparent; font-size: 20px; }
+.live-schedule .live-map-truck-details header button { border: 0; background: transparent; font-size: var(--oc-type-20); }
 .live-schedule .live-map-truck-details dl { display: grid; gap: 4px; margin: 5px 0; }
 .live-schedule .live-map-truck-details dl > div { display: grid; grid-template-columns: 42px 1fr; gap: 6px; }
-.live-schedule .live-map-truck-details dt { color: #68736c; }
+.live-schedule .live-map-truck-details dt { color: var(--oc-text-neutral-02); }
 .live-schedule .live-map-truck-details dd { margin: 0; }
 .live-schedule .schedule-map-controls .live-map-truck-details p { display: block; margin: 4px 0; }
 .live-schedule .live-map-truck-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
 .live-schedule .live-map-truck-actions a { text-decoration: underline; }
 .live-schedule .live-map-truck-jobs { display: grid; gap: 4px; }
-.live-schedule .live-map-truck-jobs button { border: 0; background: #f0f4f0; padding: 4px; text-align: left; font-size: 10px; cursor: pointer; }
-.live-schedule .schedule-truck-cell[aria-pressed="true"] { outline: 2px solid #20262b; outline-offset: -2px; }
+.live-schedule .live-map-truck-jobs button { border: 0; background: var(--oc-surface-neutral-01); padding: 4px; text-align: left; font-size: var(--oc-type-10); cursor: pointer; }
+.live-schedule .schedule-truck-cell[aria-pressed="true"] { outline: 2px solid var(--oc-text-blue-02); outline-offset: -2px; }
 /* Compact icons are centered on their exact source coordinates. */
 .live-schedule-map .live-map-pin { pointer-events: none; }
 .live-schedule-map .live-map-pin .map-marker { position: static; transform: none; display: grid; place-items: center; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; pointer-events: auto; cursor: pointer; }
 .live-schedule-map .map-pin-symbol { display: grid; place-items: center; position: relative; pointer-events: none; }
-.live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); border: 2px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: var(--map-locator-font, 10px); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px #17212b80, 0 2px 5px #17212b66; }
+.live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); border: 2px solid var(--oc-surface-raised); border-radius: 50%; background: var(--territory-color, var(--oc-surface-neutral-04)); color: var(--oc-text-blue-05); font-size: var(--map-locator-font, var(--oc-type-10)); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px var(--oc-surface-overlay-13), 0 2px 5px var(--oc-surface-overlay-12); }
 /* Saturated location colors stay legible against pale street-map tiles. */
-.live-schedule-map .appointment-marker.territory-no .map-pin-symbol { background: #2563eb; color: #fff; }
-.live-schedule-map .appointment-marker.territory-jp .map-pin-symbol { background: #00cfae; color: #17212b; }
-.live-schedule-map .appointment-marker.territory-ns .map-pin-symbol { background: #7c3aed; color: #fff; }
-.live-schedule-map .appointment-marker.territory-br .map-pin-symbol { background: #ff3547; color: #17212b; }
-.live-schedule-map .appointment-marker.territory-lf .map-pin-symbol { background: #84cc16; color: #17212b; }
-.live-schedule-map .appointment-marker.territory-rp .map-pin-symbol { background: #64748b; color: #fff; }
+.live-schedule-map .appointment-marker.territory-no .map-pin-symbol { background: var(--oc-surface-blue-09); color: var(--oc-surface-raised); }
+.live-schedule-map .appointment-marker.territory-jp .map-pin-symbol { background: var(--oc-surface-teal-01); color: var(--oc-text-blue-05); }
+.live-schedule-map .appointment-marker.territory-ns .map-pin-symbol { background: var(--oc-surface-violet-01); color: var(--oc-surface-raised); }
+.live-schedule-map .appointment-marker.territory-br .map-pin-symbol { background: var(--oc-surface-red-01); color: var(--oc-text-blue-05); }
+.live-schedule-map .appointment-marker.territory-lf .map-pin-symbol { background: var(--oc-surface-green-09); color: var(--oc-text-blue-05); }
+.live-schedule-map .appointment-marker.territory-rp .map-pin-symbol { background: var(--oc-text-blue-03); color: var(--oc-surface-raised); }
 .live-schedule-map .completed .map-pin-symbol { border-style: double; border-width: 2px; }
-.live-schedule-map .appointment-marker.status-canceled .map-pin-symbol { background: #9ca3af; color: #374151; opacity: .7; filter: grayscale(1); }
-.live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 22px) * 1.5); height: var(--map-locator-size, 22px); filter: drop-shadow(0 1px 1px #17212b66); }
-.live-schedule-map .truck-marker.stale .map-pin-symbol { outline: 2px dashed #a87818; outline-offset: 1px; border-radius: 4px; }
-.live-schedule-map .truck-marker svg { overflow: visible; transform-origin: center; display: block; width: 100%; height: 100%; fill: none; stroke: #26313a; stroke-width: 1; stroke-linejoin: round; }
+.live-schedule-map .appointment-marker.status-canceled .map-pin-symbol { background: var(--oc-accent-neutral-01); color: var(--oc-text-blue-35); opacity: .7; filter: grayscale(1); }
+.live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 22px) * 1.5); height: var(--map-locator-size, 22px); filter: drop-shadow(0 1px 1px var(--oc-surface-overlay-12)); }
+.live-schedule-map .truck-marker.stale .map-pin-symbol { outline: 2px dashed var(--oc-border-amber-04); outline-offset: 1px; border-radius: 4px; }
+.live-schedule-map .truck-marker svg { overflow: visible; transform-origin: center; display: block; width: 100%; height: 100%; fill: none; stroke: var(--oc-surface-blue-02); stroke-width: 1; stroke-linejoin: round; }
 .live-schedule-map .truck-marker .truck-dump-body { fill: var(--ops-brand-red); }
 .live-schedule-map .truck-marker .truck-body-rails { stroke: var(--ops-brand-red); }
-.live-schedule-map .truck-marker .truck-cab { fill: #fff; }
-.live-schedule-map .truck-marker .truck-frame { fill: #555e67; }
-.live-schedule-map .truck-marker .truck-window { fill: #273d4c; }
-.live-schedule-map .truck-marker .truck-headlight { fill: #ffe8a6; stroke: none; }
-.live-schedule-map .truck-marker .truck-tire { fill: #18212a; stroke: #fff; stroke-width: .6; }
-.live-schedule-map .truck-marker .truck-wheel { fill: #b8c1c7; stroke: none; }
-.live-schedule-map .truck-marker svg text { fill: #fff; stroke: var(--ops-brand-red); stroke-width: .5; paint-order: stroke; font: 800 15px sans-serif; }
-.live-schedule-map .route-selected .map-pin-symbol, .live-schedule-map button:focus-visible .map-pin-symbol { outline: 2px solid #20262b; outline-offset: 2px; border-radius: 4px; }
+.live-schedule-map .truck-marker .truck-cab { fill: var(--oc-surface-raised); }
+.live-schedule-map .truck-marker .truck-frame { fill: var(--oc-text-blue-36); }
+.live-schedule-map .truck-marker .truck-window { fill: var(--oc-text-blue-37); }
+.live-schedule-map .truck-marker .truck-headlight { fill: var(--oc-surface-amber-08); stroke: none; }
+.live-schedule-map .truck-marker .truck-tire { fill: var(--oc-text-blue-05); stroke: var(--oc-surface-raised); stroke-width: .6; }
+.live-schedule-map .truck-marker .truck-wheel { fill: var(--oc-text-neutral-11); stroke: none; }
+.live-schedule-map .truck-marker svg text { fill: var(--oc-surface-raised); stroke: var(--ops-brand-red); stroke-width: .5; paint-order: stroke; font: 800 var(--oc-type-15) sans-serif; }
+.live-schedule-map .route-selected .map-pin-symbol, .live-schedule-map button:focus-visible .map-pin-symbol { outline: 2px solid var(--oc-text-blue-02); outline-offset: 2px; border-radius: 4px; }
 .live-schedule-map .appointment-marker.route-selected .map-pin-symbol, .live-schedule-map .appointment-marker:focus-visible .map-pin-symbol { border-radius: 50%; }
 
 /* Compact shared map details on Command and Schedule. */
 .ops-live .live-schedule .schedule-map-controls { padding: 7px 9px; gap: 4px 8px; }
-.ops-live .live-schedule .schedule-map-controls h2 { margin: 1px 0 0; font-size: 12px; line-height: 1.2; font-weight: 650; }
-.ops-live .live-schedule .schedule-map-controls .section-kicker { font-size: 8px; letter-spacing: .08em; }
-.ops-live .live-schedule .live-map-help { font-size: 9px; line-height: 1.35; }
-.ops-live .live-schedule .live-map-truck-details { font-size: 10px; line-height: 1.35; }
-.ops-live .live-schedule .live-map-truck-details header strong { font-size: 12px; }
-.ops-live .live-schedule .live-map-truck-details header button { min-width: 24px; min-height: 24px; padding: 0; font-size: 18px; line-height: 1; }
+.ops-live .live-schedule .schedule-map-controls h2 { margin: 1px 0 0; font-size: var(--oc-type-12); line-height: 1.2; font-weight: 650; }
+.ops-live .live-schedule .schedule-map-controls .section-kicker { font-size: var(--oc-type-8); letter-spacing: .08em; }
+.ops-live .live-schedule .live-map-help { font-size: var(--oc-type-9); line-height: 1.35; }
+.ops-live .live-schedule .live-map-truck-details { font-size: var(--oc-type-10); line-height: 1.35; }
+.ops-live .live-schedule .live-map-truck-details header strong { font-size: var(--oc-type-12); }
+.ops-live .live-schedule .live-map-truck-details header button { min-width: 24px; min-height: 24px; padding: 0; font-size: var(--oc-type-18); line-height: 1; }
 .ops-live .live-schedule .live-map-truck-details dl { gap: 3px; margin: 3px 0; }
-.ops-live .live-schedule .live-map-truck-details dd { min-width: 0; overflow-wrap: anywhere; font-size: 10px; }
+.ops-live .live-schedule .live-map-truck-details dd { min-width: 0; overflow-wrap: anywhere; font-size: var(--oc-type-10); }
 .ops-live .live-schedule .live-map-truck-actions { gap: 4px 8px; margin: 5px 0; }
-.ops-live .live-schedule .live-map-truck-actions a, .ops-live .live-schedule .live-map-truck-actions button { font-size: 10px; }
+.ops-live .live-schedule .live-map-truck-actions a, .ops-live .live-schedule .live-map-truck-actions button { font-size: var(--oc-type-10); }
 .ops-live .live-schedule .live-map-truck-actions button { height: 25px; padding: 3px 8px; }
 .ops-live .live-schedule .live-map-truck-jobs { gap: 3px; }
-.ops-live .live-schedule-map .leaflet-control-attribution { padding: 1px 4px; font-size: 10px; line-height: 1.25; }
+.ops-live .live-schedule-map .leaflet-control-attribution { padding: 1px 4px; font-size: var(--oc-type-10); line-height: 1.25; }
 .ops-live .live-schedule-map .leaflet-control-attribution a { font-size: inherit; }
 
 /* Keep the complete job identity inside narrow or stacked appointment blocks. */
-.ops-live .live-schedule .schedule-appointment > .schedule-jk-link { width: 100%; max-width: 100%; min-width: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; font-size: 9px !important; line-height: 1.15; letter-spacing: 0; color: #24312a; }
+.ops-live .live-schedule .schedule-appointment > .schedule-jk-link { width: 100%; max-width: 100%; min-width: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; font-size: var(--oc-type-9) !important; line-height: 1.15; letter-spacing: 0; color: var(--oc-text-green-15); }
 .ops-live .live-schedule .schedule-appointment > span { line-height: 1.15; }
 .ops-live .live-schedule .schedule-board-scroll { overflow: auto; }
 
-.ops-live .live-schedule-map .live-map-tooltip { padding: 4px 6px; width: max-content; max-width: 150px; white-space: normal; overflow-wrap: anywhere; color: #26312b; background: #fffffff5; border: 1px solid #d5ddd7; border-radius: 4px; box-shadow: 0 1px 4px #17212b26; font-size: 10px; line-height: 1.25; pointer-events: none; }
+.ops-live .live-schedule-map .live-map-tooltip { padding: 4px 6px; width: max-content; max-width: 150px; white-space: normal; overflow-wrap: anywhere; color: var(--oc-text-green-15); background: var(--oc-surface-overlay-25); border: 1px solid var(--oc-border-neutral-02); border-radius: 4px; box-shadow: 0 1px 4px var(--oc-surface-overlay-09); font-size: var(--oc-type-10); line-height: 1.25; pointer-events: none; }
 .ops-live .live-schedule-map .live-map-tooltip::before { display: none; }
-.ops-live .live-schedule-map .live-map-tooltip strong, .ops-live .live-schedule-map .live-map-tooltip small { display: block; font-size: 10px; line-height: 1.25; }
+.ops-live .live-schedule-map .live-map-tooltip strong, .ops-live .live-schedule-map .live-map-tooltip small { display: block; font-size: var(--oc-type-10); line-height: 1.25; }
 .ops-live .live-schedule-map .live-map-tooltip strong { font-weight: 700; }
-.ops-live .live-schedule-map .live-map-tooltip small { color: #59675e; font-size: 9px; }
+.ops-live .live-schedule-map .live-map-tooltip small { color: var(--oc-text-green-02); font-size: var(--oc-type-9); }
 
 .ops-live .live-schedule .schedule-board, .ops-live .live-schedule .schedule-board * { -webkit-user-select: none; user-select: none; }
 .ops-live .live-schedule .schedule-jk-link { -webkit-user-drag: none; touch-action: none; }
 body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: none !important; user-select: none !important; cursor: grabbing !important; }
 
-.appointment-type-control { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 13px; }
+.appointment-type-control { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: var(--oc-type-13); }
 .appointment-type-control > div:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
 .appointment-type-control > div:first-child button { margin-left: auto; }
 .appointment-type-control p { width: 100%; margin: 0; line-height: 1.4; }
@@ -150,7 +150,7 @@ body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: 
 
 /* Current truck information comes before the independently scrolling route history. */
 .live-schedule .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { grid-template-rows: auto minmax(200px, 1fr) auto auto; }
-.live-schedule .live-map-truck-card { padding: 6px 10px; border-bottom: 1px solid #d9e0dc; background: #fff; color: #20262b; scroll-margin-block: 12px; }
+.live-schedule .live-map-truck-card { padding: 6px 10px; border-bottom: 1px solid var(--oc-border-neutral-04); background: var(--oc-surface-raised); color: var(--oc-text-blue-02); scroll-margin-block: 12px; }
 .live-schedule .live-map-truck-card p { margin: 5px 0; }
 .live-schedule .live-map-truck-card header { gap: 10px; }
 .live-schedule .live-map-truck-card header button { min-width: 28px; min-height: 28px; cursor: pointer; }

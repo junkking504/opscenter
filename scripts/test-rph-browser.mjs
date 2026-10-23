@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {chromium} from 'playwright';
+const output=process.env.RPH_SCREENSHOT_DIR || fs.mkdtempSync(path.join(os.tmpdir(),'rph-browser-'));
+fs.mkdirSync(output,{recursive:true});
+const preview=process.env.RPH_PREVIEW_URL || 'http://127.0.0.1:3197/desktop-assets/tests/rph.html';
+const browser=await chromium.launch({headless:true});
+const errors=[];
+try {
+ const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
+ for(const width of [1440,1241,1240,1180,1024,1001,768,430,390,320]) {
+  await page.setViewportSize({width,height:1000});
+  await page.goto(preview);
+  const card=page.getByRole('button',{name:'Open RPH details',exact:true});await card.waitFor();
+  assert.match(await card.innerText(),/\$160.00/);
+  assert.equal(await page.locator('.command-metrics .kpi-card').count(),6);
+  assert.equal(await page.locator('.command-metrics').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Command cards fit ${width}`);
+  assert.equal(await page.locator('.command-metrics .kpi-card').evaluateAll(cards=>cards.every(el=>el.scrollWidth<=el.clientWidth+1)),true,`Each money card fits ${width}`);
+  const ajs=page.getByRole('button',{name:'Open AJS details',exact:true});
+  assert.match(await ajs.innerText(),/\$320.00/);
+  const rphBox=await card.boundingBox(), ajsBox=await ajs.boundingBox();
+  assert.ok(Math.abs(rphBox.y-ajsBox.y)<1 && ajsBox.x>rphBox.x,`RPH and AJS are adjacent at ${width}`);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,`Page fits ${width}`);
+  await page.screenshot({path:`${output}/command-${width}.png`});
+  await ajs.click();
+  await page.getByRole('heading',{name:`AJS · 2026-10-13`,exact:true}).waitFor();
+  assert.match(await page.locator('.command-metric-detail').innerText(),/\$320.00/);
+  await page.getByText('AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.',{exact:true}).waitFor();
+  assert.match(page.url(),/workspace=Finance/);
+  assert.match(page.url(),/financeView=trends/);
+  await page.getByRole('button',{name:'Back to Command',exact:true}).click();
+  await card.click();await page.locator('.crew-today-row').first().waitFor();
+  assert.match(await page.locator('.crew-today-row[aria-label="Example Crew"] .crew-today-rph').innerText(),/\$160.00/);
+  assert.match(await page.locator('.crew-today-row[aria-label="Missing Hours"] .crew-today-rph').innerText(),/—/);
+  assert.equal(await page.locator('.crew-today').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Crew cards fit ${width}`);
+  assert.equal(await page.locator('.crew-today .krewe-kpi-strip article').evaluateAll(rows=>rows.every(el=>el.scrollHeight<=el.clientHeight+1)),true,'Crew summary text must not clip');
+  await page.locator('.crew-today-row').first().scrollIntoViewIfNeeded();
+  await page.screenshot({path:`${output}/crew-${width}.png`});
+  await page.goto(`${preview}?period=1`);
+  await page.locator('.hours-employee-card').waitFor();
+  const fact=page.locator('.hours-employee-card > .hours-total-grid .hours-fact').filter({hasText:'RPH'});
+  assert.match(await fact.innerText(),/\$206.67/);
+  assert.match(await page.locator('.crew-selected-week > .hours-week-content > .hours-total-grid .hours-fact').filter({hasText:'RPH'}).innerText(),/\$300.00/);
+  await page.getByRole('button',{name:'Week 1',exact:false}).last().click();
+  assert.match(await page.locator('.crew-selected-week > .hours-week-content > .hours-total-grid .hours-fact').filter({hasText:'RPH'}).innerText(),/\$160.00/);
+  assert.equal(await page.locator('.hours-employee-card').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Pay-period card fits ${width}`);
+  await page.screenshot({path:`${output}/period-${width}.png`});
+ }
+ assert.deepEqual(errors,[]);console.log('PASS browser: six Command cards beside revenue hero, adjacent RPH/AJS, AJS Finance navigation, selected-date Crew navigation, individual unavailable states, period/week RPH and 1440/1241/1240/1180/1024/1001/768/430/390/320px layouts with four-digit amounts and negative Net.');
+} finally {await browser.close();}

@@ -717,3 +717,44 @@ restores the original responsive proportions. Each panel keeps a usable minimum
 width. The current layout remains the default on a fresh page load; adjustments
 last within the mounted workspace and do not change appointments or source data.
 Mobile’s stacked layout and Command’s standalone map retain their layouts.
+
+## Approved workbench design — October 9, 2026
+
+The authenticated desktop applies the approved workbench palette, compact header,
+workspace tabs, and summary density through `desktop-ui/approved-workbench.css`.
+Command keeps all five original daily KPIs in one responsive row with distinct
+measure colors; source freshness, status cues, definitions, and drilldowns remain
+intact. Control retains its left map/right schedule layout, appointment formatting,
+75% lane-height floor, readable truck labels, and contained dense-day scrolling.
+Convoy fits all nine compact truck status rows at 1280 × 720 and retains its
+existing detail workflows. Desktop observation timestamps sit behind clock
+indicators; source quality remains visible and narrow screens retain full dates.
+Truck labels in Control remain buttons that select the truck on the map and open
+its trips and appointment details.
+The **Route Order** button in Control's toolbar, immediately before the Map toggle,
+opens the truck job-order editor. This is the renamed Stop Order control; saved
+orders, appointment times and truck assignments retain their existing behavior.
+
+Crowded travel connectors share compact rails by packing their 32px minute labels,
+not by reserving each entire dotted path. Labels shift to the nearest available
+space and retain a continuous connection to both appointments. Another 18px rail
+is added only when the labels themselves cannot fit. Wide-gap inline times,
+appointment geometry, source/status formatting and the 75% lane floor are unchanged.
+
+Capital has one primary Payments tab; Recorded payments and Reconciliation are
+secondary views inside it. Existing reconciliation deep links and the previous-day
+review default remain valid, including busy-state guards during payment writes.
+
+Crew Pay period adds a weekly-hours overview for all employees using the existing
+authoritative `hoursSnapshot`. Each week shows its dates, regular/OT breakdown,
+incomplete state and period total. Selecting a week opens that employee's existing
+daily records. Payroll permissions, correction reasons and source verification
+remain unchanged. Missing hours remain unavailable.
+
+Campaign summary buttons are Follow Up, No Contact, Review Response and Review
+Match. Counts and destinations use the same existing queue filters: follow-up
+includes lost/needs-follow-up leads; No Contact includes all uncontacted leads;
+response requires an explicit source response flag; match excludes matched
+reviews. Buttons reset other filters and pagination, and are disabled while drafts,
+unresolved saves or job-match edits need attention. Unavailable sources show a
+dash instead of zero. No sample records or new data requests enter production.

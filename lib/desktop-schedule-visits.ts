@@ -1,3 +1,4 @@
+import {visitEvidenceLocation, ambiguousVisitPin, type VisitPinJob} from './appointment-visit-pin';
 import { hasVisitIntervalEvidence } from './schedule-visit-evidence';
 import type {TrackedVisit} from './visit-tracking-agent';
 import { parkedTruckObservation } from './truck-gps-status';
@@ -24,8 +25,8 @@ export function readScheduleVisits(date: string): { visits: AnyRecord[]; observe
 }
 
 export function scheduleVisitState(
-  job: { appointmentId: string; truck: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
-  trucks: PresenceTruck[], now = Date.now(), tracked?: TrackedVisit[],
+  job: VisitPinJob & { truck: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
+  trucks: PresenceTruck[], now = Date.now(), tracked?: TrackedVisit[], appointments: VisitPinJob[] = [job],
 ) {
   const trackedForJob = tracked?.filter(visit=>visit.kind === 'appointment' && visit.appointmentId === job.appointmentId);
   const bounded = (row: AnyRecord) => trackedForJob?.find(visit=>(visit.departureBounds || visit.supersededAt) && truckLabel(visit.truck) === truckLabel(String(row.truck_number || row.truck || '')) && Date.parse([...(row.visit_intervals || [])].sort((a:AnyRecord,b:AnyRecord)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0]?.arrival || row.first_arrival || '') === Date.parse(visit.enteredAt || ''));
@@ -34,13 +35,13 @@ export function scheduleVisitState(
     && row.match_confidence === 'confirmed' && !row.pass_by_only && hasVisitIntervalEvidence(row)
     && (Number(row.visit_count) > 0 || Number.isFinite(Date.parse(row.first_arrival || row.arrival_at || ''))));
   const activeVisit = fresh(observedAt) ? confirmed.find(row => {
-    if (bounded(row)) return false;
+    if (bounded(row) || ambiguousVisitPin(job,appointments)) return false;
     // GPS is the evidence of where a crew is working. JunkWare's assignment
     // can lag (or remain Unassigned), so do not hide a current, confirmed
     // visit merely because it does not yet agree with the schedule field.
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
     const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
-    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    const position = truck && gpsPositionAtAppointment(visitEvidenceLocation(job, row.visit_pin), truck, now);
     if (!position?.inside || !position.current) return false;
     const intervals = (Array.isArray(row.visit_intervals) ? row.visit_intervals : [])
       .filter((interval: AnyRecord) => Number.isFinite(Date.parse(interval.arrival || '')))
@@ -51,11 +52,11 @@ export function scheduleVisitState(
     return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure;
   }) : undefined;
   const openVisit = confirmed.find(row => {
-    if (bounded(row)) return false;
+    if (bounded(row) || ambiguousVisitPin(job,appointments)) return false;
     const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
     const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
-    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    const position = truck && gpsPositionAtAppointment(visitEvidenceLocation(job, row.visit_pin), truck, now);
     const lastInside = Math.max(...[...(row.source_timestamps || []), ...(latest?.source_timestamps || []), latest?.arrival || row.first_arrival || row.arrival_at]
       .map(stamp => Date.parse(stamp || '')).filter(stamp => Number.isFinite(stamp) && stamp <= now));
     // A newer position outside supersedes the open ledger, even if that GPS
@@ -75,7 +76,7 @@ export function scheduleVisitState(
       && Number.isFinite(Date.parse(interval.arrival)) && Date.parse(interval.departure) >= Date.parse(interval.arrival)
       && Date.parse(interval.departure) <= now)) return true;
     const truck = trucks.find(t => truckLabel(t.truck) === truckLabel(String(row.truck_number || row.truck || '')));
-    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    const position = truck && gpsPositionAtAppointment(visitEvidenceLocation(job, row.visit_pin), truck, now);
     const insideTimes = [...(row.source_timestamps || []), ...intervals.flatMap((interval: AnyRecord) => [interval.arrival,...(interval.source_timestamps || [])])]
       .map((stamp: string) => Date.parse(stamp)).filter((stamp: number) => Number.isFinite(stamp) && stamp <= now);
     // A later position elsewhere proves departure without inventing its clock time.

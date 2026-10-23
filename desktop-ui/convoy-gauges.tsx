@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import type { DesktopFleetTruck } from './lib/people-fleet-contract';
 
 export const gaugeTime = (at?: string) => at && Number.isFinite(Date.parse(at))
@@ -11,7 +12,7 @@ export function ConvoyGauge({ label, percent, value, detail, tone = 'good', ends
   return <div className={`convoy-reading ${known ? tone : 'unknown'}`}>
     <div className="convoy-reading-heading">
       <span>{label}</span>
-      <strong>{value || (known ? `${percent}%` : 'Not recorded')}</strong>
+      <strong><MetricValue value={value || (known ? `${percent}%` : 'Not recorded')} /></strong>
     </div>
     {known && <div className="convoy-reading-track" aria-hidden="true" title={`${ends[0]} → ${ends[1]}`}>
       <span style={{ width: `${amount}%` }}/>

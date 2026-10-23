@@ -1,5 +1,8 @@
+import {territoryMapCenters} from './schedule-map-layout';
+import {propertyNameSearch} from '../../lib/property-name-search';
+import type {AddressMapFallback} from '../../lib/address-map-fallback';
 import {appointmentServiceAddress} from '../../lib/service-address-format';
-export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
+export type ScheduleTruckVisit = { approximate?: boolean; truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
 export type ScheduleTruckVisitGap = {
   truck: string;
   departedAt: string;
@@ -60,6 +63,7 @@ export type ScheduleAppointment = {
   phone: string;
   address: string;
   mapAddress?: string;
+  mapFallback?: AddressMapFallback | null;
   addressCheckPending?: boolean;
   addressCheckReason?: string;
   territory: string;
@@ -127,6 +131,7 @@ export type ScheduleSnapshot = {
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
 export type ScheduleRouteLeg = {
+  approximate?: boolean;
   geometry?: Array<{latitude:number;longitude:number}>;
   truck: string; fromAppointmentId: string; toAppointmentId: string;
   fromJk: string; toJk: string; gapMinutes: number | null;
@@ -134,6 +139,7 @@ export type ScheduleRouteLeg = {
   source: 'google_live_traffic' | 'osm_road_estimate' | 'unavailable';
 };
 export type ClosestTruck = {
+  approximate?: boolean;
   truck: string; gpsUpdatedAt: string | null; minutes: number | null; miles: number | null;
   status: 'available' | 'stale_gps' | 'gps_unavailable' | 'address_unverified' | 'routing_unavailable' | 'not_live_day';
 };
@@ -142,9 +148,9 @@ export type ScheduleRouting = { closestCalculatedAt?: string | null; truckProgre
 export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointment[]) {
   const missing = [leg.fromAppointmentId, leg.toAppointmentId]
     .map(id => jobs.find(job => job.recordId === id))
-    .filter(job => !job?.location);
+    .filter(job => !job || !scheduleMapLocation(job));
   return missing.length
-    ? { label: 'Location pending', detail: `Address verification failed for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}. Dispatch owns recovery; unresolved locations require escalation.` }
+    ? { label: 'Pin unavailable', detail: `No map result is available yet for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
 }
 
@@ -179,13 +185,28 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
   if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }
+// Coordinates for map display and labeled travel estimates only. Presence and
+// visit detection must continue to use the verified job.location.
+export function scheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return job.location || job.mapFallback?.location || null; }
+/** A display locator always exists. Area markers are never routing/visit evidence. */
+export function scheduleDisplayLocator(job: ScheduleAppointment) {
+  const point = scheduleMapLocation(job);
+  if (point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
+      && Math.abs(point.latitude)<=90 && Math.abs(point.longitude)<=180 && (point.latitude!==0 || point.longitude!==0))
+    return {location:point, kind:job.location ? 'verified' as const : 'approximate' as const,
+      label:job.location ? 'Verified location' : 'Approximate location', detail:job.mapFallback?.detail || ''};
+  const region=appointmentRegion({...job,address:job.address || '',territory:job.territory || ''}), center=territoryMapCenters[region.code];
+  const nextStep=propertyNameSearch(job.address || '') ? 'Search the property name to review possible matches; the source identifier and entrance remain unverified.' : 'Address lookup continues automatically.';
+  return {location:{latitude:center?.[0] ?? 30.14,longitude:center?.[1] ?? -90.5},kind:'area' as const,
+    label: 'Area locator · address pending',
+    detail:center ? `Shown at the ${territoryLabels[region.code]} map center. The property has not been located. ${nextStep}`
+      : `Shown in the operating-area overview. The address and territory have not been located. ${nextStep}`};
+}
+export function needsScheduleMapLocation(job: Pick<ScheduleAppointment, 'location' | 'mapFallback'>) { return !scheduleMapLocation(job); }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !job.location; }
 export function addressResolutionCopy(reason?: string) {
-  if (reason && /checking|pending/i.test(reason)) return { title: 'Locating automatically…', detail: 'OpsCenter is checking verified address sources.' };
-  if (/provider|temporarily unavailable|usage guard/i.test(reason || '')) return { title: 'Location check delayed', detail: 'The verified-address sources are unavailable; OpsCenter will retry automatically.' };
-  if (/multiple|conflicting/i.test(reason || '')) return { title: 'Address needs confirmation', detail: 'More than one premises matches. Confirm the complete service address before dispatch.' };
-  if (/no exact .*premises match|precise service location unavailable/i.test(reason || '')) return { title: 'Locating automatically…', detail: 'The map providers have not returned this exact property yet. OpsCenter will retry automatically.' };
-  return { title: 'Address needs correction', detail: 'The house number and street could not be verified. Confirm the service address before dispatch.' };
+  if (reason && /checking|pending/i.test(reason)) return { title: 'Finding a pin…', detail: 'OpsCenter is selecting the best available address match.' };
+  return { title: 'Pin unavailable', detail: 'No map result is available yet. OpsCenter will retry automatically.' };
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }
@@ -223,6 +244,7 @@ export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'tru
   return /complete|closed/i.test(job.status || '') && gpsTruck !== 'Unassigned' ? gpsTruck : truckLabel(job.truck || '');
 }
 export function scheduleTruckMismatch(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'|'truckVisits'>) {
+  if (/cancel/i.test(job.status || '')) return null;
   const displayed = scheduleDisplayTruck(job), source = truckLabel(job.truck || '');
   return displayed !== source ? {gpsTruck:displayed,junkwareTruck:source} : null;
 }
@@ -266,7 +288,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
       const start = Math.max(0,local(visit.arrival));
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
-      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+      return Number.isFinite(start) && Number.isFinite(end) && (visit.departure ? end>start || visit.approximate && end===start : end>=start) ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
     if (!intervals.length) {
       // GPS history belongs to the truck that physically visited the address. It

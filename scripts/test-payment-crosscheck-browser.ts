@@ -26,6 +26,7 @@ async function main() {
       const list=panel.getByRole('navigation',{name:'Inconsistent transactions'});
       await expect(list.getByRole('button')).toHaveCount(1);
       await expect(panel).toContainText('Not a confirmed match.');await expect(panel).toContainText('Amount difference: $25.00');
+      await expect(panel.getByRole('link',{name:'Open job in OpsCenter',exact:true})).toHaveAttribute('href','/desktop?data=live&workspace=Schedule&scheduleView=board&scheduleDay=today&date=2026-09-01&appointment=101');
       await expect(panel.getByRole('link',{name:'Open JunkWare job',exact:true})).toHaveAttribute('href','https://junkware.junk-king.com/franchise/appointment.aspx?id=101');
       await expect(panel.getByRole('link',{name:'Open QuickBooks transaction 201'})).toHaveAttribute('href','https://qbo.intuit.com/app/salesreceipt?txnId=201');
       await panel.getByRole('button',{name:'Accounting · 2',exact:true}).click();

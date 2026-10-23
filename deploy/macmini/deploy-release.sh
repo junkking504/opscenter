@@ -16,23 +16,15 @@ SHARED_LOGS="$EXPECTED_HOME/Library/Logs/OpsCenter"
 SHARED_CONFIG="$EXPECTED_HOME/Library/Application Support/OpsCenter"
 SLACK_ENV="$SHARED_CONFIG/slack.env"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
-PRODUCTION_LABEL="com.openclaw.opscenter"
-PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
-WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
-LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"
-JUNKWARE_COLLECTOR_LABEL="com.openclaw.opsbot.junkware-collector"
-JUNKWARE_SCHEDULE_DETECTOR_LABEL="com.openclaw.opsbot.junkware-schedule-detector"
-JUNKWARE_HISTORY_RECONCILIATION_LABEL="com.openclaw.opsbot.junkware-history-reconciliation"
-SEARCHKINGS_COLLECTOR_LABEL="com.openclaw.opsbot.searchkings-collector"
-PODIUM_REVIEWS_COLLECTOR_LABEL="com.openclaw.opsbot.podium-reviews-collector"
-BROWSER_KEEPALIVE_LABEL="com.openclaw.opsbot.browser-keepalive"
-JUNKWARE_MARKET_WATCHER_LABEL_PREFIX="com.openclaw.opsbot.junkware-schedule-watcher-"
+source "$SCRIPT_DIR/release-services.sh"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
+PRESERVE_RELEASES="${OPSCENTER_PRESERVE_RELEASES:-true}"
 RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="${OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20}"
 PRODUCTION_REF="refs/remotes/origin/production"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
 DEPLOY_LOCK_HELD=false
+ACTIVE_DEPLOY_CHILD=""
 DEPLOYMENT_HISTORY="$SHARED_CONFIG/deployment-history.tsv"
 RESTARTED_SERVICE_LABELS=()
 
@@ -43,6 +35,10 @@ fail() {
 
 release_deploy_lock() {
   $DEPLOY_LOCK_HELD || return 0
+  if [[ -n "$ACTIVE_DEPLOY_CHILD" ]] && kill -0 "$ACTIVE_DEPLOY_CHILD" 2>/dev/null; then
+    echo "Deployment child remains live; preserving the global lock for recovery." >&2
+    return 0
+  fi
   rm -f "$DEPLOY_LOCK_DIR/owner"
   rmdir "$DEPLOY_LOCK_DIR" 2>/dev/null || true
   DEPLOY_LOCK_HELD=false
@@ -52,7 +48,12 @@ acquire_deploy_lock() {
   if ! mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null; then
     lock_owner="$(<"$DEPLOY_LOCK_DIR/owner" 2>/dev/null || true)"
     [[ -n "$lock_owner" ]] || lock_owner="owner unavailable"
-    fail "another deployment is already running ($lock_owner); refusing to race it"
+    if [[ -f "$DEPLOY_ROOT/.release-slots/transaction.json" || -f "$DEPLOY_ROOT/.release-slots/bootstrap.json" ]] \
+      && node "$SCRIPT_DIR/release-transaction.mjs" recover-lock; then
+      mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null || fail "another owner acquired the recovered deployment lock"
+    else
+      fail "another deployment is running or its state needs review ($lock_owner); refusing to race it"
+    fi
   fi
   DEPLOY_LOCK_HELD=true
   {
@@ -82,112 +83,53 @@ require_forward_deploy() {
   fi
 }
 
+migrate_production_release() {
+  echo "Applying reviewed kernel migrations before production activation..."
+  # Replace the tracked Python process with Node so the deployment lock tracks
+  # the migration itself, including if the controller is interrupted. Do not
+  # inherit service flags, NODE_OPTIONS, credentials, or shell-evaluated config.
+  python3 - "$1" "$SHARED_CONFIG/production.env" "$SCRIPT_DIR" <<'PY' >/dev/null 2>&1 &
+import importlib.util
+import os
+from pathlib import Path
+import sys
+
+try:
+    release, config_file, controller_dir = map(Path, sys.argv[1:])
+    spec = importlib.util.spec_from_file_location('kernel_isolation', controller_dir / 'verify-kernel-isolation.py')
+    isolation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(isolation)
+    config = isolation.read_environment(config_file)
+    variable = 'OPSCENTER_MISSION_CONTROL_DATABASE_URL'
+    if config.get('OPSCENTER_KERNEL_ENABLED', '').strip() != '1':
+        raise ValueError('Production kernel must be enabled')
+    if isolation.database_name(config, variable) != 'opscenter_production':
+        raise ValueError('Production database identity mismatch')
+    environment = {
+        'PATH': os.environ['PATH'],
+        'NODE_ENV': 'production',
+        'OPSCENTER_RUNTIME': 'MISSION_CONTROL',
+        'OPSCENTER_KERNEL_ENABLED': '1',
+        'OPSCENTER_KERNEL_DB_POOL_MAX': '1',
+        variable: config[variable],
+    }
+    os.chdir(release)
+    os.execvpe('node', ['node', '--import', 'tsx', 'scripts/migrate-platform-kernel.ts'], environment)
+except Exception:
+    sys.exit(1)
+PY
+  ACTIVE_DEPLOY_CHILD=$!
+  if wait "$ACTIVE_DEPLOY_CHILD"; then
+    ACTIVE_DEPLOY_CHILD=""
+  else
+    # An interrupted wait may leave the migration running. The EXIT trap must
+    # retain the lock while that tracked child is still live.
+    fail "production kernel migration failed; release activation was not attempted (completed additive migrations may remain)"
+  fi
+  echo "Production kernel migrations completed."
+}
+
 trap release_deploy_lock EXIT
-
-service_loaded() {
-  launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
-}
-
-service_run_count() {
-  launchctl print "gui/$(id -u)/$1" 2>/dev/null \
-    | awk '/^[[:space:]]*runs = [0-9]+;$/ { gsub(/[^0-9]/, "", $0); print; exit }'
-}
-
-restart_loaded_service_with_timeout() {
-  local label="$1"
-  local restart_pid restart_status=0 remaining runs_before runs_after
-
-  runs_before="$(service_run_count "$label")"
-  launchctl kickstart -k "gui/$(id -u)/$label" &
-  restart_pid=$!
-  remaining="$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS"
-  while kill -0 "$restart_pid" 2>/dev/null; do
-    if (( remaining == 0 )); then
-      runs_after="$(service_run_count "$label")"
-      kill "$restart_pid" 2>/dev/null || true
-      wait "$restart_pid" 2>/dev/null || true
-      if [[ "$runs_before" =~ ^[0-9]+$ && "$runs_after" =~ ^[0-9]+$ && "$runs_after" -gt "$runs_before" ]]; then
-        echo "Restart began but launchctl did not return within ${RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS}s: $label" >&2
-        return 0
-      fi
-      echo "Timed out restarting loaded service after ${RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS}s: $label" >&2
-      return 1
-    fi
-    sleep 1
-    remaining=$((remaining - 1))
-  done
-  wait "$restart_pid" || restart_status=$?
-  return "$restart_status"
-}
-
-restart_loaded_service() {
-  local label="$1"
-  service_loaded "$label" || return 0
-
-  echo "Restarting loaded service: $label"
-  restart_loaded_service_with_timeout "$label" || {
-    echo "Failed to restart loaded service: $label" >&2
-    return 1
-  }
-  service_loaded "$label" || {
-    echo "Service disappeared after restart: $label" >&2
-    return 1
-  }
-  RESTARTED_SERVICE_LABELS+=("$label")
-}
-
-loaded_market_watcher_labels() {
-  launchctl list \
-    | awk -v prefix="$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX" '$3 ~ ("^" prefix) { print $3 }'
-}
-
-restart_release_bound_collectors() {
-  local release="$1"
-  local watcher_label
-  local -a market_watchers
-
-  restart_loaded_service "$BROWSER_KEEPALIVE_LABEL" || return 1
-  restart_loaded_service "$JUNKWARE_COLLECTOR_LABEL" || return 1
-  restart_loaded_service "$JUNKWARE_HISTORY_RECONCILIATION_LABEL" || return 1
-  restart_loaded_service "$SEARCHKINGS_COLLECTOR_LABEL" || return 1
-  restart_loaded_service "$PODIUM_REVIEWS_COLLECTOR_LABEL" || return 1
-
-  market_watchers=("${(@f)$(loaded_market_watcher_labels)}") || return 1
-  for watcher_label in "${market_watchers[@]}"; do
-    [[ -n "$watcher_label" ]] || continue
-    restart_loaded_service "$watcher_label" || return 1
-  done
-
-  # Production owns the low-latency detector. Reinstalling also repairs a
-  # missing or unloaded LaunchAgent and ends by kickstarting it.
-  "$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1
-  if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
-    RESTARTED_SERVICE_LABELS+=("$JUNKWARE_SCHEDULE_DETECTOR_LABEL")
-  fi
-
-  # LinxUp refreshes its installed plist so policy changes travel with the
-  # immutable release; its installer ends by kickstarting the loaded service.
-  if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
-    "$release/deploy/macmini/install-linxup-collector.sh" || return 1
-    RESTARTED_SERVICE_LABELS+=("$LINXUP_COLLECTOR_LABEL")
-  fi
-}
-
-restart_release_bound_services() {
-  local release="$1"
-
-  if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
-    restart_loaded_service "$WHATSAPP_PHOTO_LABEL" || return 1
-  fi
-  restart_release_bound_collectors "$release"
-}
-
-whatsapp_photo_worker_restart_enabled() {
-  [[ "$RESTART_WHATSAPP_PHOTO_WORKER" == "1"
-    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "true"
-    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "yes"
-    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "on" ]]
-}
 
 activate_release() {
   local release="$1"
@@ -198,6 +140,10 @@ activate_release() {
 }
 
 prune_superseded_releases() {
+  if [[ "$PRESERVE_RELEASES" == true ]]; then
+    echo "Preserving all existing releases; deployment retention skipped."
+    return 0
+  fi
   # Cleanup failure must preserve files and report itself, not roll back a
   # healthy application. The helper shares this deployment's lock.
   python3 "$SCRIPT_DIR/workspace-retention.py" --apply --scope production \
@@ -232,6 +178,7 @@ restore_previous_release() {
 }
 
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
+[[ "$PRESERVE_RELEASES" == true || "$PRESERVE_RELEASES" == false ]] || fail "OPSCENTER_PRESERVE_RELEASES must be true or false"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
 [[ "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" == <-> && "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS must be a positive integer"
@@ -245,6 +192,22 @@ done
 
 mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
 acquire_deploy_lock
+SLOT_MODE="legacy"
+if [[ -e "$DEPLOY_ROOT/.release-slots" ]]; then
+  SLOT_MODE="$(node "$SCRIPT_DIR/origin-state.mjs" mode "$DEPLOY_ROOT/.release-slots")" || fail "deployment mode unavailable; refusing"
+fi
+case "$SLOT_MODE" in
+  legacy|slots|bootstrap-incomplete) ;;
+  *) fail "deployment mode unreadable; refusing" ;;
+esac
+if [[ "$SLOT_MODE" == slots ]]; then
+  node "$SCRIPT_DIR/release-transaction.mjs" recover unused "$$" &
+  ACTIVE_DEPLOY_CHILD=$!
+  wait "$ACTIVE_DEPLOY_CHILD"
+  ACTIVE_DEPLOY_CHILD=""
+elif [[ "$SLOT_MODE" == bootstrap-incomplete ]]; then
+  fail "first-time proxy bootstrap requires reconciliation before a routine deployment"
+fi
 active_release="$(readlink "$APP_LINK")"
 [[ -d "$active_release" ]] || fail "active OpsCenter target is missing: $active_release"
 prune_superseded_releases "$active_release" "$active_release"
@@ -259,6 +222,11 @@ active_release="$(readlink "$APP_LINK")"
 active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
 [[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
 require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
+# Every new commit needs an approved cross-model review receipt in the vault
+# (docs/agent-handoffs.md). The installed controller enforces this so that no
+# launcher copy can skip it.
+python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY" "$active_commit" "$commit" "$DEPLOY_ROOT/vault/Tasks" \
+  || fail "the review gate refused $commit"
 
 release="$RELEASES_DIR/$commit"
 if [[ -d "$release" ]]; then
@@ -302,7 +270,14 @@ npx playwright install chromium
 
 active_label=""
 active_port=""
-if service_loaded "$PRODUCTION_LABEL"; then
+if [[ "$SLOT_MODE" == slots ]]; then
+  active_label="com.openclaw.opscenter.origin-proxy"
+  active_port="3000"
+  npm run build &
+  ACTIVE_DEPLOY_CHILD=$!
+  wait "$ACTIVE_DEPLOY_CHILD"
+  ACTIVE_DEPLOY_CHILD=""
+elif service_loaded "$PRODUCTION_LABEL"; then
   active_label="$PRODUCTION_LABEL"
   active_port="3000"
   npm run build
@@ -327,7 +302,24 @@ latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 
 [[ -n "$latest_active_commit" ]] || fail "cannot resolve the active commit during the final deployment check"
 require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"
 
+# Both deployment modes must finish migrations before starting a candidate or
+# changing the live link. Recheck lineage after database work as well as build.
+migrate_production_release "$release"
+git -C "$REPOSITORY" fetch --prune origin
+require_production_head "$commit"
+latest_active_release="$(readlink "$APP_LINK")"
+[[ -n "$latest_active_release" ]] || fail "cannot recheck the active release after migrations"
+latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 2>/dev/null || true)"
+[[ -n "$latest_active_commit" ]] || fail "cannot resolve the active commit after migrations"
+require_forward_deploy "$latest_active_commit" "$commit" "active release changed during migrations"
+
 previous_target="$(readlink "$APP_LINK")"
+if [[ "$SLOT_MODE" == slots ]]; then
+  node "$SCRIPT_DIR/release-transaction.mjs" deploy "$commit" "$$" &
+  ACTIVE_DEPLOY_CHILD=$!
+  wait "$ACTIVE_DEPLOY_CHILD"
+  ACTIVE_DEPLOY_CHILD=""
+else
 activate_release "$release"
 
 if [[ -n "$active_label" ]]; then
@@ -348,6 +340,7 @@ if ! restart_release_bound_services "$release"; then
   fail "release $commit failed collector restart health and was rolled back"
 fi
 
+fi
 prune_superseded_releases "$release" "$previous_target"
 
 echo

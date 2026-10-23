@@ -11,11 +11,21 @@ for(const available of [200,320,500,550,700,1000]){
   assert.ok(height>=labels[i],'Truck labels retain their full height');
   assert.ok(height>=(natural[i]-footers[i])*layout.scale+footers[i],'Status footer does not overlap scaled lanes');
  });
- if(available>=natural.reduce((a,b)=>a+b,0)) assert.equal(layout.scale,1);
+ if(available>=natural.reduce((a,b)=>a+b,0)) {
+  assert.equal(layout.scale,1);
+  assert.equal(layout.heights.reduce((a,b)=>a+b,0),available,'Sparse schedules fill the shared panel height');
+ }
 }
 const fitted=scheduleViewportLayout(natural,labels,550,footers);
 assert.ok(fitted.fits && fitted.scale<1,'A moderately crowded board fits every row');
 assert.equal(scheduleViewportLayout(natural,labels,200,footers).fits,false,'Extremely short windows fall back to scrolling');
-assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[36]);
+assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[100]);
+assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33],'Spare pixels are shared evenly without overflow');
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
 console.log('Schedule vertical fit, label/footer clearance and readable overflow passed.');
+
+const readable=scheduleViewportLayout(natural,labels,320,footers,true);
+assert.equal(readable.scale,1,'Phase 2 preserves natural text and lane height');
+assert.deepEqual(readable.heights,natural);
+assert.equal(readable.fits,false,'Dense Phase 2 boards use their existing scroll area');
+assert.equal(scheduleViewportLayout(natural,labels,1000,footers,true).heights.reduce((a,b)=>a+b,0),1000,'Sparse Phase 2 boards still fill the panel');

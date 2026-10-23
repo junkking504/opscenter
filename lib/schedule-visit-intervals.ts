@@ -6,7 +6,7 @@ import { truckLabel, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from 
 export type { ScheduleTruckVisit, ScheduleTruckVisitGap } from '../desktop-ui/lib/schedule-contract';
 type Job = Parameters<typeof currentGpsPresence>[0];
 type Interval = { arrival?: string; departure?: string | null; departure_confirmed?: boolean; source_timestamps?: string[] };
-type Visit = { appointment_id?: string; appt_id?: string; truck_number?: string; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; final_departure?: string; source_timestamps?: string[]; visit_intervals?: Interval[] };
+type Visit = { visit_pin?: {approximate?:boolean}; appointment_id?: string; appt_id?: string; truck_number?: string; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; final_departure?: string; source_timestamps?: string[]; visit_intervals?: Interval[] };
 type FacilityVisit = { kind?: string; truck: string; name: string; enteredAt: string | null; resetLocation?: 'dump' | 'metal_yard' | null; conflict?: boolean };
 
 /** Display evidence only. Never alter booked assignments or visit accounting. */
@@ -22,8 +22,8 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
       if (!Number.isFinite(start) || start > now) continue;
       const departure = interval.departure_confirmed === false ? null : interval.departure || null;
       const end = departure ? Date.parse(departure) : Math.max(start, ...(interval.source_timestamps || []).map(Date.parse).filter(t => Number.isFinite(t) && t >= start && t <= now));
-      if (!Number.isFinite(end) || (departure ? end <= start : end < start) || end > now) continue;
-      result.push({truck,arrival:new Date(start).toISOString(),departure:departure ? new Date(end).toISOString() : null,observedThrough:new Date(end).toISOString()});
+      if (!Number.isFinite(end) || (departure ? end < start || end === start && !(visit.visit_pin?.approximate && interval.departure_confirmed === true) : end < start) || end > now) continue;
+      result.push({...(visit.visit_pin?.approximate ? {approximate:true} : {}),truck,arrival:new Date(start).toISOString(),departure:departure ? new Date(end).toISOString() : null,observedThrough:new Date(end).toISOString()});
     }
   }
   // Qualify each truck independently: two crews may work the same appointment.
@@ -33,7 +33,7 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
     const presence = currentGpsPresence({...job,onsiteTime:time}, [truck], appointments, now);
     if (!presence?.current) continue;
     const existing = result.filter(v => v.truck === name && !v.departure && Date.parse(v.arrival) <= Date.parse(presence.observedAt) && Date.parse(v.observedThrough) >= Date.parse(presence.arrival)).sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
-    const active = existing || {truck:name,arrival:presence.arrival,departure:null,observedThrough:presence.observedAt};
+    const active = existing || {...(presence.approximate ? {approximate:true} : {}),truck:name,arrival:presence.arrival,departure:null,observedThrough:presence.observedAt};
     active.observedThrough = presence.observedAt;
     active.currentUntil = new Date(Date.parse(presence.observedAt) + onsiteGpsMaxAge(truck)).toISOString();
     if (!existing) result.push(active);
@@ -47,6 +47,7 @@ export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceT
         previous.observedThrough = visit.observedThrough;
         previous.departure = visit.departure;
       }
+      if(visit.approximate)previous.approximate=true;
       if (visit.currentUntil) previous.currentUntil = visit.currentUntil;
     } else merged.push({...visit});
   }

@@ -28,3 +28,13 @@ const completed=[{id:'a',truck:'Truck 6',revenue:1000.01,tips:10.01,crew:['Test 
 const moved=testDaySummary({...day,truck:'Truck 9'},completed,0);assert.equal(moved.revenue,1000);assert.equal(moved.completed?.length,1);assert.equal(moved.crew[0].revenue,1000.01);assert.equal(moved.crew[0].progress?.bonus,20);assert.equal(moved.crew[1].revenue,1000);assert.equal(testDaySummary(day,completed,1).revenue,null);
 assert.equal(mapsDirections('Address unavailable'),null);assert(mapsDirections('10 Main & A #2')?.includes('10%20Main%20%26%20A%20%232'));
 console.log('PASS: all tier boundaries, authoritative credit for attendance-only crew, highest-tier cap, privacy projection, source freshness, missing data, truck switches, legacy test totals, Maps encoding.');
+// Existing source revenue, not payment rows, drives Waypoint totals and credits.
+for(const collected of [0,1236]){
+ const billedSchedule={...fastSchedule,appointments:fastSchedule.appointments.map(row=>({...row,payment_type:'Billed',closeout:{...row.closeout,payments:[{method:'Billed',amount:1236},...(collected?[{method:'Cash',amount:collected}]:[])]}}))};
+ const billedDay=projectWaypointDay(day,laggingMetrics,now+90_000,billedSchedule);
+ assert.equal(billedDay.revenue,1573.84,'Billed closeout contributes completed-job revenue once, before and after collection');
+ assert.equal(billedDay.crew[0].revenue,786.92);
+ const synced=projectWaypointDay(day,{...laggingMetrics,revenue_by_truck:{'Truck# 6':1573.84},appointments:laggingMetrics.appointments.map(row=>row.appt_id==='new'?{...row,job_status:'Completed',revenue:1236,payment_type:'Billed'}:row)},now+90_000,billedSchedule);
+ assert.equal(synced.revenue,1573.84,'Metrics catch-up cannot add the same billed job twice');assert.equal(synced.completed?.length,2);
+}
+console.log('PASS: billed revenue before/after collection, crew credit and metrics catch-up without duplicate revenue.');

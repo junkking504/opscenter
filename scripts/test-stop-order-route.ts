@@ -12,6 +12,7 @@ let saves = 0;
 class StopOrderConflict extends Error {}
 const dependencies: Record<string, unknown> = {
   'next/headers': {cookies:async()=>({get:()=>({value:'synthetic'})})},
+  '@/lib/waypoint-manager-context': {waypointManagerActor:()=>null},
   '@/lib/auth': {AUTH_SESSION_COOKIE:'test',verifyAuthSessionCookie:async()=>({email:'test',role:'manager'})},
   '@/lib/desktop-request-origin': {isDesktopWriteOriginAllowed:()=>true},
   '@/lib/ops-roles': {opsRoleCan:()=>true},

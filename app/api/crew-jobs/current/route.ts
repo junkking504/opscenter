@@ -6,8 +6,9 @@ import { crewDispatchSources } from '@/lib/crew-dispatch-sources';
 import { requireCrewDay } from '@/lib/crew-phone-day';
 import { readCrewDispatch } from '@/lib/crew-dispatch-store';
 import { CrewPhoneError } from '@/lib/crew-phone';
-import { after } from 'next/server';
-import { crewAssignedDay } from '@/lib/crew-assigned-day';
+import {trackedAfter as after} from '@/lib/release-after';
+import { crewCanBrowseAllTrucks } from '@/lib/crew-appointment-visibility';
+import { crewAssignedDay, crewVisibleDay } from '@/lib/crew-assigned-day';
 import { matchingCrewCompletion } from '@/lib/crew-dispatch-store';
 import {warmCrewCloseout} from '@/lib/crew-closeout-service';
 import {ensureCrewScheduleDispatch} from '@/lib/crew-schedule-dispatch';
@@ -46,6 +47,7 @@ export async function GET(request:Request) {
       await check;
     });
     if(!completionPending && payload.job && payload.jobs?.some(job=>job.assignmentId===payload.job?.assignmentId && /^confirmed$/i.test(job.status)))after(()=>warmCrewCloseout(request,payload.job!.assignmentId));
-    return crewPhoneResponse({...payload,summary,completionPending});
+    const visible=crewCanBrowseAllTrucks(current)?crewVisibleDay(current,day.date,true):payload;
+    return crewPhoneResponse({...visible,summary,completionPending});
   } catch(error) {return crewPhoneFailure(error);}
 }

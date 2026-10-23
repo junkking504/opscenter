@@ -51,7 +51,11 @@ if [[ "$MODE" == "incremental" ]]; then
 
   # These folders are written by the VPS app. Pull them back first so the Mac
   # collector sees manual changes before it produces the next metrics file.
+  # Transient exclusions must precede subtree includes (first matching rule wins).
+  # Keep processing records: interrupted uploads need them for source read-back.
   rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
+    --exclude '*.lock' --exclude '*.lock/' --exclude '.*.lock/' \
+    --exclude '*.tmp' --exclude '*.tmp-*' \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \
@@ -83,6 +87,7 @@ rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updat
   --exclude '/reports/' \
   --exclude '/history/linxup/pending/' \
   --exclude '/schedule-requests/' \
+  --exclude '*.lock' \
   --exclude '*.tmp' \
   --exclude '*.tmp-*' \
   --exclude '.*.lock/' \
@@ -100,6 +105,8 @@ rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updat
 
 if [[ "$MODE" == "initial" ]]; then
   rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
+    --exclude '*.lock' --exclude '*.lock/' --exclude '.*.lock/' \
+    --exclude '*.tmp' --exclude '*.tmp-*' \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \

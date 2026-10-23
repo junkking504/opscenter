@@ -3,8 +3,9 @@ import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-p
 import { cleanJunkwareAddressText } from './junkware-address-text';
 import { osmAddressJson } from './osm-address-transport';
 import type { AddressVerification } from './desktop-address-verification';
-import {cleanServiceQuery,normalizeServiceAddress} from './service-address-format';
+import {cleanServiceQuery,normalizeServiceAddress,serviceUnitIdentifiers} from './service-address-format';
 import {hasMinorStreetCorrection} from './address-spelling-correction';
+import {approximateMapAddressQuery} from './address-map-query';
 
 const normalize=normalizeServiceAddress;
 export function osmServiceAddressQuery(address:string):string|null {
@@ -15,6 +16,9 @@ export function osmServiceAddressQuery(address:string):string|null {
   // allow an exact building match when a source postal code is wrong.
   const street=cleanServiceQuery(fullFieldStreetAddress(address)).replace(/[,\s]+\d{5}(?:-\d{4})?\s*$/,'').trim();
   return street === address.trim() && !/\d{5}\s*$/.test(address) ? null : street.replace(/\s+/g,' ');
+}
+export function osmMapAddressQuery(address:string):string|null {
+  return osmServiceAddressQuery(address)||osmServiceAddressQuery(approximateMapAddressQuery(address));
 }
 type OsmAddress = {lat?:string;lon?:string;osm_type?:string;osm_id?:number;place_rank?:number;category?:string;type?:string;boundingbox?:string[];address?:Record<string,string>};
 export function verifyOsmServiceAddress(address:string,payload:unknown):AddressVerification {
@@ -28,6 +32,8 @@ export function verifyOsmServiceAddress(address:string,payload:unknown):AddressV
   const identities=new Set(rows.map(row=>JSON.stringify([row.osm_type,row.osm_id,row.lat,row.lon,row.address])));
   if(identities.size!==1)return {location:null,reason:'Multiple Address Matches'};
   const row=rows[0],a=row.address || {},city=a.city||a.town||a.village||'';
+  const units=serviceUnitIdentifiers(address);
+  if(new Set(units).size>1 || a.unit && (!units.length || units[0]!==a.unit.toUpperCase().replace(/-/g,'')))return unavailable;
   const sourceHouse=serviceHouseAndStreet(query);
   if (!sourceHouse || normalizeHouseNumber(sourceHouse.house)!==normalizeHouseNumber(a.house_number || '')) return unavailable;
   const requested=normalize(query).replace(/ (?:LA|LOUISIANA)$/,'');
@@ -43,9 +49,12 @@ export function verifyOsmServiceAddress(address:string,payload:unknown):AddressV
   return {location:{latitude,longitude},reason:corrected?'Minor Street Spelling Correction Verified':sourceZip===zip?'Exact OpenStreetMap Building Verified':'Exact Building Verified · Source ZIP Differs',matchedAddress:`${a.house_number} ${a.road}, ${city}, LA ${zip}`,source:'OpenStreetMap',sourceUrl:`https://www.openstreetmap.org/${row.osm_type}/${row.osm_id}`};
 }
 export async function verifyOsmAddressFallback(address:string,waitBudgetMs=0):Promise<AddressVerification> {
-  const query=osmServiceAddressQuery(address);
+  const query=osmMapAddressQuery(address);
   if(!query)return {location:null,reason:'Address Needs Review'};
   const result=await osmAddressJson('search',new URLSearchParams({q:query,format:'jsonv2',addressdetails:'1',limit:'5',countrycodes:'us'}),waitBudgetMs);
   if(result.retryAfterMs)return {location:null,reason:'Automatic Address Check Pending',retryAfterMs:result.retryAfterMs};
+  // Approximate query recovery only populates the existing provider cache.
+  // Verification still receives the untouched source and cannot confirm a
+  // property solely because we guessed the road suffix for map display.
   return verifyOsmServiceAddress(address,result.payload);
 }

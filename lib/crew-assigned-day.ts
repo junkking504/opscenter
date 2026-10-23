@@ -1,4 +1,6 @@
 import path from 'node:path';
+import {readCrewRouteLocations} from './crew-route-locations';
+import {isAmazonJob,amazonAssignedTruck} from './amazon-closeout';
 import { createHash } from 'node:crypto';
 import type { CrewPhone } from './crew-phone';
 import type { CrewCurrent, CrewScheduledJob } from './crew-dispatch';
@@ -17,6 +19,7 @@ const sources = {
   overrides: readJobRouteAssignmentOverrides,
   dispatch: readCrewDispatch,
   reset: crewCloseoutReset,
+  locations: readCrewRouteLocations,
 };
 const safePaymentDetail=(method:string,detail:string)=>{
   const value=String(detail || '').trim();
@@ -26,13 +29,15 @@ const safePaymentDetail=(method:string,detail:string)=>{
 };
 /** The schedule appends its duration to status text after completion. */
 export function crewAppointmentStatus(value:string) {
-  const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(value.trim());
+  const status=value.trim().replace(/^(?:\*\s*(?:ETA|Assignment) Required\s*\*\s*)+/i,'');
+  const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(status);
   return match?match[1].toLowerCase()==='completed'?'Completed':'Confirmed':null;
 }
 
 export function crewAssignmentUpdateToken(payload: CrewCurrent) {
   return createHash('sha256').update(JSON.stringify({
     state:payload.state,
+    visibility:payload.visibility,
     truck:payload.truck,
     job:payload.job?.assignmentId || null,
     jobs:payload.jobs || [],
@@ -55,7 +60,17 @@ function withUpdateToken(payload:CrewCurrent):CrewCurrent {
 
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
-export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'> & {reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
+export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'|'locations'> & {locations?:typeof readCrewRouteLocations;reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
+  return assignedDay(phone,date,deps,now,false);
+}
+
+/** Browsing projection only: callers must obtain allTrucks from server policy.
+ * The original crewAssignedDay remains the sole truck-day write-scope source. */
+export function crewVisibleDay(phone: CrewPhone, date: string, allTrucks: boolean, deps: Parameters<typeof crewAssignedDay>[2] = sources, now = Date.now()): CrewCurrent {
+  return assignedDay(phone,date,deps,now,allTrucks);
+}
+
+function assignedDay(phone: CrewPhone, date: string, deps: NonNullable<Parameters<typeof crewAssignedDay>[2]>, now: number, allTrucks: boolean): CrewCurrent {
   const snapshot = deps.snapshot(date);
   const age = snapshot ? now - snapshot.freshnessAtMs : Infinity;
   if (!snapshot || snapshot.date !== date || age < 0 || age > 120_000) return withUpdateToken({
@@ -73,28 +88,33 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
     const override = overrides.get(`appt:${row.appointmentId}`);
     const verifiedAt=Date.parse(override?.junkwareVerifiedAt || '');
     const newerVerifiedMove=Boolean(override?.junkwareSyncStatus==='verified' && Number.isFinite(verifiedAt) && verifiedAt>snapshot.freshnessAtMs);
-    const truck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
+    const assignedTruck=newerVerifiedMove?override!.truck:row.assignedTruck || row.truck;
+    const truck=isAmazonJob(row)?amazonAssignedTruck(assignedTruck):assignedTruck;
     if (!/^\d{1,12}$/.test(row.appointmentId) || counts.get(row.appointmentId) !== 1
-      || !sameTruck(truck, phone.truck) || !crewAppointmentStatus(row.status)
+      || (!sameTruck(truck, phone.truck) && !isAmazonJob(row) && !(allTrucks && truckNumber(truck)!==null)) || !crewAppointmentStatus(row.status)
       || (override && override.junkwareSyncStatus !== 'verified')) return [];
     return [{...row,truck,assignedTruck:truck,
       ...(newerVerifiedMove && override?.appointmentTime ? {appointmentTime:override.appointmentTime} : {}),
       recordId:`${date}:appointment:${row.appointmentId}`,version:''}];
   });
+  const locations=deps.locations?.(eligible.map(row=>row.address));
   const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
     .map(row => {
-      const reset=deps.reset?.(phone.truck,date,row.appointmentId) || null;
+      const readOnly=!sameTruck(row.truck,phone.truck) && !isAmazonJob(row);
+      const reset=readOnly?null:deps.reset?.(phone.truck,date,row.appointmentId) || null;
       return ({
-      appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
-      address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
+      appointmentId: row.appointmentId, date, truck:row.truck, sharedAmazon:isAmazonJob(row), jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
+      address: row.address, mapLocation:locations?.get(row.address) || null, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,
+      ...(row.visitOrder !== undefined ? {routePosition:row.visitOrder+1} : {}),
       ...(crewAppointmentStatus(row.status)==='Completed' ? {
         ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
       // Draft identity follows the appointment, never its current/queued slot.
       // Aliases are migration hints only; request scope checks are unchanged.
+      ...(readOnly ? {readOnly:true} : {
       draftScope: `appointment:${date}:${row.appointmentId}:${reset?.token || 'original'}`,
       draftAssignmentIds: [...new Set([
         crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
@@ -103,8 +123,9 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeo
       assignmentId: current?.date === date && current.appointmentId === row.appointmentId
         ? current.assignmentId : crewScheduleAssignmentId(phone.truck,date,row.appointmentId,reset?.token),
       ...(reset?{resetAt:reset.resetAt,resetPriorAssignmentId:reset.priorAssignmentId}:{}),
+      }),
     });});
   const active = jobs.find(job => job.assignmentId);
-  return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,
+  return withUpdateToken({state: jobs.length ? 'assigned' : 'waiting', truck: phone.truck, observedAt: new Date(snapshot.freshnessAtMs).toISOString(), jobs,...(allTrucks?{visibility:'all-trucks' as const}:{}),
     job: active?.assignmentId ? {...active, assignmentId: active.assignmentId} : null});
 }

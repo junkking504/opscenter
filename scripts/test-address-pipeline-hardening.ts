@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { verifyCensusAddress, verifyDesktopAddress, cachedAddressVerification, ADDRESS_VERIFICATION_POLICY } from '../lib/desktop-address-verification';
-import { appointmentServiceAddress, cleanServiceQuery } from '../lib/service-address-format';
+import { appointmentServiceAddress, cleanServiceQuery, legacyServiceQuery, serviceUnitIdentifiers } from '../lib/service-address-format';
+import { geocodioAddressQuery } from '../lib/geocodio-service-address';
 import { serviceStreetCandidates, fullFieldStreetAddress } from '../lib/appointment-partner';
 import { verifyOsmServiceAddress } from '../lib/osm-service-address';
 import { planningLocation } from '../lib/planning-geocodes';
@@ -86,6 +87,34 @@ for (const input of ['100 County Rd B115 New Orleans LA 70125','100 Parish Road 
 assert.equal(verify('100 E Example St B115 New Orleans LA 70125').location,null,'Unit repair must not erase a directional conflict');
 assert.equal(appointmentServiceAddress({address:'100 Example St B115 New Orleans LA 70125',mapAddress:'100 EXAMPLE ST B210, NEW ORLEANS, LA, 70125'}),'100 EXAMPLE ST, Unit B115, NEW ORLEANS, LA, 70125');
 
+for (const tail of ['B, New Orleans, 70125', 'B New Orleans LA 70125', 'a, New Orleans, LA 70125', 'C, New Orleans, LA 70125-1234']) {
+  const address = `100 Example St ${tail}`, unit = tail[0].toUpperCase();
+  assert.deepEqual(serviceUnitIdentifiers(address), [unit]);
+  assert.ok(verify(address).location, 'Bare letter permits matching building evidence');
+  assert.match(geocodioAddressQuery(address)!, /^100 Example St New Orleans(?:,| )/);
+  assert.equal(legacyServiceQuery(address), address, 'Pre-fix provider cache keys remain readable');
+  assert.match(appointmentServiceAddress({address, mapAddress:match().matchedAddress}), new RegExp(`Unit ${tail[0]}`));
+  assert.equal(verify(address, '101 EXAMPLE ST').location, null, 'Unit normalization cannot change the house');
+  assert.equal(verify(address, '100 OTHER ST').location, null, 'Unit normalization cannot change the street');
+}
+for (const address of [
+  '100 Avenue B, New Orleans, 70125', '100 N Avenue B, New Orleans, 70125',
+  '100 North Avenue B, New Orleans, 70125', '100 B St, New Orleans, 70125',
+  '100 County Rd B, New Orleans, 70125', '100 Parish Road A, New Orleans, 70125',
+  '100 State Rd C, New Orleans, 70125', '100 Farm Rd D, New Orleans, 70125',
+  'Business 5 100 Avenue B, New Orleans, 70125',
+  'Business 5 Location 100 Avenue B, New Orleans, 70125',
+  '100 Example St B', '100 Example St B, New Orleans',
+  ...['N','S','E','W','NE','NW','SE','SW'].map(d => `100 Example St ${d}, New Orleans, 70125`),
+]) {
+  assert.deepEqual(serviceUnitIdentifiers(address), [], `Ambiguous street or direction is not a unit: ${address}`);
+  assert.equal(cleanServiceQuery(address), address);
+}
+assert.equal(cleanServiceQuery('Apt 5 100 Avenue B, New Orleans, 70125'),'100 Avenue B, New Orleans, 70125', 'Explicit prefix unit must not make Avenue B a unit');
+assert.deepEqual(serviceUnitIdentifiers('100 6th St B, New Orleans, 70125'),['B'], 'Ordinal street stems still allow a trailing unit');
+assert.equal(verify('100 E Example St B, New Orleans, 70125').location, null);
+assert.equal(appointmentServiceAddress({address:'100 Example St B, New Orleans, 70125',mapAddress:'100 EXAMPLE ST Unit C, NEW ORLEANS, LA, 70125'}),'100 EXAMPLE ST, Unit B, NEW ORLEANS, LA, 70125', 'Source unit wins over a conflicting provider unit');
+
 const written=match('100 SIXTH ST','SIXTH'),numeric=match('100 6TH ST','6TH');
 assert.ok(verifyCensusAddress('100 Sixth St New Orleans LA 70125',{result:{addressMatches:[written,numeric]}}).location,'Same road, point and premises collapse ordinal aliases');
 for(const other of [
@@ -100,6 +129,9 @@ for(const other of [
 const building={lat:'29.95',lon:'-90.1',osm_type:'way',osm_id:12345,place_rank:30,category:'place',type:'house',boundingbox:['29.9499','29.9501','-90.1001','-90.0999'],address:{house_number:'100',road:'Example Street',city:'New Orleans',state:'Louisiana',postcode:'70125',country_code:'us'}};
 for(const input of ['100 Example St Other City LA 70125','100 Example St New Orleans MS 70125','98-100 Example St New Orleans LA 70125','100 1/2 Example St New Orleans LA 70125']) assert.equal(verifyOsmServiceAddress(input,[building]).location,null,'Fallback enforces identical source identity guards');
 assert.ok(verifyOsmServiceAddress('100AB Example St Apt #2 New Orleans LA 70125',[{...building,address:{...building.address,house_number:'100AB'}}]).location);
+const bareLetterAddress = '100 Example St B, New Orleans, 70125';
+assert.ok(verifyOsmServiceAddress(bareLetterAddress,[building]).location, 'Existing building evidence can resolve a bare letter unit');
+assert.equal(verifyOsmServiceAddress(bareLetterAddress,[{...building,address:{...building.address,unit:'C'}}]).location, null, 'Conflicting unit evidence remains rejected');
 
 const cachePath=(address:string)=>path.join(process.env.SERVICE_ADDRESS_CACHE_DIR!,createHash('sha256').update(address).digest('hex')+'.json');
 function seedOld(address:string,matchedAddress?:string) {
@@ -107,6 +139,9 @@ function seedOld(address:string,matchedAddress?:string) {
   fs.writeFileSync(cachePath(address),JSON.stringify({schema:7,address,expires:Date.now()+3600000,verified:{location:point,reason:'House, Street, And ZIP Verified',matchedAddress}}));
 }
 const valid='100 Example St New Orleans LA 70125';
+fs.mkdirSync(process.env.SERVICE_ADDRESS_CACHE_DIR!,{recursive:true});
+fs.writeFileSync(cachePath(bareLetterAddress),JSON.stringify({schema:18,address:bareLetterAddress,expires:Date.now()+3600000,verified:{location:null,reason:'No Exact Geocodio Premises Match'}}));
+assert.equal(cachedAddressVerification(bareLetterAddress),undefined,'Pre-fix negative cache must not delay the corrected lookup');
 seedOld(valid,match().matchedAddress);
 assert.deepEqual(cachedAddressVerification(valid)?.location,point,'Revalidate old evidence locally without discarding valid pins');
 for(const bad of ['100 Example St Other City LA 70125','98-100 Example St New Orleans LA 70125','100 1/2 Example St New Orleans LA 70125']) {

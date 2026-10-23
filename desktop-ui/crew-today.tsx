@@ -1,3 +1,6 @@
+import { MetricValue } from './metric-value';
+import { DeltaChip } from './delta-chip';
+import { crewRph, employeeRph } from './lib/crew-rph';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useState } from 'react';
 import { DrivingScoreBadge } from './driving-scores';
@@ -25,15 +28,16 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
     (filter === 'all' || filter === 'attention' && Boolean(member.issue) || filter === 'unassigned' && member.truck === 'Unassigned')
   );
   const totals = snapshot.totals;
+  const rph = crewRph(snapshot);
   return <div className="crew-today">
     <div className="krewe-kpi-strip" aria-label="Selected day’s full crew summary">
-      <article><span>Crew count</span><strong>{members.filter(member => member.working).length}</strong><small>Recorded clock-in for this day</small></article>
-      <article><span>Crew revenue</span><strong>{money(totals.revenue)}</strong><small>Credited to clocked-in crew</small></article>
-      <article><span>Average RPH</span><strong>{money(totals.hours && totals.revenue !== null ? totals.revenue / totals.hours : null)}</strong><small>Available worked hours</small></article>
-      <article><span>Employee total earnings</span><strong>{money(totals.totalPay)}</strong><small>{snapshot.payrollVisible ? 'Available payroll rows only' : 'Manager access required'}</small></article>
+      <article><span>Krewe count</span><DeltaChip current={members.filter(member => member.working).length} comparison={snapshot.comparison && {prior:snapshot.comparison.count,label:snapshot.comparison.label}} /><strong><MetricValue value={members.filter(member => member.working).length} /></strong><small>Recorded clock-in for this day</small></article>
+      <article><span>Krewe revenue</span><DeltaChip current={totals.revenue} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.revenue,label:snapshot.comparison.label}} /><strong><MetricValue value={money(totals.revenue)} /></strong><small>Credited to clocked-in crew</small></article>
+      <article><span>Average RPH</span><DeltaChip current={rph.value} comparison={snapshot.comparison && {prior:snapshot.comparison.rph,label:snapshot.comparison.label}} /><strong><MetricValue value={rph.value === null ? 'Unavailable' : money(rph.value)} /></strong><small>{rph.included} with valid worked hours{rph.excluded ? ` · ${rph.excluded} excluded` : ''}</small></article>
+      <article><span>Employee total earnings</span><DeltaChip current={totals.totalPay} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.totalPay,label:snapshot.comparison.label}} lowerIsBetter /><strong><MetricValue value={money(totals.totalPay)} /></strong><small>{snapshot.payrollVisible ? 'Available payroll rows only' : 'Manager access required'}</small></article>
     </div>
-    <section className="crew-today-roster" aria-label="Today’s crew roster">
-      <header className="crew-today-heading"><div><h2>Today’s crew</h2><p>{visible.length} of {members.length} shown · Includes completed shifts</p></div>
+    <section className="crew-today-roster" aria-label="Today’s krewe roster">
+      <header className="crew-today-heading"><div><h2>Today’s krewe</h2><p>{visible.length} of {members.length} shown · Includes completed shifts</p></div>
         <nav className="crew-section-nav" aria-label="Today sections">
           <button type="button" aria-pressed={view === 'pay'} onClick={() => setView('pay')}>{snapshot.payrollVisible ? 'Pay & hours' : 'Hours & assignments'}</button>
           <button type="button" aria-pressed={view === 'production'} onClick={() => setView('production')}>Production & driving</button>
@@ -42,7 +46,7 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
       <div className="crew-today-toolbar">
         <label>Find employee or truck<input type="search" value={search} placeholder="Search name or truck" onChange={event => setSearch(event.target.value)} /></label>
         <label>Show<select value={filter} onChange={event => setFilter(event.target.value)}>
-          <option value="all">All crew ({members.length})</option>
+          <option value="all">All krewe ({members.length})</option>
           <option value="attention">Needs attention ({members.filter(member => member.issue).length})</option>
           <option value="unassigned">Unassigned ({members.filter(member => member.truck === 'Unassigned').length})</option>
         </select></label>
@@ -51,13 +55,13 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
       <div className={`crew-today-list crew-today-${view}`}>
         {visible.map(member => <article key={member.id} className={`crew-today-row${member.issue ? ' needs-attention' : ''}`} aria-label={member.name}>
           <div className="crew-today-person"><span className="crew-today-avatar">{member.initials}</span><div><h3>{member.name}</h3><p>{member.role} · {truckDisplayText(member.truck || 'Unassigned')}</p></div></div>
+          <div className="crew-today-fact crew-today-rph"><span>RPH</span><strong><MetricValue value={snapshot.missingDates.length || employeeRph(member) === null ? 'Unavailable' : money(employeeRph(member))} /></strong><small>Revenue per labor hour</small></div>
           {view === 'pay' ? <>
-            <div className="crew-today-fact"><span>{member.status}</span><strong>{clockDurationLabel(member, date, now)}</strong><small>{member.clockIn || 'No clock-in'}{member.clockOut ? ` – ${member.clockOut}` : ''}</small></div>
-            <div className="crew-today-fact crew-today-pay"><span>Total pay</span><strong>{money(member.totalPay)}</strong><small>Before deductions</small></div>
+            <div className="crew-today-fact"><span>{member.status}</span><strong><MetricValue value={clockDurationLabel(member, date, now)} /></strong><small>{member.clockIn || 'No clock-in'}{member.clockOut ? ` – ${member.clockOut}` : ''}</small></div>
+            <div className="crew-today-fact crew-today-pay"><span>Total pay</span><strong><MetricValue value={money(member.totalPay)} /></strong><small>Before deductions</small></div>
             <div className="crew-today-actions"><button type="button" onClick={() => onOpen(member, 'pay')} aria-label={`View ${snapshot.payrollVisible ? 'pay' : 'record'} for ${member.name}`}>{snapshot.payrollVisible ? 'View pay' : 'View record'}</button>{snapshot.canWrite && <button type="button" className="crew-today-edit" aria-label={`Edit hours for ${member.name}`} onClick={() => onOpen(member, 'hours')}>Edit hours</button>}</div>
           </> : <>
-            <div className="crew-today-fact"><span>Revenue rank {ranked.indexOf(member) + 1}</span><strong>{money(member.revenue)}</strong><small>{metric(member.jobs)} jobs · Credited revenue</small></div>
-            <div className="crew-today-fact"><span>Revenue / hour</span><strong>{money(member.hours && member.revenue !== null ? member.revenue / member.hours : null)}</strong></div>
+            <div className="crew-today-fact"><span>Revenue rank {ranked.indexOf(member) + 1}</span><strong><MetricValue value={money(member.revenue)} /></strong><small>{metric(member.jobs)} jobs · Credited revenue</small></div>
             <div className="crew-today-driving"><span>Driving</span><DrivingScoreBadge rows={member.drivingScores || []} onClick={() => onOpen(member, 'driving')} /></div>
           </>}
           {member.issue && <button type="button" className="crew-today-issue" aria-label={`Review issue for ${member.name}`} onClick={() => onOpen(member, issuePanel(member.issue, snapshot.canWrite))}>

@@ -262,8 +262,8 @@ do
     ) || echo "WARNING: SearchKings refresh failed; retaining the last verified marketing snapshot."
     OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" npm --prefix "$OPSCENTER_DIR" run build:prediction-data \
       || echo "WARNING: prediction dataset refresh failed; retaining the last verified dataset."
-    # Mission Control owns app state. The one-way mode publishes to the retired
-    # VPS without importing stale copies over new Mission Control writes.
+    # Mission Control owns app state. The one-way mode publishes to the read-only
+    # VPS standby without importing stale copies over new Mission Control writes.
     # A backup failure must not back off successful local source collection.
     if [ "$CYCLE_COMPLETE" = true ]; then
       PUBLISH_SUCCEEDED=true

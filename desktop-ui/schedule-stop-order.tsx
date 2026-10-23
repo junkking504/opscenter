@@ -1,3 +1,4 @@
+import {scheduleMapLocation} from './lib/schedule-contract';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import { useEffect, useRef, useState } from 'react';
@@ -43,7 +44,7 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
     try {
       const response = await fetch('/api/desktop/schedule/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:snapshot.date,scope:'remaining',groupKey,sourceKey,ids,action}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60_000)])});
       const body = await response.json().catch(()=>{throw new Error('The server response was unavailable. Try again after the schedule refreshes.');});
-      if (!response.ok) throw new Error(body.error || 'Stop order unavailable.');
+      if (!response.ok) throw new Error(body.error || 'Job order unavailable.');
       if (abort.signal.aborted) return;
       if (action === 'save') { saved(body.snapshot); dialog.current?.close(); setGroup(null); }
       else { if (action === 'nearest') setIds(body.ids); setLegs(body.legs); }
@@ -65,10 +66,10 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
   },[sourceKey,draftKey,stale,refresh]);
   useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
   return <>
-    <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Stop Order</button>
+    <button type="button" className="schedule-stop-order-trigger" disabled={busy} title="Arrange assigned appointments for any truck without changing booked times" onClick={()=>{const first=groups.find(g=>truck && stopTruck(g[0].truck)===stopTruck(truck)) || groups[0];if(first)choose(first);dialog.current?.showModal();}}>Route Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
-      <header><h2 id="stop-order-title">Truck Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
-      <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops up or down, then save. Customer appointment times and truck assignments stay the same.</p>
+      <header><h2 id="stop-order-title">Truck Route Order</h2><button type="button" aria-label="Close route order" disabled={working === 'save'} onClick={close}>×</button></header>
+      <p>Choose a truck to arrange all its assigned open appointments for this day, across all time windows. Move stops into any order, regardless of booked time slots, then push the order to Waypoint. Crews see that numbered sequence; booked appointment times and truck assignments stay the same.</p>
       {groups.length>0 && <label>Truck<select aria-label="Truck to reorder" value={groupKey} disabled={working === 'save' || moved} onChange={event=>{const next=groups.find(g=>orderGroupKey(g[0],'remaining')===event.target.value);if(next)choose(next);}}>{groups.map(g=><option key={orderGroupKey(g[0],'remaining')} value={orderGroupKey(g[0],'remaining')}>{truckDisplayText(g[0].truck)} · {g.length} assigned {g.length===1?'stop':'stops'}</option>)}</select></label>}
       {moved && <p>Save this truck’s order before choosing another truck, or <button type="button" disabled={working === 'save'} onClick={()=>{if(group)choose(group);}}>Reset changes</button>.</p>}
       {!group && <><p>No assigned open appointments to reorder for this day.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
@@ -80,15 +81,15 @@ export default function ScheduleStopOrder({snapshot,truck,busy,saved,onBusyChang
           const job=group.find(job=>job.recordId === id)!;
           const leg=legs.find(leg=>leg.toAppointmentId === id && leg.fromAppointmentId === ids[index-1]);
           return <li key={id} data-stop-id={id} className={selected===id?'selected':''}>
-            {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !job.location || !group.find(job=>job.recordId === ids[index-1])?.location ? 'Location pending · automatic lookup' : 'Travel estimate unavailable'}</small>}
+            {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.approximate ? 'Approx. ' : ''}${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !scheduleMapLocation(job) || !scheduleMapLocation(group.find(job=>job.recordId === ids[index-1])!) ? 'Finding a pin…' : 'Travel estimate unavailable'}</small>}
             <div className="stop-order-row"><b>{index+1}</b><div><button type="button" className="stop-order-name" aria-label={`Show ${job.jkNumber} on route map`} onClick={()=>setSelected(id)}><strong>{job.jkNumber} · {job.customerName}</strong></button><span>{appointmentServiceAddress(job)}</span><small>Booked: {job.appointmentTime || 'Time unavailable'} · {job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);setSelected(id);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
           </li>;
         })}</ol>
         <button type="button" disabled={stale || working === 'save' || working === 'nearest' || ids.length>12 || group.some(job=>!job.location)} onClick={()=>void request('nearest')}>{working === 'nearest' ? 'Finding nearest stops…' : 'Suggest nearest after first stop'}</button>
         <p>Choose your first stop with the arrows. The suggestion then follows the nearest road distance. Estimates exclude live traffic.</p>
-        </div><ScheduleStopOrderMap jobs={ids.map(id=>group.find(job=>job.recordId===id)!)} legs={legs} selected={selected} onSelect={selectStop} loading={working==='preview'||working==='nearest'} stale={stale}/></div>
+        </div><ScheduleStopOrderMap jobs={ids.map(id=>group.find(job=>job.recordId===id)!)} fleet={snapshot.fleet} selectedTruck={group[0].truck} legs={legs} selected={selected} onSelect={selectStop} loading={working==='preview'||working==='nearest'} stale={stale}/></div>
         {message && <p role="alert">{message}</p>}
-        <footer><button type="button" disabled={working === 'save'} onClick={close}>Cancel</button><button type="button" disabled={!changed || stale || working === 'save' || working === 'nearest'} onClick={()=>void request('save')}>{working === 'save' ? 'Saving…' : 'Save Order'}</button></footer>
+        <footer><button type="button" disabled={working === 'save'} onClick={close}>Cancel</button><button type="button" disabled={!changed || stale || working === 'save' || working === 'nearest'} onClick={()=>void request('save')}>{working === 'save' ? 'Pushing order…' : 'Push order to Waypoint'}</button></footer>
       </>}
     </dialog>
   </>;

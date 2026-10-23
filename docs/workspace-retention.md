@@ -92,3 +92,9 @@ Run `npm run verify:workspace-retention` and the existing production lineage and
 collector lifecycle checks when changing this mechanism. Tests use disposable
 Git repositories and exercise active references, local/unpushed source, ignored
 files, symlink targets, retention counts and deployment-lock contention.
+
+## Pinned release slots
+
+See the [release-slot runbook](zero-downtime-deploys.md) for the separately reviewed installation,
+first proxy bootstrap, graceful rollback, routine activation and retained-slot
+protections. Source deployment alone does not enable slot mode.

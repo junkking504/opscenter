@@ -3,6 +3,7 @@
 import json
 import pathlib
 import sys
+import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -84,6 +85,14 @@ if __name__ == '__main__':
         validate(read_environment(CONFIG_DIR / 'production.env'),
                  read_environment(CONFIG_DIR / 'macmini-preview.env'),
                  health(3000), health(3100), '--require-preview-kernel' in sys.argv[1:])
+        state = pathlib.Path('/Users/missioncontrol/opscenter-v2/.release-slots')
+        if state.exists():
+            script = pathlib.Path(__file__).resolve().parent
+            mode = subprocess.check_output(['/opt/homebrew/bin/node', str(script / 'origin-state.mjs'), 'mode', str(state)], timeout=5, text=True).strip()
+            if mode == 'slots':
+                subprocess.run(['/opt/homebrew/bin/node', str(script / 'verify-release-slots.mjs')], check=True, timeout=30)
+            elif mode == 'bootstrap-incomplete':
+                raise ValueError('Bootstrap incomplete')
     except Exception:
         # Fail closed without leaking URLs, passwords, or arbitrary response text.
         print('FAIL  kernel isolation: configuration, runtime health, or distinct database check failed', file=sys.stderr)

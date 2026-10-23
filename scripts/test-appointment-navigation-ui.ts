@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import path from 'node:path';
+import {buildSync} from 'esbuild';
+
+// The desktop has its own React dependency tree. Use that single runtime for
+// both icons and SSR; CSS is irrelevant to these link/provenance assertions.
+const desktopRequire=createRequire(path.resolve('desktop-ui/package.json'));
+const React=desktopRequire('react'),{renderToStaticMarkup}=desktopRequire('react-dom/server');
+const bundle=buildSync({entryPoints:['desktop-ui/schedule-appointment-summary.tsx'],bundle:true,platform:'node',format:'cjs',packages:'external',loader:{'.css':'empty'},jsx:'automatic',write:false}).outputFiles[0].text;
+const exported={exports:{}};
+new Function('require','module','exports',bundle)(desktopRequire,exported,exported.exports);
+const Summary=(exported.exports as {default: Parameters<typeof React.createElement>[0]}).default;
+const address='123 Example Drive, New Orleans, 70126';
+const fallback={location:{latitude:30.05,longitude:-89.95},matchedAddress:'123 Example Dr, New Orleans, LA 70128',source:'Synthetic source',sourceUrl:'https://example.com/map',stale:false,visitEligible:false,navigationReviewed:true,detail:'Approximate address location; entrance unconfirmed. Not used for arrival or departure detection.'};
+const job={recordId:'synthetic',appointmentId:'synthetic',jkNumber:'JK_TEST',customerName:'Synthetic customer',address,territory:'Junk King New Orleans',status:'Confirmed',appointmentType:'Job',appointmentTime:'12:00 PM–1:00 PM',truck:'Truck 8',phone:'',appointmentNotes:[],junkItems:[],photos:[],callAhead:'not_called',location:null,mapFallback:fallback};
+const html=renderToStaticMarkup(React.createElement(Summary,{job,closest:null,loading:false,isToday:false,busy:false,open(){},clear(){}}));
+assert.ok(html.includes(`href="https://www.google.com/maps/dir/?api=1&amp;destination=${encodeURIComponent(address)}"`),'Directions resolves the unchanged source address');
+assert.ok(html.includes('Directions to address'));
+assert.ok(html.includes('href="https://www.google.com/maps/search/?api=1&amp;query=30.05,-89.95"'),'Pin action opens the reviewed coordinates');
+assert.ok(html.includes('View approximate address pin'));
+assert.ok(html.includes('Approximate address location'));
+const coverageNote='Some truck GPS or road estimates are unavailable; comparison is incomplete.';
+const partial=renderToStaticMarkup(React.createElement(Summary,{job,closest:{truck:'Truck 3',minutes:12,miles:5.1,status:'available',approximate:true},loading:false,isToday:true,busy:false,coverageNote,open(){},clear(){}}));
+assert.ok(partial.includes('Closest available route'));
+assert.ok(partial.includes(coverageNote),'Partial comparison must not imply every truck was checked');
+assert.ok(partial.includes('Approx. '));
+assert.ok(!partial.includes('Checking distance'));
+const failed=renderToStaticMarkup(React.createElement(Summary,{job,closest:null,loading:false,error:true,isToday:true,busy:false,open(){},clear(){}}));
+assert.ok(failed.includes('Lookup failed'));assert.ok(!failed.includes('Checking distance'));
+assert.ok(html.includes('entrance unconfirmed'));
+assert.ok(html.includes('Not used for arrival or departure detection'));
+const propertyAddress='Example Lakes Apartment 310 Blvd, Baton Rouge La, 70809 Baton Rouge, LA 70809';
+const property=renderToStaticMarkup(React.createElement(Summary,{job:{...job,address:propertyAddress,mapFallback:null},closest:null,loading:false,isToday:true,busy:false,open(){},clear(){}}));
+assert.ok(property.includes('Search property name'));
+assert.ok(property.includes(encodeURIComponent('Example Lakes Apartment, Baton Rouge, LA 70809')));
+assert.ok(property.includes(propertyAddress),'Original address remains visible');
+assert.ok(property.includes('Source identifier 310 is unverified'));
+assert.ok(property.includes('Search the property name to review possible matches'));
+assert.ok(!property.includes('Address lookup continues automatically'));
+assert.ok(!property.includes('View approximate pin'));
+assert.ok(!property.includes('query=30.05,-89.95'));
+console.log('Appointment navigation UI PASS: source-address directions, distinct reviewed-pin action and approximation disclosure.');
+
+const priorEstimate={appointmentId:'1234',jkNumber:'JK_ESTIMATE',date:'2026-10-16',total:2264,chargeSummary:'',photos:[],photoAuditAvailable:false,observedAt:''};
+const renderProvenance=(extra:Record<string,unknown>,busy=false)=>renderToStaticMarkup(React.createElement(Summary,{job:{...job,sourceEstimateAppointmentId:'1234',sourceEstimate:priorEstimate,...extra},closest:null,loading:false,isToday:true,busy,open(){},clear(){}}));
+const linked=renderProvenance({});
+assert.ok(linked.includes('Booked from estimate'));
+assert.ok(linked.includes('JK_ESTIMATE'));
+assert.ok(linked.includes('Quoted $2,264.00 · not a payment'));
+assert.ok(linked.includes('date=2026-10-16&amp;appointment=1234'));
+assert.ok(linked.indexOf('Booked from estimate')<linked.indexOf('selected-job-facts'),'Provenance is visible directly below the customer heading');
+assert.ok(!renderProvenance({sourceEstimateAppointmentId:''}).includes('Booked from estimate'),'No inferred relationship from contact, name, or amount');
+assert.ok(!renderProvenance({appointmentType:'Estimate'}).includes('Booked from estimate'));
+assert.ok(renderProvenance({sourceEstimate:null}).includes('Quote unavailable'));
+assert.ok(!renderProvenance({sourceEstimate:{...priorEstimate,appointmentId:'9999'}}).includes('JK_ESTIMATE'),'Mismatched estimate detail is not displayed');
+assert.ok(!renderProvenance({},true).includes('appointment=1234'),'Navigation blocked while saving');
+console.log('Compact appointment provenance PASS: explicit link only, heading placement, internal dated navigation, unavailable details and saving state.');

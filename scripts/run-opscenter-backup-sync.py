@@ -9,6 +9,26 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+PUBLISHER_RECENT_SUCCESS_SECONDS = 300
+
+
+def recent_success(state, at):
+    """Reuse only a dated full-success receipt, never a future/unknown time."""
+    try:
+        stamp = datetime.fromisoformat(state['lastSuccessAt'].replace('Z', '+00:00'))
+        if stamp.tzinfo is None:
+            return False
+        return 0 <= (at - stamp).total_seconds() <= PUBLISHER_RECENT_SUCCESS_SECONDS
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
+def previous_failure_exit(state):
+    if state.get('status') != 'failed':
+        return 0
+    code = state.get('exitCode')
+    return code if type(code) is int and 0 < code < 256 else 1
+
 
 def main():
     source = Path(__file__).resolve().parent.parent
@@ -16,14 +36,22 @@ def main():
     state_dir = data / 'backup-sync'
     state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     if '--background' in sys.argv:
+        # Preserve startup errors too, before the worker can open its own log.
         with (state_dir / 'sync.log').open('ab') as log:
             subprocess.Popen([sys.executable, str(Path(__file__).resolve())],
-                             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=log,
                              start_new_session=True, close_fds=True)
         print('Backup scheduled independently of live collection.', flush=True)
         return 0
 
-    with (state_dir / 'sync.lock').open('a') as lock:
+    # The worker owns logging in both invocation modes; the launcher must not
+    # also redirect stdout here or completion records would be duplicated.
+    with (state_dir / 'sync.log').open('a', buffering=1) as log, \
+            (state_dir / 'sync.lock').open('a') as lock:
+        def report(message):
+            print(message, file=log, flush=True)
+            print(message, flush=True)
+
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -37,23 +65,47 @@ def main():
         state = {'status': 'running', 'startedAt': now(), 'pid': os.getpid(),
                  'lastSuccessAt': previous.get('lastSuccessAt')}
 
-        def save():
-            temporary = state_file.with_suffix('.tmp')
-            temporary.write_text(json.dumps(state))
-            temporary.replace(state_file)
+        attempt_file = state_file
 
-        save()
+        def save(publish=True):
+            temporary = attempt_file.with_suffix('.tmp')
+            temporary.write_text(json.dumps(state))
+            temporary.replace(attempt_file)
+            if publish and attempt_file != state_file:
+                temporary = state_file.with_suffix('.tmp')
+                temporary.write_text(json.dumps(state))
+                temporary.replace(state_file)
         def interrupted(signum, frame):
             raise InterruptedError('Backup worker interrupted')
         signal.signal(signal.SIGTERM, interrupted)
         child = None
         try:
             timeout = max(1, int(os.environ.get('OPSCENTER_BACKUP_TIMEOUT_SECONDS', '900')))
+            # A deadline alone never changes collector failure semantics.
+            caller = os.environ.get('OPSCENTER_BACKUP_CALLER') or 'collector'
+            if caller not in ('collector', 'continuity-publisher'):
+                raise ValueError('Unknown backup caller')
+            budgeted = caller == 'continuity-publisher'
+            if budgeted:
+                attempt_file = state_dir / 'publisher-status.json'
+            state.update(caller=caller, timeoutSeconds=timeout)
+            if budgeted and recent_success(previous, datetime.now(timezone.utc)):
+                # One 180-second collection interval plus 120 seconds of transfer
+                # and scheduling headroom. Release the lock without spawning rsync.
+                state.update(status='skipped', exitCode=0, finishedAt=now(),
+                             reason='recent_success', recentSuccessWindowSeconds=PUBLISHER_RECENT_SUCCESS_SECONDS)
+                save(publish=False)
+                report(f"Backup skipped at {state['finishedAt']} (recent full success; caller {caller}).")
+                return previous_failure_exit(previous)
+            save(publish=not budgeted)
+            deadline_expired = False
             child = subprocess.Popen(['/bin/bash', str(source / 'deploy/vps/sync-data.sh'), 'initial'],
-                                     stdin=subprocess.DEVNULL, start_new_session=True, pass_fds=(lock.fileno(),))
+                                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                                     start_new_session=True, pass_fds=(lock.fileno(),))
             try:
                 code = child.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
+                deadline_expired = True
                 os.killpg(child.pid, signal.SIGTERM)
                 try:
                     child.wait(timeout=10)
@@ -65,14 +117,22 @@ def main():
             # transfer. Under a live queue that is normal, not a backup failure;
             # 17 of 485 runs previously reported "failed" for exactly this, and
             # nothing distinguished them from a real failure.
+            if budgeted and deadline_expired:
+                state.update(status='deferred', exitCode=124, finishedAt=now(), reason='caller_deadline')
+                save(publish=False)
+                report(f"Backup deferred at {state['finishedAt']} (exit 124; caller {caller}, budget {timeout}s).")
+                # A deferral is a completed scheduling decision, not a failed
+                # transfer. The legacy publisher propagates any nonzero return
+                # into its monitor; freshness still comes only from status.json.
+                return previous_failure_exit(previous)
             succeeded = code in (0, 24)
             state.update(status='success' if succeeded else 'failed', exitCode=code, finishedAt=now())
             if code == 0:
                 state['lastSuccessAt'] = state['finishedAt']
             save()
-            print(f"Backup {state['status']} at {state['finishedAt']} (exit {code}).", flush=True)
+            report(f"Backup {state['status']} at {state['finishedAt']} (exit {code}).")
             if not succeeded:
-                print(f"Backup failure is unmonitored elsewhere; exit {code} needs review.", file=sys.stderr, flush=True)
+                report(f"Backup failed; exit {code} needs review. See backup health signal.")
             return code
         except Exception as error:
             if child and child.poll() is None:
@@ -80,6 +140,7 @@ def main():
                 child.wait()
             state.update(status='failed', finishedAt=now(), error=type(error).__name__)
             save()
+            report(f"Backup failed at {state['finishedAt']} (error {type(error).__name__}).")
             raise
 
 

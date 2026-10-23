@@ -3,6 +3,7 @@ import { fetchWorkspace } from './lib/workspace-cache';
 import { createRoot } from 'react-dom/client';
 import Home from './app/page';
 import LiveCommand from './live-command';
+import { preloadLiveSchedule } from './deferred-live-schedule';
 import { installMaintenanceTelemetry } from './lib/maintenance-telemetry';
 import './app/globals.css';
 import './live-responsive.css';
@@ -36,6 +37,8 @@ if (bootstrap.mode === 'reference') {
     const selectedDate = new Date(`${bootstrap.workspace.date}T12:00:00Z`);
     if (navigation.get('scheduleDay') === 'tomorrow') selectedDate.setUTCDate(selectedDate.getUTCDate()+1);
     void fetchWorkspace(`/api/desktop/schedule?date=${selectedDate.toISOString().slice(0,10)}&load=1`, AbortSignal.timeout(30_000)).catch(() => {});
+    // Its on-demand code loads alongside the read so the board renders without a second wait.
+    void preloadLiveSchedule().catch(() => {});
   }
   createRoot(root).render(<WorkspaceBoundary root><LiveCommand bootstrap={bootstrap.workspace} /></WorkspaceBoundary>);
 } else {
@@ -45,3 +48,5 @@ if (bootstrap.mode === 'reference') {
 import './driving-scores.css';
 
 import './opscenter-brand.css';
+
+import './approved-workbench.css';

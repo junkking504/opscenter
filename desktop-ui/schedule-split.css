@@ -4,10 +4,10 @@
     grid-template-columns: minmax(0, var(--schedule-map-share)) minmax(0, var(--schedule-truck-share));
   }
   .schedule-split-actions { display: inline-flex; gap: 5px; flex-wrap: wrap; }
-  .schedule-split-actions button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid #cdd9e0; border-radius: 5px; background: #fff; color: #365568; font-size: 11px; white-space: nowrap; cursor: pointer; }
+  .schedule-split-actions button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid var(--oc-border-neutral-29); border-radius: 5px; background: var(--oc-surface-raised); color: var(--oc-text-blue-07); font-size: var(--oc-type-11); white-space: nowrap; cursor: pointer; }
   .schedule-split-actions button:disabled { opacity: .45; cursor: default; }
-  .schedule-split-actions button:focus-visible { outline: 2px solid #174e77; outline-offset: 2px; }
-  .schedule-split-divider { display: flex; position: absolute; top: 0; bottom: 0; width: 10px; margin-left: -5px; align-items: center; justify-content: center; z-index: 5; color: #7893a3; cursor: col-resize; touch-action: none; user-select: none; border-radius: 4px; }
-  .schedule-split-divider:hover, .schedule-split-divider:focus-visible { background: #dce9f1; color: #174e77; outline: 2px solid #174e77; outline-offset: -2px; }
+  .schedule-split-actions button:focus-visible { outline: 2px solid var(--oc-border-blue-01); outline-offset: 2px; }
+  .schedule-split-divider { display: flex; position: absolute; top: 0; bottom: 0; width: 10px; margin-left: -5px; align-items: center; justify-content: center; z-index: 5; color: var(--oc-text-blue-32); cursor: col-resize; touch-action: none; user-select: none; border-radius: 4px; }
+  .schedule-split-divider:hover, .schedule-split-divider:focus-visible { background: var(--oc-surface-neutral-18); color: var(--oc-border-blue-01); outline: 2px solid var(--oc-border-blue-01); outline-offset: -2px; }
   .schedule-split-divider svg { flex-shrink: 0; pointer-events: none; }
 }

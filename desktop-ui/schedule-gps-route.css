@@ -1,18 +1,18 @@
-.schedule-gps-summary { display: grid; gap: 2px; margin: 4px 0; padding: 6px; border: 1px solid #bed0df; border-left: 3px solid #2563a5; border-radius: 6px; background: #f3f8fc; }
+.schedule-gps-summary { display: grid; gap: 2px; margin: 4px 0; padding: 6px; border: 1px solid var(--oc-border-blue-10); border-left: 3px solid var(--oc-border-blue-02); border-radius: 6px; background: var(--oc-surface-canvas); }
 .schedule-gps-summary header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.schedule-gps-summary strong { font-size: 12px; }
-.ops-live .live-schedule .schedule-map-controls .schedule-gps-summary p { display: block; margin: 0; font-size: 11px; line-height: 1.4; }
-.ops-live .live-schedule .schedule-map-controls .schedule-gps-summary button { border: 1px solid #9bb6cc; border-radius: 4px; padding: 3px 7px; background: white; font: inherit; font-size: 11px; cursor: pointer; }
-.schedule-gps-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; }
-.schedule-gps-picker select { min-width: 0; padding: 4px 6px; border: 1px solid #aebecb; border-radius: 4px; background: white; font: inherit; }
-.schedule-gps-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 5px 0; color: #334155; font-size: 11px; }
+.schedule-gps-summary strong { font-size: var(--oc-type-12); }
+.ops-live .live-schedule .schedule-map-controls .schedule-gps-summary p { display: block; margin: 0; font-size: var(--oc-type-11); line-height: 1.4; }
+.ops-live .live-schedule .schedule-map-controls .schedule-gps-summary button { border: 1px solid var(--oc-border-blue-11); border-radius: 4px; padding: 3px 7px; background: white; font: inherit; font-size: var(--oc-type-11); cursor: pointer; }
+.schedule-gps-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--oc-type-12); font-weight: 600; }
+.schedule-gps-picker select { min-width: 0; padding: 4px 6px; border: 1px solid var(--oc-border-blue-12); border-radius: 4px; background: white; font: inherit; }
+.schedule-gps-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 5px 0; color: var(--oc-text-blue-12); font-size: var(--oc-type-11); }
 .schedule-gps-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.gps-legend-route { width: 26px; border-top: 6px solid #174fd1; }
-.schedule-trip-number { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; height: 24px; border-radius: 4px; color: white; font-size: 12px; }
-.gps-legend-point { width: 10px; height: 10px; border: 1px solid #fff; box-shadow: 0 0 0 1px #174fd1; border-radius: 50%; background: #174fd1; }
+.gps-legend-route { width: 26px; border-top: 6px solid var(--oc-border-blue-03); }
+.schedule-trip-number { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; height: 24px; border-radius: 4px; color: white; font-size: var(--oc-type-12); }
+.gps-legend-point { width: 10px; height: 10px; border: 1px solid var(--oc-surface-raised); box-shadow: 0 0 0 1px var(--oc-border-blue-03); border-radius: 50%; background: var(--oc-border-blue-03); }
 
 .schedule-trip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ops-live .live-schedule .schedule-map-controls .schedule-trip-list button { display: flex; gap: 7px; width: 100%; text-align: left; padding: 7px; line-height: 1.4; }
-.schedule-trip-list button[aria-pressed="true"] { outline: 2px solid #2563a5; outline-offset: -2px; }
-.schedule-trip-list small { display: block; color: #52606b; margin-top: 3px; }
-.ops-live .live-schedule-map .trip-marker .map-pin-symbol { min-width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); padding: 2px; border: 1px solid white; border-radius: 4px; background: var(--trip-color, #2563a5); color: white; font-size: 10px; }
+.schedule-trip-list button[aria-pressed="true"] { outline: 2px solid var(--oc-border-blue-02); outline-offset: -2px; }
+.schedule-trip-list small { display: block; color: var(--oc-text-blue-14); margin-top: 3px; }
+.ops-live .live-schedule-map .trip-marker .map-pin-symbol { min-width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); padding: 2px; border: 1px solid white; border-radius: 4px; background: var(--trip-color, var(--oc-border-blue-02)); color: white; font-size: var(--oc-type-10); }

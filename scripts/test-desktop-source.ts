@@ -25,11 +25,11 @@ assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localho
 assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localhost:3104/desktop?data=reference'), 'reference');
 assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'https://ops.junk-king.app/desktop?data=reference'), 'command-live');
 const missing = desktopCommandKpis(null, null, 0);
-assert.equal(missing.length, 5);
+assert.equal(missing.length, 6);
 assert.ok(missing.every(kpi => kpi.value === '—'), 'An unavailable source must never be displayed as zero or a prototype value');
 const metrics = { date: '2026-09-15', generated_at: '2026-09-15T18:00:00Z', total_revenue: 1200, total_payroll: 180, dump_expense: 125, fuel_expense: 75, total_expenses: 500, net_profit: 700, completed_jobs: 3, revenue_by_truck: { 'Truck 3': 800, 'Truck 9': 400 }, employee_leaderboard: [{ hours_worked: 4 }, { hours_for_rph: 6, hours_worked: 8 }] };
 const cards = desktopCommandKpis(metrics, null, 2, undefined, '2026-09-15', Date.parse('2026-09-15T18:01:00Z'));
-assert.deepEqual(cards.map(card => card.label), ['Today’s jobs', 'Revenue', 'Labor', 'Dump + Fuel', 'Net']);
+assert.deepEqual(cards.map(card => card.label), ['Today’s jobs', 'Revenue', 'Labor', 'Dump + Fuel', 'Net', 'RPH']);
 assert.equal(cards[1].value, '$1,200.00');
 assert.equal(cards[2].value, '$180.00');
 assert.equal(cards[2].secondaryValue, '15.0% of revenue');

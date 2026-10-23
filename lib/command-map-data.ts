@@ -89,6 +89,15 @@ export function summarizeCommandSchedule(
   };
 }
 
+/**
+ * The schedule summary for a day without building its map. Comparisons only
+ * need each appointment's status, not geocodes or GPS.
+ */
+export function summarizeCommandScheduleFromMetrics(metrics: AnyRecord | null): CommandScheduleSummary {
+  const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments as AnyRecord[] : [];
+  return summarizeCommandSchedule(appointments.map((row) => ({ statusBucket: statusBucket(row) })));
+}
+
 function appointmentUrl(row: AnyRecord, appointmentId: string): string {
   const direct = text(row, "appointment_url", "appt_url", "job_url", "junkware_url", "source_url", "url");
   if (/^https?:\/\//i.test(direct)) return direct;

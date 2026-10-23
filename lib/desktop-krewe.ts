@@ -1,3 +1,4 @@
+import { crewRph } from '../desktop-ui/lib/crew-rph';
 import { readDesktopDrivingScores, memberDrivingScores } from './desktop-driving-scores';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -116,12 +117,13 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
     return member;
   });
 }
-export function readDesktopKrewe(date: string, view: KreweView, role: InteractiveOpsRole): DesktopKreweSnapshot {
+export function readDesktopKrewe(date: string, view: KreweView, role: InteractiveOpsRole, includeComparison = true, through?: string): DesktopKreweSnapshot {
   if(!validDesktopDate(date)) throw new Error('A valid operating date is required.');
   const payrollVisible=opsRoleCan(role,'finance.read'); if((view==='monthly'||view==='payperiod')&&!payrollVisible) throw new Error('Manager access is required for payroll.');
-  const period=payPeriodForDate(date); const start=view==='monthly'?`${date.slice(0,7)}-01`:view==='payperiod'?period.start:date; const end=view==='payperiod'?(period.end<chicagoDateKey()?period.end:chicagoDateKey()):view==='monthly'&&date>chicagoDateKey()?chicagoDateKey():date;
+  const period=payPeriodForDate(date); const start=view==='monthly'?`${date.slice(0,7)}-01`:view==='payperiod'?period.start:date; const naturalEnd=view==='payperiod'?(period.end<chicagoDateKey()?period.end:chicagoDateKey()):view==='monthly'&&date>chicagoDateKey()?chicagoDateKey():date;
+  const end=through && through>=start && through<naturalEnd ? through : naturalEnd;
   const grouped=new Map<string,DesktopCrewMember>(); const missingDates:string[]=[];
-  for(let cursor=start;cursor<=end;cursor=addDays(cursor,1)){ if(!readMetrics(cursor)) missingDates.push(cursor); for(const row of dayMembers(cursor,payrollVisible)){ const existing=grouped.get(row.id); const day={...Object.fromEntries(amountKeys.map(key=>[key,row[key]])) as CrewAmounts,date:cursor,clockIn:row.clockIn,clockOut:row.clockOut,...(payrollVisible?{issue:row.issue,payNote:row.payNote,sourceAt:readMetrics(cursor)?.payroll_as_of||readMetrics(cursor)?.generated_at||null,hourlyRate:row.hourlyRate,syncStatus:row.junkwareSync?.status||null,correctionNote:row.correction?.note,correctionBy:row.correction?.updatedBy,manualBonuses:manualBonusEntriesForEmployee(cursor,row.name).map(({entryId,amount,note})=>({entryId,amount,note}))}:{})}; if(existing){existing.drivingScores=[...(existing.drivingScores||[]),...(row.drivingScores||[])];existing.days.push(day);existing.payNote=row.payNote||existing.payNote;for(const key of amountKeys) existing[key]=sumObserved([existing[key],row[key]]);}else grouped.set(row.id,{...row,days:[day]}); } }
+  for(let cursor=start;cursor<=end;cursor=addDays(cursor,1)){ if(!readMetrics(cursor)) missingDates.push(cursor); for(const row of dayMembers(cursor,payrollVisible)){ const existing=grouped.get(row.id); const day={...Object.fromEntries(amountKeys.map(key=>[key,row[key]])) as CrewAmounts,date:cursor,clockIn:row.clockIn,clockOut:row.clockOut,clockInAt:row.clockInAt,...(payrollVisible?{issue:row.issue,payNote:row.payNote,sourceAt:readMetrics(cursor)?.payroll_as_of||readMetrics(cursor)?.generated_at||null,hourlyRate:row.hourlyRate,syncStatus:row.junkwareSync?.status||null,correctionNote:row.correction?.note,correctionBy:row.correction?.updatedBy,manualBonuses:manualBonusEntriesForEmployee(cursor,row.name).map(({entryId,amount,note})=>({entryId,amount,note}))}:{})}; if(existing){existing.drivingScores=[...(existing.drivingScores||[]),...(row.drivingScores||[])];existing.days.push(day);existing.payNote=row.payNote||existing.payNote;for(const key of amountKeys) existing[key]=sumObserved([existing[key],row[key]]);}else grouped.set(row.id,{...row,days:[day]}); } }
   // Use the same corrected-hours eligibility as the weekly employee cards.
   // Revenue, tips, or bonuses alone do not qualify a zero-hour roster entry.
   const hoursSnapshot=view==='payperiod'?readKreweHours(date):undefined;
@@ -129,7 +131,23 @@ export function readDesktopKrewe(date: string, view: KreweView, role: Interactiv
   const members=[...grouped.values()].filter(member=>(!eligibleIds||eligibleIds.has(member.id))&&(view!=='today'||Boolean(chicagoClockToDate(date,member.clockIn)))).sort((a,b)=>(b.revenue??-1)-(a.revenue??-1));
   const plan=view==='callin'?buildCrewCallInPlan(date):null;
   const callIn=plan?{...plan,recommendations:[...plan.recommendations,...plan.alternates].map(candidate=>{const decision=decisions().find(row=>row.targetDate===plan.targetDate&&keyOf(row.name)===keyOf(candidate.name))||null;return {...candidate,decision,version:desktopVersion(decision)};})}:null;
-  return {date,view,start,end,...(hoursSnapshot?{hoursSnapshot,excludedPayNames:[...grouped.values()].filter(row=>!eligibleIds!.has(row.id)&&[row.labor,row.tips,row.bonuses,row.supplemental,row.totalPay].some(value=>value!==null&&value!==0)).map(row=>row.name)}:{}),sourceUpdatedAt:readMetrics(date)?.payroll_as_of||readMetrics(date)?.generated_at||null,missingDates,payrollVisible,canWrite:opsRoleCan(role,'sensitive.write'),members,totals:Object.fromEntries(amountKeys.map(key=>[key,sumObserved(members.map(member=>member[key]))])) as CrewAmounts,callIn};
+  let comparison: DesktopKreweSnapshot['comparison'];
+  if (includeComparison && view !== 'callin' && !missingDates.length) {
+    const elapsed = Math.round((Date.parse(end) - Date.parse(start)) / 86400000);
+    const priorStart = view === 'monthly' ? new Date(Date.UTC(Number(start.slice(0,4)), Number(start.slice(5,7)) - 2, 1, 12)).toISOString().slice(0,10) : addDays(start, view === 'payperiod' ? -14 : -7);
+    const priorEnd = addDays(priorStart, elapsed);
+    // Never compare unequal month lengths or fill absent days with zero.
+    if (view !== 'monthly' || priorEnd.slice(0,7) === priorStart.slice(0,7)) {
+      try {
+        const prior = readDesktopKrewe(priorEnd, view, role, false, priorEnd);
+        if (!prior.missingDates.length && prior.start === priorStart && prior.end === priorEnd) comparison = {
+          label: `${priorStart}–${priorEnd} · prior comparable period${end === chicagoDateKey() ? ' (current day in progress)' : ''}`,
+          totals: prior.totals, count: prior.members.filter(row => row.working).length, rph: crewRph(prior).value,
+        };
+      } catch { /* Missing history must not hide the selected period. */ }
+    }
+  }
+  return {comparison,date,view,start,end,...(hoursSnapshot?{hoursSnapshot,excludedPayNames:[...grouped.values()].filter(row=>!eligibleIds!.has(row.id)&&[row.labor,row.tips,row.bonuses,row.supplemental,row.totalPay].some(value=>value!==null&&value!==0)).map(row=>row.name)}:{}),sourceUpdatedAt:readMetrics(date)?.payroll_as_of||readMetrics(date)?.generated_at||null,missingDates,payrollVisible,canWrite:opsRoleCan(role,'sensitive.write'),members,totals:Object.fromEntries(amountKeys.map(key=>[key,sumObserved(members.map(member=>member[key]))])) as CrewAmounts,callIn};
 }
 /** Resolve the selected day independently of aggregate period values. The period
  * roster establishes identity for missed days; it never supplies another day's

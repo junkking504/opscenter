@@ -40,6 +40,24 @@ requires the requested SHA to equal `origin/production`, verifies that it
 contains the active release before and after the build, and records successful
 transitions in `deployment-history.tsv` beside the controller.
 
+Before activation in either deployment mode, the controller runs the reviewed
+release's kernel migration runner against the existing protected
+`production.env`. It requires an enabled Mission Control kernel and the
+`opscenter_production` database, passes only the migration environment, and
+never evaluates configuration as shell code. Build, spending, review, and
+lineage checks precede database changes; production head and ancestry are
+checked again afterward. Migration failure prevents candidate startup, live-link
+changes, and service restarts. Migration output is suppressed to keep protected
+connection details out of deployment logs; investigate failures locally through
+the existing database maintenance workflow.
+
+The runner serializes migrations with its database advisory lock, verifies
+checksums, and commits each migration separately. A failed migration rolls back
+that file; earlier completed migrations remain. Production changes must use
+reviewed backward-compatible migrations: automatic application rollback does
+not undo schema changes. Destructive migrations require separate authorization.
+An interrupted live migration retains the deployment lock for recovery.
+
 After activation, the controller restarts every loaded release-bound collector
 and watcher with a bounded timeout. A restart failure restores the prior
 release. Superseded releases are pruned only after a bounded `lsof` scan proves
@@ -54,6 +72,13 @@ Release-bound LaunchAgents invoke their scripts through the stable macOS
 Management from treating every immutable-release symlink change as a newly
 added background program. Collector installers also leave an identical
 installed plist untouched while restarting the loaded service.
+
+Production deployments now preserve all existing releases by default. Both
+retention phases are skipped when `OPSCENTER_PRESERVE_RELEASES=true` (the default
+in the launcher and installed controller). The launcher forwards this setting
+explicitly; invalid values fail before deployment. Only a separately authorized
+cleanup may use `false`. This does not change scheduled retention or authorize
+cleanup. Install the reviewed controller before relying on this safeguard.
 
 Before deploying, commit and push the intended code, integrate it into
 `origin/production`, and install or refresh the reviewed controller explicitly:
@@ -120,6 +145,12 @@ HTTP 200. A failed startup automatically restores the previous live link and
 restarts the prior release. Each release also installs the Chromium revision
 pinned by Playwright so JunkWare closeout and truck-assignment actions remain
 available after dependency updates.
+
+The installed controller enforces the cross-model review gate: every commit
+since the active release must be covered by an approved or waived
+`vault/Tasks/<task>/review.md` on Mission Control, except clean automatic
+merges. See
+[agent handoffs and review](../../docs/agent-handoffs.md#review-gate).
 
 The normal deployment command has no non-forward override. A manual rollback
 requires a separately reviewed and explicitly authorized recovery procedure;
@@ -416,3 +447,9 @@ The schedule-detector installer rechecks PID liveness when `ps` no longer return
 the expected command after `launchctl bootout`. An already-exited detector is a
 successful stop; an unrelated or unidentified live process still blocks the
 release. `scripts/test-detector-restart-race.ts` covers both cases.
+
+## Release slots
+
+See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,
+first proxy bootstrap, graceful rollback, routine activation and retained-slot
+protections. Source deployment alone does not enable slot mode.

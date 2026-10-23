@@ -1,6 +1,7 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { sameTruck } from '@/lib/junkware-trucks';
 import { cookies } from 'next/headers';
-import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
 import { JUNKWARE_DISPATCH_TRUCKS } from '@/lib/junkware-trucks';
 import { chicagoDateKey } from '@/lib/report-dates';
@@ -11,15 +12,15 @@ import { dispatchCrewJob, crewScheduleFresh } from '@/lib/crew-dispatch-service'
 import { crewDispatchSources } from '@/lib/crew-dispatch-sources';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
-async function manager() {
-  const actor=await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+async function manager(request:Request) {
+  const actor=await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if(!actor)throw new CrewPhoneError('Sign in to OpsCenter.',401);
-  if(!opsRoleCan(opsAuthRole(actor.email),'sensitive.write'))throw new CrewPhoneError('Manager access is required for crew dispatch.',403);
+  if(!opsRoleCan(actor.role,'sensitive.write'))throw new CrewPhoneError('Manager access is required for crew dispatch.',403);
   return actor;
 }
 export async function GET(request:Request) {
   try {
-    await manager();
+    await manager(request);
     const params=new URL(request.url).searchParams;
     const truck=params.get('truck') || JUNKWARE_DISPATCH_TRUCKS[0];
     const date=params.get('date') || chicagoDateKey();
@@ -33,7 +34,7 @@ export async function GET(request:Request) {
 }
 export async function POST(request:Request) {
   try {
-    const actor=await manager();
+    const actor=await manager(request);
     const body=await crewPhoneBody(request);
     const truck=String(body.truck || ''),requestId=String(body.requestId || ''),expectedVersion=Number(body.expectedVersion);
     if(!Number.isSafeInteger(body.expectedVersion) || !JUNKWARE_DISPATCH_TRUCKS.includes(truck))throw new CrewPhoneError('Refresh dispatch before changing assignments.');

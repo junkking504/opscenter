@@ -68,12 +68,15 @@ export function buildCrewProgress(input: {
         step('Photos', job.photos.length ? 'complete' : !job.photoAuditAvailable ? 'unknown' : awaiting(closed),
           job.photos.length ? estimate ? 'Review the estimate photos.' : 'Review before and after coverage.' : !job.photoAuditAvailable ? 'Photo collection has not been verified.' : closed ? 'No uploaded photos found for this closed appointment.' : 'Upload the required job photos.',{photos:job.photos});
         const payments = job.closeout?.payments || [];
-        const paid = payments.reduce((sum, payment) => sum + (Number.isFinite(payment.amount) && payment.amount > 0 ? payment.amount : 0), 0);
+        const billed = payments.filter(payment => /^billed$/i.test(payment.method.trim()));
+        const collected = payments.filter(payment => !billed.includes(payment));
+        const paid = collected.reduce((sum, payment) => sum + (Number.isFinite(payment.amount) && payment.amount > 0 ? payment.amount : 0), 0);
         const due = job.closeout?.total;
         const balance = job.closeout?.balance;
         const paymentComplete = Boolean(payments.length && payments.every(payment => payment.method?.trim()) && paid > 0 && typeof due === 'number' && due > 0 && paid + .01 >= due && typeof balance === 'number' && balance <= .01);
-        step('Payment', estimate ? 'not-required' : paymentComplete ? 'complete' : awaiting(closed),
-          estimate ? 'Payment is not required for an estimate.' : paymentComplete ? 'Recorded in JunkWare; settlement verification is separate.' : typeof balance === 'number' && balance > .01 ? `Recorded balance: $${balance.toFixed(2)}. Confirm remaining payment.` : 'Confirm payment details or document why no payment is due.',{facts:crewPaymentFacts(job)});
+        const billingRecorded = payments.every(payment=>payment.method?.trim()) && typeof balance==='number' && balance<=.01 && billed.length > 0 && billed.every(payment=>Number.isFinite(payment.amount) && payment.amount>0) && typeof due==='number' && due>0 && billed.reduce((sum,payment)=>sum+payment.amount,0)+paid+.01>=due;
+        step('Payment', estimate ? 'not-required' : paymentComplete || billingRecorded ? 'complete' : awaiting(closed),
+          estimate ? 'Payment is not required for an estimate.' : paymentComplete ? 'Recorded in JunkWare; settlement verification is separate.' : billingRecorded ? 'Billed receivable recorded; payment is not yet fully collected.' : typeof balance === 'number' && balance > .01 ? `Recorded balance: $${balance.toFixed(2)}. Confirm remaining payment.` : 'Confirm payment details or document why no payment is due.',{facts:crewPaymentFacts(job)});
         step('Closeout', closed ? 'complete' : awaiting(departed), closed ? `${estimate ? 'Estimate' : 'Job'} closed in JunkWare.` : departed ? 'Departure recorded; the appointment remains open.' : 'Complete the appointment closeout.',{facts:estimate ? [{label:'Outcome',value:closed?'Estimate completed':'Estimate pending'},...(job.paymentAmount>0?[{label:'Quote',value:`$${job.paymentAmount.toFixed(2)}`}]:[])] : crewCloseoutFacts(job)});
       }
       const nextStep = steps.find(s => s.state === 'missing') || steps.find(s => s.state === 'unknown' || s.state === 'next');

@@ -353,3 +353,55 @@ has not changed since that attempt. Unknown mismatches, unavailable/stale reads,
 other dates and newer dispatch decisions stay protected. Attempted values and
 the failure remain in the audit receipt; the board briefly explains an automatic
 restoration and enables dragging once its refreshed source assignment is verified.
+
+## Customer information
+
+Control appointment details includes **Edit Customer**. It reads the current
+JunkWare appointment form on demand, then offers first/last name, primary and
+secondary phone, email, service address and five-digit ZIP. Contact fields
+belong to the customer and may appear on their other appointments; the service
+address belongs to the selected appointment. Empty email and secondary phone
+are supported. Billing address and customer merges remain in JunkWare.
+
+The existing authenticated schedule-operation endpoint owns request identity,
+role/origin checks, appointment locking and durable receipts. The worker rejects
+a changed source baseline, saves once, reopens the appointment and verifies all
+edited fields plus captured schedule, assignment, status, notes, charges and
+payments. An interrupted save stays blocked; **Check Saved Result** only reads
+JunkWare. It resolves an exact requested result or an unchanged baseline and
+never resubmits the save. The editor retains the request ID per signed-in manager across reopening.
+A manager can review an unresolvable result in JunkWare and finish a manual
+review. This records an attestation, never a verified source save. A missing
+request is tombstoned under the operation locks so a delayed copy cannot save.
+Contact-only edits retain the exact collected address and map cache key.
+Changed addresses use the native street, city, state and ZIP labels.
+Verified customer fields appear immediately using a private timestamped receipt
+until newer collected schedule data takes precedence. No customer is changed by
+validation fixtures or UI acceptance checks. No messages or paid providers are
+added. Validation: `npm run verify:customer-edit`; UI fixture: `node scripts/test-customer-editor-browser.mjs` against the desktop Vite test server.
+
+The worker reproduces the native `.iu-trig-field` and `.address-entry` change
+markers (`IsUpdatedHF` and `AddressChangedHF`) before one normal Save Appointment
+postback, avoiding an additional scheduled ZIP postback. Native `IsUpdatedHF`
+also drives unsaved-navigation warnings. The worker disables Send Pictures and
+never invokes the separate email or Send ETA controls. Captured schedule,
+status, charges and payments must remain identical. Native server internals are
+not inferred from client-side inspection.
+
+Completed jobs and closed estimates keep **Edit Customer** available. Closed
+jobs use the normal source save without changing status. For a closed estimate,
+OpsCenter shows the existing outcome, prefilled from the latest recognized
+native outcome note. Existing outcome fields are read-only; missing required
+source details can be supplied in the editor. Saving retains that outcome and
+completes JunkWare's native outcome confirmation inside OpsCenter. The estimate
+stays closed. JunkWare may append the explicitly reviewed outcome confirmation
+note; all previous notes must remain, and no other note addition is accepted.
+
+The first Save Appointment and any required outcome confirmation are distinct
+phases of one source operation. Each phase is submitted at most once. A lost
+response is resolved by fresh read-back, and receipt recovery only reads. Source
+versions include the baseline note history; financial/status preservation is
+checked independently of the one allowed confirmation note. Outcome changes
+are rejected when an existing source outcome is recognized. Regression coverage
+includes closed jobs, closed estimates, discounted estimates, both save phases,
+lost final responses, stale notes, changed financial values and deleted notes.

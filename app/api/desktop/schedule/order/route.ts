@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
@@ -10,7 +11,7 @@ import { nearestStopOrder } from '@/lib/desktop-stop-order';
 export const dynamic = 'force-dynamic';
 const headers = {'Cache-Control':'private, no-store, max-age=0'};
 export async function POST(request: Request) {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) return Response.json({error:'Authentication required.'},{status:401,headers});
   if (!isDesktopWriteOriginAllowed(request) || !opsRoleCan(actor.role,'operations.write')) return Response.json({error:'Stop ordering is not allowed for this request.'},{status:403,headers});
   try {

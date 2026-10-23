@@ -104,6 +104,17 @@ else
   fail "preview data link is missing or incorrect"
 fi
 
+SLOT_STATE="$EXPECTED_HOME/opscenter-v2/.release-slots"
+if [[ -d "$SLOT_STATE" ]]; then
+  mode="$(node "$(dirname "$0")/origin-state.mjs" mode "$SLOT_STATE")"
+  if [[ "$mode" == slots ]]; then
+    PRODUCTION_LABEL="com.openclaw.opscenter.origin-proxy"
+    node "$(dirname "$0")/verify-release-slots.mjs" && pass "stable listener and pinned app identity agree" || fail "slot identity mismatch"
+  elif [[ "$mode" == bootstrap-incomplete ]]; then
+    fail "proxy bootstrap needs reconciliation"
+  fi
+fi
+
 for label in \
   "$PRODUCTION_LABEL" \
   "$PREVIEW_LABEL" \

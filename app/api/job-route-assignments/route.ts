@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import {assertAppointmentNotSwitching,assertTruckNotSwitching} from '@/lib/crew-truck-switch-store';
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -17,7 +18,7 @@ function formatAppointmentTime(startMinutes: number, endMinutes: number): string
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const auth = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  const auth = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "") || waypointManagerActor(request);
   if (!auth) {
     return NextResponse.json(
       { error: "Authentication required.", loginPath: "/login" },

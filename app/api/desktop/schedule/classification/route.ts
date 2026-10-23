@@ -1,3 +1,4 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
@@ -9,7 +10,7 @@ import { updateVerifiedCloseoutLoad } from '@/lib/truck-load-closeouts';
 export { GET } from '../closeout/route';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
-  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
+  const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request);
   if (!actor) return Response.json({error:'Authentication required.'},{status:401});
   if (!authorizeOpsRequest(actor.role,'/api/job-closeout','POST').allowed || !isDesktopWriteOriginAllowed(request)) return Response.json({error:'This appointment change is not permitted.'},{status:403});
   let validated = false;

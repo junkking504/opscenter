@@ -62,3 +62,10 @@ Every material item must have exactly one canonical owner:
 - macOS protected storage owns secrets and environment configuration.
 - Immutable release trees own deploy artifacts only.
 - Business share bundles are generated views, never sources of truth.
+
+## Desktop presentation and shop TV
+
+- [Desktop layout and navigation](desktop-presentation.md): shared page rail,
+  tabs/cards, Command headline, comparison chips and Capital pace chart.
+- [The Huddle](shop-tv.md): `desktop-ui/shop-tv.tsx`, authenticated read-only wall
+  display, entered with `?tv=1`; uses existing Command and Crew sources.

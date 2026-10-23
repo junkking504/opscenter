@@ -68,7 +68,7 @@ def main():
             source = Path.home() / 'opscenter-v2/opscenter'
             sync_env = dict(os.environ, OPSBOT_DATA_DIR=str(data), OPSCENTER_VPS=SSH[-1],
                             OPSCENTER_SSH_KEY=str(Path.home() / '.ssh/id_ed25519_opscenter'),
-                            OPSCENTER_BACKUP_TIMEOUT_SECONDS='90')
+                            OPSCENTER_BACKUP_TIMEOUT_SECONDS='90', OPSCENTER_BACKUP_CALLER='continuity-publisher')
             sync = subprocess.run(['/usr/bin/python3', str(source / 'scripts/run-opscenter-backup-sync.py')],
                                   env=sync_env, capture_output=True, timeout=120)
             status['fileSyncExitCode'] = sync.returncode

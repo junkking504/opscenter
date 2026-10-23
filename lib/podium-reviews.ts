@@ -17,6 +17,7 @@ export type PodiumReviewSnapshotItem = {
   needsResponse: boolean;
   responseCount: number;
   attribution?: PodiumReviewAppointmentAttribution;
+  inviteNameReferences?: string[];
 };
 
 export type PodiumReviewLocationSnapshot = {
@@ -45,6 +46,7 @@ export type PodiumReviewLocationView = PodiumReviewLocationSnapshot & {
 
 export type PodiumReviewCreditTally = {
   name: string;
+  autoMatchedCount: number;
   reviewCount: number;
   averageRating: number;
 };
@@ -128,6 +130,46 @@ export function readPodiumGoogleReviewsHistory(): PodiumGoogleReviewsSnapshot[] 
   return Array.from(snapshots.values()).sort((left, right) => left.fetchedAt.localeCompare(right.fetchedAt));
 }
 
+/**
+ * The newest history snapshot fetched before `fetchedAt`. The collector names
+ * each history file by the Chicago date it was fetched, so files are read
+ * newest first and the search stops after the first day with a match instead
+ * of parsing every day's copy of every review. Snapshots sharing a fetch time
+ * resolve as readPodiumGoogleReviewsHistory does: the last one read wins.
+ */
+export function readPreviousPodiumGoogleReviewsSnapshot(fetchedAt: string): PodiumGoogleReviewsSnapshot | null {
+  const files: Array<{ day: string; file: string; order: number }> = [];
+  for (const root of dataRoots()) {
+    const directory = path.join(root, "history", "podium-google-reviews");
+    try {
+      if (!fs.existsSync(directory)) continue;
+      for (const file of fs.readdirSync(directory)) {
+        const match = /^podium-google-reviews_(\d{4}-\d{2}-\d{2})\.json$/.exec(file);
+        if (match) files.push({ day: match[1], file: path.join(directory, file), order: files.length });
+      }
+    } catch {
+      // Runtime roots can be absent or inaccessible outside production.
+    }
+  }
+  files.sort((left, right) => right.day.localeCompare(left.day));
+  let previous: PodiumGoogleReviewsSnapshot | null = null;
+  let previousDay = "";
+  let previousOrder = -1;
+  for (const { day, file, order } of files) {
+    if (previousDay && day < previousDay) break;
+    const snapshot = readSnapshot(file);
+    if (!snapshot || snapshot.fetchedAt >= fetchedAt) continue;
+    if (!previous || snapshot.fetchedAt > previous.fetchedAt || (snapshot.fetchedAt === previous.fetchedAt && order > previousOrder)) {
+      previous = snapshot;
+      previousOrder = order;
+      const timestamp = new Date(snapshot.fetchedAt);
+      // A snapshot without a readable fetch time cannot bound the search.
+      previousDay = Number.isFinite(timestamp.getTime()) ? chicagoDateKey(timestamp) : "";
+    }
+  }
+  return previous;
+}
+
 export function buildPodiumGoogleReviewsViewFromData(
   snapshot: PodiumGoogleReviewsSnapshot | null,
   history: PodiumGoogleReviewsSnapshot[] = [],
@@ -183,7 +225,8 @@ export function buildPodiumGoogleReviewsViewFromData(
       new30Days: location.reviews.filter((review) => withinDays(review.createdAt, 30)).length,
       reviews: location.reviews.map((review) => {
         const manual = manualAssignments.get(review.uid);
-        return manual ? { ...review, attribution: manual.attribution } : review;
+        const exact = ["exact_phone", "exact_email"].includes(review.attribution?.matchMethod || "");
+        return manual && !(exact && manual.attribution.matchMethod === "inferred_high") ? { ...review, attribution: manual.attribution } : review;
       })
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
         .map((review) => ({ ...review, isNew: Boolean(previous) && !previousReviewIds.has(review.uid) })),
@@ -216,27 +259,29 @@ export function buildPodiumGoogleReviewsViewFromData(
   }
   const unassigned30Days = Array.from(unassignedByUid.values())
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const tally = (entries: Array<{ name: string; rating: number }>): PodiumReviewCreditTally[] => {
-    const values = new Map<string, { name: string; ratings: number[] }>();
+  const tally = (entries: Array<{ name: string; rating: number; automatic: boolean }>): PodiumReviewCreditTally[] => {
+    const values = new Map<string, { name: string; ratings: number[]; autoMatchedCount: number }>();
     for (const entry of entries) {
       const key = entry.name.toLowerCase();
-      const existing = values.get(key) || { name: entry.name, ratings: [] };
+      const existing = values.get(key) || { name: entry.name, ratings: [], autoMatchedCount: 0 };
       existing.ratings.push(entry.rating);
+      if (entry.automatic) existing.autoMatchedCount++;
       values.set(key, existing);
     }
     return Array.from(values.values()).map((entry) => ({
       name: entry.name,
       reviewCount: entry.ratings.length,
+      autoMatchedCount: entry.autoMatchedCount,
       averageRating: entry.ratings.reduce((sum, rating) => sum + rating, 0) / entry.ratings.length,
     })).sort((left, right) => right.reviewCount - left.reviewCount
       || right.averageRating - left.averageRating
       || left.name.localeCompare(right.name));
   };
   const employeeTallies30Days = tally(matched30Days.flatMap((review) =>
-    Array.from(new Set(review.attribution?.crew || [])).map((name) => ({ name, rating: review.rating }))));
+    Array.from(new Set(review.attribution?.crew || [])).map((name) => ({ name, rating: review.rating, automatic: review.attribution?.matchMethod === "inferred_high" }))));
   const teamTallies30Days = tally(matched30Days.flatMap((review) => {
     const crew = Array.from(new Set(review.attribution?.crew || [])).sort((left, right) => left.localeCompare(right));
-    return crew.length ? [{ name: crew.join(" + "), rating: review.rating }] : [];
+    return crew.length ? [{ name: crew.join(" + "), rating: review.rating, automatic: review.attribution?.matchMethod === "inferred_high" }] : [];
   }));
   return {
     available: true,
@@ -259,10 +304,9 @@ export function buildPodiumGoogleReviewsViewFromData(
 }
 
 export function buildPodiumGoogleReviewsView(): PodiumGoogleReviewsView {
-  return buildPodiumGoogleReviewsViewFromData(
-    readPodiumGoogleReviewsSnapshot(),
-    readPodiumGoogleReviewsHistory(),
-  );
+  const snapshot = readPodiumGoogleReviewsSnapshot();
+  const previous = snapshot ? readPreviousPodiumGoogleReviewsSnapshot(snapshot.fetchedAt) : null;
+  return buildPodiumGoogleReviewsViewFromData(snapshot, previous ? [previous] : []);
 }
 
 export function podiumReviewsSetupSummary(view = buildPodiumGoogleReviewsView()): string {

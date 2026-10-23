@@ -13,8 +13,8 @@ NOW = 1800000000
 def healthy():
     return dict(primary=dict(observedAt=m.stamp(NOW), release='a'*40, publication=dict(status='success', fileLastSuccessAt=m.stamp(NOW), financialStatementsSyncedAt=m.stamp(NOW))),
         app=dict(running=True, revision='a'*40), standby=dict(runtime='VPS', platformKernel=dict(healthy=True, databaseName='opscenter_recovery_20260914'), assignmentStoreWritable=False, operatorStateWritable=False),
-        gateway=dict(mode='primary', standbyReady=True), origin=dict(runtime='MISSION_CONTROL', platformKernel=dict(healthy=True)),
-        public=dict(runtime='MISSION_CONTROL', platformKernel=dict(healthy=True)), login=dict(code=200, loginForm=True),
+        gateway=dict(mode='primary', standbyReady=True), origin=dict(version=1, ok=True, runtime='MISSION_CONTROL', release=dict(sha='a'*40, stopping=False), platformKernel=dict(runtime='MISSION_CONTROL', enabled=True, healthy=True, status='healthy', databaseName='opscenter_production', migrationVersion='0001_kernel.sql'), assignmentStoreWritable=True, operatorStateWritable=True),
+        public=dict(version=1, ok=True, runtime='MISSION_CONTROL', release=dict(sha='a'*40, stopping=False), platformKernel=dict(runtime='MISSION_CONTROL', enabled=True, healthy=True, status='healthy', databaseName='opscenter_production', migrationVersion='0001_kernel.sql'), assignmentStoreWritable=True, operatorStateWritable=True), login=dict(code=200, loginForm=True),
         receipt=dict(snapshotAt=m.stamp(NOW)), disk=dict(free=10*1024**3, total=50*1024**3))
 
 def status(inputs, key):

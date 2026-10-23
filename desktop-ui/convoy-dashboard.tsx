@@ -1,3 +1,5 @@
+import { MetricValue } from './metric-value';
+import { MonthlyMileage } from './monthly-mileage';
 import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
 import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
@@ -14,6 +16,7 @@ import type {
 } from "./lib/people-fleet-contract";
 import type { FleetRecord } from "./convoy-views";
 import { ConvoyHistory } from "./convoy-views";
+import { ConvoyLiveBoard } from "./convoy-live-board";
 export type DashboardProps = {
   snapshot: DesktopFleetSnapshot;
   trucks: DesktopFleetTruck[];
@@ -86,6 +89,7 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
       <div><span className="convoy-fact-label">VIN</span><TruckVin truck={truck}/></div>
       <div><span className="convoy-fact-label">Latest mileage</span><Mileage truck={truck} now={now} records={snapshot.maintenance} showReportedAt/></div>
     </div>
+    <MonthlyMileage mileage={truck.monthlyMileage} date={snapshot.date}/>
     <div className="convoy-truck-instruments">
       <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
       <TruckLevelGauges truck={truck}/>
@@ -113,7 +117,7 @@ function Metric({
 }) {
   const content = (
     <>
-      <strong>{value}</strong>
+      <strong><MetricValue value={value} /></strong>
       <span>{title}</span>
       <small>{detail}</small>
     </>
@@ -127,7 +131,7 @@ function Metric({
   );
 }
 function TruckVin({truck}: {truck: DesktopFleetTruck}) {
-  return <div className="convoy-vin"><strong>{truck.vinNeedsVerification ? 'Needs verification' : truck.vin || 'Not recorded'}</strong><small>{truck.vinNeedsVerification ? 'Check the vehicle record' : truck.vin ? 'LinxUp vehicle record' : 'No VIN in the vehicle record'}</small></div>;
+  return <div className="convoy-vin"><strong><MetricValue value={truck.vinNeedsVerification ? 'Needs verification' : truck.vin || 'Not recorded'} /></strong><small>{truck.vinNeedsVerification ? 'Check the vehicle record' : truck.vin ? 'LinxUp vehicle record' : 'No VIN in the vehicle record'}</small></div>;
 }
 export function Mileage({
   truck,
@@ -146,7 +150,7 @@ export function Mileage({
     review = truckMileageReview(truck,records,now), q = review.quality;
   return (
     <div className="convoy-mileage">
-      <strong>{q === "conflict" ? "Needs verification" : miles(m?.value)}</strong>
+      <strong><MetricValue value={q === "conflict" ? "Needs verification" : miles(m?.value)} /></strong>
       <small>
         {q === "conflict"
           ? review.belowService
@@ -353,6 +357,11 @@ export function ConvoyDashboard(props: DashboardProps) {
     (r) => r.status === "scheduled" && r.serviceDate < snapshot.date,
   );
   const repairsKnown = !snapshot.warnings.some((w) => w.startsWith("Repair source"));
+  const dueItems = trucks.flatMap((t) =>
+    plansFor(snapshot, t, now)
+      .filter((p) => p.status === "due" || p.status === "soon")
+      .map((p) => ({ key: `${t.id}:${p.serviceType}`, truckId: t.id, truck: label(t), serviceType: p.serviceType, status: p.status as "due" | "soon", milesRemaining: p.milesRemaining, daysRemaining: p.daysRemaining })),
+  );
   const selected = trucks.find((t) => t.id === truckId);
   if (selected) return <ConvoyTruckDetail {...props} truck={selected} />;
   const visible = trucks.filter(
@@ -366,38 +375,13 @@ export function ConvoyDashboard(props: DashboardProps) {
   );
   return (
     <div className="convoy-dashboard convoy-compact-overview">
-      <div className="convoy-metrics">
-        <Metric
-          value={trucks.length}
-          title="Fleet trucks"
-          detail={`${trucks.filter((t) => t.mileage?.value != null).length} have reported mileage`}
-          onClick={() => setFilter("all")}
-        />
-        <Metric
-          value={repairsKnown ? stop.length : "—"}
-          title="Out of service"
-          detail="Recorded on active repairs"
-          onClick={() => setFilter("stop")}
-        />
-        <Metric
-          value={repairsKnown ? repairs.length : "—"}
-          title="Active repairs"
-          detail={`${repairs.filter((i) => i.status === "open").length} open · ${repairs.filter((i) => i.status === "in_progress").length} in progress`}
-          onClick={() => setFilter("repairs")}
-        />
-        <Metric
-          value={baseline.length}
-          title="Maintenance setup"
-          detail="For configured maintenance rules"
-          onClick={() => setFilter("baseline")}
-        />
-      </div>
+      <ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} />
       <div className="convoy-dashboard-grid">
         <section className="convoy-dash-panel">
           <header>
             <h2>
               {filter === "all"
-                ? "All trucks"
+                ? "All trucks (detail)"
                 : {
                     mileage: "Mileage review",
                     stop: "Out of service",
@@ -428,14 +412,11 @@ export function ConvoyDashboard(props: DashboardProps) {
           </div>
           <div className="convoy-table-wrap">
             <table className="convoy-data-table convoy-status-table" aria-label="Truck status overview">
-              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
+              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Monthly mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
               <tbody>{visible.map(t => {
                 const review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
                 const {plan,status,detail} = truckServiceSummary(snapshot,t,now);
                 const issues = repairs.filter(i=>sameTruck(i.truck,t.id));
-                const mileageSource = q === 'unavailable' ? 'No reading' : q === 'conflict' ? 'Check reading' :
-                  [t.mileage?.source === 'estimated' ? 'Estimated' : t.mileage?.source === 'inspection' ? 'Inspection' : t.mileage?.source === 'virtual' ? 'Tracking counter' : 'Reported odometer',
-                    q === 'stale' ? 'Stale' : t.mileage?.gpsIncomplete ? 'GPS gaps' : ''].filter(Boolean).join(' · ');
                 const fuel = t.fuel && Number.isFinite(t.fuel.percent) ? t.fuel : null;
                 const loadKnown = !t.loadNeedsVerification && t.loadPercent !== null && Number.isFinite(t.loadPercent);
                 return <tr key={t.id}>
@@ -444,12 +425,12 @@ export function ConvoyDashboard(props: DashboardProps) {
                   <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
-                  <td data-label="Mileage"><strong>{q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)}</strong><small>{mileageSource}</small>
-                    {q !== 'unavailable' && <small>{stamp(t.mileage?.reportedAt)}</small>}</td>
-                  <td data-label="Fuel" title={fuel?.detail}><strong>{fuel ? `${fuel.percent}%` : 'Not recorded'}</strong>
-                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small>{stamp(fuel.at)}</small></>}</td>
+                  <td data-label="Mileage"><strong><MetricValue value={q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)} /></strong></td>
+                  <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
+                  <td data-label="Fuel" title={fuel?.detail}><strong><MetricValue value={fuel ? `${fuel.percent}%` : 'Not recorded'} /></strong>
+                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>
                   <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>
-                    {loadKnown && <><small>Recorded estimate</small><small>{stamp(t.loadUpdatedAt)}</small></>}</td>
+                    {loadKnown && <><small>Recorded estimate</small><small className="convoy-row-observed" title={`Load observed ${stamp(t.loadUpdatedAt)}`}>{stamp(t.loadUpdatedAt)}</small></>}</td>
                   <td data-label="Next service"><button className={`convoy-row-service ${plan?.status === 'due' ? 'due' : ''}`} title={detail} onClick={()=>{onTruck(t.id);onView?.('service');}}>{status}<ArrowRight size={12}/></button>
                     {plan && <small>{plan.serviceType}</small>}
                     {plan?.milesRemaining != null ? <small>{Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi {plan.milesRemaining <= 0 ? 'past target' : 'remaining'}</small> : plan?.daysRemaining != null ? <small>{Math.abs(plan.daysRemaining)} days {plan.daysRemaining <= 0 ? 'past target' : 'remaining'}</small> : null}</td>
@@ -473,47 +454,6 @@ export function ConvoyDashboard(props: DashboardProps) {
           </div>
         </section>
         <aside className="convoy-side-stack">
-          <section className="convoy-dash-panel convoy-attention">
-            <h2>Needs attention</h2>
-            <p>Start with the work that needs a decision.</p>
-            <button
-              onClick={() => {
-                setFilter("stop");
-                onTruck("");
-              }}
-            >
-              <strong>Out-of-service repairs</strong>
-              <span>
-                {stop.length
-                  ? stop.map(label).join(" · ")
-                  : repairsKnown
-                    ? "None recorded"
-                    : "Repair source unavailable"}
-              </span>
-              <Badge tone="warning">
-                {repairsKnown ? `${stop.length} trucks out of service` : "Review source"}
-              </Badge>
-            </button>
-            <button onClick={() => onView?.("service")}>
-              <strong>Review scheduled service</strong>
-              <span>
-                {scheduled.length
-                  ? `${scheduled.length} scheduled visits have passed`
-                  : "No past scheduled visits"}
-              </span>
-              <Badge tone="warning">
-                {scheduled.length ? "Completion not recorded" : "View planned work"}
-              </Badge>
-            </button>
-            <button onClick={() => onView?.("service")}>
-              <strong>Set preventive maintenance</strong>
-              <span>{baseline.length} trucks need service setup</span>
-              <Badge tone="warning">Add baseline and interval</Badge>
-            </button>
-            <Button className="convoy-primary" onClick={() => onView?.("service")}>
-              Open service planner <ArrowRight size={15} />
-            </Button>
-          </section>
           <Coverage snapshot={snapshot} trucks={trucks} now={now} />
         </aside>
       </div>

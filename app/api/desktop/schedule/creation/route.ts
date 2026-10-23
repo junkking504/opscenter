@@ -1,6 +1,7 @@
+import { waypointManagerActor } from '@/lib/waypoint-manager-context';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
-import { after } from 'next/server';
+import {trackedAfter as after} from '@/lib/release-after';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { finishDesktopCreation, readDesktopCreation, startDesktopCreation } from '@/lib/desktop-creation';
@@ -10,15 +11,15 @@ import {readDesktopSchedule} from '@/lib/desktop-schedule';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
-async function actor() { return verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || ''); }
+async function actor(request:Request) { return await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '') || waypointManagerActor(request); }
 export async function GET(request: Request) {
-  const auth = await actor();
+  const auth = await actor(request);
   if (!auth) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   const receipt = await readDesktopCreation(new URL(request.url).searchParams.get('requestId') || '', auth.email);
   return receipt ? Response.json({ receipt }, { headers }) : Response.json({ error: 'Booking receipt not found. Check JunkWare before retrying.' }, { status: 404, headers });
 }
 export async function POST(request: Request) {
-  const auth = await actor();
+  const auth = await actor(request);
   if (!auth) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   if (!authorizeOpsRequest(auth.role, '/api/appointments', 'POST').allowed || !isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Booking is not permitted.' }, { status: 403, headers });
   try {

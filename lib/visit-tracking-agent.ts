@@ -2,9 +2,17 @@ import type {VisitPin} from './appointment-visit-pin';
 import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-presence-policy';
 import {createHash} from 'node:crypto';
 
+export const GEOFENCE_MINIMUM_DWELL_SECONDS = 300;
+export function qualifiedGeofenceVisit(visit: TrackedVisit): boolean {
+  return visit.kind === 'geofence' && !visit.conflict && !!visit.enteredAt
+    && Number.isFinite(visit.geofenceDwellSeconds) && visit.geofenceDwellSeconds! >= GEOFENCE_MINIMUM_DWELL_SECONDS;
+}
+
 export const VISIT_TRACKING_AGENT = 'visit-tracking' as const;
 export type VisitEvidence = 'native_geofence' | 'live_position' | 'later_facility' | 'later_position' | 'confirmed_appointment' | 'operational_confirmation';
 export type TrackedVisit = {
+  // Evidence time only: wall-clock age and inferred departure bounds never add dwell.
+  geofenceDwellSeconds?: number; presenceStartedAt?: string; nativeEnteredAt?: string;
   visitPin?: VisitPin;
   agentId: typeof VISIT_TRACKING_AGENT;
   id: string; kind: 'geofence' | 'appointment'; truck: string; name: string;
@@ -72,12 +80,17 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       const inferred = !visit && [...completed].reverse().find(candidate=>candidate.truck === event.truck && facilityKey(candidate.name) === facilityKey(event.name) && ['later_facility','later_position'].includes(candidate.departureSource || ''));
       if (inferred) { inferred.conflict = true; continue; }
       const enteredAt = visit?.enteredAt || null;
+      const nativeSeconds = visit?.nativeEnteredAt && visit.nativeEntryIds?.length === 1
+        ? (Date.parse(event.timestamp)-Date.parse(visit.nativeEnteredAt))/1000 : 0;
+      const observedSeconds = visit && Date.parse(event.timestamp)-Date.parse(visit.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
+        ? (Date.parse(event.timestamp)-Date.parse(visit.presenceStartedAt || visit.lastSeenAt))/1000 : 0;
       completed.push({...visit, agentId:VISIT_TRACKING_AGENT, kind:'geofence',
         id:visit?.id || event.id.replace('linxup-geofence-', 'linxup-geofence-exit-'),
         truck:event.truck,name:event.name,facility:event.facility,resetLocation:event.resetLocation,
         enteredAt,departedAt:event.timestamp,lastSeenAt:visit?.lastSeenAt || event.timestamp,
         firstObservedAt:visit?.firstObservedAt || event.timestamp,entryIds:visit?.entryIds || [],arrivalSource:visit?.arrivalSource || 'native_geofence',
         departureSource:'native_geofence',departureBounds:null,
+        geofenceDwellSeconds:Math.max(visit?.geofenceDwellSeconds || 0,nativeSeconds,observedSeconds),
         durationSeconds:enteredAt ? (Date.parse(event.timestamp)-Date.parse(enteredAt))/1000 : null});
       continue;
     }
@@ -97,12 +110,17 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       // Repeated live positions extend presence. A native entry supplements a
       // V3 arrival; two distinct native entries without exit remain ambiguous.
       const ambiguous = event.type === 'entry' && !!previous.nativeEntryIds?.length;
-      active.set(key,{...previous,facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
+      const presenceStartedAt = Date.parse(event.timestamp)-Date.parse(previous.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
+        ? previous.presenceStartedAt || previous.lastSeenAt : event.timestamp;
+      active.set(key,{...previous,presenceStartedAt,
+        nativeEnteredAt:previous.nativeEnteredAt || (event.type === 'entry' ? event.timestamp : undefined),
+        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,(Date.parse(event.timestamp)-Date.parse(presenceStartedAt))/1000),facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
         nativeEntryIds:event.type === 'entry' ? [...(previous.nativeEntryIds || []),event.id] : previous.nativeEntryIds,
         lastSeenAt:event.timestamp,positionEntryId:previous.positionEntryId || (event.type === 'position' ? event.id : undefined),
         entryIds:event.type === 'entry' || event.type === 'position' && !previous.positionEntryId ? [...new Set([...previous.entryIds,event.id])] : previous.entryIds});
     } else {
       active.set(key,{agentId:VISIT_TRACKING_AGENT,id:event.id,kind:'geofence',truck:event.truck,name:event.name,
+        geofenceDwellSeconds:0,presenceStartedAt:event.timestamp,nativeEnteredAt:event.type === 'entry' ? event.timestamp : undefined,
         facility:event.facility,facilityPosition,resetLocation:event.resetLocation,enteredAt:event.timestamp,departedAt:null,lastSeenAt:event.timestamp,
         firstObservedAt:event.timestamp,positionEntryId:event.type === 'position' ? event.id : undefined,nativeEntryIds:event.type === 'entry' ? [event.id] : [],entryIds:[event.id],arrivalSource:event.type === 'entry' ? 'native_geofence' : 'live_position',
         departureSource:null,departureBounds:null,durationSeconds:null});

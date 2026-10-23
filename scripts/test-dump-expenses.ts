@@ -24,7 +24,7 @@ assert.equal(parseDumpFeePolicy({ ...defaultDumpFeePolicy, defaultMinimumFee: -1
 assert.equal(parseDumpFeePolicy({ ...defaultDumpFeePolicy, facilities: [{ name: 'A', aliases: ['a'], minimumFee: 1 }] }), null);
 assert.equal(project()[0].amount, 44);
 assert.equal(project()[0].status, 'assumed');
-assert.equal(project([], source, Date.parse(at('10:15')))[0].window, 'onsite');
+assert.equal(project([], source, Date.parse(at('10:15'))).length,0,'Elapsed clock without onsite evidence does not qualify');
 assert.equal(project([], source, Date.parse(at('11:00')))[0].window, 'open');
 assert.equal(project()[0].window, 'open', 'Actual replacement never expires');
 for (const time of ['10:00', '10:15', '10:30', '11:29', '11:30']) {
@@ -44,7 +44,7 @@ assert.ok(project([actual('11:00', { location: 'Stranco' })]).some(record => rec
 assert.equal(project([actual('11:00', { location: '' })]).length, 1, 'One unambiguous visit can match an unspecified location');
 assert.equal(project([actual('11:00'), actual('11:00')]).length, 1, 'Source retries deduplicate');
 assert.equal(project([], [...source, ...source]).length, 1, 'Geofence retries deduplicate');
-assert.equal(project([], [transition('entered', '10:00'), transition('entered', '10:01'), transition('exited', '10:30')]).length, 1, 'Repeated entry before an exit is one visit');
+assert.equal(project([], [transition('entered', '10:00'), transition('entered', '10:01'), transition('exited', '10:30')]).length, 0, 'Ambiguous repeated entries cannot prove five minutes');
 const twice = [...source, transition('entered', '11:00'), transition('exited', '11:10')];
 const matched = project([actual('11:15')], twice);
 assert.equal(matched.length, 2);
@@ -56,8 +56,8 @@ assert.equal(project([actual('11:15', { location: '' })], twice).filter(record=>
 assert.equal(project([], [transition('exited', '10:30')]).length, 0, 'Exit alone cannot invent a charged entry');
 assert.equal(project([], [transition('entered', '10:00', 'Warehouse')]).length, 0);
 assert.equal(project([], [transition('entered', '10:00', 'EMR')]).length, 0);
-assert.equal(project([], [transition('entered', '10:00', 'Test Dump')])[0].status, 'minimum_missing');
-for (const [name, fee] of [['STS', 85], ['BRL', 47], ['BR Landfilll', 47], ['RBL', 47]] as const) assert.equal(project([], [transition('entered', '10:00', name)])[0].amount, fee);
+assert.equal(project([], [transition('entered', '10:00', 'Test Dump'),transition('exited', '10:05', 'Test Dump')])[0].status, 'minimum_missing');
+for (const [name, fee] of [['STS', 85], ['BRL', 47], ['BR Landfilll', 47], ['RBL', 47]] as const) assert.equal(project([], [transition('entered', '10:00', name),transition('exited', '10:05', name)])[0].amount, fee);
 assert.equal(project([actual('11:00', { location: 'EBR' })], [transition('entered', '10:00', 'BR Landfilll'), transition('exited', '10:30', 'BR Landfilll')])[0].status, 'actual', 'Observed LinxUp spelling matches the Baton Rouge expense alias');
 const overnight = [transition('entered', '23:30'), transition('exited', '00:10', 'GL', '9', '2026-09-16')];
 assert.equal(project([actual('00:59', { date: '2026-09-16', transactionAt: at('00:59', '2026-09-16') })], overnight)[0].status, 'actual');

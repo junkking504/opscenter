@@ -1,5 +1,5 @@
 import {chicagoDateKey} from './chicago-date';
-import type {TrackedVisit} from './visit-tracking-agent';
+import {qualifiedGeofenceVisit, type TrackedVisit} from './visit-tracking-agent';
 import type {DumpFeePolicy} from './dump-expense-policy';
 import type {TruckExpense} from './truck-expense-notifications';
 import type {TruckLoadEvent} from './truck-load-status';
@@ -31,7 +31,7 @@ export function uniqueTrackedVisits(visits:TrackedVisit[]):TrackedVisit[] {
 /** Exactly one physical unload per visit, always at the original arrival.
  * A later expense changes the cost only; it can never clear later pickups. */
 export function projectUnloadEvents(date:string,visits:TrackedVisit[],now=Date.now()):TruckLoadEvent[] {
-  return uniqueTrackedVisits(visits).filter(visit=>visit.kind==='geofence' && visit.resetLocation && visit.entryIds.length && visit.firstObservedAt
+  return uniqueTrackedVisits(visits).filter(visit=>qualifiedGeofenceVisit(visit) && visit.resetLocation && visit.entryIds.length && visit.firstObservedAt
     && Date.parse(visit.firstObservedAt)<=now && chicagoDateKey(new Date(visit.firstObservedAt))===date).map(visit=>({
     eventId:`unload:${visit.id}`,date,truck:visit.truck.replace('Truck ','Truck# '),kind:'yard_reset',loadFraction:0,
     occurredAt:visit.firstObservedAt,recordedAt:visit.firstObservedAt,recordedBy:`Unload agent: ${canonicalDumpLocation(visit.name)} (${visit.arrivalSource==='live_position'?'GPS facility arrival':'geofence entry'})`,
@@ -60,7 +60,7 @@ export function projectVerifiedExpenseUnloadEvents(
 }
 export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputExpenses:TruckExpense[],policy:DumpFeePolicy|null,now=Date.now(),confirmations:DumpExpenseConfirmation[]=[]){
   const visits=uniqueTrackedVisits(inputVisits);
-  const records:DumpExpenseRecord[]=visits.filter(visit=>visit.kind==='geofence' && visit.resetLocation==='dump' && visit.entryIds.length && visit.firstObservedAt
+  const records:DumpExpenseRecord[]=visits.filter(visit=>qualifiedGeofenceVisit(visit) && visit.resetLocation==='dump' && visit.entryIds.length && visit.firstObservedAt
     && Date.parse(visit.firstObservedAt)<=now && (!policy || chicagoDateKey(new Date(visit.firstObservedAt))>=policy.effectiveFrom)).map(visit=>{
     const site=policy?.facilities.find(site=>facilityKey(site.name,policy)===facilityKey(visit.name,policy));
     const fee=site?.minimumFee ?? policy?.defaultMinimumFee ?? null;

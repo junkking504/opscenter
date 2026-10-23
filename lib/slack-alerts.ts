@@ -29,7 +29,7 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
-import { geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
+import { qualifiedGeofenceEntry, qualifiedGeofenceDeparture, geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -1181,7 +1181,7 @@ export function buildGeofenceSlackNotifications(
   visits: GeofenceVisit[],
 ): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
-  for (const entry of entries) {
+  for (const entry of entries.filter(qualifiedGeofenceEntry)) {
     const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at");
     notifications.push({
       fingerprint: `geofence_entry:${date}:${entry.id}`,
@@ -1197,7 +1197,7 @@ export function buildGeofenceSlackNotifications(
       verbatimPlainText: true,
     });
   }
-  for (const visit of visits) {
+  for (const visit of visits.filter(qualifiedGeofenceDeparture)) {
     const plainText = geofenceTransitionAlertText(visit.truck, visit.name, "departed");
     notifications.push({
       fingerprint: `geofence_exit:${date}:${visit.id}`,

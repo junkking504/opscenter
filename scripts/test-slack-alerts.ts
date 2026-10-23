@@ -57,6 +57,7 @@ assert.equal(
   "Baton Rouge",
 );
 const geofenceEntry = {
+  geofenceDwellSeconds:300,
   id: "entry-1",
   truck: "Truck 8",
   name: "Warehouse",
@@ -754,11 +755,11 @@ try {
   assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Existing geofence history is baselined silently");
   const nativeExit = { ...nativeEntry, alert_type: "GEOFENCE_EXITED", occurred_at: "2026-08-12T18:31:16Z" };
   fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit] }));
-  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_exit"]);
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);
   const nativeReentry = { ...nativeEntry, occurred_at: "2026-08-12T19:00:00Z" };
-  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry] }));
-  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry"]);
-  assert.equal(postedMessages.at(-1), "Truck 8 at NOHQ");
+  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry, {...nativeReentry,alert_type:"GEOFENCE_EXITED",occurred_at:"2026-08-12T19:05:00Z"}] }));
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);
+  assert.ok(postedMessages.includes("Truck 8 at NOHQ"));
   assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Geofence notifications deduplicate across minute refreshes");
   postedMessages.length = 0;
 

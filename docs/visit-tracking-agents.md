@@ -1,5 +1,20 @@
 # Visit tracking and unload agents
 
+## Five-minute geofence minimum
+
+Every named geofence requires at least 300 seconds of supported onsite time
+before it becomes an operational visit, alert, automatic unload, or assumed dump
+cost. Short crossings are drive-bys. Raw provider crossings remain audit evidence.
+Native entry/exit pairs can prove the interval; ongoing GPS membership must form
+a continuous sequence with gaps no greater than five minutes. Wall-clock age,
+missing exits, ambiguous repeated entries and inferred departure upper bounds do
+not establish dwell. Inferred departures qualify only from the observed onsite
+lower bound. Each return qualifies separately. Once qualified, an unload retains
+its original arrival anchor so later pickups are preserved. Recorded actual dump
+expenses remain independent evidence. This policy applies to named geofences;
+appointment visit-pin matching retains its separately documented policy.
+
+
 OpsCenter separates two ongoing deterministic operational agents. They use
 already collected local evidence and require no AI calls, new paid services or
 additional provider polling. The existing refresh and V3 ingestion cadence drives

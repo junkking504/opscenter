@@ -18,14 +18,15 @@ for(const name of ['Warehouse','Junk King warehouse','NOHQ','BRHQ','Junk King wa
 for(const name of ['Gentilly','River Birch','Baton Rouge Landfill','GL','RBL','BRL','STS','Stranco','GMTS','Green Meadow','Mengel']) assert.equal(geofenceFacility(name).resetLocation,'dump');
 for(const name of ['EMR','Scrap yard','Metal recycling yard']) assert.equal(geofenceFacility(name).resetLocation,'metal_yard');
 assert.equal(geofenceFacility('Unrecognized industrial yard').resetLocation,null);
-assert.equal(geofenceLoadResets(date,entries).length,3);
+assert.equal(geofenceLoadResets(date,entries).length,0,'Raw entries cannot reset loads');
+assert.equal(geofenceLoadResets(date,entries.map(entry=>({...entry,geofenceDwellSeconds:300}))).length,3);
 const pickup=(id:string,time:string,load=.25):TruckLoadEvent=>({eventId:id,date,truck:'Truck# 4',kind:'job_closeout',loadFraction:load,occurredAt:time,recordedAt:time,recordedBy:'test',appointmentId:id,jobNumber:id,loadSize:'1/4',loadQuantity:'1',contents:'',resetLocation:''});
 const first=pickup('first','2026-09-06T15:00:00Z');
 const later=pickup('later','2026-09-06T18:00:00Z');
 const warehouse=entries.filter(entry=>entry.facility==='Junk King warehouse');
 assert.equal(deriveTruckLoadStatus(date,'Truck 4',[first,...geofenceLoadResets(date,warehouse)]).currentLoadFraction,.25,'Warehouse entry retains the current load');
 for(const facility of ['Gentilly Landfill','Stranco Transfer Station','EMR Metal Recycling']) {
-  const resets=geofenceLoadResets(date,geofenceEntries(date,[row(facility),row(facility)]));
+  const resets=geofenceLoadResets(date,geofenceEntries(date,[row(facility),row(facility)]).map(entry=>({...entry,geofenceDwellSeconds:300})));
   assert.equal(resets.length,1);
   assert.equal(deriveTruckLoadStatus(date,'Truck 4',[first,...resets]).currentLoadFraction,0);
   assert.equal(deriveTruckLoadStatus(date,'Truck 4',[first,...resets,later]).currentLoadFraction,.25,'A later job starts a new load');
@@ -50,7 +51,7 @@ assert.equal(completedAlert.timestamp,new Date(exited.occurred_at).toISOString()
 assert.equal(completedAlert.id,geofenceEntries(date,[entered])[0].id,'Departure keeps the entry review identity');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits).length,1,'Departure upgrades entry to one overall visit card');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits)[0].title,'Truck 4 departed Gentilly');
-assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[])[0].label,'Geofence','Open visits still alert on entry');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[]).length,0,'Unqualified open crossings do not alert');
 assert.equal(geofenceTransitionAlertText('Truck# 9','Stranco Transfer Station','departed'),'Truck 9 departed Stranco');
 assert.deepEqual(geofenceSlackTransition(':round_pushpin: *Truck 4 Geofence Entry*\n*Location:* Gentilly'),{truck:'Truck 4',name:'Gentilly',transition:'entry'});
 assert.deepEqual(geofenceSlackTransition('Truck #4 departed Warehouse'),{truck:'Truck 4',name:'NOHQ',transition:'exit'});
@@ -71,12 +72,12 @@ assert.equal(geofenceVisits(date,[entered,{...exited,geofence_name:'Warehouse'}]
 const ambiguousRows=[entered,row('Gentilly','2026-09-06T18:05:00Z'),exited];
 const ambiguous=geofenceVisits(date,ambiguousRows);
 assert.equal(ambiguous[0].durationSeconds,null,'Repeated entries without an exit leave total duration uncertain');
-assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,ambiguousRows),ambiguous).length,1,'Ambiguous closed visit must not leave a false ongoing entry');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,ambiguousRows),ambiguous).length,0,'Ambiguous closed visit must not leave a false ongoing entry');
 const overnight=geofenceVisits(date,[row('Gentilly','2026-09-06T04:45:00Z'),row('Gentilly','2026-09-06T05:15:00Z',{alert_type:'GEOFENCE_EXITED'})]);
 assert.equal(overnight[0].durationSeconds,1800,'Match across the Chicago midnight boundary');
 assert.equal(geofenceVisits(date,[entered,exited],Date.parse('2026-09-06T18:10:00Z')).length,0,'Future exits do not close an active visit');
 assert.equal(geofenceVisits(date,[entered,row('Gentilly','2026-09-06T18:10:00Z',{alert_type:'IGNITION_OFF'})]).length,0);
-assert.equal(geofenceLoadResets(date,geofenceEntries(date,[entered,exited])).length,1,'Departure cannot reset load twice');
+assert.equal(geofenceLoadResets(date,geofenceEntries(date,[entered,exited]).map(entry=>({...entry,geofenceDwellSeconds:916}))).length,1,'Qualified departure cannot reset load twice');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'geofence-alert-test-'));
 process.env.OPSCENTER_DATA_DIR=root;
 try {
@@ -84,7 +85,8 @@ try {
   const dir=path.join(root,'history','linxup','alerts');fs.mkdirSync(dir,{recursive:true});
   const file=path.join(dir,`linxup_alerts_${date}.json`);
   fs.writeFileSync(file,JSON.stringify({date,alerts:[row('Warehouse')],pagination_completed:false,validation_status:'partial'}));
-  assert.equal(readGeofenceEntries(date).entries.length,1,'Known events survive incomplete collection');
+  assert.equal(readGeofenceEntries(date).rawEntries.length,1,'Raw events survive incomplete collection');
+  assert.equal(readGeofenceEntries(date).entries.length,0,'Uncorroborated entry does not qualify');
   assert.equal(readGeofenceEntries(date).complete,false);
   fs.writeFileSync(file,JSON.stringify({date,alerts:[],pagination_completed:true,validation_status:'passed'}));
   assert.equal(readGeofenceEntries(date).complete,true,'An empty complete collection differs from unavailable');

@@ -1,7 +1,11 @@
 # Assumed dump expenses
 
+All named geofences follow the [five-minute minimum](visit-tracking-agents.md#five-minute-geofence-minimum). Raw crossings do not trigger automatic business effects.
+
+
+
 Effective September 15, 2026, OpsCenter projects one assumed dump expense when
-the visit-tracking agent establishes a positive facility arrival at a landfill, transfer station or dump.
+the visit-tracking agent confirms a five-minute facility visit at a landfill, transfer station or dump.
 The user supplied these minimums:
 
 | Facility | Minimum |
@@ -21,7 +25,8 @@ weight, receipt number, provider payment or fee is fabricated.
 ## Replacement rule
 
 - The unload/cost agent consumes the visit agent's normalized facility visits.
-  Native entries and positive GPS facility reports both qualify. One stable visit
+  Native entry/exit intervals and positive GPS facility reports qualify only
+  after at least five minutes of supported onsite time. One stable visit
   identity produces one unload at its original arrival and one assumed minimum.
 - A verified actual replaces the assumption whenever it is recorded; there is
   no sixty-minute expiry. Late collection or manual entry backdated to the visit's

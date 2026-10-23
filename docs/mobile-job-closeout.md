@@ -1103,3 +1103,19 @@ Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
 `verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
 `verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
 and receipt recovery. No real customer correction is a deployment test.
+
+## Waypoint crew navigation
+
+After daily setup and inspection, the crew screen has persistent bottom entries for
+Route, Completed, Performance, Notifications and Messages. Completed records and
+today’s performance open directly rather than through accordions below the route.
+Truck filtering is preserved across these views and appointment-detail return.
+The bottom navigation stays hidden during appointment details/edits so the existing
+draft and in-flight-work guards remain authoritative. Test phones expose the
+three assignment/performance views without live notification controls.
+
+Notifications and office messages share one mounted connection/inbox component;
+switching views does not resubscribe or re-prompt for permission. The route’s
+notification status opens the notification screen. Initial permission remains a
+one-time phone action, with no in-app Disable Notifications control. See
+[Waypoint push](waypoint-push.md) for daily-session restoration and authorization.

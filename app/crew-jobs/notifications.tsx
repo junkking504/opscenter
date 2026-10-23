@@ -1,11 +1,15 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './phone-access.module.css';
+import layout from './notifications.module.css';
+export type NotificationConnection='checking'|'on'|'off'|'attention';
 type Message={id:string;body:string;created_at:string};
 const endpoint='/api/crew-jobs/notifications';
-export default function WaypointNotifications(){
+export default function WaypointNotifications({view='all',onConnectionChange}:{view?:'all'|'notifications'|'messages';onConnectionChange?:(state:NotificationConnection)=>void}){
  const [available,setAvailable]=useState(false),[publicKey,setPublicKey]=useState(''),[messages,setMessages]=useState<Message[]>([]),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState('');
  const [supported,setSupported]=useState(false),[standalone,setStandalone]=useState(false),[enabled,setEnabled]=useState(false);
+ const [checked,setChecked]=useState(false);
+ useEffect(()=>{onConnectionChange?.(!checked?'checking':error?'attention':enabled?'on':'off');},[checked,error,enabled,onConnectionChange]);
  const working=useRef(false);
  const load=useCallback(async()=>{
   if(working.current)return;working.current=true;setBusy(true);
@@ -23,14 +27,14 @@ export default function WaypointNotifications(){
      const restored=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restore',deviceId:id,notificationKey:key,endpoint:subscription.endpoint})});
      const result=await restored.json();if(!restored.ok)throw Error('Reconnect failed.');
      connected=result.enabled===true;
-    }catch{setEnabled(false);setError('Office messages are up to date. Notifications could not reconnect; try Refresh messages.');return;}
+    }catch{setEnabled(false);setError('Office messages are up to date. Notifications could not reconnect; try Refresh.');return;}
    }
    setEnabled(connected);setError('');
-  }finally{working.current=false;setBusy(false);}
+  }finally{working.current=false;setBusy(false);setChecked(true);}
  },[]);
  useEffect(()=>{
   setSupported('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);setStandalone(matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & {standalone?:boolean}).standalone));
-  const refresh=()=>void load().catch(()=>setError('Notifications and office messages could not refresh. Try Refresh messages.'));
+  const refresh=()=>void load().catch(()=>setError('Notifications and office messages could not refresh. Try Refresh.'));
   const visible=()=>{if(document.visibilityState==='visible')refresh();};
   refresh();document.addEventListener('visibilitychange',visible);
   return()=>document.removeEventListener('visibilitychange',visible);
@@ -45,17 +49,31 @@ export default function WaypointNotifications(){
   const subscription=await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});
   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',subscription:subscription.toJSON(),notificationKey})}),body=await response.json();if(!response.ok)throw Error(body.error || 'Notifications were not enabled.');
   localStorage.setItem('waypoint-push-device',body.deviceId);setEnabled(true);setStatus('Notifications enabled.');
- }catch(e){setError(e instanceof Error?e.message:'Notification setup failed.');}finally{working.current=false;setBusy(false);}}
- return <details id="waypoint-office-messages" className={styles.card} open={messages.length>0}><summary>Notifications &amp; office messages{messages.length?` (${messages.length})`:""}</summary>
- <p>New jobs, cancellations, schedule changes, route updates and office messages for your current truck.</p>
- {!standalone && <p>On iPhone: Share → Add to Home Screen. Open Waypoint from that icon to enable notifications.</p>}
- {!supported && <p>Push notifications require a supported iPhone with Waypoint on the Home Screen.</p>}
- {!available && <p>Notification service is currently unavailable. Office messages can still be refreshed here.</p>}
- <p>{enabled?"Notifications are on and follow your current truck.":"Notifications are off on this phone."}</p>
- {!enabled && <p>Enable once on this phone. Notifications reconnect automatically after daily truck and crew setup.</p>}
- {!enabled && <button className={styles.secondary} disabled={busy || !supported || !standalone || !available} onClick={()=>void enable()}>Enable notifications</button>}
- {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
- <h2>Office messages</h2><button className={styles.secondary} disabled={busy} onClick={()=>void load().catch(()=>setError('Messages could not be refreshed.'))}>Refresh messages</button>
- {messages.length?messages.map(message=><section key={message.id}><p style={{whiteSpace:'pre-wrap'}}>{message.body}</p><small>{new Date(message.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</small></section>):<p>No office messages for this truck today.</p>}
- </details>;
+ }catch(e){setError(e instanceof Error?e.message:'Notification setup failed.');}finally{working.current=false;setBusy(false);setChecked(true);}}
+ return <section id="waypoint-office-messages" className={`${styles.card} ${layout.panel}`}>
+ <h1>{view==='messages'?'Office messages':view==='notifications'?'Notifications':'Notifications & office messages'}</h1>
+ <div className={layout.body}>
+  <section hidden={view==='messages'} className={layout.setup} aria-label="Notification status">
+   <p className={layout.status}>{enabled?"Notifications are on and follow your current truck.":"Notifications are off on this phone."}</p>
+   <p className={styles.muted}>Job, route and office updates for your current truck.</p>
+   {!standalone && <p className={styles.muted}>On iPhone: Share → Add to Home Screen, then open Waypoint from that icon.</p>}
+   {!supported && <p className={styles.muted}>Push notifications require a supported iPhone with Waypoint on the Home Screen.</p>}
+   {!available && <p className={styles.muted}>Notification service is currently unavailable. Office messages can still be refreshed here.</p>}
+   {!enabled && <><p className={styles.muted}>Enable once. Notifications stay on after daily setup.</p>
+    <button className={`${styles.secondary} ${layout.action}`} disabled={busy || !supported || !standalone || !available} onClick={()=>void enable()}>Enable notifications</button></>}
+   {status && <p role="status" className={styles.muted}>{status}</p>}
+
+  </section>
+  <section hidden={view==='notifications'} className={view==='all'?layout.inbox:layout.messages} aria-label="Office messages">
+   <div className={layout.inboxHeader}>{view==='all' && <h2>Office messages</h2>}
+    <button className={`${styles.secondary} ${layout.action}`} aria-label="Refresh messages" disabled={busy} onClick={()=>void load().catch(()=>setError('Messages could not be refreshed.'))}>Refresh</button>
+   </div>
+   {messages.length?<div className={layout.messages}>{messages.map(message=><article key={message.id} className={layout.message}>
+    <p style={{whiteSpace:'pre-wrap'}}>{message.body}</p><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time>
+   </article>)}</div>:<p className={styles.muted}>No office messages for this truck today.</p>}
+  </section>
+ </div>
+  {view==='notifications' && <button className={`${styles.secondary} ${layout.action}`} disabled={busy} onClick={()=>void load().catch(()=>setError('Notifications could not be refreshed.'))}>Refresh notifications</button>}
+  {error && <p role="alert" className={styles.error}>{error}</p>}
+ </section>;
 }

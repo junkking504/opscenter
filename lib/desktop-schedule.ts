@@ -1,6 +1,6 @@
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
-import { likelyGpsStop } from './likely-stop-match';
+import { likelyGpsStop, likelyStopHasConflict } from './likely-stop-match';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -99,12 +99,20 @@ export function readDesktopSchedule(date: string) {
   // Near misses (typo'd house number, unresolved pin): a stop with dwell and
   // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
   const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
+  const suggestions = new Map<DesktopAppointment, NonNullable<ReturnType<typeof likelyGpsStop>>>();
   for (const job of appointments) {
     if (job.truckVisits?.length) continue;
     const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
     if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
     const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date);
-    if (likely?.confident && likely.departure) {
+    if (likely) suggestions.set(job, likely);
+  }
+  for (const [job, candidate] of suggestions) {
+    const others = appointments.filter(other=>other!==job).flatMap(other=>[...(other.truckVisits || []), ...(suggestions.has(other) ? [suggestions.get(other)!] : [])]);
+    const likely = likelyStopHasConflict(candidate,others)
+      ? {...candidate,confident:false,reason:candidate.reason.replace('matched by GPS dwell','unconfirmed')+' · overlaps another appointment'} : candidate;
+    const truck = likely.truck;
+    if (likely.confident && likely.departure) {
       // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
       job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
       job.hasVisit = true;

@@ -5,7 +5,7 @@ import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
 import { readScheduleVisits } from '@/lib/desktop-schedule-visits';
 import { NextResponse } from "next/server";
 import { COMMAND_ALERT_RULE, commandAlertWorkItemForSource } from "@/lib/command-alert-workflow";
-import { geofenceOperationalAlert, readGeofenceEntries } from "@/lib/linxup-geofence-alerts";
+import { geofenceTimelineAlerts, readGeofenceEntries } from "@/lib/linxup-geofence-alerts";
 import type { OperationalAlert } from "@/lib/operational-alert-presentation";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
@@ -54,9 +54,10 @@ export async function POST(request: Request) {
     let alert: OperationalAlert;
     let sourceObservedAt: string;
     if (String(body.alertId).startsWith('linxup-geofence-')) {
-      const entry = readGeofenceEntries(date).entries.find(row=>row.id===body.alertId);
-      if (!entry) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});
-      alert = geofenceOperationalAlert(entry,date);
+      const source = readGeofenceEntries(date);
+      const entry = geofenceTimelineAlerts(date,source.arrivals,source.visits).find(row=>row.id===body.alertId);
+      if (!entry?.timestamp) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});
+      alert = entry;
       sourceObservedAt = entry.timestamp;
     } else if (String(body.alertId).startsWith('appointment-cancellation:')) {
       const cancellation = commandCancellationAlerts([], readJobRows(date), date).find(candidate => candidate.id === body.alertId);

@@ -2,20 +2,41 @@
 
 ## Five-minute geofence minimum
 
-Every named geofence requires at least 300 seconds of supported onsite time
-before it becomes an operational visit, alert, automatic unload, or assumed dump
-cost. Short crossings are drive-bys. Raw provider crossings remain audit evidence.
+Every named geofence alerts immediately when its native entry or first positive
+GPS facility report becomes available through the existing refresh cadence.
+The alert is provisional until evidence supports at least 300 seconds onsite.
+At five minutes, the same alert becomes confirmed. If the truck departs before
+qualification, its provisional card is removed from the operational record and
+it contributes no GPS visit, unload or assumed dump cost. Raw provider evidence
+remains available for audit. A missing feed alone never proves departure.
+
+Slack follows the same lifecycle: entry posts immediately with a pending label,
+confirmation updates that message, and a completed unqualified episode retracts
+its bot-owned message using the saved channel and message receipt. Failed
+retractions retain their receipt for retry by the existing runner. Legacy
+messages without receipts cannot be safely deleted by guessing identity.
+A notification already displayed on a phone cannot be recalled from the device.
+Native departures alert only for qualified visits; inferred departures retain
+explicit bounds in OpsCenter. Prior/next-day context retracts short midnight
+crossings from both the prior-day card and the owned Slack message.
+
 Native entry/exit pairs can prove the interval; ongoing GPS membership must form
 a continuous sequence with gaps no greater than five minutes. Wall-clock age,
 missing exits, ambiguous repeated entries and inferred departure upper bounds do
 not establish dwell. Inferred departures qualify only from the observed onsite
-lower bound. Each return qualifies separately. Once qualified, an unload retains
+lower bound. Each evidenced departure and return qualifies separately; a gap
+alone cannot establish an exit and new visit. Once qualified, an unload retains
 the first qualifying continuous presence anchor so later pickups are preserved;
-an earlier isolated sighting across a GPS gap cannot backdate that unload. Recorded actual dump
-expenses remain independent evidence. This policy applies to named geofences;
-appointment visit-pin matching retains its separately documented policy. The
-Schedule HQ fallback also requires five minutes from trip arrival/departure
+an earlier isolated sighting across a GPS gap cannot backdate that unload.
+Recorded actual dump expenses remain independent evidence. This policy applies
+to named geofences; appointment visit-pin matching retains its separate policy.
+The Schedule HQ fallback also requires five minutes from trip arrival/departure
 evidence or continuous onsite fixes; a route coverage timestamp is not dwell.
+
+The reader separates `alertEntries`/`arrivals` from qualified
+`trackedVisits`/`visits`. EMR GPS reconciliation must use the latter, never raw
+entries or provisional alerts. A receipt is independent evidence of a delivery;
+a short crossing cannot create an expected receipt or erase a recorded one.
 
 
 OpsCenter separates two ongoing deterministic operational agents. They use

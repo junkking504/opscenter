@@ -50,10 +50,17 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     if (want.city && got.city && want.city !== got.city || want.zip && got.zip && want.zip !== got.zip) return [];
     const meters = pin && validGpsCoordinates(trip.to) ? gpsDistanceMeters(pin, trip.to) : null;
     if (meters !== null && meters > FAR_METERS) return [];
-    const arrival = Date.parse(trip.arrival), start = chicagoMinutes(arrival, day);
-    if (!Number.isFinite(arrival) || start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
+    const arrival = Date.parse(trip.arrival);
+    if (!Number.isFinite(arrival)) return [];
+    const start = chicagoMinutes(arrival, day);
+    if (start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
     const next = ordered[index + 1];
-    const departure = next && Date.parse(next.departure) >= arrival ? next.departure : null;
+    const continuous = next && next.number === trip.number + 1
+      && validGpsCoordinates(trip.to) && validGpsCoordinates(next.from)
+      && gpsDistanceMeters(trip.to, next.from) <= 50
+      && normalizeServiceAddress(trip.to.address) === normalizeServiceAddress(next.from.address);
+    const departure = continuous && Date.parse(next.departure) >= arrival
+      && Date.parse(next.arrival) >= Date.parse(next.departure) ? next.departure : null;
     const exact = want.house === got.house;
     const closed = /complete|closed|paid/i.test(job.status || '');
     const dwellMinutes = departure ? (Date.parse(departure) - arrival) / 60_000 : 0;
@@ -65,4 +72,15 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
   // Several different stops at this address cannot be told apart reliably.
   if (found.length > 1 && new Set(found.map(row => row.stop.stopAddress)).size > 1) return null;
   return found.sort((a, b) => a.distance - b.distance)[0]?.stop || null;
+}
+
+/** A suggested episode cannot claim a second appointment's physical stop. */
+export function likelyStopHasConflict(stop: LikelyStop, others: {truck:string;arrival:string;departure:string|null}[]): boolean {
+  if (!stop.departure) return false;
+  const start=Date.parse(stop.arrival), end=Date.parse(stop.departure);
+  return others.some(other=> {
+    if (other.truck.replace(/^truck\s*#?\s*/i,'Truck ')!==stop.truck) return false;
+    const otherStart=Date.parse(other.arrival), otherEnd=other.departure ? Date.parse(other.departure) : Infinity;
+    return otherStart===otherEnd ? otherStart>=start && otherStart<=end : otherStart<end && otherEnd>start;
+  });
 }

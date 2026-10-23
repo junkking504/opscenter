@@ -29,6 +29,7 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
+import { qualifiedGeofenceVisit, visitDay } from './visit-tracking-agent';
 import { qualifiedGeofenceEntry, qualifiedGeofenceDeparture, geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -1181,10 +1182,11 @@ export function buildGeofenceSlackNotifications(
   visits: GeofenceVisit[],
 ): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
-  for (const entry of entries.filter(qualifiedGeofenceEntry)) {
-    const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at");
+  for (const entry of entries) {
+    const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at")
+      + (qualifiedGeofenceEntry(entry) ? "" : "\nVisit pending · five minutes onsite required");
     notifications.push({
-      fingerprint: `geofence_entry:${date}:${entry.id}`,
+      fingerprint: `geofence_entry:${visitDay(entry.timestamp)}:${entry.id}`,
       kind: "geofence_entry",
       lifecycle: "notification",
       severity: "warning",
@@ -1216,13 +1218,20 @@ export function buildGeofenceSlackNotifications(
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
 }
 
-function allGeofenceNotifications(date: string): { notifications: SlackOpsAlert[]; available: boolean } {
-  if (date !== chicagoDateKey()) return { notifications: [], available: false };
+function allGeofenceNotifications(date: string, state: SlackAlertState) {
   const source = readGeofenceEntries(date);
-  return {
-    notifications: buildGeofenceSlackNotifications(date, source.entries, source.nativeVisits),
-    available: source.available,
-  };
+  const notifications = buildGeofenceSlackNotifications(date, source.alertEntries, source.nativeVisits)
+    .map(alert => {
+      // A late native entry may precede the first GPS report. Keep the message
+      // already owned by this episode instead of posting a second entry.
+      if (alert.kind !== 'geofence_entry') return alert;
+      const id = alert.fingerprint.split(':')[2];
+      const episode = source.rawTrackedVisits.find(visit=>visit.id===id);
+      const alias = episode && Object.keys(state.notificationMessages).find(key=>key.startsWith('geofence_entry:') && episode.entryIds.includes(key.split(':')[2]));
+      return alias ? {...alert,fingerprint:alias} : alert;
+    }).filter(alert=>alert.fingerprint.split(':')[1]===date || !!state.notificationMessages[alert.fingerprint]);
+  return {notifications, episodes:source.rawTrackedVisits,
+    available:source.available || !!source.sourceHealth.positionsObservedAt};
 }
 
 /**
@@ -1353,17 +1362,18 @@ async function postSlackMessage(
   text: string,
   threadTs?: string,
   updateTs?: string,
+  deleteMessage = false,
 ): Promise<SlackApiResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch(`https://slack.com/api/${updateTs ? "chat.update" : "chat.postMessage"}`, {
+    const response = await fetch(`https://slack.com/api/${deleteMessage ? "chat.delete" : updateTs ? "chat.update" : "chat.postMessage"}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json; charset=utf-8",
       },
-      body: JSON.stringify({
+      body: JSON.stringify(deleteMessage ? {channel:channelId,ts:updateTs} : {
         channel: channelId,
         text,
         mrkdwn: true,
@@ -1614,7 +1624,7 @@ async function runGeofenceSlackAlerts(options: {
   const { date, dryRun, enabled, kinds } = options;
   if (date !== chicagoDateKey()) return slackAlertRunResult(date, dryRun, enabled, []);
   const state = readState();
-  const source = allGeofenceNotifications(date);
+  const source = allGeofenceNotifications(date, state);
   const allNotifications = source.notifications;
   const initialized = Boolean(state.geofenceNotificationsInitializedAt);
   const delivered = new Set(state.deliveredGeofenceNotificationsByDate[date] || []);
@@ -1636,6 +1646,27 @@ async function runGeofenceSlackAlerts(options: {
     return result;
   }
 
+  // Delete only bot-owned messages with a durable delivery receipt and explicit
+  // closed, unqualified evidence. Missing/stale data alone never means drive-by.
+  const rejected = source.episodes.filter(visit=>!!visit.departedAt && !qualifiedGeofenceVisit(visit));
+  const rejectedIds = new Set(rejected.flatMap(visit=>[visit.id,...visit.entryIds]));
+  for (const [fingerprint, receipt] of Object.entries(state.notificationMessages)) {
+    const [kind,,id] = fingerprint.split(':');
+    if (!['geofence_entry','geofence_exit'].includes(kind) || !kinds.has(kind as SlackAlertKind) || !rejectedIds.has(id)) continue;
+    const response = await postSlackMessage(token, receipt.channelId, '', undefined, receipt.ts, true);
+    if (response.ok || response.error === 'message_not_found') {
+      delete state.notificationMessages[fingerprint];
+      // Keep all known identities so partial replay or a late native alias
+      // cannot repost the same discarded crossing. These are suppression keys,
+      // never message IDs used for deletion.
+      delivered.add(fingerprint);
+      const episode = rejected.find(visit=>visit.id===id || visit.entryIds.includes(id));
+      if (episode) for (const alias of new Set([episode.id,...episode.entryIds])) {
+        delivered.add(`geofence_entry:${fingerprint.split(':')[1]}:${alias}`);
+        delivered.add(`geofence_entry:${date}:${alias}`);
+      }
+    } else result.failures.push({fingerprint,error:response.error || 'Geofence retraction failed'});
+  }
   await syncNotificationMessages(state, selected, delivered, token, result);
   state.deliveredGeofenceNotificationsByDate[date] = Array.from(delivered);
   state.deliveredGeofenceNotificationsByDate = pruneGeofenceNotificationDates(state.deliveredGeofenceNotificationsByDate);

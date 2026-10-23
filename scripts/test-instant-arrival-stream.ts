@@ -9,16 +9,16 @@ const date = '2026-09-10', now = Date.parse(`${date}T21:00:00Z`);
 const observation = {truck_number:'Truck 3',geofence_name:'Example yard',occurred_at:`${date}T20:00:00Z`};
 const entered = {...observation,alert_type:'GEOFENCE_ENTERED'};
 const confirmed = {...observation,occurred_at:`${date}T20:05:00Z`};
-assert.equal(geofencePositionArrivals(date, [observation], [], now).length,0,'One report is not a visit');
+assert.equal(geofencePositionArrivals(date, [observation], [], now).length,1,'One report immediately alerts while the visit is pending');
 const arrival = geofencePositionArrivals(date, [observation,confirmed], [], now);
 assert.equal(arrival.length,1,'Five minutes of supported presence establishes arrival');
 assert.equal(Date.parse(arrival[0].timestamp),Date.parse(observation.occurred_at));
 assert.equal(geofenceLoadResets(date,arrival).length,0,'Unknown named yard does not unload');
-assert.equal(geofencePositionArrivals(date,[observation,{...observation,occurred_at:`${date}T20:01:00Z`}],[],now).length,0);
+assert.equal(geofencePositionArrivals(date,[observation,{...observation,occurred_at:`${date}T20:01:00Z`}],[],now).length,1);
 assert.equal(geofencePositionArrivals(date,[observation,confirmed],[entered],now).length,0,'Native entry owns the identity');
 const exit = {...entered,alert_type:'GEOFENCE_EXITED',occurred_at:`${date}T20:02:00Z`};
-assert.equal(geofencePositionArrivals(date,[{...observation,occurred_at:`${date}T20:03:00Z`},observation],[exit,entered],now).length,0,'Reentry must qualify separately');
-assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered],now),[]).length,0);
+assert.equal(geofencePositionArrivals(date,[{...observation,occurred_at:`${date}T20:03:00Z`},observation],[exit,entered],now).length,1,'Reentry alerts immediately and must qualify separately');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered],now),[]).length,1);
 
 async function main() {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opscenter-arrival-stream-'));

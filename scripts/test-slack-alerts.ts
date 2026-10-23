@@ -724,8 +724,10 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
 const originalFetch = globalThis.fetch;
 const postedMessages: string[] = [];
 const updates: Array<{ts:string;text:string}> = [];
+const deletes: Array<{ts:string;channel:string}> = [];
 globalThis.fetch = (async (_input, init) => {
   const body = JSON.parse(String(init?.body || "{}"));
+  if(String(_input).endsWith('/chat.delete')) { deletes.push(body); return new Response(JSON.stringify({ok:true})); }
   if(String(_input).endsWith('/chat.update')) { updates.push(body); return new Response(JSON.stringify({ok:true,ts:body.ts})); }
   postedMessages.push(String(body.text || ""));
   return new Response(JSON.stringify({ ok: true, channel: body.channel, ts: `1000.${postedMessages.length}` }), {
@@ -755,7 +757,7 @@ try {
   assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Existing geofence history is baselined silently");
   const nativeExit = { ...nativeEntry, alert_type: "GEOFENCE_EXITED", occurred_at: "2026-08-12T18:31:16Z" };
   fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit] }));
-  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_exit"]);
   const nativeReentry = { ...nativeEntry, occurred_at: "2026-08-12T19:00:00Z" };
   fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry, {...nativeReentry,alert_type:"GEOFENCE_EXITED",occurred_at:"2026-08-12T19:05:00Z"}] }));
   assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);

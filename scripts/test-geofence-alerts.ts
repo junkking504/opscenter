@@ -51,7 +51,7 @@ assert.equal(completedAlert.timestamp,new Date(exited.occurred_at).toISOString()
 assert.equal(completedAlert.id,geofenceEntries(date,[entered])[0].id,'Departure keeps the entry review identity');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits).length,1,'Departure upgrades entry to one overall visit card');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits)[0].title,'Truck 4 departed Gentilly');
-assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[]).length,0,'Unqualified open crossings do not alert');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[]).length,1,'Unqualified open crossings alert immediately');
 assert.equal(geofenceTransitionAlertText('Truck# 9','Stranco Transfer Station','departed'),'Truck 9 departed Stranco');
 assert.deepEqual(geofenceSlackTransition(':round_pushpin: *Truck 4 Geofence Entry*\n*Location:* Gentilly'),{truck:'Truck 4',name:'Gentilly',transition:'entry'});
 assert.deepEqual(geofenceSlackTransition('Truck #4 departed Warehouse'),{truck:'Truck 4',name:'NOHQ',transition:'exit'});

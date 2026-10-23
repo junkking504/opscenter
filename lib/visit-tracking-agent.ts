@@ -17,7 +17,7 @@ export type TrackedVisit = {
   agentId: typeof VISIT_TRACKING_AGENT;
   id: string; kind: 'geofence' | 'appointment'; truck: string; name: string;
   enteredAt: string | null; departedAt: string | null; lastSeenAt: string;
-  firstObservedAt: string; nativeEntryIds?: string[]; positionEntryId?: string;
+  firstObservedAt: string; reportedAt?: string; nativeEntryIds?: string[]; positionEntryId?: string;
   entryIds: string[]; arrivalSource: VisitEvidence; departureSource: VisitEvidence | null;
   departureBounds: {after: string; by: string} | null;
   durationSeconds: number | null; facility?: string; resetLocation?: 'dump' | 'metal_yard' | null;
@@ -47,7 +47,7 @@ const facilityKey = (name: string) => {
  * Historical observations replay in source time, so collection retries/reordering
  * have no effects. A missing geofence never establishes a departure.
  */
-export function trackGeofenceVisits(date: string, transitions: GeofenceTransition[], now = Date.now()): TrackedVisit[] {
+export function trackGeofenceVisits(date: string, transitions: GeofenceTransition[], now = Date.now(), allDates = false): TrackedVisit[] {
   const events = [...new Map(transitions.filter(event => Number.isFinite(Date.parse(event.timestamp)) && Date.parse(event.timestamp) <= now)
     .map(event => [`${event.type}:${event.id}`, event])).values()]
     .sort((a,b) => a.timestamp.localeCompare(b.timestamp) || ({entry:0,exit:1,position:2,coordinate:3}[a.type] - {entry:0,exit:1,position:2,coordinate:3}[b.type]));
@@ -98,6 +98,11 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
         durationSeconds:enteredAt ? (Date.parse(event.timestamp)-Date.parse(enteredAt))/1000 : null});
       continue;
     }
+    // An exit and a membership fix at the same instant describe the end of
+    // one episode, not an immediate return. A later fix can start a new one.
+    if (event.type === 'position' && completed.some(visit=>visit.truck===event.truck
+      && facilityKey(visit.name)===facilityKey(event.name) && visit.departedAt===event.timestamp
+      && visit.departureSource==='native_geofence')) continue;
     if (knownFacility(event)) {
       for (const [otherKey, visit] of active) {
         const gap = Date.parse(event.timestamp)-Date.parse(visit.lastSeenAt);
@@ -128,7 +133,7 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       active.set(key,{agentId:VISIT_TRACKING_AGENT,id:event.id,kind:'geofence',truck:event.truck,name:event.name,
         geofenceDwellSeconds:0,presenceStartedAt:event.timestamp,nativeEnteredAt:event.type === 'entry' ? event.timestamp : undefined,
         facility:event.facility,facilityPosition,resetLocation:event.resetLocation,enteredAt:event.timestamp,departedAt:null,lastSeenAt:event.timestamp,
-        firstObservedAt:event.timestamp,positionEntryId:event.type === 'position' ? event.id : undefined,nativeEntryIds:event.type === 'entry' ? [event.id] : [],entryIds:[event.id],arrivalSource:event.type === 'entry' ? 'native_geofence' : 'live_position',
+        firstObservedAt:event.timestamp,reportedAt:event.timestamp,positionEntryId:event.type === 'position' ? event.id : undefined,nativeEntryIds:event.type === 'entry' ? [event.id] : [],entryIds:[event.id],arrivalSource:event.type === 'entry' ? 'native_geofence' : 'live_position',
         departureSource:null,departureBounds:null,durationSeconds:null});
     }
   }
@@ -139,7 +144,7 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
     return {...visit,firstObservedAt:visit.qualifiedArrivalAt,enteredAt:visit.qualifiedArrivalAt,
       durationSeconds:visit.durationSeconds !== null && visit.departedAt
         ? (Date.parse(visit.departedAt)-Date.parse(visit.qualifiedArrivalAt))/1000 : null};
-  }).filter(visit => visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
+  }).filter(visit => allDates || visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
     .sort((a,b) => (b.departedAt || b.enteredAt || b.lastSeenAt).localeCompare(a.departedAt || a.enteredAt || a.lastSeenAt));
 }
 

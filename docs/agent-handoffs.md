@@ -164,7 +164,11 @@ copy, old or new, goes through it. After its forward-ancestry check and under
 the deployment lock, `deploy-release.sh` runs
 `deploy/macmini/check-review-gate.py` against `vault/Tasks/*/review.md` on
 Mission Control. Every commit between the active release and `origin/production`
-must be contained in a commit that an approved or waived receipt names.
+must itself be named in an approved or waived receipt, except for the clean
+merges described below. A receipt for a tip does not cover its ancestors;
+name each non-merge commit in the receipt's opening block (or in separate
+receipts). Abbreviated SHAs must resolve uniquely to the named commit. A waiver
+also covers only its explicitly named commits.
 
 - Review lines count only in the receipt's opening block, before the first
   `##` section, and only in the full `Reviewer: … · Builder: … · Reviewed:
@@ -227,10 +231,34 @@ A task opts in with a line in its brief, under the planner line:
 | Same, builder Claude | Codex review, run inside the vault task folder so it cannot edit source |
 | `changes requested`, builder Codex | Codex fix, which appends a handoff update with the new head |
 | `changes requested`, builder Claude | Nothing: waits for the Claude thread |
-| `approve` for the handoff head | Nothing: ready for the user to merge |
+| `approve` for the handoff head | Nothing: head reviewed; full-range coverage still required before integration |
 | Open questions, a failed or timed-out step, or anything unexpected | Nothing: needs the user |
 
-Receipts are read with `check-review-gate.py` (opening-block review lines, different model families, exact `approve`, no open `[blocking]`), so a receipt the gate would reject never shows as ready. Only `Auto: codex-build` tasks may be built or fixed by the relay.
+The relay validates receipt syntax, model families, verdict and the exact
+handoff head using `check-review-gate.py`. Its `ready` state confirms that head's
+receipt only; it does not run the gate over the full production range. Only
+`Auto: codex-build` tasks may be built or fixed by the relay.
+
+The relay publishes one review line naming the latest handoff head. Re-review
+replaces `review.md` and archives the previous receipt in `task-evidence/`, which
+the deployment gate does not scan. Thus a multi-commit branch, including a fix
+cycle, needs a separate coverage step before integration:
+
+- For a task whose unpublished history can be consolidated, combine its changes
+  into one commit before requesting the final review. Update the handoff and
+  obtain approval for that exact resulting SHA. Squashing or amending after
+  approval changes the SHA and requires another review.
+- If preserving multiple commits, obtain reviewer-authored receipts explicitly
+  naming every uncovered commit. A reviewer can use multiple opening-block
+  lines in a manual receipt or separate `vault/Tasks/<task>/review.md` files.
+  Keep supplemental receipts in separate task folders so a later relay run
+  cannot overwrite them. Do not copy an approval onto an unreviewed SHA or
+  treat an archived changes-requested verdict as approval.
+
+In either path, check the entire fresh ACTIVE..TARGET range before integration,
+including any non-clean merge commit, and retain the installed controller's
+checks at deployment. Relay readiness alone is not a coverage or release
+approval. The per-commit gate change does not alter relay behavior.
 
 A stop before the agent has started leaves a cancel marker; the runner checks it before it launches anything, so no agent runs. If a runner never publishes itself, the lock stays and the task is marked; after confirming with `ps` that no codex or claude process is running, remove `task-evidence/handoff-relay/lock` by hand. The relay never deletes a lock it did not take, and never on a guess.
 
@@ -309,7 +337,7 @@ below describe progress, not extra status fields to add to those receipts.
 | Build | Codex adds the link, runs `git diff --check`, commits and pushes that branch, then writes `handoff.md` with `Builder: Codex · Branch: codex/docs-index-example-20261023 @ <full SHA> · Base: origin/production @ <base SHA>`, the change and check results. `review.md` is still absent; `verification.md` has no release evidence yet. |
 | Review | The relay starts Claude and updates `relay.md` to `State: Claude reviewing`. Claude's `review.md` opening block names `Reviewer: Claude · Builder: Codex · Reviewed: codex/docs-index-example-20261023 @ <full SHA>`, followed by `## Verdict` and `## Findings`. A review is acknowledged only when it names the current committed handoff head; a successful process exit or an older receipt is insufficient. |
 | Correct | If the verdict is `changes requested` with a blocking broken-link finding, the relay starts Codex fixing. Codex corrects the link, reruns the check, commits, pushes and appends the new head and evidence to `handoff.md`. Claude reviews that new head and supplies a matching receipt or addendum; the old approval cannot cover it. |
-| Ready | With `approve` for the current head and no open blocking findings, `relay.md` shows `State: ready for T'Jean`. The relay stops at review readiness; it never merges, deploys or sends messages. |
+| Ready | With `approve` for the current head and no open blocking findings, `relay.md` shows `State: ready for T'Jean`. The relay stops at head review readiness; the full production range still needs the coverage check described above. It never merges, deploys or sends messages. |
 | Close | After separately authorized integration and release, the release owner records the released commit, service-health result and authenticated browser result in `verification.md`. Only then is the task complete and eligible for the documented retention workflow. A build-only handoff remains ready for review/release, not shipped. |
 
 With `Auto: review`, the builder is assigned outside the relay; that mode only

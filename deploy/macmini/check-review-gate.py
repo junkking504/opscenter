@@ -3,8 +3,8 @@
 
 Usage: check-review-gate.py REPOSITORY ACTIVE_SHA TARGET_SHA RECEIPTS_DIR
 
-Every commit in ACTIVE_SHA..TARGET_SHA must be reachable from a commit named
-on a review line of an approved or waived receipt (`*/review.md` under
+Every commit in ACTIVE_SHA..TARGET_SHA must itself be named on a review line
+of an approved or waived receipt (`*/review.md` under
 RECEIPTS_DIR). A two-parent merge is exempt only when its tree is exactly what
 Git's automatic merge produces, so conflict resolutions and any other change
 made in a merge still need a review. The installed deployment controller runs
@@ -124,9 +124,10 @@ def unreviewed(repository, active, target, covered):
     if listed.returncode != 0:
         raise SystemExit(f"Review gate stopped: cannot list commits {active}..{target}: {listed.stderr.strip()}")
     merges = set(git(repository, "rev-list", "--merges", f"{active}..{target}").stdout.split())
+    covered = set(covered)
     missing = []
     for commit in listed.stdout.split():
-        if any(git(repository, "merge-base", "--is-ancestor", commit, head).returncode == 0 for head in covered):
+        if commit in covered:
             continue
         if commit in merges and clean_merge(repository, commit):
             continue

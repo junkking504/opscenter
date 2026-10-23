@@ -49,9 +49,24 @@ with tempfile.TemporaryDirectory() as temp:
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "3 commit(s)" in out, "a clean merge is exempt; its three parents' commits are not\n" + out
 
+    receipt(receipts, "merged-tip", [("Claude", "Codex", target)])
+    code, out = gate(repo, active, target, receipts)
+    assert code == 1 and "3 commit(s)" in out, "reviewing a merge tip must not cover any of its unreviewed ancestors\n" + out
+    (receipts / "merged-tip" / "review.md").unlink()
+
     receipt(receipts, "task", [("Codex", "Claude", second[:12])])
     code, out = gate(repo, active, target, receipts)
-    assert code == 1 and "1 commit(s)" in out and "hotfix-on-production" in out, "the task review covers both task commits, not the hotfix\n" + out
+    assert code == 1 and "2 commit(s)" in out and first[:7] in out and hotfix[:7] in out, "a reviewed tip does not cover its unreviewed ancestor or the hotfix\n" + out
+
+    code, out = gate(repo, first, second, receipts)
+    assert code == 0, "an approve receipt names the only new commit (abbreviated SHA resolves exactly)\n" + out
+
+    receipt(receipts, "task", [("Codex", "Claude", second)], state="waived by T'Jean, 2026-10-23, test waiver")
+    code, out = gate(repo, active, second, receipts)
+    assert code == 1 and "1 commit(s)" in out and first[:7] in out, "a waived tip does not cover its unreviewed ancestor\n" + out
+    assert gate(repo, first, second, receipts)[0] == 0, "a waiver covers its named commit"
+
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Codex", "Claude", second)])
 
     receipt(receipts, "hotfix", [("Claude", "Claude", hotfix)])
     code, out = gate(repo, active, target, receipts)
@@ -63,8 +78,8 @@ with tempfile.TemporaryDirectory() as temp:
         code, out = gate(repo, active, target, receipts)
         assert code == 1 and ("same model family" in out or "known families" in out), f"{reviewer} reviewing {builder} must not pass\n{out}"
     receipt(receipts, "hotfix", [("GPT-6 Codex", "Claude Code", hotfix)])
-    receipt(receipts, "task", [("Codex", "Claude", second)])
-    assert gate(repo, active, target, receipts)[0] == 0, "aliases from different families pass"
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Codex", "Claude", second)])
+    assert gate(repo, active, target, receipts)[0] == 0, "each non-merge commit is named; the clean merge remains exempt; different-family aliases pass"
 
     receipt(receipts, "hotfix", [("Claude", "Codex", hotfix)], findings="- [blocking] a.ts:1 broken")
     code, out = gate(repo, active, target, receipts)
@@ -105,7 +120,7 @@ with tempfile.TemporaryDirectory() as temp:
     receipt(receipts, "task", [("Codex", "Claude", "deadbeefdeadbeef")])
     code, out = gate(repo, active, target, receipts)
     assert code == 1 and "not in this checkout" in out, out
-    receipt(receipts, "task", [("Codex", "Claude", second)])
+    receipt(receipts, "task", [("Codex", "Claude", first), ("Codex", "Claude", second)])
 
     # A merge that resolves a conflict, or slips in an extra change, needs its own review.
     run("git", "checkout", "-qb", "task-two", active, cwd=repo)
@@ -138,4 +153,4 @@ with tempfile.TemporaryDirectory() as temp:
 
     assert gate(repo, target, target, receipts)[0] == 0, "redeploying the active commit needs nothing new"
 
-print("Review gate passed: missing receipts, self-review, model aliases and unknown names, addenda, stray review lines, blocking findings, verdicts, complete waivers, later pushes, unknown commits, clean merges, conflict resolutions and changed merges.")
+print("Review gate passed: per-commit approvals and waivers, unreviewed ancestors, missing receipts, self-review, model aliases and unknown names, addenda, stray review lines, blocking findings, verdicts, complete waivers, later pushes, unknown commits, clean merges, conflict resolutions and changed merges.")

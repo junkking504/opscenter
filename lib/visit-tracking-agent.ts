@@ -3,7 +3,7 @@ import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-
 import {createHash} from 'node:crypto';
 
 export const GEOFENCE_MINIMUM_DWELL_SECONDS = 300;
-export function qualifiedGeofenceVisit(visit: TrackedVisit): boolean {
+export function qualifiedGeofenceVisit(visit: Pick<TrackedVisit, 'kind' | 'conflict' | 'enteredAt' | 'geofenceDwellSeconds'>): boolean {
   return visit.kind === 'geofence' && !visit.conflict && !!visit.enteredAt
     && Number.isFinite(visit.geofenceDwellSeconds) && visit.geofenceDwellSeconds! >= GEOFENCE_MINIMUM_DWELL_SECONDS;
 }

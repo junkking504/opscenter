@@ -13,7 +13,9 @@ lower bound. Each return qualifies separately. Once qualified, an unload retains
 the first qualifying continuous presence anchor so later pickups are preserved;
 an earlier isolated sighting across a GPS gap cannot backdate that unload. Recorded actual dump
 expenses remain independent evidence. This policy applies to named geofences;
-appointment visit-pin matching retains its separately documented policy.
+appointment visit-pin matching retains its separately documented policy. The
+Schedule HQ fallback also requires five minutes from trip arrival/departure
+evidence or continuous onsite fixes; a route coverage timestamp is not dwell.
 
 
 OpsCenter separates two ongoing deterministic operational agents. They use

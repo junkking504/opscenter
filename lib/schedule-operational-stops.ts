@@ -1,3 +1,5 @@
+import {qualifiedGeofenceVisit, GEOFENCE_MINIMUM_DWELL_SECONDS} from './visit-tracking-agent';
+import {GPS_MAX_POINT_GAP_MS} from './gps-presence-policy';
 import { geofenceAlertLocation } from './linxup-geofence-alerts';
 import { operationalLocationCodeAt } from './fleet-map';
 import { truckLabel, type ScheduleOperationalStop } from '../desktop-ui/lib/schedule-contract';
@@ -14,6 +16,7 @@ type FacilityVisit = {
   departedAt: string | null;
   lastSeenAt: string;
   conflict?: boolean;
+  geofenceDwellSeconds?: number;
   facilityPosition?: { latitude: number; longitude: number };
 };
 
@@ -31,7 +34,7 @@ const minute = (value: string) => {
  * while retaining its real timestamps for the duration label. */
 export function scheduleOperationalStops(date: string, visits: FacilityVisit[]): ScheduleOperationalStop[] {
   return visits.flatMap(visit => {
-    if (visit.kind !== 'geofence' || visit.conflict) return [];
+    if (!qualifiedGeofenceVisit(visit)) return [];
     const entered = visit.enteredAt && Number.isFinite(Date.parse(visit.enteredAt)) ? visit.enteredAt : null;
     const departed = visit.departedAt && Number.isFinite(Date.parse(visit.departedAt)) ? visit.departedAt : null;
     const observed = Number.isFinite(Date.parse(visit.lastSeenAt)) ? visit.lastSeenAt : entered || departed;
@@ -69,11 +72,13 @@ export function scheduleOperationalStops(date: string, visits: FacilityVisit[]):
 
 /** A recorded trip endpoint at HQ is positive presence evidence even when the
  * geofence transition feed omitted that truck. Pair an arrival with the next
- * departure to show one Visit block; an unpaired departure/arrival stays a
- * zero-duration Visit rather than inventing dwell time. */
+ * departure to prove a stay of at least five minutes. Unpaired endpoints and
+ * route coverage timestamps alone do not establish a visit. */
 export function scheduleGpsHqStops(date: string, routes: TruckGpsRoute[]): ScheduleOperationalStop[] {
   const result: ScheduleOperationalStop[] = [];
   const add = (route: TruckGpsRoute, code: 'NOHQ' | 'BRHQ', enteredAt: string, departedAt: string | null, observedThrough: string) => {
+    const duration = Date.parse(departedAt || observedThrough)-Date.parse(enteredAt);
+    if (!Number.isFinite(duration) || duration < GEOFENCE_MINIMUM_DWELL_SECONDS*1000) return;
     const startMinutes = minute(enteredAt), endMinutes = Math.max(startMinutes, minute(departedAt || observedThrough));
     result.push({
       id: `gps-hq:${route.truck}:${code}:${enteredAt}:${departedAt || observedThrough}`,
@@ -95,11 +100,15 @@ export function scheduleGpsHqStops(date: string, routes: TruckGpsRoute[]): Sched
       open = to === 'NOHQ' || to === 'BRHQ' ? { code: to, arrival: trip.arrival } : null;
     }
     if (open) {
-      const latest = [...route.points].reverse().find(point => operationalLocationCodeAt(point) === open!.code && Date.parse(point.timestamp) >= Date.parse(open!.arrival));
-      const coverage = latest && [latest.timestamp, route.coveredThrough || '']
-        .filter(value => Number.isFinite(Date.parse(value)) && Date.parse(value) >= Date.parse(open!.arrival))
-        .sort((a, b) => Date.parse(b) - Date.parse(a))[0];
-      add(route, open.code, open.arrival, coverage ? null : open.arrival, coverage || open.arrival);
+      let started: string | null = open.arrival, lastSeen = open.arrival;
+      for (const point of [...route.points].sort((a,b)=>a.timestamp.localeCompare(b.timestamp))) {
+        const stamp = Date.parse(point.timestamp);
+        if (!Number.isFinite(stamp) || stamp < Date.parse(open.arrival) || stamp > Date.now()) continue;
+        if (operationalLocationCodeAt(point) !== open.code) { started = null; continue; }
+        if (!started || stamp-Date.parse(lastSeen) > GPS_MAX_POINT_GAP_MS) started = point.timestamp;
+        lastSeen = point.timestamp;
+      }
+      if (started) add(route, open.code, started, null, lastSeen);
     }
   }
   return result.sort((a, b) => a.truck.localeCompare(b.truck, undefined, { numeric: true }) || a.startMinutes - b.startMinutes || a.id.localeCompare(b.id));

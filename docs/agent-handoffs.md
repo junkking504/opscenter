@@ -289,6 +289,12 @@ A task is complete only after its approved commit is released, service health is
 checked, and an authenticated browser check verifies the affected behavior.
 The relay ends at review readiness; it does not grant deployment authority.
 
+Builder boundaries (task branch only, no merge/deploy/messages) are agent
+instructions inside the Codex workspace sandbox. The relay is not a Git server
+permission boundary. Production still requires the separately installed review,
+lineage and deployment controls. Claude snapshot confinement is enforced by the
+installed CLI's restricted file tools, with customizations and MCP disabled.
+
 ### Example: a documentation task from claim to close
 
 Consider fictional task `docs-index-example-20261023`, which adds one missing

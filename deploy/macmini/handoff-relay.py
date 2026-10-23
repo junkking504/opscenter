@@ -187,6 +187,12 @@ def git(p: Paths, cwd: Path, *args: str) -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
+def required_git(cwd: Path, *args: str) -> str:
+    """Evidence-producing Git commands must fail closed, never turn errors into empty data."""
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                          timeout=60, check=True).stdout.strip()
+
+
 def decide(p: Paths, task: str, info: dict, state: dict) -> tuple[str, str]:
     """Return (action, detail). Actions: build, review-claude, review-codex, fix, or a resting state."""
     if state.get("halted"):
@@ -337,15 +343,16 @@ def claude_preflight(p: Paths, binary: str, env: dict) -> None:
 def prepare_review(p: Paths, task: str, context: Path) -> None:
     worktree = p.worktrees / task
     info = parse_task(p.tasks / task)
-    head = git(p, worktree, "rev-parse", "HEAD")
-    if not head or not same_sha(head, info["head"]) or git(p, worktree, "status", "--porcelain"):
+    head = required_git(worktree, "rev-parse", "HEAD")
+    if not head or not same_sha(head, info["head"]) or required_git(worktree, "status", "--porcelain"):
         raise RuntimeError("review requires a clean worktree at the handoff commit")
     if context.exists():
         shutil.rmtree(context)  # generated snapshot for this task only
     context.mkdir(parents=True)
-    archive = subprocess.run(["git", "-C", str(worktree), "archive", head], capture_output=True, check=True).stdout
+    archive = subprocess.run(["git", "-C", str(worktree), "archive", head], capture_output=True, check=True, timeout=60).stdout
     sensitive = re.compile(r"(^|/)(\.env[^/]*|\.npmrc|\.netrc|\.gitconfig|\.mcp\.json|\.claude|\.codex|data|logs|\.auth)(/|$)|\.(pem|key|p12|pfx|sqlite3?|db|csv|tsv|xlsx|log)$", re.I)
-    changed = git(p, worktree, "diff", "--name-only", "origin/production...HEAD").splitlines()
+    base = required_git(worktree, "merge-base", "origin/production", head)
+    changed = required_git(worktree, "diff", "--no-ext-diff", "--no-textconv", "--name-only", base, head).splitlines()
     if any(sensitive.search(name) for name in changed):
         raise RuntimeError("review diff touches a protected/runtime path; manual scoped review required")
     with tarfile.open(fileobj=io.BytesIO(archive)) as files:
@@ -358,10 +365,11 @@ def prepare_review(p: Paths, task: str, context: Path) -> None:
             target.write_bytes(files.extractfile(member).read())
     for name in ("brief.md", "handoff.md"):
         shutil.copyfile(p.tasks / task / name, context / name)
-    base = git(p, worktree, "merge-base", "origin/production", head)
     if not base:
         raise RuntimeError("review base cannot be resolved")
-    diff = git(p, worktree, "diff", "--no-ext-diff", "--no-textconv", base, head)
+    diff = required_git(worktree, "diff", "--no-ext-diff", "--no-textconv", base, head)
+    if head != base and not diff:
+        raise RuntimeError("review diff is empty for a changed commit")
     (context / "diff.patch").write_text(diff)
     (context / "review-context.md").write_text(f"Pinned source: {head}\nDiff base: {base}\nLocal production ref: {git(p, worktree, 'rev-parse', 'origin/production')}\n")
 
@@ -374,7 +382,7 @@ def claude_result(p: Paths, task: str, output: str, head: str, exit_code: int = 
         data = {"is_error": True, "result": output}
     result = str(data.get("result", ""))
     failure_text = result + "\n" + errors
-    if (data.get("is_error") or exit_code != 0) and re.search(r"hit your limit|usage limit|rate.limit|quota|usage.*exhaust", failure_text, re.I):
+    if (data.get("is_error") or exit_code != 0) and re.search(r"^(?:error[: ]*)?(?:you(?:'ve| have) hit your limit|rate[ _-]limit(?: error| exceeded)|usage limit (?:reached|exceeded)|quota (?:exceeded|exhausted))", failure_text, re.I | re.M):
         # Unknown reset times get one bounded probe per hour; daily run cap still applies.
         # Known 'resets <hour>[am/pm] (<zone>)' is interpreted in the reported zone.
         from zoneinfo import ZoneInfo
@@ -401,7 +409,7 @@ def claude_result(p: Paths, task: str, output: str, head: str, exit_code: int = 
         raise RuntimeError("Claude receipt must identify exactly the full handoff commit")
     gate = review_gate()
     opening = re.split(r"^##\s", result, maxsplit=1, flags=re.M)[0]
-    identity = next(gate.REVIEW_LINE.match(line.strip()) for line in opening.splitlines() if line.strip().startswith("Reviewer:"))
+    identity = next(gate.REVIEW_LINE.match(line.strip()) for line in opening.splitlines() if re.match(r"^\s*reviewer:", line, re.I))
     if gate.model_family(identity["reviewer"]) != "anthropic" or gate.model_family(identity["builder"]) != "openai":
         raise RuntimeError("Claude receipt has incorrect reviewer/builder identities")
     if receipt["verdict"] not in ("approve", "changes requested", "blocked"):
@@ -409,7 +417,7 @@ def claude_result(p: Paths, task: str, output: str, head: str, exit_code: int = 
     if receipt["verdict"] == "approve" and receipt["problem"]:
         raise RuntimeError("Claude approval contains open blocking findings")
     worktree = p.worktrees / task
-    if not same_sha(git(p, worktree, "rev-parse", "HEAD"), head) or git(p, worktree, "status", "--porcelain"):
+    if required_git(worktree, "rev-parse", "HEAD") != head or required_git(worktree, "status", "--porcelain"):
         raise RuntimeError("worktree changed during review; receipt not published")
     destination = p.tasks / task / "review.md"
     if destination.exists():
@@ -676,6 +684,7 @@ def step(p: Paths, task: str, action: str, token: str) -> int:
                     save(p.lock / "runner.json", {"pid": os.getpid(), "agent": proc.pid, "token": token})
             if cancelled:
                 halt(p, task, "stopped by hand before the step started")
+                log(p, f"{task}: {action} cancelled before launch", False)
                 return 0
             if (p.lock / "cancel").exists():
                 halt(p, task, "stopped by hand before the step started")

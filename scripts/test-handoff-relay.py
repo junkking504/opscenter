@@ -444,6 +444,28 @@ with tempfile.TemporaryDirectory() as tmp:
     assert relay.claude_result(paths, "approve-task", "", actual, 1, "You've hit your limit") == "quota"
     paths.claude_pause.unlink()
 
+    # Failed diff commands cannot silently produce a clean/empty review snapshot.
+    original_required = relay.required_git
+    def failed_diff(cwd, *args):
+        if args[0] == "diff":
+            raise subprocess.CalledProcessError(1, ["git", *args])
+        return original_required(cwd, *args)
+    relay.required_git = failed_diff
+    try:
+        try:
+            relay.prepare_review(paths, "approve-task", context)
+            raise AssertionError("failed git diff accepted")
+        except subprocess.CalledProcessError:
+            pass
+    finally:
+        relay.required_git = original_required
+    try:
+        relay.claude_result(paths, "approve-task", json.dumps({"is_error": True, "result": "Review mentions quota handling", "subtype": "error_max_turns"}), actual, 1)
+        raise AssertionError("model discussion mistaken for subscription quota")
+    except RuntimeError:
+        pass
+    assert not paths.claude_pause.exists()
+
     # Kill switch: without the switch file, nothing new starts.
     (root / "vault" / "Tasks" / ".relay-on").unlink()
     (evidence / "runs.json").write_text("{}")

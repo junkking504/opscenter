@@ -44,3 +44,23 @@
 @media(max-width:360px) { .heading h1 { font-size:25px; } .heading p { font-size:13px; } .stop { gap:8px; padding:14px 6px; } }
 
 .fact:last-of-type { font-size:12px; line-height:1.4; }
+
+/* Route screen follows the selected Waypoint mobile navigation design. */
+.overview .heading { margin:8px 0 20px; }
+.overview .heading h1 { font-size:30px; line-height:1.15; letter-spacing:-.8px; margin:0 0 10px; }
+.overview .heading .eyebrow { margin:0 0 8px; font-size:11px; font-weight:550; text-transform:uppercase; letter-spacing:1px; color:#717a76; }
+.overview .heading p { margin:0; }
+.overview .sectionHeading h2 { font-size:23px; margin:0 0 3px; }
+.overview .sectionHeading p { margin:0; }
+.stop { padding:14px 10px; }
+.stop.next { border-radius:12px; }
+.stops li:not(:first-child) .number { background:#e7e9e3; color:#25312c; }
+.overview .routeActions { margin:18px 0 8px; }
+
+.overview .heading { margin:0 0 16px; }
+.overview .heading h1 { margin-bottom:6px; }
+.overview .sectionHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:16px 0 10px; }
+.mapExpand { display:flex; align-items:center; gap:5px; min-height:44px; padding:8px 0 8px 8px; border:0; background:none; color:#58665e; font:500 12px/1.4 system-ui,sans-serif; cursor:pointer; }
+.mapExpand img { width:16px; height:16px; }
+.stop { padding:12px 10px; }
+@media(max-width:599px) { .map { height:210px; } }

@@ -26,7 +26,8 @@ for(const [label,workspace,key,area] of targets){
 // Inline disclosure changes only sidebar rows, not the workspace geometry.
 const geometryOf = () => document.querySelector('.ops-content').getBoundingClientRect().toJSON();
 const settingsUrl=page.url(), fixedGeometry=await page.evaluate(geometryOf);
-await page.getByRole('button',{name:'Expand Command pages',exact:true}).click();
+const commandToggle=page.getByRole('button',{name:/^(Expand|Collapse) Command pages$/});
+if(await commandToggle.getAttribute('aria-expanded')==='false') await commandToggle.click();
 assert.equal(page.url(),settingsUrl);
 assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
 assert.equal(await page.locator('.sidebar-page-panel,.sidebar-page-backdrop').count(),0);
@@ -35,6 +36,7 @@ await page.waitForFunction(()=>new URL(location.href).searchParams.get('schedule
 assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
 assert.equal(await page.getByRole('tab',{name:'Calendar',exact:true}).getAttribute('aria-selected'),'true');
 assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),true);
+assert.equal(await page.locator('#sidebar-pages-Command').isVisible(),true);
 assert.equal(await page.locator('#sidebar-pages-Schedule').getByRole('link',{name:'Calendar',exact:true}).evaluate(el=>el===document.activeElement),true);
 const calendarGeometry=await page.evaluate(geometryOf);
 await page.getByRole('button',{name:'Collapse Command pages',exact:true}).click();

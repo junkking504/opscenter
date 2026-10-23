@@ -36,7 +36,8 @@ keeps the same width and horizontal position. Expanding a list moves only the
 following navigation rows, as in the selected fixed-width groups preview.
 There is no flyout, backdrop, global width toggle or overlay dismissal behavior.
 The active workspace opens its group when navigation changes workspaces; users
-can close that group independently. Selecting a page keeps its group visible.
+can close that group independently. Leaving a workspace keeps its list open;
+only its arrow closes it. Selecting a page keeps its group visible.
 Group disclosure does not use browser storage. Navigation scrolls within the
 sidebar on short screens, keeping Settings and Sources in the footer. Mobile
 retains the existing workspace selector.

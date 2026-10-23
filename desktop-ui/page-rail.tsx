@@ -41,8 +41,8 @@ function WorkspacePageGroup(props: RailProps & { group: typeof workspacePages[nu
   const [expanded, setExpanded] = useState(active);
   const [wasActive, setWasActive] = useState(active);
   // Reveal the destination when another control changes workspace, while still
-  // allowing the user to close the active group without changing pages.
-  if (active !== wasActive) { setWasActive(active); setExpanded(active); }
+  // allowing manual disclosure; leaving a workspace never moves its page links.
+  if (active !== wasActive) { setWasActive(active); if (active) setExpanded(true); }
   const pages = group.pages.filter(([page]) => page !== 'tv' || props.canFinance);
   return <div className="workspace-page-group">
     <div className="workspace-group-heading">

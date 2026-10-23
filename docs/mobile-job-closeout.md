@@ -1143,13 +1143,13 @@ saved result before leaving; a failed or reconciled result permits a reviewed
 return. Reload is guarded while a manager form is dirty or unresolved; browser
 reload does not persist the manager form itself.
 
-Fast JunkWare cancellation cells sometimes contain name, phone, address and reason
-in `customer_name`, including reasons without the word “cancel”. The schedule
-projection recognizes that contact structure and prefers a detailed customer name
-for the exact appointment ID; a fast-only record uses the contact boundary. It
-separates the cancellation reason without changing source records or raw notes.
-Normal customer names and non-cancelled rows are not split by this new contact
-rule. Raw source files remain the diagnostic evidence.
+The manager display adapter recognizes cancellation contact cells that contain
+name, phone, numbered street and reason, including reasons without the word
+“cancel”. It presents a clean heading and a separate reason without modifying
+source values, ingestion/merge logic or raw notes. When the displayed reason is
+normalized, **Original cancellation text** keeps the complete source text
+inspectable. Normal customer names and non-cancelled rows are not split by this
+contact rule. All regression fixtures are fictional.
 
 Regression checks: `npm run verify:waypoint-manager:presentation`,
 `npm run verify:waypoint-manager`, `npm run verify:waypoint-navigation:browser`,

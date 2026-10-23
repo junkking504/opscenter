@@ -32,15 +32,17 @@ window.fetch=async(url,options={})=>{
 
 fixture+=`
 const baseFetch=window.fetch;
-const appointment=(id,status,start,truck='Truck 4')=>({recordId:id,appointmentId:id,version:'one',jkNumber:'SAMPLE-'+id,customerName:'Customer '+id,phone:'5045550100',address:'100 Example Street',territory:'Junk King New Orleans',status,truck,appointmentStartMinutes:start,appointmentEndMinutes:start+60,appointmentTime:(start/60)+':00 booked',appointmentNotes:['Original work scope','A longer note. '.repeat(120)],cancellationReason:'Changed plans.',driver:'Sample Driver',navigator:'Sample Navigator',callAhead:'not_called'});
-const appointments=[appointment('cancelled','Cancelled by Sample',600,'—'),...Array.from({length:20},(_,i)=>appointment('done-'+i,'Completed Duration: 60 min(s)',480+i*15,i%2?'Truck 6':'Truck 4')),appointment('active','Confirmed',540)];
-window.fixture.writes=0;
+const appointment=(id,status,start,truck='Truck 4')=>({sourceDate:date,hasScheduledTime:true,appointmentType:'Job',recordId:date+':appointment:'+id,appointmentId:id,version:'one',jkNumber:'SAMPLE-'+id,customerName:'Customer '+id,phone:'5045550100',address:'100 Example Street',territory:'Junk King New Orleans',status,truck,appointmentStartMinutes:start,appointmentEndMinutes:start+60,appointmentTime:(start/60)+':00 booked',appointmentNotes:['Original work scope','A longer note. '.repeat(120)],cancellationReason:'Changed plans.',driver:'Sample Driver',navigator:'Sample Navigator',callAhead:'not_called'});
+const appointments=[appointment('cancelled','Cancelled by Sample',600,'—'),...Array.from({length:20},(_,i)=>appointment('done-'+i,'Completed Duration: 60 min(s)',480+i*15,i%2?'Truck 6':'Truck 4')),appointment('active','Confirmed',540),appointment('later-active','Confirmed',600)];
+appointments[0]={...appointments[0],customerName:'Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',address:'100 Example Street, New Orleans, LA 70115',cancellationReason:'Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',appointmentNotes:['Original cancellation note']};
+window.fixture.writes=0;window.fixture.orders=0;
 window.fetch=async(url,options={})=>{
  const parsed=new URL(url,location.href);let body;
  if(parsed.pathname==='/api/crew-jobs/manager-session')body={manager:true};
  else if(parsed.pathname==='/api/crew-jobs/manager'){
   const resource=parsed.searchParams.get('resource');
   if(options.method==='POST'){
+   if(resource==='order'){window.fixture.orders++;return {ok:true,status:200,json:async()=>({})};}
    if(resource!=='operations')throw Error('Unapproved synthetic mutation '+resource);
    window.fixture.writes++;throw Error('Simulated lost response');
   }
@@ -69,15 +71,18 @@ try{
   const context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin);
   const nav=page.getByRole('navigation',{name:'Appointment navigation'}),views=page.getByRole('navigation',{name:'Waypoint views'});
-  await expect(page.getByRole('heading',{name:'Active / Scheduled (1)',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Active / Scheduled (2)',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Completed (20)',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Cancelled (1)',exact:true})).toBeVisible();
   if(width===390&&process.env.WAYPOINT_TEST_ARTIFACTS){fs.mkdirSync(process.env.WAYPOINT_TEST_ARTIFACTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_TEST_ARTIFACTS,'manager-list-390.png'),fullPage:true});}
-  const headings=await page.locator('h2[id^="manager-"]').allTextContents();assert.deepEqual(headings,['Active / Scheduled (1)','Completed (20)','Cancelled (1)']);
+  const headings=await page.locator('h2[id^="manager-"]').allTextContents();assert.deepEqual(headings,['Active / Scheduled (2)','Completed (20)','Cancelled (1)']);
   await expect(page.getByText('Completed Duration:',{exact:false})).toHaveCount(0);
+  await page.getByRole('button',{name:/Example Cancelled/}).click();await expect(page.getByRole('heading',{name:'Example Cancelled',exact:true})).toBeVisible();await expect(page.getByText('Cancellation reason: Changed plans.',{exact:true})).toBeVisible();await expect(page.getByText('Original cancellation note',{exact:true})).toBeVisible();await page.getByText('Original cancellation text',{exact:true}).click();await expect(page.getByText('Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',{exact:true})).toBeVisible();await nav.getByRole('button').click();
   await page.getByLabel('Schedule date').fill('2026-10-22');
   await page.getByLabel('View truck').selectOption('Truck 4');
   await expect(page.getByRole('heading',{name:'Completed (10)'})).toBeVisible();
+  await page.getByText('Route Order',{exact:true}).click();
+  const reorder=page.getByRole('button',{name:'Move Customer active later',exact:true});await reorder.scrollIntoViewIfNeeded();const reorderScroll=await page.evaluate(()=>scrollY);await reorder.click();await page.waitForFunction(()=>window.fixture.orders===1);await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(reorderScroll);
   const target=page.getByRole('button',{name:/Customer done-10/});await target.scrollIntoViewIfNeeded();
   const listScroll=await page.evaluate(()=>scrollY);assert.ok(listScroll>0);
   await target.click();await expect(page.getByRole('heading',{name:'Customer done-10',exact:true})).toBeVisible();
@@ -111,5 +116,5 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'No horizontal overflow');assert.deepEqual(errors,[]);
   await context.close();
  }
- console.log('PASS manager mobile: grouped counts, source-duration labels, persistent Back, selected date/truck/scroll, crew origin, unsaved action/booking/edit guards, uncertain receipt blocks shell and Back, recovered receipt permits return, 320/390/430/1440px; synthetic APIs only.');
+ console.log('PASS manager mobile: grouped counts, reorder retains scroll, source-duration labels, persistent Back, selected date/truck/scroll, crew origin, unsaved action/booking/edit guards, uncertain receipt blocks shell and Back, recovered receipt permits return, 320/390/430/1440px; synthetic APIs only.');
 }finally{await browser.close();server.close();}

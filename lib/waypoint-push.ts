@@ -4,7 +4,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import type {Pool} from 'pg';
 import type {CrewPhone} from './crew-phone';
 import {CrewPhoneError} from './crew-phone';
-import {activeCrewPhoneById} from './crew-phone-store';
+import {activeCrewPhoneById,isCrewPhoneRevoked} from './crew-phone-store';
 import {requireCrewDay} from './crew-phone-day';
 import {getKernelPool} from './platform/persistence/pool';
 import {pushSubscription} from './web-push-policy';
@@ -74,7 +74,11 @@ export async function manageWaypointPush(phone:CrewPhone,input:Record<string,unk
   const client=await pool.connect();try{await client.query('BEGIN');
    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`waypoint-phone:${phone.deviceId}`]);
    const saved=(await client.query('SELECT enabled,phone_id,subscription_json FROM opscenter_kernel.waypoint_push_devices WHERE id=$1 AND owner_id=$2 FOR UPDATE',[input.deviceId,owner])).rows[0];
-   if(!saved?.enabled || saved.subscription_json.expirationTime && saved.subscription_json.expirationTime<=Date.now()){
+   if(saved?.enabled && isCrewPhoneRevoked(saved.phone_id)){
+    await client.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1',[input.deviceId]);
+    await client.query('COMMIT');return {enabled:false};
+   }
+   if(!saved?.enabled || saved.subscription_json.endpoint!==input.endpoint || saved.subscription_json.expirationTime && saved.subscription_json.expirationTime<=Date.now()){
     await client.query('COMMIT');return {enabled:false};
    }
    if(saved.phone_id!==phone.deviceId){
@@ -106,7 +110,10 @@ export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={a
  for(const device of devices){
   // Daily authentication expires independently of the browser's notification opt-in.
   // Delivery rechecks active access; keep consent so the next daily setup can restore it.
-  const phone=sources.active(device.phone_id);if(!phone)continue;
+  const phone=sources.active(device.phone_id);if(!phone){
+   if(isCrewPhoneRevoked(device.phone_id))await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2',[device.id,device.phone_id]);
+   continue;
+  }
   let snapshot;try{snapshot=sources.snapshot(phone,chicagoDateKey());}catch{snapshot={state:'unavailable' as const,jobs:[]};}
   const messages=await sources.messages(phone.truck,pool),scope=`${chicagoDateKey()}:${phone.truck}`,revisions=[{kind:'messages',revision:waypointRevision([],messages)},...(snapshot.state==='unavailable'?[]:[{kind:'schedule',revision:waypointRevision(snapshot.jobs || [],[])}])];
   for(const {kind,revision} of revisions){

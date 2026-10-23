@@ -74,12 +74,17 @@ sender startup; pending/sending work is protected from deletion. Subscriptions b
 iPhone, independent of the enrolling manager. The server stores only its hash.
 Daily setup automatically binds an already-enabled browser to the new phone session.
 Restore requires current authorized phone/day access and the existing browser
-capability; it cannot create a subscription or enable a disabled one. An unchanged
+capability and matching browser endpoint; it cannot create a subscription or enable
+a disabled one. A revoked previous phone disables its subscription before restore,
+even if the background worker has not yet observed the revocation. An unchanged
 binding is a no-op, preserving its baseline and pending alerts. A new binding skips
 old pending alerts and starts a silent baseline.
 Other browsers cannot claim or unsubscribe its endpoint without that capability.
 Enabled subscriptions are bounded to ten per current daily phone. Inactive daily
-phone bindings retain the opt-in but cannot queue or send; they wait for restore. Re-enabling
+phone bindings retain the opt-in but cannot queue or send; they wait for restore.
+Explicit phone revocation disables its subscription. Ordinary expired daily bindings
+retain opt-in indefinitely so a returning phone does not lose its preference; these
+rows remain subject to ownership, current authorization and provider-expiry checks. Re-enabling
 resets the baseline and skips old pending notifications, keeping old alerts silent.
 Disabled, settled subscriptions older than 14 days are retired at startup under
 row locks; live subscriptions and unresolved delivery references are protected.

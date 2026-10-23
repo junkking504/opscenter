@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process';import {randomUUID,createECDH} f
 import {manageWaypointPush,recordWaypointChanges,saveWaypointMessage,waypointMessages,waypointPushEnabled,waypointPushReady,waypointNotificationOwner,waypointNotificationStatus,retainWaypointPush} from '../lib/waypoint-push';
 import {drainWaypointPush} from '../lib/waypoint-push-worker';
 import {chicagoDateKey} from '../lib/chicago-date';
-import {createCrewPhoneEnrollment,enrollCrewPhone} from '../lib/crew-phone-store';
+import {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone} from '../lib/crew-phone-store';
 import {saveCrewDay} from '../lib/crew-phone-day';
 import {activeNotificationPhone} from '../lib/waypoint-push';
 import type {CrewPhone} from '../lib/crew-phone';import type {CrewCurrent} from '../lib/crew-dispatch';
@@ -43,8 +43,8 @@ async function main(){
  snapshot={...snapshot,state:'waiting',jobs:[]};await recordWaypointChanges(p,source);assert.equal(await counts(),3);
  current={...phone,truck:'Truck 2'};await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Old truck queue denied after switch');await recordWaypointChanges(p,source);assert.equal(await counts(),3,'New truck starts silent baseline');
  snapshot={...snapshot,jobs:[job]};await recordWaypointChanges(p,source);live=false;await recordWaypointChanges(p,source);assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[device])).rows[0].enabled,true,'Daily expiry preserves opt-in while delivery pauses');await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Expired daily access denies send');
- live=true;const baselineBefore=(await p.query('SELECT * FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 ORDER BY kind',[device])).rows;await manageWaypointPush(phone,{action:'restore',deviceId:device,notificationKey:'a'.repeat(64)},p,auth);assert.deepEqual((await p.query('SELECT * FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 ORDER BY kind',[device])).rows,baselineBefore,'Unchanged restore preserves baselines');await manageWaypointPush(phone,{action:'unsubscribe',deviceId:device,notificationKey:'a'.repeat(64)},p,auth);snapshot={...snapshot,jobs:[]};await recordWaypointChanges(p,source);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Disabled subscription denied');
- assert.equal((await manageWaypointPush(phone,{action:'restore',deviceId:device,notificationKey:'a'.repeat(64)},p,auth)).enabled,false,'Automatic restore cannot undo disable');
+ live=true;const baselineBefore=(await p.query('SELECT * FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 ORDER BY kind',[device])).rows;await manageWaypointPush(phone,{action:'restore',endpoint:subscription.endpoint,deviceId:device,notificationKey:'a'.repeat(64)},p,auth);assert.deepEqual((await p.query('SELECT * FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 ORDER BY kind',[device])).rows,baselineBefore,'Unchanged restore preserves baselines');await manageWaypointPush(phone,{action:'unsubscribe',deviceId:device,notificationKey:'a'.repeat(64)},p,auth);snapshot={...snapshot,jobs:[]};await recordWaypointChanges(p,source);await drainWaypointPush(p,()=>true,send,workerPhones);assert.equal(sends,2,'Disabled subscription denied');
+ assert.equal((await manageWaypointPush(phone,{action:'restore',endpoint:subscription.endpoint,deviceId:device,notificationKey:'a'.repeat(64)},p,auth)).enabled,false,'Automatic restore cannot undo disable');
  await manageWaypointPush(phone,{action:'subscribe',subscription,notificationKey:'a'.repeat(64)},p,auth);
  await recordWaypointChanges(p,source);
  await saveWaypointMessage({id:randomUUID(),truck:'Truck 2',body:'Synthetic message during source parse failure',date:chicagoDateKey()},'synthetic-manager',p);
@@ -65,15 +65,26 @@ async function main(){
  savedBinding.phone.enrolledAt=new Date(Date.now()-86400000).toISOString();fs.writeFileSync(binding,JSON.stringify(savedBinding));
  await recordWaypointChanges(p,{active:activeNotificationPhone,snapshot:()=>snapshot,messages:async()=>[]});
  assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[first.deviceId])).rows[0].enabled,true,'Real prior-day binding retains opt-in');
- await assert.rejects(manageWaypointPush(realPhones[0],{action:'restore',deviceId:first.deviceId,notificationKey:'c'.repeat(64)},p,realAuth),/not available/,'Expired phone cannot restore itself');
- assert.equal((await manageWaypointPush(realPhones[1],{action:'restore',deviceId:first.deviceId,notificationKey:'d'.repeat(64)},p,realAuth)).enabled,false,'Other browser cannot restore');
- const second=await manageWaypointPush(realPhones[1],{action:'restore',deviceId:first.deviceId,notificationKey:'c'.repeat(64)},p,realAuth);
+ await assert.rejects(manageWaypointPush(realPhones[0],{action:'restore',endpoint:realSub.endpoint,deviceId:first.deviceId,notificationKey:'c'.repeat(64)},p,realAuth),/not available/,'Expired phone cannot restore itself');
+ assert.equal((await manageWaypointPush(realPhones[1],{action:'restore',endpoint:realSub.endpoint,deviceId:first.deviceId,notificationKey:'d'.repeat(64)},p,realAuth)).enabled,false,'Other browser cannot restore');
+ const second=await manageWaypointPush(realPhones[1],{action:'restore',endpoint:realSub.endpoint,deviceId:first.deviceId,notificationKey:'c'.repeat(64)},p,realAuth);
  assert.equal((await p.query('SELECT status FROM opscenter_kernel.waypoint_push_deliveries WHERE id=$1',[oldQueue])).rows[0].status,'skipped','Old queue cannot follow new daily binding');
  assert.equal((await p.query('SELECT * FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1',[first.deviceId])).rowCount,0,'New daily binding starts a silent baseline');
  assert.equal(first.deviceId,second.deviceId,'Browser ownership survives a different enrolling actor and phone enrollment');
  assert.equal((await waypointNotificationStatus(realPhones[1],'c'.repeat(64),second.deviceId,p)).enabled,true);assert.equal((await waypointNotificationStatus(realPhones[0],'c'.repeat(64),second.deviceId,p)).enabled,false);assert.equal((await waypointNotificationStatus(realPhones[1],'d'.repeat(64),second.deviceId,p)).enabled,false);
- await p.query("UPDATE opscenter_kernel.waypoint_push_devices SET subscription_json=jsonb_set(subscription_json,'{expirationTime}',to_jsonb($2::bigint)) WHERE id=$1",[second.deviceId,Date.now()-1000]);assert.equal((await manageWaypointPush(realPhones[1],{action:'restore',deviceId:second.deviceId,notificationKey:'c'.repeat(64)},p,realAuth)).enabled,false,'Expired browser subscription is not restored');
+ assert.equal((await manageWaypointPush(realPhones[1],{action:'restore',endpoint:'https://web.push.apple.com/changed',deviceId:second.deviceId,notificationKey:'c'.repeat(64)},p,realAuth)).enabled,false,'Mismatched browser endpoint cannot claim connected');
+ await p.query("UPDATE opscenter_kernel.waypoint_push_devices SET subscription_json=jsonb_set(subscription_json,'{expirationTime}',to_jsonb($2::bigint)) WHERE id=$1",[second.deviceId,Date.now()-1000]);assert.equal((await manageWaypointPush(realPhones[1],{action:'restore',endpoint:realSub.endpoint,deviceId:second.deviceId,notificationKey:'c'.repeat(64)},p,realAuth)).enabled,false,'Expired browser subscription is not restored');
  const saved=(await p.query('SELECT owner_id,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[second.deviceId])).rows[0];assert.equal(saved.owner_id,waypointNotificationOwner('c'.repeat(64)));assert.equal(saved.phone_id,realPhones[1].deviceId);
+
+ await p.query("UPDATE opscenter_kernel.waypoint_push_devices SET subscription_json=subscription_json-'expirationTime' WHERE id=$1",[second.deviceId]);
+ revokeCrewPhone(realPhones[1].deviceId,'synthetic-manager');
+ const renewedInvite=createCrewPhoneEnrollment('Truck 1','Synthetic renewed phone','synthetic-manager'),renewed=enrollCrewPhone(renewedInvite.code,'f'.repeat(64));
+ saveCrewDay(renewed,{date:chicagoDateKey(),requestId:randomUUID(),expectedVersion:0,driver:'Synthetic Crew',responsible:'Synthetic Crew',navigators:[]},new Date(),['Synthetic Crew']);
+ assert.equal((await manageWaypointPush(renewed,{action:'restore',endpoint:realSub.endpoint,deviceId:second.deviceId,notificationKey:'c'.repeat(64)},p,realAuth)).enabled,false,'Revoked old phone cannot restore after re-enrollment, even before the worker runs');
+ assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[second.deviceId])).rows[0].enabled,false);
+ const renewedRegistration=await manageWaypointPush(renewed,request,p,realAuth);revokeCrewPhone(renewed.deviceId,'synthetic-manager');
+ await recordWaypointChanges(p,{active:activeNotificationPhone,snapshot:()=>snapshot,messages:async()=>[]});
+ assert.equal((await p.query('SELECT enabled FROM opscenter_kernel.waypoint_push_devices WHERE id=$1',[renewedRegistration.deviceId])).rows[0].enabled,false,'Worker disables explicitly revoked phones while preserving ordinary daily expiry');
  }finally{process.env=oldEnv;}
  const yesterday=new Date(Date.now()-86400000).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});await p.query('UPDATE opscenter_kernel.waypoint_messages SET service_date=$2 WHERE id=$1',[message.id,yesterday]);await saveWaypointMessage({...message,date:yesterday},'synthetic-manager',p);await assert.rejects(saveWaypointMessage({...message,id:randomUUID(),date:yesterday},'synthetic-manager',p),/previous day/);
  const capKey='e'.repeat(64),capSubscriptions=[];for(let n=0;n<10;n++){const sub={...subscription,endpoint:'https://web.push.apple.com/Q'+String(n).padStart(24,'0')};capSubscriptions.push(sub);await manageWaypointPush(phone,{action:'subscribe',subscription:sub,notificationKey:capKey},p,auth);}

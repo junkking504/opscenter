@@ -17,11 +17,13 @@ export default function WaypointNotifications(){
    const permitted='Notification' in window && Notification.permission==='granted';
    const subscription=permitted && 'serviceWorker' in navigator ? await (await navigator.serviceWorker.getRegistration('/crew-jobs'))?.pushManager.getSubscription() : null;
    let connected=body.enabled===true && Boolean(subscription);
-   if(!connected && body.available && key && id && subscription){
+   if(body.available && key && id && subscription){
     // Reuse the permission and subscription already granted on this browser. No prompt.
-    const restored=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restore',deviceId:id,notificationKey:key})});
-    const result=await restored.json();if(!restored.ok)throw Error(result.error || 'Notifications could not reconnect. Try Refresh messages.');
-    connected=result.enabled===true;
+    try{
+     const restored=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restore',deviceId:id,notificationKey:key,endpoint:subscription.endpoint})});
+     const result=await restored.json();if(!restored.ok)throw Error('Reconnect failed.');
+     connected=result.enabled===true;
+    }catch{setEnabled(false);setError('Office messages are up to date. Notifications could not reconnect; try Refresh messages.');return;}
    }
    setEnabled(connected);setError('');
   }finally{working.current=false;setBusy(false);}

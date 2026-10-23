@@ -1,4 +1,4 @@
-export type GpsRoutePoint = {timestamp:string;latitude:number;longitude:number};
+export type GpsRoutePoint = {timestamp:string;latitude:number;longitude:number;/** Only set by the likely-stop matcher, from `TruckGpsRoute.coverage`. */coveredUntil?:string};
 export type GpsTrip = {
   id:string; number:number; departure:string; arrival:string;
   from:{latitude:number;longitude:number;address:string};
@@ -19,6 +19,8 @@ export type TruckGpsRoute = {
   gapLinks?:GpsRoutePoint[][];
   gaps:number;
   rejected:number;
+  /** Stationary observations that record coverage past their own timestamp; kept apart from `points` so geometry identity is unchanged. */
+  coverage?:{timestamp:string;latitude:number;longitude:number;coveredUntil:string}[];
 };
 export type RoadCoordinate={latitude:number;longitude:number};
 export type StreetRoute={

@@ -1,6 +1,6 @@
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
-import { likelyGpsStop } from './likely-stop-match';
+import { contestedLikelyStops, likelyGpsStop } from './likely-stop-match';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -99,16 +99,25 @@ export function readDesktopSchedule(date: string) {
   // Near misses (typo'd house number, unresolved pin): a stop with dwell and
   // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
   const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
+  const claims: {job: DesktopAppointment; truck: string; likely: NonNullable<ReturnType<typeof likelyGpsStop>>}[] = [];
   for (const job of appointments) {
     if (job.truckVisits?.length) continue;
     const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
     if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
-    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date);
-    if (likely?.confident && likely.departure) {
+    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date, routes.get(truck)?.points?.map(point => ({...point, coveredUntil: routes.get(truck)?.coverage?.find(row => row.timestamp === point.timestamp && row.latitude === point.latitude && row.longitude === point.longitude)?.coveredUntil})));
+    if (likely) claims.push({job, truck, likely});
+  }
+  // One physical stop is one visit: a stop claimed by several appointments, or
+  // overlapping a visit another appointment already has, stays a suggestion.
+  const confirmed = appointments.flatMap(job => (job.truckVisits || []).map(visit => ({truck: visit.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1'), start: Date.parse(visit.arrival), end: Date.parse(visit.departure || visit.observedThrough || visit.arrival)})));
+  const contestedJobs = contestedLikelyStops(claims, confirmed);
+  for (const {job, truck, likely} of claims) {
+    const contested = contestedJobs.has(job);
+    if (likely.confident && likely.departure && !contested) {
       // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
       job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
       job.hasVisit = true;
-    } else if (likely) job.likelyStop = likely;
+    } else job.likelyStop = {...likely, confident: false, reason: contested ? `${likely.reason} · competes with another visit` : likely.reason};
   }
   const geofenceStops = scheduleOperationalStops(date, tracked.visits);
   const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {

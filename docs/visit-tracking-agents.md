@@ -10,7 +10,8 @@ a continuous sequence with gaps no greater than five minutes. Wall-clock age,
 missing exits, ambiguous repeated entries and inferred departure upper bounds do
 not establish dwell. Inferred departures qualify only from the observed onsite
 lower bound. Each return qualifies separately. Once qualified, an unload retains
-its original arrival anchor so later pickups are preserved. Recorded actual dump
+the first qualifying continuous presence anchor so later pickups are preserved;
+an earlier isolated sighting across a GPS gap cannot backdate that unload. Recorded actual dump
 expenses remain independent evidence. This policy applies to named geofences;
 appointment visit-pin matching retains its separately documented policy.
 

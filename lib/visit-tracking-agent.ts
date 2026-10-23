@@ -12,7 +12,7 @@ export const VISIT_TRACKING_AGENT = 'visit-tracking' as const;
 export type VisitEvidence = 'native_geofence' | 'live_position' | 'later_facility' | 'later_position' | 'confirmed_appointment' | 'operational_confirmation';
 export type TrackedVisit = {
   // Evidence time only: wall-clock age and inferred departure bounds never add dwell.
-  geofenceDwellSeconds?: number; presenceStartedAt?: string; nativeEnteredAt?: string;
+  geofenceDwellSeconds?: number; qualifiedArrivalAt?: string; presenceStartedAt?: string; nativeEnteredAt?: string;
   visitPin?: VisitPin;
   agentId: typeof VISIT_TRACKING_AGENT;
   id: string; kind: 'geofence' | 'appointment'; truck: string; name: string;
@@ -84,7 +84,11 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
         ? (Date.parse(event.timestamp)-Date.parse(visit.nativeEnteredAt))/1000 : 0;
       const observedSeconds = visit && Date.parse(event.timestamp)-Date.parse(visit.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
         ? (Date.parse(event.timestamp)-Date.parse(visit.presenceStartedAt || visit.lastSeenAt))/1000 : 0;
-      completed.push({...visit, agentId:VISIT_TRACKING_AGENT, kind:'geofence',
+      const qualifiedArrivalAt = [visit?.qualifiedArrivalAt,
+        nativeSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? visit?.nativeEnteredAt : undefined,
+        observedSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? visit?.presenceStartedAt : undefined,
+      ].filter((stamp): stamp is string => !!stamp).sort()[0];
+      completed.push({...visit, qualifiedArrivalAt, agentId:VISIT_TRACKING_AGENT, kind:'geofence',
         id:visit?.id || event.id.replace('linxup-geofence-', 'linxup-geofence-exit-'),
         truck:event.truck,name:event.name,facility:event.facility,resetLocation:event.resetLocation,
         enteredAt,departedAt:event.timestamp,lastSeenAt:visit?.lastSeenAt || event.timestamp,
@@ -112,9 +116,11 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       const ambiguous = event.type === 'entry' && !!previous.nativeEntryIds?.length;
       const presenceStartedAt = Date.parse(event.timestamp)-Date.parse(previous.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
         ? previous.presenceStartedAt || previous.lastSeenAt : event.timestamp;
+      const observedSeconds = (Date.parse(event.timestamp)-Date.parse(presenceStartedAt))/1000;
       active.set(key,{...previous,presenceStartedAt,
+        qualifiedArrivalAt:previous.qualifiedArrivalAt || (observedSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? presenceStartedAt : undefined),
         nativeEnteredAt:previous.nativeEnteredAt || (event.type === 'entry' ? event.timestamp : undefined),
-        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,(Date.parse(event.timestamp)-Date.parse(presenceStartedAt))/1000),facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
+        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,observedSeconds),facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
         nativeEntryIds:event.type === 'entry' ? [...(previous.nativeEntryIds || []),event.id] : previous.nativeEntryIds,
         lastSeenAt:event.timestamp,positionEntryId:previous.positionEntryId || (event.type === 'position' ? event.id : undefined),
         entryIds:event.type === 'entry' || event.type === 'position' && !previous.positionEntryId ? [...new Set([...previous.entryIds,event.id])] : previous.entryIds});
@@ -126,7 +132,14 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
         departureSource:null,departureBounds:null,durationSeconds:null});
     }
   }
-  return [...completed,...active.values()].filter(visit => visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
+  return [...completed,...active.values()].map(visit => {
+    // An isolated earlier sighting across a GPS gap cannot backdate the eventual
+    // qualified visit/unload. Raw provider identities remain available for audit.
+    if (!qualifiedGeofenceVisit(visit) || !visit.qualifiedArrivalAt) return visit;
+    return {...visit,firstObservedAt:visit.qualifiedArrivalAt,enteredAt:visit.qualifiedArrivalAt,
+      durationSeconds:visit.durationSeconds !== null && visit.departedAt
+        ? (Date.parse(visit.departedAt)-Date.parse(visit.qualifiedArrivalAt))/1000 : null};
+  }).filter(visit => visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
     .sort((a,b) => (b.departedAt || b.enteredAt || b.lastSeenAt).localeCompare(a.departedAt || a.enteredAt || a.lastSeenAt));
 }
 

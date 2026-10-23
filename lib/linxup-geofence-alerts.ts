@@ -168,8 +168,8 @@ function computeGeofenceEntries(date: string) {
     const rawEntries = geofenceEntries(date, rows);
     const rawNativeVisits = geofenceVisits(date,[...previous,...rows]);
     const trackedVisits = trackedGeofenceVisits(date,observations,[...previous,...rows],Date.now(),locationRows).filter(qualifiedGeofenceVisit);
-    const qualifiedIds = new Map(trackedVisits.flatMap(visit=>visit.entryIds.map(id=>[id,visit.geofenceDwellSeconds!] as const)));
-    const entries = rawEntries.filter(entry=>qualifiedIds.has(entry.id)).map(entry=>({...entry,geofenceDwellSeconds:qualifiedIds.get(entry.id)}));
+    const qualifiedIds = new Map(trackedVisits.flatMap(visit=>visit.entryIds.map(id=>[id,visit] as const)));
+    const entries = rawEntries.filter(entry=>qualifiedIds.has(entry.id)).map(entry=>({...entry,timestamp:qualifiedIds.get(entry.id)!.firstObservedAt,geofenceDwellSeconds:qualifiedIds.get(entry.id)!.geofenceDwellSeconds}));
     const nativeVisits = rawNativeVisits.filter(visit=>visit.entryIds.some(id=>qualifiedIds.has(id)) && qualifiedGeofenceDeparture(visit));
     const arrivals: GeofenceEntry[] = trackedVisits.filter(visit=>!visit.departedAt).map(visit=>({
       id:visit.id,truck:visit.truck,name:visit.name,timestamp:visit.firstObservedAt,facility:visit.facility!,

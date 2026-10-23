@@ -84,7 +84,7 @@ have bounded intrinsic widths for narrow iPhone layouts.
 ## Named OpsCenter account sign-in
 
 Waypoint also accepts a current named OpsCenter Manager or Administrator session through
-`/login?next=/crew-jobs`. Credentials are the same on both hosts; cookies remain
+`/login?next=/crew-jobs`. Sign-in is served only on `waypoint.junk-king.app`; the `kingpin.` and legacy `jobs.` hosts return 404 for `/login`, `/api/auth/login`, `/api/auth/logout` and `/api/crew-jobs/manager-session`. Credentials are the same on both hosts; cookies remain
 host-only, so users sign in separately on each site. The public Waypoint entry
 shows Manager sign-in. Named account configuration is documented in
 [OpsCenter accounts](ops-accounts.md).

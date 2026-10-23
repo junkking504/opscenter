@@ -31,6 +31,7 @@ async function main(){
   assert.equal((await verifyTrustedDeviceCookie(trust,request))?.email,identity);
   for(const path of ['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'])assert.equal((await middleware(new NextRequest(`https://waypoint.junk-king.app${path}`))).headers.get('x-middleware-next'),'1');
   assert.equal((await middleware(new NextRequest('https://waypoint.junk-king.app/api/manual-bonuses'))).status,404);
+  for(const host of ['kingpin.junk-king.app','jobs.junk-king.app'])for(const path of ['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'])assert.equal((await middleware(new NextRequest(`https://${host}${path}`))).status,404,`${host} must not serve ${path}`);
   row.active=false;process.env.OPS_AUTH_ACCOUNTS_JSON=JSON.stringify(rows);
   assert.equal(await verifyOpsCredentials(row.username,password),false);assert.equal((await inspectAuthSessionCookie(cookie)).session,null);assert.equal(await verifyTrustedDeviceCookie(trust,request),null);assert.equal(await waypointAccount(accountRequest),null);
   row.active=true;process.env.OPS_AUTH_ACCOUNTS_JSON=JSON.stringify(rows);

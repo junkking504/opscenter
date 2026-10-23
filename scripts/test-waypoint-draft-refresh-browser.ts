@@ -9,13 +9,13 @@ import {fixture} from './fixtures/crew-closeout';
 async function main(){
 const artifacts=process.env.WAYPOINT_TEST_ARTIFACTS;if(artifacts)await mkdir(artifacts,{recursive:true});
 const repo=process.cwd(),origin='http://127.0.0.1:39991';
-const bundle=await build({stdin:{contents:`import './app/ops-styles.css';import React from 'react';import {createRoot} from 'react-dom/client';import App from './components/WaypointApp';import * as storage from './app/crew-jobs/photo-storage';import * as drafts from './desktop-ui/lib/closeout-drafts';window.fixtureStorage={...storage,...drafts};createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:repo,loader:'tsx'},absWorkingDir:repo,bundle:true,write:false,outdir:'fixture',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},alias:{'@':repo,react:path.join(repo,'node_modules/react'),'react-dom':path.join(repo,'node_modules/react-dom')}});
+const bundle=await build({stdin:{contents:`import './app/ops-styles.css';import React from 'react';import {createRoot} from 'react-dom/client';import App from './components/WaypointApp';import * as storage from './app/crew-jobs/photo-storage';import * as drafts from './desktop-ui/lib/closeout-drafts';window.fixtureStorage={...storage,...drafts};createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:repo,loader:'tsx'},absWorkingDir:repo,bundle:true,loader:{'.png':'dataurl'},write:false,outdir:'fixture',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},alias:{'@':repo,react:path.join(repo,'node_modules/react'),'react-dom':path.join(repo,'node_modules/react-dom')}});
 const js=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text,css=bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text;
 const browser=await chromium.launch({headless:true});
 const phone={deviceId:'fixture-phone',truck:'Truck 6',label:'Fixture phone'},date='2026-10-06';
 const oldId='fixture-schedule-B',newId='fixture-current-B',draftScope=`appointment:${date}:900002:original`;
 const draftKey=`ops-crew-closeout:${phone.deviceId}:${draftScope}`,photoKey=`${phone.deviceId}:${draftScope}`,aliasKey=`ops-crew-closeout:${phone.deviceId}:${oldId}`;
-const a={assignmentId:'fixture-A',appointmentId:'900001',date,jkNumber:'FIXTURE-A',customerName:'Fixture A',address:'',appointmentTime:'9–10 AM',junkItems:[],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator',status:'Confirmed'};
+const a={assignmentId:'fixture-A',appointmentId:'900001',truck:phone.truck,date,jkNumber:'FIXTURE-A',customerName:'Fixture A',address:'',appointmentTime:'9–10 AM',junkItems:[],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator',status:'Confirmed'};
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aU1cAAAAASUVORK5CYII=';
 async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number}={}){
  const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'}),page=await context.newPage();page.setDefaultTimeout(10000);
@@ -31,6 +31,9 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
   if(url.pathname==='/crew-jobs/waypoint-crown-road-v1-192.png')return route.fulfill({contentType:'image/png',path:path.join(repo,'public/crew-jobs/waypoint-crown-road-v1-192.png')});
   if(url.pathname==='/bundle.js')return route.fulfill({contentType:'text/javascript',body:js});
   if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}${css}</style></head><body><div id="root"></div><script src="/bundle.js"></script></body></html>`});
+  if(url.pathname.startsWith('/crew-jobs/icons/'))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg"/>'});
+  if(url.pathname==='/api/crew-jobs/notifications')return send({enabled:false,available:false,messages:[]});
+  if(url.pathname==='/api/crew-jobs/manager-session')return send({manager:false});
   if(url.pathname==='/api/crew-jobs/session')return send({phone});
   if(url.pathname==='/api/crew-jobs/day')return send({phone,date,day:{date,version:state.crewVersion,truck:phone.truck,driver:'Sample Driver',navigators:['Sample Navigator']},inspection:{status:'ready'},trucks:['Truck 6'],roster:['Sample Driver','Sample Navigator']});
   if(url.pathname==='/api/crew-jobs/current'){state.reads++;return send({state:'assigned',truck:phone.truck,job:a,jobs:[a,{...a,appointmentId:'900002',assignmentId:state.completeA?newId:oldId,draftScope,draftAssignmentIds:[oldId,newId],jkNumber:'FIXTURE-B',customerName:'Fixture B'}],updateToken:state.updateToken});}
@@ -68,8 +71,8 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
   throw new Error(`Unexpected fixture request ${req.method()} ${url.pathname}`);
  });
  await page.goto(origin);
- await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
- const open=async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(1).click();await page.getByRole('button',{name:/^(Start closeout · Before photos|Check saved checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
+ await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+ const open=async()=>{await page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await page.getByRole('button',{name:/^(Start closeout · Before photos|Check saved checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
  const charges=async()=>{const next=page.getByRole('button',{name:'Submit before photos & continue',exact:true});if(await next.isVisible())await next.click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();};
  const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await page.getByLabel('Record payment or Billed',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
  const review=async()=>{await payment();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();};
@@ -101,7 +104,7 @@ try{
   await expect.poll(()=>t.state.updateRequested).toBe(true);
   await t.open();await t.charges();await t.page.getByLabel('Load price',{exact:true}).fill('321');const reads=t.state.reads;
   t.state.updateToken='late-update';t.state.releaseUpdates();
-  await t.page.getByRole('button',{name:'Refresh assignments',exact:true}).click();
+  await expect(t.page.getByRole('button',{name:'Refresh assignments',exact:true})).toBeHidden();
   await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');assert.equal(t.state.reads,reads);
   await t.done();console.log('PASS late poll and manual refresh preserve dirty editor');
  }
@@ -109,12 +112,12 @@ try{
   const t=await setup({width:mode==='failed'?1280:390});t.state.mode=mode;await t.open();await t.review();
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
   if(['pending','verified','lost'].includes(mode)){
-   await expect(t.page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
+   await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
    await expect(t.page.locator('.appointment-closeout-panel')).toHaveCount(0);
    if(mode!=='verified')await expect(t.page.getByText('Checkout accepted by the server. JunkWare verification is still pending.',{exact:true})).toBeVisible();
   }else{
    await expect(t.page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');
-   await expect(t.page.getByRole('heading',{name:'Assignment details',exact:true})).toBeVisible();
+   await expect(t.page.getByRole('heading',{name:'Appointment details',exact:true})).toBeVisible();
    assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');
    if(mode==='failed')await expect(t.page.getByLabel('Payment amount',{exact:true})).toBeEnabled();
    else{
@@ -170,7 +173,7 @@ try{
   await expect.poll(()=>t.state.photoReceipts.size).toBe(2);
   // Pending provider receipts do not prevent final server intake, either.
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
-  await expect(t.page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
+  await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
   assert.equal(t.state.posts.length,1);assert.equal(t.state.photoPosts,2,'Final checkout does not resend step uploads');assert.deepEqual(t.state.posts[0].photoRequestIds.sort(),[...t.state.photoReceipts.values()].map(row=>row.requestId).sort(),'Final checkout uses canonical server receipts');
   await t.done();console.log(`PASS required photos; Charges, Payment and Review before upload acknowledgment; pending verification at ${width}px`);
  }
@@ -262,13 +265,13 @@ try{
   await expect(t.page.getByText('Checkout finished and was verified in JunkWare.',{exact:true})).toBeVisible();t.state.sourceChanged=changed;
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
   if(changed){await expect(t.page.getByText('The appointment or crew changed. Your draft is preserved. Reload from JunkWare and review before submitting.',{exact:true})).toBeVisible();assert.equal(t.state.posts.length,0);assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');}
-  else{await expect(t.page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(t.state.posts.length,1);assert.equal(t.state.posts[0].assignmentId,newId);assert.equal(t.state.posts[0].values.loadPrice,'321');}
+  else{await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();assert.equal(t.state.posts.length,1);assert.equal(t.state.posts[0].assignmentId,newId);assert.equal(t.state.posts[0].values.loadPrice,'321');}
   await t.done();console.log(`PASS submit after promotion, concurrent source change=${changed}`);
  }
  // Offline source reload preserves bytes, then restores after a read-only retry.
  {
   const t=await setup();await t.open();await t.charges();await t.page.getByLabel('Load price',{exact:true}).fill('321');await expect.poll(async()=>(await storedDraft(t.page))?.value.fields.loadPrice).toBe('321');
-  t.state.offlineLoads=true;await t.page.reload();await t.page.getByRole('button',{name:'View assignment',exact:true}).nth(1).click();await t.page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
+  t.state.offlineLoads=true;await t.page.reload();await t.page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await t.page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
   await expect(t.page.getByRole('button',{name:'Retry loading closeout',exact:true})).toBeVisible();assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');
   t.state.offlineLoads=false;await t.page.getByRole('button',{name:'Retry loading closeout',exact:true}).click();await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');assert.equal(t.state.posts.length,0);
   await t.done();console.log('PASS offline reload retains draft until source can be checked');

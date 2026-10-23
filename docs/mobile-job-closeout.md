@@ -1119,3 +1119,39 @@ switching views does not resubscribe or re-prompt for permission. The route’s
 notification status opens the notification screen. Initial permission remains a
 one-time phone action, with no in-app Disable Notifications control. See
 [Waypoint push](waypoint-push.md) for daily-session restoration and authorization.
+
+## Manager appointment navigation and source presentation
+
+The manager account/phone view at `/crew-jobs` is a separate all-truck management
+surface. Crew visibility still comes from the existing crew APIs; selecting a
+manager view does not grant a phone any additional permissions.
+
+Manager appointments have explicit **Active / Scheduled**, **Completed**, and
+**Cancelled** sections with counts for the selected truck. Each section sorts by
+booked start/end time (unknown times last), then stable job/record identity. Cards
+show the booked Central-time window, assigned truck and territory. Source status
+strings such as `Completed Duration: 60 min(s)` display as `Completed`; that source
+duration is not GPS/on-site duration.
+
+A sticky Back control returns from details to the dated, filtered list and its
+scroll position. Switching between Manager and Crew workflow remembers the two
+views' contexts for that mounted Waypoint session. Back, view switching and
+sign-out respect manager drafts, in-flight work and unresolved receipts. Existing
+crew setup, inspection, customer-editor and checkout guards remain in force.
+Booking and detail-editor close controls use the same guard. Check an uncertain
+saved result before leaving; a failed or reconciled result permits a reviewed
+return. Reload is guarded while a manager form is dirty or unresolved; browser
+reload does not persist the manager form itself.
+
+The manager display adapter recognizes cancellation contact cells that contain
+name, phone, numbered street and reason, including reasons without the word
+“cancel”. It presents a clean heading and a separate reason without modifying
+source values, ingestion/merge logic or raw notes. When the displayed reason is
+normalized, **Original cancellation text** keeps the complete source text
+inspectable. Normal customer names and non-cancelled rows are not split by this
+contact rule. All regression fixtures are fictional.
+
+Regression checks: `npm run verify:waypoint-manager:presentation`,
+`npm run verify:waypoint-manager`, `npm run verify:waypoint-navigation:browser`,
+and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
+local API mocks; they are not physical iPhone acceptance or live-data write tests.

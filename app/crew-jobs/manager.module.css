@@ -34,3 +34,14 @@
 .orderName small { display:block; color:#58665e; font-size:12px; font-weight:400; margin-top:4px; }
 .enroll { padding:12px 0; border-top:1px solid #dfe3da; }
 @media(max-width:360px) { .actions { grid-template-columns:1fr; } .order li { gap:5px; grid-template-columns:22px minmax(0,1fr) 44px 44px; } }
+
+.backBar { position:sticky; top:env(safe-area-inset-top,0px); z-index:950; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin:-24px -12px 20px; padding:10px 12px; background:#f7f8f3; border-bottom:1px solid #c6cec8; }
+.backBar button { min-height:44px; padding:9px 12px; border:1px solid #bdc7bc; border-radius:8px; background:white; color:#25312c; font:650 14px system-ui,sans-serif; cursor:pointer; }
+.backBar span { font-size:12px; color:#58665e; }
+.filter { display:grid; gap:6px; font-size:14px; font-weight:650; }
+.filter select { min-height:44px; width:100%; padding:8px; border:1px solid #bdc7bc; border-radius:8px; background:white; font:inherit; color:inherit; }
+.context,.empty { font-size:13px; color:#58665e; margin:12px 0 !important; }
+.appointments h2 { font-size:18px; margin:20px 0 8px; }
+.appointments h2 span { font-weight:400; color:#58665e; }
+.notes p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; }
+.notes h3 { font-size:15px; margin:16px 0 8px; }

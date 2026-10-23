@@ -1,9 +1,10 @@
 'use client';
 import { SettingsWorkspace } from '../settings-workspace';
+import { readSidebarCollapsed, saveSidebarCollapsed } from '../lib/sidebar-preferences';
 import { readOpeningWorkspace } from '../lib/workspace-preferences';
 import { ReleaseUpdateToast } from '../release-update-toast';
 import { ShopTv } from '../shop-tv';
-import { PageRail, WorkspaceRailLink, workspacePages } from '../page-rail';
+import { PageRail, WorkspaceRailLink, workspacePages, pageHref } from '../page-rail';
 import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
@@ -32,7 +33,7 @@ import { requiresAlertAttention } from '../lib/alert-attention';
 import {
   Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
   CircleDollarSign, Command, Copy, Gauge, MapPin, Megaphone, Search,
-  PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
+  PanelLeftClose, PanelLeftOpen, PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Suspense, useCallback, useId, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -990,6 +991,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   mutationBusyRef.current = mutationBusy;
   const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); live?.onBusyChange?.(busy); }, [live?.onBusyChange]);
   const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
     const params = new URLSearchParams(window.location.search);
@@ -4220,20 +4222,27 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
 
   const preloadMainWorkspace = (workspace: string) => { void preloadWorkspace[workspace]?.().catch(() => {}); };
-  const navigateMainWorkspace = (workspace: string) => {
+  const navigateMainWorkspace = (workspace: string, requestedPage?: string) => {
     if (mutationBusyRef.current || (live && workspace === 'Finance' && !canFinance)) return;
     const group = workspacePages.find(item => item.workspace === workspace);
     if (!group) return;
+    const page = requestedPage || group.pages[0][0];
+    if (!group.pages.some(([value]) => value === page)) return;
+    if (workspace === 'Command' && page === 'tv') {
+      if (live && !canFinance) return;
+      window.location.assign(pageHref(workspace, group.key, page));
+      return;
+    }
     const url = new URL(window.location.href);
     for (const key of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, '', url);
     setActiveNav(workspace);
-    if (workspace === 'Command') setView('now');
-    if (workspace === 'Schedule') { setScheduleView('board'); setScheduleDay('today'); }
-    if (workspace === 'Krewe') setKreweView('today');
-    if (workspace === 'Fleet') setFleetView('overview');
-    if (workspace === 'Finance') setFinanceView('overview');
-    if (workspace === 'Marketing') setMarketingView('overview');
+    if (workspace === 'Command') setView(page as typeof view);
+    if (workspace === 'Schedule') { setScheduleView(page as typeof scheduleView); setScheduleDay('today'); }
+    if (workspace === 'Krewe') setKreweView(page as KreweView);
+    if (workspace === 'Fleet') setFleetView(page as FleetView);
+    if (workspace === 'Finance') setFinanceView(page as FinanceView);
+    if (workspace === 'Marketing') setMarketingView(page as MarketingView);
     setNotificationOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
@@ -4241,16 +4250,18 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
 
   return (
-    <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
+    <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-sidebar-collapsed={sidebarCollapsed} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">
         <div className="brand-lockup" style={{ display: 'block' }}>
           <img src="/opscenter-icon.svg" alt="OpsCenter" width={40} height={40} className="workspace-rail-brand" />
+          {!sidebarCollapsed && <strong className="workspace-sidebar-title">OpsCenter</strong>}
+          <button type="button" className="sidebar-collapse-toggle" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="workspace-sidebar-navigation" onClick={() => { const next = !sidebarCollapsed; setSidebarCollapsed(next); saveSidebarCollapsed(next); }}>{sidebarCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button>
         </div>
 
         <NavigationDiagnostics />
-        <PageRail workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
+        <PageRail collapsed={sidebarCollapsed} currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
 
         <div className="sidebar-footer">
           <WorkspaceRailLink group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />

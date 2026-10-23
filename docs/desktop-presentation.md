@@ -29,14 +29,21 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The desktop uses an 80px workspace rail. Each workspace is a direct link to its
-main page: Dashboard Updates, Command Board, Krewe Today, Fleet Overview,
-Finance Overview, and Marketing Follow up. Settings appears in the footer above
-Sources. There are no sidebar area menus; the existing in-page tabs and saved
-area links remain available. Links preserve the selected operating date and clear
-unrelated record filters. Finance retains its role check. Enter activates links;
-modifier clicks open the same main-page destination in a new tab. Mutation busy
-state blocks navigation. The mobile selector uses the same main-page defaults.
+The desktop sidebar opens expanded at 240px with an 80px compact rail available
+through the labeled header toggle. This browser remembers its collapsed state;
+blocked storage still permits the toggle for the current session. Workspace
+labels open their main page in one click. Separate chevrons show inline page
+links without navigation; selecting a page switches the existing workspace view
+immediately. The active workspace's pages open when the workspace changes.
+Settings and Sources remain in the footer. Short windows scroll the sidebar
+without overlapping its footer. Mobile retains the existing workspace selector.
+
+Page links preserve the operating date, clear unrelated record filters, support
+keyboard and modifier clicks, and reuse the existing workspace preload. Finance
+and The Huddle retain financial access checks. Busy mutations block both workspace
+and page navigation. The Huddle retains its full-screen route and current-day
+behavior. Monitor, Actions, Call-in plan, Reconciliation, Driving, Records & invoices
+and standalone Trends stay omitted; existing saved links remain compatible.
 
 Settings initially provides My Preferences, Notifications, and Connections.
 The default opening workspace is stored in versioned browser local storage,

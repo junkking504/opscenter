@@ -40,7 +40,7 @@ const disconnected = likelyGpsStop(job, gap, day, fixes)!;
 assert.equal(disconnected.departure, null, 'disconnected next trip gives no departure');
 assert.equal(disconnected.confident, false, 'unsupported dwell stays unconfirmed');
 const lateArrival = [trip('p', '14:00', '15:00', 'Yard, Baton Rouge, LA', yard, yard), trip('a', '15:30', '16:05', '8830 Cresson Dr, Denham Springs, LA 70726', stopPoint, {latitude: 31, longitude: -91}), trips[1]];
-assert.equal(likelyGpsStop(job, lateArrival, day, fixes)!.confident, false, 'arrival trip that does not start where the previous ended is unconfirmed');
+assert.equal(likelyGpsStop(job, lateArrival, day, fixes)!.confident, true, 'an earlier route gap does not veto a dwell the stop\'s own fixes support');
 // Locality: no city/ZIP on either side and no pin is not evidence of the same place.
 const bare = {...job, address: '8330 Example Dr'};
 const bareTrips = [trip('a', '15:30', '16:05', '8830 Example Dr'), trip('b', '17:03', '17:25', 'Yard', yard, stopPoint)];
@@ -53,6 +53,15 @@ assert.equal(likelyGpsStop(job, trips, day, sparse)!.departure, null);
 const away = [...fixes, fix('16:40', {latitude: 30.6, longitude: -90.9})];
 assert.equal(likelyGpsStop(job, trips, day, away)!.confident, false, 'a fix elsewhere during the dwell breaks presence');
 assert.equal(likelyGpsStop(job, trips, day)!.confident, false, 'no fix data cannot confirm a dwell');
+// Positive evidence: short stops need fixes too, and a stationary fix covers its recorded span.
+const shortTrips = (mins: number) => [trip('a', '15:30', '16:05', '8830 Cresson Dr, Denham Springs, LA 70726'), trip('b', `16:${String(5 + mins).padStart(2, '0')}`, '17:25', 'Yard, Baton Rouge, LA', yard, stopPoint)];
+for (const mins of [5, 10, 20]) {
+  assert.equal(likelyGpsStop(job, shortTrips(mins), day, [])!.confident, false, `${mins} min with no fixes is unsupported`);
+  assert.equal(likelyGpsStop(job, shortTrips(mins), day, [fix('16:05'), fix(`16:${String(5 + mins).padStart(2, '0')}`)])!.confident, true, `${mins} min with fixes at both ends`);
+}
+const compressed = [{...fix('16:05'), coveredUntil: z('16:30')}];
+assert.equal(likelyGpsStop(job, [trips[0], trip('b', '16:30', '17:25', 'Yard, Baton Rouge, LA', yard, stopPoint)], day, compressed)!.confident, true, 'a stationary fix covers its recorded span');
+assert.equal(likelyGpsStop(job, trips, day, compressed)!.confident, false, 'coverage that ends early leaves the rest of the dwell unsupported');
 // Competing claims and existing visits.
 const claim = (id: string) => ({job: id, truck: 'Truck 3', likely: stop});
 assert.deepEqual([...contestedLikelyStops([claim('x'), claim('y')], [])].sort(), ['x', 'y'], 'two appointments claiming one stop are both contested');

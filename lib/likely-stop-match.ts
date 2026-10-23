@@ -15,16 +15,22 @@ type LikelyJob = {status?: string; address?: string; truck: string; location?: P
 
 const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, ONSITE_METERS = 300, MAX_FIX_GAP_MS = 20 * 60_000, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
 
-/** The truck's own fixes must cover the dwell: none far from the stop, and no
- * silent stretch longer than MAX_FIX_GAP_MS (a gap could hide a trip elsewhere). */
+/** The truck's own fixes must cover the dwell: at least one, none far from the
+ * stop, and no silent stretch longer than MAX_FIX_GAP_MS (a gap could hide a
+ * trip elsewhere). A stationary fix covers through its recorded `coveredUntil`. */
 function presentThroughout(points: GpsRoutePoint[], stop: Point, from: number, to: number) {
-  const times = points.flatMap(point => {
-    const at = Date.parse(point.timestamp);
-    return at >= from && at <= to ? [{at, point}] : [];
+  const fixes = points.flatMap(point => {
+    const at = Date.parse(point.timestamp), until = point.coveredUntil ? Date.parse(point.coveredUntil) : NaN;
+    const end = Number.isFinite(until) ? Math.max(at, until) : at;
+    return Number.isFinite(at) && at <= to && end >= from ? [{at, end, point}] : [];
   }).sort((a, b) => a.at - b.at);
-  if (times.some(({point}) => !validGpsCoordinates(point) || gpsDistanceMeters(point, stop) > ONSITE_METERS)) return false;
-  const edges = [from, ...times.map(row => row.at), to];
-  return edges.every((at, i) => i === 0 || at - edges[i - 1] <= MAX_FIX_GAP_MS);
+  if (!fixes.length || fixes.some(({point}) => !validGpsCoordinates(point) || gpsDistanceMeters(point, stop) > ONSITE_METERS)) return false;
+  let covered = from;
+  for (const fix of fixes) {
+    if (fix.at - covered > MAX_FIX_GAP_MS) return false;
+    covered = Math.max(covered, fix.end);
+  }
+  return to - covered <= MAX_FIX_GAP_MS;
 }
 function parts(address: string) {
   const [street = '', city = '', ...rest] = address.split(',').map(part => part.trim());
@@ -65,13 +71,12 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     if (!(want.zip && got.zip || want.city && got.city || meters !== null)) return [];
     const arrival = Date.parse(trip.arrival), start = chicagoMinutes(arrival, day);
     if (!Number.isFinite(arrival) || start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
-    const next = ordered[index + 1], previous = ordered[index - 1];
-    // The next trip only ends this stop when it starts where the stop is, and a
-    // preceding trip must have ended where this one began; otherwise GPS is
-    // missing and the dwell is unsupported.
+    const next = ordered[index + 1];
+    // The next trip only ends this stop when it starts where the stop is, and the
+    // truck's own fixes must cover the dwell; otherwise the dwell is unsupported.
+    // An earlier route gap says nothing about fixes at this stop.
     const linked = (a: Point, b: Point) => validGpsCoordinates(a) && validGpsCoordinates(b) && gpsDistanceMeters(a, b) <= LINK_METERS;
-    const arrivedFromPrevious = !previous || linked(previous.to, trip.from);
-    const departure = arrivedFromPrevious && next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from)
+    const departure = next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from)
       && presentThroughout(points, trip.to, arrival, Date.parse(next.departure)) ? next.departure : null;
     const exact = want.house === got.house;
     const closed = /complete|closed|paid/i.test(job.status || '');

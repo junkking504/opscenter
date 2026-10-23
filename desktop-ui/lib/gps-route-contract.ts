@@ -1,4 +1,4 @@
-export type GpsRoutePoint = {timestamp:string;latitude:number;longitude:number};
+export type GpsRoutePoint = {timestamp:string;latitude:number;longitude:number;/** Last instant this stationary observation is recorded as covering. */coveredUntil?:string};
 export type GpsTrip = {
   id:string; number:number; departure:string; arrival:string;
   from:{latitude:number;longitude:number;address:string};

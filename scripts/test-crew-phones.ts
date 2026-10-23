@@ -180,7 +180,13 @@ async function main() {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
       }
-      for(const route of ['/desktop','/crew-phones','/login','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
+      // Named managers now sign into Waypoint; crew cookies still cannot grant
+      // manager access (the unauthorized API assertion above remains required).
+      for (const route of ['/login', '/api/auth/login', '/api/auth/logout', '/api/crew-jobs/manager-session']) {
+        const allowed = await middleware(new NextRequest(`${jobsOrigin}${route}`));
+        assert.equal(allowed.headers.get('x-middleware-next'), '1', `Manager sign-in route ${route}`);
+      }
+      for(const route of ['/desktop','/crew-phones','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
         const denied=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(denied.status,404,`Jobs origin denies ${route}`);
       }

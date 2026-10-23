@@ -26,12 +26,14 @@ verify:crew-dispatch
 verify:crew-job-photos
 verify:crew-job-values
 verify:crew-phone-day
+verify:crew-phones
 verify:crew-portal-corrections
 verify:crew-portal-monthly-summary
 verify:crew-progress
 verify:crew-self-setup
 verify:crew-sync
 verify:crew-truck-switch
+verify:css-architecture
 verify:date-calendar
 verify:dispatch-map-manual-zoom
 verify:dispatch-map-marker-separation
@@ -56,6 +58,7 @@ verify:junkware-appointment-creation
 verify:junkware-appointment-note
 verify:junkware-assignment-email
 verify:junkware-booking-date
+verify:junkware-fast-schedule
 verify:junkware-payroll
 verify:junkware-sms
 verify:kernel-isolation
@@ -92,6 +95,7 @@ verify:truck-continuity
 verify:truck-inspections
 verify:truck-map-heading
 verify:truck-street-address
+verify:ui-copy
 verify:visit-tracking-agent
 verify:waypoint-agent
 verify:waypoint-day

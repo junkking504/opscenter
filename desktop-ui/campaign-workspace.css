@@ -114,9 +114,9 @@
   .campaign-review-quote { padding: 18px; }
 }
 
-.campaign-flag-marker { display: inline-flex; align-items: center; gap: 4px; color: #8a4b08; font-size: 11px; white-space: nowrap; }
+.campaign-flag-marker { display: inline-flex; align-items: center; gap: 4px; color: var(--oc-campaign-flag-ink); font-size: var(--oc-type-11); white-space: nowrap; }
 .campaign-flag-button { margin-block: 8px; }
-.campaign-flag-button[aria-pressed="true"] { color: #8a4b08; border-color: #b97827; background: #fff6df; }
+.campaign-flag-button[aria-pressed="true"] { color: var(--oc-campaign-flag-ink); border-color: var(--oc-campaign-flag-border); background: var(--oc-campaign-flag-surface); }
 
 .campaign-match-suggestions { list-style: none; padding: 0; margin: 12px 0; max-height: 240px; overflow-y: auto; }
 .campaign-match-suggestions li { border-bottom: 1px solid var(--oc-border-neutral-04); padding: 10px 0; }

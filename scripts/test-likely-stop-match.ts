@@ -67,7 +67,10 @@ assert.equal(likelyGpsStop(job, trips, day, compressed)!.confident, false, 'cove
 const raw = (clock: string, extra = {}) => ({truck_number: '3', timestamp: z(clock), latitude: 30.4602, longitude: -90.9581, ...extra});
 const route = normalizeTruckGpsRoute({collection_timestamp: z('20:00'), points: [raw('16:05', {continuous_until: z('16:30')}), raw('16:31')]}, day, 'Truck 3', Date.parse(z('21:00')));
 assert.ok(route.points.every(point => !('coveredUntil' in point)), 'points are unchanged by coverage');
-assert.deepEqual(route.coverage, [{timestamp: z('16:05'), coveredUntil: z('16:30')}]);
+assert.deepEqual(route.coverage, [{timestamp: z('16:05'), latitude: 30.4602, longitude: -90.9581, coveredUntil: z('16:30')}]);
+const twin = normalizeTruckGpsRoute({collection_timestamp: z('20:00'), points: [raw('16:00', {continuous_until: z('16:10')}), raw('16:00', {latitude: 30.46021, continuous_until: z('17:03')})]}, day, 'Truck 3', Date.parse(z('21:00')));
+assert.equal(twin.coverage?.length, 2, 'equal timestamps with different coordinates keep separate coverage');
+assert.deepEqual(twin.coverage?.map(row => [row.latitude, row.coveredUntil]), [[30.4602, z('16:10')], [30.46021, z('17:03')]]);
 // Competing claims and existing visits.
 const claim = (id: string) => ({job: id, truck: 'Truck 3', likely: stop});
 assert.deepEqual([...contestedLikelyStops([claim('x'), claim('y')], [])].sort(), ['x', 'y'], 'two appointments claiming one stop are both contested');

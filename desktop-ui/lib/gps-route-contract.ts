@@ -20,7 +20,7 @@ export type TruckGpsRoute = {
   gaps:number;
   rejected:number;
   /** Stationary observations that record coverage past their own timestamp; kept apart from `points` so geometry identity is unchanged. */
-  coverage?:{timestamp:string;coveredUntil:string}[];
+  coverage?:{timestamp:string;latitude:number;longitude:number;coveredUntil:string}[];
 };
 export type RoadCoordinate={latitude:number;longitude:number};
 export type StreetRoute={

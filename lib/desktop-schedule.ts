@@ -104,7 +104,7 @@ export function readDesktopSchedule(date: string) {
     if (job.truckVisits?.length) continue;
     const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
     if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
-    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date, routes.get(truck)?.points?.map(point => ({...point, coveredUntil: routes.get(truck)?.coverage?.find(row => row.timestamp === point.timestamp)?.coveredUntil})));
+    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date, routes.get(truck)?.points?.map(point => ({...point, coveredUntil: routes.get(truck)?.coverage?.find(row => row.timestamp === point.timestamp && row.latitude === point.latitude && row.longitude === point.longitude)?.coveredUntil})));
     if (likely) claims.push({job, truck, likely});
   }
   // One physical stop is one visit: a stop claimed by several appointments, or

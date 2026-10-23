@@ -19,6 +19,9 @@ export function liveGroup(truck: DesktopFleetTruck, outOfService: boolean): Live
   return 'offline';
 }
 
+/** True when the truck's own GPS status says it is reporting. Independent of the out-of-service bucket. */
+export const gpsReporting = (truck: Pick<DesktopFleetTruck, 'operatingStatus'>) => !['GPS Stale', 'Offline', 'GPS unavailable', 'Historical GPS'].includes(truck.operatingStatus);
+
 const finite = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 
 export function fleetDayTotals(trucks: DesktopFleetTruck[]) {

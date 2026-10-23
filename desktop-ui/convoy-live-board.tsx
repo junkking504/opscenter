@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Fuel, Truck } from 'lucide-react';
 import { Button } from './components/ui/button';
 import LiveSchedule from './deferred-live-schedule';
-import { attentionItems, dueDetail, fleetDayTotals, liveCounts, liveGroup, stopLine, truckJobs, type DueItem, type LiveGroup } from './lib/convoy-live';
+import { attentionItems, dueDetail, fleetDayTotals, gpsReporting, liveCounts, liveGroup, stopLine, truckJobs, type DueItem, type LiveGroup } from './lib/convoy-live';
 import { fetchWorkspace } from './lib/workspace-cache';
 import type { ScheduleSnapshot } from './lib/schedule-contract';
 import { sameTruck } from './lib/convoy-presentation';
@@ -64,14 +64,17 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
       <section className="convoy-dash-panel clb-live" aria-labelledby="clb-live-title">
         <header><h2 id="clb-live-title">Live trucks</h2><small>{isToday ? 'Updates about every 30 seconds' : 'Historical day'}</small></header>
         <div className="clb-cards">{trucks.map(t => {
-          const group = liveGroup(t, outIds.has(t.id));
-          return <button key={t.id} className={`clb-card ${group}`} onClick={() => onTruck(t.id)} aria-label={`${t.label}, ${groupLabel[group]}. Open truck`}>
+          const live = liveGroup(t, outIds.has(t.id));
+          // Past days never claim a live motion state; only out-of-service is a recorded fact there.
+          const group: LiveGroup = isToday || live === 'out' ? live : 'offline';
+          const statusText = isToday || live === 'out' ? groupLabel[group] : 'Historical day';
+          return <button key={t.id} className={`clb-card ${group}`} onClick={() => onTruck(t.id)} aria-label={`${t.label}, ${statusText}. Open truck`}>
             <span className="clb-card-head"><Truck size={14} /><strong>{t.label.replace('Truck#', 'Truck')}</strong><span className={`clb-pill ${group}`}>{isToday || group === 'out' ? groupLabel[group] : 'History'}</span></span>
-            <small className="clb-where">{t.operatingStatus}{typeof t.speed === 'number' && t.speed > 0 ? ` · ${Math.round(t.speed)} mph` : ''}{t.driver && t.driver !== '—' ? ` · ${t.driver}` : ''}</small>
+            <small className="clb-where">{isToday ? t.operatingStatus : 'Historical record'}{isToday && typeof t.speed === 'number' && t.speed > 0 ? ` · ${Math.round(t.speed)} mph` : ''}{t.driver && t.driver !== '—' ? ` · ${t.driver}` : ''}</small>
             <Level label="Fuel" percent={t.fuel ? t.fuel.percent : null} />
             <Level label="Load" percent={t.loadNeedsVerification ? null : t.loadPercent} />
             {jobs.get(t.id)?.total ? <div className="clb-jobs"><div className="clb-level" role="img" aria-label={`${jobs.get(t.id)!.done} of ${jobs.get(t.id)!.total} stops done`}><span>Stops</span><i><b style={{ width: `${(100 * jobs.get(t.id)!.done) / jobs.get(t.id)!.total}%` }} /></i><em>{jobs.get(t.id)!.done}/{jobs.get(t.id)!.total}</em></div>
-              {stopLine(jobs.get(t.id)!, group !== 'offline') && <small>{stopLine(jobs.get(t.id)!, group !== 'offline')}</small>}</div> : null}
+              {stopLine(jobs.get(t.id)!, gpsReporting(t)) && <small>{stopLine(jobs.get(t.id)!, gpsReporting(t))}</small>}</div> : null}
             <small className="clb-foot">{t.jobs == null ? 'Jobs —' : `${t.jobs} ${t.jobs === 1 ? 'job' : 'jobs'}`} · {t.miles == null ? '— mi' : `${Math.round(t.miles)} mi`} · {t.nextService || 'Service not set'}</small>
           </button>;
         })}</div>

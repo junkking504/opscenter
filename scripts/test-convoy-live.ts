@@ -32,3 +32,13 @@ assert.equal(attentionItems(snap, [t('1', { operatingStatus: 'Offline' })], true
 assert.equal(attentionItems(snap, [t('1', { fuel: { percent: 20, source: 'inspection' } })], true)[0].kind, 'fuel');
 assert.equal(attentionItems(snap, [t('1', { fuel: { percent: 60, source: 'inspection' } })], true).length, 0);
 console.log('Convoy live board passed: stop counts, honest stop lines, past days, GPS gating, exception rules.');
+
+import { gpsReporting, liveGroup } from '../desktop-ui/lib/convoy-live';
+// An out-of-service truck whose GPS is stale must not read as on site.
+const oos: any = { operatingStatus: 'Offline', readiness: 'Out of service' };
+assert.equal(liveGroup(oos, true), 'out');
+assert.equal(gpsReporting(oos), false);
+assert.match(stopLine({ total: 1, done: 0, stop: { kind: 'on_site', label: '1:30 PM Smith' }, isToday: true }, gpsReporting(oos))!, /GPS not reporting/);
+assert.equal(gpsReporting({ operatingStatus: 'Driving' } as any), true);
+assert.equal(gpsReporting({ operatingStatus: 'Historical GPS' } as any), false);
+console.log('Convoy live board: out-of-service GPS gating passed.');

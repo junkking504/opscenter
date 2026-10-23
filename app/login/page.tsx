@@ -1,6 +1,7 @@
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, sanitizeAuthRedirectTarget } from "@/lib/auth";
+import { isWaypointAccount } from "@/lib/waypoint-account";
 import OpsCenterLogo from "@/components/OpsCenterLogo";
 
 type LoginPageProps = {
@@ -20,7 +21,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const destination = waypoint ? '/crew-jobs' : sanitizeAuthRedirectTarget(firstParam(params.next));
   const cookieStore = await cookies();
   const session = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
-  if (session) {
+  if (session && (!waypoint || isWaypointAccount(session))) {
     redirect(destination);
   }
 

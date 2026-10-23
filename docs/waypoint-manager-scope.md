@@ -55,7 +55,7 @@ manager work context is the explicit path to cross-truck crew actions.
 
 Run `npm run verify:waypoint-manager`, `npm run verify:waypoint-visibility`, the
 closeout/dispatch regressions, typecheck, lint and the production build. Browser
-fixtures in `scripts/test-waypoint-manager-browser.mjs` mock every API and block
+entry fixtures (`npm run verify:waypoint-manager:browser`) mock every API and block
 external requests. Do not test mutations on real appointments, payments or phones.
 
 Deploy source through the installed controller with release preservation enabled.
@@ -96,3 +96,10 @@ not synthesized from an account. A named account signed in on an already approve
 work context. Account-only sessions cannot set phone work
 context or bypass crew inspection, assignment, photos or payment rules. The crew
 workflow still requires its ordinary approved phone setup.
+
+Manager entry waits for session checks instead of treating network failures as
+employee access, and offers retry if neither identity can be determined. A valid
+named manager's remembered browser can restore its session on Waypoint entry and
+the manager gateway using the existing trust checks. Current signed-in identities,
+account deactivation, role changes, cookie expiry and host restrictions still apply.
+An existing non-manager account does not redirect away from manager sign-in.

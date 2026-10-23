@@ -165,5 +165,7 @@ Newer Customer, Fleet, Campaign, Huddle, Settings and appointment styles use the
 shared color and type tokens. Component-specific colors retain their existing
 values in `design-tokens.css`; the Huddle spotlight headings use the existing
 36px type anchor instead of off-scale 38px/34px sizes. Command mobile metric
-and revenue labels keep their fluid sizes with tokenized clamp endpoints. The
+and revenue labels use tokenized clamp endpoints. These type and color tokens
+follow the existing phase-two workspace remaps; in Command the metric lower
+bound becomes 20px, affecting viewports narrower than about 364px. The
 token check explicitly covers both clamps and rejects raw or undefined sizes.

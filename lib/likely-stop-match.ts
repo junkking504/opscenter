@@ -13,7 +13,7 @@ type Point = {latitude: number; longitude: number};
 type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point} | null;
   appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; hasScheduledTime?: boolean};
 
-const NEAR_METERS = 400, FAR_METERS = 1500, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
+const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
 
 function parts(address: string) {
   const [street = '', city = '', ...rest] = address.split(',').map(part => part.trim());
@@ -50,10 +50,17 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     if (want.city && got.city && want.city !== got.city || want.zip && got.zip && want.zip !== got.zip) return [];
     const meters = pin && validGpsCoordinates(trip.to) ? gpsDistanceMeters(pin, trip.to) : null;
     if (meters !== null && meters > FAR_METERS) return [];
+    // Missing locality is not a match: the stop needs a positive city/ZIP match or a nearby pin.
+    if (!(want.zip && got.zip || want.city && got.city || meters !== null)) return [];
     const arrival = Date.parse(trip.arrival), start = chicagoMinutes(arrival, day);
     if (!Number.isFinite(arrival) || start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
-    const next = ordered[index + 1];
-    const departure = next && Date.parse(next.departure) >= arrival ? next.departure : null;
+    const next = ordered[index + 1], previous = ordered[index - 1];
+    // The next trip only ends this stop when it starts where the stop is, and a
+    // preceding trip must have ended where this one began; otherwise GPS is
+    // missing and the dwell is unsupported.
+    const linked = (a: Point, b: Point) => validGpsCoordinates(a) && validGpsCoordinates(b) && gpsDistanceMeters(a, b) <= LINK_METERS;
+    const arrivedFromPrevious = !previous || linked(previous.to, trip.from);
+    const departure = arrivedFromPrevious && next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from) ? next.departure : null;
     const exact = want.house === got.house;
     const closed = /complete|closed|paid/i.test(job.status || '');
     const dwellMinutes = departure ? (Date.parse(departure) - arrival) / 60_000 : 0;
@@ -65,4 +72,15 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
   // Several different stops at this address cannot be told apart reliably.
   if (found.length > 1 && new Set(found.map(row => row.stop.stopAddress)).size > 1) return null;
   return found.sort((a, b) => a.distance - b.distance)[0]?.stop || null;
+}
+
+/** One physical stop is one visit: a stop claimed by several appointments of a
+ * truck, or overlapping a visit another appointment already has, is contested
+ * and must stay a suggestion. */
+export function contestedLikelyStops<T>(claims: {job: T; truck: string; likely: LikelyStop}[], confirmed: {truck: string; start: number; end: number}[]) {
+  return new Set(claims.filter(({job, truck, likely}) => {
+    const start = Date.parse(likely.arrival), end = likely.departure ? Date.parse(likely.departure) : start;
+    return claims.some(other => other.job !== job && other.truck === truck && other.likely.arrival === likely.arrival)
+      || confirmed.some(visit => visit.truck === truck && visit.start < end && start < visit.end);
+  }).map(claim => claim.job));
 }

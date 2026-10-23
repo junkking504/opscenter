@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {readCrewRouteLocations} from './crew-route-locations';
 import {isAmazonJob,amazonAssignedTruck} from './amazon-closeout';
 import { createHash } from 'node:crypto';
 import type { CrewPhone } from './crew-phone';
@@ -18,6 +19,7 @@ const sources = {
   overrides: readJobRouteAssignmentOverrides,
   dispatch: readCrewDispatch,
   reset: crewCloseoutReset,
+  locations: readCrewRouteLocations,
 };
 const safePaymentDetail=(method:string,detail:string)=>{
   const value=String(detail || '').trim();
@@ -58,7 +60,7 @@ function withUpdateToken(payload:CrewCurrent):CrewCurrent {
 
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
-export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'> & {reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
+export function crewAssignedDay(phone: CrewPhone, date: string, deps: Omit<typeof sources,'reset'|'locations'> & {locations?:typeof readCrewRouteLocations;reset?:(truck:string,date:string,appointmentId:string)=>ReturnType<typeof crewCloseoutReset>} = sources, now = Date.now()): CrewCurrent {
   return assignedDay(phone,date,deps,now,false);
 }
 
@@ -95,15 +97,17 @@ function assignedDay(phone: CrewPhone, date: string, deps: NonNullable<Parameter
       ...(newerVerifiedMove && override?.appointmentTime ? {appointmentTime:override.appointmentTime} : {}),
       recordId:`${date}:appointment:${row.appointmentId}`,version:''}];
   });
+  const locations=deps.locations?.(eligible.map(row=>row.address));
   const jobs: CrewScheduledJob[] = applyStopOrders(date,eligible).sort(compareStops)
     .map(row => {
       const readOnly=!sameTruck(row.truck,phone.truck) && !isAmazonJob(row);
       const reset=readOnly?null:deps.reset?.(phone.truck,date,row.appointmentId) || null;
       return ({
       appointmentId: row.appointmentId, date, truck:row.truck, sharedAmazon:isAmazonJob(row), jkNumber: row.jkNumber, customerName: row.customerName, phone: row.phone,
-      address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
+      address: row.address, mapLocation:locations?.get(row.address) || null, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,
+      ...(row.visitOrder !== undefined ? {routePosition:row.visitOrder+1} : {}),
       ...(crewAppointmentStatus(row.status)==='Completed' ? {
         ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,detail:safePaymentDetail(payment.method,payment.detail),amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),

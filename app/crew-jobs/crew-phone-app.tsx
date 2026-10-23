@@ -1,5 +1,8 @@
 'use client';
-import { truckDisplayText } from '../../lib/junkware-trucks';
+import CustomerEdit from './customer-edit';
+import WaypointNotifications from './notifications';
+import RouteOverview from './route-overview';
+import { truckDisplayText, sameTruck } from '../../lib/junkware-trucks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREW_PHONE_API, type CrewPhone, type CrewPhoneDay } from '@/lib/crew-phone';
 import type { CrewCurrent, CrewScheduledJob } from '@/lib/crew-dispatch';
@@ -21,7 +24,8 @@ import {HANDOFF_EVENT,readHandoffs,retireHandoff,resumeHandoff,saveHandoff,type 
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 type Pending = { code: string; connectionKey: string };
-export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'setup' | 'inspection' | 'jobs') => void }) {
+export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChange, onManagerChange }: { onManagerChange?: (manager:boolean)=>void; onTestChange?: (test:boolean)=>void; onBusyChange?: (busy: boolean) => void; onStepChange?: (step: 'connect' | 'setup' | 'inspection' | 'jobs') => void }) {
+  const [editingCustomer,setEditingCustomer]=useState(false);
   const [viewGuard]=useState(createWaypointViewGuard);
   const [phone, setPhone] = useState<CrewPhone | null>(null);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrewState]=useState(false);
@@ -56,7 +60,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const setSwitching=useCallback((value:boolean)=>{viewGuard.set('switching',value);setSwitchingState(value);},[viewGuard]);
   const setEditingCrew=useCallback((value:boolean)=>{viewGuard.set('editingCrew',value);setEditingCrewState(value);},[viewGuard]);
   const setSelectedAppointment=(value:string|null)=>{viewGuard.select(value);setSelectedAppointmentState(value);};
-  const step=!phone || !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
+  const step=!phone ? 'connect' : !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
   async function loadJob() {
     if(viewGuard.blocked()){viewGuard.defer();return;}
@@ -263,32 +267,40 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     <TruckInspectionApp key={`${phone.deviceId}:${day.date}:${day.version}`} apiPath="/api/crew-jobs/inspection" onBusyChange={setBusy} onContinue={()=>void loadJob()}/>
     <div className={styles.workflowActions}><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setCloseout(false);setSwitching(true);}}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>setEditingCrew(true)}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void loadJob()}>Check inspection status</button>{error && <p role="alert">{error}</p>}</div>
   </>;
-  return <main className={styles.page}><div className={styles.content}>
-    {step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
+  return <main className={`${styles.page} ${!phone ? styles.connectionPage : styles.connectedPage}`}><div className={styles.content}>
+    {phone && step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
     {loading ? <p role="status">Checking this phone…</p> : phone ? <>
       {backgroundNotice && <p className={pendingCloseout?styles.backgroundProgress:styles.backgroundNotice} role={pendingCloseout?'status':'alert'}>{backgroundNotice}</p>}
       {handoff && ['transferring','submitting'].includes(handoff.phase) && <button className={styles.secondary} onClick={()=>void resumeHandoff(handoff).catch(()=>showBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.',handoff.assignmentId))}>Resume transfer</button>}
       {jobLoading ? <p role="status">Loading today’s assignments…</p> : dayDate && (!day || editingCrew) ? <DailyCrew key={`${phone.deviceId}:${dayDate}:${day?.version || 0}`} date={dayDate} roster={roster} trucks={trucks} day={day} onBusy={setBusy} onSaved={()=>{setEditingCrew(false);void loadJob();}} onCancel={()=>setEditingCrew(false)}/> : assignment?.state==='waiting' ? <><h1>Assignments</h1><p>{phone.test?'All three test assignments are complete. You can reset them in Truck & phone.':assignment?.visibility==='all-trucks'?'No appointments are assigned to trucks today.':'No appointments are assigned to this truck today.'}</p></> : assignment?.state==='assigned' && viewedJob ? <>
-        <h1>{details?'Assignment details':'Assignments'}</h1>
-        {!details ? <><p className={styles.muted}>{assignment?.visibility==='all-trucks'?'All trucks':truckDisplayText(phone.truck)} · {jobs.length} {jobs.length===1?'appointment':'appointments'} today</p>{jobs.map(job=><section className={styles.card} key={job.appointmentId}><p className={styles.muted}>{job.jkNumber} · {job.appointmentTime} · {job.status}</p><h2>{job.customerName}</h2>{assignment?.visibility==='all-trucks' && <p className={styles.muted}>{job.truck?truckDisplayText(job.truck):'Unassigned'}{job.readOnly?' · View only':''}</p>}{job.sharedAmazon && <p className={styles.muted}>Amazon · Available to all crews{job.truck?` · ${truckDisplayText(job.truck)}`:''}</p>}<p><CustomerPhoneLink phone={job.phone}/></p><AssignmentOutcome job={job}/><p><AddressLink address={job.address}/></p><p>{job.junkItems.join(' · ') || job.appointmentNotes.find(note=>/^Work:/i.test(note))?.replace(/^Work:\s*/i,'').split(/\s+\(\d{1,2}\//)[0]}</p>{job.assignmentId && pendingCloseout?.assignmentId===job.assignmentId && <p role="status">{pendingCloseout.requestId?'Server saved · verification pending':'Securing checkout on the server'}</p>}<button className={styles.primary} onClick={()=>{setSelectedAppointment(job.appointmentId);setDetails(true);setCloseout(false);}}>View assignment</button></section>)}</> : <section className={`${styles.card} ${closeout ? styles.closeoutCard : ''}`}><p className={styles.muted}>{viewedJob.jkNumber} · {viewedJob.appointmentTime}</p><h2>{viewedJob.customerName}</h2>{assignment?.visibility==='all-trucks' && <p className={styles.muted}>{viewedJob.truck?truckDisplayText(viewedJob.truck):'Unassigned'}{viewedJob.readOnly?' · View only':''}</p>}<p><CustomerPhoneLink phone={viewedJob.phone}/></p><AssignmentOutcome job={viewedJob} details/><p><AddressLink address={viewedJob.address}/></p>
-          {closeout && !viewedJob.readOnly && viewedJob.assignmentId ? <JobCloseout key={viewedJob.assignmentId} job={{...viewedJob,assignmentId:viewedJob.assignmentId}} truck={phone.truck} deviceId={phone.deviceId} test={phone.test} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>{setDetails(false);setCloseout(false);void loadJob();}} onAccepted={(receipt,receiptAssignmentId)=>{
+        {details && <h1>Appointment details</h1>}
+        {!details ? <RouteOverview jobs={jobs} truck={phone.truck} date={day?.date || dayDate} allTrucks={assignment.visibility==='all-trucks'} pendingId={pendingCloseout?.assignmentId} onSelect={id=>{setSelectedAppointment(id);setDetails(true);setCloseout(false);window.scrollTo({top:0});}} onMessages={phone.test?undefined:()=>{const panel=document.getElementById('waypoint-office-messages') as HTMLDetailsElement|null;if(panel){panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'start'});panel.querySelector('summary')?.focus();}}}/> : <section className={`${styles.card} ${closeout ? styles.closeoutCard : ''}`}><p className={styles.muted}>{viewedJob.jkNumber} · {viewedJob.appointmentTime}</p><h2>{viewedJob.customerName}</h2>{assignment?.visibility==='all-trucks' && <p className={styles.muted}>{viewedJob.truck?truckDisplayText(viewedJob.truck):'Unassigned'}{viewedJob.readOnly?' · View only':''}</p>}<p><CustomerPhoneLink phone={viewedJob.phone}/></p><AssignmentOutcome job={viewedJob} details/><p><AddressLink address={viewedJob.address}/></p>
+          {editingCustomer && viewedJob.assignmentId ? <CustomerEdit key={viewedJob.assignmentId} assignmentId={viewedJob.assignmentId} deviceId={phone.deviceId} onBusy={setBusy} onClose={saved=>{setEditingCustomer(false);if(saved){
+              // Apply only the verified source read-back to the active card.
+              // Normal schedule refresh resumes when the detail view closes.
+              const address=[saved.fields.serviceAddress,[saved.city,[saved.state,saved.fields.serviceZip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+              const update=<T extends NonNullable<CrewCurrent['job']>|CrewScheduledJob,>(job:T):T=>job.assignmentId===viewedJob.assignmentId?{...job,customerName:[saved.fields.firstName,saved.fields.lastName].join(' '),phone:saved.fields.phone,address,mapLocation:address===job.address?job.mapLocation:null}:job;
+              setAssignment(previous=>previous?{...previous,jobs:previous.jobs?.map(update),job:previous.job?update(previous.job):previous.job}:previous);
+              showBackgroundNotice('Customer information saved and verified in JunkWare.',viewedJob.assignmentId!);void loadJob();
+            }}}/> : closeout && !viewedJob.readOnly && viewedJob.assignmentId ? <JobCloseout key={viewedJob.assignmentId} job={{...viewedJob,assignmentId:viewedJob.assignmentId}} truck={phone.truck} deviceId={phone.deviceId} test={phone.test} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>{setDetails(false);setCloseout(false);void loadJob();}} onAccepted={(receipt,receiptAssignmentId)=>{
             setPendingCloseout(receipt.status==='pending'?{assignmentId:receiptAssignmentId,requestId:receipt.requestId}:null);
             showBackgroundNotice(receipt.status==='verified'?'Checkout finished and was verified in JunkWare.':'Checkout accepted by the server. JunkWare verification is still pending.',viewedJob.assignmentId!);
             if(viewGuard.selected()===viewedJob.appointmentId){setDetails(false);setCloseout(false);}
             void loadJob();
           }} onHandoffFailed={message=>{setPendingCloseout(null);showBackgroundNotice(message,viewedJob.assignmentId!);}}/> : <><h2>Items to remove</h2><p>{viewedJob.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{viewedJob.appointmentNotes.length?viewedJob.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{viewedJob.driver || (viewedJob.readOnly?'Not listed':day?.driver)} · Driver</p><p>{viewedJob.navigator || (!viewedJob.readOnly && day?.navigators.join(', ')) || 'No navigator'} · Navigator</p>
+          {!phone.test && !viewedJob.readOnly && sameTruck(viewedJob.truck,phone.truck) && viewedJob.assignmentId && /^confirmed$/i.test(viewedJob.status) && <button className={styles.secondary} disabled={busy || Boolean(pendingCloseout)} onClick={()=>setEditingCustomer(true)}>Edit customer information</button>}
           {!viewedJob.readOnly && viewedJob.assignmentId && !/^completed$/i.test(viewedJob.status) ? <button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>{pendingCloseout?.assignmentId===viewedJob.assignmentId?'Check saved checkout':'Start closeout · Before photos'}</button> : <p className={styles.muted}>{viewedJob.readOnly?'View only · Closeout stays with the assigned truck.':/^completed$/i.test(viewedJob.status)?'Completed in JunkWare.':'Closeout is available when dispatch releases this appointment.'}</p>}<button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to Assignments</button></>}
         </section>}
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
-      {step==='jobs' && !details && assignment?.summary && <DaySummary summary={assignment.summary}/>}
+      {step==='jobs' && !details && assignment?.summary && <details className={styles.performance}><summary>Today’s performance &amp; bonuses</summary><DaySummary summary={assignment.summary}/></details>}
       <button className={styles.secondary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh assignments':'Refresh setup'}</button>
+      {day && !phone.test && !details && <WaypointNotifications key={`${phone.deviceId}:${day.truck}`}/>}
       {day && !editingCrew && <details className={styles.card}><summary>Truck &amp; phone</summary><h2>{truckDisplayText(day.truck)} · Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setCloseout(false);setSwitching(true);}}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setEditingCrew(true);setCloseout(false);}}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>void disconnect()}>Disconnect company phone</button><button className={styles.secondary} disabled={busy || jobLoading || details} onClick={()=>void refresh()}>Check connection</button>{phone.test && <button className={styles.secondary} disabled={busy || jobLoading} onClick={async()=>{setBusy(true);try{const response=await fetch('/api/crew-jobs/day',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset-test-assignments'})});const body=await response.json();if(!response.ok)throw new Error(body.error || 'Reset failed.');await loadJob();}catch(e){setError(e instanceof Error?e.message:'Reset failed.');}finally{setBusy(false);}}}>Reset three test assignments</button>}</details>}
-    </> : <><h1>Choose your phone</h1><RequestSetupCode busy={busy} onBusy={setBusy}/><p>Enter the 6-digit code from OpsBot to connect this phone for today.</p>
-      <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
+    </> : <RequestSetupCode busy={busy} onBusy={setBusy} hasPendingCode={Boolean(code)} onChoosePhone={()=>{setCode('');setError('');}} connectionError={error} onCheckConnection={()=>void refresh()}>
+      <form className={styles.form} onSubmit={enroll}><label>Verification code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
-    </>}
+    </RequestSetupCode>}
     {phone && !day && <button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>void disconnect()}>Disconnect company phone</button>}
-    {error && <p className={styles.error} role="alert">{error}</p>}
-    {!loading && !phone && <button className={styles.secondary} onClick={() => void refresh()} disabled={busy || jobLoading}>Check connection</button>}
+    {(phone || loading) && error && <p className={styles.error} role="alert">{error}</p>}
   </div></main>;
 }

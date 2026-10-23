@@ -33,13 +33,40 @@ console.log('Address verification: exact house/street/ZIP, aliases, business pre
 const censusMatch={matchedAddress:'100 EXAMPLE ST, NEW ORLEANS, LA, 70125',addressComponents:{zip:'70125',state:'LA',city:'NEW ORLEANS'},coordinates:{x:-90.1,y:29.95}};
 assert(verifyCensusAddress('100 Example St New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location);
 assert.equal(verifyCensusAddress('101 Example St New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,null);
-assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70124',{result:{addressMatches:[censusMatch]}}).location,null);
+assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70124',{result:{addressMatches:[censusMatch]}}).reason,'Exact House And Street Verified · Source ZIP Differs','A neighbouring source ZIP is reported, not hidden');
+assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70225',{result:{addressMatches:[censusMatch]}}).location,null,'A different postal prefix still requires review');
 assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70125',{result:{addressMatches:[censusMatch,censusMatch]}}).location,null);
 const hospital={matchedAddress:'1014 W ST CLAIRE BLVD, GONZALES, LA, 70737',addressComponents:{zip:'70737',state:'LA',city:'GONZALES'},coordinates:{x:-90.931727047708,y:30.208176890499}};
 const full='Our Lady Of The Lake St. Elizabeth 1014 W St Clare Blvd Suite 3110 Gonzales, LA 70737';
 assert.ok(verifyCensusAddress(full,{result:{addressMatches:[hospital]}}).location,'Read business, house, suite, locality and ZIP together');
 assert.equal(verifyCensusAddress(full.replace('1014','1015'),{result:{addressMatches:[hospital]}}).location,null);
-assert.equal(verifyCensusAddress(full.replace('70737','70734'),{result:{addressMatches:[hospital]}}).location,null);
+const neighbouringZip=verifyCensusAddress(full.replace('70737','70734'),{result:{addressMatches:[hospital]}});
+assert.ok(neighbouringZip.location,'Exact house, street and locality verify with a neighbouring source ZIP');
+assert.equal(neighbouringZip.reason,'Exact House And Street Verified · Source ZIP Differs');
+assert.equal(neighbouringZip.matchedAddress,hospital.matchedAddress);
+assert.equal(verifyCensusAddress(full.replace('70737','70437'),{result:{addressMatches:[hospital]}}).location,null,'A different postal prefix still requires review');
+// Synthetic fixtures: a source ZIP that names the neighbouring code.
+const zipMatch={...censusMatch,matchedAddress:'100 EXAMPLE DR, NEW ORLEANS, LA, 70128',addressComponents:{...censusMatch.addressComponents,zip:'70128'}};
+const zipPayload={result:{addressMatches:[zipMatch]}};
+assert.ok(verifyCensusAddress('100 Example Drive, New Orleans, 70126',zipPayload).location);
+assert.ok(verifyCensusAddress('100 Example Dr Apt B, New Orleans, LA 70126-1234',zipPayload).location,'Units and ZIP+4 keep the same guard');
+for (const input of [
+  '101 Example Dr, New Orleans, 70126',
+  '100 Other Dr, New Orleans, 70126',
+  '100 Example St, New Orleans, 70126',
+  '100 N Example Dr, New Orleans, 70126',
+  '100 Example Dr, Metairie, 70126',
+  '100 Example Dr, New Orleans, MS 70126',
+  '100 Example Dr, New Orleans',
+  '100 Exampel Dr, New Orleans, 70126',
+  '100 Example Dr New Orleans 70126 or 200 Other St New Orleans 70126',
+  '100 Example Dr New Orleans LA 70128 New Orleans LA 70126',
+  '100 Example Dr New Orleans LA 70126 New Orleans LA 70128',
+  '100 Example Dr, New Orleans, 70128, New Orleans, 70126',
+]) assert.equal(verifyCensusAddress(input,zipPayload).location,null,input);
+assert.ok(verifyCensusAddress('100 Example Dr New Orleans LA 70126 New Orleans LA 70126',zipPayload).location,'A consistently repeated source locality and ZIP keeps the neighbouring-code rule');
+assert.equal(verifyCensusAddress('100 Example Dr, New Orleans, 70126',{result:{addressMatches:[zipMatch,{...zipMatch,matchedAddress:'100 EXAMPLE DR, NEW ORLEANS, LA, 70127',addressComponents:{...zipMatch.addressComponents,zip:'70127'},coordinates:{x:-90.0,y:30.0}}]}}).location,null,'Competing ZIP candidates remain ambiguous');
+assert.equal(verifyCensusAddress('100 Example Dr, New Orleans, 70126',{result:{addressMatches:[{...zipMatch,coordinates:{x:0,y:0}}]}}).location,null);
 assert.equal(verifyCensusAddress(full.replace(' W St',' E St'),{result:{addressMatches:[hospital]}}).location,null);
 assert.equal(verifyCensusAddress(full.replace('Gonzales','Other City'),{result:{addressMatches:[hospital]}}).location,null,'Alias must not cross localities');
 assert.ok(verifyCensusAddress('Business 84 Location 2, 100 Example St Suite 3 New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,'Business/unit numbers must not replace the street number');
@@ -162,7 +189,7 @@ for (const [written, numeric] of [['Sixth','6TH'],['First','1ST'],['Twelfth','12
   assert.ok(verifyCensusAddress(`100 ${written} Street New Orleans LA 70125`,fixture).location);
   assert.ok(verifyCensusAddress(`100 ${numeric} St New Orleans LA 70125`,{result:{addressMatches:[{...match,matchedAddress:`100 ${written} ST, NEW ORLEANS, LA, 70125`}]}}).location);
   assert.equal(serviceStreetCandidates(`Business 84 Location 2, 100 ${numeric} St Apt 3 New Orleans LA 70125`).length,1);
-  for (const input of [`101 ${written} St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70124`,`100 N ${written} St New Orleans LA 70125`,`100 ${written} Ave New Orleans LA 70125`,`100 ${written} Heights St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70125 or 200 7th St New Orleans LA 70125`]) {
+  for (const input of [`101 ${written} St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70225`,`100 N ${written} St New Orleans LA 70125`,`100 ${written} Ave New Orleans LA 70125`,`100 ${written} Heights St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70125 or 200 7th St New Orleans LA 70125`]) {
     assert.equal(verifyCensusAddress(input,fixture).location,null,input);
   }
   assert.equal(verifyCensusAddress('100 Seventh St New Orleans LA 70125',{result:{addressMatches:[{...match,matchedAddress:'100 6TH ST, NEW ORLEANS, LA, 70125'}]}}).location,null);

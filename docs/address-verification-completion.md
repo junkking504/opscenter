@@ -1,5 +1,51 @@
 # Address verification completion
 
+## October 23, 2026 Number units and compact highway navigation
+
+Policy 21 recognizes `Number` as a unit label after a complete road suffix,
+alongside Lot/Trailer/Space. Queries omit the unit; source text and crew-facing
+unit instructions remain intact. Number inside a road name is preserved. Map
+readers still check the original provider-cache key, so saved unit-bearing
+evidence can recover an approximate location immediately without a request.
+Unit-bearing Geocodio results remain ineligible for exact verification, and
+the map details explicitly say the unit entrance was not located.
+
+A compact expression such as `880N Hwy 191` may reuse existing Geocodio rooftop
+evidence for `880 N US-191` as an approximate navigation point only. It requires
+the same numeric house, cardinal direction, highway number, complete locality,
+state and ZIP, with no provider unit and no competing premises. Explicit source
+route jurisdictions, ranges, other house letters and multi-letter suffixes are
+not reinterpreted. The source and provider query are unchanged; generic Hwy is
+not globally equated with US routes. Details disclose the ambiguous direction
+interpretation. Nearest-rooftop, interpolated and street-center results cannot
+enable this recovery. Existing cache freshness/grace rules still apply.
+
+Neither recovery turns a territory center into a property, creates a verified
+planning location, or admits GPS visits. Existing approximate road estimates
+can use the recovered provider point, with their normal approximate label.
+The original source address remains the Directions destination.
+
+Old negative verification entries and worker attempt delays retry under policy
+21; older successful evidence must pass current identity validation. The
+existing four-address sweep, five-minute retry, provider backoff, parish/OSM
+reservations, time budgets and provider caches remain unchanged. A verification
+retry does not force a new provider request through a still-valid provider
+cache. No spending policy, transport or provider limit changes are included.
+
+Regression: `scripts/test-address-number-highway.ts` uses synthetic cached
+evidence and zero provider calls; actual appointment evidence stays outside Git.
+
+## October 17, 2026 bare-letter unit update
+
+Policy 19 recognizes a trailing single-letter unit after a house and named
+street with a road suffix, before a complete locality/ZIP tail. Building queries
+omit that unit while crew-facing addresses retain it as `Unit B`, for example.
+N/S/E/W post-directions, letter street names such as `Avenue B`, county/parish/
+state/farm road identifiers and incomplete addresses are not inferred units.
+Matching provider evidence is still required; parsing does not verify an entrance.
+Legacy provider keys remain readable and old negative verification entries retry
+through the existing worker. No providers, request limits or spending rules change.
+
 ## October 15, 2026 policy update
 
 Policy 18 recognizes explicit Lot, Trailer, Trlr and Space unit labels alongside
@@ -195,3 +241,23 @@ The numeric identifier is unverified. A search candidate has no coordinates and
 cannot establish a unit, building, entrance, route destination or GPS visit.
 Existing ordinary street/business-prefix parsing remains unchanged. Any future
 automatic complex lookup is a separate reviewed feature.
+
+## Census match with a neighbouring source ZIP — October 20, 2026
+
+JunkWare ZIPs are sometimes the neighbouring postal code (for example a New
+Orleans street entered as 70126 when the premises is in 70128). The OSM
+building check already accepted that case; the Census check rejected it, so
+real addresses with a good house and street stayed in Verify Address.
+
+Census now accepts its single full-address match when the house number, street
+(with the existing normalized aliases), direction, road type and locality are
+exact, the state is Louisiana, and the source and Census ZIPs share their first
+three digits. The ZIP correction is never combined with a street spelling
+correction, and it is refused when swapping the ZIP would let cleaning collapse
+a repeated locality tail that carried a conflicting ZIP. The reason reads "Exact House And Street Verified · Source ZIP
+Differs" and `matchedAddress` carries the Census ZIP; the source address is
+unchanged. A different postal prefix, competing Census candidates, invalid
+coordinates and every other existing guard still require review. No provider,
+request volume or spending gate changes, and the verification policy number is
+unchanged so existing pins stay valid; failures already retry on their own
+short expiry. Covered by `npm run verify:service-addresses`.

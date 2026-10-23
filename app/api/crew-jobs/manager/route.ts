@@ -1,3 +1,4 @@
+import {waypointAccount} from '@/lib/waypoint-account';
 import {crewPhoneBody,crewPhoneFailure,crewPhoneResponse} from '@/lib/crew-phone-http';
 import {requireWaypointManager,withWaypointManager} from '@/lib/waypoint-manager-context';
 import {WAYPOINT_MANAGER_RESOURCES,validateManagerResource,type WaypointManagerResource} from '@/lib/waypoint-manager-policy';
@@ -21,7 +22,10 @@ export const maxDuration=600;
 const handlers:Record<WaypointManagerResource,{GET?:(r:Request)=>Promise<Response>;POST?:(r:Request)=>Promise<Response>}>=
  {operations,creation,'creation-check':creationCheck,customers,order,edit,phones,dispatch};
 async function handle(request:Request){try{
- const phone=requireWaypointManager(request),url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
+ const account=await waypointAccount(request);
+ let phone;
+ if(account){try{phone=requireWaypointManager(request);}catch{phone=null;}}else{phone=requireWaypointManager(request);}
+ const url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
  const body=request.method==='POST'?await crewPhoneBody(request,64_000):undefined;
  if(resource==='schedule' && request.method==='GET'){
   const date=url.searchParams.get('date') || chicagoDateKey();
@@ -30,9 +34,10 @@ async function handle(request:Request){try{
   // geocoding, notifications or dispatch recovery in the background.
   const snapshot=readDesktopSchedule(date);
   return crewPhoneResponse({date,observedAt:snapshot.observedAt,appointments:snapshot.appointments,
-   phone,day:readCrewDay(phone),roster:crewDayRoster(),trucks:JUNKWARE_DISPATCH_TRUCKS});
+   phone,day:phone?readCrewDay(phone):null,roster:crewDayRoster(),trucks:JUNKWARE_DISPATCH_TRUCKS});
  }
  if(resource==='context' && body){
+  if(!phone)throw new CrewPhoneError('Open the crew workflow and connect an approved manager phone before setting work context.',403);
   if(pendingTruckSwitch(phone.deviceId))throw new CrewPhoneError('Finish the saved truck switch before changing manager work context.',409);
   // Explicit daily attribution change, no job transfers. Standard crew routes
   // still require inspection and the exact saved crew version before closeout.
@@ -47,7 +52,7 @@ async function handle(request:Request){try{
  if(!handler)throw new CrewPhoneError('Method not allowed.',405);
  // Next's tracked background work inherits the request-local identity; every
  // delegated auth check revalidates the original phone and active manager grant.
- return await withWaypointManager(request,()=>handler(delegated));
+ return account ? await handler(delegated) : await withWaypointManager(request,()=>handler(delegated));
 }catch(error){return crewPhoneFailure(error);}}
 export const GET=handle;
 export const POST=handle;

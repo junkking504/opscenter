@@ -35,7 +35,7 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
         window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
         return;
       }
-      if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
+      if (!response.ok) throw new Error(body.error || 'Dashboard could not refresh.');
       if (run === generation.current) {
         commandReceived.current = true;
         setSnapshot(body);
@@ -45,7 +45,7 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
   }, [date]);
   useEffect(() => {
     let disposed = false, queued = false;
-    const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; commandReceived.current = false; setSnapshot(bootstrap ? workspaceShell({...bootstrap,date:currentDay()}) : null); setDate(currentDay()); return; } void refresh().catch(() => setError(commandReceived.current ? 'Live data could not refresh. The last verified snapshot remains visible.' : 'Command sources could not load. Other workspaces remain available.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
+    const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; commandReceived.current = false; setSnapshot(bootstrap ? workspaceShell({...bootstrap,date:currentDay()}) : null); setDate(currentDay()); return; } void refresh().catch(() => setError(commandReceived.current ? 'Live data could not refresh. The last verified snapshot remains visible.' : 'Dashboard sources could not load. Other workspaces remain available.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
     load();
     const unsubscribe = subscribeCommandArrivalUpdates(date, load);
     const timer = window.setInterval(() => { setClock(Date.now()); load(); }, 30_000);
@@ -88,6 +88,6 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
       setPendingAlertId(null);
     }
   };
-  if (!snapshot) return <main className="empty-state" role="status"><strong>{error || 'Loading Command from live sources…'}</strong><span>No sample records are used.</span></main>;
+  if (!snapshot) return <main className="empty-state" role="status"><strong>{error || 'Loading Dashboard from live sources…'}</strong><span>No sample records are used.</span></main>;
   return <Home key={snapshot.date} live={{ onBusyChange: onWorkspaceBusy, snapshot: { ...snapshot, kpis: snapshot.kpis.map(kpi => ageFinanceKpi(kpi, clock)) }, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { if (workspaceBusy.current || pendingRef.current || !isOperatingDay(nextDate)) return; window.location.assign(operatingDayUrl(window.location.href, nextDate, workspace).href); } }} />;
 }

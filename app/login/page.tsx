@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, sanitizeAuthRedirectTarget } from "@/lib/auth";
 import OpsCenterLogo from "@/components/OpsCenterLogo";
 
 type LoginPageProps = {
@@ -13,15 +13,19 @@ function firstParam(value: string | string[] | undefined): string {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const requestHeaders = await headers();
+  const host = (requestHeaders.get('x-forwarded-host') || requestHeaders.get('host') || '').split(':')[0];
+  const waypoint = ['waypoint.junk-king.app','kingpin.junk-king.app','jobs.junk-king.app'].includes(host);
+  const params = (await searchParams) || {};
+  const destination = waypoint ? '/crew-jobs' : sanitizeAuthRedirectTarget(firstParam(params.next));
   const cookieStore = await cookies();
   const session = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
   if (session) {
-    redirect("/");
+    redirect(destination);
   }
 
-  const params = (await searchParams) || {};
   const error = firstParam(params.error);
-  const next = firstParam(params.next);
+  const next = destination;
   const invalidCredentials = error === "invalid-credentials";
   const rateLimited = error === "rate-limited";
 
@@ -43,8 +47,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">
           <div className="ops-login-access-index">Secure Sign In</div>
-          <h1>Enter OpsCenter</h1>
-          <p>Enter the shared OpsCenter credentials to continue.</p>
+          <h1>{waypoint ? "Waypoint manager sign-in" : "Enter OpsCenter"}</h1>
+          <p>Enter your OpsCenter username and password to continue.</p>
 
           <form action="/api/auth/login" method="post" className="ops-login-form">
             <input type="hidden" name="next" value={next} />

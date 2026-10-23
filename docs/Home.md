@@ -17,6 +17,8 @@ without mixing live runtime data or secrets into Git.
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |
 | Work with an integration | Use the integration index below |
 | Approve or prevent usage charges | [Spending controls](spending-controls.md) |
+| Hand off or review agent work | [Agent handoffs and review](agent-handoffs.md) |
+| Record a decision or lesson | Obsidian vault, published to [OpsWiki](second-brain.md#publishing-from-the-obsidian-vault) |
 
 ## Product and architecture
 
@@ -24,11 +26,14 @@ without mixing live runtime data or secrets into Git.
 - [OpsWiki operational knowledge](second-brain.md)
 
 - [Approved Desktop Source Release](prototype-source-release.md)
+- [Desktop performance](desktop-performance.md)
 - [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md)
 - [Operating Inbox vertical slice](OPERATING_INBOX_VERTICAL_SLICE.md)
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)
+
+- [OpsCenter named accounts](ops-accounts.md)
 
 ## Integrations and operating areas
 
@@ -46,8 +51,12 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
+- [Waypoint iPhone notifications and office messages](waypoint-push.md)
+- [Direct Web Push preparation and activation boundary](web-push.md)
+- [Optional Pushover manager alert delivery](pushover.md)
 - [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
+- [Appointment customer history](customer-history.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)
@@ -118,4 +127,4 @@ cleanup, task completion and daily storage checks.
 - [Address verification completion](address-verification-completion.md)
 
 - [Desktop presentation and navigation](desktop-presentation.md)
-- [Shop TV](shop-tv.md)
+- [The Huddle](shop-tv.md)

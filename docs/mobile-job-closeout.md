@@ -267,6 +267,18 @@ their original receipt and crew evidence.
 Run `verify:crew-phone-day` and `verify:crew-closeout` for day/identity/payment
 contracts. Phone browser tests cover daily setup and additional job crew.
 
+## Route order from Control
+
+Control’s Truck Schedule → Route Order → **Push order to Waypoint** saves the
+selected truck’s full remaining-stop sequence, across booked time windows.
+Waypoint reads that durable order on its next assignment refresh and labels
+ranked appointments **Route stop 1**, **Route stop 2**, and so on. Connected
+phones detect the changed assignment token; offline phones receive it after
+reconnecting. Saving the order does not acknowledge delivery to a phone.
+Booked appointment windows, truck assignments, closeout checks and existing
+draft identities stay unchanged. Completed/canceled appointments are outside
+the remaining route; new appointments append until the manager reorders them.
+
 ## Completion and next-assignment rules
 
 - A Waypoint completion requires at least one photo observed on the owning JunkWare
@@ -997,3 +1009,97 @@ honest; this is an opening-latency improvement, not an instant-source guarantee.
 retry, cancellation/isolation and the actual shared editor under React StrictMode.
 Its browser timings use a controlled 1,000 ms synthetic source delay, not live
 JunkWare measurements. No real operational writes are made by these fixtures.
+
+## Operations WhatsApp setup-code transport — October 21, 2026
+
+The separately approved `operations-linked` delivery policy selects the existing
+local Operations WhatsApp bridge, rather than Meta authentication templates.
+`operationsAccount` pins the sending identity; the bridge reports its connected account before enrollment and checks that same
+socket again immediately at send time. OpsCenter never reads session credentials. No Meta token
+is read and no Cloud API request occurs for this transport. The bridge endpoint
+is fixed to loopback port 18791; destinations come from the approved directory.
+The message contains only the generated Waypoint code and ten-minute expiry.
+The dedicated bridge route does not store the body, log it, or forward it to
+Hermes. Outgoing code echoes are rejected before intake, including after restart.
+Operations sent history remains visible on its trusted handset and linked devices,
+as with any regular WhatsApp sender; those devices must remain trusted.
+Automated linked-device messages also carry WhatsApp account-restriction risk.
+`install-operations-waypoint-bridge.py` requires the reviewed pre-change bridge
+hash and preserves a backup; it never changes credentials or links a new device.
+
+Existing phone identity checks, approval expiry, reservation limits, cooldowns,
+three daily self-requests, durable receipt creation, single-use enrollment and
+no-replay rules remain. Operations uses no new metered provider; existing numeric
+reservations remain conservative rate limits, not a claim of provider charges.
+Bridge errors and lost responses remain uncertain and are never automatically
+retried. Acceptance does not establish arrival on a handset. Activation requires
+the exact Operations account in the protected policy after reviewed deployment.
+Tests: `node --import tsx scripts/test-crew-phone-operations.ts` and the existing
+`test-crew-phone-delivery.ts`; all messaging and credentials are synthetic.
+
+### Phone connection presentation — October 21, 2026
+
+The public entry screen uses **Connect Your Phone**, a phone selector and one
+primary **Send setup code** action. The code field appears after the request
+returns or when the crew selects **Already have a code?**. A retained request or
+enrollment attempt restores code entry after reload. **Choose phone** returns to
+the selector and clears the entered code; it does not discard the retained send
+request. Uncertain-send messages remain visible with **Check send status**, which
+reuses that request ID. **Need help connecting?** contains connection recovery and
+the existing ten-minute new-code guard. No message is sent on page load.
+
+The entry screen shows Connect phone, Truck setup and Inspection beneath the
+form; the existing header steps resume once a phone is connected. Operations
+WhatsApp delivery, approved recipients, enrollment verification and subsequent
+crew workflows are unchanged by this presentation update.
+
+## Crew customer corrections — October 21, 2026
+
+Open appointment details expose **Edit customer information** for ordinary live
+crew phones. Crews review before/after values before saving first and last name,
+phone, alternate phone, email, service street/unit and ZIP, and on-site contact
+name/phone. Customer account identity, billing, financial fields, status, booked
+window and truck/crew assignments are not editable through this action.
+
+`/api/crew-jobs/customer` requires the existing secure phone session, saved daily
+crew, inspection and fresh assignment scope. Corrections are limited to open
+appointments on that phone's current truck, including when a manager browses all
+trucks; shared cross-truck visibility does not grant correction permission. Test
+phones and dry runs cannot reach live customer writes. Same-origin JSON, strict
+field validation, source version and crew revision checks remain server enforced.
+
+The `customer_correction` action shares durable appointment operation receipts and
+locks with dispatch/closeout. The office's generic action parser cannot invoke it.
+A queued request writes once; repeated request IDs return the receipt. Before
+submission the worker reopens the source, revalidates scope and the reviewed
+version, and stores the before/expected customer fields plus server-owned crew
+attribution in the private receipt. It changes only allowlisted controls; ZIP uses
+JunkWare's existing unsaved postback and address-change flag. Customer details
+travel over child-process stdin rather than process arguments. The worker does
+not select address suggestions, send messages or complete an appointment.
+
+Success requires a fresh source read with every intended field retained and
+protected appointment/account/financial fields unchanged. Unknown results remain
+blocked; **Check saved result** only reads the source. Exact expected values verify
+the change; after ten minutes an exact unchanged baseline proves a failed save
+and permits a new review. After ten minutes, other fresh source mismatches are marked reconciled: the
+original outcome remains unconfirmed and the crew must reload the current
+source details before another correction. A stale queued receipt without a
+durable submission intent is marked failed without reading or writing JunkWare;
+a delayed worker cannot replay it. Unavailable sources remain blocked. Actor-bound receipt checks are read-only
+and do not require the appointment to remain on the original truck or date.
+If the phone expires or is revoked, an OpsCenter manager/admin opens the
+appointment closeout and selects **Check Saved Result** on the pending customer
+correction. The office receives a status-only receipt and uses the same read-only
+reconciler, even after source completion or reassignment. This never submits a
+correction, closeout or payment. No source
+write is replayed by recovery. The active appointment card adopts the verified name, phone and address read-back
+immediately; a changed address clears the old map pin. The normal verified
+schedule refresh supplies the route projection and new cached location. The
+editor's verified result remains separate from schedule ingestion.
+The browser retains only the request ID for recovery, not customer details.
+
+Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
+`verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
+`verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
+and receipt recovery. No real customer correction is a deployment test.

@@ -14,6 +14,7 @@ import {
   type LinxupDeliveryMode,
 } from "@/lib/linxup-authority";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { sourceFileMemo } from "@/lib/source-file-memo";
 
 export type FleetMapPoint = {
   timestamp: string;
@@ -215,9 +216,15 @@ function addressHash(address: string): string {
   return crypto.createHash("sha256").update(normalizeAddress(address)).digest("hex");
 }
 
+// Looked up once per GPS stop; parse the whole cache only when it changes.
+const geocodeCacheMemo = sourceFileMemo<Record<string, AnyRecord>>(60_000, 4);
 function loadGeocodeCache(): Record<string, AnyRecord> {
-  const payload = readJsonFile<AnyRecord>("data/cache/appointment_geocodes.json");
-  return payload && typeof payload.addresses === "object" ? (payload.addresses as Record<string, AnyRecord>) : {};
+  const resolved = resolveHistoryPath("data/cache/appointment_geocodes.json");
+  if (!resolved) return {};
+  return geocodeCacheMemo(resolved, [resolved], () => {
+    const payload = readJsonFile<AnyRecord>("data/cache/appointment_geocodes.json");
+    return payload && typeof payload.addresses === "object" ? (payload.addresses as Record<string, AnyRecord>) : {};
+  });
 }
 
 function geocodeForAddress(address: string): AnyRecord | null {

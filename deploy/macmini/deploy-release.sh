@@ -83,6 +83,52 @@ require_forward_deploy() {
   fi
 }
 
+migrate_production_release() {
+  echo "Applying reviewed kernel migrations before production activation..."
+  # Replace the tracked Python process with Node so the deployment lock tracks
+  # the migration itself, including if the controller is interrupted. Do not
+  # inherit service flags, NODE_OPTIONS, credentials, or shell-evaluated config.
+  python3 - "$1" "$SHARED_CONFIG/production.env" "$SCRIPT_DIR" <<'PY' >/dev/null 2>&1 &
+import importlib.util
+import os
+from pathlib import Path
+import sys
+
+try:
+    release, config_file, controller_dir = map(Path, sys.argv[1:])
+    spec = importlib.util.spec_from_file_location('kernel_isolation', controller_dir / 'verify-kernel-isolation.py')
+    isolation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(isolation)
+    config = isolation.read_environment(config_file)
+    variable = 'OPSCENTER_MISSION_CONTROL_DATABASE_URL'
+    if config.get('OPSCENTER_KERNEL_ENABLED', '').strip() != '1':
+        raise ValueError('Production kernel must be enabled')
+    if isolation.database_name(config, variable) != 'opscenter_production':
+        raise ValueError('Production database identity mismatch')
+    environment = {
+        'PATH': os.environ['PATH'],
+        'NODE_ENV': 'production',
+        'OPSCENTER_RUNTIME': 'MISSION_CONTROL',
+        'OPSCENTER_KERNEL_ENABLED': '1',
+        'OPSCENTER_KERNEL_DB_POOL_MAX': '1',
+        variable: config[variable],
+    }
+    os.chdir(release)
+    os.execvpe('node', ['node', '--import', 'tsx', 'scripts/migrate-platform-kernel.ts'], environment)
+except Exception:
+    sys.exit(1)
+PY
+  ACTIVE_DEPLOY_CHILD=$!
+  if wait "$ACTIVE_DEPLOY_CHILD"; then
+    ACTIVE_DEPLOY_CHILD=""
+  else
+    # An interrupted wait may leave the migration running. The EXIT trap must
+    # retain the lock while that tracked child is still live.
+    fail "production kernel migration failed; release activation was not attempted (completed additive migrations may remain)"
+  fi
+  echo "Production kernel migrations completed."
+}
+
 trap release_deploy_lock EXIT
 
 activate_release() {
@@ -176,6 +222,11 @@ active_release="$(readlink "$APP_LINK")"
 active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
 [[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
 require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
+# Every new commit needs an approved cross-model review receipt in the vault
+# (docs/agent-handoffs.md). The installed controller enforces this so that no
+# launcher copy can skip it.
+python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY" "$active_commit" "$commit" "$DEPLOY_ROOT/vault/Tasks" \
+  || fail "the review gate refused $commit"
 
 release="$RELEASES_DIR/$commit"
 if [[ -d "$release" ]]; then
@@ -250,6 +301,17 @@ latest_active_release="$(readlink "$APP_LINK")"
 latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 2>/dev/null || true)"
 [[ -n "$latest_active_commit" ]] || fail "cannot resolve the active commit during the final deployment check"
 require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"
+
+# Both deployment modes must finish migrations before starting a candidate or
+# changing the live link. Recheck lineage after database work as well as build.
+migrate_production_release "$release"
+git -C "$REPOSITORY" fetch --prune origin
+require_production_head "$commit"
+latest_active_release="$(readlink "$APP_LINK")"
+[[ -n "$latest_active_release" ]] || fail "cannot recheck the active release after migrations"
+latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 2>/dev/null || true)"
+[[ -n "$latest_active_commit" ]] || fail "cannot resolve the active commit after migrations"
+require_forward_deploy "$latest_active_commit" "$commit" "active release changed during migrations"
 
 previous_target="$(readlink "$APP_LINK")"
 if [[ "$SLOT_MODE" == slots ]]; then

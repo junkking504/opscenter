@@ -82,7 +82,7 @@ async function main() {
   const cookieHeader = `opscenter_email_session=${operatorCookie}`;
   const financeResponse = await middleware(new NextRequest("http://127.0.0.1:3100/finance", { headers: { cookie: cookieHeader } }));
   const cancellationResponse = await middleware(new NextRequest("http://127.0.0.1:3100/api/job-cancellation", { method: "POST", headers: { cookie: cookieHeader } }));
-  const scheduleResponse = await middleware(new NextRequest("http://127.0.0.1:3100/jobs", { headers: { cookie: cookieHeader } }));
+  const scheduleResponse = await middleware(new NextRequest("http://127.0.0.1:3100/desktop", { headers: { cookie: cookieHeader } }));
   assert.equal(financeResponse.status, 307, "Operator Finance requests must redirect to the access page.");
   assert.match(financeResponse.headers.get("location") || "", /\/unauthorized\?required=manager/);
   assert.equal(cancellationResponse.status, 403, "Operator cancellation requests must be forbidden server-side.");

@@ -18,7 +18,7 @@ URL = 'https://junkware.junk-king.com/franchise/accounting/update-quickbooks.asp
 PREFIX = 'ctl00$Content$'
 DATA = Path(os.environ.get('OPSBOT_DATA_DIR', str(Path.home()/'.openclaw/workspace/opsbot/data')))
 STORE = Path(os.environ.get('OPSCENTER_ACCOUNTING_DIR', str(DATA/'accounting-actions')))
-ACTIONS = {'receive': None, 'update': 'UpdateQuickBooksBtn', 'verify': 'UpdateQuickBooksBtn', 'exclude': 'ExcludeFromQBBtn'}
+ACTIONS = {'receive': None, 'update': 'UpdateQuickBooksBtn', 'verify': None, 'exclude': 'ExcludeFromQBBtn'}
 
 def now(): return dt.datetime.now(dt.timezone.utc).isoformat()
 def clean(s): return ' '.join(s.split())
@@ -139,6 +139,7 @@ class Source:
         if row_key(candidate)!=row['key']: raise ValueError('The source amount, method or job details changed. Review the refreshed record.')
         return form,candidate
     def submit(self,form,row,action):
+        if ACTIONS.get(action) is None: raise ValueError('Payment verification is local to OpsCenter.')
         button=PREFIX+ACTIONS[action]
         if button not in form.controls or not row['checkbox']: raise ValueError('The JunkWare accounting action is unavailable.')
         fields=dict(form.fields); fields.update({'__EVENTTARGET':'','__EVENTARGUMENT':'', row['checkbox']:'on',PREFIX+'SelectedRecordCountHF':'1',button:form.controls[button]['value']})
@@ -152,7 +153,7 @@ def annotations():
     for receipt in sorted(receipts(), key=lambda r:r['createdAt']):
         for item in receipt['items']:
             if receipt['action'] in ('verify','receive') and item.get('verifiedAt'):
-                result[item['row']['key']]={'verifiedAt':item['verifiedAt'],'actor':receipt['actor'],'synced':item['state']=='verified' and (receipt['action']=='verify' or item['row']['syncStatus']=='S'),'row':identity(item['row'])}
+                result[item['row']['key']]={'verifiedAt':item['verifiedAt'],'actor':receipt['actor'],'synced':item['state']=='verified' and bool(item.get('syncedAt') or item['row']['syncStatus']=='S'),'row':identity(item['row'])}
     return result
 
 def listing(source,filters):
@@ -189,7 +190,7 @@ def execute(source,body,actor,verify_only=False):
                 if action=='verify' and not re.match(r'^(Cash|Check|Credit Card)\b',row['method'],re.I): raise ValueError('Verify Payment requires cash, check or card payment. Billed work is a receivable; use Update QuickBooks.')
                 if action=='exclude' and row['syncStatus']!='U': raise ValueError('Only unsynced records can be excluded here.')
                 if action=='update' and row['syncStatus']!='U': raise ValueError('Only unsynced records can be updated here.')
-                if action=='verify' and row['syncStatus']=='E': raise ValueError('This record is excluded in JunkWare. Review it there before updating QuickBooks.')
+                if action=='verify' and row['syncStatus']=='E': raise ValueError('This record is excluded in JunkWare. Review it there before verifying payment.')
             ids={r['appointmentId'] for r in rows}
             for old in receipts():
                 if any(i['row']['appointmentId'] in ids and i['state'] in ('pending','submitted','uncertain') for i in old['items']): raise ValueError('A selected job has an unresolved accounting action. Check saved result first.')
@@ -199,18 +200,17 @@ def execute(source,body,actor,verify_only=False):
             if item['state'] in ('verified','failed','not_attempted'): continue
             row=item['row']; action=receipt['action']; target='E' if action=='exclude' else 'S'
             try:
-                if action=='receive':
+                if action=='receive' or (action=='verify' and not item.get('submittedAt')):
                     if verify_only:
                         # Recovery reads a saved attestation; it never creates one.
                         item.update(state='failed',message='Receipt confirmation was not saved. Review the envelope and confirm again.')
                     else:
                         source.find(row,row['syncStatus'])
-                        item.update(state='verified',verifiedAt=now(),message='Manager confirmed cash/check received from the mailbox envelope. QuickBooks sync unchanged.')
+                        item.update(state='verified',verifiedAt=now(),message='Payment verification recorded in OpsCenter. QuickBooks unchanged; the accountant records it separately.')
                     save(file,receipt)
                     continue
                 if not verify_only and not item.get('submittedAt'):
                     form,current=source.find(row,row['syncStatus'])
-                    if action=='verify': item['verifiedAt']=now(); save(file,receipt)
                     if row['syncStatus']!=target:
                         # Durable intent precedes the only source submission. Process loss cannot replay it.
                         item.update(state='submitted',submittedAt=now()); save(file,receipt)

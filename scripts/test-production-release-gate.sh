@@ -14,6 +14,7 @@ grep -F 'require_production_head "$commit"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$active_commit" "$commit" "initial ancestry check"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"' "$deployer" >/dev/null
 grep -F 'acquire_deploy_lock' "$deployer" >/dev/null
+grep -F 'python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY" "$active_commit" "$commit" "$DEPLOY_ROOT/vault/Tasks"' "$deployer" >/dev/null
 grep -F '[[ -n "$watcher_label" ]] || continue' "$REPOSITORY_ROOT/deploy/macmini/release-services.sh" >/dev/null
 grep -F 'REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
 grep -F 'RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"' "$wrapper" >/dev/null
@@ -70,4 +71,5 @@ if opscenter_require_exact_ref "$fixture_root" "$sibling_commit" refs/heads/prod
 fi
 
 python3 "$SCRIPT_DIR/test-deployment-mode.py"
+python3 "$SCRIPT_DIR/test-production-migrations.py"
 echo "Production release lineage and deployment mode gate tests passed."

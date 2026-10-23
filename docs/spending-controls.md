@@ -259,3 +259,56 @@ and all protected-file hashes. Back up the installed checker/inventory pair,
 install the reviewed pair with read-only permissions, and record both SHA256
 checksums and the approval source in the external installation record. Then run
 both repository and installed gates plus the normal build and regressions.
+
+## Apple Web Push signing setup — approved October 18, 2026
+
+The user approved adding only `web.push.apple.com` to the existing hostname
+inventory and creating/configuring protected OpsCenter VAPID signing credentials,
+with $0 additional service cost. The checker, other hosts, dependencies, protected
+file hashes, quotas and all paid limits remain unchanged. The installed inventory
+and unchanged checker were backed up; their SHA256 hashes are recorded in the
+external installation record. No broad network/firewall policy was changed.
+
+The private signing key is in the user Keychain under account `opscenter`, service
+`com.opscenter.web-push-vapid-private-key`, with access limited to the existing
+`/usr/bin/security` loader. No all-application ACL is granted. The feature branch
+extends `scripts/load-opscenter-secrets.sh`; that extension is not deployed and
+loads the new key only when Mission Control push is explicitly enabled.
+Only the public key, existing support contact, HTTPS origin, disabled flag and
+blank activation timestamp were added to mode-0600 `production.env`. No private
+key is written to source, environment files, logs, patches or evidence artifacts.
+
+This approval does not authorize deployment, database migration, worker scheduling,
+live sending, device subscription or a paid reviewer. Independent Claude review
+remains pending. Both host inventories can pass now; that is not permission to
+merge or deploy. See [Web Push activation boundaries](web-push.md).
+
+<!-- claude-review-extra-usage: confirmed-off -->
+
+On October 21, 2026 the user confirmed Claude paid extra usage is off for the
+subscription-only Waypoint Operations code-delivery review. No paid fallback.
+
+## Waypoint crew notifications — October 21, 2026
+
+User approved ongoing iPhone crew alerts for schedule/route updates and office
+messages. Reuses the existing Apple Web Push host and VAPID key via a separate
+crew-only sender. No new provider/SDK, billable inference, subscription or Meta
+call. Existing source cadence is unchanged. Permission is an explicit crew tap;
+phone/truck/day authorization remains distinct from manager notification grants.
+See [Waypoint notifications](waypoint-push.md). This does not reset/promote the
+manager trial or change its limits.
+
+## Pushover manager notifications — approved October 22, 2026
+
+The user approved replacing native delivery for their one verified manager phone
+with Pushover, sending the existing schedule, crew and fleet alert details, using
+the phone's default Pushover sound and normal priority. Approval includes one
+synthetic setup test, up to 10,000 attempts over at most 30 days, and $0 additional
+API spend. Existing earlier phone authorization expiry still applies. No automatic
+renewal, paid upgrade, subscription, license purchase or overage is authorized.
+
+The reviewed host inventory adds only `api.pushover.net`. Preserve the unchanged
+checker, all other hosts, dependency inventory and protected-file hashes; back up
+and record the installed pair before applying this specifically approved change.
+Private configuration and durable nonrefundable quota state live outside Git. Each
+attempt permits at most one validation and one message request. See [Pushover](pushover.md).

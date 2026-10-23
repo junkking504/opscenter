@@ -56,12 +56,17 @@ class AccountingTests(unittest.TestCase):
         m.save(m.STORE/'receipts'/f"{r['id']}.json",r)
         recovered=m.execute(self.source,{'requestId':r['id']},'manager@example.invalid',True)
         self.assertFalse(recovered['complete']);self.assertEqual(m.annotations(),{});self.assertEqual(self.source.calls,0)
-    def test_verify_is_native_update_and_replay_never_submits(self):
-        result=self.run_action();self.assertTrue(result['complete']);self.assertEqual(self.source.calls,1);self.assertTrue(m.annotations()[row()['key']]['synced'])
-        self.run_action();self.assertEqual(self.source.calls,1)
+    def test_verify_is_local_and_replay_never_submits(self):
+        result=self.run_action();self.assertTrue(result['complete']);self.assertEqual(self.source.calls,0)
+        self.assertEqual(self.source.status,'U');self.assertFalse(m.annotations()[row()['key']]['synced'])
+        self.assertTrue(m.annotations()[row()['key']]['verifiedAt'])
+        self.run_action();m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
+        self.assertEqual(self.source.calls,0)
     def test_lost_response_with_saved_result_succeeds_once(self):
+        self.body['action']='update'
         self.source.interrupted=True;result=self.run_action();self.assertTrue(result['complete']);self.assertEqual(self.source.calls,1)
     def test_uncertain_result_blocks_second_request_and_recovery_never_replays(self):
+        self.body['action']='update'
         self.source.lost=True;result=self.run_action();self.assertEqual(result['items'][0]['state'],'uncertain')
         original=self.body['requestId'];self.body['requestId']=str(uuid.uuid4())
         with self.assertRaisesRegex(ValueError,'unresolved'): self.run_action()
@@ -71,13 +76,13 @@ class AccountingTests(unittest.TestCase):
         self.assertTrue(recovered['complete']);self.assertEqual(self.source.calls,1)
     def test_changed_source_never_submits_or_verifies(self):
         self.source.changed=True;result=self.run_action();self.assertEqual(result['items'][0]['state'],'failed');self.assertEqual(self.source.calls,0);self.assertEqual(m.annotations(),{})
-    def test_card_verification_updates_quickbooks_once(self):
+    def test_card_verification_is_local(self):
         self.body['rows'][0]['method']='Credit Card x1234';self.body['rows'][0]['key']=m.row_key(self.body['rows'][0])
         result=self.run_action()
-        self.assertTrue(result['complete']);self.assertEqual(self.source.calls,1)
+        self.assertTrue(result['complete']);self.assertEqual(self.source.calls,0)
         self.assertTrue(m.annotations()[self.body['rows'][0]['key']]['verifiedAt'])
         self.run_action();m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
-        self.assertEqual(self.source.calls,1)
+        self.assertEqual(self.source.calls,0)
     def test_verify_rejects_receivables_unknown_tenders_and_excluded_payments(self):
         for method in ['Billed','Unknown','Credit']:
             self.body['rows'][0]['method']=method;self.body['rows'][0]['key']=m.row_key(self.body['rows'][0])
@@ -94,6 +99,7 @@ class AccountingTests(unittest.TestCase):
     def test_exclude_preserves_separate_verification(self):
         self.body['action']='exclude';self.assertTrue(self.run_action()['complete']);self.assertEqual(self.source.status,'E');self.assertEqual(m.annotations(),{})
     def test_partial_batch_stops(self):
+        self.body['action']='update'
         other=row();other['appointmentId']='124';other['jkNumber']='JK124';other['key']=m.row_key(other);self.body['rows'].append(other)
         self.source.lost=True;result=self.run_action();self.assertEqual([i['state'] for i in result['items']],['uncertain','not_attempted']);self.assertEqual(self.source.calls,1)
     def test_browser_integer_amount_preserves_source_identity(self):
@@ -103,6 +109,7 @@ class AccountingTests(unittest.TestCase):
         result=m.execute(self.source,{'requestId':str(uuid.uuid4())},'manager@example.invalid',True)
         self.assertEqual(result['items'],[]);self.assertEqual(self.source.calls,0)
     def test_native_background_processing_stays_pending_without_replay(self):
+        self.body['action']='update'
         self.source.lost=True
         original=self.source.submit
         def queued(form,r,action):
@@ -114,12 +121,27 @@ class AccountingTests(unittest.TestCase):
         self.assertIn('processing',result['items'][0]['message'])
         m.execute(self.source,{'requestId':self.body['requestId']},'manager@example.invalid',True)
         self.assertEqual(self.source.calls,1)
+    def test_verify_cannot_submit_native_update(self):
+        source=object.__new__(m.Source)
+        source.request=lambda fields:self.fail('Verification must not submit source fields')
+        with self.assertRaisesRegex(ValueError,'local to OpsCenter'): source.submit(None,{},'verify')
+    def test_legacy_submitted_verify_recovers_without_replay(self):
+        r={'id':self.body['requestId'],'action':'verify','actor':'manager@example.invalid','createdAt':m.now(),'fingerprint':'legacy','items':[{'row':row(),'state':'submitted','submittedAt':m.now(),'verifiedAt':m.now()}]}
+        m.save(m.STORE/'receipts'/f"{r['id']}.json",r);self.source.status='S'
+        result=m.execute(self.source,{'requestId':r['id']},'manager@example.invalid',True)
+        self.assertTrue(result['complete']);self.assertEqual(self.source.calls,0)
+        self.assertTrue(m.annotations()[row()['key']]['synced'])
+    def test_pending_local_verify_recovery_cannot_attest(self):
+        r={'id':self.body['requestId'],'action':'verify','actor':'manager@example.invalid','createdAt':m.now(),'fingerprint':'local','items':[{'row':row(),'state':'pending'}]}
+        m.save(m.STORE/'receipts'/f"{r['id']}.json",r)
+        result=m.execute(self.source,{'requestId':r['id']},'manager@example.invalid',True)
+        self.assertFalse(result['complete']);self.assertEqual(m.annotations(),{});self.assertEqual(self.source.calls,0)
     def test_range_validation(self):
         with self.assertRaises(ValueError): m.validate_filters({'from':'2026-10-03','to':'2026-10-02','status':'U'})
     def test_native_submission_selects_only_exact_row(self):
         captured=[];source=object.__new__(m.Source);source.request=lambda fields:captured.append(fields)
         form=type('F',(),{'fields':{'__VIEWSTATE':'private-state','ctl00$Content$StatusDD':'U'},'controls':{'ctl00$Content$UpdateQuickBooksBtn':{'value':'Update QuickBooks'}}})()
-        source.submit(form,{'checkbox':'ctl00$Content$ListView1$ctrl4$SelectedCB'},'verify')
+        source.submit(form,{'checkbox':'ctl00$Content$ListView1$ctrl4$SelectedCB'},'update')
         self.assertEqual(captured[0]['ctl00$Content$SelectedRecordCountHF'],'1');self.assertEqual(captured[0]['ctl00$Content$ListView1$ctrl4$SelectedCB'],'on');self.assertFalse(any('SelectAll' in key for key in captured[0]))
     def test_parser_requires_complete_money_and_identity(self):
         html='<select name="ctl00$Content$StatusDD"><option selected value="U">Unsynced</option></select><tr id="x_ItemRow"><td><input type="checkbox" name="row1"></td><td>10/02/2026</td><td><a href="appointment.aspx?id=123">JK123</a></td><td>$800.00</td><td>Check #1167</td><td>Test Customer</td><td></td><td>test@example.invalid</td><td>Test Crew</td></tr>'

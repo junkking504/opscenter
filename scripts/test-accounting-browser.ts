@@ -12,7 +12,7 @@ async function main() {
  const server=createServer(async(req,res)=>{
   if(req.url==='/api/desktop/accounting') { let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);res.setHeader('Content-Type','application/json');
    if(body.mode==='list') {res.end(JSON.stringify({data:{rows:body.filters.status==='S'?[]:[base,billed,card],total:body.filters.status==='S'?0:1702,observedAt:new Date().toISOString(),options:{groups:[{value:'A',label:'All'},{value:'399',label:'Fixture franchise'}],methods:[],statuses:[]},verifications:{},pending:[]}}));return;}
-   if(body.mode==='action') {writes++;assert.equal(body.action,'verify');assert.equal(body.rows.length,1);assert.ok(['123','125'].includes(body.rows[0].appointmentId));if(uncertain){res.writeHead(502);res.end('{"error":"Response interrupted"}');return;}res.end(JSON.stringify({data:{id:body.requestId,action:body.action,complete:true,items:[{row:body.rows[0],state:'verified',message:'JunkWare confirms this record is synced to QuickBooks.'}]}}));return;}
+   if(body.mode==='action') {writes++;assert.equal(body.action,'verify');assert.equal(body.rows.length,1);assert.ok(['123','125'].includes(body.rows[0].appointmentId));if(uncertain){res.writeHead(502);res.end('{"error":"Response interrupted"}');return;}res.end(JSON.stringify({data:{id:body.requestId,action:body.action,complete:true,items:[{row:body.rows[0],state:'verified',message:'Payment verification recorded in OpsCenter. QuickBooks unchanged.'}]}}));return;}
    recoveries++;res.end(JSON.stringify({data:{id:body.requestId,action:'verify',complete:true,items:[{row:base,state:'verified',message:'Saved result verified without replay.'}]}}));return;
   }
   if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}
@@ -27,18 +27,18 @@ async function main() {
    await page.getByLabel('Select JK123',{exact:true}).check();await page.getByRole('button',{name:'Verify Payment',exact:true}).click();
    await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('Check #1167');const before=writes;
    await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(writes,before,'Review or cancel must not submit');
-   await page.getByRole('button',{name:'Verify Payment',exact:true}).click();await page.getByRole('button',{name:'Confirm payment & update QuickBooks',exact:true}).click();
-   await expect(page.getByText('Payment verified & QuickBooks sync confirmed',{exact:true})).toBeVisible();assert.equal(writes,before+1);
+   await page.getByRole('button',{name:'Verify Payment',exact:true}).click();await page.getByRole('button',{name:'Confirm payment in OpsCenter',exact:true}).click();
+   await expect(page.getByText('Payment verification recorded in OpsCenter',{exact:true})).toBeVisible();assert.equal(writes,before+1);
    await expect(page.getByRole('button',{name:'Verify cash & checks received',exact:true})).toHaveCount(0);
    await page.getByLabel('Select JK125',{exact:true}).check();await page.getByRole('button',{name:'Verify Payment',exact:true}).click();
    await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('Credit Card x8061');
-   await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('updates QuickBooks');
-   await page.getByRole('button',{name:'Confirm payment & update QuickBooks',exact:true}).click();await expect(page.getByText('Payment verified & QuickBooks sync confirmed',{exact:true})).toBeVisible();assert.equal(writes,before+2);
+   await expect(page.getByRole('region',{name:'Review accounting action'})).toContainText('saves your confirmation only in OpsCenter');
+   await page.getByRole('button',{name:'Confirm payment in OpsCenter',exact:true}).click();await expect(page.getByText('Payment verification recorded in OpsCenter',{exact:true})).toBeVisible();assert.equal(writes,before+2);
    await page.getByLabel('Select JK124',{exact:true}).check();await expect(page.getByRole('button',{name:'Verify Payment',exact:true})).toBeDisabled();
    await page.getByLabel('JunkWare sync status').selectOption('S');await expect(page.getByLabel('Select JK124',{exact:true})).toHaveCount(0);
    await page.getByRole('button',{name:'Refresh register',exact:true}).click();await expect(page.getByText('No records match these source filters.')).toBeVisible();await page.close();
   }
-  const page=await browser.newPage();await page.goto(url);uncertain=true;await page.getByLabel('Select JK123',{exact:true}).check();await page.getByRole('button',{name:'Verify Payment',exact:true}).click();await page.getByRole('button',{name:'Confirm payment & update QuickBooks',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Response interrupted');const before=writes;
+  const page=await browser.newPage();await page.goto(url);uncertain=true;await page.getByLabel('Select JK123',{exact:true}).check();await page.getByRole('button',{name:'Verify Payment',exact:true}).click();await page.getByRole('button',{name:'Confirm payment in OpsCenter',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Response interrupted');const before=writes;
   await page.reload();await page.getByRole('button',{name:'Check saved result',exact:true}).click();await expect(page.getByText('Saved result verified without replay.')).toBeVisible();assert.equal(writes,before);assert.equal(recoveries,1);await page.close();
   console.log('Accounting browser passed: desktop/mobile selection, billed rows, review/cancel, single confirm, stale-filter clearing, reload recovery without replay.');
  } finally {await browser.close();server.close();}

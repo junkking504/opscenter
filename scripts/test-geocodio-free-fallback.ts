@@ -42,6 +42,14 @@ async function main() {
   };
   try {
     assert.ok(verifyGeocodioAddress(address, payload).location);
+    const typoAddress='100 Ennunciation St, New Orleans, LA 70115';
+    const typoRow={...row,address_components:{...row.address_components,formatted_street:'Annunciation St',city:'New Orleans',postal_code:'70115'}};
+    assert.ok(verifyGeocodioAddress(typoAddress,{results:[typoRow]}).location);
+    for(const change of [{number:'101'},{formatted_street:'Annunciation Rd'},{city:'Metairie'},{postal_code:'70116'},{state_province:'TX'},{country:'CA'}]) {
+      assert.equal(verifyGeocodioAddress(typoAddress,{results:[{...typoRow,address_components:{...typoRow.address_components,...change}}]}).location,null);
+    }
+    assert.equal(verifyGeocodioAddress(typoAddress,{results:[typoRow,typoRow]}).location,null);
+
     const stateHighwayPayload = { results: [{ ...row,
       address_components: { ...row.address_components, number: '100', formatted_street: 'State Highway 59', city: 'Mandeville', postal_code: '70471' },
       location: { lat: 30.4, lng: -90.04 }, match_type: 'building_centroid' }] };

@@ -17,6 +17,17 @@ STUB = r'''#!/usr/bin/env python3
 import json, os, pathlib, re, signal, subprocess, sys, time
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
+fixture_root = pathlib.Path(__file__).parent.parent / "opscenter-v2"
+if name == "claude":
+    if args == ["auth", "status", "--json"]:
+        print(json.dumps({"loggedIn": True, "apiProvider": "firstParty", "authMethod": "claude.ai", "subscriptionType": "pro"}))
+        sys.exit(0)
+    if args == ["--help"]:
+        print("--restricted --safe-mode --strict-mcp-config --setting-sources --permission-prompts --tools")
+        sys.exit(0)
+    leaked = any(x in os.environ for x in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_FOUNDRY", "OPENAI_API_KEY"))
+    assert not leaked, "provider credentials reached Claude"
+    os.environ.update(json.loads((fixture_root / "stub-settings.json").read_text()))
 with open(os.environ["STUB_CALLS"], "a") as fh:
     fh.write(json.dumps({"tool": name, "args": args, "api_key": "ANTHROPIC_API_KEY" in os.environ, "cwd": os.getcwd(), "pid": os.getpid()}) + "\n")
 if os.environ.get("STUB_IGNORE_TERM"):
@@ -27,7 +38,10 @@ if os.environ.get("STUB_SPAWN_CHILD"):
 if os.environ.get("STUB_SLEEP"):
     time.sleep(int(os.environ["STUB_SLEEP"]))
 prompt = args[-1] if name == "codex" else args[args.index("-p") + 1]
-vault = pathlib.Path(re.search(r"(/\S+/vault/Tasks/[^/\s]+)", prompt).group(1))
+if name == "claude":
+    vault = fixture_root / "vault/Tasks" / pathlib.Path.cwd().name.removesuffix("-review-context")
+else:
+    vault = pathlib.Path(re.search(r"(/\S+/vault/Tasks/[^/\s]+)", prompt).group(1))
 task = vault.name
 work = vault.parent.parent.parent / "worktrees" / task
 def git(*a):
@@ -50,11 +64,16 @@ else:
     head = re.findall(r"@ ([0-9a-f]{40})", (vault / "handoff.md").read_text())[-1]
     who = "Claude" if name == "claude" else "Codex"
     builder = "Codex" if who == "Claude" else "Claude"
-    (vault / "review.md").write_text(f"# Review: {task}\n\nReviewer: {who}  ·  Builder: {builder}  ·  Reviewed: b @ {head}\n\n## Verdict\n{os.environ.get('STUB_VERDICT', 'approve')}\n")
+    receipt = f"# Review: {task}\n\nReviewer: {who}  ·  Builder: {builder}  ·  Reviewed: b @ {head}\n\n## Verdict\n{os.environ.get('STUB_VERDICT', 'approve')}\n"
+    if name == "claude":
+        print(json.dumps({"is_error": False, "result": receipt}))
+    else:
+        (vault / "review.md").write_text(receipt)
 '''
 
 
 def run(env, *args, root_path=None):
+    (root / "stub-settings.json").write_text(json.dumps({k: v for k, v in env.items() if k.startswith("STUB_")}))
     return subprocess.run([sys.executable, str(RELAY), "--root", str(root_path or root), *args], capture_output=True, text=True, env=env)
 
 
@@ -119,6 +138,7 @@ with tempfile.TemporaryDirectory() as tmp:
     root = pathlib.Path(temp) / "opscenter-v2"
     (root / "vault" / "Tasks").mkdir(parents=True)
     (root / "worktrees").mkdir()
+    (root / "vault/Tasks/.claude-subscription-only").write_text("Test fixture: extra usage off")
     origin = pathlib.Path(temp) / "origin.git"
     sh("git", "init", "-q", "--bare", "-b", "production", str(origin))
     seed = pathlib.Path(temp) / "seed"
@@ -165,9 +185,9 @@ with tempfile.TemporaryDirectory() as tmp:
     claude_calls = [c for c in calls() if c["tool"] == "claude"]
     assert not any(c["api_key"] for c in claude_calls), "API key is scrubbed before Claude runs"
     assert all(c["args"][c["args"].index("--model") + 1] == "sonnet" for c in claude_calls)
-    allowed = claude_calls[0]["args"][claude_calls[0]["args"].index("--allowedTools") + 1]
-    assert "Write(//" in allowed and allowed.count("review.md") == 2 and "Bash(git push" not in allowed
-    assert "Bash(git push:*)" in claude_calls[0]["args"][claude_calls[0]["args"].index("--disallowedTools") + 1]
+    assert all(c["args"][c["args"].index("--tools") + 1] == "Read,Grep,Glob" for c in claude_calls)
+    assert all("--restricted" in c["args"] and "--safe-mode" in c["args"] for c in claude_calls)
+    assert all(c["cwd"].endswith("-review-context") for c in claude_calls)
     codex_build = calls()[0]["args"]
     assert codex_build[:4] == ["exec", "-C", str(root / "worktrees/loop-task"), "--approve-for-me"]
     assert all("-s" not in c["args"] for c in calls() if c["tool"] == "codex"), "--approve-for-me already implies the sandbox"
@@ -361,6 +381,46 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "stopped by hand" in state("stop-task")["halted"]
     for task in ("stuck-task", "stop-task", "starting-task"):
         brief(task, auto="")
+
+    # Quota pauses only Claude reviews, and cannot become an approval or a done marker.
+    quota = json.dumps({"is_error": True, "result": "You have hit your limit; quota exhausted"})
+    assert relay.claude_result(paths, "approve-task", quota, "unused") == "quota"
+    pause = json.loads(paths.claude_pause.read_text())
+    assert 3500 < pause["until"] - time.time() <= 3600
+    approval_folder = root / "vault/Tasks/approve-task"
+    (approval_folder / "review.md").unlink()
+    action, detail = relay.decide(paths, "approve-task", relay.parse_task(approval_folder), {})
+    assert action == "wait" and "Claude usage limit" in detail
+    brief("codex-during-quota")
+    action, _ = relay.decide(paths, "codex-during-quota", relay.parse_task(root / "vault/Tasks/codex-during-quota"), {})
+    assert action == "build", "Codex can still build while Claude is exhausted"
+    brief("codex-during-quota", auto="")
+    paths.claude_pause.unlink()
+    action, _ = relay.decide(paths, "approve-task", relay.parse_task(approval_folder), {})
+    assert action == "review-claude", "Claude resumes after the cooldown"
+
+    # Snapshot never follows source symlinks or copies untracked/runtime files.
+    work = root / "worktrees/approve-task"
+    (work / "private-untracked.txt").write_text("synthetic private data")
+    context = evidence / "snapshot-test"
+    try:
+        relay.prepare_review(paths, "approve-task", context)
+        raise AssertionError("dirty worktree accepted for review")
+    except RuntimeError as exc:
+        assert "clean worktree" in str(exc)
+    (work / "private-untracked.txt").unlink()
+    relay.prepare_review(paths, "approve-task", context)
+    assert (context / "diff.patch").is_file() and not (context / "source/private-untracked.txt").exists()
+    actual = relay.git(paths, work, "rev-parse", "HEAD")
+    malformed = json.dumps({"is_error": False, "result": "Everything looks good"})
+    try:
+        relay.claude_result(paths, "approve-task", malformed, actual)
+        raise AssertionError("unstructured approval accepted")
+    except RuntimeError:
+        pass
+    receipt_text = f"Reviewer: Claude · Builder: Codex · Reviewed: b @ {actual}\n\n## Verdict\napprove\n\n## Findings\nNone\n"
+    assert relay.claude_result(paths, "approve-task", json.dumps({"is_error": False, "result": receipt_text}), actual) == "receipt"
+    assert (approval_folder / "review.md").read_text().strip() == receipt_text.strip()
 
     # Kill switch: without the switch file, nothing new starts.
     (root / "vault" / "Tasks" / ".relay-on").unlink()

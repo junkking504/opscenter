@@ -237,8 +237,15 @@ A stop before the agent has started leaves a cancel marker; the runner checks it
 Guardrails: the relay does nothing unless `vault/Tasks/.relay-on` exists
 (delete it to stop new steps), holds one lock for one running step, allows at
 most 3 reviews per task and 6 agent runs per day, ends a step's whole process group (SIGTERM, then SIGKILL) after 60
-minutes and keeps the lock until the group is confirmed gone, and never retries a failed step. Claude runs without API key or
-Bedrock/Vertex variables, so they stay on the subscription login. Each decision
+minutes and keeps the lock until the group is confirmed gone, and never retries a failed step. Claude runs in restricted/safe mode with only Read/Grep/Glob tools, no MCP,
+no customization settings, and an allowlisted environment. A subscription login
+(Pro/Max, first-party OAuth) and the private `.claude-subscription-only` confirmation
+are required. Managed policy or an unknown login stops the step. No API fallback.
+The reviewer reads a generated committed-source snapshot, not runtime links or
+uncommitted work, and returns a structured receipt. The relay validates the exact
+head and verdict before publishing review.md; old receipts remain in task-evidence.
+The snapshot cannot run tests, so review cites builder evidence and says what it
+could not independently execute. Each decision
 is one line in `task-evidence/handoff-relay/relay.log`, and each task folder
 gets a `relay.md` with its state.
 
@@ -257,3 +264,27 @@ active release; it stays idle until the switch file exists:
 ```
 
 Validation: `npm run verify:handoff-relay`.
+
+### Shared entry points and quota fallback
+
+Codex reads AGENTS.md; CLAUDE.md points Claude at the same file. Both start from
+the current task checkout and private task packet. The local Mission Control Home
+points to the active release for current reference documentation; the integration
+checkout may contain unfinished historical work and must not be reset to sync it.
+
+The user confirmed on October 23, 2026: no Claude extra usage. If Claude exhausts
+its included allowance, Codex continues building and testing other opted-in tasks.
+Claude reviews wait until the reported reset time, or one bounded hourly probe
+when the response does not provide a parseable reset. All probes count against
+the existing six-run daily limit. No busy retries and no paid provider substitution.
+A Codex-only self-check never satisfies the cross-family production review gate.
+
+To record the user's account-setting confirmation, write a dated note to
+`vault/Tasks/.claude-subscription-only`. This records confirmation; it cannot
+change or independently enforce the Claude account's extra-usage setting.
+Removing that file prevents new Claude calls. Removing `.relay-on` prevents all
+new steps; use `stop` to end an already running step.
+
+A task is complete only after its approved commit is released, service health is
+checked, and an authenticated browser check verifies the affected behavior.
+The relay ends at review readiness; it does not grant deployment authority.

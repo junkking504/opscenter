@@ -108,3 +108,20 @@ new usage charges. Obtain explicit approval of provider, feature and maximum
 spend before enabling a new metered path. Never raise limits, restore Google
 Maps billing, remove spending gates, or update the externally installed spending
 allowlist as part of a routine deployment. Tests must mock paid providers.
+
+## Shared task ownership
+
+- Start from the active production commit or an explicitly chosen task base.
+  A historical checkout is not evidence of current production behavior.
+- Use one owner per task worktree. Before editing, inspect the task packet and
+  working-tree status; preserve unfinished work belonging to another task.
+- Keep brief.md, handoff.md and review.md current. The handoff names the exact
+  committed head, checks, unresolved findings and next owner. Reviewers do not
+  modify source or invent test evidence.
+- Read relay.md for an opted-in task before manually taking it over; stop that
+  relay step and verify its processes have ended before editing its worktree.
+- Claude uses the subscription only, with extra usage off. On a usage limit,
+  continue Codex builds/tests and defer Claude review until reset. Never switch
+  to an API key or claim same-family review satisfies the cross-family gate.
+- Preserve OpsCenter's shared typography, palette, spacing, cards, tables and
+  controls. Compare changed screens with adjacent pages on desktop and phone.

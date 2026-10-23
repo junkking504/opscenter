@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {normalizeTruckGpsRoute} from '../lib/desktop-gps-route';
 import {contestedLikelyStops, likelyGpsStop} from '../lib/likely-stop-match';
 import {timelineWindow, type ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
 import type {GpsTrip} from '../desktop-ui/lib/gps-route-contract';
@@ -62,6 +63,11 @@ for (const mins of [5, 10, 20]) {
 const compressed = [{...fix('16:05'), coveredUntil: z('16:30')}];
 assert.equal(likelyGpsStop(job, [trips[0], trip('b', '16:30', '17:25', 'Yard, Baton Rouge, LA', yard, stopPoint)], day, compressed)!.confident, true, 'a stationary fix covers its recorded span');
 assert.equal(likelyGpsStop(job, trips, day, compressed)!.confident, false, 'coverage that ends early leaves the rest of the dwell unsupported');
+// Normalization keeps point geometry identical to paths; coverage travels separately.
+const raw = (clock: string, extra = {}) => ({truck_number: '3', timestamp: z(clock), latitude: 30.4602, longitude: -90.9581, ...extra});
+const route = normalizeTruckGpsRoute({collection_timestamp: z('20:00'), points: [raw('16:05', {continuous_until: z('16:30')}), raw('16:31')]}, day, 'Truck 3', Date.parse(z('21:00')));
+assert.ok(route.points.every(point => !('coveredUntil' in point)), 'points are unchanged by coverage');
+assert.deepEqual(route.coverage, [{timestamp: z('16:05'), coveredUntil: z('16:30')}]);
 // Competing claims and existing visits.
 const claim = (id: string) => ({job: id, truck: 'Truck 3', likely: stop});
 assert.deepEqual([...contestedLikelyStops([claim('x'), claim('y')], [])].sort(), ['x', 'y'], 'two appointments claiming one stop are both contested');

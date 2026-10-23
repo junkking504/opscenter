@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory() as directory:
     row=run(long_visit)
     assert row['match_confidence']=='confirmed' and row['onsite_minutes']==840, 'No maximum duration cutoff'
     assert source_job['appointment_time']=='03:00 PM - 04:00 PM' and source_job['job_status']=='Confirmed'
-    row=run([point,{**point,'timestamp':'2026-09-08T15:24:00Z','latitude':31},{**point,'timestamp':'2026-09-08T15:30:00Z','latitude':31}])
+    row=run([point,{**point,'timestamp':'2026-09-08T15:24:00Z','latitude':31},{**point,'timestamp':'2026-09-08T15:25:00Z','latitude':31},{**point,'timestamp':'2026-09-08T15:30:00Z','latitude':31}])
     assert row['visit_count']==1 and row['final_departure']==point['timestamp'], 'Single-point visit survives a confirmed departure'
     assert row['onsite_minutes']==0, 'Do not invent time onsite'
 try:

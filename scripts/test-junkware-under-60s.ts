@@ -10,6 +10,7 @@ const detector = fs.readFileSync(path.join(root, "scripts/run-junkware-schedule-
 const stream = fs.readFileSync(path.join(root, "scripts/collect-junkware-schedule-stream.py"), "utf8");
 const plist = fs.readFileSync(path.join(root, "deploy/macmini/production-launchd/com.openclaw.opsbot.junkware-schedule-detector.plist"), "utf8");
 const deploy = fs.readFileSync(path.join(root, "deploy/macmini/deploy-release.sh"), "utf8");
+const releaseServices = fs.readFileSync(path.join(root, "deploy/macmini/release-services.sh"), "utf8");
 const installer = fs.readFileSync(path.join(root, "deploy/macmini/install-junkware-schedule-detector.sh"), "utf8");
 const health = fs.readFileSync(path.join(root, "app/api/health/route.ts"), "utf8");
 const sync = fs.readFileSync(path.join(root, "components/CurrentDataSync.tsx"), "utf8");
@@ -25,7 +26,9 @@ expect(stream.includes('f"market-{market_id}"'), "Each verified market must publ
 expect(plist.includes("<key>KeepAlive</key>"), "LaunchAgent must keep the detector alive");
 expect(!plist.includes("<key>StartInterval</key>"), "Persistent detector must not use a one-minute launch interval");
 expect(deploy.includes('restart_release_bound_services "$release"'), "Production deploy must restart release-bound services after activation");
-expect(deploy.includes('"$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1'), "Production deploy must reinstall and restart the detector from the active release");
+expect(deploy.includes('source "$SCRIPT_DIR/release-services.sh"'), "Production deploy must load the release-bound service lifecycle");
+expect(releaseServices.includes('restart_release_bound_collectors "$release"'), "Service restart must include release-bound collectors");
+expect(releaseServices.includes('"$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1'), "Production deploy must reinstall and restart the detector from the active release");
 expect(installer.includes("for attempt in {1..5}"), "Detector install must retry launchd's transient bootstrap race");
 expect(installer.includes('launchctl kickstart -k "gui/$(id -u)/$LABEL"'), "Detector install must explicitly start the freshly registered LaunchAgent");
 expect(installer.includes("INSTALL_STARTED_EPOCH"), "Detector install must wait for a heartbeat from the new process");

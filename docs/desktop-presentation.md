@@ -149,3 +149,12 @@ for actions and selected filters, semantic status colors for evidence, and
 content-sized financial cards so comparison chips cannot hide their labels.
 Release notices wait until the current record review or edit closes. Failed
 refreshes offer Retry and distinguish retained data from an initial load failure.
+
+## CI token consistency — October 23, 2026
+
+Newer Customer, Fleet, Campaign, Huddle, Settings and appointment styles use the
+shared color and type tokens. Component-specific colors retain their existing
+values in `design-tokens.css`; the Huddle spotlight headings use the existing
+36px type anchor instead of off-scale 38px/34px sizes. Command mobile metric
+and revenue labels keep their fluid sizes with tokenized clamp endpoints. The
+token check explicitly covers both clamps and rejects raw or undefined sizes.

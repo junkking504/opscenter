@@ -16,9 +16,15 @@ async function main() {
   } finally {Date.now=actualNow;}
   let resolveLate:(value:unknown)=>void=()=>{},reads=0;
   const started=Date.now();
-  const partial=await osmTravelMatrix(origins,[destination],async()=>{
-    reads++;return reads===1 ? table : new Promise(resolve=>{resolveLate=resolve;});
-  },30);
+  // A timer may fire before the wall-clock deadline (or the clock may move
+  // backwards). Once it fires, no later batch or fallback may start.
+  Date.now=()=>started;
+  let partial;
+  try {
+    partial=await osmTravelMatrix(origins,[destination],async()=>{
+      reads++;return reads===1 ? table : new Promise(resolve=>{resolveLate=resolve;});
+    },30);
+  } finally {Date.now=actualNow;}
   assert.equal(reads,2);assert.equal(partial?.length,5,'Preserve completed batches when another stalls');
   assert.ok(Date.now()-started<1000,'Queue/provider stall has a bounded total wait');
   resolveLate(table);await new Promise(resolve=>setImmediate(resolve));

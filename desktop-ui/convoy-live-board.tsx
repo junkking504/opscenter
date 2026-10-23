@@ -38,7 +38,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
   const outIds = new Set(trucks.filter(t => snapshot.issues.some(i => i.status !== 'resolved' && i.severity === 'out_of_service' && sameTruck(i.truck, t.id))).map(t => t.id));
   const counts = liveCounts(trucks, outIds);
   const totals = fleetDayTotals(trucks);
-  const isToday = date === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(Date.now());
+  const isToday = date === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(now);
   const attention = [...attentionItems(snapshot, trucks, isToday), ...dueItems.filter(d => d.status === 'due').map(d => ({ key: `due:${d.key}`, kind: 'service' as const, truckId: d.truckId, truck: d.truck, title: `${d.serviceType} due`, detail: dueDetail(d) }))];
   const jobs = new Map(trucks.map(t => [t.id, appointments ? truckJobs(appointments, t.id, isToday, now) : null]));
   const stops = appointments ? [...jobs.values()].reduce((a, j) => ({ total: a.total + (j?.total || 0), done: a.done + (j?.done || 0) }), { total: 0, done: 0 }) : null;

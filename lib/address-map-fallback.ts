@@ -12,7 +12,7 @@ import {geocodioAddressQuery} from './geocodio-service-address';
 import {approximateMapAddressQuery} from './address-map-query';
 import {gpsDistanceMeters} from './gps-presence-policy';
 
-/** Approximate map/route evidence only; never a verified geocode or GPS visit pin. */
+/** Map evidence retains its confidence label when used for navigation or GPS matching. */
 export type AddressMapFallback = {
   location: {latitude:number;longitude:number};
   matchedAddress:string;
@@ -20,7 +20,7 @@ export type AddressMapFallback = {
   sourceUrl:string;
   detail:string;
   stale:boolean;
-  /** All approximate evidence is ineligible for arrival/departure detection. */
+  /** Legacy stored metadata; operational eligibility is decided from coordinates. */
   visitEligible?:false;
   navigationReviewed?:true;
 };
@@ -134,7 +134,7 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
     visitEligible:false,
-    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${compactHighwayMatch(address,row) ? ' Source house suffix interpreted as a highway direction; property address remains unverified. Not used for arrival or departure detection.' : ''}${mapUnit(address) ? ' Unit entrance not located.' : ''}${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence. Not used for arrival or departure detection.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
+    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${compactHighwayMatch(address,row) ? ' Source house suffix interpreted as a highway direction; property address remains unverified.' : ''}${mapUnit(address) ? ' Unit entrance not located.' : ''}${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
 function cacheUsable(value:any,now:number) {return value&&Number.isFinite(value.expires)&&value.expires>now-7*86400_000;}

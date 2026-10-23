@@ -47,6 +47,9 @@ try {
   failDelete=true;
   assert.equal((await run()).failures.length,1,'Deletion failure is surfaced');
   assert.equal(Object.keys(JSON.parse(fs.readFileSync(stateFile,'utf8')).notificationMessages).length,1,'Failed retraction retains its receipt for retry');
+  const retractionState=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+  assert.equal(Object.keys(retractionState.pendingGeofenceRetractions).length,1,'Retraction proof survives runner restarts and source expiry');
+  write(day,[]); // Source retention cannot strand an already-proven retraction.
   failDelete=false;await run();
   assert.equal(requests.at(-1)!.method,'chat.delete');assert.equal(requests.at(-1)!.ts,entryTs,'Delete only the owned message');
   const afterDelete=requests.length;await run();assert.equal(requests.length,afterDelete,'Successful deletion is not repeated');

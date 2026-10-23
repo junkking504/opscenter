@@ -101,6 +101,7 @@ type SlackAlertState = {
   deliveredGeofenceNotificationsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
+  pendingGeofenceRetractions: Record<string, string[]>;
   notificationMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   closeoutMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   paymentNotificationsInitializedAt: string;
@@ -186,6 +187,7 @@ function emptyState(): SlackAlertState {
     deliveredGeofenceNotificationsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
+    pendingGeofenceRetractions: {},
     notificationMessages: {},
     closeoutMessages: {},
     paymentNotificationsInitializedAt: "",
@@ -260,6 +262,7 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
           ? payload.deliveredTruckCloseoutsByDate
           : {},
+      pendingGeofenceRetractions: payload?.pendingGeofenceRetractions && typeof payload.pendingGeofenceRetractions === "object" ? payload.pendingGeofenceRetractions : {},
       notificationMessages: payload?.notificationMessages && typeof payload.notificationMessages === "object" ? payload.notificationMessages : {},
       closeoutMessages: payload?.closeoutMessages && typeof payload.closeoutMessages === "object" ? payload.closeoutMessages : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
@@ -1415,7 +1418,7 @@ async function syncNotificationMessages(state: SlackAlertState, alerts: SlackOps
     if (!saved) result.posted.push(alert);
   }
   const dates = [...new Set(Object.keys(state.notificationMessages).map(key=>key.split(":")[1]))].sort().slice(-10);
-  state.notificationMessages = Object.fromEntries(Object.entries(state.notificationMessages).filter(([key])=>dates.includes(key.split(":")[1])));
+  state.notificationMessages = Object.fromEntries(Object.entries(state.notificationMessages).filter(([key])=>dates.includes(key.split(":")[1]) || !!state.pendingGeofenceRetractions[key]));
 }
 
 export function summarizeCrewClockIns(date: string, alerts: SlackOpsAlert[]): SlackOpsAlert[] {
@@ -1632,7 +1635,7 @@ async function runGeofenceSlackAlerts(options: {
   const pending = initialized ? selected.filter((alert) => !delivered.has(alert.fingerprint)) : [];
   const result = slackAlertRunResult(date, dryRun, enabled, initialized ? pending : selected);
 
-  if (dryRun || !enabled || !source.available) return result;
+  if (dryRun || !enabled || (!source.available && !Object.keys(state.pendingGeofenceRetractions).length)) return result;
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
   if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
 
@@ -1646,25 +1649,28 @@ async function runGeofenceSlackAlerts(options: {
     return result;
   }
 
-  // Delete only bot-owned messages with a durable delivery receipt and explicit
-  // closed, unqualified evidence. Missing/stale data alone never means drive-by.
+  // Persist explicit retraction evidence so source retention or midnight cannot
+  // strand a failed deletion. Never infer a drive-by from missing data.
+  const qualifiedIds = new Set(source.episodes.filter(qualifiedGeofenceVisit).flatMap(visit=>[visit.id,...visit.entryIds]));
   const rejected = source.episodes.filter(visit=>!!visit.departedAt && !qualifiedGeofenceVisit(visit));
-  const rejectedIds = new Set(rejected.flatMap(visit=>[visit.id,...visit.entryIds]));
-  for (const [fingerprint, receipt] of Object.entries(state.notificationMessages)) {
-    const [kind,,id] = fingerprint.split(':');
-    if (!['geofence_entry','geofence_exit'].includes(kind) || !kinds.has(kind as SlackAlertKind) || !rejectedIds.has(id)) continue;
+  for (const fingerprint of Object.keys(state.notificationMessages)) {
+    const [kind,entryDate,id] = fingerprint.split(':');
+    if (!['geofence_entry','geofence_exit'].includes(kind)) continue;
+    if (qualifiedIds.has(id)) { delete state.pendingGeofenceRetractions[fingerprint]; continue; }
+    const episode = rejected.find(visit=>visit.id===id || visit.entryIds.includes(id));
+    if (episode) state.pendingGeofenceRetractions[fingerprint] = [...new Set([episode.id,...episode.entryIds])]
+      .flatMap(alias=>[`geofence_entry:${entryDate}:${alias}`,`geofence_entry:${date}:${alias}`]);
+  }
+  for (const [fingerprint, aliases] of Object.entries(state.pendingGeofenceRetractions)) {
+    if (!kinds.has(fingerprint.split(':')[0] as SlackAlertKind)) continue;
+    const receipt = state.notificationMessages[fingerprint];
+    if (!receipt) continue; // Never guess a message identity.
     const response = await postSlackMessage(token, receipt.channelId, '', undefined, receipt.ts, true);
     if (response.ok || response.error === 'message_not_found') {
       delete state.notificationMessages[fingerprint];
-      // Keep all known identities so partial replay or a late native alias
-      // cannot repost the same discarded crossing. These are suppression keys,
-      // never message IDs used for deletion.
+      delete state.pendingGeofenceRetractions[fingerprint];
       delivered.add(fingerprint);
-      const episode = rejected.find(visit=>visit.id===id || visit.entryIds.includes(id));
-      if (episode) for (const alias of new Set([episode.id,...episode.entryIds])) {
-        delivered.add(`geofence_entry:${fingerprint.split(':')[1]}:${alias}`);
-        delivered.add(`geofence_entry:${date}:${alias}`);
-      }
+      for (const alias of aliases) delivered.add(alias);
     } else result.failures.push({fingerprint,error:response.error || 'Geofence retraction failed'});
   }
   await syncNotificationMessages(state, selected, delivered, token, result);

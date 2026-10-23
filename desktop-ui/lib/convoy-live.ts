@@ -19,6 +19,9 @@ export function liveGroup(truck: DesktopFleetTruck, outOfService: boolean): Live
   return 'offline';
 }
 
+/** True when the truck's own GPS status says it is reporting. Independent of the out-of-service bucket. */
+export const gpsReporting = (truck: Pick<DesktopFleetTruck, 'operatingStatus'>) => !['GPS Stale', 'Offline', 'GPS unavailable', 'Historical GPS'].includes(truck.operatingStatus);
+
 const finite = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 
 export function fleetDayTotals(trucks: DesktopFleetTruck[]) {
@@ -84,19 +87,20 @@ export function truckJobs(appointments: ScheduleAppointment[], truck: string, is
   return { total: mine.length, done: mine.filter(a => isClosed(a)).length, stop, isToday };
 }
 
-/** One honest line for a card. Presence claims need a GPS-reporting truck; unknown states are never shown as "Next". Past days show none. */
-export function stopLine(jobs: TruckJobs, gpsReporting: boolean): string | null {
+/** One honest line per card. Presence claims need a GPS-reporting truck and a fresh schedule; unknown states are never shown as "Next". Past days show none. */
+export function stopLine(jobs: TruckJobs, current: { gps: boolean; scheduleFresh: boolean }): string | null {
   if (!jobs.isToday) return null;
   const { stop } = jobs;
-  if (!stop) return 'No open stops';
+  if (!stop) return current.scheduleFresh ? 'No open stops' : 'Stops not confirmed · schedule not refreshed';
   const at = stop.label ? ` · ${stop.label}` : '';
+  const suffix = current.scheduleFresh ? '' : ' · schedule not refreshed';
   switch (stop.kind) {
-    case 'on_site': return gpsReporting ? `On site${at}` : `Last reported on site${at} · GPS not reporting`;
-    case 'at_job': return gpsReporting ? `At job${at}` : `Last reported at job${at} · GPS not reporting`;
-    case 'last_seen': return `Last seen at${at.replace(' ·', '')}`;
-    case 'ambiguous': return 'Check current stop in Command';
-    case 'unverified': return `Assignment unverified${at}`;
-    case 'untimed': return `Next, time not set${at}`;
-    default: return `Next${at}`;
+    case 'on_site': return (current.gps && current.scheduleFresh ? `On site${at}` : `Last reported on site${at}${current.gps ? '' : ' · GPS not reporting'}`) + suffix;
+    case 'at_job': return (current.gps && current.scheduleFresh ? `At job${at}` : `Last reported at job${at}${current.gps ? '' : ' · GPS not reporting'}`) + suffix;
+    case 'last_seen': return `Last seen at${at.replace(' ·', '')}${suffix}`;
+    case 'ambiguous': return 'Check current stop in Command' + suffix;
+    case 'unverified': return `Assignment unverified${at}${suffix}`;
+    case 'untimed': return `Next, time not set${at}${suffix}`;
+    default: return `Next${at}${suffix}`;
   }
 }

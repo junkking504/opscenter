@@ -1095,7 +1095,7 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
       return interval?.departure_confirmed !== false
         && Number.isFinite(Date.parse(arrival))
         && Number.isFinite(Date.parse(departure))
-        && (Date.parse(departure) > Date.parse(arrival) || row.visit_pin?.approximate && interval.departure_confirmed === true && Date.parse(departure) === Date.parse(arrival))
+        && (Date.parse(departure) > Date.parse(arrival) || interval.departure_confirmed === true && Date.parse(departure) === Date.parse(arrival))
         && Date.parse(departure) <= Date.now()
         ? [{ occurredAt: departure, visitStartedAt: arrival }]
         : [];
@@ -1105,7 +1105,7 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
       if (!Number.isFinite(Date.parse(event.occurredAt))) continue;
       const prefix = [kind, date, truckArrivalKeyPart(appointmentId), truckArrivalKeyPart(truck)].join(":") + ":";
       let fingerprint = prefix + event.visitStartedAt;
-      if (kind === "truck_departure" && row.visit_pin?.approximate && !deliveredFingerprints.includes(fingerprint)) {
+      if (kind === "truck_departure" && !deliveredFingerprints.includes(fingerprint)) {
         // Source reconciliation can restore an earlier arrival after a departure
         // was already delivered. Reuse that receipt only when its prior start
         // is actual GPS evidence inside this same appointment/truck interval.

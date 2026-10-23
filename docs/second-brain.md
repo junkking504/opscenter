@@ -137,6 +137,11 @@ Back up the complete store before a large update and retain its import report.
 
 ### Capture new lessons as part of task completion
 
+The [review and learning workflow](review-and-learning.md) connects a task's
+requirement, source revision, review and acceptance to a draft history manifest.
+Its local helper never imports automatically or marks a note verified. Use the
+normal dry run/import flow below the same manager-edit and privacy boundaries.
+
 Before changing OpsCenter, search OpsWiki and canonical docs for the relevant
 symptom and earlier fixes. After a meaningful decision, recurring failure, or
 completed fix, add/update a private source-backed record using this workflow.

@@ -24,6 +24,11 @@ build in a release is not an editable checkout.
 
 ## Normal application workflow
 
+Use [Review and learning](review-and-learning.md) to preserve the original
+requirement, relevant lessons, exact-source review and acceptance evidence.
+Keep the private packet outside Git. Separate review is required for consequential
+changes; tests and deployment checks remain independently necessary.
+
 1. Identify the currently intended source/deployed commit.
 2. Create or use an isolated branch/worktree.
 3. Make source and documentation changes together.

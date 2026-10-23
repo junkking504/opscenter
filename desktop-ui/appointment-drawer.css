@@ -77,7 +77,7 @@
 @media (max-width: 760px) {
   .ops-live .job-record-drawer :is(.record-drawer-header, .record-drawer-body, .record-drawer-actions) { padding: 16px; }
   .ops-live .job-record-drawer [data-slot="button"] { min-height: 44px; }
-  .ops-live .job-record-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) { min-height: 44px; font-size: 16px; }
+  .ops-live .job-record-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) { min-height: 44px; font-size: var(--oc-type-16); }
   .ops-live .job-record-drawer select { height: 44px; }
 }
 @media (max-width: 480px) {

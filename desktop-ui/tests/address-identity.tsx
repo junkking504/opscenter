@@ -34,7 +34,7 @@ function App(){
       <button onClick={()=>setSelected('lot')}>Lot/unit case</button><button onClick={()=>setSelected('city')}>Duplicate-city case</button>
       <button onClick={()=>setMode('partial')}>Partial road results</button><button onClick={()=>setMode('failed')}>Failed road lookup</button>
     </nav>
-    <ScheduleAppointmentSummary job={jobs[selected]} closest={data?.closest[0]||null} loading={route.loading} error={route.error} checkedAt={data?.calculatedAt} retry={route.retry} isToday busy={false} open={()=>{}} clear={()=>{}} coverageNote={mode==='partial'?'Some truck GPS or road estimates are unavailable; comparison is incomplete.':undefined}/>
+    <ScheduleAppointmentSummary job={jobs[selected]} closest={data?.closest[0]||null} loading={route.loading} error={route.error} retry={route.retry} isToday busy={false} open={()=>{}} clear={()=>{}}/>
   </main>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

@@ -22,7 +22,7 @@ function validate(file:string,css:string){
   for(const hex of d.value.match(/#[\da-f]{3,8}\b/gi)||[])assert.ok(file===tokenFile||rawHexAllowlist[file]?.[hex],`${file}: raw color ${hex}`);
   for(const [,name] of d.value.matchAll(/var\((--oc-[\w-]+)/g))assert.ok(definitions.has(name),`${file}: undefined ${name}`);
   if(d.prop==='font-size' && d.value==='var(--oc-compact-label)')assert.ok(file===phaseTwoFile&&phaseTwoRecords.some(record=>record.compactExceptions.some((exception:{selector:string})=>(d.parent as postcss.Rule).selector===`.ops-live[data-css-phase-two="${record.workspace}"] ${exception.selector}`)),'Compact exception must name its exact reviewed selector');
-  if(d.prop==='font-size' && d.value!=='var(--oc-compact-label)')assert.ok(/^(var\(--oc-(?:type-\d+|page-title)\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
+  if(d.prop==='font-size' && d.value!=='var(--oc-compact-label)')assert.ok(/^(var\(--oc-(?:type-\d+|page-title)\)|var\(--map-locator-font, var\(--oc-type-10\)\)|clamp\(var\(--oc-type-20\), 2\.5vw, var\(--oc-type-30\)\)|clamp\(var\(--oc-type-30\), 2\.6vw, var\(--oc-type-42\)\)|clamp\(var\(--oc-type-18\), 5\.5vw, var\(--oc-type-24\)\)|clamp\(var\(--oc-type-24\), 7vw, var\(--oc-type-30\)\)|inherit|\.92em|0)$/.test(d.value),`${file}: use type tokens for ${d.value}`);
   if(d.prop==='font')assert.ok(d.value==='inherit'||/^(?:(?:\d+|normal|bold|italic|oblique|small-caps)\s+)*var\(--oc-type-\d+\)(?:\s|\/)/.test(d.value),`${file}: shorthand size must use a token`);
   if(d.prop.startsWith('--oc-type-'))assert.ok((file===tokenFile&&scale.has(Number(d.prop.slice(10))))||(file===phaseTwoFile&&phaseTwoRecords.some(record=>d.value===`var(--oc-type-${record.typeMap[d.prop.slice(10)]})`)),`${file}: off-scale definition ${d.prop}`);
  });
@@ -33,6 +33,9 @@ assert.ok(important<=16,`Desktop font-size importance budget exceeded: ${importa
 assert.ok(fs.readFileSync('desktop-ui/app/globals.css','utf8').startsWith('@import "../design-tokens.css";'),'Tokens must load first in the desktop CSS entry.');
 assert.throws(()=>validate('new.css','.new{color:#abcdef}'),/raw color/);
 assert.throws(()=>validate('new.css','.new{font-size:8.5px}'),/type tokens/);
+validate('command.css','.metric{font-size:clamp(var(--oc-type-18), 5.5vw, var(--oc-type-24))}.hero{font-size:clamp(var(--oc-type-24), 7vw, var(--oc-type-30))}');
+assert.throws(()=>validate('new.css','.new{font-size:clamp(18px, 5.5vw, 24px)}'),/type tokens/);
+assert.throws(()=>validate('new.css','.new{font-size:clamp(var(--oc-type-99), 5.5vw, var(--oc-type-24))}'),/undefined/);
 assert.throws(()=>validate('new.css','.new{font-size:99rem}'),/type tokens/);
 assert.throws(()=>validate('new.css','.new{font-size:var(--oc-type-99)}'),/undefined/);
 assert.throws(()=>validate('new.css','.new{font:700 8.5px\/12px sans-serif}'),/shorthand/);

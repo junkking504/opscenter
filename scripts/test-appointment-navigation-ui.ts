@@ -21,9 +21,13 @@ assert.ok(html.includes('href="https://www.google.com/maps/search/?api=1&amp;que
 assert.ok(html.includes('View approximate address pin'));
 assert.ok(html.includes('Approximate address location'));
 const coverageNote='Some truck GPS or road estimates are unavailable; comparison is incomplete.';
-const partial=renderToStaticMarkup(React.createElement(Summary,{job,closest:{truck:'Truck 3',minutes:12,miles:5.1,status:'available',approximate:true},loading:false,isToday:true,busy:false,coverageNote,open(){},clear(){}}));
-assert.ok(partial.includes('Closest available route'));
-assert.ok(partial.includes(coverageNote),'Partial comparison must not imply every truck was checked');
+const partial=renderToStaticMarkup(React.createElement(Summary,{job,closest:{truck:'Truck 3',minutes:12,miles:5.1,status:'available',approximate:true},loading:false,isToday:true,busy:false,open(){},clear(){}}));
+assert.ok(partial.includes('Closest Truck'));
+assert.ok(partial.includes('Truck# 3 · Approx. 12 min · 5.1 mi'));
+assert.ok(!partial.includes(coverageNote));
+assert.ok(!partial.includes('Estimated travel'));
+assert.ok(!partial.includes('Checked'));
+assert.ok(!partial.includes('Truck GPS'));
 assert.ok(partial.includes('Approx. '));
 assert.ok(!partial.includes('Checking distance'));
 const failed=renderToStaticMarkup(React.createElement(Summary,{job,closest:null,loading:false,error:true,isToday:true,busy:false,open(){},clear(){}}));

@@ -42,7 +42,8 @@ try {
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.waitForFunction(() => window.closestReads.length === 2);
   assert.match(await summary.innerText(), /12 min · 7.5 mi/);
-  assert.match(await summary.innerText(), /Last estimate/);
+  assert.match(await summary.innerText(), /Updating…/);
+  assert.doesNotMatch(await summary.innerText(), /Last estimate|Checked|Truck GPS/);
   await page.evaluate(() => window.finishClosest(1, 'Truck 8', 503));
   await summary.getByText('Refresh failed. Showing the last estimate.').waitFor();
   assert.match((await page.locator('.register-status').allTextContents()).join(' '), /Refresh failed/);

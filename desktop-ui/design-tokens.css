@@ -663,3 +663,41 @@
   --oc-type-36: 36px;
   --oc-type-42: 42px;
 }
+
+/* Existing component colors promoted without changing their rendered values. */
+:root {
+  --oc-campaign-flag-ink: #8a4b08;
+  --oc-campaign-flag-border: #b97827;
+  --oc-campaign-flag-surface: #fff6df;
+  --oc-fleet-moving-accent: #2f7d4f;
+  --oc-fleet-idle-accent: #b7791f;
+  --oc-fleet-offline-accent: #8a8f98;
+  --oc-fleet-critical-accent: #c0392b;
+  --oc-fleet-moving-surface: #e3f3e9;
+  --oc-fleet-moving-ink: #1f5a38;
+  --oc-fleet-stale-border: #e3c98a;
+  --oc-fleet-idle-surface: #fbf0d9;
+  --oc-fleet-idle-ink: #7a4d0b;
+  --oc-fleet-critical-surface: #fbe4e1;
+  --oc-fleet-critical-ink: #8a2316;
+  --oc-customer-border: #dbe3ed;
+  --oc-customer-surface: #f8fafc;
+  --oc-customer-heading: #0f172a;
+  --oc-customer-history-link: #1d4ed8;
+  --oc-customer-ink: #243c4b;
+  --oc-customer-link: #165581;
+  --oc-customer-input-border: #cbd5e1;
+  --oc-customer-caption-surface: #eef6fb;
+  --oc-huddle-win-surface: #20384d;
+  --oc-huddle-highlight: #ffda75;
+  --oc-huddle-target-surface: #165a42;
+  --oc-huddle-ranking-surface: #152c40;
+  --oc-huddle-row-border: #e0e5ea;
+  --oc-huddle-heading-ink: #536476;
+  --oc-huddle-card-border: #516477;
+  --oc-huddle-card-surface: #102b42;
+  --oc-huddle-muted: #b8c9d9;
+  --oc-huddle-button-border: #6c8195;
+  --oc-schedule-control-border: #b7c8d4;
+  --oc-schedule-control-ink: #243b4c;
+}

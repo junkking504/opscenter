@@ -422,6 +422,28 @@ with tempfile.TemporaryDirectory() as tmp:
     assert relay.claude_result(paths, "approve-task", json.dumps({"is_error": False, "result": receipt_text}), actual) == "receipt"
     assert (approval_folder / "review.md").read_text().strip() == receipt_text.strip()
 
+    # A model cannot approve extra commits, a prefix, another reviewer family, or a failed process.
+    bad_receipts = [
+        receipt_text.replace("\n\n## Verdict", f"\nReviewer: Claude · Builder: Codex · Reviewed: other @ {'b' * 40}\n\n## Verdict"),
+        receipt_text.replace(actual, actual[:7]),
+        receipt_text.replace("Reviewer: Claude · Builder: Codex", "Reviewer: Codex · Builder: Claude"),
+    ]
+    prior = (approval_folder / "review.md").read_text()
+    for bad in bad_receipts:
+        try:
+            relay.claude_result(paths, "approve-task", json.dumps({"is_error": False, "result": bad}), actual)
+            raise AssertionError("invalid receipt accepted")
+        except RuntimeError:
+            pass
+        assert (approval_folder / "review.md").read_text() == prior
+    try:
+        relay.claude_result(paths, "approve-task", json.dumps({"is_error": False, "result": receipt_text}), actual, 1)
+        raise AssertionError("failed process published a receipt")
+    except RuntimeError:
+        pass
+    assert relay.claude_result(paths, "approve-task", "", actual, 1, "You've hit your limit") == "quota"
+    paths.claude_pause.unlink()
+
     # Kill switch: without the switch file, nothing new starts.
     (root / "vault" / "Tasks" / ".relay-on").unlink()
     (evidence / "runs.json").write_text("{}")

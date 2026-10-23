@@ -96,7 +96,7 @@ const later={...origin,id:'real-return',enteredAt:'2026-10-02T16:00:00Z',departe
 assert.equal(mergeScheduleOperationalStops(overnight,[origin,later]).length,2,'A genuine later HQ return stays separate');
 console.log('Overnight HQ and trip origin consolidate without hiding a later return.');
 
-const hq={latitude:29.9863006,longitude:-90.0586452},other={latitude:29.95,longitude:-90.1};
+const hq={latitude:29.9863006,longitude:-90.0586452,address:'HQ'},other={latitude:29.95,longitude:-90.1,address:'Elsewhere'};
 const baseRoute={date:'2026-10-01',truck:'Truck 9',status:'available' as const,observedAt:'2026-10-01T17:00:00Z',coveredThrough:'2026-10-01T17:00:00Z',paths:[],gapLinks:[],gaps:0,rejected:0};
 const returning={id:'back',number:1,departure:'2026-10-01T14:00:00Z',arrival:'2026-10-01T15:00:00Z',from:other,to:hq};
 assert.equal(scheduleGpsHqStops(baseRoute.date,[{...baseRoute,trips:[returning],points:[{...hq,timestamp:'2026-10-01T15:00:00Z'}]}]).length,0,'Route coverage cannot manufacture five minutes onsite');

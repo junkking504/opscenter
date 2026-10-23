@@ -12,7 +12,7 @@
 .estimate-booking-reason { display: grid; gap: 6px; }
 .estimate-booking-reason input { width: 100%; border: 1px solid var(--oc-border-neutral-05); border-radius: 6px; background: var(--oc-surface-raised); }
 @media (max-width: 760px) {
-  .estimate-booking .estimate-booking-body .appointment-create-grid :is(input,select,textarea) { min-height: 44px; font-size: 16px; }
+  .estimate-booking .estimate-booking-body .appointment-create-grid :is(input,select,textarea) { min-height: 44px; font-size: var(--oc-type-16); }
   .estimate-booking .appointment-create-grid select { height: 44px; }
   .estimate-booking-body > button { min-height: 44px; width: 100%; }
 }

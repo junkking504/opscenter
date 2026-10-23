@@ -13,7 +13,7 @@ assert.equal(operationalCategoryLabel("Crew"), "Krewe");
 assert.equal(operationalCategoryLabel("Fleet"), "Fleet");
 
 const loginPageSource = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "utf8");
-assert.ok(loginPageSource.includes("<h1>Enter OpsCenter</h1>"), "Login must use the sign-in action as its page heading.");
+assert.ok(loginPageSource.includes('<h1>{waypoint ? "Waypoint manager sign-in" : "Enter OpsCenter"}</h1>'), "Login must use the sign-in action as its page heading.");
 for (const retiredLoginCopy of [
   "Run the Day",
   "Know the Numbers",

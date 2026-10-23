@@ -4,7 +4,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import type {Pool} from 'pg';
 import type {CrewPhone} from './crew-phone';
 import {CrewPhoneError} from './crew-phone';
-import {activeCrewPhoneById} from './crew-phone-store';
+import {activeCrewPhoneById,isCrewPhoneRevoked} from './crew-phone-store';
 import {requireCrewDay} from './crew-phone-day';
 import {getKernelPool} from './platform/persistence/pool';
 import {pushSubscription} from './web-push-policy';
@@ -67,12 +67,35 @@ export async function manageWaypointPush(phone:CrewPhone,input:Record<string,unk
   if(typeof input.deviceId!=='string' || !uuid.test(input.deviceId))throw new CrewPhoneError('Invalid notification device.');
   await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND owner_id=$2',[input.deviceId,owner]);return {enabled:false};
  }
- if(input.action!=='subscribe' || !auth.ready() || !auth.active(phone.deviceId))throw new CrewPhoneError('Notifications are not available for this phone yet.',503);
+ if(!['subscribe','restore'].includes(String(input.action)) || !auth.ready() || !auth.active(phone.deviceId))throw new CrewPhoneError('Notifications are not available for this phone yet.',503);
+ // Restore can only move an existing opt-in; it must never undo an explicit disable.
+ if(input.action==='restore') {
+  if(typeof input.deviceId!=='string' || !uuid.test(input.deviceId))throw new CrewPhoneError('Invalid notification device.');
+  const client=await pool.connect();try{await client.query('BEGIN');
+   await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`waypoint-phone:${phone.deviceId}`]);
+   const saved=(await client.query('SELECT enabled,phone_id,subscription_json FROM opscenter_kernel.waypoint_push_devices WHERE id=$1 AND owner_id=$2 FOR UPDATE',[input.deviceId,owner])).rows[0];
+   if(saved?.enabled && isCrewPhoneRevoked(saved.phone_id)){
+    await client.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1',[input.deviceId]);
+    await client.query('COMMIT');return {enabled:false};
+   }
+   if(!saved?.enabled || saved.subscription_json.endpoint!==input.endpoint || saved.subscription_json.expirationTime && saved.subscription_json.expirationTime<=Date.now()){
+    await client.query('COMMIT');return {enabled:false};
+   }
+   if(saved.phone_id!==phone.deviceId){
+    if(Number((await client.query('SELECT count(*) FROM opscenter_kernel.waypoint_push_devices WHERE phone_id=$1 AND enabled=true',[phone.deviceId])).rows[0].count)>=10)throw new CrewPhoneError('This phone has too many notification connections. Contact the office.',409);
+    await client.query('UPDATE opscenter_kernel.waypoint_push_devices SET phone_id=$2,updated_at=now() WHERE id=$1',[input.deviceId,phone.deviceId]);
+    await client.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='skipped' WHERE device_id=$1 AND status='pending'",[input.deviceId]);
+    await client.query('DELETE FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1',[input.deviceId]);
+    await client.query("SELECT pg_notify('waypoint_push','changed')");
+   }
+   await client.query('COMMIT');return {deviceId:input.deviceId,enabled:true};
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+ }
  const subscription=pushSubscription(input.subscription),hash=createHash('sha256').update(subscription.endpoint).digest('hex');
  const client=await pool.connect();try{await client.query('BEGIN');
  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`waypoint-phone:${phone.deviceId}`]);
  const existing=(await client.query('SELECT id,enabled,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE endpoint_hash=$1',[hash])).rows[0];
- if((!existing?.enabled || existing.phone_id!==phone.deviceId) && Number((await client.query('SELECT count(*) FROM opscenter_kernel.waypoint_push_devices WHERE phone_id=$1 AND enabled=true',[phone.deviceId])).rows[0].count)>=10)throw new CrewPhoneError('This phone has too many notification subscriptions. Disable an old one first.',409);
+ if((!existing?.enabled || existing.phone_id!==phone.deviceId) && Number((await client.query('SELECT count(*) FROM opscenter_kernel.waypoint_push_devices WHERE phone_id=$1 AND enabled=true',[phone.deviceId])).rows[0].count)>=10)throw new CrewPhoneError('This phone has too many notification connections. Contact the office.',409);
  const saved=await client.query(`INSERT INTO opscenter_kernel.waypoint_push_devices(id,owner_id,phone_id,endpoint_hash,subscription_json) VALUES($1,$2,$3,$4,$5::jsonb)
  ON CONFLICT(endpoint_hash) DO UPDATE SET phone_id=EXCLUDED.phone_id,subscription_json=EXCLUDED.subscription_json,enabled=true,updated_at=now() WHERE waypoint_push_devices.owner_id=EXCLUDED.owner_id RETURNING id`,[randomUUID(),owner,phone.deviceId,hash,JSON.stringify(subscription)]);
  if(!saved.rows.length)throw new CrewPhoneError('This notification belongs to another phone.',409);
@@ -85,7 +108,12 @@ export async function manageWaypointPush(phone:CrewPhone,input:Record<string,unk
 export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={active:activeNotificationPhone,snapshot:crewAssignedDay,messages:waypointMessages}) {
  const devices=(await pool.query('SELECT id,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE enabled=true')).rows;
  for(const device of devices){
-  const phone=sources.active(device.phone_id);if(!phone){await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2',[device.id,device.phone_id]);continue;}
+  // Daily authentication expires independently of the browser's notification opt-in.
+  // Delivery rechecks active access; keep consent so the next daily setup can restore it.
+  const phone=sources.active(device.phone_id);if(!phone){
+   if(isCrewPhoneRevoked(device.phone_id))await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2',[device.id,device.phone_id]);
+   continue;
+  }
   let snapshot;try{snapshot=sources.snapshot(phone,chicagoDateKey());}catch{snapshot={state:'unavailable' as const,jobs:[]};}
   const messages=await sources.messages(phone.truck,pool),scope=`${chicagoDateKey()}:${phone.truck}`,revisions=[{kind:'messages',revision:waypointRevision([],messages)},...(snapshot.state==='unavailable'?[]:[{kind:'schedule',revision:waypointRevision(snapshot.jobs || [],[])}])];
   for(const {kind,revision} of revisions){

@@ -47,6 +47,10 @@ function validBinding(binding: Binding): boolean {
     && validPhone(binding.phone));
 }
 function revoked(id: string) { return fs.existsSync(path.join(directory('revoked'), `${id}.json`)); }
+/** Persistent revocation is distinct from ordinary daily-session expiry. */
+export function isCrewPhoneRevoked(deviceId:string):boolean {
+ return !uuid.test(deviceId) || fs.existsSync(path.join(root(),'revoked',`${deviceId}.json`));
+}
 function liveAccess(id: string) {
   const saved = read<LiveAccess>(path.join(directory('live'), `${id}.json`));
   if (!saved) return false;

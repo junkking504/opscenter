@@ -288,3 +288,30 @@ new steps; use `stop` to end an already running step.
 A task is complete only after its approved commit is released, service health is
 checked, and an authenticated browser check verifies the affected behavior.
 The relay ends at review readiness; it does not grant deployment authority.
+
+### Example: a documentation task from claim to close
+
+Consider fictional task `docs-index-example-20261023`, which adds one missing
+link to `docs/Home.md`. Its packet lives in `vault/Tasks/docs-index-example-20261023/`;
+release evidence belongs in `task-evidence/docs-index-example-20261023/verification.md`.
+The files use the brief, handoff and review receipt formats above; the states
+below describe progress, not extra status fields to add to those receipts.
+
+| Stage | Expected files and state |
+| --- | --- |
+| Claim | The planner writes `brief.md` with the goal, scope, checks, chosen base and no open questions, then adds `Auto: codex-build` under the planner line. The relay assigns one Codex builder in `worktrees/docs-index-example-20261023` on `codex/docs-index-example-20261023`; `relay.md` shows `State: Codex building`. |
+| Build | Codex adds the link, runs `git diff --check`, commits and pushes that branch, then writes `handoff.md` with `Builder: Codex · Branch: codex/docs-index-example-20261023 @ <full SHA> · Base: origin/production @ <base SHA>`, the change and check results. `review.md` is still absent; `verification.md` has no release evidence yet. |
+| Review | The relay starts Claude and updates `relay.md` to `State: Claude reviewing`. Claude's `review.md` opening block names `Reviewer: Claude · Builder: Codex · Reviewed: codex/docs-index-example-20261023 @ <full SHA>`, followed by `## Verdict` and `## Findings`. A review is acknowledged only when it names the current committed handoff head; a successful process exit or an older receipt is insufficient. |
+| Correct | If the verdict is `changes requested` with a blocking broken-link finding, the relay starts Codex fixing. Codex corrects the link, reruns the check, commits, pushes and appends the new head and evidence to `handoff.md`. Claude reviews that new head and supplies a matching receipt or addendum; the old approval cannot cover it. |
+| Ready | With `approve` for the current head and no open blocking findings, `relay.md` shows `State: ready for T'Jean`. The relay stops at review readiness; it never merges, deploys or sends messages. |
+| Close | After separately authorized integration and release, the release owner records the released commit, service-health result and authenticated browser result in `verification.md`. Only then is the task complete and eligible for the documented retention workflow. A build-only handoff remains ready for review/release, not shipped. |
+
+With `Auto: review`, the builder is assigned outside the relay; that mode only
+launches a reviewer after `handoff.md` names the committed head. For a manual
+takeover of either mode, first read `relay.md`, stop the owned step with the
+relay's `stop` command and verify its processes have ended before editing.
+
+If Claude hits its subscription quota, review pauses until reset (or the bounded
+probe described above). Codex builds and tests can continue on other opted-in
+tasks. Claude paid extra usage and API fallback stay off; a Codex self-check does
+not replace Claude's review.

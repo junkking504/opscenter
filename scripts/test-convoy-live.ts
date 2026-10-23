@@ -11,11 +11,12 @@ const jobs = [
 const now = Date.now();
 const today = truckJobs(jobs, 'Truck# 2', true, now);
 assert.equal(today.total, 2); assert.equal(today.done, 1);
-assert.equal(stopLine(today, true), 'Next · 1:30 PM Smith');
-assert.equal(stopLine(truckJobs(jobs, 'Truck# 2', false, now), true), null, 'past days show no next stop');
-assert.equal(stopLine({ total: 1, done: 1, stop: null, isToday: true }, true), 'No open stops');
+const ok = { gps: true, scheduleFresh: true };
+assert.equal(stopLine(today, ok), 'Next · 1:30 PM Smith');
+assert.equal(stopLine(truckJobs(jobs, 'Truck# 2', false, now), ok), null, 'past days show no next stop');
+assert.equal(stopLine({ total: 1, done: 1, stop: null, isToday: true }, ok), 'No open stops');
 
-const line = (kind: any, gps = true) => stopLine({ total: 1, done: 0, stop: { kind, label: '1:30 PM Smith' }, isToday: true }, gps);
+const line = (kind: any, gps = true, scheduleFresh = true) => stopLine({ total: 1, done: 0, stop: { kind, label: '1:30 PM Smith' }, isToday: true }, { gps, scheduleFresh });
 assert.equal(line('on_site', true), 'On site · 1:30 PM Smith');
 assert.match(line('on_site', false)!, /GPS not reporting/);
 assert.doesNotMatch(line('on_site', false)!, /^On site/);
@@ -38,7 +39,18 @@ import { gpsReporting, liveGroup } from '../desktop-ui/lib/convoy-live';
 const oos: any = { operatingStatus: 'Offline', readiness: 'Out of service' };
 assert.equal(liveGroup(oos, true), 'out');
 assert.equal(gpsReporting(oos), false);
-assert.match(stopLine({ total: 1, done: 0, stop: { kind: 'on_site', label: '1:30 PM Smith' }, isToday: true }, gpsReporting(oos))!, /GPS not reporting/);
+assert.match(line('on_site', gpsReporting(oos))!, /GPS not reporting/);
+assert.match(line('at_job', gpsReporting(oos))!, /Last reported at job.*GPS not reporting/);
 assert.equal(gpsReporting({ operatingStatus: 'Driving' } as any), true);
 assert.equal(gpsReporting({ operatingStatus: 'Historical GPS' } as any), false);
 console.log('Convoy live board: out-of-service GPS gating passed.');
+
+// A failed schedule refresh must not leave a current-presence claim, even with fresh GPS.
+for (const kind of ['on_site', 'at_job']) {
+  const stale = line(kind, true, false)!;
+  assert.match(stale, /^Last reported/); assert.match(stale, /schedule not refreshed/); assert.doesNotMatch(stale, /^(On site|At job)/);
+}
+assert.equal(line('next', true, false), 'Next · 1:30 PM Smith · schedule not refreshed');
+assert.match(stopLine({ total: 0, done: 0, stop: null, isToday: true }, { gps: true, scheduleFresh: false })!, /not confirmed/);
+assert.equal(line('on_site', true, true), 'On site · 1:30 PM Smith');
+console.log('Convoy live board: stale-schedule presence passed.');

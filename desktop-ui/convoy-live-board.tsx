@@ -30,7 +30,15 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
     // Own cache key: an invalid reply here must never reach the Command map cache.
     const url = `/api/desktop/schedule?date=${date}&load=1`;
     let live = true, controller = new AbortController();
-    const load = () => { controller.abort(); controller = new AbortController(); fetchWorkspace<ScheduleSnapshot>(url, controller.signal, `convoy-jobs:${date}`).then(body => { if (!live) return; if (Array.isArray(body.appointments)) { setAppointments(body.appointments); setScheduleStale(false); } else setScheduleStale(true); }).catch(() => { if (live && !controller.signal.aborted) setScheduleStale(true); }); };
+    const load = () => {
+      controller.abort();
+      const own = controller = new AbortController();
+      // A superseded or aborted load must never touch state, so a replaced request cannot raise the stale notice.
+      fetchWorkspace<ScheduleSnapshot>(url, own.signal, `convoy-jobs:${date}`).then(body => {
+        if (!live || own.signal.aborted) return;
+        if (Array.isArray(body.appointments)) { setAppointments(body.appointments); setScheduleStale(false); } else setScheduleStale(true);
+      }).catch(() => { if (live && !own.signal.aborted) setScheduleStale(true); });
+    };
     setAppointments(null); setScheduleStale(false); load();
     const timer = window.setInterval(load, 60_000);
     return () => { live = false; controller.abort(); window.clearInterval(timer); };
@@ -74,7 +82,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
             <Level label="Fuel" percent={t.fuel ? t.fuel.percent : null} />
             <Level label="Load" percent={t.loadNeedsVerification ? null : t.loadPercent} />
             {jobs.get(t.id)?.total ? <div className="clb-jobs"><div className="clb-level" role="img" aria-label={`${jobs.get(t.id)!.done} of ${jobs.get(t.id)!.total} stops done`}><span>Stops</span><i><b style={{ width: `${(100 * jobs.get(t.id)!.done) / jobs.get(t.id)!.total}%` }} /></i><em>{jobs.get(t.id)!.done}/{jobs.get(t.id)!.total}</em></div>
-              {stopLine(jobs.get(t.id)!, gpsReporting(t)) && <small>{stopLine(jobs.get(t.id)!, gpsReporting(t))}</small>}</div> : null}
+              {stopLine(jobs.get(t.id)!, { gps: gpsReporting(t), scheduleFresh: !scheduleStale }) && <small>{stopLine(jobs.get(t.id)!, { gps: gpsReporting(t), scheduleFresh: !scheduleStale })}</small>}</div> : null}
             <small className="clb-foot">{t.jobs == null ? 'Jobs —' : `${t.jobs} ${t.jobs === 1 ? 'job' : 'jobs'}`} · {t.miles == null ? '— mi' : `${Math.round(t.miles)} mi`} · {t.nextService || 'Service not set'}</small>
           </button>;
         })}</div>

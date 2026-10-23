@@ -74,10 +74,16 @@ with tempfile.TemporaryDirectory() as directory:
     assert run(samples)[0]['visit_count']==0, 'Source identity must agree'
     pins[address]={**pin,'location':{'latitude':float('nan'),'longitude':-90.}}
     assert run(samples)[0]['visit_count']==0, 'Invalid coordinate is not a visit'
-    pins[address]=pin
+    cutoff_address='124 Synthetic Rd Hammond, LA 70403'
+    jobs[0]['address']=cutoff_address
+    pins[cutoff_address]={**pin,'sourceAddress':cutoff_address}
     policy.configure_visit_pins(matcher,lambda addresses:pins,lambda:datetime(2026,9,8,15,4,tzinfo=timezone.utc))
     assert run(samples)[0]['visit_count']==0, 'Rollout cannot replay formerly ignored GPS'
     assert run([point(5)])[0]['visit_count']==1
+    pins[cutoff_address].update(approximate=False,sourceKind='verified_location')
+    assert run(samples)[0]['visit_count']==0, 'Later verification cannot erase the prospective cutoff and replay old arrivals'
+    assert run([point(5)])[0]['visit_count']==1
+    jobs[0]['address']=address
     assert saved.read_bytes()==before and matcher.GEOCODE_CACHE_PATH.read_bytes()==original
     assert jobs[0]['address']==address and jobs[0]['truck']=='Truck 3'
     # Activation is durable and never resets after restart.

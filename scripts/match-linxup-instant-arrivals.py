@@ -96,6 +96,36 @@ def approximate_policy_start(data):
     return start
 
 
+def operational_source_start(data, identity, register, started_at):
+    """Remember rollout membership across later address verification/label changes."""
+    if len(identity) != 64 or any(c not in '0123456789abcdef' for c in identity):
+        raise ValueError('Invalid operational source identity')
+    directory = Path(data) / 'config' / 'operational-map-pin-sources'
+    destination = directory / (identity + '.json')
+    if not destination.exists():
+        if not register:
+            return None
+        directory.mkdir(parents=True, exist_ok=True)
+        start = started_at()
+        fd, temporary = tempfile.mkstemp(prefix='.source-', dir=directory)
+        try:
+            with os.fdopen(fd, 'w') as handle:
+                json.dump({'schema': 1, 'enabledAt': start.isoformat()}, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                os.link(temporary, destination)
+            except FileExistsError:
+                pass
+        finally:
+            os.unlink(temporary)
+    state = json.loads(destination.read_text())
+    start = datetime.fromisoformat(state['enabledAt'].replace('Z', '+00:00'))
+    if state.get('schema') != 1 or start.tzinfo is None:
+        raise ValueError('Invalid operational source cutoff; do not reset it')
+    return start
+
+
 def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None):
     module.visit_policy_started_at = started_at or (lambda: approximate_policy_start(module.DATA))
     def valid(location):
@@ -119,8 +149,11 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
                 resolved = {**pin['location'], 'match_confidence': 'confirmed', 'visit_pin': evidence}
                 # Newly enabled coordinate sources start prospectively. Keep the
                 # existing verified history; do not replay previously ignored GPS.
-                if pin.get('sourceKind', 'map_fallback') == 'map_fallback':
-                    resolved['operational_since'] = module.visit_policy_started_at()
+                since = operational_source_start(module.DATA,
+                    module.address_hash(module.normalize_address(raw)),
+                    pin.get('sourceKind', 'map_fallback') == 'map_fallback', module.visit_policy_started_at)
+                if since is not None:
+                    resolved['operational_since'] = since
                 pins[row['_appointment_id']] = resolved
             elif raw not in current:
                 verified = geocodes.get(module.address_hash(module.normalize_address(raw)))

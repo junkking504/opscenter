@@ -75,7 +75,9 @@ markers without a usable appointment coordinate remain ineligible.
 Newly enabled map-coordinate sources start at the durable
 `config/operational-map-pin-policy.json` cutoff during normal collector operation;
 previously ignored observations are not replayed as new historical alerts. This
-rollout boundary is independent of the displayed confidence label. The read-only
+rollout boundary is retained by source-address identity in
+`config/operational-map-pin-sources/`, so later verification cannot erase it and
+replay old arrivals. It is independent of the displayed confidence label. The read-only
 Schedule can use an existing current GPS report immediately. The existing 200-metre
 radius is unchanged: a large property's parking/loading area can still lie outside
 that radius. Recorded departure reconciliation uses the original visit coordinate.

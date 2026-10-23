@@ -1,5 +1,40 @@
 # Address verification completion
 
+## October 23, 2026 Number units and compact highway navigation
+
+Policy 21 recognizes `Number` as a unit label after a complete road suffix,
+alongside Lot/Trailer/Space. Queries omit the unit; source text and crew-facing
+unit instructions remain intact. Number inside a road name is preserved. Map
+readers still check the original provider-cache key, so saved unit-bearing
+evidence can recover an approximate location immediately without a request.
+Unit-bearing Geocodio results remain ineligible for exact verification, and
+the map details explicitly say the unit entrance was not located.
+
+A compact expression such as `880N Hwy 191` may reuse existing Geocodio rooftop
+evidence for `880 N US-191` as an approximate navigation point only. It requires
+the same numeric house, cardinal direction, highway number, complete locality,
+state and ZIP, with no provider unit and no competing premises. Explicit source
+route jurisdictions, ranges, other house letters and multi-letter suffixes are
+not reinterpreted. The source and provider query are unchanged; generic Hwy is
+not globally equated with US routes. Details disclose the ambiguous direction
+interpretation. Nearest-rooftop, interpolated and street-center results cannot
+enable this recovery. Existing cache freshness/grace rules still apply.
+
+Neither recovery turns a territory center into a property, creates a verified
+planning location, or admits GPS visits. Existing approximate road estimates
+can use the recovered provider point, with their normal approximate label.
+The original source address remains the Directions destination.
+
+Old negative verification entries and worker attempt delays retry under policy
+21; older successful evidence must pass current identity validation. The
+existing four-address sweep, five-minute retry, provider backoff, parish/OSM
+reservations, time budgets and provider caches remain unchanged. A verification
+retry does not force a new provider request through a still-valid provider
+cache. No spending policy, transport or provider limit changes are included.
+
+Regression: `scripts/test-address-number-highway.ts` uses synthetic cached
+evidence and zero provider calls; actual appointment evidence stays outside Git.
+
 ## October 17, 2026 bare-letter unit update
 
 Policy 19 recognizes a trailing single-letter unit after a house and named

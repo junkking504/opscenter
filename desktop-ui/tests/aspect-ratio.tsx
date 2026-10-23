@@ -5,7 +5,7 @@ import '../app/globals.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
 const date=new URLSearchParams(location.search).has('tv') ? new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) : '2026-09-12', stamp=new Date().toISOString();
-const command=fixtureSnapshot();command.date=date;command.actor={displayName:'Synthetic operator',role:'Administrator'};
+const command=fixtureSnapshot();command.date=date;command.actor={displayName:'Synthetic operator',role:new URLSearchParams(location.search).get('testRole') || 'Administrator'};
 const huddleStress=new URLSearchParams(location.search).has('huddleStress');
 if(huddleStress&&command.crewProgress){const base=command.crewProgress.jobs[0];command.crewProgress.jobs=Array.from({length:9},(_,i)=>({...base,id:`stress-${i}`,truck:`Truck ${i+1}`,status:'Completed',crew:'Example Long Driver Name · Example Long Navigator Name',completion:{...base.completion,total:'$450.00'}}));}
 const loads=Array.from({length:9},(_,i)=>({truck:`Truck ${i+1}`,label:i===8?'Empty · provisional':i===6?'Load unknown':i===0?'Full truck':'1/3 full',percent:33,note:'Synthetic load',needsVerification:i===8}));
@@ -27,12 +27,14 @@ const syntheticPace = Array.from({length:730},(_,i)=>{const day=new Date(`${date
 const priorValues={revenue:16000,jobs:55,averageJob:16000/55,costs:9500,profit:6500,margin:40.625};
 const currentValues={revenue:18000,jobs:60,averageJob:300,costs:9000,profit:9000,margin:50};
 // Synthetic API data only; every write is blocked.
+let failReads = false;
 window.fetch=async(input,init)=>{
  if(init?.method && init.method!=='GET')return Response.json({error:'Read-only fixture'},{status:403});
  const url=new URL(String(input),location.origin), selected=url.searchParams.get('date')||date;
+ if(failReads && ['/api/desktop/finance','/api/desktop/fleet'].includes(url.pathname))throw new Error('Synthetic read failure');
  const snapshots:Record<string,unknown>={
  schedule:{date:selected,observedAt:stamp,appointments:scheduleJobs,truckLoads:loads,fleet:{isToday:true,lastUpdatedAt:stamp,trucks:commandMap?mapTrucks:[]}},
- krewe:{comparison:{label:'Synthetic prior comparable period',totals:{...amounts,revenue:560,totalPay:90},count:7,rph:140},date,start:date,end:date,view:'today',sourceUpdatedAt:stamp,missingDates:[],payrollVisible:true,canWrite:false,members,totals:amounts,callIn:null},
+ krewe:{comparison:{label:'Synthetic prior comparable period',totals:{...amounts,revenue:560,totalPay:90},count:7,rph:140},date,start:date,end:date,view:'today',sourceUpdatedAt:stamp,missingDates:[],payrollVisible:true,canWrite:new URLSearchParams(location.search).has('consistency'),members,totals:amounts,callIn:null},
  fleet:{date,report:'overview',sourceUpdatedAt:stamp,sourceAvailable:true,canWrite:false,trucks,issues:[],maintenance:[],reportRows:[],reportCoverageDays:1,warnings:[]},
  tv:{date,generatedAt:stamp,reviewsAt:stamp,historyAt:stamp,notices:[],cards:[{id:'review-one',kind:'review',author:'Example Customer',title:'Five stars for the crew!',body:'The crew made a difficult cleanup easy. They were friendly, careful and left everything looking great. Thank you for the hard work!',credit:'Example driver & Example navigator',detail:'Synthetic review · New Orleans'},{id:'record-one',kind:'record',title:'New month-to-date best!',body:'Example driver just set a new daily credited-revenue best this month.',credit:'Example driver',detail:'$1,200 today · previous best $950 · day in progress'},{id:'welcome-one',kind:'welcome',title:'Welcome to the crew!',body:'Let’s give our newest teammate a great first week.',credit:'Example teammate',detail:'Synthetic welcome'}]},
  marketing:{date,range:'month',fetchedAt:stamp,available:true,error:null,canAssignReviews:false,leads,reviews:[],reviewAvailable:true,reviewFetchedAt:stamp,reviewError:null,totals:{calls:40,qualified:30,bookings:20,revenue:9000,cost:600,completed:12},sources:[{source:'SearchKings',calls:40,qualified:30,bookings:20,completed:12,revenue:9000,cost:600}],jobChange:'Synthetic'},
@@ -43,6 +45,6 @@ window.fetch=async(input,init)=>{
 };
 class NoEvents {addEventListener(){}close(){}}
 window.EventSource=NoEvents as unknown as typeof EventSource;
-createRoot(document.getElementById('root')!).render(<Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>);
+createRoot(document.getElementById('root')!).render(<><Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>{new URLSearchParams(location.search).has('consistency')&&<section aria-label="Synthetic test controls"><button onClick={()=>{failReads=true;window.dispatchEvent(new Event('online'));}}>Fail workspace reads</button><button onClick={()=>{failReads=false;window.dispatchEvent(new Event('online'));}}>Recover workspace reads</button></section>}</>);
 
 import '../approved-workbench.css';

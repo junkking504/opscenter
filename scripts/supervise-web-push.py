@@ -23,6 +23,7 @@ ALLOWED = {'OPSCENTER_KERNEL_ENABLED', 'OPSCENTER_MISSION_CONTROL_DATABASE_URL',
            'OPS_AUTH_USERNAME', 'OPS_AUTH_ROLE', 'OPS_AUTH_ROLE_BINDINGS', 'OPS_AUTH_DEFAULT_ROLE',
            'OPS_ACCESS_TEAM_DOMAIN', 'OPS_ACCESS_AUD', 'OPS_CREW_ACCESS_TEAM_DOMAIN',
            'OPSCENTER_WEB_PUSH_PUBLIC_KEY', 'OPSCENTER_WEB_PUSH_SUBJECT', 'OPSCENTER_WEB_PUSH_ORIGIN',
+           'OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER', 'OPSCENTER_PUSHOVER_CONFIG',
            'OPSCENTER_WEB_PUSH_ENABLED', 'OPSCENTER_WEB_PUSH_ENROLLMENT_ENABLED', 'OPSCENTER_WEB_PUSH_ACTIVATED_AT'}
 
 def private_read(file, limit=65536):
@@ -78,7 +79,7 @@ def signing_key():
         raise ValueError('signing_unavailable')
     return value
 
-def supervise(state, env, command, pause, key=signing_key, tick=0.5):
+def supervise(state, env, command, pause, key=signing_key, tick=2.0):
     # Importable for synthetic tests. Production CLI pins all paths and commands.
     info = state.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
@@ -88,7 +89,11 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
     if mode == 'off':
         return 0
     until = config.get('setupUntil')
-    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not time.time() < until <= time.time() + 3600:
+    ongoing = config.get('ongoing') is True
+    maximum = 30 * 86400 if ongoing and mode == 'send' else 3600
+    if ongoing and mode != 'send':
+        raise ValueError('ongoing_send_only')
+    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not time.time() < until <= time.time() + maximum:
         raise ValueError('bounded_setup_required')
     if env.get('OPSCENTER_WEB_PUSH_ENABLED') != ('1' if mode == 'send' else '0'):
         raise ValueError('mode_configuration_mismatch')
@@ -99,7 +104,7 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
     lock_fd = os.open(state / 'supervisor.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     child = None; stopping = False; lease = state / 'capture-lease.json'
     nonce = uuid.uuid4().hex; ready = state / ('ready-' + nonce + '.json')
-    old_handlers = {}; owns_lock = False
+    old_handlers = {}; owns_lock = False; liveness_write = None
     def stop(_signum=None, _frame=None):
         nonlocal stopping
         stopping = True
@@ -115,11 +120,20 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
         pause()
         child_env = dict(env, OPSCENTER_PROCESS_ROLE='push-observer' if mode == 'observe' else 'push-dispatcher', OPSCENTER_WEB_PUSH_CAPTURE='1', OPSCENTER_WEB_PUSH_JOURNAL_DIR=str(journal), OPSCENTER_WEB_PUSH_READY_FILE=str(ready), OPSCENTER_WEB_PUSH_RUN_NONCE=nonce)
         child_env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
+        if mode != 'send':
+            child_env.pop('OPSCENTER_PUSHOVER_CONFIG', None)
         if mode == 'send':
             child_env['OPSCENTER_WEB_PUSH_PRIVATE_KEY'] = key()
         for sig in (signal.SIGTERM, signal.SIGINT):
             old_handlers[sig] = signal.signal(sig, stop)
-        child = subprocess.Popen(command, env=child_env, start_new_session=True)
+        # Parent-death detection: this process holds the only write end. Any
+        # supervisor exit, including SIGKILL, closes it and the child sees EOF.
+        liveness_read, liveness_write = os.pipe()
+        child_env['OPSCENTER_WEB_PUSH_PARENT_FD'] = str(liveness_read)
+        try:
+            child = subprocess.Popen(command, env=child_env, start_new_session=True, pass_fds=(liveness_read,))
+        finally:
+            os.close(liveness_read)
         child_env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
         startup_deadline = min(until, time.time() + 45)
         was_ready = False
@@ -164,6 +178,8 @@ def supervise(state, env, command, pause, key=signing_key, tick=0.5):
                         # Even failed recovery cannot silently re-enable a run.
                         atomic(state / 'sender.json', {**config, 'mode': 'off'})
         finally:
+            if liveness_write is not None:
+                os.close(liveness_write)
             for sig, handler in old_handlers.items():
                 signal.signal(sig, handler)
             os.close(lock_fd)

@@ -135,6 +135,7 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
   if(reviewed)return reviewed;
   const candidates:CachedCandidate[]=[];
   const streetEvidence:CachedCandidate[]=[];
+  const exactStreetCenters:CachedCandidate[]=[];
   const files=new Map<string,any>();
   const cachedFile=(file:string)=>{if(!files.has(file))files.set(file,read(file));return files.get(file);};
   const queries=[...new Set([address,withoutServiceUnit(mapAddress(address))])];
@@ -183,7 +184,19 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
           return {house:a.number||'',street:[a.formatted_street,unit?`Unit ${unit}`:''].filter(Boolean).join(' '),city:a.city||'',state:a.country==='US'?a.state_province:'',zip:String(a.postal_code||'').slice(0,5),latitude:row.location?.lat,longitude:row.location?.lng,source:'Geocodio',sourceUrl:'https://api.geocod.io/v2/geocode',precision:row.accuracy_type==='range_interpolation'?'Estimated position along the street':'Provider map location',confidence:row.accuracy};
         });
         candidates.push(...rows.map(row=>({...row,stale:cached.expires<=now})));
-        // A Geocodio street center is corroboration only, never a standalone pin.
+        // A fresh exact street/locality/ZIP center can support approximate
+        // navigation even when the requested house is absent. Unrelated fuzzy
+        // suggestions do not compete with an exact street identity. Conflicting
+        // exact street centers still stay unresolved.
+        const centers:CachedCandidate[]=cached.payload.results.flatMap((raw:any,index:number)=>
+          raw.accuracy_type==='street_center' && !raw.address_components?.number
+            && !raw.address_components?.unit_number && !raw.address_components?.secondarynumber
+            && Number.isFinite(raw.accuracy) && raw.accuracy>=0.7 && cached.expires>now
+            ? [{...rows[index],streetOnly:true,stale:false,precision:'Approximate street center; house number not located'}] : []);
+        const exactCenters=centers.filter(row=>row.state==='LA' && row.latitude>=29 && row.latitude<=31.3
+          && row.longitude>=-93 && row.longitude<=-89.4 && mapCandidateMatches(address,row));
+        exactStreetCenters.push(...exactCenters);
+        // A Geocodio street center with a differing ZIP is corroboration only.
         // It has no house evidence and cannot establish the requested premises.
         streetEvidence.push(...cached.payload.results.flatMap((raw:any,index:number)=>
           cached.payload.results.length===1 && raw.accuracy_type==='street_center' && !raw.address_components?.number
@@ -213,5 +226,7 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
       if(corroborated)road.streetZipCorroborated=true;
     }
   }
+  if(new Set(exactStreetCenters.map(row=>JSON.stringify([normalize(row.street),normalize(row.city),row.zip,row.latitude,row.longitude]))).size===1)
+    candidates.push(...exactStreetCenters);
   return bestCandidate(address,candidates);
 }

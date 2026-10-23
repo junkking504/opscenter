@@ -64,5 +64,53 @@ async function main(){
  await reset();id=await ready();await queue(id,1,'lock-deadline');await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '30 minutes'+interval '150 milliseconds',deadline=statement_timestamp()+interval '150 milliseconds'");
  const held=await p.connect();await held.query('BEGIN');await held.query('SELECT id FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[id]);const waiting=drainPushOutbox(d);await new Promise(r=>setTimeout(r,250));await held.query('COMMIT');held.release();await waiting;assert.equal(sends,0);assert.equal((await state()).attempts_used,0,'deadline after lock wait prevents reservation');
  console.log('PASS: deadline, stopped trial, canonical fan-out approval and pretrial-history exclusion. All sends mocked; no handset delivery tested.');
+ // Promotion preserves the historical trial and binds ongoing delivery to the
+ // same handset. More than three ongoing events use a separate durable ledger.
+ await reset();id=await ready();await queue(id,1,'accepted-trial');await drainPushOutbox(d);
+ const historical=await state(),oldToken=(await p.query('SELECT claim_token FROM opscenter_kernel.push_trial_attempts')).rows[0].claim_token;
+ const promote=()=>controlPushTrial({action:'promote',owner:'owner',deviceId:id,fingerprint:trialFingerprint(sub(1)),verifiedEnrollmentExpiresAt:new Date(Date.now()+3600000),handsetConfirmed:true},ref,p);
+ await queue(id,1,'before-promotion');await promote();
+ assert.equal((await readPushTrial('owner',p)).status,'ongoing');assert.equal((await readPushTrial('owner',p)).maxAttempts,null);
+ assert.deepEqual((await state()).deadline,historical.deadline);assert.deepEqual((await state()).started_at,historical.started_at);assert.equal((await state()).attempts_used,1);
+ assert.equal((await p.query("SELECT status FROM opscenter_kernel.push_deliveries WHERE event_id='before-promotion0'")).rows[0].status,'skipped');
+ await new Promise(r=>setTimeout(r,5));await queue(id,5,'ongoing');await Promise.all([drainPushOutbox(d),drainPushOutbox(d)]);
+ assert.equal(sends,6);assert.equal((await state()).attempts_used,1);assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_ongoing_attempts')).rows[0].count),5);
+ await drainPushOutbox(d);assert.equal(sends,6,'no repeated or uncertain retry');
+ await assert.rejects(candidate(2),/different_device_not_approved/);await assert.rejects(promote(),/verified_handset_required/);
+ const ongoingExpiry=(await state()).ongoing_expires_at;await candidate(1);assert.deepEqual((await state()).ongoing_expires_at,ongoingExpiry,'browser save cannot extend ongoing approval');
+ await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '31 minutes',deadline=statement_timestamp()-interval '1 minute'");
+ await queue(id,1,'past-trial');await drainPushOutbox(d);assert.equal(sends,7,'ongoing mode is independent of preserved trial deadline');
+ await queue(id,1,'ongoing-revoke');await drainPushOutbox({...d,send:async(_endpoint,authorize)=>{await managePushDevice('owner',{action:'unsubscribe',deviceId:id,expiresAt:new Date()},p);assert.equal(await authorize(),false);return 0;}});
+ assert.equal(sends,7);assert.equal((await readPushTrial('owner',p)).status,'ongoing_revoked');await assert.rejects(candidate(1),/new_device_approval_required/);
+ await reset();await prepare();id=await candidate(1);await approve(id,1);await start();await assert.rejects(promote(),/accepted_trial_required/);
+ await queue(id,1,'accept');await drainPushOutbox(d);await promote();
+ await p.query("UPDATE opscenter_kernel.push_trial SET ongoing_started_at=clock_timestamp()-interval '1 hour',ongoing_expires_at=clock_timestamp()-interval '1 second'");
+ await queue(id,1,'ongoing-expired');await drainPushOutbox(d);assert.equal(sends,1);assert.equal((await readPushTrial('owner',p)).status,'ongoing_expired');await assert.rejects(candidate(1),/trial_enrollment_closed/);
+ // Same-day clock/fleet changes recovered after pause/promotion must not
+ // flood the phone. The first subsequent uninterrupted transition may notify.
+ await reset();id=await ready();await p.query("UPDATE opscenter_kernel.push_devices SET categories=ARRAY['schedule','krewe','fleet']");
+ await queue(id,1,'accepted-pause');await drainPushOutbox(d);
+ const gapDay=new Date().toISOString().slice(0,10),oldTime=new Date(Date.now()-30000).toISOString();
+ for(const category of ['krewe','fleet'] as const)await recordPushBatch({scope:`${category}:${gapDay}`,category,sequence:1,baseline:true,complete:true,observedAt:oldTime,observations:[{identity:'original',revision:'before'}]},d);
+ await promote();const beforeRecovery=sends;
+ for(const category of ['krewe','fleet'] as const)await recordPushBatch({scope:`${category}:${gapDay}`,category,sequence:2,reconcile:true,complete:true,observedAt:oldTime,recordedAt:new Date().toISOString(),observations:[{identity:'original',revision:'while-paused'},{identity:'old-new-row',revision:'before-promotion'}]},d);
+ await drainPushOutbox(d);assert.equal(sends,beforeRecovery,'recovered pre-promotion facts never fan out in ongoing mode');
+ await new Promise(r=>setTimeout(r,5));await recordPushBatch({scope:`fleet:${gapDay}`,category:'fleet',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[{identity:'original',revision:'genuine-post-baseline'},{identity:'old-new-row',revision:'before-promotion'}]},d);
+ await drainPushOutbox(d);assert.equal(sends,beforeRecovery+1,'future live change follows the fresh baseline');
+ console.log('PASS: pause/promote/resume suppresses same-day fleet and crew history; a later uninterrupted change sends once.');
+ // A retained descriptive observation reaches only the approved handset;
+ // updating display metadata alone cannot create a business event.
+ await reset();id=await ready();await queue(id,1,'accepted-details');await drainPushOutbox(d);await promote();
+ const detailedDay=new Date().toISOString().slice(0,10),detailScope=`schedule:${detailedDay}:market-352`;
+ const detail={identity:'synthetic-job',revision:'one',notification:{title:'Schedule updated',body:'JK123 · Truck: 2 → 4'}};
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:1,baseline:false,complete:true,observedAt:new Date().toISOString(),observations:[detail]},d);
+ let received=false;await drainPushOutbox({...d,send:async(endpoint,authorize,_deadline,envelope)=>{assert.equal(await authorize(),true);assert.equal(envelope?.subscription.endpoint,endpoint);assert.equal(envelope?.message.body,detail.notification.body);assert.match(envelope?.message.eventId||'',/^[a-f0-9]{64}$/);received=true;return 201;}});assert.equal(received,true);
+ const eventCount=Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count);
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:2,complete:true,observedAt:new Date().toISOString(),observations:[{...detail,notification:{title:'Schedule updated',body:'JK123 · Truck 4'}}]},d);
+ assert.equal(Number((await p.query('SELECT count(*) FROM opscenter_kernel.push_events')).rows[0].count),eventCount);
+ await recordPushBatch({scope:detailScope,category:'schedule',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[]},d);
+ const removal=(await p.query("SELECT notification_json FROM opscenter_kernel.push_events WHERE notification_json->>'title'='Schedule changed'")).rows[0];assert.match(removal.notification_json.body,/JK123/);assert.match(removal.notification_json.body,/Cancellation or new date\/time not verified/);
+ console.log('PASS: exact verified-handset promotion requires accepted trial; five concurrent ongoing sends; trial history preserved; no replay; competing phone rejected; saves cannot renew; revocation and expiry stop ongoing delivery.');
+
 }
 main().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{await stop?.();await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

@@ -15,6 +15,15 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
   const [receipt,setReceipt]=useState<Receipt|null>(null);
   const [error,setError]=useState('');
   const inFlight=useRef(false);
+  const reviewRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!review || receipt) return;
+    reviewRef.current?.scrollIntoView({
+      block:'end',
+      behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',
+    });
+    reviewRef.current?.focus({preventScroll:true});
+  },[review,receipt]);
   useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
   const duration=job.appointmentStartMinutes===null || job.appointmentEndMinutes===null?0:job.appointmentEndMinutes-job.appointmentStartMinutes;
   const validDate=/^\d{4}-\d{2}-\d{2}$/.test(destination) && Number.isFinite(Date.parse(destination)) && new Date(destination+'T12:00:00Z').toISOString().slice(0,10)===destination;
@@ -49,7 +58,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
     {(!duration || duration%60!==0) && <p role="alert">The source appointment window needs review in JunkWare before rescheduling.</p>}
     {assignmentNeedsVerification(job) && <p role="alert">Check the unverified assignment change before rescheduling.</p>}
     {!review && !receipt && <Button variant="outline" disabled={blocked || !valid} onClick={()=>{setReviewVersion(job.version);setReview(true);}}>{restore?'Review Restoration':'Review Reschedule'}</Button>}
-    {review && !receipt && <div className="drawer-reschedule-review" role="group" aria-label={restore?'Review restoration':'Review reschedule'}>
+    {review && !receipt && <div ref={reviewRef} tabIndex={-1} className="drawer-reschedule-review" role="group" aria-label={restore?'Review restoration':'Review reschedule'}>
       <strong>{job.jkNumber} · {job.customerName}</strong>
       <p>From {date} · {job.appointmentTime}<br/>To {destination} · {scheduleMoveWindow(job,Number(start)).label}</p>
       <p>{restore?'Confirming restores this canceled appointment in JunkWare.':'Confirming changes this appointment in JunkWare.'}</p>

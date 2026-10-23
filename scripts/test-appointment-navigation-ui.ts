@@ -41,3 +41,18 @@ assert.ok(!property.includes('Address lookup continues automatically'));
 assert.ok(!property.includes('View approximate pin'));
 assert.ok(!property.includes('query=30.05,-89.95'));
 console.log('Appointment navigation UI PASS: source-address directions, distinct reviewed-pin action and approximation disclosure.');
+
+const priorEstimate={appointmentId:'1234',jkNumber:'JK_ESTIMATE',date:'2026-10-16',total:2264,chargeSummary:'',photos:[],photoAuditAvailable:false,observedAt:''};
+const renderProvenance=(extra:Record<string,unknown>,busy=false)=>renderToStaticMarkup(React.createElement(Summary,{job:{...job,sourceEstimateAppointmentId:'1234',sourceEstimate:priorEstimate,...extra},closest:null,loading:false,isToday:true,busy,open(){},clear(){}}));
+const linked=renderProvenance({});
+assert.ok(linked.includes('Booked from estimate'));
+assert.ok(linked.includes('JK_ESTIMATE'));
+assert.ok(linked.includes('Quoted $2,264.00 · not a payment'));
+assert.ok(linked.includes('date=2026-10-16&amp;appointment=1234'));
+assert.ok(linked.indexOf('Booked from estimate')<linked.indexOf('selected-job-facts'),'Provenance is visible directly below the customer heading');
+assert.ok(!renderProvenance({sourceEstimateAppointmentId:''}).includes('Booked from estimate'),'No inferred relationship from contact, name, or amount');
+assert.ok(!renderProvenance({appointmentType:'Estimate'}).includes('Booked from estimate'));
+assert.ok(renderProvenance({sourceEstimate:null}).includes('Quote unavailable'));
+assert.ok(!renderProvenance({sourceEstimate:{...priorEstimate,appointmentId:'9999'}}).includes('JK_ESTIMATE'),'Mismatched estimate detail is not displayed');
+assert.ok(!renderProvenance({},true).includes('appointment=1234'),'Navigation blocked while saving');
+console.log('Compact appointment provenance PASS: explicit link only, heading placement, internal dated navigation, unavailable details and saving state.');

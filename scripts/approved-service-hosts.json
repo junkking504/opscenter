@@ -1,11 +1,12 @@
 {
-  "reviewedAt": "2026-10-18",
-  "note": "Existing endpoint inventory; no blanket billing authorization. Maintenance diagnosis and address investigation retain their shared $10 monthly ledger. Ask OpsBot is separately approved for GPT-6 Luna, 50 total questions, $0.20 reserved per question, and a $10 calendar-month cap, with no web search or file uploads. Explicit user approval September 24, 2026. Employee-performance tool approved October 3, 2026: anonymized operational metrics, local identity resolution, unchanged GPT-6 Luna model, 50-question and $10 caps. Sharp 0.35.3 direct dependency approved October 5, 2026 for local resale photo decoding; already resolved through Next.js. No new provider, hostname, paid usage or budget change. Apple Web Push connection and protected signing setup approved October 18, 2026: only web.push.apple.com; $0 additional charges. No deployment, migration, worker scheduling, activation, live sending or device enrollment. Independent feature review remains pending.",
+  "reviewedAt": "2026-10-22",
+  "note": "Existing endpoint inventory; no blanket billing authorization. Maintenance diagnosis and address investigation retain their shared $10 monthly ledger. Ask OpsBot is separately approved for GPT-6 Luna, 50 total questions, $0.20 reserved per question, and a $10 calendar-month cap, with no web search or file uploads. Explicit user approval September 24, 2026. Employee-performance tool approved October 3, 2026: anonymized operational metrics, local identity resolution, unchanged GPT-6 Luna model, 50-question and $10 caps. Sharp 0.35.3 direct dependency approved October 5, 2026 for local resale photo decoding; already resolved through Next.js. No new provider, hostname, paid usage or budget change. Apple Web Push connection and protected signing setup approved October 18, 2026: only web.push.apple.com; $0 additional charges. No deployment, migration, worker scheduling, activation, live sending or device enrollment. Independent feature review remains pending. Pushover manager alert delivery approved October 22, 2026: one verified personal device; existing alert details; replace native delivery for that subscription; normal priority/device-default sound; at most 10000 attempts over 30 days, subject to earlier native authorization expiry; $0 additional API spend, no upgrade or paid overage; one synthetic setup test. Only api.pushover.net added; checker, existing hosts, dependencies and protected-file pins unchanged.",
   "hosts": [
     "127.0.0.1",
     "api.geocod.io",
     "api.openai.com",
     "api.podium.com",
+    "api.pushover.net",
     "app.linxup.com",
     "app03.linxup.com",
     "appcenter.intuit.com",

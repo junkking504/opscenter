@@ -3,6 +3,7 @@ import type { PoolClient, Client } from 'pg';
  * while retained publications may still need ordered recovery. */
 export async function retainPushMetadata(client:PoolClient|Client) {
   await client.query("DELETE FROM opscenter_kernel.push_events WHERE recorded_at<now()-interval '14 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.event_id=push_events.id AND q.status IN ('pending','sending'))");
+  await client.query("DELETE FROM opscenter_kernel.push_ongoing_attempts a WHERE reserved_at<now()-interval '90 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.claim_token=a.claim_token AND q.status IN ('pending','sending'))");
   await client.query("DELETE FROM opscenter_kernel.push_audit WHERE recorded_at<now()-interval '90 days'");
   await client.query("DELETE FROM opscenter_kernel.push_devices WHERE GREATEST(expires_at,COALESCE(revoked_at,expires_at))<now()-interval '90 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.device_id=push_devices.id AND q.status IN ('pending','sending'))");
   // Keep a bounded replay window and a permanent watermark for each active

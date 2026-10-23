@@ -32,6 +32,8 @@ without mixing live runtime data or secrets into Git.
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)
 
+- [OpsCenter named accounts](ops-accounts.md)
+
 ## Integrations and operating areas
 
 
@@ -48,9 +50,12 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
+- [Waypoint iPhone notifications and office messages](waypoint-push.md)
 - [Direct Web Push preparation and activation boundary](web-push.md)
+- [Optional Pushover manager alert delivery](pushover.md)
 - [Dated crew roster](schedule-crew-roster.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
+- [Appointment customer history](customer-history.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)

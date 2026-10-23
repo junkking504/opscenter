@@ -1,3 +1,4 @@
+import { encryptPushMessage, type PushEnvelope } from './web-push-message';
 import { createPrivateKey, sign } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP, BlockList } from 'node:net';
@@ -20,11 +21,13 @@ export function vapidAuthorization(endpoint: URL, env: NodeJS.ProcessEnv = proce
   const signature = sign('sha256',Buffer.from(input),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
   return `vapid t=${input}.${signature}, k=${pub.toString('base64url')}`;
 }
-const transportDependencies={enabled:supervisedPushDelivery,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
-/** Empty-body standards Web Push: no customer, employee, event or URL payload. */
-export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<boolean>, deadline:number, io=transportDependencies): Promise<number> {
+export const transportDependencies={enabled:supervisedPushDelivery,resolve:(hostname:string)=>lookup(hostname,{family:4,all:true}),authorization:vapidAuthorization,request:https.request,now:Date.now};
+/** Standards Web Push. Details are encrypted to the verified subscription. */
+export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<boolean>, deadline:number, io=transportDependencies,envelope?:PushEnvelope): Promise<number> {
   if (!io.enabled()) throw new Error('Push delivery disabled.');
   const url = pushEndpoint(endpoint);
+  if(envelope&&envelope.subscription.endpoint!==endpoint)throw new Error('Push encryption destination mismatch.');
+  let body:Buffer;try{body=envelope?encryptPushMessage(envelope):Buffer.alloc(0);}catch{throw Object.assign(new Error('Push message encryption rejected before network I/O.'),{code:'push_message_invalid'});}
   let dnsTimer:ReturnType<typeof setTimeout>|undefined;
   const addresses = await Promise.race([io.resolve(url.hostname),new Promise<never>((_,reject)=>{dnsTimer=setTimeout(()=>reject(new Error('Push DNS timed out.')),3000);})]).finally(()=>clearTimeout(dnsTimer));
   if (!addresses.length || addresses.some(row => !publicPushAddress(row.address))) throw new Error('Push DNS rejected.');
@@ -33,12 +36,14 @@ export async function sendAppleWakeup(endpoint: string, authorize:()=>Promise<bo
   const authorization = io.authorization(url);
   if(io.now()>=deadline)throw new Error('Push attempt deadline reached.');
   return new Promise((resolve,reject) => {
-    const req = io.request(url, {method:'POST',agent:false,headers:{Authorization:authorization,TTL:String(Math.min(300,Math.max(0,Math.floor((deadline-io.now())/1000)))),Urgency:'normal','Content-Length':'0'},
+    const req = io.request(url, {method:'POST',agent:false,headers:{Authorization:authorization,TTL:String(Math.min(300,Math.max(0,Math.floor((deadline-io.now())/1000)))),Urgency:'normal','Content-Length':String(body.length),...(body.length?{'Content-Encoding':'aes128gcm','Content-Type':'application/octet-stream'}:{})},
       // Pin the validated address; TLS still verifies the original Apple name.
       lookup:((_hostname: string, options: {all?:boolean}, callback: (error: null,address: string|Array<{address:string;family:number}>,family?: number)=>void) => options.all ? callback(null,[{address,family:4}]) : callback(null,address,4)) as NonNullable<https.RequestOptions['lookup']>}, res => {
       res.destroy(); resolve(res.statusCode || 0); // Never follow redirects or read provider bodies.
     });
     const timer=setTimeout(()=>req.destroy(new Error('Push request timed out.')),Math.min(8000,Math.max(1,deadline-io.now())));
-    req.on('close',()=>clearTimeout(timer)); req.on('error',()=>reject(new Error('Push delivery outcome unknown.'))); req.end();
+    req.on('close',()=>clearTimeout(timer)); req.on('error',()=>reject(new Error('Push delivery outcome unknown.'))); req.end(body.length?body:undefined);
   });
 }
+
+export const sendAppleNotification=(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>sendAppleWakeup(endpoint,authorize,deadline,transportDependencies,envelope);

@@ -12,5 +12,5 @@ const { Component: LazyLiveSchedule, preload } = preloadableWorkspace<LiveSchedu
 export const preloadLiveSchedule = preload;
 
 export default function LiveSchedule(props: LiveScheduleProps) {
-  return <Suspense fallback={<div className="workspace-loading" role="status">{props.mapOnly ? 'Loading map…' : 'Loading Control…'}</div>}><LazyLiveSchedule {...props} /></Suspense>;
+  return <Suspense fallback={<div className="workspace-loading" role="status">{props.mapOnly ? 'Loading map…' : 'Loading Command…'}</div>}><LazyLiveSchedule {...props} /></Suspense>;
 }

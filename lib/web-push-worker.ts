@@ -1,3 +1,6 @@
+import {truckMoveOwner,type TruckMove} from './web-push-truck-move';
+import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
+import { pushMessage, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
 import { pushRetirementCutoff } from './web-push-archive';
 import { retainPushMetadata } from './web-push-retention';
@@ -6,14 +9,14 @@ import type { Pool, PoolClient } from 'pg';
 import { getKernelPool } from './platform/persistence/pool';
 import { pushEnabled, pushOutcome, pushHash, PUSH_CATEGORIES } from './web-push-policy';
 import { pushTransitions, type PushBatch } from './web-push-events';
-import { sendAppleWakeup } from './web-push-transport';
+import { sendManagerNotification } from './pushover-transport';
 import { allowedSessionIdentity, opsAuthRole } from './auth';
 import { supervisedPushDelivery } from './web-push-runtime';
 import { opsRoleCan } from './ops-roles';
-export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string};
+export type PushWorkerDependencies = {pool:Pool;enabled:()=>boolean;send:(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>Promise<number>;ownerAllowed:(owner:string)=>boolean;activatedAt:string;truckMoveOwner?:(input:TruckMove)=>string|null};
 export const PUSH_LOCK=680018001;
 export function pushDependencies():PushWorkerDependencies {
-  return {pool:getKernelPool(),enabled:pushEnabled,send:sendAppleWakeup,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
+  return {truckMoveOwner:input=>truckMoveOwner(input,process.env.OPSCENTER_WEB_PUSH_TRUCK_MOVE_OWNER),pool:getKernelPool(),enabled:pushEnabled,send:sendManagerNotification,ownerAllowed:owner=>supervisedPushDelivery()&&allowedSessionIdentity(owner)&&opsRoleCan(opsAuthRole(owner),'sensitive.write'),activatedAt:process.env.OPSCENTER_WEB_PUSH_ACTIVATED_AT!};
 }
 export function pushErrorCode(error:unknown):string {
   const code=(error as {code?:unknown})?.code;
@@ -77,21 +80,43 @@ export async function recordPushBatch(batch:PushBatch,d:PushWorkerDependencies) 
       if(source && stamp<new Date(source.observed_at).getTime())throw new Error('observation_reordered');
       if(!source?.baseline_complete && !batch.complete)throw new Error('baseline_incomplete');
       await client.query('INSERT INTO opscenter_kernel.push_batches(scope,sequence,digest) VALUES($1,$2,$3)',[batch.scope,batch.sequence,digest]);
-      const rows=await client.query('SELECT identity_hash,revision_hash,version,present FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
+      const rows=await client.query('SELECT identity_hash,revision_hash,version,present,notification_json FROM opscenter_kernel.push_observations WHERE scope=$1',[batch.scope]);
       const previous=new Map(rows.rows.map(row=>[row.identity_hash,row]));
       if(new Set([...previous.keys(),...batch.observations.map(row=>pushHash(row.identity))]).size>10000)throw new Error('observation_capacity');
+      const descriptions=new Map(batch.observations.map(item=>[pushHash(item.identity),item]));
       for(const change of pushTransitions(previous,batch)) {
         await client.query(`INSERT INTO opscenter_kernel.push_observations(scope,identity_hash,revision_hash,version,observed_at,present) VALUES($1,$2,$3,$4,$5,$6)
           ON CONFLICT(scope,identity_hash) DO UPDATE SET revision_hash=EXCLUDED.revision_hash,version=EXCLUDED.version,observed_at=EXCLUDED.observed_at,present=EXCLUDED.present`,[batch.scope,change.identity,change.revision,change.version,batch.observedAt,change.present]);
+        const item=descriptions.get(change.identity);
+        const old=previous.get(change.identity)?.notification_json;
+        let notification=pushMessage(change.present?item?.notification:old);
+        let suppressOwner:string|null=null;
+        if(batch.category==='schedule'){
+          const current=pushSchedule(item?.notification?.schedule),previousSchedule=pushSchedule(old?.schedule);
+          let peers:SchedulePeer[]=[];
+          if(!change.present || !previous.get(change.identity)?.present)peers=(await client.query(`SELECT o.scope,o.present,o.observed_at,s.observed_at AS source_observed_at,o.notification_json
+            FROM opscenter_kernel.push_observations o JOIN opscenter_kernel.push_sources s ON s.scope=o.scope
+            WHERE o.identity_hash=$1 AND o.scope<>$2 AND o.scope LIKE 'schedule:%' AND s.baseline_complete=true`,[change.identity,batch.scope])).rows;
+          const peer=scheduleCounterpart(peers,batch.observedAt,!change.present);
+          const message=schedulePushMessage({current,previous:(!change.present||previous.get(change.identity)?.present)?previousSchedule:null,peer,fallback:notification,removed:!change.present});
+          const destination=message.title==='Rescheduled'&&!change.present?peer:current||previousSchedule;
+          notification=pushMessage({...message,path:schedulePath(destination)});
+          if(change.present&&previous.get(change.identity)?.present&&item){
+            try {suppressOwner=d.truckMoveOwner?.({identity:item.identity,observedAt:batch.observedAt,previous:previousSchedule,current})||null;}
+            catch { /* Invalid classification must not suppress delivery. */ }
+          }
+        }
         const id=pushHash([batch.scope,generation,batch.sequence,batch.category,change.identity,change.revision,change.version]);
-        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope]);
+        await client.query('INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at,source_scope,notification_json) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT DO NOTHING',[id,batch.category,batch.observedAt,batch.recordedAt||batch.observedAt,batch.scope,notification?JSON.stringify(notification):null]);
         if(!batch.baseline && !batch.silentIdentities?.some(identity=>pushHash(identity)===change.identity) && (source?.baseline_complete||batch.baseline===false) && recorded>=Date.parse(d.activatedAt)) {
           const devices=await client.query(`SELECT d.id,d.owner_id,d.subscription_json,t.subscription_hash FROM opscenter_kernel.push_devices d JOIN opscenter_kernel.push_trial t ON t.singleton=true AND t.device_id=d.id AND t.owner_id=d.owner_id
             WHERE $1=ANY(d.categories) AND d.revoked_at IS NULL AND d.expires_at>clock_timestamp() AND d.created_at<=$2
-              AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.stopped_at IS NULL AND t.attempts_used<3`,[batch.category,batch.recordedAt||batch.observedAt]);
-          for(const device of devices.rows)if(d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
+              AND t.stopped_at IS NULL AND ((t.ongoing_started_at IS NOT NULL AND NOT $3::boolean AND t.ongoing_started_at<=$2 AND t.ongoing_expires_at>clock_timestamp()) OR (t.ongoing_started_at IS NULL AND t.started_at IS NOT NULL AND t.started_at<=$2 AND t.deadline>clock_timestamp() AND t.attempts_used<3))`,[batch.category,batch.recordedAt||batch.observedAt,Boolean(batch.reconcile)]);
+          for(const device of devices.rows)if(device.owner_id!==suppressOwner&&d.ownerAllowed(device.owner_id)&&trialFingerprint(device.subscription_json)===device.subscription_hash)await client.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,device.id]);
         }
       }
+      const metadata=batch.observations.flatMap(item=>{const notification=pushMessage(item.notification),schedule=pushSchedule(item.notification?.schedule);return notification?[{identity:pushHash(item.identity),notification:{...notification,...(schedule?{schedule}:{})}}]:[];});
+      if(metadata.length)await client.query('UPDATE opscenter_kernel.push_observations o SET notification_json=x.notification FROM jsonb_to_recordset($2::jsonb) AS x(identity text,notification jsonb) WHERE o.scope=$1 AND o.identity_hash=x.identity AND o.notification_json IS DISTINCT FROM x.notification',[batch.scope,JSON.stringify(metadata)]);
       await client.query(`INSERT INTO opscenter_kernel.push_sources(scope,observed_at,sequence,baseline_complete,generation,source_recorded_at) VALUES($1,$2,$3,true,$4,$5)
         ON CONFLICT(scope) DO UPDATE SET observed_at=EXCLUDED.observed_at,sequence=EXCLUDED.sequence,baseline_complete=true,generation=EXCLUDED.generation,source_recorded_at=EXCLUDED.source_recorded_at,archived_sequence=CASE WHEN push_sources.generation<>EXCLUDED.generation THEN 0 ELSE push_sources.archived_sequence END`,[batch.scope,batch.observedAt,batch.sequence,generation,batch.recordedAt||batch.observedAt]);
       await client.query("INSERT INTO opscenter_kernel.push_health(scope,code) VALUES($1,'recorded') ON CONFLICT(scope) DO UPDATE SET code='recorded',recorded_at=now()",[batch.scope]);
@@ -118,24 +143,26 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
       if(!row.source_scope||row.source_scope.split(':')[1]<pushRetirementCutoff())retirementEligibilityChanged=true;
       if(!d.enabled())return {attempted,retirementEligibilityChanged};
       const client=await d.pool.connect();
-      let claim:{endpoint:string;token:string;deadline:number;owner:string}|null=null;
+      let claim:{endpoint:string;token:string;deadline:number;owner:string;envelope:PushEnvelope}|null=null;
       try {
         claim=await transaction(client,async()=>{
           const trial=await lockPushTrial(client);
           const device=(await client.query('SELECT * FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[row.device_id])).rows[0];
-          const delivery=(await client.query(`SELECT q.status,e.category,e.occurred_at,e.source_recorded_at FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
+          const delivery=(await client.query(`SELECT q.status,e.category,e.occurred_at,e.source_recorded_at,e.notification_json FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_events e ON e.id=q.event_id
             WHERE q.event_id=$1 AND q.device_id=$2 FOR UPDATE OF q`,[row.event_id,row.device_id])).rows[0];
           if(!delivery || delivery.status!=='pending')return null;
           trial.now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
           const age=Date.now()-new Date(delivery.source_recorded_at||delivery.occurred_at).getTime();
-          const reason=!d.enabled()?'disabled':trialReason(trial,device)||(!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.source_recorded_at||delivery.occurred_at).getTime()<Math.max(Date.parse(d.activatedAt),trial.started_at?.getTime()||Infinity)?'before_activation':null);
+          const reason=!d.enabled()?'disabled':trialReason(trial,device)||(!device||device.revoked_at?'revoked':new Date(device.expires_at).getTime()<=Date.now()?'expired':!d.ownerAllowed(device.owner_id)?'owner_denied':!device.categories.includes(delivery.category)?'category_disabled':!Number.isFinite(age)||age<0||new Date(delivery.source_recorded_at||delivery.occurred_at).getTime()<Math.max(Date.parse(d.activatedAt),(trial.ongoing_started_at||trial.started_at)?.getTime()||Infinity)?'before_activation':null);
           if(reason){await client.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason=$3 WHERE event_id=$1 AND device_id=$2 AND status='pending'",[row.event_id,row.device_id,reason]);return null;}
           const token=randomUUID();
           const saved=await client.query("UPDATE opscenter_kernel.push_deliveries SET status='sending',claim_token=$3,attempted_at=now() WHERE event_id=$1 AND device_id=$2 AND status='pending' RETURNING event_id",[row.event_id,row.device_id,token]);
           if(saved.rows.length!==1)return null;
-          await client.query('INSERT INTO opscenter_kernel.push_trial_attempts(ordinal,claim_token,event_id,device_id) VALUES($1,$2,$3,$4)',[trial.attempts_used+1,token,row.event_id,row.device_id]);
-          await client.query('UPDATE opscenter_kernel.push_trial SET attempts_used=attempts_used+1 WHERE singleton=true');
-          return {endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min(trial.deadline!.getTime(),device.expires_at.getTime())};
+          if(trial.ongoing_started_at)await client.query('INSERT INTO opscenter_kernel.push_ongoing_attempts(claim_token,event_id,device_id) VALUES($1,$2,$3)',[token,row.event_id,row.device_id]);
+          else {await client.query('INSERT INTO opscenter_kernel.push_trial_attempts(ordinal,claim_token,event_id,device_id) VALUES($1,$2,$3,$4)',[trial.attempts_used+1,token,row.event_id,row.device_id]);
+          await client.query('UPDATE opscenter_kernel.push_trial SET attempts_used=attempts_used+1 WHERE singleton=true');}
+          const message=pushMessage(delivery.notification_json)||{title:`OpsCenter ${delivery.category} update`,body:`A new ${delivery.category} change was recorded. Open OpsCenter for the source record.`};
+          return {envelope:{subscription:device.subscription_json,recordedAt:new Date(delivery.source_recorded_at||delivery.occurred_at).toISOString(),message:{...message,eventId:row.event_id}},endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min((trial.ongoing_started_at?trial.ongoing_expires_at!:trial.deadline!).getTime(),device.expires_at.getTime())};
         });
       } finally {client.release();}
       if(!claim)continue;
@@ -144,7 +171,7 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
       let status='skipped',reason='disabled_before_send';
       const reserved=claim;
       const authorize=async()=>d.enabled()&&d.ownerAllowed(reserved.owner)&&Date.now()<reserved.deadline&&await authorizePushAttempt(d.pool,reserved.token,reserved.endpoint);
-      if(await authorize()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint,authorize,claim.deadline));reason=status;}catch {status='uncertain';reason='transport_unknown';}}
+      if(await authorize()) {attempted++;try {status=pushOutcome(await d.send(claim.endpoint,authorize,claim.deadline,claim.envelope));reason=status;}catch(error) {const invalid=(error as {code?:string})?.code==='push_message_invalid';status=invalid?'rejected':'uncertain';reason=invalid?'message_invalid':'transport_unknown';}}
       else reason='trial_or_device_changed_before_send';
       const receipt=await d.pool.connect();
       try {await transaction(receipt,async()=>{

@@ -2353,3 +2353,15 @@ button { cursor: pointer; }
   .finance-heading-actions { max-width: 100%; overflow-x: auto; }.finance-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }.finance-close-grid, .finance-monthly-grid { grid-template-columns: 1fr; }.finance-close-list > article { grid-template-columns: 31px minmax(180px, 1fr) 78px; }.finance-close-list article > span { display: none; }.finance-payment-summary, .finance-monthly-kpis { grid-template-columns: repeat(2, 1fr); }.finance-trend-cards { grid-template-columns: repeat(2, 1fr); }.finance-territory-shell { overflow-x: auto; }.finance-territory-head, .finance-territory-list > article { min-width: 560px; }
   .finance-recovery-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }.finance-recovery-ledger-summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+.appointment-info-title { margin: 0; padding: 12px; border-bottom: 1px solid var(--oc-border-neutral-01); font-size: var(--oc-type-15); }
+.drawer-facts .appointment-customer-links { display: flex; flex-wrap: wrap; gap: 6px 12px; color: inherit; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; }
+
+.appointment-info-notes .appointment-source-notes { padding: 0; border: 0; border-radius: 0; color: var(--oc-text-blue-02); }
+.appointment-info-notes .appointment-note-list { gap: 10px; }
+.appointment-info-notes .appointment-note-list article { padding: 0; border: 0; border-radius: 0; background: none; }
+.appointment-info-notes .appointment-note-list header { gap: 4px 8px; margin-bottom: 4px; font-size: var(--oc-type-9); }
+.appointment-info-notes .appointment-note-list header span { color: var(--oc-text-neutral-01); font-size: inherit; font-weight: 400; text-transform: none; letter-spacing: normal; }
+.appointment-info-notes .appointment-note-list p, .appointment-info-notes .appointment-notes-empty { color: var(--oc-text-blue-02); font-size: var(--oc-type-11); font-weight: 700; line-height: 1.35; }
+.appointment-info-notes .appointment-note-history { margin-top: 10px; }
+.appointment-info-notes .appointment-note-history summary { padding: 8px 0; font-size: var(--oc-type-11); }

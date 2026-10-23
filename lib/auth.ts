@@ -43,6 +43,7 @@ export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
 export type AuthSessionPayload = {
   version: 1;
+  localAccount?: boolean;
   email: string;
   issuedAt: string;
   expiresAt: string;
@@ -72,6 +73,7 @@ export type AuthSessionInspection = {
 
 export type TrustedDevicePayload = {
   version: 1;
+  localAccount?: boolean;
   email: string;
   deviceId: string;
   userAgentHash: string;
@@ -214,6 +216,42 @@ async function constantTimeStringEqual(left: string, right: string): Promise<boo
   return constantTimeEqual(new Uint8Array(leftHash), new Uint8Array(rightHash));
 }
 
+type OpsAccount = { username: string; displayName: string; passwordHash: string; role: InteractiveOpsRole; active: boolean };
+
+// Private server environment only. Invalid/ambiguous rosters grant no accounts.
+function configuredAccounts(): OpsAccount[] {
+  try {
+    const rows: unknown = JSON.parse(process.env.OPS_AUTH_ACCOUNTS_JSON || '[]');
+    if (!Array.isArray(rows) || rows.length > 100) return [];
+    const accounts: OpsAccount[] = [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' || typeof row.username !== 'string'
+        || !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(normalizeAuthUsername(row.username))
+        || typeof row.displayName !== 'string' || !row.displayName.trim()
+        || typeof row.passwordHash !== 'string' || !['manager','operator','admin'].includes(row.role)
+        || typeof row.active !== 'boolean') return [];
+      const username = normalizeAuthUsername(row.username);
+      if (username === normalizeAuthUsername(process.env.OPS_AUTH_USERNAME) || accounts.some(a => a.username === username)) return [];
+      accounts.push({username,displayName:row.displayName.trim(),passwordHash:row.passwordHash,role:row.role,active:row.active});
+    }
+    return accounts;
+  } catch { return []; }
+}
+
+export function opsLoginIdentity(username: unknown): string {
+  const normalized = normalizeAuthUsername(username);
+  if (normalized === normalizeAuthUsername(process.env.OPS_AUTH_USERNAME)) return opsAuthIdentity();
+  return configuredAccounts().some(account => account.active && account.username === normalized) ? `${normalized}@junk-king.com` : '';
+}
+
+export function isNamedOpsIdentity(identity: string | null): boolean {
+  return configuredAccounts().some(account => account.active && `${account.username}@junk-king.com` === identity);
+}
+
+export function isLocalOpsIdentity(identity: string | null): boolean {
+  return identity === opsAuthIdentity() || isNamedOpsIdentity(identity);
+}
+
 export function opsAuthIdentity(): string {
   const username = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
   return username ? `${username}@junk-king.com` : "";
@@ -222,11 +260,17 @@ export function opsAuthIdentity(): string {
 // In shared-login mode, an old email session is not another account. Require
 // the current shared credentials instead of silently giving it Operator access.
 export function allowedSessionIdentity(identity: string): boolean {
-  return identity === opsAuthIdentity() || opsAccessConfigured();
+  const account = configuredAccounts().find(row => `${row.username}@junk-king.com` === identity);
+  if (account) return account.active;
+  // Named-account mode accepts only current local identities unless Access has
+  // independently established an identity through its existing configuration.
+  return isLocalOpsIdentity(identity) || opsAccessConfigured();
 }
 
 export function opsAuthDisplayName(identityValue: unknown): string {
   const identity = normalizeAuthEmail(identityValue);
+  const account = configuredAccounts().find(row => row.active && `${row.username}@junk-king.com` === identity);
+  if (account) return account.displayName;
   const configuredUsername = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
   return configuredUsername && identity === `${configuredUsername}@junk-king.com`
     ? configuredUsername
@@ -256,6 +300,8 @@ export function opsAuthRole(identityValue: unknown): InteractiveOpsRole {
   const bindings = configuredRoleBindings();
   const configuredIdentity = opsAuthIdentity();
 
+  const account = configuredAccounts().find(row => row.active && `${row.username}@junk-king.com` === identity);
+  if (account) return account.role;
   if (bindings[identity]) return bindings[identity];
   if (identity && identity === configuredIdentity) {
     return normalizeInteractiveOpsRole(process.env.OPS_AUTH_ROLE, "admin");
@@ -267,16 +313,18 @@ export async function verifyOpsCredentials(usernameValue: unknown, passwordValue
   const configuredUsername = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
   const username = normalizeAuthUsername(usernameValue);
   const password = String(passwordValue || "");
-  const passwordHash = String(process.env.OPS_AUTH_PASSWORD_HASH || "").trim();
+  const account = configuredAccounts().find(row => row.active && row.username === username);
+  const passwordHash = account?.passwordHash || String(process.env.OPS_AUTH_PASSWORD_HASH || "").trim();
+  const expectedUsername = account?.username || configuredUsername;
 
   const [algorithm, iterationsRaw, saltRaw, expectedRaw] = passwordHash.split("$");
   const iterations = Number.parseInt(iterationsRaw, 10);
-  if (!configuredUsername || algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || !saltRaw || !expectedRaw) {
+  if (!expectedUsername || algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || iterations > 2_000_000 || !saltRaw || !expectedRaw) {
     return false;
   }
 
   try {
-    const usernameMatches = await constantTimeStringEqual(username, configuredUsername);
+    const usernameMatches = await constantTimeStringEqual(username, expectedUsername);
     const key = await crypto.subtle.importKey(
       "raw",
       encoder.encode(password || "\0"),
@@ -400,6 +448,7 @@ export function resolveRequestOrigin(request: Request): string {
 export function createAuthSessionPayload(email: string, now = new Date()): AuthSessionPayload {
   return {
     version: 1,
+    localAccount: configuredAccounts().some(a => a.active && `${a.username}@junk-king.com` === normalizeAuthEmail(email)),
     email: normalizeAuthEmail(email),
     issuedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + AUTH_SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
@@ -424,6 +473,7 @@ export async function createTrustedDeviceCookieValue(
 ): Promise<string> {
   const payload: TrustedDevicePayload = {
     version: 1,
+    localAccount: configuredAccounts().some(a => a.active && `${a.username}@junk-king.com` === normalizeAuthEmail(email)),
     email: normalizeAuthEmail(email),
     deviceId: createDeviceId(),
     userAgentHash: await hashDeviceSignal(
@@ -458,6 +508,7 @@ export async function verifyTrustedDeviceCookie(
     payload = null;
   }
   if (!payload || payload.version !== 1 || !isValidJunkKingEmail(payload.email) || !payload.deviceId) return null;
+  if (payload.localAccount && !isLocalOpsIdentity(normalizeAuthEmail(payload.email))) return null;
   if (!allowedSessionIdentity(normalizeAuthEmail(payload.email))) return null;
 
   const expiresAtMs = parseSeconds(payload.expiresAt);
@@ -524,7 +575,7 @@ export async function inspectAuthSessionCookie(cookieValue: string | null | unde
   if (payload.version !== 1 || !isValidJunkKingEmail(payload.email)) {
     return { session: null, reason: "session_identity_invalid" };
   }
-  if (!allowedSessionIdentity(normalizeAuthEmail(payload.email))) {
+  if ((payload.localAccount && !isLocalOpsIdentity(normalizeAuthEmail(payload.email))) || !allowedSessionIdentity(normalizeAuthEmail(payload.email))) {
     return { session: null, reason: "session_identity_retired" };
   }
 

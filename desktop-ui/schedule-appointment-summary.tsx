@@ -1,3 +1,4 @@
+import { CustomerLink } from './customer-link';
 import {appointmentDirectionsHref} from '../lib/appointment-navigation';
 import {propertyNameSearch} from '../lib/property-name-search';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -7,6 +8,7 @@ import { ArrowRight, MapPin, Phone, Clock3, Truck, X } from 'lucide-react';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
 import { scheduleDisplayLocator, scheduleMapLocation, addressResolutionCopy, appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, displayedOnsiteTime, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, scheduleDisplayTruck, scheduleTruckMismatch, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
 import { schedulePayment } from './lib/schedule-payment';
+import { desktopAppointmentHref } from './lib/desktop-links';
 import './schedule-appointment-summary.css';
 
 export function closestAvailableTruck(candidates: ClosestTruck[]): ClosestTruck | null {
@@ -33,12 +35,17 @@ export default function ScheduleAppointmentSummary({job,closest,loading,error=fa
   const payment = schedulePayment(job);
   const completed = isClosed(job) && status !== 'Canceled';
   const photos = new Set([...(job.photos || []), ...(job.sourceEstimate?.photos || [])].map(photo => photo.url.split('?')[0])).size;
+  const estimateId = appointmentCategory(job) === 'Job' && /^\d{1,12}$/.test(job.sourceEstimateAppointmentId || '') ? job.sourceEstimateAppointmentId : null;
+  const estimate = estimateId && job.sourceEstimate?.appointmentId === estimateId ? job.sourceEstimate : null;
+  const estimateHref = estimate && /^\d{4}-\d{2}-\d{2}$/.test(estimate.date) && Number.isFinite(Date.parse(estimate.date)) ? desktopAppointmentHref(estimate.jkNumber, estimate.date, estimate.appointmentId) : null;
+  const quote = estimate?.total != null && Number.isFinite(estimate.total) && estimate.total >= 0 ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(estimate.total) : null;
   const locator=scheduleDisplayLocator(job);
   const addressCopy = locator.kind==='area' ? {title:locator.label,detail:locator.detail+' Travel estimates will appear when a street or property pin is available.'} : addressResolutionCopy(job.addressCheckReason);
   return <section className={`schedule-appointment-summary ${appointmentColorClass(job)}`} aria-label={`Selected job ${job.jkNumber}`}>
     <div className="selected-job-main">
       <span className="selected-job-area">{appointmentRegion(job).area}</span>
-      <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2>{scheduleCustomerLabel(job)}</h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
+      <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2><CustomerLink id={job.appointmentId} name={scheduleCustomerLabel(job)} busy={busy}/></h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
+      {estimateId && <div className="selected-job-estimate" aria-label="Booked from estimate"><strong>Booked from estimate</strong>{estimateHref && !busy ? <a href={estimateHref}>{estimate?.jkNumber || `Estimate #${estimateId}`} <ArrowRight size={12} aria-hidden="true" /></a> : <span>{estimate?.jkNumber || `Estimate #${estimateId}`}</span>}<small>{quote ? `Quoted ${quote} · not a payment` : 'Quote unavailable'}</small></div>}
       <div className="selected-job-facts"><span><Clock3 size={14} />{job.appointmentTime || 'Time not set'}</span><span><Truck size={14} />{truckDisplayText(scheduleDisplayTruck(job))}</span>{truckMismatch && <strong className="selected-job-warning">GPS confirmed · JunkWare says {truckDisplayText(truckMismatch.junkwareTruck)}</strong>}{job.truckOnSite && job.onsiteTruck && truckLabel(job.onsiteTruck) !== truckLabel(job.truck) && <span>{truckDisplayText(truckLabel(job.onsiteTruck))} on site</span>}{partner && <span className="appointment-partner-badge">{partner.name}</span>}{assignmentNeedsVerification(job) && <strong className="selected-job-warning">Assignment not verified</strong>}</div>
       {onsiteClocks && <div className="selected-job-facts"><span>{onsiteClocks}</span></div>}
       {(job.truckVisits?.length || 0)>1 && <p className="selected-job-warning">One appointment · {job.truckVisits!.length} GPS visit segments shown on the timeline.</p>}

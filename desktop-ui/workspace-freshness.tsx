@@ -45,7 +45,7 @@ export function WorkspaceFreshness({ state, sourceAt, budgetMinutes = 10, source
     <span>{sourceAt ? `${sourceLabel} ${time(sourceAt)}` : 'Source time unavailable'} · {statusLabel || (stale ? 'Check source freshness' : 'Within source freshness window')}</span>
     <span>{state.receivedAt ? `Screen retrieved ${time(state.receivedAt)}` : 'No successful screen refresh yet'}</span>
     {state.paused && <span>Background refresh paused while editing or reviewing a record.</span>}
-    {state.error && <strong>Refresh failed. Last retrieved data retained. {state.error}</strong>}
-    <Button variant="outline" size="sm" disabled={state.pending || state.paused} onClick={() => void state.refresh().catch(() => {})}>{state.pending ? 'Refreshing…' : 'Refresh data'}</Button>
+    {state.error && <strong>Refresh failed. {state.receivedAt ? 'Showing the last retrieved data.' : 'No data has been loaded yet.'} Try again shortly.</strong>}
+    <Button variant="outline" size="sm" disabled={state.pending || state.paused} onClick={() => void state.refresh().catch(() => {})}>{state.pending ? 'Refreshing…' : state.error ? 'Retry' : 'Refresh data'}</Button>
   </div>;
 }

@@ -5,9 +5,11 @@ import ts from 'typescript';
 import {crewPhoneBody,crewPhoneResponse,crewPhoneFailure} from '../lib/crew-phone-http';
 import {CrewPhoneError} from '../lib/crew-phone';
 import * as policy from '../lib/waypoint-manager-policy';
+let accountAllowed=false;
 let allowed=true,reads=0,delegated=0,contexts=0,transfers=0,bodySeen:unknown;
 const phone={deviceId:'fixture',truck:'Truck 1'};
 const mocks:Record<string,unknown>={
+ '@/lib/waypoint-account':{waypointAccount:async()=>accountAllowed?{email:"fixture@junk-king.com",role:"manager"}:null},
  '@/lib/crew-phone-http':{crewPhoneBody,crewPhoneResponse,crewPhoneFailure},
  '@/lib/waypoint-manager-context':{requireWaypointManager:()=>{if(!allowed)throw new CrewPhoneError('Denied',403);return phone;},withWaypointManager:(_r:Request,run:()=>unknown)=>run()},
  '@/lib/waypoint-manager-policy':policy,
@@ -32,6 +34,13 @@ async function main(){
  assert.equal((await post(req('operations',{action:'note'},'https://evil.invalid'))).status,403);assert.equal(delegated,before);
  assert.equal((await post(req('context',{date:'2026-10-16',truck:'Truck 9',driver:'Fixture Driver',responsible:'Fixture Driver',navigators:[],requestId:'fixture',expectedVersion:0}))).status,200);assert.equal(contexts,1);assert.equal(transfers,0,'Manager work context never transfers jobs');
  allowed=false;assert.equal((await get(req('schedule'))).status,403);assert.equal(reads,1);assert.equal((await post(req('context',{truck:'Truck 9'}))).status,403);assert.equal(contexts,1);
+ accountAllowed=true;
+ const accountSnapshot=await (await get(req('schedule'))).json();assert.equal(accountSnapshot.phone,null);assert.equal(accountSnapshot.day,null);assert.equal(reads,2);
+ assert.equal((await post(req('context',{truck:'Truck 9'}))).status,403);assert.equal(contexts,1,'Accounts cannot manufacture phone work context');
+ assert.equal((await post(req('operations',{action:'note',values:{note:'account fixture'}}))).status,200);
+ assert.equal((await post(req('phones',{action:'send-setup'}))).status,403);
+ allowed=true;const dualSnapshot=await (await get(req('schedule'))).json();assert.equal(dualSnapshot.phone.deviceId,phone.deviceId);
+ assert.equal((await post(req('context',{truck:'Truck 9'}))).status,200);assert.equal(contexts,2,'Named accounts retain approved phone work context');
  console.log('PASS: manager gateway rejects unauthorized/CSRF/unsafe actions before delegates, reads all trucks without mutations, and changes explicit crew context without transferring appointments. Synthetic handlers only.');
 }
 void main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,6 +1,6 @@
 # Desktop presentation
 
-Command leads with recorded revenue for the selected operating date, the existing
+Dashboard leads with recorded revenue for the selected operating date, the existing
 `dailyRevenueTarget()` goal, remaining revenue, and a 52-week (364-day) comparison
 so weekdays match. A live partial day is explicitly compared with a completed day.
 Only saved metrics are read; absent or stale evidence remains unavailable. The
@@ -11,8 +11,8 @@ retained from the production layout. Revenue is recorded, not verified cash;
 assumed disposal costs and all source/freshness explanations remain visible.
 The historical operating-day controls, map and OpsBot remain available.
 
-All comparison chips share the top-right position. Daily KPIs compare the same
-weekday last week; Crew compares the previous weekday, pay period or equally
+Comparison chips sit at the top right; phone Dashboard cards place them in the heading row. Daily KPIs compare the same
+weekday last week; Krewe compares the previous weekday, pay period or equally
 elapsed month. Capital uses its existing matched-period financial comparisons.
 Tooltips identify the period. Green means favorable (lower for costs), red means
 unfavorable. Actual zero change is neutral; absent, non-finite and zero prior
@@ -29,20 +29,26 @@ refresh errors remain visible. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The 256px page rail lists the selected primary pages under Command, Control, Crew,
-Convoy, Capital and Campaign. Capital and restricted Crew reports follow the
-existing financial permission boundary. Every item is a real link (including
-open-in-new-tab), retains the operating date and clears unrelated record filters.
-The active page has `aria-current="page"`; keyboard focus is visible. The page
-list uses compact spacing in laptop-height desktop windows so all pages fit
-at the standard 990px content height without scrolling. It explicitly allows
-flex shrinking and independent scrolling as a fallback for shorter windows,
-so source checks remain available at the bottom. OpsBot opens from the
-existing header search; its sidebar card and the static account card are omitted
-to leave room for 32px navigation rows, 16px labels and 20px icons
-in laptop-height windows. Each workspace has a softly shaded header with bold text so section
-boundaries remain clear without extra height or a heavy visual band. Mobile retains its workspace selector and shared page tabs.
-Actions, Monitor, Call-in plan and Reconciliation are omitted from the sidebar.
+The desktop uses an 80px workspace rail. Each workspace is a direct link to its
+main page: Dashboard Updates, Command Board, Krewe Today, Fleet Overview,
+Finance Overview, and Marketing Follow up. Settings appears in the footer above
+Sources. There are no sidebar area menus; the existing in-page tabs and saved
+area links remain available. Links preserve the selected operating date and clear
+unrelated record filters. Finance retains its role check. Enter activates links;
+modifier clicks open the same main-page destination in a new tab. Mutation busy
+state blocks navigation. The mobile selector uses the same main-page defaults.
+
+Settings initially provides My Preferences, Notifications, and Connections.
+The default opening workspace is stored in versioned browser local storage,
+shared by users of that browser, and applies only to the bare desktop URL.
+The Settings page omits daily operating controls but retains the selected date when returning to workspaces. Explicit page/date links take precedence and Finance preferences are ignored
+without financial access. Storage failures are reported rather than shown as saved.
+Existing manager notification controls live here; opening Settings does not send
+a test, request notification permission, approve a device, or enable delivery.
+Connections reuses the existing source health observations and freshness labels.
+No collector, provider connection, or new polling is introduced.
+
+Actions, Call-in plan and Reconciliation are omitted from the sidebar.
 Convoy Driving and Records & invoices are omitted from the sidebar and page tabs.
 Capital Trends is included below the Overview summary; its separate sidebar
 entry and page tab are omitted. Saved Trends links and existing metric actions
@@ -104,3 +110,35 @@ values and may differ from the gross-job card. The card also labels its gross
 job-value basis. The three-column layout extends through 1240px so four-digit
 amounts and negative Net values fit before switching to six columns. No new
 source read or collection is introduced.
+
+## Command on phones
+
+At widths up to 760px, Command uses a compact opening overview: workspace
+navigation, one date-control row, then search with icon buttons for OpsWiki and
+alerts. The workspace heading remains accessible to screen readers; its visible
+name is already present in the mobile selector. Revenue and remaining goal share
+a row, with the complete source, comparison and basis text below. The six other
+KPIs retain their values, descriptions, source timestamps and drilldown actions.
+Comparison badges share the card heading instead of consuming a separate row.
+No finance calculation, freshness rule, query or operational action changes.
+
+The height regression uses the complete live header and realistic source text,
+not an isolated grid. At 375–430px wide, the full KPI section fits a 740px content
+viewport with a 34px bottom reserve (browser/status chrome is outside the content
+viewport); 320px uses 800px. Shorter windows and enlarged text can scroll normally:
+never clip content, hide a metric, scale the entire page, or trap scrolling to
+force a fit. Physical handset acceptance remains separate from browser tests.
+
+## Final workspace names
+
+The display names are Dashboard, Command, Krewe, Fleet, Finance, and Marketing.
+`desktop-ui/lib/workspace-labels.ts` owns the desktop mapping. Persisted keys and
+bookmarks remain `Command`, `Schedule`, `Krewe`, `Fleet`, `Finance`, and `Marketing`,
+respectively. The legacy navigation labels match these names. The Operating
+Control area stays within Dashboard; it is distinct from the Command dispatch workspace.
+
+Shared workspace controls and cards use `workspace-consistency.css`: brand red
+for actions and selected filters, semantic status colors for evidence, and
+content-sized financial cards so comparison chips cannot hide their labels.
+Release notices wait until the current record review or edit closes. Failed
+refreshes offer Retry and distinguish retained data from an initial load failure.

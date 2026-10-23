@@ -1,3 +1,4 @@
+import {applyCustomerEdits} from './customer-edit';
 // Extracted without semantic changes from the deployed Schedule source.
 // Keep JunkWare normalization, identity, and source precedence shared with the UI.
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
@@ -1063,7 +1064,7 @@ function readJobRows(date: string): JobRow[] {
 
   const photoJobs = applyVerifiedPhotoReceipts(currentJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
   const classifiedJobs = applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0));
-  return applyVerifiedJobCancellations(classifiedJobs, readVerifiedJobCancellations(date)).sort((a, b) => {
+  return applyVerifiedJobCancellations(applyCustomerEdits(classifiedJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)), readVerifiedJobCancellations(date)).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);

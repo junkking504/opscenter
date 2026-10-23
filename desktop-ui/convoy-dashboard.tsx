@@ -16,6 +16,7 @@ import type {
 } from "./lib/people-fleet-contract";
 import type { FleetRecord } from "./convoy-views";
 import { ConvoyHistory } from "./convoy-views";
+import { ConvoyLiveBoard } from "./convoy-live-board";
 export type DashboardProps = {
   snapshot: DesktopFleetSnapshot;
   trucks: DesktopFleetTruck[];
@@ -356,6 +357,11 @@ export function ConvoyDashboard(props: DashboardProps) {
     (r) => r.status === "scheduled" && r.serviceDate < snapshot.date,
   );
   const repairsKnown = !snapshot.warnings.some((w) => w.startsWith("Repair source"));
+  const dueItems = trucks.flatMap((t) =>
+    plansFor(snapshot, t, now)
+      .filter((p) => p.status === "due" || p.status === "soon")
+      .map((p) => ({ key: `${t.id}:${p.serviceType}`, truckId: t.id, truck: label(t), serviceType: p.serviceType, status: p.status as "due" | "soon", milesRemaining: p.milesRemaining, daysRemaining: p.daysRemaining })),
+  );
   const selected = trucks.find((t) => t.id === truckId);
   if (selected) return <ConvoyTruckDetail {...props} truck={selected} />;
   const visible = trucks.filter(
@@ -369,38 +375,13 @@ export function ConvoyDashboard(props: DashboardProps) {
   );
   return (
     <div className="convoy-dashboard convoy-compact-overview">
-      <div className="convoy-metrics">
-        <Metric
-          value={trucks.length}
-          title="Fleet trucks"
-          detail={`${trucks.filter((t) => t.mileage?.value != null).length} have reported mileage`}
-          onClick={() => setFilter("all")}
-        />
-        <Metric
-          value={repairsKnown ? stop.length : "—"}
-          title="Out of service"
-          detail="Recorded on active repairs"
-          onClick={() => setFilter("stop")}
-        />
-        <Metric
-          value={repairsKnown ? repairs.length : "—"}
-          title="Active repairs"
-          detail={`${repairs.filter((i) => i.status === "open").length} open · ${repairs.filter((i) => i.status === "in_progress").length} in progress`}
-          onClick={() => setFilter("repairs")}
-        />
-        <Metric
-          value={baseline.length}
-          title="Maintenance setup"
-          detail="For configured maintenance rules"
-          onClick={() => setFilter("baseline")}
-        />
-      </div>
+      <ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} />
       <div className="convoy-dashboard-grid">
         <section className="convoy-dash-panel">
           <header>
             <h2>
               {filter === "all"
-                ? "All trucks"
+                ? "All trucks (detail)"
                 : {
                     mileage: "Mileage review",
                     stop: "Out of service",
@@ -473,47 +454,6 @@ export function ConvoyDashboard(props: DashboardProps) {
           </div>
         </section>
         <aside className="convoy-side-stack">
-          <section className="convoy-dash-panel convoy-attention">
-            <h2>Needs attention</h2>
-            <p>Start with the work that needs a decision.</p>
-            <button
-              onClick={() => {
-                setFilter("stop");
-                onTruck("");
-              }}
-            >
-              <strong>Out-of-service repairs</strong>
-              <span>
-                {stop.length
-                  ? stop.map(label).join(" · ")
-                  : repairsKnown
-                    ? "None recorded"
-                    : "Repair source unavailable"}
-              </span>
-              <Badge tone="warning">
-                {repairsKnown ? `${stop.length} trucks out of service` : "Review source"}
-              </Badge>
-            </button>
-            <button onClick={() => onView?.("service")}>
-              <strong>Review scheduled service</strong>
-              <span>
-                {scheduled.length
-                  ? `${scheduled.length} scheduled visits have passed`
-                  : "No past scheduled visits"}
-              </span>
-              <Badge tone="warning">
-                {scheduled.length ? "Completion not recorded" : "View planned work"}
-              </Badge>
-            </button>
-            <button onClick={() => onView?.("service")}>
-              <strong>Set preventive maintenance</strong>
-              <span>{baseline.length} trucks need service setup</span>
-              <Badge tone="warning">Add baseline and interval</Badge>
-            </button>
-            <Button className="convoy-primary" onClick={() => onView?.("service")}>
-              Open service planner <ArrowRight size={15} />
-            </Button>
-          </section>
           <Coverage snapshot={snapshot} trucks={trucks} now={now} />
         </aside>
       </div>

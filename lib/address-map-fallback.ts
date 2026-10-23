@@ -24,7 +24,7 @@ export type AddressMapFallback = {
   visitEligible?:false;
   navigationReviewed?:true;
 };
-type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;streetOnly?:boolean;bounds?:number[];streetZipCorroborated?:boolean};
+type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;rooftop?:boolean;streetOnly?:boolean;bounds?:number[];streetZipCorroborated?:boolean};
 type CachedCandidate = Candidate & {stale:boolean};
 const normalize=normalizeServiceAddress;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -45,6 +45,9 @@ function comparableStreet(value:string,city:string) {
 // A provider may publish a shared building without the source house's letter.
 // This is an approximate building, never a replacement for the source suffix.
 function omittedHouseSuffix(address:string,candidate:Candidate) {
+  // A compact highway direction is handled separately with stronger evidence;
+  // it must not fall through to a directionless base-building guess.
+  if(/^\d+[NSEW]\s+(?:HWY|HIGHWAY)\s+\d+\b/i.test(address.trim()))return '';
   const parsed=serviceHouseAndStreet(cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address)))));
   const parts=parsed && normalizeHouseNumber(parsed.house).match(/^(\d+)([A-Z])$/);
   if(!parts || normalizeHouseNumber(candidate.house)!==parts[1])return '';
@@ -52,14 +55,31 @@ function omittedHouseSuffix(address:string,candidate:Candidate) {
   if(unit && unit!==parts[2] || sourceUnit && sourceUnit!==parts[2])return '';
   return parts[2];
 }
+// A joined cardinal letter before an unqualified numbered highway can mean
+// either a house suffix or a road direction. Only existing rooftop evidence
+// may support the latter for navigation. Do not globally alias Hwy to US/LA,
+// split other alphanumeric houses, change provider queries, or verify a pin.
+function compactHighwayMatch(address:string,candidate:Candidate) {
+  if(candidate.source!=='Geocodio' || !candidate.rooftop || candidate.streetOnly
+    || candidate.state!=='LA' || serviceUnitIdentifiers(candidate.street).length
+    || candidate.latitude<29 || candidate.latitude>31.3 || candidate.longitude< -93 || candidate.longitude> -89.4) return false;
+  const source=address.trim().match(/^(\d+)([NSEW])\s+(?:HWY|HIGHWAY)\s+(\d+)[,\s]+([A-Z][A-Z .'-]*?),?\s+(?:(LA|LOUISIANA)[,\s]+)?(\d{5})(?:-\d{4})?$/i);
+  const road=candidate.street.trim().match(/^(N|S|E|W|NORTH|SOUTH|EAST|WEST)\s+(?:(?:US|U\.S\.|LA|LOUISIANA|STATE)[ -]*(?:(?:HWY|HIGHWAY|ROUTE)\s+)?|(?:HWY|HIGHWAY)\s+)(\d+)$/i);
+  return Boolean(source && road && candidate.house===source[1]
+    && normalize(road[1])===source[2].toUpperCase() && road[2]===source[3]
+    && normalize(candidate.city)===normalize(source[4]) && candidate.zip===source[6]);
+}
 export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(serviceStreetCandidates(mapAddress(address)).length!==1)return false;
   if(typeof candidate.house!=='string'||![candidate.street,candidate.city,candidate.state,candidate.zip].every(value=>typeof value==='string'&&value.length>0))return false;
+  if(!Number.isFinite(candidate.latitude)||!Number.isFinite(candidate.longitude)
+    ||candidate.latitude<24||candidate.latitude>50||candidate.longitude< -125||candidate.longitude> -66)return false;
   const sourceUnits=serviceUnitIdentifiers(mapAddress(address)),candidateUnits=serviceUnitIdentifiers(mapAddress(candidate.street));
   // A complex entrance can omit a unit, but another explicit unit cannot stand
   // in for the requested one. Multiple unit/building identities stay unresolved.
   if(new Set(sourceUnits).size>1 || new Set(candidateUnits).size>1
     || sourceUnits.length && candidateUnits.length && sourceUnits[0]!==candidateUnits[0])return false;
+  if(compactHighwayMatch(address,candidate))return true;
   const full=cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address))));
   const parsed=serviceHouseAndStreet(full);
   const missingSuffix=omittedHouseSuffix(address,candidate);
@@ -83,8 +103,7 @@ export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(candidate.streetOnly && sourceZip!==candidate.zip && !(candidate.streetZipCorroborated
     && /^\d{5}$/.test(sourceZip||'') && /^\d{5}$/.test(candidate.zip)
     && sourceZip!.slice(0,3)===candidate.zip.slice(0,3)))return false;
-  return Number.isFinite(candidate.latitude)&&Number.isFinite(candidate.longitude)
-    &&candidate.latitude>=24&&candidate.latitude<=50&&candidate.longitude>=-125&&candidate.longitude<=-66;
+  return true;
 }
 function candidateScore(address:string,row:CachedCandidate) {
   const source=normalize(withoutServiceUnit(mapAddress(address)));
@@ -105,6 +124,9 @@ function candidateScore(address:string,row:CachedCandidate) {
 function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback|null {
   const identity=(row:Candidate)=>JSON.stringify([row.house,row.street,row.city,row.state,row.zip,row.latitude,row.longitude,row.source]);
   const matches=rows.filter(row=>mapCandidateMatches(address,row));
+  // A directional interpretation cannot choose between distinct premises.
+  if(matches.some(row=>compactHighwayMatch(address,row))
+    &&new Set(matches.map(row=>JSON.stringify([normalizeHouseNumber(row.house),normalize(row.street),row.latitude,row.longitude]))).size>1)return null;
   matches.sort((a,b)=>candidateScore(address,b)-candidateScore(address,a) || identity(a).localeCompare(identity(b)));
   const row=matches[0];
   if(!row)return null;
@@ -112,7 +134,7 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
     visitEligible:false,
-    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence. Not used for arrival or departure detection.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
+    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${compactHighwayMatch(address,row) ? ' Source house suffix interpreted as a highway direction; property address remains unverified. Not used for arrival or departure detection.' : ''}${mapUnit(address) ? ' Unit entrance not located.' : ''}${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence. Not used for arrival or departure detection.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
 function cacheUsable(value:any,now:number) {return value&&Number.isFinite(value.expires)&&value.expires>now-7*86400_000;}
@@ -181,7 +203,8 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
         const rows:Candidate[]=cached.payload.results.map((row:any)=>{
           const a=row?.address_components||{};
           const unit=a.unit_number||a.secondarynumber;
-          return {house:a.number||'',street:[a.formatted_street,unit?`Unit ${unit}`:''].filter(Boolean).join(' '),city:a.city||'',state:a.country==='US'?a.state_province:'',zip:String(a.postal_code||'').slice(0,5),latitude:row.location?.lat,longitude:row.location?.lng,source:'Geocodio',sourceUrl:'https://api.geocod.io/v2/geocode',precision:row.accuracy_type==='range_interpolation'?'Estimated position along the street':'Provider map location',confidence:row.accuracy};
+          return {house:a.number||'',street:[a.formatted_street,unit?`Unit ${unit}`:''].filter(Boolean).join(' '),city:a.city||'',state:a.country==='US'?a.state_province:'',zip:String(a.postal_code||'').slice(0,5),latitude:row.location?.lat,longitude:row.location?.lng,source:'Geocodio',sourceUrl:'https://api.geocod.io/v2/geocode',precision:row.accuracy_type==='range_interpolation'?'Estimated position along the street':'Provider map location',confidence:row.accuracy,
+            rooftop:row.accuracy===1 && row.accuracy_type==='rooftop' && [null,undefined,'building_centroid','parcel_centroid'].includes(row.match_type) && !unit && !a.unit_type};
         });
         candidates.push(...rows.map(row=>({...row,stale:cached.expires<=now})));
         // A fresh exact street/locality/ZIP center can support approximate

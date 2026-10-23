@@ -1,4 +1,4 @@
-import type {GpsTrip} from '../desktop-ui/lib/gps-route-contract';
+import type {GpsRoutePoint, GpsTrip} from '../desktop-ui/lib/gps-route-contract';
 import {gpsDistanceMeters, validGpsCoordinates} from './gps-presence-policy';
 import {normalizeServiceAddress} from './service-address-format';
 
@@ -13,8 +13,19 @@ type Point = {latitude: number; longitude: number};
 type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point} | null;
   appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; hasScheduledTime?: boolean};
 
-const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
+const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, ONSITE_METERS = 300, MAX_FIX_GAP_MS = 20 * 60_000, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
 
+/** The truck's own fixes must cover the dwell: none far from the stop, and no
+ * silent stretch longer than MAX_FIX_GAP_MS (a gap could hide a trip elsewhere). */
+function presentThroughout(points: GpsRoutePoint[], stop: Point, from: number, to: number) {
+  const times = points.flatMap(point => {
+    const at = Date.parse(point.timestamp);
+    return at >= from && at <= to ? [{at, point}] : [];
+  }).sort((a, b) => a.at - b.at);
+  if (times.some(({point}) => !validGpsCoordinates(point) || gpsDistanceMeters(point, stop) > ONSITE_METERS)) return false;
+  const edges = [from, ...times.map(row => row.at), to];
+  return edges.every((at, i) => i === 0 || at - edges[i - 1] <= MAX_FIX_GAP_MS);
+}
 function parts(address: string) {
   const [street = '', city = '', ...rest] = address.split(',').map(part => part.trim());
   const match = street.match(/^(\d+[A-Z]?)\s+(.+)$/i);
@@ -38,7 +49,7 @@ const chicagoMinutes = (stamp: number, day: string) => {
  * same street and locality, an exact or one-digit-off house number, and a stop
  * that begins near the booked window. `confident` stops (dwell then departure, or
  * closed out) are treated as the visit by the caller; others stay suggestions. */
-export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day: string): LikelyStop | null {
+export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day: string, points: GpsRoutePoint[] = []): LikelyStop | null {
   if (!job.address || /cancel/i.test(job.status || '') || !/^Truck [1-9]\d*$/.test(job.truck) || !trips?.length) return null;
   const want = parts(job.address);
   if (!want || job.appointmentStartMinutes == null || job.appointmentEndMinutes == null) return null;
@@ -60,7 +71,8 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     // missing and the dwell is unsupported.
     const linked = (a: Point, b: Point) => validGpsCoordinates(a) && validGpsCoordinates(b) && gpsDistanceMeters(a, b) <= LINK_METERS;
     const arrivedFromPrevious = !previous || linked(previous.to, trip.from);
-    const departure = arrivedFromPrevious && next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from) ? next.departure : null;
+    const departure = arrivedFromPrevious && next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from)
+      && presentThroughout(points, trip.to, arrival, Date.parse(next.departure)) ? next.departure : null;
     const exact = want.house === got.house;
     const closed = /complete|closed|paid/i.test(job.status || '');
     const dwellMinutes = departure ? (Date.parse(departure) - arrival) / 60_000 : 0;
@@ -81,6 +93,6 @@ export function contestedLikelyStops<T>(claims: {job: T; truck: string; likely: 
   return new Set(claims.filter(({job, truck, likely}) => {
     const start = Date.parse(likely.arrival), end = likely.departure ? Date.parse(likely.departure) : start;
     return claims.some(other => other.job !== job && other.truck === truck && other.likely.arrival === likely.arrival)
-      || confirmed.some(visit => visit.truck === truck && visit.start < end && start < visit.end);
+      || confirmed.some(visit => visit.truck === truck && visit.start <= end && start <= visit.end);
   }).map(claim => claim.job));
 }

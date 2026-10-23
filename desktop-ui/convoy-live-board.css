@@ -29,3 +29,4 @@ button.clb-tile:hover{border-color:var(--oc-text-green-01);background:var(--oc-s
 .clb-soon ul{list-style:none;margin:0;padding:0 14px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
 .clb-soon li button{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;width:100%;text-align:left;padding:8px 10px;border:1px solid var(--convoy-line);border-radius:6px;background:white}
 .clb-soon li button small{grid-column:2;font-size:var(--oc-type-11);color:var(--oc-text-blue-03)}.clb-soon li button strong{font-size:var(--oc-type-12)}.clb-soon li button span{font-size:var(--oc-type-12)}
+.clb-stale{margin:0;padding:8px 12px;border:1px solid #e3c98a;background:#fbf0d9;color:#7a4d0b;border-radius:6px;font-size:var(--oc-type-12)}

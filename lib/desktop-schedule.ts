@@ -1,5 +1,6 @@
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
+import { likelyGpsStop } from './likely-stop-match';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -27,7 +28,7 @@ import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalS
 import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
 import { readTruckGpsRoute } from './desktop-gps-route';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { likelyStop?: import('./likely-stop-match').LikelyStop; truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   approximate?: boolean;
   geometry?: Coordinates[];
@@ -94,6 +95,20 @@ export function readDesktopSchedule(date: string) {
   for (const job of appointments) {
     job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
     job.truckVisitGaps = scheduleTruckVisitGaps(job.truckVisits, tracked.visits);
+  }
+  // Near misses (typo'd house number, unresolved pin): a stop with dwell and
+  // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
+  const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
+  for (const job of appointments) {
+    if (job.truckVisits?.length) continue;
+    const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
+    if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
+    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date);
+    if (likely?.confident && likely.departure) {
+      // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
+      job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
+      job.hasVisit = true;
+    } else if (likely) job.likelyStop = likely;
   }
   const geofenceStops = scheduleOperationalStops(date, tracked.visits);
   const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {

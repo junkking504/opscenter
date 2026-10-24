@@ -113,6 +113,9 @@ async function main() {
     assert.deepEqual(await (await crewPhoneSession(request(payload))).json(), json, 'Lost response can be recovered by the same phone');
     const cookieHeader = { Cookie: `${CREW_PHONE_COOKIE}=${apiKey}` };
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 200);
+    const connected=await crewPhoneSession(request({action:'enroll',code:'unused-fictional-code',connectionKey:key()},cookieHeader));
+    assert.equal(connected.status,409);assert.equal((await connected.json()).code,'already_connected');
+    assert.equal((await (await crewPhoneSession(request(undefined,cookieHeader))).json()).phone.deviceId,json.phone.deviceId,'409 preserves current identity for read-only recovery');
     assert.equal((await crewPhoneSession(request(undefined, { Cookie: `${cookieHeader.Cookie}; ${cookieHeader.Cookie}` }))).status, 401);
     assert.equal((await crewPhoneSession(request({ action: 'disconnect' }, cookieHeader))).status, 200);
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 401);

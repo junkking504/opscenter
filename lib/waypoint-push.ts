@@ -1,3 +1,5 @@
+import {waypointPushProjection,waypointPushChange,type WaypointPushProjection} from './waypoint-push-change';
+import {waypointUpdateCounts} from './waypoint-update-context';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
@@ -115,15 +117,18 @@ export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={a
    continue;
   }
   let snapshot;try{snapshot=sources.snapshot(phone,chicagoDateKey());}catch{snapshot={state:'unavailable' as const,jobs:[]};}
-  const messages=await sources.messages(phone.truck,pool),scope=`${chicagoDateKey()}:${phone.truck}`,revisions=[{kind:'messages',revision:waypointRevision([],messages)},...(snapshot.state==='unavailable'?[]:[{kind:'schedule',revision:waypointRevision(snapshot.jobs || [],[])}])];
-  for(const {kind,revision} of revisions){
+  const messages=await sources.messages(phone.truck,pool),scope=`${chicagoDateKey()}:${phone.truck}`,revisions=[{kind:'messages' as const,revision:waypointRevision([],messages),projection:waypointPushProjection([],messages)},...(snapshot.state==='unavailable'?[]:[{kind:'schedule' as const,revision:waypointRevision(snapshot.jobs || [],[]),projection:waypointPushProjection(snapshot.jobs || [],[])}])];
+  for(const {kind,revision,projection} of revisions){
   const client=await pool.connect();try{await client.query('BEGIN');
    // Enrollment/disable must serialize with baseline and delivery creation.
    const current=(await client.query('SELECT enabled,phone_id FROM opscenter_kernel.waypoint_push_devices WHERE id=$1 FOR UPDATE',[device.id])).rows[0];
    if(!current?.enabled || current.phone_id!==device.phone_id){await client.query('ROLLBACK');continue;}
-   const prior=(await client.query('SELECT scope,revision FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 AND kind=$2 FOR UPDATE',[device.id,kind])).rows[0];
-   if(prior?.scope===scope && prior.revision!==revision)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status) VALUES($1,$2,$3,$4,$5,'pending')",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey()]);
-   await client.query('INSERT INTO opscenter_kernel.waypoint_push_baselines(device_id,kind,scope,revision) VALUES($1,$2,$3,$4) ON CONFLICT(device_id,kind) DO UPDATE SET scope=EXCLUDED.scope,revision=EXCLUDED.revision,updated_at=now()',[device.id,kind,scope,revision]);
+   const prior=(await client.query('SELECT scope,revision,projection_json FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 AND kind=$2 FOR UPDATE',[device.id,kind])).rows[0];
+   if(prior?.scope===scope && prior.revision!==revision){
+    const change=waypointPushChange(prior.projection_json as WaypointPushProjection|null,projection,kind);
+    if(change.changed)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status,context_json,not_before) VALUES($1,$2,$3,$4,$5,'pending',$6::jsonb,now()+($7 * interval '1 second'))",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey(),JSON.stringify(change.counts),change.urgent?0:15]);
+   }
+   await client.query('INSERT INTO opscenter_kernel.waypoint_push_baselines(device_id,kind,scope,revision,projection_json) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(device_id,kind) DO UPDATE SET scope=EXCLUDED.scope,revision=EXCLUDED.revision,projection_json=EXCLUDED.projection_json,updated_at=now()',[device.id,kind,scope,revision,JSON.stringify(projection)]);
    await client.query('COMMIT');
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   }
@@ -140,4 +145,11 @@ export async function retainWaypointPush(pool:Pool=getKernelPool()) {
  if(retired.length){await client.query('DELETE FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=ANY($1::uuid[])',[retired]);await client.query('DELETE FROM opscenter_kernel.waypoint_push_devices WHERE id=ANY($1::uuid[])',[retired]);}
  await client.query('COMMIT');
  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+}
+
+/** Authentication and today's day are required by the caller. No endpoint/key or
+ * customer data is returned; grouping is scoped to the current phone/truck/date. */
+export async function waypointUpdates(phone:CrewPhone,pool:Pool=getKernelPool()) {
+ const rows=(await pool.query("SELECT id,context_json,created_at FROM opscenter_kernel.waypoint_push_deliveries WHERE phone_id=$1 AND truck=$2 AND service_date=$3 AND status<>'skipped' ORDER BY created_at DESC,id DESC LIMIT 30",[phone.deviceId,phone.truck,chicagoDateKey()])).rows;
+ return rows.map(row=>({id:row.id,counts:waypointUpdateCounts(row.context_json),created_at:row.created_at}));
 }

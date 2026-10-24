@@ -47,7 +47,7 @@ export function importWexAlertExpenses(messages:WexPriceMessage[],expectedHash:s
  const file=wexAlertExpenseFile();fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});const lock=file+'.lock',fd=fs.openSync(lock,'wx',0o600),temp=file+'.'+randomUUID()+'.tmp';
  try{const plan=prepareWexAlertExpenses(messages);if(plan.sourceSha256!==expectedHash)throw Error('WEX alert expenses changed after preflight.');
   if(plan.summary.added){fs.writeFileSync(temp,JSON.stringify({version:1,importedAt:new Date().toISOString(),alerts:plan.alerts}),{mode:0o600,flag:'wx'});fs.renameSync(temp,file);}return plan.summary;
- }finally{fs.rmSync(temp,{force:true});fs.closeSync(fd);fs.unlinkSync(lock);}
+ }finally{try{fs.rmSync(temp,{force:true});}finally{try{fs.closeSync(fd);}finally{fs.unlinkSync(lock);}}}
 }
 const clockSeconds=(s:string)=>s.split(':').reduce((sum,n)=>sum*60+Number(n),0);
 const possibleRepeat=(a:WexExpenseAlert,b:WexExpenseAlert)=>a.date===b.date&&a.address.length>3&&a.driver.length>2&&normalized(a.address)===normalized(b.address)&&normalized(a.driver)===normalized(b.driver)&&Math.abs(clockSeconds(a.time)-clockSeconds(b.time))<=1800;
@@ -71,11 +71,12 @@ export function reconcileWexAlertExpenses(date:string,alerts:WexExpenseAlert[],p
   const conflict=changedIdentity||simultaneous||repeatedIdentity||options.length>0&&(!unique||a.state!=='authorized')||a.state==='unknown'||a.state==='authorized'&&versions.some(v=>v.state==='reversed');
   const p=!conflict&&unique?options[0]:null;
   const postedAmount=p?(p.totalFuelCost??(p.totalNonFuelCost===0?p.netCost:null)):null;
-  const status:WexAlertExpenseRow['status']=conflict?'review':p?'posted':a.state==='reversed'?'reversed':a.state==='declined'?'declined':a.amount===null?'review':'provisional';
+  const status:WexAlertExpenseRow['status']=conflict||p&&postedAmount===null?'review':p?'posted':a.state==='reversed'?'reversed':a.state==='declined'?'declined':a.amount===null?'review':'provisional';
   return {id:`wex-alert:${a.trackingNumber}`,trackingNumber:a.trackingNumber,date:a.date,truck:null,merchant:a.merchant,authorizationLocal:a.authorizationLocal,timeZone:null,receivedAt:a.receivedAt,sourceUrl:a.sourceUrl,sourceIds:versions.map(v=>v.messageId),revisionCount:versions.length,status,authorizedAmount:a.amount,postedAmount,postedId:p?.transactionId||null,difference:p&&postedAmount!==null&&a.amount!==null?(cents(postedAmount)-cents(a.amount))/100:null,
-   reason:conflict?'Conflicting identity, sequence or multiple matching purchases; review required.':p?'One posted purchase matches local date/time, merchant address, driver and gallons; posted amount replaces the authorization.':status==='reversed'?'Authorization reversed; excluded from pending amount.':status==='declined'?'Authorization declined; excluded from pending amount.':'Authorization only; settlement and inclusion in published expenses are unverified.'};
+   reason:conflict?'Conflicting identity, sequence or multiple matching purchases; review required.':p&&postedAmount===null?'Posted purchase matched, but its fuel amount is unknown; review required.':p?'One posted purchase matches local date/time, merchant address, driver and gallons; posted amount replaces the authorization.':status==='reversed'?'Authorization reversed; excluded from pending amount.':status==='declined'?'Authorization declined; excluded from pending amount.':'Authorization only; settlement and inclusion in published expenses are unverified.'};
  });
- return {date,status:'available',importedAt,rows,provisionalTotal:rows.some(r=>r.status==='review')?null:rows.filter(r=>r.status==='provisional').reduce((sum,r)=>sum+cents(r.authorizedAmount!),0)/100,reviewCount:rows.filter(r=>r.status==='review').length,postedCount:rows.filter(r=>r.status==='posted').length};
+ const pending=rows.filter(r=>r.status==='provisional');
+ return {date,status:'available',importedAt,rows,provisionalTotal:rows.some(r=>r.status==='review')||!pending.length?null:pending.reduce((sum,r)=>sum+cents(r.authorizedAmount!),0)/100,reviewCount:rows.filter(r=>r.status==='review').length,postedCount:rows.filter(r=>r.status==='posted').length};
 }
 export function readWexAlertExpenses(date:string,posted:WexFuelTransaction[]):WexAlertDailyExpenses{
  try{const {store,hash}=readStore();if(hash==='missing')return {date,status:'missing',importedAt:null,rows:[],provisionalTotal:null,reviewCount:0,postedCount:0};

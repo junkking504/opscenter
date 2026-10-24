@@ -141,11 +141,18 @@ versus settlement and distinct tracking numbers at the same driver/station withi
 Incomplete match evidence stays provisional and separate from settled totals.
 Existing dated crew/GPS truck attribution is reused only for the exact linked
 price evidence; otherwise truck remains unconfirmed. Asset/card labels are not
-truck identity. A missing/corrupt journal is unavailable, never a zero-spend claim.
+truck identity. A later source message does not inherit attribution from another
+price revision. A missing/corrupt journal, an empty day or a day with no pending
+authorizations has an unavailable provisional amount, never a zero-spend claim.
+A matched posted purchase with an unknown fuel portion remains under review.
+Tracking number is a grouping hint, not proof of global uniqueness: changed
+identity across dates or purchases requires review. Nearby declines/reversals
+also trigger conservative review rather than assuming a retry is independent.
 
 This is a prepared local ingestion/read model, not a deployed collector. No
 recurring agent job is installed. The owner excludes extra Codex/compute jobs,
 new charges and new access; the earlier hourly Codex proposal was withdrawn.
 An authorized mailbox-to-runtime bridge and release approval remain prerequisites
-for ongoing daily ingestion. Tests: `scripts/test-wex-alert-expenses.ts` and
-`scripts/test-wex-alert-expenses-browser.mjs`, with synthetic records only.
+for ongoing daily ingestion. Synthetic importer and reconciliation tests run in
+`npm run verify:wex-fuel` (also in CI); the synthetic browser check is
+`node scripts/test-wex-alert-expenses-browser.mjs`.

@@ -7,5 +7,10 @@ try{browser=await chromium.launch({headless:true});const page=await browser.newP
   assert.equal(await page.locator('.finance-cost-list article').count(),4);assert.equal(await page.getByText('Authorization timezone unconfirmed',{exact:false}).count(),4);assert.ok((await page.locator('body').innerText()).includes('not added to published expenses'));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
   await page.screenshot({path:path.join(cache,`daily-${width}.png`),fullPage:true});
- }assert.deepEqual(errors,[]);console.log(`Synthetic WEX daily UI passed at320/390/1024/1440; screenshots ${cache}`);
+ }
+ await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/wex-alert-expenses.html?empty`);
+ await page.getByText('No imported alerts with this stated authorization date.',{exact:false}).waitFor();
+ assert.equal(await page.locator('.capital-inline-totals strong').first().innerText(),'Unavailable');
+ assert.ok(!(await page.locator('body').innerText()).includes('$0.00'),'empty batch day never displays a recorded monetary zero');
+ assert.deepEqual(errors,[]);console.log(`Synthetic WEX daily UI passed at320/390/1024/1440 and empty-day availability; screenshots ${cache}`);
 }finally{await browser?.close();await server.close();}

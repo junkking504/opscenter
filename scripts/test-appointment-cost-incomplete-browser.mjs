@@ -53,6 +53,13 @@ try {
   assert.match(await details.innerText(),/Break-even subtotal incl. fees: \$292.50/);
   assert.match(await details.innerText(),/Stale; enter a current price/);
   assert.equal(await details.locator('header > strong').innerText(),'Unavailable');
+  const provisional=details.locator('.appointment-cost-basis').filter({hasText:'Provisional estimate'});
+  assert.match(await provisional.innerText(),/Provisional overhead: \$109/);
+  await details.getByText('Cost assumptions · this appointment',{exact:true}).click();
+  await details.getByLabel('Overhead per appointment ($)',{exact:true}).fill('125');
+  assert.equal(await provisional.count(),0,'Edited draft must not retain a stale provisional-overhead amount');
+  await details.getByLabel('Overhead per appointment ($)',{exact:true}).fill('109');
+  assert.match(await provisional.innerText(),/original inclusions unverified/);
   if(width===390||width===1440){
    await page.getByTestId('unquoted').screenshot({path:path.join(cache,`cost-${width}.png`)});
   }

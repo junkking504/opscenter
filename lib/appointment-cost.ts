@@ -11,7 +11,7 @@ import {readScheduleCrewRoster} from './schedule-crew-roster';
 import {appliedPayrollCorrectionForEmployee} from './applied-payroll-corrections';
 import {readAppointmentCost,AppointmentCostError} from './appointment-cost-store';
 import {readWexRealtimePrice,readWexFleetPlanningPrice} from './wex-realtime-prices';
-import {planningCrewHourly,planningOnsiteMinutes,appointmentCostLabor,calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,type CostTravel,type AppointmentCostSummary} from './appointment-cost-model';
+import {planningCrewHourly,planningOnsiteMinutes,appointmentCostLabor,appointmentCostOverheadAssumptions,calculateAppointmentCost,allocateAppointmentTravel,defaultCostWarehouse,type CostTravel,type AppointmentCostSummary} from './appointment-cost-model';
 import {chicagoDateKey,addDays} from './report-dates';
 import {chicagoClockToDate} from './live-pay';
 import {readTruckGpsRoute} from './desktop-gps-route';
@@ -77,7 +77,7 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
  const fuelPrice=record.inputs.fuelPrice??(priceIsRecent?fuel.price!.price:null);
  const labor=appointmentCostLabor(record.inputs,sourceCrewHourly,sourceOnsiteMinutes,canceled);
  const crewHourly=labor.crewHourly;
- const overheadAssumptions=record.version===0?[`Provisional overhead: $${record.inputs.overhead} per appointment; original inclusions unverified.`]:[];
+ const overheadAssumptions=appointmentCostOverheadAssumptions(record.inputs);
  const attendanceAssumptions=[...overheadAssumptions,...routeAssumptions,...fuelAssumptions,...labor.attendanceAssumptions];
  const breakEvenAssumptions=[...overheadAssumptions,...routeAssumptions,...fuelAssumptions,...labor.breakEvenAssumptions];
  return {key,record,costTruck,sourceOnsiteMinutes,planningCrewHourly:canceled?null:planningCrewHourly,planningOnsiteMinutes:canceled?null:planningOnsiteMinutes,attendanceAssumptions,breakEvenAssumptions,travel,fuel,priceIsRecent,sourceCrewHourly,crewSource,crewCount:names.length,crewRateDates:[...new Set(crewRates.filter(Boolean).map(row=>row!.date))],fuelPrice,crewHourly,result:calculateAppointmentCost({...record.inputs,onsiteMinutes:labor.onsiteMinutes},travel,fuelPrice,crewHourly),observedAt:snapshot.observedAt};

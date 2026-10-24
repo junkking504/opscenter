@@ -61,3 +61,10 @@ export function appointmentCostLabor(inputs:CostInputs,sourceCrew:number|null,so
  const breakEvenAssumptions=[...attendanceAssumptions,...(inputs.onsiteMinutes===null&&sourceMinutes===null&&!canceled?['Provisional on-site work: 30 minutes.']:[])];
  return {crewHourly,onsiteMinutes,attendanceAssumptions,breakEvenAssumptions};
 }
+
+// Saving an unrelated input does not verify the recalled overhead inclusions.
+export function appointmentCostOverheadAssumptions(inputs:CostInputs) {
+ return inputs.overhead===defaultCostInputs.overhead
+  ? [`Provisional overhead: $${inputs.overhead} per appointment; original inclusions unverified.`]
+  : [];
+}

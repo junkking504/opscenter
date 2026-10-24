@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {calculateAppointmentCost,defaultCostInputs} from '../lib/appointment-cost-model';
+import {calculateAppointmentCost,defaultCostInputs,appointmentCostOverheadAssumptions} from '../lib/appointment-cost-model';
 import {appointmentCostPresentation} from '../lib/appointment-cost-presentation';
 const travel={miles:40,minutes:60,inbound:'HQ',outbound:'HQ',note:'Synthetic',approximate:false};
 const inputs={...defaultCostInputs,onsiteMinutes:60,disposal:30,extraCosts:15,revenueFeePercent:20};
@@ -45,3 +45,6 @@ assert.equal(appointmentCostPresentation(failed,'To attend').amount,null);
 assert.equal(appointmentCostPresentation(undefined,'To attend').amount,null);
 assert.equal(appointmentCostPresentation({...failed,missing:['Current fuel price']},'Break-even').amount,null);
 console.log('Incomplete appointment cost math and shared card presentation passed (synthetic only).');
+
+assert.match(appointmentCostOverheadAssumptions({...defaultCostInputs,fuelPrice:4})[0],/original inclusions unverified/);
+assert.deepEqual(appointmentCostOverheadAssumptions({...defaultCostInputs,overhead:125}),[]);

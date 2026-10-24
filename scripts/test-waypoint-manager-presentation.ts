@@ -51,8 +51,10 @@ const photos=[{url:'https://example.invalid/private.jpg',fileName:'fictional.jpg
 assert.equal(managerOutcome({...completed,photos}).photos,'1 recorded photo');
 assert.equal(managerOutcome({...completed,photos,photoAuditAvailable:false}).photos,'1 recorded photo · completeness unavailable');
 assert.deepEqual(completed,raw,'Amounts and photo presentation never mutate source values');
-console.log('PASS manager amounts/photos: jobs, estimates, billed/mixed payment entries, recorded tip, missing/pending/nonfinite totals, ambiguous normalized zero, audited/unknown photo counts and source immutability.');
+
 
 assert.deepEqual(managerOutcome({...completed,closeout:{...completed.closeout!,payments:[{method:'Cash',detail:'',amount:0}]}}).payments,['Cash: amount unavailable']);
 
 assert.equal(managerOutcome({...billed,closeout:{...billed.closeout,payments:[{method:'Billed - Net 30',detail:'',amount:538}]}}).notice,'Billed entries are not collected payments');
+
+console.log('PASS manager amounts/photos: jobs, estimates, billed/mixed payment entries, recorded tip, missing/pending/nonfinite totals, ambiguous normalized zero, audited/unknown photo counts and source immutability.');

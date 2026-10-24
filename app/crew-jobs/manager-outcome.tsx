@@ -16,7 +16,7 @@ export function managerOutcome(row:OutcomeRow) {
  const total=completed?`${label}: ${knownTotal?money(closeout!.total):'unavailable'}`:null;
  const tip=knownTotal&&closeout&&Number.isFinite(closeout.tip)&&closeout.tip!==0?`Recorded tip: ${money(closeout.tip)}`:null;
  const payments=closeout?.payments.map(payment=>`${payment.method || 'Unspecified method'}: ${Number.isFinite(payment.amount)&&payment.amount!==0?money(payment.amount):'amount unavailable'}`) || [];
- const billed=closeout?.payments.some(payment=>/^billed\b/i.test(payment.method.trim()));
+ const billed=closeout?.payments.some(payment=>/^billed\b/i.test((payment.method||'').trim()));
  const count=row.photos?.length || 0;
  const photos=count?`${count} recorded photo${count===1?'':'s'}${row.photoAuditAvailable?'':' · completeness unavailable'}`:row.photoAuditAvailable?'No photos recorded':'Photo count unavailable';
  return {total,tip:completed?tip:null,payments:completed?payments:[],notice:completed?(estimate?'Estimate only · not collected revenue':billed?'Billed entries are not collected payments':'Completion does not confirm payment'):null,photos,count};
@@ -29,7 +29,5 @@ export default function ManagerOutcome({job,details=false,className}:{job:Outcom
   {outcome.tip&&<small>{outcome.tip}</small>}
   {outcome.notice&&<small>{outcome.notice}</small>}
   {details&&outcome.total&&<small>Recorded payment entries: {outcome.payments.length?outcome.payments.join(' · '):'unavailable'}</small>}
-  <small>{outcome.photos}{outcome.count>0?' · viewing unavailable':''}</small>
-  {details&&outcome.count>0&&<small>Photos cannot be opened securely in this manager view yet.</small>}
  </span>;
 }

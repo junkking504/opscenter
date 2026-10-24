@@ -110,8 +110,24 @@ total includes them. Recorded payment entries
 remain separate, and neither completion nor a Billed entry confirms collection.
 
 Photo counts describe the existing snapshot: audited empty, unknown, or recorded
-photos with incomplete audit distinguished. Image viewing is currently unavailable
-in this manager surface. The desktop gallery uses direct JunkWare media URLs; the
-protected held-photo review and crew upload-receipt routes are not appointment
-gallery routes. Do not reuse them across scopes or expose public media links. A
-protected appointment viewer requires a separately approved delivery path.
+photos with incomplete audit distinguished. A modal gallery opens on demand,
+keeps the current date/filter/list position and draft state, traps focus, supports
+Escape and previous/next controls, and reports unavailable images honestly.
+
+`GET /api/crew-jobs/manager?resource=photo` uses the same named manager account or
+exact live manager-phone grant as schedule browsing. Ordinary crew receive no
+new image access; existing managers retain their all-truck browse scope. The
+server resolves date + recordId + photo digest against the current local schedule,
+then rechecks authorization and photo membership after download. It accepts no
+caller-supplied source URL. Schedule photo projections replace public URLs with
+these private request URLs and omit unused prior-estimate media.
+
+The image reader permits only HTTPS JunkWare media paths on the existing source
+host, no credentials/query/fragment/nonstandard port, no redirects, and pins a
+validated public IPv4 DNS result while preserving TLS host verification. Requests
+carry no incoming cookies or authorization. DNS and download deadlines, a 10 MiB
+streaming limit, identity encoding and JPEG/PNG/WebP MIME/signature checks bound
+the response. Responses are private/no-store, same-origin, nosniff and sandboxed.
+There is no image optimizer, public link, disk cache, upload, or background fetch.
+Fictional route/transport and browser tests cover the permission boundaries,
+revocation, binding, invalid sources, response limits, focus, errors and return.

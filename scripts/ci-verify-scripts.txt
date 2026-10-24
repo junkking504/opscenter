@@ -105,3 +105,6 @@ verify:whatsapp-crew-expenses
 verify:whatsapp-job-closeouts
 verify:whatsapp-job-photos
 verify:whatsapp-resale
+
+verify:waypoint-manager:photos
+verify:waypoint-manager

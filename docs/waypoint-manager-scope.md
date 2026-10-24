@@ -96,3 +96,18 @@ not synthesized from an account. A named account signed in on an already approve
 work context. Account-only sessions cannot set phone work
 context or bypass crew inspection, assignment, photos or payment rules. The crew
 workflow still requires its ordinary approved phone setup.
+
+## Completed row amounts and photo availability
+
+The manager list and detail render the existing closeout total only when charge
+details are available, labeling estimates separately from jobs. Missing or pending
+closeout details remain unavailable; the default summary payment amount is not a
+fallback. Tips are labelled as included in the total, recorded payment entries
+remain separate, and neither completion nor a Billed entry confirms collection.
+
+Photo counts describe the existing snapshot: audited empty, unknown, or recorded
+photos with incomplete audit distinguished. Image viewing is currently unavailable
+in this manager surface. The desktop gallery uses direct JunkWare media URLs; the
+protected held-photo review and crew upload-receipt routes are not appointment
+gallery routes. Do not reuse them across scopes or expose public media links. A
+protected appointment viewer requires a separately approved delivery path.

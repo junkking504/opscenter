@@ -45,3 +45,7 @@
 .appointments h2 span { font-weight:400; color:#58665e; }
 .notes p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; }
 .notes h3 { font-size:15px; margin:16px 0 8px; }
+
+.outcome { display:grid; gap:6px; margin:16px 0; }
+.outcome strong,.outcome small { display:block; margin:5px 0; overflow-wrap:anywhere; }
+.outcome small { font-size:13px; color:#58665e; }

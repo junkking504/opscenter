@@ -35,6 +35,9 @@ const baseFetch=window.fetch;
 const appointment=(id,status,start,truck='Truck 4')=>({sourceDate:date,hasScheduledTime:true,appointmentType:'Job',recordId:date+':appointment:'+id,appointmentId:id,version:'one',jkNumber:'SAMPLE-'+id,customerName:'Customer '+id,phone:'5045550100',address:'100 Example Street',territory:'Junk King New Orleans',status,truck,appointmentStartMinutes:start,appointmentEndMinutes:start+60,appointmentTime:(start/60)+':00 booked',appointmentNotes:['Original work scope','A longer note. '.repeat(120)],cancellationReason:'Changed plans.',driver:'Sample Driver',navigator:'Sample Navigator',callAhead:'not_called'});
 const appointments=[appointment('cancelled','Cancelled by Sample',600,'—'),...Array.from({length:20},(_,i)=>appointment('done-'+i,'Completed Duration: 60 min(s)',480+i*15,i%2?'Truck 6':'Truck 4')),appointment('active','Confirmed',540),appointment('later-active','Confirmed',600)];
 appointments[0]={...appointments[0],customerName:'Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',address:'100 Example Street, New Orleans, LA 70115',cancellationReason:'Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',appointmentNotes:['Original cancellation note']};
+appointments[1].closeout={total:538,tip:38,payments:[{method:'Billed',amount:538}]};
+appointments[1].photos=[{url:'https://example.invalid/private.jpg',category:'Before',fileName:'fictional.jpg'}];appointments[1].photoAuditAvailable=true;
+appointments[2].appointmentType='Estimate';appointments[2].closeout={total:250,tip:0,payments:[]};appointments[2].photoAuditAvailable=true;
 window.fixture.writes=0;window.fixture.orders=0;
 window.fetch=async(url,options={})=>{
  const parsed=new URL(url,location.href);let body;
@@ -77,6 +80,14 @@ try{
   if(width===390&&process.env.WAYPOINT_TEST_ARTIFACTS){fs.mkdirSync(process.env.WAYPOINT_TEST_ARTIFACTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_TEST_ARTIFACTS,'manager-list-390.png'),fullPage:true});}
   const headings=await page.locator('h2[id^="manager-"]').allTextContents();assert.deepEqual(headings,['Active / Scheduled (2)','Completed (20)','Cancelled (1)']);
   await expect(page.getByText('Completed Duration:',{exact:false})).toHaveCount(0);
+  const completedRow=page.getByRole('button',{name:/Customer done-0 /});
+  await expect(completedRow).toContainText('Job total: $538.00');await expect(completedRow).toContainText('Includes $38.00 tip');await expect(completedRow).toContainText('Billed entries are not collected payments');await expect(completedRow).toContainText('1 recorded photo · viewing unavailable');
+  await expect(page.getByRole('button',{name:/Customer done-1 /})).toContainText('Estimate total: $250.00');
+  await expect(page.getByRole('button',{name:/Customer done-2 /})).toContainText('Job total: unavailable');
+  await completedRow.click();await expect(page.getByText('Recorded payment entries: Billed: $538.00',{exact:true})).toBeVisible();await expect(page.getByText('Photos cannot be opened securely in this manager view yet.',{exact:true})).toBeVisible();
+  assert.equal(await page.locator('img[src*="example.invalid"],a[href*="example.invalid"]').count(),0,'No public image URLs or links rendered');
+  await nav.getByRole('button').click();
+
   await page.getByRole('button',{name:/Example Cancelled/}).click();await expect(page.getByRole('heading',{name:'Example Cancelled',exact:true})).toBeVisible();await expect(page.getByText('Cancellation reason: Changed plans.',{exact:true})).toBeVisible();await expect(page.getByText('Original cancellation note',{exact:true})).toBeVisible();await page.getByText('Original cancellation text',{exact:true}).click();await expect(page.getByText('Example Cancelled 5045550100 100 Example Street New Orleans, LA 70115 Changed plans. Followup',{exact:true})).toBeVisible();await nav.getByRole('button').click();
   await page.getByLabel('Schedule date').fill('2026-10-22');
   await page.getByLabel('View truck').selectOption('Truck 4');

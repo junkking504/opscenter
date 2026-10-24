@@ -193,6 +193,7 @@
     "verify:monthly-mileage:browser": "node scripts/test-fleet-monthly-mileage-browser.mjs",
     "verify:amazon-closeout": "node --import tsx scripts/test-amazon-closeout.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts && npm run verify:crew-closeout",
     "verify:amazon-closeout:browser": "node --import tsx scripts/test-amazon-closeout-browser.ts",
+    "verify:waypoint-manager:photos": "node --import tsx scripts/test-waypoint-manager-photos.ts",
     "verify:waypoint-manager": "node --import tsx scripts/test-waypoint-manager.ts && node --import tsx scripts/test-waypoint-manager-route.ts && node --import tsx scripts/test-waypoint-manager-edit.ts",
     "verify:estimate-photos": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-estimate-photo-browser.ts",
     "verify:waypoint-billed": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-schedule-payment.ts && node --import tsx scripts/test-waypoint-day-summary.ts && node --import tsx scripts/test-crew-progress-alerts.ts && node --import tsx scripts/test-waypoint-billed-browser.ts",

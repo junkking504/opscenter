@@ -45,3 +45,23 @@
 .appointments h2 span { font-weight:400; color:#58665e; }
 .notes p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; }
 .notes h3 { font-size:15px; margin:16px 0 8px; }
+
+.outcome { display:grid; gap:6px; margin:16px 0; }
+.outcome strong,.outcome small { display:block; margin:5px 0; overflow-wrap:anywhere; }
+.outcome small { font-size:13px; color:#58665e; }
+
+.appointmentRow { border-bottom:1px solid #dfe3da; padding-bottom:12px; }
+.appointmentRow .appointment { border-bottom:0; }
+.photos { display:grid; gap:6px; margin:8px 0; }
+.photos small { font-size:13px; color:#58665e; }
+.photos button { min-height:44px; padding:10px 14px; border:1px solid #bdc7bc; border-radius:8px; background:white; color:#25312c; font:650 14px system-ui,sans-serif; cursor:pointer; }
+.photos>button { justify-self:start; }
+.srOnly { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.gallery { width:min(900px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); border:1px solid #bdc7bc; border-radius:12px; padding:16px; background:#f7f8f3; color:#25312c; overflow:auto; }
+.gallery::backdrop { background:rgb(0 0 0 / 70%); }
+.gallery header { position:sticky; top:-16px; background:#f7f8f3; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:10px 0; z-index:1; }
+.gallery h2 { margin:0; font-size:18px; }
+.gallery p { overflow-wrap:anywhere; }
+.gallery img { display:block; max-width:100%; max-height:65dvh; width:auto; height:auto; margin:auto; object-fit:contain; }
+.gallery nav { display:flex; justify-content:space-between; gap:10px; margin-top:16px; }
+.gallery button:disabled { opacity:.5; cursor:default; }

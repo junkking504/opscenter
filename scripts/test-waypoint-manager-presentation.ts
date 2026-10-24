@@ -28,3 +28,33 @@ assert.equal(managerStatus('Completed Duration: 60 min(s)'),'Completed');assert.
 for(const status of ['pending','uncertain','submitted',undefined])assert.ok(unresolvedManagerReceipt({status}));
 for(const status of ['verified','failed','reconciled'])assert.equal(unresolvedManagerReceipt({status}),false);
 console.log('PASS manager presentation: display-only cancellation contact variants, raw notes/source immutability, unchanged non-cancelled names, chronological status groups, truck aliases, unknown times and receipt states.');
+
+import {managerOutcome} from '../app/crew-jobs/manager-outcome';
+const completed=job(),raw=structuredClone(completed);
+assert.equal(managerOutcome(completed).total,'Job total: $450.00');
+assert.equal(managerOutcome(completed).notice,'Completion does not confirm payment');
+assert.deepEqual(managerOutcome(completed).payments,['Cash: $450.00']);
+assert.equal(managerOutcome({...completed,appointmentType:'Estimate'}).notice,'Estimate only · not collected revenue');
+assert.equal(managerOutcome({...completed,appointmentType:'Estimate'}).total,'Estimate total: $450.00');
+for(const closeout of [null,{...completed.closeout!,total:NaN},{...completed.closeout!,total:Infinity}])assert.equal(managerOutcome({...completed,closeout}).total,'Job total: unavailable');
+assert.equal(managerOutcome({...completed,chargeDetailsPending:true}).total,'Job total: unavailable');
+assert.equal(managerOutcome({...completed,closeout:{...completed.closeout!,total:0}}).total,'Job total: unavailable');
+const billed={...completed,closeout:{...completed.closeout!,total:538,tip:38,payments:[{method:'Billed',detail:'',amount:400},{method:'Cash',detail:'',amount:138}]}};
+assert.equal(managerOutcome(billed).total,'Job total: $538.00');assert.equal(managerOutcome(billed).tip,'Recorded tip: $38.00');
+assert.equal(managerOutcome(billed).notice,'Billed entries are not collected payments');
+assert.deepEqual(managerOutcome(billed).payments,['Billed: $400.00','Cash: $138.00']);
+assert.equal(managerOutcome({...completed,status:'Confirmed'}).total,null);
+assert.equal(managerOutcome({...completed,status:'Cancelled'}).total,null);
+assert.equal(managerOutcome(completed).photos,'No photos recorded');
+assert.equal(managerOutcome({...completed,photoAuditAvailable:false}).photos,'Photo count unavailable');
+const photos=[{url:'https://example.invalid/private.jpg',fileName:'fictional.jpg',category:'Before' as const}];
+assert.equal(managerOutcome({...completed,photos}).photos,'1 recorded photo');
+assert.equal(managerOutcome({...completed,photos,photoAuditAvailable:false}).photos,'1 recorded photo · completeness unavailable');
+assert.deepEqual(completed,raw,'Amounts and photo presentation never mutate source values');
+
+
+assert.deepEqual(managerOutcome({...completed,closeout:{...completed.closeout!,payments:[{method:'Cash',detail:'',amount:0}]}}).payments,['Cash: amount unavailable']);
+
+assert.equal(managerOutcome({...billed,closeout:{...billed.closeout,payments:[{method:'Billed - Net 30',detail:'',amount:538}]}}).notice,'Billed entries are not collected payments');
+
+console.log('PASS manager amounts/photos: jobs, estimates, billed/mixed payment entries, recorded tip, missing/pending/nonfinite totals, ambiguous normalized zero, audited/unknown photo counts and source immutability.');

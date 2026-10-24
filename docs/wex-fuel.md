@@ -104,3 +104,48 @@ requests, confirm WEX's fees and rate limits, then obtain explicit approval for
 the provider, purpose, request cap, and maximum spend under
 [spending controls](spending-controls.md). The API collector should write the
 same snapshot schema so Finance does not need a second source model.
+
+## Provisional daily records from email alerts
+
+The internal `integrations/wex-fuel/alert-expenses.json` journal accepts the same
+minimized Outlook message batch as price ingestion. It retains exact message IDs,
+tracking numbers, original authorization local time, received UTC/offset time,
+source links and all authorization revisions. Card/account identifiers and raw
+email boilerplate are not stored. Authorization timezone remains unconfirmed;
+the daily view uses the date stated in the alert and never invents a UTC instant.
+Missing gallons prevent price calculation but do not discard a monetary alert.
+
+`node --import tsx scripts/import-wex-alert-expenses.ts <private-file> --dry-run`
+prepares aggregate counts and a snapshot hash. After the required source-write
+approval, use `--expected-sha256=<hash>` for the same private input. A single-writer
+lock and atomic replacement protect updates. The same message ID with changed
+content fails closed; exact replay adds no record and does not freshen import
+metadata. Changed amounts under one tracking number remain revisions of one
+record. Reversals/declines do not contribute a provisional amount. Conflicting
+identity/timing or a new authorization following reversal stays for review.
+
+Capital's daily expense view reads these records through the existing Finance
+read endpoint. Provisional authorizations are explicit separate amounts, never
+added to `DailyFinanceSummary.fuel`, published total costs/net or posted WEX
+amounts. Published aggregate fuel cannot prove whether an individual alert is
+already included. No automatic JunkWare, QBO, payment or notification write is
+part of this importer. Existing posted-CSV expense automation is unchanged.
+
+A unique one-to-one posted purchase with exactly corroborating local date/time,
+merchant street/city/state, driver and gallons links to the same alert record.
+Tracking numbers are not assumed to equal posted transaction IDs or receipts.
+Posted fuel amount replaces the provisional amount and the difference remains
+visible, even when settlement changes the amount. Multiple matches, reversals
+versus settlement and distinct tracking numbers at the same driver/station within
+30 minutes require review; a repeated alert does not prove another expense.
+Incomplete match evidence stays provisional and separate from settled totals.
+Existing dated crew/GPS truck attribution is reused only for the exact linked
+price evidence; otherwise truck remains unconfirmed. Asset/card labels are not
+truck identity. A missing/corrupt journal is unavailable, never a zero-spend claim.
+
+This is a prepared local ingestion/read model, not a deployed collector. No
+recurring agent job is installed. The owner excludes extra Codex/compute jobs,
+new charges and new access; the earlier hourly Codex proposal was withdrawn.
+An authorized mailbox-to-runtime bridge and release approval remain prerequisites
+for ongoing daily ingestion. Tests: `scripts/test-wex-alert-expenses.ts` and
+`scripts/test-wex-alert-expenses-browser.mjs`, with synthetic records only.

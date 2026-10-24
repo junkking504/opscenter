@@ -134,3 +134,12 @@ the response. Responses are private/no-store, same-origin, nosniff and sandboxed
 There is no image optimizer, public link, disk cache, upload, or background fetch.
 Fictional route/transport and browser tests cover the permission boundaries,
 revocation, binding, invalid sources, response limits, focus, errors and return.
+
+## Entry recovery
+
+Waypoint restores only an already trusted named manager on its bounded entry and
+gateway routes, preserving the existing role predicate and current identity
+precedence. Non-manager sessions may reach manager sign-in. The client waits for
+access checks and offers retry on an unknown result. Notification entry preserves
+only the fixed `/crew-jobs?view=updates` target through sign-in; it grants no access.
+See [Waypoint notifications](waypoint-push.md#session-recovery-and-update-entry).

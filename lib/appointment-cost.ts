@@ -77,8 +77,9 @@ export async function readAppointmentCostEstimate(date:string,id:string,snapshot
  const fuelPrice=record.inputs.fuelPrice??(priceIsRecent?fuel.price!.price:null);
  const labor=appointmentCostLabor(record.inputs,sourceCrewHourly,sourceOnsiteMinutes,canceled);
  const crewHourly=labor.crewHourly;
- const attendanceAssumptions=[...routeAssumptions,...fuelAssumptions,...labor.attendanceAssumptions];
- const breakEvenAssumptions=[...routeAssumptions,...fuelAssumptions,...labor.breakEvenAssumptions];
+ const overheadAssumptions=record.version===0?[`Provisional overhead: $${record.inputs.overhead} per appointment; original inclusions unverified.`]:[];
+ const attendanceAssumptions=[...overheadAssumptions,...routeAssumptions,...fuelAssumptions,...labor.attendanceAssumptions];
+ const breakEvenAssumptions=[...overheadAssumptions,...routeAssumptions,...fuelAssumptions,...labor.breakEvenAssumptions];
  return {key,record,costTruck,sourceOnsiteMinutes,planningCrewHourly:canceled?null:planningCrewHourly,planningOnsiteMinutes:canceled?null:planningOnsiteMinutes,attendanceAssumptions,breakEvenAssumptions,travel,fuel,priceIsRecent,sourceCrewHourly,crewSource,crewCount:names.length,crewRateDates:[...new Set(crewRates.filter(Boolean).map(row=>row!.date))],fuelPrice,crewHourly,result:calculateAppointmentCost({...record.inputs,onsiteMinutes:labor.onsiteMinutes},travel,fuelPrice,crewHourly),observedAt:snapshot.observedAt};
 }
 
@@ -91,7 +92,7 @@ export async function readAppointmentAttendanceCosts(date:string){
  async function worker(){
   while(cursor<snapshot.appointments.length){
    const job=snapshot.appointments[cursor++];
-   try{const estimate=await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes);const {attendance,breakEven,breakEvenBeforeDisposal,missing}=estimate.result;rows[job.recordId]={attendance,breakEven,breakEvenBeforeDisposal,missing,...(attendance===null?{unavailableReason:!scheduleMapLocation(job)?'Location unavailable':estimate.travel.miles===null||estimate.travel.minutes===null?'Route unavailable':estimate.fuelPrice===null?'Fuel price unavailable':'Cost unavailable'}:{}),attendanceAssumptions:estimate.attendanceAssumptions,breakEvenAssumptions:estimate.breakEvenAssumptions};}
+   try{const estimate=await readAppointmentCostEstimate(date,job.recordId,snapshot,gpsRoutes);const {attendance,breakEven,breakEvenBeforeDisposal,missing,attendanceKnownSubtotal,breakEvenKnownSubtotal,attendanceMissing}=estimate.result;rows[job.recordId]={attendance,breakEven,breakEvenBeforeDisposal,missing,attendanceKnownSubtotal,breakEvenKnownSubtotal,attendanceMissing,...(attendance===null?{unavailableReason:!scheduleMapLocation(job)?'Location unavailable':estimate.travel.miles===null||estimate.travel.minutes===null?'Route unavailable':estimate.fuelPrice===null?'Fuel price unavailable':'Cost unavailable'}:{}),attendanceAssumptions:estimate.attendanceAssumptions,breakEvenAssumptions:estimate.breakEvenAssumptions};}
    catch{rows[job.recordId]={attendance:null,breakEven:null,breakEvenBeforeDisposal:null,missing:['Cost sources unavailable']};}
   }
  }

@@ -121,3 +121,21 @@ current location for a past visit. Existing shared job legs retain their allocat
 When no next job is assigned, the return remains a labeled warehouse assumption,
 not evidence of a return actually driven. Unassigned closest-truck planning is
 unchanged. No source assignment, address or payment is modified.
+
+
+## Incomplete cost visibility
+
+The shared calculator retains a known-cost subtotal when fuel, road mileage,
+travel time, crew rates, on-site time or disposal is unavailable. Attendance
+subtotals contain only known fuel, known travel labor and entered overhead.
+Break-even subtotals also contain known on-site labor, entered disposal and other
+costs, divided by the existing revenue-fee denominator. They are explicitly
+incomplete, never complete attendance, break-even or a minimum charge. Cards and
+Cost details list the missing inputs; attendance excludes break-even-only gaps.
+The existing disposal-only card treatment above is retained. Source failures
+without a calculation remain unavailable rather than receiving a default sum.
+
+Fuel still requires the existing eligible WEX alert or saved manual assumption.
+The point-in-time alert import is not an ongoing feed; stale/missing evidence
+must not be extended, replaced with posted CSV prices or made zero by presentation.
+Default overhead is labeled provisional on the board as well as in details.

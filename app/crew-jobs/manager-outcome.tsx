@@ -22,9 +22,9 @@ export function managerOutcome(row:OutcomeRow) {
  return {total,tip:completed?tip:null,payments:completed?payments:[],notice:completed?(estimate?'Estimate only · not collected revenue':billed?'Billed entries are not collected payments':'Completion does not confirm payment'):null,photos,count};
 }
 
-export default function ManagerOutcome({job,details=false}:{job:OutcomeRow;details?:boolean}) {
+export default function ManagerOutcome({job,details=false,className}:{job:OutcomeRow;details?:boolean;className:string}) {
  const outcome=managerOutcome(job);
- return <span>
+ return <span className={className}>
   {outcome.total&&<strong>{outcome.total}</strong>}
   {outcome.tip&&<small>{outcome.tip}</small>}
   {outcome.notice&&<small>{outcome.notice}</small>}

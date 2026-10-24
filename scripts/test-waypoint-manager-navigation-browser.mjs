@@ -84,6 +84,7 @@ try{
   await expect(completedRow).toContainText('Job total: $538.00');await expect(completedRow).toContainText('Recorded tip: $38.00');await expect(completedRow).toContainText('Billed entries are not collected payments');await expect(completedRow).toContainText('1 recorded photo · viewing unavailable');
   await expect(page.getByRole('button',{name:/Customer done-1 /})).toContainText('Estimate total: $250.00');
   await expect(page.getByRole('button',{name:/Customer done-2 /})).toContainText('Job total: unavailable');
+  const totalBox=await completedRow.getByText('Job total: $538.00',{exact:true}).boundingBox(),tipBox=await completedRow.getByText('Recorded tip: $38.00',{exact:true}).boundingBox();assert.ok(tipBox.y>=totalBox.y+totalBox.height,'Tip has its own line below the total');
   await completedRow.click();await expect(page.getByText('Recorded payment entries: Billed: $538.00',{exact:true})).toBeVisible();await expect(page.getByText('Photos cannot be opened securely in this manager view yet.',{exact:true})).toBeVisible();
   assert.equal(await page.locator('img[src*="example.invalid"],a[href*="example.invalid"]').count(),0,'No public image URLs or links rendered');
   await nav.getByRole('button').click();

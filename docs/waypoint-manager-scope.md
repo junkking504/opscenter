@@ -96,3 +96,41 @@ not synthesized from an account. A named account signed in on an already approve
 work context. Account-only sessions cannot set phone work
 context or bypass crew inspection, assignment, photos or payment rules. The crew
 workflow still requires its ordinary approved phone setup.
+
+## Completed row amounts and photo availability
+
+The manager list and detail render the existing closeout total only when charge
+details are available, labeling estimates separately from jobs. Missing or pending
+closeout details remain unavailable; the default summary payment amount is not a
+fallback. The normalized source also defaults missing closeout amounts to zero,
+so a zero total or payment amount stays unavailable until explicit availability
+evidence exists; this conservatively also hides true zero-dollar amounts.
+Tips are shown separately as recorded, without inferring whether the source
+total includes them. Recorded payment entries
+remain separate, and neither completion nor a Billed entry confirms collection.
+
+Photo counts describe the existing snapshot: audited empty, unknown, or recorded
+photos with incomplete audit distinguished. A modal gallery opens on demand,
+keeps the current date/filter/list position and draft state, traps focus, supports
+Escape and previous/next controls, and reports unavailable images honestly.
+
+`GET /api/crew-jobs/manager?resource=photo` uses the same named manager account or
+exact live manager-phone grant as schedule browsing. Ordinary crew receive no
+new image access; existing managers retain their all-truck browse scope. The
+server resolves date + recordId + photo digest against the current local schedule,
+then rechecks authorization and photo membership after download. It accepts no
+caller-supplied source URL. Schedule photo projections replace public URLs with
+these private request URLs and omit unused prior-estimate media. Delegated manager
+edit and receipt responses also omit raw photo-evidence URLs while keeping
+request IDs, statuses, version hashes and non-photo fields unchanged; stored
+evidence is never modified.
+
+The image reader permits only HTTPS JunkWare media paths on the existing source
+host, no credentials/query/fragment/nonstandard port, no redirects, and pins a
+validated public IPv4 DNS result while preserving TLS host verification. Requests
+carry no incoming cookies or authorization. DNS and download deadlines, a 10 MiB
+streaming limit, identity encoding and JPEG/PNG/WebP MIME/signature checks bound
+the response. Responses are private/no-store, same-origin, nosniff and sandboxed.
+There is no image optimizer, public link, disk cache, upload, or background fetch.
+Fictional route/transport and browser tests cover the permission boundaries,
+revocation, binding, invalid sources, response limits, focus, errors and return.

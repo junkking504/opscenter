@@ -18,7 +18,7 @@ export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endp
     if(!valid){await client.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='skipped',attempted_at=now() WHERE id=$1",[row.id]);await client.query('COMMIT');continue;}
     // Reserve every recent pending update for this exact recipient/scope before
     // one wake-up. An urgent row flushes routine changes without discarding context.
-    const group=(await client.query("SELECT id FROM opscenter_kernel.waypoint_push_deliveries WHERE device_id=$1 AND phone_id=$2 AND truck=$3 AND service_date=$4 AND status='pending' AND created_at>now()-interval '5 minutes' FOR UPDATE",[row.device_id,row.phone_id,row.truck,row.service_date])).rows;
+    const group=(await client.query("SELECT id FROM opscenter_kernel.waypoint_push_deliveries WHERE device_id=$1 AND phone_id=$2 AND truck=$3 AND service_date=$4 AND status='pending' AND (id=$5 OR created_at>now()-interval '5 minutes') FOR UPDATE",[row.device_id,row.phone_id,row.truck,row.service_date,row.id])).rows;
     ids=group.map(item=>item.id);
     await client.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='sending',attempted_at=now() WHERE id=ANY($1::uuid[])",[ids]);await client.query('COMMIT');
    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}

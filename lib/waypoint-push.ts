@@ -14,6 +14,9 @@ import {chicagoDateKey} from './chicago-date';
 import {crewAssignedDay} from './crew-assigned-day';
 import {sameTruck,JUNKWARE_DISPATCH_TRUCKS} from './junkware-trucks';
 
+// Fixed from the first pending routine event, below the five-minute freshness limit.
+// New routine events cannot move that deadline; urgent events still flush immediately.
+export const WAYPOINT_ROUTINE_BATCH_SECONDS=240;
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 export const WAYPOINT_PUSH_HOME='/Users/missioncontrol/Library/Application Support/OpsCenter/waypoint-push';
 export function waypointPushEnabled(home=WAYPOINT_PUSH_HOME,now=Date.now()) {
@@ -126,7 +129,7 @@ export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={a
    const prior=(await client.query('SELECT scope,revision,projection_json FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 AND kind=$2 FOR UPDATE',[device.id,kind])).rows[0];
    if(prior?.scope===scope && prior.revision!==revision){
     const change=waypointPushChange(prior.projection_json as WaypointPushProjection|null,projection,kind);
-    if(change.changed)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status,context_json,not_before) VALUES($1,$2,$3,$4,$5,'pending',$6::jsonb,now()+($7 * interval '1 second'))",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey(),JSON.stringify(change.counts),change.urgent?0:15]);
+    if(change.changed)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status,context_json,not_before) VALUES($1,$2,$3,$4,$5,'pending',$6::jsonb,now()+($7 * interval '1 second'))",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey(),JSON.stringify(change.counts),change.urgent?0:WAYPOINT_ROUTINE_BATCH_SECONDS]);
    }
    await client.query('INSERT INTO opscenter_kernel.waypoint_push_baselines(device_id,kind,scope,revision,projection_json) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(device_id,kind) DO UPDATE SET scope=EXCLUDED.scope,revision=EXCLUDED.revision,projection_json=EXCLUDED.projection_json,updated_at=now()',[device.id,kind,scope,revision,JSON.stringify(projection)]);
    await client.query('COMMIT');

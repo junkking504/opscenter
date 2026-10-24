@@ -122,7 +122,8 @@
     "verify:production-release-gate": "zsh scripts/test-production-release-gate.sh",
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",
-    "verify:junkware-appointment-creation": "node --import tsx scripts/test-junkware-appointment-creation.ts",
+    "verify:junkware-customer-selection": "node --import tsx scripts/test-junkware-customer-lookup.ts && node --import tsx scripts/test-junkware-customer-selection.ts",
+    "verify:junkware-appointment-creation": "node --import tsx scripts/test-junkware-customer-lookup.ts && node --import tsx scripts/test-junkware-appointment-creation.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts && node --import tsx scripts/test-fleet-issue-delete.ts",
     "verify:dump-expenses": "node --import tsx scripts/test-dump-expenses.ts && node --import tsx scripts/test-unload-cost-agent.ts && node --import tsx scripts/test-operational-agents.ts",
@@ -214,7 +215,9 @@
     "verify:waypoint-navigation:browser": "node scripts/test-waypoint-navigation-browser.mjs",
     "verify:waypoint-push:browser": "node scripts/test-waypoint-push-browser.mjs",
     "verify:waypoint-manager:presentation": "node --import tsx scripts/test-waypoint-manager-presentation.ts && node scripts/test-waypoint-manager-navigation-browser.mjs",
-    "verify:appointment-cost:browser": "node scripts/test-appointment-cost-incomplete-browser.mjs"
+    "verify:appointment-cost:browser": "node scripts/test-appointment-cost-incomplete-browser.mjs",
+    "verify:waypoint-recovery": "node --import tsx scripts/test-waypoint-manager-session.ts && node --import tsx scripts/test-waypoint-update-grouping.ts && node --import tsx scripts/test-waypoint-push-sw.ts",
+    "verify:waypoint-recovery:browser": "node scripts/test-waypoint-recovery-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

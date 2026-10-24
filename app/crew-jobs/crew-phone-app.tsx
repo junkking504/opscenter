@@ -45,6 +45,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   const [switching,setSwitchingState]=useState(false),[truckSwitch,setTruckSwitch]=useState<SwitchSummary|null>(null);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sessionUnavailable,setSessionUnavailable]=useState(false);
   const [busy, setBusyState] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
@@ -223,9 +224,9 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   },[pendingCloseout?.assignmentId,pendingCloseout?.requestId]);
   async function refresh() {
     if(viewGuard.blocked()){viewGuard.defer();return;}
-    const request=++jobRequest.current,viewVersion=viewGuard.version();setLoading(true);setError('');
+    const request=++jobRequest.current,viewVersion=viewGuard.version();setLoading(true);setError('');setSessionUnavailable(false);
     try {
-      const response = await fetch(CREW_PHONE_API, { cache: 'no-store' });
+      const response = await fetch(CREW_PHONE_API, { cache: 'no-store',signal:AbortSignal.timeout(10_000) });
       const body = await response.json();
       if(request!==jobRequest.current)return;
       if(!viewGuard.current(viewVersion)){viewGuard.defer();return;}
@@ -235,7 +236,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       // A same-device refresh also needs a new current-assignment read.
       if(phone?.deviceId===body.phone.deviceId)void loadJob();
       try { localStorage.removeItem(pendingKey); } catch { /* Connection is already verified. */ }
-    } catch (error) { setError(error instanceof Error ? error.message : 'Phone access could not be verified.'); }
+    } catch (error) { setSessionUnavailable(true);setError(error instanceof Error ? error.message : 'Phone access could not be verified.'); }
     finally { setLoading(false); }
   }
   useEffect(() => {
@@ -246,6 +247,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     event.preventDefault();
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError('');
+    let verifying=false;
     try {
       const normalized = code.trim();
       let pending: Pending;
@@ -258,14 +260,16 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       } catch { throw new Error('Allow browser storage on this company phone, then try setup again.'); }
       const response = await fetch(CREW_PHONE_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'enroll', ...pending }) });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Setup could not be confirmed. Retry with this same code.');
+      const alreadyConnected=response.status===409&&body.code==='already_connected';
+      if (!response.ok && !alreadyConnected) throw new Error(body.error || 'Setup could not be confirmed. Retry with this same code.');
       // Read with the cookie before dropping the recovery key or claiming setup.
-      const check = await fetch(CREW_PHONE_API, { cache: 'no-store' });
+      verifying=true;
+      const check = await fetch(CREW_PHONE_API, { cache: 'no-store',signal:AbortSignal.timeout(10_000) });
       const saved = await check.json();
-      if (!check.ok || saved.phone?.deviceId !== body.phone?.deviceId) throw new Error('The phone connection was not retained. Allow cookies, then retry with this same code.');
-      setPhone(saved.phone);
+      if (!check.ok || !saved.phone?.deviceId || !alreadyConnected && saved.phone.deviceId !== body.phone?.deviceId) {setSessionUnavailable(true);throw new Error('Phone access could not be checked. Check connection before trying setup again.');}
+      setPhone(saved.phone);setSessionUnavailable(false);onManagerChange?.(saved.manager===true);
       localStorage.removeItem(pendingKey);
-    } catch (error) { setError(error instanceof Error ? error.message : 'Setup could not be confirmed. Retry with this same code.'); }
+    } catch (error) { if(verifying)setSessionUnavailable(true);setError(error instanceof Error ? error.message : 'Setup could not be confirmed. Retry with this same code.'); }
     finally { inFlight.current = false; setBusy(false); }
   }
   async function disconnect() {
@@ -288,7 +292,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
   </>;
   return <main className={`${styles.page} ${!phone ? styles.connectionPage : styles.connectedPage} ${step==='jobs' && !details ? navigation.withNavigation : ''}`}><div className={styles.content}>
     {phone && step!=='jobs' && <p><span className={styles.badge}>{truckDisplayText(day?.truck || 'Company phone')}</span></p>}
-    {loading ? <p role="status">Checking this phone…</p> : phone ? <>
+    {loading ? <p role="status">Checking this phone…</p> : !phone && sessionUnavailable ? <section role="alert"><p>Phone access could not be checked. Retry before connecting a phone.</p><button className={styles.secondary} onClick={()=>void refresh()}>Check connection</button></section> : phone ? <>
       {backgroundNotice && <p className={pendingCloseout?styles.backgroundProgress:styles.backgroundNotice} role={pendingCloseout?'status':'alert'}>{backgroundNotice}</p>}
       {handoff && ['transferring','submitting'].includes(handoff.phase) && <button className={styles.secondary} onClick={()=>void resumeHandoff(handoff).catch(()=>showBackgroundNotice('Phone storage is unavailable. Keep this phone and ask the office to check the saved checkout.',handoff.assignmentId))}>Resume transfer</button>}
       {step==='jobs' && !details && <nav className={navigation.nav} aria-label="Your day">
@@ -317,7 +321,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
       </div>
       {step==='jobs' && !details && view==='performance' && <section className={navigation.performance} aria-label="Performance"><h1>Today’s performance</h1>{assignment?.summary?<DaySummary summary={assignment.summary}/>:<p>Today’s totals are unavailable. Refresh to check again.</p>}</section>}
-      {day && !phone.test && <div hidden={details || step!=='jobs' || (view!=='notifications' && view!=='messages')}><WaypointNotifications onConnectionChange={setNotificationConnection} key={`${phone.deviceId}:${day.truck}`} view={view==='messages'?'messages':'notifications'}/></div>}
+      {day && !phone.test && <div hidden={details || step!=='jobs' || (view!=='notifications' && view!=='messages')}><WaypointNotifications onView={setView} onConnectionChange={setNotificationConnection} key={`${phone.deviceId}:${day.truck}`} view={view==='messages'?'messages':'notifications'}/></div>}
       {step==='jobs' && !details && view==='route' && !phone.test && <button className={navigation.connection} onClick={()=>{setView('notifications');window.scrollTo({top:0});}}><RouteIcon name="bell"/><span><strong>{notificationConnection==='on'?'Notifications on':notificationConnection==='checking'?'Checking notifications…':notificationConnection==='attention'?'Check notifications':'Notifications off'}</strong><small>{notificationConnection==='on'?'New jobs, changes and office messages.':'View notification status for this phone.'}</small></span><RouteIcon name="chevron"/></button>}
       {(!details && (view==='route' || view==='completed' || view==='performance') || step!=='jobs') && <button className={`${styles.secondary} ${navigation.refresh}`} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh assignments':'Refresh setup'}</button>}
       {day && !editingCrew && <details className={`${styles.card} ${navigation.phoneSettings}`}><summary>Truck &amp; phone</summary><h2>{truckDisplayText(day.truck)} · Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setCloseout(false);setSwitching(true);}}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>{setDetails(false);setEditingCrew(true);setCloseout(false);}}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading || Boolean(pendingCloseout)} onClick={()=>void disconnect()}>Disconnect company phone</button><button className={styles.secondary} disabled={busy || jobLoading || details} onClick={()=>void refresh()}>Check connection</button>{phone.test && <button className={styles.secondary} disabled={busy || jobLoading} onClick={async()=>{setBusy(true);try{const response=await fetch('/api/crew-jobs/day',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset-test-assignments'})});const body=await response.json();if(!response.ok)throw new Error(body.error || 'Reset failed.');await loadJob();}catch(e){setError(e instanceof Error?e.message:'Reset failed.');}finally{setBusy(false);}}}>Reset three test assignments</button>}</details>}

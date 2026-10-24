@@ -1,6 +1,8 @@
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, sanitizeAuthRedirectTarget } from "@/lib/auth";
+import { waypointEntryTarget } from "@/lib/waypoint-entry";
+import { isWaypointAccount } from "@/lib/waypoint-account";
 import OpsCenterLogo from "@/components/OpsCenterLogo";
 
 type LoginPageProps = {
@@ -17,10 +19,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const host = (requestHeaders.get('x-forwarded-host') || requestHeaders.get('host') || '').split(':')[0];
   const waypoint = ['waypoint.junk-king.app','kingpin.junk-king.app','jobs.junk-king.app'].includes(host);
   const params = (await searchParams) || {};
-  const destination = waypoint ? '/crew-jobs' : sanitizeAuthRedirectTarget(firstParam(params.next));
+  const destination = waypoint ? waypointEntryTarget(firstParam(params.next)) : sanitizeAuthRedirectTarget(firstParam(params.next));
   const cookieStore = await cookies();
   const session = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
-  if (session) {
+  if (session && (!waypoint || isWaypointAccount(session))) {
     redirect(destination);
   }
 

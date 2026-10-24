@@ -84,7 +84,7 @@ export async function crewPhoneSession(request: Request) {
       return crewPhoneResponse({ disconnected: true }, 200, { 'Set-Cookie': `${CREW_PHONE_COOKIE}=; Path=/api/crew-jobs; HttpOnly; Secure; SameSite=Strict; Max-Age=0` });
     }
     if (body.action !== 'enroll' || Object.keys(body).some(key => !['action', 'code', 'connectionKey'].includes(key))) throw new CrewPhoneError('Choose a valid phone setup action.');
-    if (crewPhone(phoneKey(request))) throw new CrewPhoneError('This phone is already connected. Choose today’s truck in daily setup.', 409);
+    if (crewPhone(phoneKey(request))) return crewPhoneResponse({error:'This phone is already connected. Check connection to continue.',code:'already_connected'},409);
     const phone = enrollCrewPhone(body.code, body.connectionKey);
     return crewPhoneResponse({ phone }, 200, { 'Set-Cookie': `${CREW_PHONE_COOKIE}=${body.connectionKey}; Path=/api/crew-jobs; HttpOnly; Secure; SameSite=Strict; Expires=${new Date(phone.expiresAt).toUTCString()}` });
   } catch (error) { return crewPhoneFailure(error); }

@@ -1,6 +1,17 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { customerSearchFields, normalizeCustomerSelection, type CustomerLookupResult } from './junkware-customer-contract';
+import { CUSTOMER_SELECTION_ERRORS, customerSearchFields, normalizeCustomerSelection, type CustomerLookupResult } from './junkware-customer-contract';
+export function customerLookupFailureMessage(stderr: string): string {
+  // Only allowlisted codes cross this boundary. Never expose upstream text,
+  // which may include names, addresses, credentials or browser diagnostics.
+  try {
+    const failure = JSON.parse(stderr.trim().split('\n').at(-1) || '');
+    if (failure.ok === false && Object.hasOwn(CUSTOMER_SELECTION_ERRORS, failure.lookupCode)) {
+      return CUSTOMER_SELECTION_ERRORS[failure.lookupCode as keyof typeof CUSTOMER_SELECTION_ERRORS];
+    }
+  } catch { /* Unrecognized diagnostics remain private. */ }
+  return 'JunkWare customer search is unavailable. Please try again.';
+}
 let active = false;
 export async function lookupJunkwareCustomer(input: { query: string; key?: string }): Promise<CustomerLookupResult> {
   customerSearchFields(input.query);
@@ -11,15 +22,16 @@ export async function lookupJunkwareCustomer(input: { query: string; key?: strin
     return await new Promise<CustomerLookupResult>((resolve, reject) => {
       const child = spawn(process.execPath, ['--import', 'tsx', path.join(process.cwd(), 'scripts/create-junkware-appointment.ts'), '--customer-lookup'], { cwd: process.cwd(), env: { ...process.env }, stdio: ['pipe', 'pipe', 'pipe'] });
       let output = '';
+      let errors = '';
       const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('JunkWare customer search timed out. Please try again.')); }, 90000);
       child.stdout.on('data', chunk => { output += chunk; if (output.length > 256000) { child.kill('SIGKILL'); } });
-      // Upstream errors may contain customer data; do not log or return them.
-      child.stderr.resume();
+      // Keep only a bounded tail in memory to recover an allowlisted error code.
+      child.stderr.on('data', chunk => { errors = (errors + chunk).slice(-4096); });
       child.stdin.on('error', () => {});
       child.on('error', () => { clearTimeout(timer); reject(new Error('JunkWare customer search is unavailable. Please try again.')); });
       child.on('close', code => {
         clearTimeout(timer);
-        if (code !== 0) return reject(new Error('JunkWare customer search is unavailable or the selected record changed. Search again.'));
+        if (code !== 0) return reject(new Error(customerLookupFailureMessage(errors)));
         try {
           const result = JSON.parse(output) as CustomerLookupResult;
           if (!Array.isArray(result.matches) || !result.checkedAt) throw new Error();

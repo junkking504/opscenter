@@ -21,3 +21,14 @@ export function normalizeCustomerSelection(value: unknown): CustomerSelection | 
   customerSearchFields(input.query);
   return { query: input.query.trim(), key: input.key };
 }
+
+export const CUSTOMER_SELECTION_ERRORS = {
+  customer_changed: 'The selected JunkWare customer changed. Search and select again.',
+  customer_ambiguous: 'The selected JunkWare customer is ambiguous. Narrow the search or resolve the records in JunkWare.',
+} as const;
+export class CustomerSelectionError extends Error {
+  constructor(readonly code: keyof typeof CUSTOMER_SELECTION_ERRORS) {
+    super(CUSTOMER_SELECTION_ERRORS[code]);
+    this.name = 'CustomerSelectionError';
+  }
+}

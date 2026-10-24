@@ -180,6 +180,18 @@ async function main() {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
       }
+      // Every shipped icon must pass the real hostname boundary, not only
+      // the synthetic browser fixture's static file server.
+      for (const file of fs.readdirSync(path.join(process.cwd(), 'public/crew-jobs/icons')).filter(file => file.endsWith('.svg'))) {
+        for (const suffix of ['', '?v=2']) {
+          const route = `/crew-jobs/icons/${file}${suffix}`;
+          const allowed = await middleware(new NextRequest(`${jobsOrigin}${route}`));
+          assert.equal(allowed.headers.get('x-middleware-next'), '1', `${jobsOrigin}${route}`);
+        }
+      }
+      for (const route of ['/crew-jobs/icons/unknown.svg', '/crew-jobs/icons/private.json']) {
+        assert.equal((await middleware(new NextRequest(`${jobsOrigin}${route}`))).status, 404, `Unlisted icon path stays denied: ${route}`);
+      }
       // Named managers now sign into Waypoint; crew cookies still cannot grant
       // manager access (the unauthorized API assertion above remains required).
       for (const route of ['/login', '/api/auth/login', '/api/auth/logout', '/api/crew-jobs/manager-session']) {

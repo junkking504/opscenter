@@ -119,3 +119,5 @@ Run typecheck, targeted lint, spending checks, the existing crew/dispatch tests,
 service-worker/browser fixtures and production build before exact-commit review.
 Physical iPhone permission and real presentation/tap-through remain separate
 acceptance evidence; never claim arrival from Apple acceptance alone.
+
+The sender decodes shell-quoted roster JSON (including apostrophes) without evaluating shell commands. Malformed roster arrays stop startup rather than silently leaving eligible phones without notifications. After updating the reviewed launcher source, reconcile the installed `waypoint-push/run-waypoint-push.py` copy and restart only `com.opscenter.waypoint-push`; routine application deployment does not replace that external launcher. Verify a fresh ready lease and current-phone baselines.

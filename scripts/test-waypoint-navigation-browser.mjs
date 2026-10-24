@@ -47,6 +47,7 @@ try{
   await page.goto(origin);await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
   const nav=page.getByRole('navigation',{name:'Your day'});
   for(const label of ['Route','Completed','Performance','Notifications','Messages']){const box=await nav.getByRole('button',{name:label,exact:true}).boundingBox();if(label==='Route')await expect(nav.getByRole('button',{name:label,exact:true})).toHaveAttribute('aria-current','page');assert.ok(box.height>=44 && box.y+box.height<=900 && box.y>700);}
+  await expect.poll(()=>nav.locator('img').evaluateAll(images=>images.every(image=>image.complete && image.naturalWidth>0))).toBe(true);
   await nav.getByRole('button',{name:'Completed',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed appointments',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Completed sample'})).toBeVisible();
   await page.getByLabel('View truck').selectOption('Truck# 2');await expect(page.getByRole('button',{name:'Other truck sample'})).toBeVisible();
   await nav.getByRole('button',{name:'Performance',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s performance',exact:true})).toBeVisible();await expect(page.getByText('$950.00',{exact:true})).toBeVisible();

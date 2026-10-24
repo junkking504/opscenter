@@ -6,7 +6,7 @@ import {sameTruck,truckDisplayText} from '@/lib/junkware-trucks';
 import {waypointStops,hasWaypointLocation} from '@/lib/waypoint-route';
 import styles from './route.module.css';
 const RouteMap=dynamic(()=>import('./route-map'),{ssr:false,loading:()=> <div className={styles.mapEmpty} role="status">Loading route map…</div>});
-export function RouteIcon({name}:{name:string}) {return <img src={`/crew-jobs/icons/${name}.svg`} width="20" height="20" alt=""/>;}
+export function RouteIcon({name}:{name:string}) {return <img src={`/crew-jobs/icons/${name}.svg?v=2`} width="20" height="20" alt=""/>;}
 export default function RouteOverview({jobs,truck,date,allTrucks,onSelect,pendingId,view='route',chosenTruck,onTruckChange}:{view?:'route'|'completed';chosenTruck?:string;onTruckChange?:(truck:string)=>void;jobs:CrewScheduledJob[];truck:string;date:string;allTrucks:boolean;onSelect:(id:string)=>void;pendingId?:string}){
  const mapSection=useRef<HTMLDivElement>(null);
  const [localChosen,setLocalChosen]=useState(truck),[expanded,setExpanded]=useState(false);

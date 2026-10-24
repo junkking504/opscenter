@@ -5,16 +5,18 @@ const money=(value:number)=>new Intl.NumberFormat('en-US',{style:'currency',curr
 type OutcomeRow=Pick<DesktopAppointment,'status'|'appointmentType'|'closeout'|'chargeDetailsPending'|'photos'|'photoAuditAvailable'>;
 
 // Display only. Summary paymentAmount can be defaulted to zero by the source;
-// use the existing closeout object and its freshness flag instead.
+// use the existing closeout object and its freshness flag instead. Closeout
+// numbers also default missing values to zero, so zero cannot prove availability.
 export function managerOutcome(row:OutcomeRow) {
  const completed=managerStatus(row.status)==='Completed';
  const estimate=/^estimate$/i.test(row.appointmentType.trim());
- const closeout=!row.chargeDetailsPending&&row.closeout&&Number.isFinite(row.closeout.total)?row.closeout:null;
+ const closeout=!row.chargeDetailsPending?row.closeout:null;
+ const knownTotal=closeout&&Number.isFinite(closeout.total)&&closeout.total!==0;
  const label=estimate?'Estimate total':'Job total';
- const total=completed?`${label}: ${closeout?money(closeout.total):'unavailable'}`:null;
- const tip=closeout&&Number.isFinite(closeout.tip)&&closeout.tip!==0?`Includes ${money(closeout.tip)} tip`:null;
- const payments=closeout?.payments.map(payment=>`${payment.method || 'Unspecified method'}: ${Number.isFinite(payment.amount)?money(payment.amount):'amount unavailable'}`) || [];
- const billed=closeout?.payments.some(payment=>/^billed$/i.test(payment.method.trim()));
+ const total=completed?`${label}: ${knownTotal?money(closeout!.total):'unavailable'}`:null;
+ const tip=knownTotal&&closeout&&Number.isFinite(closeout.tip)&&closeout.tip!==0?`Recorded tip: ${money(closeout.tip)}`:null;
+ const payments=closeout?.payments.map(payment=>`${payment.method || 'Unspecified method'}: ${Number.isFinite(payment.amount)&&payment.amount!==0?money(payment.amount):'amount unavailable'}`) || [];
+ const billed=closeout?.payments.some(payment=>/^billed\b/i.test(payment.method.trim()));
  const count=row.photos?.length || 0;
  const photos=count?`${count} recorded photo${count===1?'':'s'}${row.photoAuditAvailable?'':' · completeness unavailable'}`:row.photoAuditAvailable?'No photos recorded':'Photo count unavailable';
  return {total,tip:completed?tip:null,payments:completed?payments:[],notice:completed?(estimate?'Estimate only · not collected revenue':billed?'Billed entries are not collected payments':'Completion does not confirm payment'):null,photos,count};

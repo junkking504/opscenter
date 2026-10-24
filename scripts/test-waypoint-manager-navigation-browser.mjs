@@ -81,7 +81,7 @@ try{
   const headings=await page.locator('h2[id^="manager-"]').allTextContents();assert.deepEqual(headings,['Active / Scheduled (2)','Completed (20)','Cancelled (1)']);
   await expect(page.getByText('Completed Duration:',{exact:false})).toHaveCount(0);
   const completedRow=page.getByRole('button',{name:/Customer done-0 /});
-  await expect(completedRow).toContainText('Job total: $538.00');await expect(completedRow).toContainText('Includes $38.00 tip');await expect(completedRow).toContainText('Billed entries are not collected payments');await expect(completedRow).toContainText('1 recorded photo · viewing unavailable');
+  await expect(completedRow).toContainText('Job total: $538.00');await expect(completedRow).toContainText('Recorded tip: $38.00');await expect(completedRow).toContainText('Billed entries are not collected payments');await expect(completedRow).toContainText('1 recorded photo · viewing unavailable');
   await expect(page.getByRole('button',{name:/Customer done-1 /})).toContainText('Estimate total: $250.00');
   await expect(page.getByRole('button',{name:/Customer done-2 /})).toContainText('Job total: unavailable');
   await completedRow.click();await expect(page.getByText('Recorded payment entries: Billed: $538.00',{exact:true})).toBeVisible();await expect(page.getByText('Photos cannot be opened securely in this manager view yet.',{exact:true})).toBeVisible();

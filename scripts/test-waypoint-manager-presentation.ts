@@ -38,9 +38,9 @@ assert.equal(managerOutcome({...completed,appointmentType:'Estimate'}).notice,'E
 assert.equal(managerOutcome({...completed,appointmentType:'Estimate'}).total,'Estimate total: $450.00');
 for(const closeout of [null,{...completed.closeout!,total:NaN},{...completed.closeout!,total:Infinity}])assert.equal(managerOutcome({...completed,closeout}).total,'Job total: unavailable');
 assert.equal(managerOutcome({...completed,chargeDetailsPending:true}).total,'Job total: unavailable');
-assert.equal(managerOutcome({...completed,closeout:{...completed.closeout!,total:0}}).total,'Job total: $0.00');
+assert.equal(managerOutcome({...completed,closeout:{...completed.closeout!,total:0}}).total,'Job total: unavailable');
 const billed={...completed,closeout:{...completed.closeout!,total:538,tip:38,payments:[{method:'Billed',detail:'',amount:400},{method:'Cash',detail:'',amount:138}]}};
-assert.equal(managerOutcome(billed).total,'Job total: $538.00');assert.equal(managerOutcome(billed).tip,'Includes $38.00 tip');
+assert.equal(managerOutcome(billed).total,'Job total: $538.00');assert.equal(managerOutcome(billed).tip,'Recorded tip: $38.00');
 assert.equal(managerOutcome(billed).notice,'Billed entries are not collected payments');
 assert.deepEqual(managerOutcome(billed).payments,['Billed: $400.00','Cash: $138.00']);
 assert.equal(managerOutcome({...completed,status:'Confirmed'}).total,null);
@@ -51,4 +51,8 @@ const photos=[{url:'https://example.invalid/private.jpg',fileName:'fictional.jpg
 assert.equal(managerOutcome({...completed,photos}).photos,'1 recorded photo');
 assert.equal(managerOutcome({...completed,photos,photoAuditAvailable:false}).photos,'1 recorded photo · completeness unavailable');
 assert.deepEqual(completed,raw,'Amounts and photo presentation never mutate source values');
-console.log('PASS manager amounts/photos: jobs, estimates, billed/mixed payment entries, included tip, missing/pending/nonfinite totals, explicit zero, audited/unknown photo counts and source immutability.');
+console.log('PASS manager amounts/photos: jobs, estimates, billed/mixed payment entries, recorded tip, missing/pending/nonfinite totals, ambiguous normalized zero, audited/unknown photo counts and source immutability.');
+
+assert.deepEqual(managerOutcome({...completed,closeout:{...completed.closeout!,payments:[{method:'Cash',detail:'',amount:0}]}}).payments,['Cash: amount unavailable']);
+
+assert.equal(managerOutcome({...billed,closeout:{...billed.closeout,payments:[{method:'Billed - Net 30',detail:'',amount:538}]}}).notice,'Billed entries are not collected payments');

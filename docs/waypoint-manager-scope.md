@@ -102,7 +102,11 @@ workflow still requires its ordinary approved phone setup.
 The manager list and detail render the existing closeout total only when charge
 details are available, labeling estimates separately from jobs. Missing or pending
 closeout details remain unavailable; the default summary payment amount is not a
-fallback. Tips are labelled as included in the total, recorded payment entries
+fallback. The normalized source also defaults missing closeout amounts to zero,
+so a zero total or payment amount stays unavailable until explicit availability
+evidence exists; this conservatively also hides true zero-dollar amounts.
+Tips are shown separately as recorded, without inferring whether the source
+total includes them. Recorded payment entries
 remain separate, and neither completion nor a Billed entry confirms collection.
 
 Photo counts describe the existing snapshot: audited empty, unknown, or recorded

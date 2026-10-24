@@ -187,7 +187,7 @@
     "verify:slack-diagnostics": "node --import tsx scripts/test-slack-diagnostics.ts",
     "verify:css-phase-two": "node --import tsx scripts/test-css-phase-two.ts",
     "verify:release-cutover": "node --test scripts/test-release-cutover.mjs && node --import tsx scripts/test-release-background.ts && python3 scripts/test-controller-bundle.py && python3 scripts/test-legacy-launch-guard.py",
-    "verify:appointment-cost": "node --import tsx scripts/test-appointment-cost.ts",
+    "verify:appointment-cost": "node --import tsx scripts/test-appointment-cost.ts && node --import tsx scripts/test-appointment-cost-incomplete.ts",
     "verify:convoy-live": "node --import tsx scripts/test-convoy-live.ts",
     "verify:monthly-mileage": "node --import tsx scripts/test-fleet-monthly-mileage.ts",
     "verify:monthly-mileage:browser": "node scripts/test-fleet-monthly-mileage-browser.mjs",
@@ -213,7 +213,8 @@
     "verify:named-accounts": "node --import tsx scripts/test-named-accounts.ts",
     "verify:waypoint-navigation:browser": "node scripts/test-waypoint-navigation-browser.mjs",
     "verify:waypoint-push:browser": "node scripts/test-waypoint-push-browser.mjs",
-    "verify:waypoint-manager:presentation": "node --import tsx scripts/test-waypoint-manager-presentation.ts && node scripts/test-waypoint-manager-navigation-browser.mjs"
+    "verify:waypoint-manager:presentation": "node --import tsx scripts/test-waypoint-manager-presentation.ts && node scripts/test-waypoint-manager-navigation-browser.mjs",
+    "verify:appointment-cost:browser": "node scripts/test-appointment-cost-incomplete-browser.mjs"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

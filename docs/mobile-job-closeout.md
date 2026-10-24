@@ -1155,3 +1155,5 @@ Regression checks: `npm run verify:waypoint-manager:presentation`,
 `npm run verify:waypoint-manager`, `npm run verify:waypoint-navigation:browser`,
 and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
 local API mocks; they are not physical iPhone acceptance or live-data write tests.
+
+Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`; files in `public/` alone do not make them available on the Waypoint hostname. Route icon URLs use `?v=2` to bypass cached 404 responses from the initial navigation release. `verify:crew-phones` checks every shipped SVG through the hostname middleware, and the navigation browser check requires all five icons to decode.

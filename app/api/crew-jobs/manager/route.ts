@@ -8,7 +8,7 @@ import {CrewPhoneError} from '@/lib/crew-phone';
 import {crewDayRoster,readCrewDay,saveCrewDay} from '@/lib/crew-phone-day';
 import {JUNKWARE_DISPATCH_TRUCKS} from '@/lib/junkware-trucks';
 import {pendingTruckSwitch} from '@/lib/crew-truck-switch-store';
-import {managerPhotoHeaders,managerPhotoProjection,managerPhotoSelection,readManagerPhoto} from '@/lib/waypoint-manager-photos';
+import {managerPhotoHeaders,managerPhotoProjection,managerPhotoSelection,managerResponseProjection,readManagerPhoto} from '@/lib/waypoint-manager-photos';
 import * as operations from '@/app/api/desktop/schedule/operations/route';
 import * as creation from '@/app/api/desktop/schedule/creation/route';
 import * as creationCheck from '@/app/api/desktop/schedule/creation/check/route';
@@ -62,7 +62,9 @@ async function handle(request:Request){try{
  if(!handler)throw new CrewPhoneError('Method not allowed.',405);
  // Next's tracked background work inherits the request-local identity; every
  // delegated auth check revalidates the original phone and active manager grant.
- return account ? await handler(delegated) : await withWaypointManager(request,()=>handler(delegated));
+ const response=account ? await handler(delegated) : await withWaypointManager(request,()=>handler(delegated));
+ const headers=new Headers(response.headers);headers.delete('content-length');headers.set('Cache-Control','private, no-store, max-age=0');
+ return Response.json(managerResponseProjection(await response.json()),{status:response.status,headers});
 }catch(error){return crewPhoneFailure(error);}}
 export const GET=handle;
 export const POST=handle;

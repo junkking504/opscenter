@@ -120,7 +120,10 @@ new image access; existing managers retain their all-truck browse scope. The
 server resolves date + recordId + photo digest against the current local schedule,
 then rechecks authorization and photo membership after download. It accepts no
 caller-supplied source URL. Schedule photo projections replace public URLs with
-these private request URLs and omit unused prior-estimate media.
+these private request URLs and omit unused prior-estimate media. Delegated manager
+edit and receipt responses also omit raw photo-evidence URLs while keeping
+request IDs, statuses, version hashes and non-photo fields unchanged; stored
+evidence is never modified.
 
 The image reader permits only HTTPS JunkWare media paths on the existing source
 host, no credentials/query/fragment/nonstandard port, no redirects, and pins a

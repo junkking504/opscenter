@@ -24,6 +24,22 @@ export function managerPhotoUrl(date:string,row:Pick<DesktopAppointment,'recordI
 export function managerPhotoProjection(row:DesktopAppointment,date:string) {
  return {...row,sourceEstimate:undefined,photos:(row.photos || []).map(photo=>({category:photo.category,fileName:`${photo.category} photo`,url:managerPhotoSource(photo.url)?managerPhotoUrl(date,row,photo.url):''}))};
 }
+// Existing edit and receipt reads can embed raw closeout photo evidence. The
+// manager forms need neither those URLs nor prior-estimate media. Redact only
+// their response projection; saved receipts, notes and source versions stay intact.
+export function managerResponseProjection(value:unknown):unknown {
+ if(Array.isArray(value))return value.map(managerResponseProjection);
+ if(!value||typeof value!=='object')return value;
+ return Object.fromEntries(Object.entries(value).map(([key,item])=>{
+  if(key==='photoEvidence'&&item&&typeof item==='object'&&!Array.isArray(item)){
+   const {urls,...evidence}=item as Record<string,unknown>;
+   return [key,{...managerResponseProjection(evidence) as Record<string,unknown>,...(Array.isArray(urls)?{photoCount:urls.length,urlsRedacted:true}:{})}];
+  }
+  if(key==='photos'&&Array.isArray(item))return [key,item.map(photo=>({category:photo?.category||'Other',fileName:'Appointment photo',url:''}))];
+  if(key==='sourceEstimate')return [key,undefined];
+  return [key,managerResponseProjection(item)];
+ }));
+}
 export function managerPhotoSelection(params:URLSearchParams,read:(date:string)=>{appointments:DesktopAppointment[]}) {
  const date=params.get('date')||'',recordId=params.get('recordId')||'',key=params.get('photo')||'';
  if(params.size!==4||[...params.keys()].some(name=>!['resource','date','recordId','photo'].includes(name))||params.get('resource')!=='photo'

@@ -25,9 +25,9 @@ const mocks:Record<string,unknown>={
  '@/lib/junkware-trucks':{JUNKWARE_DISPATCH_TRUCKS:['Truck 1','Truck 9']},
  '@/lib/crew-truck-switch-store':{pendingTruckSwitch:()=>null,transfer:()=>{transfers++;}},
 };
-for(const path of ['desktop/schedule/operations','desktop/schedule/creation','desktop/schedule/creation/check','desktop/schedule/customers','desktop/schedule/order','desktop/schedule/closeout','crew-phones','crew-dispatch'])mocks[`@/app/api/${path}/route`]={GET:async(r:Request)=>{delegated++;assert.ok(new URL(r.url).pathname.endsWith(path));return Response.json({ok:true});},POST:async(r:Request)=>{delegated++;bodySeen=await r.json();assert.ok(new URL(r.url).pathname.endsWith(path));return Response.json({ok:true});}};
+for(const path of ['desktop/schedule/operations','desktop/schedule/creation','desktop/schedule/creation/check','desktop/schedule/customers','desktop/schedule/order','desktop/schedule/closeout','crew-phones','crew-dispatch'])mocks[`@/app/api/${path}/route`]={GET:async(r:Request)=>{delegated++;assert.ok(new URL(r.url).pathname.endsWith(path));return Response.json({ok:true,sourceVersion:'unchanged',closeout:{photoEvidence:{appointmentId:'1',urls:[sourcePhoto.url]}},receipt:{status:'uncertain',requestId:'saved',sourceResult:{photos:[sourcePhoto]}}});},POST:async(r:Request)=>{delegated++;bodySeen=await r.json();assert.ok(new URL(r.url).pathname.endsWith(path));return Response.json({ok:true});}};
 const compiled=ts.transpileModule(fs.readFileSync('app/api/crew-jobs/manager/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const exports:Record<string,unknown>={};vm.runInNewContext(compiled,{exports,require:(name:string)=>{assert.ok(name in mocks,name);return mocks[name];},URL,Request,Response,Date,Object,Uint8Array});
+const exports:Record<string,unknown>={};vm.runInNewContext(compiled,{exports,require:(name:string)=>{assert.ok(name in mocks,name);return mocks[name];},URL,Request,Response,Date,Object,Uint8Array,Headers});
 const get=exports.GET as (r:Request)=>Promise<Response>,post=exports.POST as typeof get;
 const req=(resource:string,body?:unknown,origin='https://waypoint.example.invalid')=>new Request(`https://waypoint.example.invalid/api/crew-jobs/manager?resource=${resource}`,{method:body?'POST':'GET',headers:{Origin:origin,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
 async function main(){
@@ -46,6 +46,7 @@ async function main(){
  assert.equal((await post(req('phones',{action:'send-setup'}))).status,403);
  allowed=true;const dualSnapshot=await (await get(req('schedule'))).json();assert.equal(dualSnapshot.phone.deviceId,phone.deviceId);
  assert.equal((await post(req('context',{truck:'Truck 9'}))).status,200);assert.equal(contexts,2,'Named accounts retain approved phone work context');
+ const editView=await (await get(req('edit'))).json();assert.equal(editView.sourceVersion,'unchanged');assert.equal(editView.receipt.status,'uncertain');assert.equal(editView.receipt.requestId,'saved');assert.ok(!JSON.stringify(editView).includes(sourcePhoto.url),'Delegated edit and receipt evidence does not expose media URLs');
  const imageUrl='https://waypoint.example.invalid'+photoPolicy.managerPhotoUrl('2026-10-16',photoRows[0],sourcePhoto.url);
  accountAllowed=false;allowed=false;const priorReads=reads;assert.equal((await get(new Request(imageUrl))).status,403);assert.equal(reads,priorReads);assert.equal(downloads,0,'Ordinary crew cannot read manager image bytes');
  allowed=true;const image=await get(new Request(imageUrl));assert.equal(image.status,200);assert.equal(image.headers.get('cache-control'),'private, no-store, max-age=0');assert.equal(image.headers.get('cross-origin-resource-policy'),'same-origin');assert.equal(image.headers.get('x-content-type-options'),'nosniff');assert.equal(downloads,1,'Existing manager grant includes other trucks');

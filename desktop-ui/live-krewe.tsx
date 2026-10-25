@@ -1,3 +1,4 @@
+import { useAlertReveal } from './use-alert-reveal';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -21,6 +22,7 @@ const metric=(value:number|null|undefined)=>value==null?'—':value.toLocaleStri
 const ampm=(value:string)=>{if(!/^\d{2}:\d{2}$/.test(value))return value;const [h,m]=value.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;};
 /** Parent owns the approved workspace header/tabs; report optionally selects an ISO month/date. */
 export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspaceProps<KreweView>){
+  useAlertReveal();
   const deepLinkApplied=useRef('');
   const [recordPanel,setRecordPanel]=useState<'pay'|'hours'|'driving'>('pay');
   const [periodPanel,setPeriodPanel]=useState<'pay'|'review'|'production'>('pay');

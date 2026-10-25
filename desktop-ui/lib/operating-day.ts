@@ -37,6 +37,7 @@ export function operatingDayUrl(href: string, date: string, workspace?: string):
   url.searchParams.set('date', date);
   url.searchParams.set('scheduleDay', 'today');
   // Appointment selection belongs to the old day, not the newly selected day.
+  for (const key of ['focus','alert','notification','truck','member']) url.searchParams.delete(key);
   url.searchParams.delete('q');
   url.searchParams.delete('appointment');
   if (workspace) url.searchParams.set('workspace', workspace);

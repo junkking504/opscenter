@@ -31,6 +31,6 @@ assert.equal(resolveScheduleDeepLink(choices,fallback.searchParams.get('q')||'',
 const bare=new URL(desktopAlertHref({...closed,href:'/jobs'},{date:'2026-09-06'},origin),origin);
 assert.equal(bare.searchParams.get('q'),'JK1000001');
 assert.equal(bare.searchParams.get('date'),'2026-09-06');
-assert.equal(desktopAlertHref({...closed,id:'fuel',href:'/fleet?date=2026-09-06&truck=4'},snapshot,origin),'/desktop?date=2026-09-06&truck=4&workspace=Fleet&data=live');
+assert.equal(new URL(desktopAlertHref({...closed,id:'fuel',truck:undefined,href:'/fleet?date=2026-09-06&truck=4'},snapshot,origin),origin).searchParams.get('truck'),'Truck 4');
 assert.equal(desktopAlertHref({...closed,id:'external',href:'https://junkware.junk-king.com/source'},snapshot,origin),'https://junkware.junk-king.com/source');
 console.log('Desktop links preserve date, appointment reference, workspace, and external source URLs.');

@@ -1,3 +1,4 @@
+import { truckMapHref } from './alert-destination';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -219,7 +220,7 @@ export function geofenceOperationalAlert(entry: GeofenceEntry, date: string): Op
       ...(entry.positionObserved ? [{label:'Arrival source',value:'Live GPS facility report'}] : []),
       {label:'Truck load',value:confirmed && entry.resetLocation ? 'Reset after confirmed 5-minute visit' : 'Unchanged'}],
     next:entry.reviewReason ? entry.reviewReason : !confirmed ? 'Entry detected. This alert is removed if the truck leaves before five minutes; it does not yet count as a visit.' : entry.resetLocation ? 'Five-minute visit confirmed. Unload is anchored to arrival; later completed jobs add to the load.' : 'Location update only; truck load is unchanged.',
-    href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(entry.truck.replace('Truck ','Truck# '))}`};
+    href:truckMapHref(entry.truck,date)};
 }
 
 export function geofenceLoadResets(date: string, entries: GeofenceEntry[]): TruckLoadEvent[] {
@@ -301,7 +302,7 @@ export function geofenceVisitAlert(visit:GeofenceVisit,date:string):OperationalA
       ...(bounds ? [{label:'Departure source',value:visit.departureSource === 'later_position' ? 'Corroborated GPS positions away from the facility; exact exit time unavailable' : 'Later positive GPS report at another facility; exact exit time unavailable'}] : []),
       ...(visit.arrivalSource === 'live_position' ? [{label:'Arrival source',value:'First positive live GPS facility report'}] : [])],
     next:visit.reviewRequired ? 'Review the GPS evidence. Conflicting or incomplete reports are not proof of a short stay; no automatic alert deletion is allowed.' : bounds ? 'Departure established by later location evidence. Exit time is bounded by the last onsite report and a later position elsewhere.' : visit.durationSeconds===null?'Departure recorded; a matching entry is unavailable or ambiguous.':visit.arrivalSource === 'live_position' ? 'Observed onsite time from the first live facility report through the native exit; exact arrival time is unavailable.' : 'Completed visit duration from LinxUp entry and exit events.',
-    href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(visit.truck.replace('Truck ','Truck# '))}`};
+    href:truckMapHref(visit.truck,date)};
 }
 
 export function geofenceTimelineAlerts(date:string,entries:GeofenceEntry[],visits:GeofenceVisit[]):OperationalAlert[]{

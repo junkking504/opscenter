@@ -1,15 +1,10 @@
+import { notificationDestination } from './alert-destination';
 import { createCipheriv, createECDH, hkdfSync, randomBytes } from 'node:crypto';
 import type { PushSubscriptionRecord } from './web-push-store';
 export type PushMessage={title:string;body:string;eventId?:string;path?:string};
 export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecord;recordedAt?:string};
-/** Only an existing authenticated job route, never a payload URL or media link. */
-export function pushPath(value:unknown):string|undefined {
- if(typeof value!=='string')return undefined;
- const match=value.match(/^\/jobs\?date=(\d{4}-\d{2}-\d{2})#job-jk[0-9]{1,12}$/);
- if(!match)return undefined;
- const date=new Date(match[1]+'T12:00:00Z');
- return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===match[1]?value:undefined;
-}
+/** Revalidate persisted destinations before encrypting; no payload-supplied external URLs. */
+export const pushPath = notificationDestination;
 export function pushMessage(value:unknown):PushMessage|null {
  const v=value as Partial<PushMessage>|undefined;
  if(!v||typeof v.title!=='string'||typeof v.body!=='string'||!v.title.trim()||!v.body.trim())return null;

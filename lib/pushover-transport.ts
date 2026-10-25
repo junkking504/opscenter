@@ -132,7 +132,7 @@ export function pushoverFields(a: Approval,envelope: PushEnvelope,ttl: number): 
   let body=message.body;
   if(body.length>1024){body=body.slice(0,1023).replace(/[\uD800-\uDBFF]$/,'')+'…';}
   return new URLSearchParams({token:a.token,user:a.user,device:a.device,title:message.title,message:body,
-    priority:'0',ttl:String(ttl),url:'https://ops.junk-king.app'+(message.path||'/desktop'),url_title:'Open in OpsCenter'});
+    priority:'0',ttl:String(ttl),url:'https://ops.junk-king.app'+(message.path?.startsWith('/jobs?') ? message.path : '/desktop'),url_title:'Open in OpsCenter'});
   // Deliberately omit sound so the user's Pushover sound preference is honored.
 }
 

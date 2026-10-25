@@ -44,7 +44,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
+import { AlertDetailDialog } from '../components/alert-detail-dialog';
+import type { DesktopAlert, DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
 import { LiveAnalytics } from '../deferred-live-analytics';
 import { commandKpiDestination } from '../lib/command-kpi-navigation';
@@ -59,7 +60,7 @@ const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWork
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch from '../live-search';
 import OpsWiki from '../second-brain';
-import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
+import { desktopAlertHref, desktopAppointmentHref, desktopSourceHref } from '../lib/desktop-links';
 import LiveSchedule, { preloadLiveSchedule } from '../deferred-live-schedule';
 import { dateForDay } from '../lib/schedule-day';
 import CommandMap from '../command-map';
@@ -1050,6 +1051,43 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setSearchOpenValue(value);
   };
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [alertDetails, setAlertDetails] = useState<{alert:DesktopAlert;href?:string}|null>(null);
+  const alertIntentApplied = useRef(false);
+  const notificationAbort=useRef<AbortController|null>(null);
+  useEffect(()=>{
+    if (!live || alertIntentApplied.current) return;
+    const params=new URLSearchParams(window.location.search), id=params.get('alert');
+    if (!id || live.snapshot.loading) return;
+    alertIntentApplied.current=true;
+    const alert=live.snapshot.alerts.find(item=>item.id===id);
+    if(alert) { const href=desktopAlertHref(alert,live.snapshot,window.location.origin);setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href}); }
+    else setAlertDetails({alert:{id,label:'Alert unavailable',title:'This alert is no longer available',detail:'The source may have changed or the alert is outside the loaded history. Review current operational updates.',detected:live.snapshot.date,source:'OpsCenter',owner:'Operations',domain:'Command',priority:'watch',action:'',context:'',facts:[],href:'',needsAction:false,workflowState:'active',version:0}});
+  },[live?.snapshot]);
+  useEffect(()=>{
+    if(!live)return;
+    const id=new URLSearchParams(window.location.search).get('notification');
+    if(!id)return;
+    const abort=new AbortController(); notificationAbort.current=abort;
+    const base:DesktopAlert={id,label:'Notification',title:'Loading alert details…',detail:'',detected:'',source:'OpsCenter',owner:'Operations',domain:'Command',priority:'watch',action:'',context:'',facts:[],href:'',needsAction:false,workflowState:'active',version:0};
+    setAlertDetails({alert:base});
+    void fetch(`/api/push/notification?id=${encodeURIComponent(id)}`,{credentials:'same-origin',cache:'no-store',signal:abort.signal}).then(async response=>{
+      if(response.status===401){window.location.assign('/login?next='+encodeURIComponent(window.location.pathname+window.location.search));return;}
+      if(!response.ok)throw new Error('Unavailable');
+      const result=await response.json();
+      if(abort.signal.aborted)return;
+      const destination=result.path ? new URL(desktopSourceHref(result.path,window.location.origin),window.location.origin) : null;
+      if(destination && !destination.searchParams.has('focus'))destination.searchParams.set('focus','record');
+      setAlertDetails({alert:{...base,title:result.title,detail:result.body,detected:result.occurredAt},href:destination ? destination.pathname+destination.search+destination.hash : undefined});
+    }).catch(()=>{if(!abort.signal.aborted)setAlertDetails({alert:{...base,title:'Alert details unavailable',detail:'This notification is unavailable for your account or its saved history has expired. Review current operational updates.'}});});
+    return()=>abort.abort();
+  },[Boolean(live)]);
+  const closeAlertDetails=()=>{
+    notificationAbort.current?.abort();
+    setAlertDetails(null);
+    const url=new URL(window.location.href);url.searchParams.delete('notification');url.searchParams.delete('alert');
+    if(url.searchParams.get('focus')==='alert')url.searchParams.delete('focus');
+    window.history.replaceState(window.history.state,'',url);
+  };
   const [operatingDayOpen, setOperatingDayOpenValue] = useState(false);
   const setOperatingDayOpen = (value: boolean | ((open: boolean) => boolean)) => {
     if (live) { setActionFeedback('The operating-day planner is still being connected.'); return; }
@@ -3328,7 +3366,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       const alert = liveAlert(item);
       if (alert) {
         const href = desktopAlertHref(alert, live.snapshot, window.location.origin);
-        window.location.assign(href);
+        notificationAbort.current?.abort();
+        setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href});
       }
       return;
     }
@@ -4235,7 +4274,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       return;
     }
     const url = new URL(window.location.href);
-    for (const key of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
+    for (const key of ['focus','alert','notification','appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, '', url);
     setActiveNav(workspace);
     if (workspace === 'Command') setView(page as typeof view);
@@ -4252,6 +4291,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
   return (
     <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
+      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} live={live} close={closeAlertDetails} openControl={()=>{closeAlertDetails();setActiveNav('Command');setView('today');}}/>}
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">

@@ -19,8 +19,13 @@ assert.equal(notificationDestination(destination),destination);
 for(const v of [destination+'&next=https://evil.invalid',destination+'&truck=19',destination.replace(date,'2026-02-30'),'//evil.invalid','/api/private','javascript:alert(1)',destination+'%0a'])assert.equal(notificationDestination(v),undefined);
 const crew=desktopAlertHref({...geofence,label:'Clock Out',domain:'Krewe',truck:undefined,href:'/crew',facts:[{label:'Employee',value:'Example Driver'}]},{date},origin);
 assert.equal(new URL(crew,origin).searchParams.get('member'),'Example Driver');
-const unknown=desktopAlertHref({...geofence,label:'Unmapped',domain:'Other',truck:undefined,href:'/?commandView=monitor'},{date},origin);
+const unknown=desktopAlertHref({...geofence,label:'Unmapped',domain:'Other',truck:undefined,href:''},{date},origin);
 assert.equal(new URL(unknown,origin).searchParams.get('alert'),'geo');
+for(const href of ['/desktop?workspace=Finance&date='+date,'/finance?date='+date,'/marketing?date='+date,'/?commandView=monitor']){
+ const preserved=new URL(desktopAlertHref({...geofence,label:'Dump Expense',domain:'Finance',truck:undefined,href},{date},origin),origin);
+ assert.equal(preserved.searchParams.get('workspace'),href.includes('marketing')?'Marketing':href.includes('monitor')?'Command':'Finance');assert.equal(preserved.searchParams.has('alert'),false);assert.equal(preserved.searchParams.get('date'),date);
+}
+for(const href of ['', 'javascript:alert(1)', 'http://['])assert.equal(new URL(desktopAlertHref({...geofence,label:'Unknown',domain:'Other',truck:undefined,href},{date},origin),origin).searchParams.get('focus'),'alert');
 const id='a'.repeat(64), request=new Request(origin+'/api/push/notification?id='+id);
 const manager={email:'manager@example.invalid',role:'manager' as const};let reads=0;
 const read=async(owner:string,event:string)=>{reads++;assert.equal(owner,manager.email);assert.equal(event,id);return {category:'fleet',occurred_at:date+'T15:42:00Z',notification_json:{title:'Truck #9',body:'Departed NOHQ',path:destination}};};

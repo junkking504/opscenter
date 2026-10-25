@@ -190,6 +190,11 @@ class JournalTest(unittest.TestCase):
                     self.assertEqual({key: item[key] for key in expected}, expected)
                     self.assertEqual(row["truck_number"], label)
                     self.assertEqual(journal.truck_notification_title(item["notification"]["title"]), "Truck #9")
+        next_day = (local + timedelta(days=1)).date().isoformat()
+        payload["date"] = next_day
+        cross_midnight = journal.project(Path(f"linxup_alerts_{next_day}.json"), payload)[0]["observations"][0]["notification"]
+        self.assertIn(f"date={day}&", cross_midnight["path"])
+        self.assertIn(f"Date: {day}", cross_midnight["body"])
         self.assertEqual(journal.truck_notification_title("Truckster"), "Truck #Truckster")
         self.assertEqual(journal.truck_notification_title("Truck #09"), "Truck #09")
 

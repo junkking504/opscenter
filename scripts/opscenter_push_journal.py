@@ -464,7 +464,7 @@ def project(path, payload):
             action = "Arrived" if kind == "geofence_entered" else "Departed"
             item["notification"] = {"title": truck_notification_title(row["truck_number"]),
                                     "body": f"{action}{' at' if kind == 'geofence_entered' else ''} {geofence_display_name(row['geofence_name'])}: {at}\nDate: {occurred.date().isoformat()} (Central)",
-                                    "path": "/desktop?" + urlencode({"workspace": "Schedule", "scheduleView": "board", "date": day, "truck": truck_notification_title(row["truck_number"]).replace("#", ""), "focus": "truck"})}
+                                    "path": "/desktop?" + urlencode({"workspace": "Schedule", "scheduleView": "board", "date": occurred.date().isoformat(), "truck": truck_notification_title(row["truck_number"]).replace("#", ""), "focus": "truck"})}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches

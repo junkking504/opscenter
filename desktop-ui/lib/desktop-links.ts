@@ -33,6 +33,11 @@ export function desktopCustomerHref(appointmentId?: string, date?: string): stri
 
 /** Use the uniquely linked source appointment; otherwise preserve the source reference. */
 function sourceAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
+  const jobs = snapshot.crewProgress?.jobs.filter(job => job.updateIds.includes(alert.id)) || [];
+  const linked=()=>jobs.length===1 ? desktopSourceHref(jobs[0].href,origin) : '';
+  if(!alert.href?.trim())return linked();
+  let raw:URL;try{raw=new URL(alert.href,origin);}catch{return linked();}
+  if(!['http:','https:'].includes(raw.protocol))return linked();
   const sourceHref = desktopSourceHref(alert.href, origin);
   const url = new URL(sourceHref, origin);
   if (url.origin === new URL(origin).origin && url.pathname === '/desktop' && url.searchParams.get('workspace') === 'Schedule' && url.searchParams.has('appointment')) {
@@ -41,7 +46,6 @@ function sourceAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnaps
     url.searchParams.set('scheduleDay', 'today');
     return url.pathname + url.search + url.hash;
   }
-  const jobs = snapshot.crewProgress?.jobs.filter(job => job.updateIds.includes(alert.id)) || [];
   if (jobs.length === 1) return desktopSourceHref(jobs[0].href, origin);
   if (url.origin === new URL(origin).origin && url.pathname === '/desktop' && url.searchParams.get('workspace') === 'Schedule') {
     if (!url.searchParams.has('date')) url.searchParams.set('date', snapshot.date);
@@ -55,10 +59,10 @@ function sourceAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnaps
   return url.origin === new URL(origin).origin ? url.pathname + url.search + url.hash : url.href;
 }
 
-/** Route known identities first; unsupported items retain their exact expanded alert. */
+/** Route known identities first, preserving valid source links when no finer identity exists. */
 export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
   const source = sourceAlertHref(alert, snapshot, origin);
-  const url = new URL(source, origin);
+  const url = new URL(source || '/desktop', origin);
   if (url.origin !== new URL(origin).origin) return source;
   const p = url.searchParams;
   const date = p.get('date') || snapshot.date;
@@ -76,7 +80,7 @@ export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopComm
     p.set('truck',truck); p.set('focus','record');
   } else if (alert.label === 'Schedule Summary') {
     url.pathname='/desktop'; p.set('workspace','Schedule'); p.set('scheduleView','board'); p.set('focus','record');
-  } else {
+  } else if (!source) {
     return '/desktop?' + new URLSearchParams({workspace:'Command',commandView:'now',date,alert:alert.id,focus:'alert'});
   }
   p.set('date',date);

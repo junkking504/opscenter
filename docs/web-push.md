@@ -726,4 +726,4 @@ job route or Dashboard fallback. Existing delivery categories, approvals, expiry
 Waypoint preferences, and sending limits are unchanged. Browser fixtures and
 service-worker doubles do not establish physical handset delivery/tap acceptance.
 
-Unsupported in-app alert sources retain their visible details without inventing a headline destination. Pushover keeps its existing generic desktop fallback and existing job links; the native receipt flow does not change its link contract.
+Alerts without a valid source retain their visible details without inventing a headline destination. Existing valid source links, including Finance and Marketing, remain headline destinations when no more precise record identity is available. Pushover keeps its existing generic desktop fallback and existing job links; the native receipt flow does not change its link contract.

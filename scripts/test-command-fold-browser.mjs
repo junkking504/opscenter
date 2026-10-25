@@ -29,7 +29,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           return {
             bottom: document.querySelector('.command-metrics').getBoundingClientRect().bottom,
             pageWidth: document.documentElement.scrollWidth,
-            cards: cards.map(e => ({ ...rect(e), text:e.innerText, fits:e.scrollWidth<=e.clientWidth+1 && e.scrollHeight<=e.clientHeight+1, sourceSize:parseFloat(getComputedStyle(e.querySelector('small')).fontSize), heading:[...e.querySelectorAll('.kpi-heading > span')].filter(c=>getComputedStyle(c).display!=='none').map(rect) })),
+            cards: cards.map(e => ({ ...rect(e), text:e.textContent, fits:e.scrollWidth<=e.clientWidth+1 && e.scrollHeight<=e.clientHeight+1, sourceSize:parseFloat(getComputedStyle(e.querySelector('small')).fontSize), heading:[...e.querySelectorAll('.kpi-heading > span')].filter(c=>getComputedStyle(c).display!=='none').map(rect) })),
             hero: { ...rect(hero), fits:hero.scrollWidth<=hero.clientWidth+1 },
             revenue: rect(hero.querySelector('.hero-value')),
             goal: rect(hero.querySelector('.hero-pace > div')),

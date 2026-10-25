@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import PageHeader from "@/components/PageHeader";
 import type { ReactNode } from "react";
 
@@ -17,7 +18,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function PrivacyPage() {
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard ops-secondary-page">
       <PageHeader
         title="Privacy Policy"
         subtitle="This policy describes how OpsCenter uses QuickBooks Online data for internal reporting."

@@ -56,7 +56,7 @@ window.fetch=async(input,init)=>{
   return Response.json({error:'No source requests are allowed in this fixture.'},{status:503});
 };
 function Fixture(){
-  const [view,setView]=useState<'today'|'payperiod'>('payperiod');
+  const [view,setView]=useState<'today'|'payperiod'|'monthly'|'callin'>(new URLSearchParams(location.search).get('view')==='monthly'?'monthly':new URLSearchParams(location.search).get('view')==='callin'?'callin':'payperiod');
   const [busy,setBusy]=useState(false);
   const [,setVersion]=useState(0);
   useEffect(()=>{const update=()=>setVersion(value=>value+1);window.addEventListener('fixture-write',update);return()=>window.removeEventListener('fixture-write',update);},[]);

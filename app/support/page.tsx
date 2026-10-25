@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getQboSetupStatus } from "@/lib/qbo-status";
@@ -12,7 +13,7 @@ export default function SupportPage() {
   const status = getQboSetupStatus();
 
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard ops-secondary-page">
       <PageHeader
         title="Support / Contact"
         subtitle="Use this page to identify the contact path for OpsCenter and QBO setup."

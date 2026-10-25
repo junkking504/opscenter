@@ -235,7 +235,7 @@ export default function OperatingInbox({
 
   if (!enabled) {
     return (
-      <div className={styles.error}>
+      <div className={`${styles.error}${variant === "standalone" ? ` ${styles.officeState}` : ""}`}>
         <div>
           <strong>Operating Inbox Is Not Enabled</strong>
           {disabledReason || "The platform database is unavailable for this runtime."}<br />
@@ -244,10 +244,10 @@ export default function OperatingInbox({
       </div>
     );
   }
-  if (loading && !payload) return <div className={styles.loading}>Reconciling current operating signals…</div>;
+  if (loading && !payload) return <div className={`${styles.loading}${variant === "standalone" ? ` ${styles.officeState}` : ""}`}>Reconciling current operating signals…</div>;
   if (error && !payload) {
     return (
-      <div className={styles.error}>
+      <div className={`${styles.error}${variant === "standalone" ? ` ${styles.officeState}` : ""}`}>
         <div><strong>Operating Inbox is not connected</strong>{error}<br />The rest of OpsCenter remains available.</div>
       </div>
     );
@@ -368,7 +368,7 @@ export default function OperatingInbox({
         </div>
       </div>
 
-      {error ? <div className={styles.error}><div><strong>Action needs attention</strong>{error}</div></div> : null}
+      {error ? <div className={`${styles.error}${variant === "standalone" ? ` ${styles.officeState}` : ""}`}><div><strong>Action needs attention</strong>{error}</div></div> : null}
 
       <section className={styles.workspace} aria-label="Operating Inbox">
         <div className={styles.list}>

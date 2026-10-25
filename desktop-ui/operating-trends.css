@@ -40,3 +40,23 @@
 .ops-live .operating-empty { min-height: 230px; display: grid; place-items: center; }
 @media (max-width: 1050px) { .ops-live .operating-chart-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 500px) { .ops-live .operating-chart-plot { height: 220px; } }
+
+/* Forecast presentation retains straight daily segments, gaps and uncertainty. */
+.ops-live .operating-forecast-view { margin-top: 12px; }
+.ops-live .operating-forecast-view :is(p,summary,.operating-chart-legend,.operating-chart-heading > span) { font-size: var(--oc-type-12); line-height: 1.5; color: var(--oc-text-primary); }
+.ops-live .operating-forecast-view :is(h3,h4) { font-size: var(--oc-type-16); font-weight: 600; }
+.ops-live .operating-forecast-view .operating-chart-grid { gap: 24px; margin-top: 12px; }
+.ops-live .operating-forecast-view .operating-chart-legend { min-height: 0; gap: 8px 12px; padding: 12px 0; }
+.ops-live .operating-forecast-view .operating-chart-legend i { width: 20px; }
+.ops-live .operating-forecast-view .operating-chart-plot { height: 260px; }
+.ops-live .operating-forecast-view .operating-inspector { display: grid; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ops-live .operating-forecast-view .operating-inspector label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--oc-type-12); font-weight: 400; }
+.ops-live .operating-forecast-view .operating-inspector select { width: auto; max-width: 70%; min-height: 44px; font-size: var(--oc-type-16); background: var(--oc-surface-raised); }
+.ops-live .operating-forecast-view .operating-inspected-values { display: flex; flex-wrap: wrap; gap: 4px 16px; min-height: 18px; font-size: var(--oc-type-12); color: var(--oc-text-primary); }
+.ops-live .operating-forecast-view strong { font-weight: 600; }
+.ops-live .operating-forecast-view .operating-low-confidence { border-left: 3px solid var(--oc-status-warn-ink); padding-left: 8px; }
+.ops-live .operating-forecast-view :is(summary,.operating-history button) { min-height: 44px; }
+@media (max-width: 760px) {
+  .ops-live .operating-forecast-view .operating-chart-plot { height: 240px; }
+  .ops-live .operating-forecast-view .operating-chart-heading { flex-wrap: wrap; gap: 4px 12px; }
+}

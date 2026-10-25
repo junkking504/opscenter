@@ -1074,3 +1074,32 @@
     grid-column: auto;
   }
 }
+
+/* Office Inbox shares the restrained type scale, preserving severity colors. */
+.standalone :is(.kicker,.metric span,.pill,.recommended span,.fact span,.field > span,.event time,.itemMeta,.mobileSummary,.mobileSubtitle,.entity,.event,.listHead,.createHead span) {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.standalone :is(.standaloneCopy p,.itemTitle,.reason,.recommended strong,.fact strong,.timelineHead strong,.event strong,.createHead strong,.field input,.field select,.field textarea,.checkbox,.filter,.scope button,.action,.refresh,.createButton,.recordLink) { font-size: 16px; line-height: 1.5; }
+.standalone :is(.itemTitle,.recommended strong,.fact strong,.timelineHead strong,.event strong,.createHead strong,.pill,.createButton) { font-weight: 600; }
+.standalone :is(.scope button,.action,.refresh,.filter,.checkbox,.recordLink) { font-weight: 400; }
+.standalone .standaloneCopy h1 { font-size: 30px; font-weight: 600; line-height: 1.2; }
+.standalone :is(.detailTop h2,.metric strong) { font-size: 24px; font-weight: 600; line-height: 1.3; }
+.standalone :is(button,input,select,textarea) { min-height: 44px; max-width: 100%; box-sizing: border-box; }
+.standalone select { height: 44px; }
+.standalone :is(.itemTitle,.entity,.reason,.recommended strong,.itemMeta,.pill) { overflow-wrap: anywhere; }
+.standalone .pill { white-space: normal; }
+.standalone :is(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .standalone :is(.filters,.scope) { width: 100%; }
+  .standalone .filter { flex: 1 1 130px; min-width: 0; }
+  .standalone .scope button { flex: 1 1 100px; }
+  .standalone :is(.itemTop,.detailTop) { flex-wrap: wrap; }
+}
+
+.officeState { font-size: 16px; line-height: 1.5; color: #283344; }
+.officeState.error { background: #fff0f1; color: var(--ops-brand-red); }
+.officeState.error strong { color: #111722; font-size: 16px; font-weight: 600; }

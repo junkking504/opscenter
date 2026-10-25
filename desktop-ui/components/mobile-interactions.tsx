@@ -183,6 +183,27 @@ function PullAction({label,onAction,disabled=false}: {label:string;onAction:()=>
     onTouchStart={event=>{if(event.touches.length>1)cancel(true);}}
     onClick={()=>{if(Date.now()>suppressClick.current)onAction();}}>{ready?'Release to '+label.toLowerCase():label}</button>;
 }
+/** A full-width grab control, separate from content scrolling and snapshot refresh. */
 export function SheetDismissHandle({onDismiss,disabled=false}: {onDismiss:()=>void;disabled?:boolean}) {
-  return <div className="mobile-sheet-dismiss" data-gesture-ignore><PullAction label="Close details" onAction={onDismiss} disabled={disabled}/><span aria-hidden="true">Swipe down here to close</span></div>;
+  const start=useRef<GesturePoint|null>(null);
+  const suppressClick=useRef(0);
+  const [distance,setDistance]=useState(0);
+  const cancel=()=>{start.current=null;setDistance(0);suppressClick.current=Date.now()+700;};
+  const ready=(point:GesturePoint)=>Boolean(start.current && point.at-start.current.at<=1500 && point.y-start.current.y>=64 && point.y-start.current.y>=Math.abs(point.x-start.current.x)*GESTURE.ratio);
+  const dismiss=()=>{
+    // The releasing finger must not click a control exposed underneath a closed sheet.
+    const remove=()=>{document.removeEventListener('click',block,true);document.removeEventListener('pointerdown',remove,true);};
+    const block=(event:MouseEvent)=>{if(event.detail===0){remove();return;}event.preventDefault();event.stopPropagation();remove();};
+    document.addEventListener('click',block,true);document.addEventListener('pointerdown',remove,true);setTimeout(remove,700);
+    onDismiss();
+  };
+  return <button type="button" className="mobile-sheet-dismiss" data-gesture-ignore aria-label="Close details" disabled={disabled}
+    onPointerDown={event=>{if(event.pointerType!=='touch'){start.current=null;setDistance(0);suppressClick.current=0;return;}if(!event.isPrimary||disabled){cancel();return;}suppressClick.current=0;start.current={x:event.clientX,y:event.clientY,at:Date.now()};setDistance(0);event.currentTarget.setPointerCapture(event.pointerId);}}
+    onPointerMove={event=>{if(!start.current)return;const dx=Math.abs(event.clientX-start.current.x),dy=event.clientY-start.current.y;if(disabled||dy < -GESTURE.drift||(dx>GESTURE.drift&&dx>Math.abs(dy))||Date.now()-start.current.at>1500){cancel();return;}setDistance(ready({x:event.clientX,y:event.clientY,at:Date.now()})?64:Math.min(63,Math.max(0,dy)));}}
+    onPointerUp={event=>{if(!start.current)return;const moved=Math.hypot(event.clientX-start.current.x,event.clientY-start.current.y)>GESTURE.drift;const accepted=!disabled&&ready({x:event.clientX,y:event.clientY,at:Date.now()});start.current=null;setDistance(0);if(moved)suppressClick.current=Date.now()+700;if(accepted)dismiss();}}
+    onPointerCancel={cancel} onLostPointerCapture={()=>{start.current=null;setDistance(0);}}
+    onTouchStart={event=>{if(event.touches.length>1)cancel();}}
+    onClick={event=>{if(!disabled&&(event.detail===0||Date.now()>suppressClick.current))onDismiss();}}>
+    <span className="sheet-grip" aria-hidden="true"/><span>{distance>=64?'Release to close':'Close details'}</span><small>{disabled?'Finish editing before closing':'Swipe down here or tap to close'}</small>
+  </button>;
 }

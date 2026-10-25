@@ -86,6 +86,7 @@ try{
     assert.equal(await page.locator(width<=900?'.job-record-drawer':'.appointment-summary-dialog').count(),0,`${view} preserves breakpoint-specific opening`);
     const opened=page.locator(width<=900?'.appointment-summary-dialog':'.job-record-drawer');
     await opened.evaluate(e=>{e.getBoundingClientRect();for(const animation of e.getAnimations({subtree:true}))animation.finish();});
+    if(width>900)assert.equal(await opened.getByRole('button',{name:'Back to summary',exact:true}).count(),0,'Desktop retains direct drawer workflow without phone-only Back to summary');
     const openedBox=await opened.boundingBox();assert.ok(openedBox&&openedBox.x>=0&&openedBox.x+openedBox.width<=width+1,'Opened record panel is visible inside viewport');
     if(output)await page.screenshot({path:path.join(output,`${engineName}-${width}-${view}.png`)});
     await page.keyboard.press('Escape');

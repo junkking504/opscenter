@@ -1,0 +1,26 @@
+/* Only the existing search strip pins; date controls continue scrolling normally. */
+html:has(.ops-live .live-search-below-day) { scroll-padding-top: var(--ops-sticky-height,0px); }
+.ops-app.ops-live .live-header-shell .live-search-below-day[data-search-affixed="true"] { height: var(--search-slot-height); min-height: var(--search-slot-height); }
+.ops-app.ops-live .live-search-below-day .global-search-shell[data-search-pinned="true"] {
+  position: fixed; top: var(--search-pin-top); left: var(--search-pin-left); width: var(--search-pin-width);
+  max-width: none; height: auto; min-height: 0; margin: 0; padding: 8px max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left));
+  background: var(--oc-surface-raised); color: var(--oc-text-primary); border-bottom: 1px solid var(--oc-border-default); z-index: 44;
+}
+.ops-app.ops-live .live-search-below-day .global-search-shell:has(.global-search.active) { z-index: 1200; }
+.ops-app.ops-live .live-search-below-day .global-search-shell .global-search-panel {
+  top: calc(100% + 4px); max-height: min(650px,var(--search-results-height,72dvh));
+  max-width: calc(100vw - 16px); background: var(--oc-surface-raised); overflow-y: auto;
+}
+.ops-app.ops-live .live-search-below-day .global-search-shell[data-search-pinned="true"] .global-search-panel { left: 8px; width: min(760px,calc(100% - 16px)); top: calc(100% - 4px); }
+/* One scroll surface keeps all results reachable when the keyboard reduces the visual viewport. */
+.ops-app.ops-live .live-search-below-day .global-search-results-body { flex-shrink: 0; overflow: visible; }
+@media (max-width: 760px) {
+  .ops-app.ops-live .live-search-below-day .global-search input { font-size: var(--oc-type-16); }
+  .ops-app.ops-live .live-search-below-day .global-search-shell[data-search-pinned="true"] .global-search { min-height: 44px; height: 44px; }
+}
+
+/* Settings keeps its existing search, without unrelated operating-day controls. */
+.ops-app.ops-live.ops-settings .live-header-shell { display: block; }
+.ops-app.ops-live.ops-settings .live-header-shell > :is(.viewing-day-bar,.topbar) { display: none; }
+.ops-app.ops-live.ops-settings .live-header-shell .live-search-below-day { padding: 8px; min-height: 60px; }
+.ops-app.ops-live.ops-settings .live-header-shell .global-search { min-height: 44px; height: 44px; }

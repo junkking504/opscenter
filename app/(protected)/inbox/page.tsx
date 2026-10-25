@@ -2,6 +2,7 @@ import OperatingInbox from "@/components/OperatingInbox";
 import { validOperatingDate } from "@/lib/platform/request-actor";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import "./inbox.css";
+import "@/app/secondary-pages.css";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function InboxPage({
   const kernelDatabase = resolveKernelDatabaseConfig();
 
   return (
-    <div className="ops-dashboard ops-inbox-page">
+    <div className="ops-dashboard ops-inbox-page ops-secondary-page">
       <h1 className="ops-sr-only">Inbox</h1>
       <OperatingInbox
         date={date}

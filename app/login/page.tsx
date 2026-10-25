@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, sanitizeAuthRedirectTarget } from "@/lib/auth";
@@ -32,7 +33,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const rateLimited = error === "rate-limited";
 
   return (
-    <main className="ops-login-shell">
+    <main className="ops-login-shell" data-opscenter-login={waypoint ? undefined : true}>
       <div className="ops-login-grid" aria-hidden="true" />
       <section className="ops-login-brand-panel">
         <div className="ops-login-brand" style={{ display: "block", width: 360, maxWidth: "100%" }}>

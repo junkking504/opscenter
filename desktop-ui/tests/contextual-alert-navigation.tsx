@@ -7,6 +7,7 @@ import '../app/globals.css';
 import '../desktop-presentation.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
+import '../approved-workbench.css';
 const params=new URLSearchParams(location.search),date=params.get('date')||currentOperatingDay(),mode=params.get('case')||sessionStorage.getItem('alert-fixture-case')||'fresh';
 sessionStorage.setItem('alert-fixture-case',mode);
 const stamp=new Date().toISOString();

@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getQboSetupStatus } from "@/lib/qbo-status";
@@ -17,7 +18,7 @@ export default function QboPage() {
   const status = getQboSetupStatus();
 
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard ops-secondary-page">
       <PageHeader
         title="QBO Connection"
         subtitle="Connect OpsCenter directly to QuickBooks Online without browser-session scraping."

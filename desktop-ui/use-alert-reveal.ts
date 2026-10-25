@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import './alert-navigation.css';
+import { stickyHeaderOffset } from './use-pinned-search';
 
 /** One bounded reveal per navigation, after the real destination is mounted.
  * User movement or newer navigation cancels pending work; refreshes never scroll again. */
@@ -26,7 +27,7 @@ export function useAlertReveal() {
         if(initial!==identity())return;
         const mobile=document.querySelector<HTMLElement>('.live-mobile-navigation');
         const header=mobile?.getClientRects().length ? mobile : document.querySelector<HTMLElement>('.topbar');
-        const offset=Math.max(12,header ? Math.min(header.getBoundingClientRect().bottom,140)+12 : 12);
+        const offset=Math.max(12,stickyHeaderOffset()+12,header ? Math.min(header.getBoundingClientRect().bottom,140)+12 : 12);
         if(!element.classList.contains('record-drawer')) window.scrollBy({top:element.getBoundingClientRect().top-offset,behavior:'instant'});
         element.classList.add('alert-target-highlight');
         window.setTimeout(()=>element.classList.remove('alert-target-highlight'),2200);

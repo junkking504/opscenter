@@ -3,6 +3,7 @@ import type { DesktopAlert, DesktopLiveProps } from '../lib/live-contract';
 import { requiresAlertAttention } from '../lib/alert-attention';
 import { crewAlertContext } from '../lib/crew-alert-context';
 import { AlertPhotos } from './alert-details';
+import { SheetDismissHandle } from './mobile-interactions';
 import '../alert-navigation.css';
 
 export function AlertDetailDialog({alert:openedAlert, href, close, live, openControl}: {alert:DesktopAlert; href?:string; close:()=>void; live?:DesktopLiveProps; openControl:()=>void}) {
@@ -21,7 +22,7 @@ export function AlertDetailDialog({alert:openedAlert, href, close, live, openCon
   const facts=[...alert.facts,...extra.filter(fact=>!alert.facts.some(existing=>existing.label===fact.label && existing.value===fact.value))];
   return <dialog ref={dialog} className="alert-detail-dialog" aria-labelledby="alert-detail-title" onCancel={event=>{event.preventDefault();close();}} onClick={event=>{if(event.target===event.currentTarget)close();}}>
     <header><span>{alert.label} · {alert.detected}</span><button type="button" onClick={close} aria-label="Close alert details">×</button></header>
-    <div className="alert-detail-body"><h2 id="alert-detail-title">{href ? <a href={href}>{alert.title}<span aria-hidden="true"> ↗</span></a> : alert.title}</h2>
+    <div className="alert-detail-body"><SheetDismissHandle onDismiss={close} disabled={Boolean(live?.pendingAlertId)} /><h2 id="alert-detail-title">{href ? <a href={href}>{alert.title}<span aria-hidden="true"> ↗</span></a> : alert.title}</h2>
     {alert.detail && <p>{alert.detail}</p>}
     <dl>{facts.map((fact,index)=><div key={index}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
     {alert.context && <p>{alert.context}</p>}{job?.needsFollowUp && <p><strong>Current job follow-up:</strong> {job.next}</p>}<AlertPhotos photos={alert.photos}/>

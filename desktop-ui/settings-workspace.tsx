@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ThemeControl from '../components/ThemeControl';
 import { PushSettings } from './components/push-settings';
 import { openingWorkspaces, readOpeningWorkspace, saveOpeningWorkspace } from './lib/workspace-preferences';
 import { workspaceLabel } from './lib/workspace-labels';
@@ -24,6 +25,7 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
       </label>
       <p className="settings-note">Shared by users of this browser. Saved page and date links take precedence.</p>
       <p role="status">{message}</p>
+      <ThemeControl />
     </section>
     <section className="settings-card" aria-labelledby="notifications-title">
       <div className="section-title"><h2 id="notifications-title">Notifications</h2></div>

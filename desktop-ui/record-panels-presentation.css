@@ -1,0 +1,114 @@
+/* Office record surfaces: shared hierarchy without changing records or workflows. */
+.ops-live :is(.control-customers,.estimate-workspace,.agent-hierarchy,.maintenance-panel) {
+  min-width: 0;
+  font-size: var(--oc-type-14);
+  line-height: 1.5;
+}
+.ops-live :is(.customers-heading h2,.estimate-heading h2,.estimate-detail h3) {
+  font-size: var(--oc-type-24); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere;
+}
+.ops-live :is(.customer-profile h3,.estimate-detail h4,.agent-hierarchy h2,.maintenance-panel h2) {
+  font-size: var(--oc-type-16); font-weight: 600; line-height: 1.4;
+}
+.ops-live :is(.customers-search,.customers-source-note,.customers-pagination,.control-customers th,.control-customers td small,.estimate-kicker,.estimate-list-heading,.estimate-workspace small,.estimate-coverage,.estimate-toolbar label,.estimate-form label,.estimate-filters b,.maintenance-panel small,.maintenance-state,.maintenance-metrics span,.maintenance-incidents article > header > span) {
+  font-size: var(--oc-type-12); line-height: 1.5; letter-spacing: normal; text-transform: none;
+}
+.ops-live :is(.customers-search,.control-customers th,.control-customers caption,.control-customers a,.estimate-kicker,.estimate-list-heading,.estimate-detail h4,.estimate-evidence summary,.estimate-book,.estimate-charges tfoot th,.estimate-charges tfoot td,.maintenance-state,.maintenance-filters button[aria-pressed=true],.maintenance-incidents article > header > span) { font-weight: 600; }
+.ops-live :is(.control-customers table,.customer-profile a,.customer-profile p,.estimate-row > div,.estimate-evidence p,.estimate-links,.estimate-book,.estimate-evidence summary,.estimate-history article,.estimate-history > p,.estimate-empty,.estimate-save-message,.agent-hierarchy p,.agent-hierarchy summary,.agent-hierarchy-filter,.agent-hierarchy a,.agent-hierarchy ol,.agent-hierarchy table) {
+  font-size: var(--oc-type-14); line-height: 1.5;
+}
+.ops-live .customer-profile > section > strong { font-size: var(--oc-type-24); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ops-live .customers-heading { flex-wrap: wrap; gap: 12px; }
+.ops-live .customer-profile { gap: 16px; padding: 16px; }
+.ops-live .customers-pagination { flex-wrap: wrap; gap: 8px; }
+.ops-live .customers-table-scroll { max-width: 100%; }
+.ops-live .estimate-row > div > strong:first-child { font-size: var(--oc-type-16); font-weight: 600; }
+.ops-live .estimate-price { font-size: var(--oc-type-24); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ops-live .estimate-detail > header { flex-wrap: wrap; gap: 12px; }
+.ops-live .estimate-detail-grid { gap: 20px; }
+.ops-live .estimate-charges table { font-size: var(--oc-type-14); }
+.ops-live .estimate-charges thead th { font-size: var(--oc-type-12); }
+.ops-live .estimate-charges th,.ops-live .estimate-charges td { overflow-wrap: anywhere; }
+.ops-live :is(.control-customers button,.estimate-workspace button,.maintenance-filters button,.maintenance-incidents button,.agent-hierarchy button,.agent-hierarchy select) {
+  min-height: 40px; height: auto; font-size: var(--oc-type-14); font-weight: 600; line-height: 1.4; white-space: normal;
+}
+.ops-live :is(.customers-search input,.estimate-workspace input:not([type=checkbox]),.estimate-workspace select,.estimate-workspace textarea) { font-size: var(--oc-type-14); font-weight: 400; min-height: 40px; }
+.ops-live :is(.estimate-evidence summary,.customers-source-note summary,.agent-hierarchy summary,.maintenance-incidents summary) { padding-block: 8px; }
+.ops-live :is(.agent-hierarchy,.maintenance-panel) { padding: 16px; border-radius: var(--radius-lg); }
+.ops-live .maintenance-incidents article > header { flex-wrap: wrap; gap: 8px; }
+.ops-live .maintenance-state { white-space: normal; }
+.ops-live .agent-hierarchy-filter { gap: 12px; }
+.ops-live .maintenance-panel .section-kicker { font-size: var(--oc-type-12); font-weight: 600; text-transform: none; letter-spacing: normal; }
+
+/* Drawers retain their own scroll containers and specialized workflow layouts. */
+.ops-live .record-drawer .record-drawer-header h2 { font-size: var(--oc-type-24); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.ops-live .record-drawer .record-drawer-header :is(span,p),
+.ops-live .record-drawer .drawer-facts > div > span:first-child,
+.ops-live .record-drawer .drawer-audit span {
+  font-size: var(--oc-type-12); font-weight: 400; line-height: 1.5; text-transform: none; letter-spacing: normal;
+}
+.ops-live .record-drawer :is(.drawer-summary,.drawer-facts strong,.drawer-facts a,.drawer-audit strong) { font-size: var(--oc-type-14); line-height: 1.5; }
+.ops-live .record-drawer :is(.drawer-facts strong,.drawer-audit strong) { font-weight: 600; }
+.ops-live .record-drawer .record-drawer-header-actions { flex-wrap: wrap; justify-content: flex-end; }
+.ops-live .record-drawer .record-drawer-header-actions .drawer-jk-copy { min-height: 40px; font-size: var(--oc-type-12); }
+.ops-live .record-drawer .record-drawer-header > button { min-width: 40px; min-height: 40px; }
+.ops-live .record-drawer .record-drawer-actions button { min-height: 40px; height: auto; font-size: var(--oc-type-14); line-height: 1.4; white-space: normal; }
+.ops-live .record-drawer .customer-history summary { padding-block: 8px; }
+
+/* Alerts keep priority marks and source/owner context; actions have their own row. */
+.ops-live .notification-panel > header { align-items: flex-start; padding: 12px; gap: 12px; }
+.ops-live .notification-panel > header div strong { font-size: var(--oc-type-16); font-weight: 600; line-height: 1.4; }
+.ops-live .notification-panel > header div :is(span,small),
+.ops-live .notification-panel > footer,
+.ops-live .notification-panel .notification-alert-open > div > small,
+.ops-live .notification-panel .notification-alert-open > footer,
+.ops-live .notification-panel .notification-priority {
+  font-size: var(--oc-type-12); line-height: 1.5; font-weight: 400; text-transform: none; letter-spacing: normal;
+}
+.ops-live .notification-panel .notification-priority { font-weight: 600; }
+.ops-live .notification-panel .notification-alert-open > strong { font-size: var(--oc-type-14); font-weight: 600; line-height: 1.4; }
+.ops-live .notification-panel .notification-alert-open > p { font-size: var(--oc-type-12); line-height: 1.5; }
+.ops-live .notification-panel .notification-alert-open > div { flex-wrap: wrap; }
+.ops-live .notification-panel .notification-list { grid-auto-rows: max-content; }
+.ops-live .notification-panel .notification-alert { grid-template-columns: 4px minmax(0,1fr); }
+.ops-live .notification-panel .notification-alert > .priority-mark { grid-row: 1 / 3; }
+.ops-live .notification-panel .notification-alert-controls { grid-column: 2; grid-template-columns: repeat(2,minmax(0,1fr)); border-left: 0; border-top: 1px solid var(--oc-border-default); }
+.ops-live .notification-panel :is(header > button,footer > button,.notification-alert-controls button) { min-height: 40px; height: auto; padding: 8px; font-size: var(--oc-type-12); font-weight: 600; line-height: 1.4; white-space: normal; }
+.ops-live .notification-panel > footer { flex-wrap: wrap; }
+.ops-live .notification-panel button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: -3px; }
+
+@media (max-width: 760px) {
+  .ops-live :is(.control-customers button,.estimate-workspace button,.maintenance-filters button,.maintenance-incidents button,.agent-hierarchy button,.agent-hierarchy select,.notification-panel header > button,.notification-panel footer > button,.notification-alert-controls button) { min-height: 44px; }
+  .ops-live :is(.customers-search input,.estimate-workspace input:not([type=checkbox]),.estimate-workspace select,.estimate-workspace textarea,.agent-hierarchy select) { min-height: 44px; font-size: var(--oc-type-16); }
+  .ops-live .estimate-workspace { padding: 12px; }
+  .ops-live .estimate-row { padding: 16px 0; gap: 12px; }
+  .ops-live .estimate-filters button { flex: 1 1 auto; justify-content: space-between; }
+  .ops-live .estimate-charges th,.ops-live .estimate-charges td { font-size: var(--oc-type-12); padding: 8px 4px; }
+  .ops-live .record-drawer { max-width: 100vw; }
+  .ops-live .record-drawer .record-drawer-header { gap: 12px; }
+  .ops-live .record-drawer :is(.record-drawer-header > button,.record-drawer-header-actions button,.record-drawer-actions button) { min-height: 44px; }
+  .ops-live .record-drawer .record-drawer-header > button { min-width: 44px; }
+  .ops-live .notification-panel { max-height: calc(100dvh - 88px); }
+  .ops-live .notification-panel :is(header > button,footer > button,.notification-alert-controls button) { min-height: 44px; }
+}
+
+/* Huddle keeps its wall-display scale; only the narrow layout is adapted. */
+@media (max-width: 760px) {
+  .ops-app.shop-tv { padding: 16px; gap: 16px; }
+  .shop-tv :is(.tv-header,.tv-header > div,.tv-win-strip,.tv-leaderboard header,.tv-trucks header,.tv-spotlight > header) { flex-wrap: wrap; gap: 8px 12px; }
+  .shop-tv .tv-header strong { font-size: var(--oc-type-24); }
+  .shop-tv :is(.tv-header span,.tv-source,.tv-win-strip,.tv-leaderboard header > span,.tv-trucks > small,.tv-spotlight small,.tv-spotlight footer) { font-size: var(--oc-type-12); line-height: 1.5; }
+  .shop-tv .tv-header > div { min-width: 0; }
+  .shop-tv .tv-controls { width: 100%; }
+  .shop-tv :is(.tv-controls button,.tv-controls a,.tv-spotlight button) { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--oc-type-14); }
+  .shop-tv .tv-main-grid { min-width: 0; grid-template-columns: minmax(0,1fr); }
+  .shop-tv :is(.tv-leaderboard,.tv-trucks) { min-width: 0; max-width: 100%; overflow-x: auto; padding: 16px; }
+  .shop-tv .tv-ranking { min-width: 540px; grid-template-columns: 32px minmax(120px,1fr) 110px 100px 110px; gap: 8px; font-size: var(--oc-type-16); }
+  .shop-tv .tv-truck-row { min-width: 440px; grid-template-columns: minmax(130px,1fr) 50px 100px 100px; gap: 8px; font-size: var(--oc-type-16); }
+  .shop-tv :is(.tv-ranking-head,.tv-truck-head) { font-size: var(--oc-type-12); }
+  .shop-tv .tv-leaderboard header > span { text-align: left; max-width: none; }
+  .shop-tv :is(.tv-leaderboard h1,.tv-trucks h2) { font-size: var(--oc-type-16); }
+  .shop-tv .tv-spotlight { min-height: 0; padding: 16px; }
+  .shop-tv .tv-spotlight h2 { font-size: var(--oc-type-24); }
+  .shop-tv :is(.tv-card-kind,.tv-spotlight article p,.tv-spotlight article > strong,.tv-spotlight article > small) { font-size: var(--oc-type-16); line-height: 1.5; }
+}

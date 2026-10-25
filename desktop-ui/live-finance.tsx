@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { MetricDetail } from './metric-detail';
 import {WexAlertExpenses} from './wex-alert-expenses';
 import type {WexAlertDailyExpenses} from './lib/wex-alert-expenses-contract';
@@ -91,6 +92,7 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
   }, [snapshotKey, setData]);
   useEffect(() => { if (data) workspaceReady('Finance'); }, [data]);
   const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || accountingBusy || receiptReviewOpen || Boolean(resale || recycling || payment),30_000,snapshotKey);
+  useRegisterDisplayedRefresh('Finance', freshness.refreshDisplayed, freshness.paused, snapshotKey);
 
   useEffect(() => { const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) { setResale(null); setRecycling(null); setPayment(null); } }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, [busy]);
   useEffect(() => { if (!(resale || recycling || payment)) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="finance-record-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [resale?.itemId, recycling?.id, payment?.jkNumber]);

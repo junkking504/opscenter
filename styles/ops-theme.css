@@ -1,0 +1,59 @@
+@import "../desktop-ui/theme.css";
+/* Shared office theme control; keyboard and native touch selection are retained. */
+.ops-theme-control { display: grid; grid-template-columns: auto minmax(100px,160px); gap: 8px 12px; align-items: center; color: var(--oc-text-primary,#243b4d); font-family: inherit; font-size: 16px; font-weight: 400; line-height: 1.5; }
+.ops-theme-control label { font-size: 12px; font-weight: 600; }
+.ops-theme-control select { width: 100%; height: 44px; min-height: 44px; border: 1px solid #8798a5; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 16px; color: inherit; background: var(--oc-surface-raised,#fff); }
+.ops-theme-control select:focus-visible { outline: 2px solid #477aa6; outline-offset: 3px; }
+.ops-theme-control p,.ops-theme-control > span { grid-column: 1/-1; margin: 0; font-size: 12px; }
+.ops-theme-control.is-compact { display: flex; gap: 6px; flex-shrink: 0; }
+.ops-theme-control.is-compact select { width: 100px; }
+.ops-theme-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media(max-width:760px) { .ops-theme-control.is-compact label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } .ops-theme-control.is-compact select { width:100px; padding:4px; font-size:16px; } }
+html[data-ops-theme="dark"] .ops-theme-control { color: #eef4f8; }
+html[data-ops-theme="dark"] .ops-theme-control select { color-scheme: dark; background: #172330; color: #eef4f8; border-color: #657e91; }
+/* Root office pages use local legacy aliases as well as the shared palette. */
+html[data-ops-theme="dark"] :is(.ops-main,.ops-secondary-page,.ops-login-shell[data-opscenter-login] .ops-login-access-panel) {
+  --oc-bg:#101923; --oc-surface:#172330; --oc-surface-raised:#172330; --oc-surface-soft:#202f3e;
+  --oc-text:#eef4f8; --oc-text-primary:#eef4f8; --oc-text-secondary:#c3dced; --oc-text-muted:#b9c8d3;
+  --oc-line:#405261; --oc-line-strong:#657e91;
+  --ops-bg:var(--oc-bg); --ops-panel:var(--oc-surface); --ops-panel-soft:var(--oc-surface-soft); --ops-panel-strong:var(--oc-surface-soft);
+  --ops-text:var(--oc-text); --ops-muted:var(--oc-text-muted); --ops-muted-2:var(--oc-text-muted); --ops-border:var(--oc-line); --ops-border-strong:var(--oc-line-strong);
+  --ops-green:#9adeb9; --ops-gold:#f4d18d;
+  background:var(--oc-bg); color:var(--oc-text); color-scheme:dark;
+}
+html[data-ops-theme="dark"] body:has(> .ops-secondary-page) { background:#101923; }
+html[data-ops-theme="dark"] .ops-secondary-page :is(.ops-page-title,.ops-section-title,.ops-card-title,h1,h2,h3,.ops-detail-grid strong,.ops-legal-copy) { color:#eef4f8; }
+html[data-ops-theme="dark"] .ops-secondary-page :is(.ops-button,.ops-refresh-button,.ops-compact-links a) { color:#ffadbc; border-color:#885060; background:#172330; }
+html[data-ops-theme="dark"] .ops-secondary-page .ops-alert-warning { color:#f4d18d; background:#362c19; border-color:#846c38; }
+html[data-ops-theme="dark"] .ops-login-shell[data-opscenter-login] :is(.ops-login-access-index,.ops-login-error) { color:#ffadbc; }
+html[data-ops-theme="dark"] .ops-main :is(input,select,textarea) { color-scheme:dark; color:#eef4f8; background:#172330; border-color:#657e91; }
+html[data-ops-theme="dark"] .ops-main :is(.ops-topbar,.ops-mobile-brand) .ops-theme-control { color:#eef4f8; }
+html[data-ops-theme="dark"] .ops-secondary-page.ops-office-tools section { color:#eef4f8; background:#172330; }
+html[data-ops-theme="dark"] .ops-secondary-page.ops-office-tools :is(input,select,textarea) { color:#eef4f8; background:#172330; }
+html[data-ops-theme="dark"] .ops-inbox-page { color:#eef4f8; }
+/* Explicit selection overrides OS-only fragments on office surfaces. */
+html[data-ops-theme="light"] .ops-main .ops-map-tile-warning { color:#684800; background:#fff8df; border-color:#ead9a4; }
+html[data-ops-theme="dark"] .ops-main .ops-map-tile-warning { color:#f4d18d; background:#362c19; border-color:#846c38; }
+
+/* Header parents use display:contents; share the day row without a new row. */
+.ops-app.ops-live .live-header-shell .ops-theme-control { grid-area: day; justify-self: end; align-self: center; margin-right: 12px; width: auto; z-index: 1; }
+.ops-app.ops-live .live-header-shell .viewing-day-context { padding-right: 165px; }
+@media(max-width:760px) {
+  .ops-app.ops-live[data-css-phase-two] .live-header-shell .viewing-day-context { padding-right: 110px; }
+  .ops-app.ops-live .live-header-shell .ops-theme-control { margin-right: 0; }
+}
+
+/* Reserve real space for appearance beside the full selected-day context. */
+@media(max-width:760px) {
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-context { padding-right:110px; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-context > div { min-width:0; max-width:100%; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-context :is(span,strong) { white-space:normal; }
+}
+/* Native date controls need room for the year and calendar affordance. */
+@media(max-width:359px) {
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; gap:4px; padding:0; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls form { display:grid; grid-template-columns:minmax(148px,1fr) 44px; min-width:0; gap:4px; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls input { width:100%; min-width:148px; height:44px; font-size:16px; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls button { min-width:44px; min-height:44px; height:44px; }
+  .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls > button:last-child { grid-column:1/-1; justify-self:end; }
+}

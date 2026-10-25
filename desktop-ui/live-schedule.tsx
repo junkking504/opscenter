@@ -1,3 +1,5 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
+import { SheetDismissHandle } from './components/mobile-interactions';
 import './appointment-drawer.css';
 import { desktopCustomerHref } from './lib/desktop-links';
 import { CustomerLink } from './customer-link';
@@ -91,6 +93,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>(() => Object.fromEntries([baseDate,dateForDay(baseDate,'tomorrow')].flatMap(date => { const cached=cachedWorkspace<ScheduleSnapshot>(`/api/desktop/schedule?date=${date}&load=1`); return cached ? [[date,cached.value]] : []; })));
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshSourceDate = useRef('');
+  const snapshotGeneration = useRef(0);
+  const snapshotPolls = useRef(0);
   const [backgroundMoves, setBackgroundMoves] = useState<Record<string, BackgroundScheduleMove>>({});
   const pendingMoveRecords=useRef(new Set<string>());
   const [rescheduleNotice,setRescheduleNotice]=useState<{date:string;jk:string}|null>(null);
@@ -238,6 +242,23 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
+  const refreshDisplayed = useCallback(async (signal: AbortSignal) => {
+    if (operationBusyRef.current || creationOpen || drawerId || mapOnly || snapshotPolls.current > 0) throw new Error('Finish the current action or snapshot read before refreshing.');
+    const run = ++snapshotGeneration.current;
+    const response = await fetch(`/api/desktop/schedule?date=${encodeURIComponent(date)}&displayOnly=1`, {cache:'no-store',credentials:'same-origin',signal});
+    const body = await response.json();
+    if (!response.ok) throw new Error('Displayed schedule is unavailable.');
+    signal.throwIfAborted();
+    if (run !== snapshotGeneration.current) throw new Error('A newer schedule read is in progress.');
+    setSnapshots(previous => ({...previous,[date]:{...body,sourceRequest:previous[date]?.sourceRequest}}));
+    const displayed = {...snapshots, [date]: body};
+    const today = displayed[baseDate];
+    const tomorrow = displayed[dateForDay(baseDate, 'tomorrow')];
+    if (today && tomorrow) countsCallback.current?.({today: today.appointments.length, tomorrow: tomorrow.appointments.length});
+    setError('');
+  }, [date,baseDate,snapshots,creationOpen,drawerId,mapOnly]);
+  useRegisterDisplayedRefresh('Schedule', refreshDisplayed, operationBusy || creationOpen || Boolean(drawerId) || mapOnly, date);
+
   useEffect(() => {
     const abort = new AbortController();
     let pending = false;
@@ -246,6 +267,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       if (document.visibilityState === 'hidden' || abort.signal.aborted) return;
       if (pending) { reloadQueued = true; return; }
       pending = true;
+      snapshotPolls.current += 1;
+      const run = ++snapshotGeneration.current;
       try {
         const result = await Promise.all((mapOnly ? ['today'] as const : ['today', 'tomorrow'] as const).map(async key => {
           const dayDate = dateForDay(baseDate, key);
@@ -254,15 +277,15 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           const cacheKey = `/api/desktop/schedule?date=${dayDate}&load=1`;
           const body = await fetchWorkspace<ScheduleSnapshot>(`${cacheKey}${force?'&refresh=1':''}`, AbortSignal.any([abort.signal, AbortSignal.timeout(30_000)]), cacheKey);
           // Publish each verified day as it arrives. Tomorrow must not block today.
-          if (!abort.signal.aborted) setSnapshots(previous => ({...previous,[body.date]:body}));
+          if (!abort.signal.aborted && run === snapshotGeneration.current) setSnapshots(previous => ({...previous,[body.date]:body}));
           return body;
         }));
-        if (abort.signal.aborted) return;
+        if (abort.signal.aborted || run !== snapshotGeneration.current) return;
         setSnapshots(Object.fromEntries(result.map(value => [value.date, value])));
         if (!mapOnly) countsCallback.current?.({ today: result[0].appointments.length, tomorrow: result[1].appointments.length });
         setError('');
-      } catch { if (!abort.signal.aborted) setError('Schedule could not refresh. Any visible records are the last retrieved snapshot, not a confirmed live update.'); }
-      finally { pending = false; if (reloadQueued && !abort.signal.aborted) { reloadQueued = false; void load(); } }
+      } catch { if (!abort.signal.aborted && run === snapshotGeneration.current) setError('Schedule could not refresh. Any visible records are the last retrieved snapshot, not a confirmed live update.'); }
+      finally { snapshotPolls.current -= 1; pending = false; if (reloadQueued && !abort.signal.aborted) { reloadQueued = false; void load(); } }
     };
     void load();
     const unsubscribe = subscribeArrivalUpdates(() => { setNow(new Date()); void load(); });
@@ -632,7 +655,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     {view === 'history' && <ScheduleHistory date={date} jobs={jobs} open={setDrawerId} />}
     {view === 'followup' && <ScheduleFollowup jobs={jobs} open={setDrawerId} />}
     {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} background={startBackgroundCreation} onBusyChange={onOperationBusyChange} />}
-    {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" data-action-view={drawerAction || undefined} role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p><CustomerLink id={drawer.appointmentId} name={scheduleCustomerLabel(drawer)} busy={operationBusy}/></p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><div ref={drawerBodyRef} className="record-drawer-body">
+    {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" data-action-view={drawerAction || undefined} role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p><CustomerLink id={drawer.appointmentId} name={scheduleCustomerLabel(drawer)} busy={operationBusy}/></p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><SheetDismissHandle disabled={operationBusy || Boolean(drawerAction)} onDismiss={() => setDrawerId(null)} /><div ref={drawerBodyRef} className="record-drawer-body">
       <nav className="drawer-workflow-navigation" aria-label="Appointment actions">
         {drawerAction ? <Button variant="ghost" disabled={operationBusy} onClick={() => setDrawerAction(null)}>← Back to appointment</Button> : <>
           {(!isClosed(drawer) || /cancel(?:ed|led)/i.test(drawer.status)) && <Button data-drawer-action="reschedule" variant="outline" disabled={operationBusy} onClick={() => setDrawerAction('reschedule')}>{/cancel(?:ed|led)/i.test(drawer.status) ? 'Restore appointment' : 'Reschedule'}</Button>}

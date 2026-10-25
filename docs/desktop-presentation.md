@@ -18,9 +18,9 @@ Tooltips identify the period. Green means favorable (lower for costs), red means
 unfavorable. Actual zero change is neutral; absent, non-finite and zero prior
 baselines produce no chip. A partial live day is not a completed-day result.
 
-Workspace page tabs use `WorkspaceTabs`: one underline style, optional counts,
-roving keyboard focus, Arrow Left/Right and Home/End. Page titles use the same
-26px token. Primary cards share one radius, border and shadow. Brand red is the
+Workspace page tabs use `WorkspaceTabs`: grouped bordered buttons with an explicit
+selected state, optional counts, roving keyboard focus, Arrow Left/Right and
+Home/End. Page titles use the 24px role; the Dashboard revenue headline uses 30px. Primary cards share one radius, border and shadow. Brand red is the
 accent; semantic success and failure colors remain reserved for status.
 
 `MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
@@ -46,8 +46,9 @@ Page links preserve the operating date, clear unrelated record filters, support
 keyboard and modifier clicks, and reuse the existing workspace preload. Finance
 and The Huddle retain financial access checks. Busy mutations block both workspace
 and page navigation. The Huddle retains its full-screen route and current-day
-behavior. Monitor, Actions, Call-in plan, Reconciliation, Driving, Records & invoices
-and standalone Trends stay omitted; existing saved links remain compatible.
+behavior. Actions, Call-in plan, Reconciliation, Driving, Records & invoices and standalone
+Trends stay omitted from the sidebar; Monitor and Call-in plan remain available
+in their workspace header tabs. Existing saved links remain compatible.
 
 For synthetic sidebar QA, run `node desktop-ui/node_modules/vite/bin/vite.js
 --config desktop-ui/tests/sidebar.vite.config.ts` from the repository root, then
@@ -169,3 +170,47 @@ and revenue labels use tokenized clamp endpoints. These type and color tokens
 follow the existing phase-two workspace remaps; in Command the metric lower
 bound becomes 20px, affecting viewports narrower than about 364px. The
 token check explicitly covers both clamps and rejects raw or undefined sizes.
+
+## Shared visual hierarchy
+
+Dashboard cards use four purposeful roles: compact 11px labels/source summaries,
+16px controls, 24px KPI values and the 30px revenue headline. Other workspaces use
+12px captions for roomier records and tables, with a 14px body role for dense record
+panels. Regular and semibold are the main
+weights; labels use sentence case. Values align at the top, use tabular numerals,
+and keep original calculations, warnings, freshness descriptions and drilldowns.
+Unusually long formatted values use the control-size role without truncation.
+Phone Dashboard tabs remain in one compact row; Command tabs use an intentional
+three-column group and separate full-width appointment search. Other workspace
+navigation groups adapt to their tab count. Focus remains visibly outlined.
+
+Forecast charts keep straight daily actual lines, a dashed forecast, the historical
+20–80% spread, a visible forecast boundary and low-confidence warning. The spread
+is not presented as a prediction interval. A day selector exposes exact actual,
+forecast and range values on touch and keyboard; a missing observation is distinct
+from zero. Source/method explanations remain available in disclosures. No smoothing,
+forecast-model change or additional data request is introduced by presentation.
+
+Fleet inspections use attention-first cards with truck identity and separate
+service, inspection and repair labels. Missing inspections remain missing. The
+status totals use existing local filters, and details retain all findings/actions.
+Marketing lead cards put the recorded customer name first; outcome and contact-record
+presence remain separate facts. Existing qualification and appointment matching rules
+are unchanged. Full notes remain in the detail panel.
+
+Finance, Krewe, Settings, Source Health and office support/account/manager pages
+use scoped presentation styles. Their operational controls, permissions, semantic
+warnings and source selection remain unchanged. Separate Waypoint/crew phone apps
+are outside this presentation scope. Local synthetic desktop and phone-width
+browser evidence does not establish acceptance on a physical handset.
+
+## Mobile interactions
+
+See [Mobile web interactions](mobile-interactions.md) for the optional navigation,
+preview, refresh and dismissal shortcuts, exclusion rules and validation.
+
+See [Office appearance preferences](appearance.md) for Light, Dark and System
+selection, persistence and separate-app boundaries. Ask OpsBot and the office
+record search keep their original input while a measured strip pins below the
+visible header. The shared offset reserves space for alert targets; expanded
+results fit the visual viewport and retain the existing keyboard behavior.

@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MonthlyMileage } from './monthly-mileage';
 import { ServiceRecordDetails } from './convoy-records';
@@ -37,6 +38,7 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   useEffect(()=>invalidate,[snapshotKey,invalidate]);
   useEffect(() => { if (snapshot) workspaceReady('Fleet'); }, [snapshot]);
   const freshness=useWorkspaceRefresh(loadSnapshot,snapshotKey,Boolean(active)||pending,30_000,snapshotKey);
+  useRegisterDisplayedRefresh('Fleet', freshness.refreshDisplayed, Boolean(active) || pending, snapshotKey);
   const refresh=freshness.refresh;
   useEffect(()=>{onBusyChange?.(Boolean(active)||pending);return()=>onBusyChange?.(false);},[Boolean(active),pending,onBusyChange]);
   const dialogKey=active?`${active.truck.id}:${active.kind}:${active.record?.recordId||active.issue?.issueId||''}:${active.mode||'view'}`:'';
@@ -73,7 +75,7 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
     <ConvoyViews now={freshness.now} onView={onViewChange} snapshot={snapshot} trucks={trucks} view={view} truckId={serviceTruck} onTruck={setServiceTruck} open={open}/>
     {['overview','reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.mileageRetrievedAt||snapshot.sourceUpdatedAt} sourceLabel={snapshot.mileageRetrievedAt?'Tracking feed retrieved':'GPS observed'} budgetMinutes={snapshot.mileageRetrievedAt?1440:3}/>
-    {view === 'reports' && <details className="convoy-monthly-report"><summary>Truck usage & fuel charts</summary><LiveAnalytics date={date} scope="fleet" /></details>}
+    {view === 'reports' && <details className="convoy-monthly-report"><summary>Truck usage & fuel charts</summary><LiveAnalytics refreshWorkspace="Fleet" date={date} scope="fleet" /></details>}
     {convoyWarnings(snapshot.warnings,view,serviceTruck).length>0&&<details className="convoy-source-details"><summary>Source details · {convoyWarnings(snapshot.warnings,view,serviceTruck).length} notes</summary>{convoyWarnings(snapshot.warnings,view,serviceTruck).map(warning=><p key={warning}>{truckDisplayText(warning)}</p>)}</details>}
     {!trucks.length&&<div className="job-record-empty-row">No source fleet records are available.</div>}
     {active&&<div><button className="record-drawer-backdrop" aria-label="Close record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}/><aside className={`record-drawer truck-record-drawer ${['interval','maintenance'].includes(active.kind)?'convoy-service-dialog':''}`} role="dialog" aria-modal="true" aria-label={truckDisplayText(`${active.truck.label} ${active.kind}`)} ref={drawer} tabIndex={-1}><header className="record-drawer-header"><div><span>Fleet · {date}</span><h2>{active.kind==='interval'?'Set maintenance interval':active.kind==='maintenance'?(active.record?(active.mode==='edit'?'Edit service record':'Service record'):draft.status==='scheduled'?'Schedule service':'Record completed service'):truckDisplayText(active.issue?.title||active.truck.label)}</h2></div><Button variant="ghost" size="icon" aria-label="Close Fleet record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}><X/></Button></header><div className="record-drawer-body">{['truck','load','checklist'].includes(active.kind)&&<section className="fleet-drawer-overview">{[['Readiness',active.truck.readiness],['Assignment',active.truck.assignment],['GPS coordinates',recordedValue(active.truck.location,'Unavailable')],['GPS observation',active.truck.gpsAt||'Unavailable'],['Vehicle',recordedValue(active.truck.vehicle)],['Inspection',active.truck.checklist]].map(([label,value])=><div key={label}><span>{truckDisplayText(label)}</span><strong>{truckDisplayText(value)}</strong></div>)}</section>}

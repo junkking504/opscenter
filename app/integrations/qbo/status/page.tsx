@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getQboSetupStatus } from "@/lib/qbo-status";
@@ -12,7 +13,7 @@ export default function QboStatusPage() {
   const status = getQboSetupStatus();
 
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard ops-secondary-page">
       <PageHeader
         title="QBO Connection Status"
         subtitle="Live OAuth configuration and encrypted token status for QuickBooks Online collection."

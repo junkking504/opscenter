@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default function QboDisconnectedPage() {
   return (
-    <div className="ops-dashboard">
+    <div className="ops-dashboard ops-secondary-page">
       <PageHeader
         title="QBO Disconnected"
         subtitle="Use this page to confirm revocation and review the local token storage design."

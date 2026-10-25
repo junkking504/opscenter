@@ -131,8 +131,8 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
   const sourceStatus = `${data.available ? `Published daily metrics · ${date}` : `Daily metrics unavailable for ${date}`} · Payment verification ${verification.status}`;
   const sourceFreshness = <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Publication time; financial input ages below"/>;
   const sourceDetails = <div className="capital-source-details">
-    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Source details</span></summary>{!freshness.error && sourceFreshness}<dl>{Object.entries(dailyDisplay).map(([field,reading]) => <div key={field}><dt>{{revenue:'Revenue',labor:'Labor',dumps:'Disposal',fuel:'Fuel',totalCosts:'Total costs',net:'Net'}[field]}</dt><dd>{reading.detail}</dd></div>)}</dl><p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
-    {freshness.error && sourceFreshness}
+    {sourceFreshness}
+    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Financial source details</span></summary><dl>{Object.entries(dailyDisplay).map(([field,reading]) => <div key={field}><dt>{{revenue:'Revenue',labor:'Labor',dumps:'Disposal',fuel:'Fuel',totalCosts:'Total costs',net:'Net'}[field]}</dt><dd>{reading.detail}</dd></div>)}</dl><p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
   </div>;
   return <section className={`finance-workspace capital-workspace finance-view-${overview ? 'overview' : financeView}`}>
     {!overview && sourceDetails}

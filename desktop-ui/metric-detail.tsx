@@ -11,5 +11,5 @@ export function compactMetricDetail(detail: string): string {
 
 export function MetricDetail({detail}: {detail: string}) {
   const compact = compactMetricDetail(detail);
-  return <small title={detail} aria-label={detail}>{compact || <span className="sr-only">{detail}</span>}</small>;
+  return <small title={detail}><span aria-hidden="true">{compact}</span><span className="sr-only">{detail}</span></small>;
 }

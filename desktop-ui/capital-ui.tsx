@@ -12,7 +12,7 @@ export function CapitalStat({ label, value, detail, icon: Icon, primary, warning
   const Tag = onClick ? 'button' : 'article';
   return <Tag onClick={onClick} className={`capital-stat${onClick ? ' capital-stat-action' : ''}${primary ? ' capital-stat-primary' : ''}${warning ? ' capital-stat-warning' : ''}`}><span><Icon size={16}/>{label}</span><DeltaChip current={typeof value === 'number' ? value : typeof value === 'string' ? metricNumber(value) : null} comparison={comparison} lowerIsBetter={lowerIsBetter} /><strong><MetricValue value={value} /></strong>{typeof detail === 'string' ? <MetricDetail detail={detail} /> : <small>{detail}</small>}</Tag>;
 }
-export function CapitalEmpty({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description?: string; action?: ReactNode }) {
+export function CapitalEmpty({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description: string; action?: ReactNode }) {
   return <div className="capital-empty"><span className="capital-empty-icon"><Icon size={24}/></span><h3>{title}</h3><p>{description}</p>{action}</div>;
 }
 export function CapitalSourceLink({ href, children }: { href: string; children: ReactNode }) {

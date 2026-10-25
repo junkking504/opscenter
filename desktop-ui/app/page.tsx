@@ -1,5 +1,7 @@
-import { MetricDetail } from '../metric-detail';
 'use client';
+
+import { MetricDetail } from '../metric-detail';
+
 import { SettingsWorkspace } from '../settings-workspace';
 import { readOpeningWorkspace } from '../lib/workspace-preferences';
 import { ReleaseUpdateToast } from '../release-update-toast';

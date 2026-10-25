@@ -29,7 +29,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
           return {
             bottom: document.querySelector('.command-metrics').getBoundingClientRect().bottom,
             pageWidth: document.documentElement.scrollWidth,
-            cards: cards.map(e => ({ ...rect(e), text:e.textContent, fits:e.scrollWidth<=e.clientWidth+1 && e.scrollHeight<=e.clientHeight+1, sourceSize:parseFloat(getComputedStyle(e.querySelector('small')).fontSize), heading:[...e.querySelectorAll('.kpi-heading > span')].filter(c=>getComputedStyle(c).display!=='none').map(rect) })),
+            cards: cards.map(e => ({ ...rect(e), text:e.innerText, sourceVisible:e.querySelector('small').getBoundingClientRect().height >= 10 && getComputedStyle(e.querySelector('small')).visibility !== 'hidden', fits:e.scrollWidth<=e.clientWidth+1 && e.scrollHeight<=e.clientHeight+1, sourceSize:parseFloat(getComputedStyle(e.querySelector('small')).fontSize), heading:[...e.querySelectorAll('.kpi-heading > span')].filter(c=>getComputedStyle(c).display!=='none').map(rect) })),
             hero: { ...rect(hero), fits:hero.scrollWidth<=hero.clientWidth+1 },
             revenue: rect(hero.querySelector('.hero-value')),
             goal: rect(hero.querySelector('.hero-pace > div')),
@@ -44,7 +44,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         for (const card of geometry.cards) {
           assert.ok(card.fits && card.x >= 0 && card.right <= width, `${context}: card overflow`);
           assert.ok(card.sourceSize >= 11, `${context}: source text shrunk`);
-          assert.ok(card.text.includes('completed jobs') || card.text.includes('Source Oct 21'), `${context}: source/detail missing`);
+          assert.ok(card.sourceVisible && (card.text.toLowerCase().includes('completed jobs') || card.text.toLowerCase().includes('source oct 21')), `${context}: source/detail missing`);
           for (let i=1;i<card.heading.length;i++) assert.ok(card.heading[i-1].right <= card.heading[i].x + 1, `${context}: heading overlap`);
         }
         const [rph, ajs] = geometry.cards.slice(-2);

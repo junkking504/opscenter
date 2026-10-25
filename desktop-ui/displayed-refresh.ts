@@ -63,7 +63,7 @@ export function createDisplayedRefreshRegistry(timeoutMs = 30_000) {
 
 const displayedReaders = createDisplayedRefreshRegistry();
 
-export function useRegisterDisplayedRefresh(workspace: string, callback: DisplayedRefreshReader, disabled = false, scope = '') {
+export function useRegisterDisplayedRefresh(workspace: string | undefined, callback: DisplayedRefreshReader, disabled = false, scope = '') {
   const latest = useRef({ callback, disabled }); latest.current = { callback, disabled };
   const registration = useRef<ReturnType<typeof displayedReaders.register> | null>(null);
   const read = useCallback(async (signal: AbortSignal) => {
@@ -71,6 +71,7 @@ export function useRegisterDisplayedRefresh(workspace: string, callback: Display
     await latest.current.callback(signal);
   }, []);
   useLayoutEffect(() => {
+    if (!workspace) return;
     const entry = displayedReaders.register(workspace, read, latest.current.disabled);
     registration.current = entry;
     return () => { entry.unregister(); if (registration.current === entry) registration.current = null; };

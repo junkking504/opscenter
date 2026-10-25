@@ -41,12 +41,18 @@ Validation: `node --import tsx scripts/test-mobile-gestures.ts`,
 `node scripts/test-mobile-gestures-browser.mjs` (synthetic Vite fixture on port
 3192; override `GESTURE_FIXTURE_URL` when needed). Browser tests exercise actual
 CDP touch navigation/pull/dismiss and synthetic cancellation/exclusion cases.
+Chart reader integration is covered by
+`node scripts/test-chart-refresh-browser.mjs` in Chromium and WebKit, including
+zero/missing values, shared-flight reads, error retention and cancellation.
 No private records or operational services are required. Physical handset
 acceptance is separate from these browser checks.
 
 Refresh coverage: registered Dashboard, Command board, Crew, Fleet, Finance and
-Marketing lead snapshots use bounded local reads. Separate Forecast, metric-detail
-and Marketing chart views retain their existing Refresh charts controls; the
-gesture refresh control is omitted there until those readers are integrated.
+Marketing lead snapshots use bounded local reads. Forecast, metric-detail, Fleet
+report and Marketing charts register the existing local analytics snapshot reader
+with the same refresh control. Their explicit Refresh charts buttons remain.
+Concurrent reads are joined; date/scope changes and unmount abort obsolete reads.
+A failed read keeps the previous charts with a visible warning. Missing chart data
+remains unavailable, not zero. This never rebuilds predictions or calls a provider.
 Command Calendar and History also keep their existing controls; the new refresh
 shortcut is limited to Board, whose displayed snapshot has a read-only endpoint.

@@ -13,6 +13,6 @@ export function TruckTelemetry({ truck }: { truck?: ScheduleTruck }) {
   return <div className="truck-telemetry"><dt>{telemetry.label}</dt><dd>
     <strong aria-live="polite">{telemetry.speed}</strong>
     <span> · {telemetry.reportAge}{!telemetry.recent ? ' · Current speed unknown' : ''}</span>
-    <small>Position and speed update with each GPS report.</small>
+
   </dd></div>;
 }

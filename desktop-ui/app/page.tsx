@@ -1053,6 +1053,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [alertDetails, setAlertDetails] = useState<{alert:DesktopAlert;href?:string}|null>(null);
   const alertIntentApplied = useRef(false);
+  const notificationAbort=useRef<AbortController|null>(null);
   useEffect(()=>{
     if (!live || alertIntentApplied.current) return;
     const params=new URLSearchParams(window.location.search), id=params.get('alert');
@@ -1066,7 +1067,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if(!live)return;
     const id=new URLSearchParams(window.location.search).get('notification');
     if(!id)return;
-    const abort=new AbortController();
+    const abort=new AbortController(); notificationAbort.current=abort;
     const base:DesktopAlert={id,label:'Notification',title:'Loading alert details…',detail:'',detected:'',source:'OpsCenter',owner:'Operations',domain:'Command',priority:'watch',action:'',context:'',facts:[],href:'',needsAction:false,workflowState:'active',version:0};
     setAlertDetails({alert:base});
     void fetch(`/api/push/notification?id=${encodeURIComponent(id)}`,{credentials:'same-origin',cache:'no-store',signal:abort.signal}).then(async response=>{
@@ -1081,6 +1082,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     return()=>abort.abort();
   },[Boolean(live)]);
   const closeAlertDetails=()=>{
+    notificationAbort.current?.abort();
     setAlertDetails(null);
     const url=new URL(window.location.href);url.searchParams.delete('notification');url.searchParams.delete('alert');
     if(url.searchParams.get('focus')==='alert')url.searchParams.delete('focus');
@@ -3364,6 +3366,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       const alert = liveAlert(item);
       if (alert) {
         const href = desktopAlertHref(alert, live.snapshot, window.location.origin);
+        notificationAbort.current?.abort();
         setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href});
       }
       return;
@@ -4271,7 +4274,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       return;
     }
     const url = new URL(window.location.href);
-    for (const key of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
+    for (const key of ['focus','alert','notification','appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, '', url);
     setActiveNav(workspace);
     if (workspace === 'Command') setView(page as typeof view);
@@ -4288,7 +4291,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
   return (
     <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
-      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} close={closeAlertDetails}/>}
+      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} snapshot={live?.snapshot} close={closeAlertDetails}/>}
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">

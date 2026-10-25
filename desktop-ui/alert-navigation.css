@@ -25,3 +25,7 @@
 .live-schedule .schedule-board-layout.map-open.has-alert-target .schedule-map-panel { display: flex; flex-direction: column; height: auto; }
 .live-schedule .schedule-board-layout.map-open.has-alert-target .schedule-map-canvas { flex: none; height: clamp(220px, 32svh, 360px); min-height: 200px; }
 .live-schedule .schedule-board-layout.map-open.has-alert-target .schedule-board-shell { height: 580px; }
+
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open.has-alert-target { height: auto; align-items: start; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open.has-alert-target > .schedule-map-panel.alert-map-focus { height: auto; overflow: hidden; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open.has-alert-target .schedule-map-panel.alert-map-focus .schedule-map-canvas { flex: none; height: clamp(220px, 32svh, 360px); min-height: 200px; }

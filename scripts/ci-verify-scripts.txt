@@ -6,6 +6,7 @@ verify:address-research
 verify:agent-hierarchy
 verify:appointment-block-selection
 verify:appointment-visit-alerts
+verify:alert-navigation
 verify:ask-opsbot
 verify:assignment-recovery
 verify:call-in-plan

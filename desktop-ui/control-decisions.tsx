@@ -26,11 +26,10 @@ export default function ControlDecisions({ snapshot, filter, setFilter, visible,
     ['approval', 'Approval', snapshot.counts.approval],
   ];
   return <section className="activity-panel control-decisions" id="operating-decisions">
-    <div className="section-title"><div><span className="section-kicker">{active.length} Open Decisions on This Page</span><h2>Operating Decisions</h2><p>Act on current conditions. Waiting work and source checks stay separate.</p></div>
+    <div className="section-title"><div><span className="section-kicker">{active.length} Open Decisions on This Page</span><h2>Operating Decisions</h2></div>
       {snapshot.actor.canCloseDay && <Button size="sm" variant="outline" disabled={!canReconcile} onClick={onReconcile}>{busy ? 'Checking…' : 'Check Latest Sources'}</Button>}
     </div>
     <div className="control-decision-filters" role="group" aria-label="Filter operating decisions">{filters.map(([value, label, count]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}<span>{count}</span></button>)}</div>
-    {filter === 'urgent' && <p className="control-triage-note">Urgent or overdue items that still need action. Waiting and source-verification items are shown separately.</p>}
     {filter === 'verification' && <p className="control-triage-note">Newer evidence is available; these decisions are not yet resolved. A completed appointment does not clear its payment, photo, or Krewe requirements.</p>}
     {reconciliation && <div className="control-reconciliation-result" role="status"><strong>Source Check: {reconciliation.checked.length} Dates Checked · {reconciliation.skipped.length} Not Checked</strong><p>Two distinct fresh observations are still required to resolve a source condition. Rechecking unchanged data does not count twice.</p>{reconciliation.skipped.length > 0 && <details><summary>Why Some Dates Could Not Be Checked</summary><ul>{reconciliation.skipped.map(item => <li key={item.date}>{item.date}: {item.reason}</li>)}</ul></details>}{reconciliation.remaining > 0 && <p>{reconciliation.remaining} additional operating dates remain outside this batch.</p>}</div>}
     <div className="control-decision-list">{visible.map(item => {

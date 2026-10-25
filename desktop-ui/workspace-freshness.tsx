@@ -42,10 +42,10 @@ export function WorkspaceFreshness({ state, sourceAt, budgetMinutes = 10, source
   const stale = !Number.isFinite(age) || age < -1 || age > budgetMinutes;
   const time = (value: string | number) => new Date(value).toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'});
   return <div className="workspace-freshness" role="status" aria-live="polite" style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',padding:'4px 0',fontSize:10}}>
-    <span>{sourceAt ? `${sourceLabel} ${time(sourceAt)}` : 'Source time unavailable'} · {statusLabel || (stale ? 'Check source freshness' : 'Within source freshness window')}</span>
-    <span>{state.receivedAt ? `Screen retrieved ${time(state.receivedAt)}` : 'No successful screen refresh yet'}</span>
-    {state.paused && <span>Background refresh paused while editing or reviewing a record.</span>}
-    {state.error && <strong>Refresh failed. {state.receivedAt ? 'Showing the last retrieved data.' : 'No data has been loaded yet.'} Try again shortly.</strong>}
+    {stale && <span>{sourceAt ? 'Source may be stale' : 'Source time unavailable'}</span>}
+    <details><summary>Source details</summary><p>{sourceAt ? `${sourceLabel} ${time(sourceAt)}` : 'Source time unavailable'} · {statusLabel || (stale ? 'Check source freshness' : 'Within source freshness window')}</p><p>{state.receivedAt ? `Screen retrieved ${time(state.receivedAt)}` : 'No successful screen refresh yet'}</p></details>
+    {state.paused && <span>Refresh paused while editing.</span>}
+    {state.error && <strong>Refresh failed. {state.receivedAt ? 'Showing saved data.' : 'No data loaded.'}</strong>}
     <Button variant="outline" size="sm" disabled={state.pending || state.paused} onClick={() => void state.refresh().catch(() => {})}>{state.pending ? 'Refreshing…' : state.error ? 'Retry' : 'Refresh data'}</Button>
   </div>;
 }

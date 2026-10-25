@@ -8,7 +8,7 @@ headline follows the existing freshness rules and preserves drill-through.
 
 Jobs, Labor, Dump + Fuel, Net and RPH remain neutral supporting tiles. RPH is
 retained from the production layout. Revenue is recorded, not verified cash;
-assumed disposal costs and all source/freshness explanations remain visible.
+assumed disposal costs and material stale, incomplete or unavailable indicators remain visible. Source timestamps and technical explanations are available through Source details, metric accessible descriptions and existing drill-through views.
 The historical operating-day controls, map and OpsBot remain available.
 
 Comparison chips sit at the top right; phone Dashboard cards place them in the heading row. Daily KPIs compare the same
@@ -25,7 +25,7 @@ accent; semantic success and failure colors remain reserved for status.
 
 `MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
 dash. Its tooltip and accessible label retain the reason; source notes and
-refresh errors remain visible. Real zeroes keep their numeric presentation.
+refresh errors remain visible. Normal views omit redundant introductions and repeated provenance; disclosures retain useful diagnostic detail. Financial reading, source aging and calculation rules are unchanged. Real zeroes keep their numeric presentation.
 
 ## Navigation
 

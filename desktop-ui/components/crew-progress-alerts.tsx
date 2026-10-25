@@ -94,8 +94,8 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
       {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}
     </div>
     </div>
-    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && (progress.updateHistoryReasons?.join(' ') || 'Update history is incomplete; source coverage is unknown.')].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
+    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><div><span>{!progress ? 'Progress data unavailable.' : [!progress.scheduleCurrent && 'Schedule unavailable or stale.', !progress.visitsCurrent && 'Visit data unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')}</span>{!!progress?.updateHistoryReasons?.length && <details><summary>Source details</summary>{progress.updateHistoryReasons.map((reason,index) => <p key={index}>{reason}</p>)}</details>}</div></div>}
     <section className="crew-all-updates" aria-label="All operational updates, newest first">{visibleUpdates.length ? visibleUpdates.map(renderUpdate) : <p className="crew-empty">{snapshot.sources.alerts ? 'No updates match these filters.' : 'Update history is unavailable.'}</p>}</section>
-    {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up actions are unavailable while Control is disconnected. Updates remain visible.</p>}
+    {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up unavailable: Control is disconnected.</p>}
   </section>;
 }

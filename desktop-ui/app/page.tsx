@@ -1,3 +1,4 @@
+import { MetricDetail } from '../metric-detail';
 'use client';
 import { SettingsWorkspace } from '../settings-workspace';
 import { readOpeningWorkspace } from '../lib/workspace-preferences';
@@ -4434,7 +4435,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     <i key={segment.label} className={segment.tone} style={{ width: `${segment.value}%` }} title={`${segment.label}: ${segment.value}%`} />
                   )) : <i className={kpi.tone} style={{ width: `${kpi.progress}%` }} />}
                 </div>
-                <small>{kpi.detail}</small>
+                <MetricDetail detail={kpi.detail} />
               </button>
             ))}
           </section>}

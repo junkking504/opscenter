@@ -261,7 +261,7 @@ export default function OperatingInbox({
           <div>
             <div className={styles.kicker}><span /> Operating Inbox</div>
             <h2>Work requiring a decision</h2>
-            <p>Signals become assigned work, controlled actions, and auditable outcomes.</p>
+
           </div>
           <div className={styles.headActions}>
             <button className={styles.createButton} type="button" onClick={() => setShowCreate((current) => !current)}>

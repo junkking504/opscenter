@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { startTransition, useEffect, useRef, useState, type RefObject } from 'react';
 import { adjacentWorkspace, downwardIntent, GESTURE, horizontalIntent, type GesturePoint } from '../lib/mobile-gestures';
 import '../mobile-interactions.css';
 
@@ -7,7 +7,9 @@ type Props = {
   contentRef: RefObject<HTMLElement | null>;
   activeWorkspace: string;
   workspaces: readonly { workspace: string; label: string }[];
-  onNavigate: (workspace: string) => void;
+  onNavigate: (workspace: string) => boolean | void;
+  /** Warm code only after horizontal intent; never fetch operational data here. */
+  onPrepareNavigation?: (workspace: string) => void;
   busy: boolean;
   /** Only read displayed snapshots. Never call source refresh, receipt verification or reload. */
   onRefresh?: () => Promise<void>;
@@ -31,6 +33,7 @@ function editingOrDialog() {
 export function MobileInteractions(props: Props) {
   const latest=useRef(props); latest.current=props;
   const [status,setStatus]=useState('');
+  const [navigationHint,setNavigationHint]=useState<{label:string;direction:-1|1}|null>(null);
   const [pending,setPending]=useState(false);
   const pendingRef=useRef(false);
   const [preview,setPreview]=useState<readonly MetricPreview[] | null>(null);
@@ -41,6 +44,8 @@ export function MobileInteractions(props: Props) {
   useEffect(()=>{
     if(pendingNavigation.current!==props.activeWorkspace)return;
     pendingNavigation.current=null;
+    setNavigationHint(null);
+    setStatus(`${latest.current.workspaces.find(item=>item.workspace===props.activeWorkspace)?.label || props.activeWorkspace} selected`);
     const heading=props.contentRef.current?.querySelector<HTMLElement>('h1');
     if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
   },[props.activeWorkspace,props.contentRef]);
@@ -63,7 +68,8 @@ export function MobileInteractions(props: Props) {
     let heldPoint: GesturePoint | null=null;
     let holdReleased=false;
     let suppressedUntil=0;
-    const clear=()=>{start=null;end=null;previewSequence=false;if(hold)clearTimeout(hold);hold=undefined;};
+    let prepared: string | null=null;
+    const clear=()=>{start=null;end=null;previewSequence=false;prepared=null;if(!pendingNavigation.current)setNavigationHint(null);if(hold)clearTimeout(hold);hold=undefined;};
     const available=()=>!latest.current.busy && !pendingNavigation.current && !pendingRef.current && !editingOrDialog() && !selectionActive() && Date.now()>cooldown.current && window.innerWidth<=900;
     const begin=(event: TouchEvent)=>{
       clear();
@@ -89,17 +95,33 @@ export function MobileInteractions(props: Props) {
       const dx=Math.abs(end.x-start.x),dy=Math.abs(end.y-start.y);
       if ((dx>GESTURE.drift || dy>GESTURE.drift) && hold) {clearTimeout(hold);hold=undefined;}
       // Once vertical scrolling starts, a later turn must not navigate.
-      if (dy>GESTURE.drift && dy>dx) clear();
+      if (dy>GESTURE.drift && dy>dx) {clear();return;}
+      if (!previewSequence && dx>=GESTURE.intentDistance && dx>=dy*GESTURE.ratio) {
+        const direction=end.x<start.x?1:-1;
+        const next=adjacentWorkspace(latest.current.activeWorkspace,latest.current.workspaces.map(item=>item.workspace),direction);
+        if (next && next!==prepared) {
+          prepared=next;
+          latest.current.onPrepareNavigation?.(next);
+          setNavigationHint({label:latest.current.workspaces.find(item=>item.workspace===next)?.label || next,direction});
+        } else if (!next && prepared) {prepared=null;setNavigationHint(null);}
+      } else if (prepared) {prepared=null;setNavigationHint(null);}
     };
     const finish=(event: TouchEvent)=>{
       if (heldPoint && event.target instanceof Node && heldTarget?.contains(event.target)) {holdReleased=true;suppressedUntil=Date.now()+400;}
       if (start && end && !previewSequence && available()) {
-        const direction=horizontalIntent(start,{...end,at:Date.now()},window.innerWidth);
+        const released=event.changedTouches[0];
+        const direction=horizontalIntent(start,{x:released?.clientX ?? end.x,y:released?.clientY ?? end.y,at:Date.now()},window.innerWidth);
         const next=adjacentWorkspace(latest.current.activeWorkspace,latest.current.workspaces.map(item=>item.workspace),direction);
         if (next) {
-          cooldown.current=Date.now()+GESTURE.cooldownMs;
           const label=latest.current.workspaces.find(item=>item.workspace===next)?.label || next;
-          pendingNavigation.current=next;latest.current.onNavigate(next);setStatus(`${label} selected`);
+          pendingNavigation.current=next;
+          // Paint the release acknowledgment before rendering a warmed, heavy workspace.
+          setNavigationHint({label:`Opening ${label}…`,direction:direction as -1|1});
+          setStatus(`Opening ${label}`);
+          startTransition(()=>{
+            if(latest.current.onNavigate(next)===false){pendingNavigation.current=null;setNavigationHint(null);setStatus('');}
+            else{cooldown.current=Date.now()+GESTURE.cooldownMs;}
+          });
         }
       }
       clear();
@@ -132,6 +154,7 @@ export function MobileInteractions(props: Props) {
     finally{pendingRef.current=false;setPending(false);}
   };
   return <>
+    {navigationHint && <div className={`mobile-navigation-hint ${navigationHint.direction===1?'next':'previous'}`} aria-hidden="true" data-gesture-ignore>{navigationHint.direction===-1 && <span>← </span>}{navigationHint.label}{navigationHint.direction===1 && <span> →</span>}</div>}
     <div className="mobile-interactions" data-gesture-ignore>
       <details><summary>Touch shortcuts</summary><p>Swipe left or right on open page space to change workspace. The workspace menu also works.{!!props.previews?.length && ' Hold a metric for a preview.'}{props.onRefresh && ' Pull the Refresh data button down to update displayed data.'}</p></details>
       {props.onRefresh && <PullAction disabled={props.busy || pending} onAction={()=>void refresh()} label={pending?'Refreshing…':'Refresh data'} />}

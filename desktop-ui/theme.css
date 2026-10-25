@@ -608,6 +608,7 @@ html[data-ops-theme="dark"] .ops-app.ops-live > :not(.ops-sidebar) {
   --secondary-foreground: var(--oc-text-primary);
   --primary: var(--oc-theme-dark-chart-actual);
   --primary-foreground: var(--oc-theme-dark-canvas);
+  --destructive: var(--oc-theme-dark-critical-text);
   color-scheme: dark;
 }
 html[data-ops-theme="dark"] .ops-app.ops-live :is(.topbar,.live-search-below-day,.viewing-day-context,.mobile-primary-nav,.global-search,.global-search-panel,.source-health-drawer,.settings-card) { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-border); }
@@ -639,7 +640,6 @@ html[data-ops-theme="dark"] .ops-app.ops-live .live-header-shell { background:va
 
 html[data-ops-theme="dark"] .ops-app.ops-live :is(.convoy-card-open-label,.convoy-card-close-label,.campaign-card-action,.capital-text-button,.capital-attention-footer) { color: var(--oc-theme-dark-link); }
 html[data-ops-theme="dark"] .ops-app.ops-live .live-schedule.schedule-dispatch .schedule-summary-button.active :is(span,strong) { color: var(--oc-theme-dark-info-text); }
-html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"] { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-input-border); }
 html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"][data-variant="brand"] { background: var(--ops-brand-red); color: var(--oc-theme-dark-on-brand); border-color: var(--ops-brand-red); }
 html[data-ops-theme="dark"] .ops-app.ops-live .appointment-territory-toolbar button.active { background: var(--oc-theme-dark-selected-surface); color: var(--oc-theme-dark-text); }
 html[data-ops-theme="dark"] .ops-app.ops-live .appointment-territory-toolbar button small { background: var(--oc-theme-dark-muted-surface); color: var(--oc-theme-dark-text); }
@@ -698,3 +698,18 @@ html[data-ops-theme] .ops-app.ops-live .capital-workspace .finance-performance-k
 html[data-ops-theme="dark"] .ops-app.ops-live .campaign-eyebrow.campaign-accent { color:var(--oc-theme-dark-link); }
 html[data-ops-theme="light"] .ops-app.ops-live .ops-sidebar :is(.workspace-page-link,.health-pulse small) { color:var(--oc-text-neutral-03); }
 html[data-ops-theme="light"] .ops-app.ops-live .convoy-record-categories nav button span { color:var(--oc-text-neutral-03); }
+
+/* Keep action roles distinct. A surface token is not an on-brand text color. */
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"]:not([data-variant="outline"]):not([data-variant="ghost"]):not([data-variant="destructive"]) { color:var(--oc-theme-dark-on-brand); border-color:var(--ops-brand-red); }
+html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"][data-variant="destructive"],
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"][data-variant="destructive"] { color:var(--oc-theme-dark-critical-text); background:var(--oc-theme-dark-critical-surface); border-color:var(--oc-theme-dark-critical-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.appointment-closeout-panel > summary,.closeout-primary-actions .closeout-primary-button) { color:var(--oc-theme-dark-on-brand); }
+
+/* These classes describe evidence-backed states; do not flatten them into gray. */
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-status.ready { color:var(--oc-theme-dark-success-text); background:var(--oc-theme-dark-success-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.convoy-status.attention,.convoy-badge.warning,.capital-status.warning) { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-status.stop { color:var(--oc-theme-dark-critical-text); background:var(--oc-theme-dark-critical-surface); }
+
+/* The resolved app preference wins over the legacy OS-only statement fragment. */
+html[data-ops-theme="light"] .ops-app.ops-live .statement-review { color:var(--oc-status-warn-ink); background:var(--oc-status-warn-tint); border-left-color:var(--oc-status-warn-accent); }
+html[data-ops-theme="dark"] .ops-app.ops-live .statement-review { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); border-left-color:var(--oc-theme-dark-warning-border); }

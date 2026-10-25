@@ -69,7 +69,7 @@ try{
   const order=role==='manager'?['Schedule','Krewe','Fleet','Finance','Marketing']:['Schedule','Krewe','Fleet','Marketing'];
   for(const workspace of order){await syntheticSwipe();await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,workspace);await page.waitForTimeout(700);}
   await syntheticSwipe();assert.equal(await current(),'Marketing','no wrap or Settings insertion');
-  await page.waitForTimeout(700);await syntheticSwipe(-1);assert.equal(await current(),role==='manager'?'Finance':'Fleet','reverse sidebar order');
+  await page.waitForTimeout(700);await syntheticSwipe(-1);await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,role==='manager'?'Finance':'Fleet');assert.equal(await current(),role==='manager'?'Finance':'Fleet','reverse sidebar order');
   assert.deepEqual((await qa()).writes,[],'no operational action activated');
  }
  await page.goto(`${base}?date=2026-10-13&role=manager`);await page.locator('.command-metrics').waitFor();

@@ -20,6 +20,7 @@ import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readResaleStore, upsertResaleItem, type ResaleItemInput } from '@/lib/resale-items';
 import { readWexFuelFinance } from '@/lib/wex-fuel';
 import { readWexAlertExpenses } from '@/lib/wex-alert-expenses';
+import {readWexMailFeedStatus} from '@/lib/wex-mail-feed';
 import { buildDailyFinanceSummary, type DailyFinanceSummary } from '@/lib/daily-finance-summary';
 import { commercialDirectory, commercialVersion, executeCommercialOperation, validCommercialDate, CommercialActionError } from '@/lib/desktop-marketing';
 import type { InteractiveOpsRole } from '@/lib/ops-roles';
@@ -73,6 +74,7 @@ export function readDesktopFinance(date: string): FinanceData & { wexAlertExpens
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
   const wexFuel = readWexFuelFinance(date);
   const wexAlertExpenses = readWexAlertExpenses(date, wexFuel.transactions);
+  wexAlertExpenses.feed=readWexMailFeedStatus();
   const dumpExpenses = readDumpExpenses(date);
   const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel, dumpExpenses.assumedTotal);
   const fuelReconciliation = readFuelReconciliation(date, wexFuel);

@@ -156,3 +156,39 @@ An authorized mailbox-to-runtime bridge and release approval remain prerequisite
 for ongoing daily ingestion. Synthetic importer and reconciliation tests run in
 `npm run verify:wex-fuel` (also in CI); the synthetic browser check is
 `node scripts/test-wex-alert-expenses-browser.mjs`.
+
+## Native mail collection adapter
+
+`scripts/collect-wex-local-mail.py` is a deterministic handler for an existing
+native mail filesystem-event worker. It installs no service, timer or AI task.
+The worker supplies its already-approved Exchange account identity; the scanner
+verifies that identity against the local accounts database and reads only WEX
+sender messages in that account's eight-day recovery window. Both databases are
+opened read-only. Empty plain-text MIME alternatives fall back to HTML. Only
+explicit WEX fields are passed to the importer; account/card fields, attachments,
+unrelated mail and credentials are excluded. Missing or conflicting bodies are
+reported as gaps. Apple Mail must already synchronize the account; this handler
+does not establish or refresh mailbox access.
+
+Native provenance retains the RFC Message-ID and account identity in private
+`native-mail-evidence.json`. An opaque `outlook-local:` hash identifies this
+evidence in the snapshots. The UI labels native evidence without inventing an
+Outlook URL. Matching connector/native messages reuse the existing source record,
+so startup recovery does not duplicate daily expenses or freshen price evidence.
+
+The shared native importer serializes events and preserves each snapshot's lock
+and compare-before-write checks. Daily revisions are retained. A reversal,
+uncertain repeated purchase or conflict with an existing price blocks that
+tracking number from price selection; it does not overwrite the conflict or
+reuse the withdrawn price. Blocks require evidence review rather than automatic
+clearing. If a two-snapshot update fails, status remains `apply_failed` and fuel
+selection fails closed until a successful replay. Source scan failures preserve
+prior source evidence and are visible separately from successful imports. The
+seven-day price window still uses source evidence time, never scan/import time.
+
+Finance shows the last native scan, latest received source time, rejected count
+and import result. These timestamps do not prove current Exchange synchronization
+or receipt of every future email. Activation requires the reviewed native worker
+hook to call this handler and exclude WEX from its AI/notification path. Deploying
+these files alone does not activate collection. No new credentials, access scopes,
+external messages or paid-provider calls are part of this adapter.

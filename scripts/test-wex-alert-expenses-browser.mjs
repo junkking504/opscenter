@@ -12,5 +12,9 @@ try{browser=await chromium.launch({headless:true});const page=await browser.newP
  await page.getByText('No imported alerts with this stated authorization date.',{exact:false}).waitFor();
  assert.equal(await page.locator('.capital-inline-totals strong').first().innerText(),'Unavailable');
  assert.ok(!(await page.locator('body').innerText()).includes('$0.00'),'empty batch day never displays a recorded monetary zero');
+ await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/wex-alert-expenses.html?native`);
+ await page.getByText('Apple Mail evidence retained',{exact:false}).first().waitFor();
+ assert.equal(await page.locator('a[href^="outlook-local:"]').count(),0,'opaque native evidence is not an invented link');
+ const feed=await page.locator('.wex-mail-feed-status').innerText();assert.match(feed,/watcher: not running/);assert.match(feed,/scan: partial/);assert.match(feed,/import: apply_failed/);assert.match(feed,/Latest received evidence: 2026-10-24T15:01:00Z/);
  assert.deepEqual(errors,[]);console.log(`Synthetic WEX daily UI passed at320/390/1024/1440 and empty-day availability; screenshots ${cache}`);
 }finally{await browser?.close();await server.close();}

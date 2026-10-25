@@ -11,14 +11,23 @@ const params=new URLSearchParams(location.search),date=params.get('date')||curre
 sessionStorage.setItem('alert-fixture-case',mode);
 const stamp=new Date().toISOString();
 const snapshot=fixtureSnapshot();snapshot.date=date;
-snapshot.alerts=[alert('geo','Geofence',stamp,{domain:'Fleet',truck:'Truck 9',title:'Truck 9 departed NOHQ',detail:'Location update',facts:[{label:'Onsite',value:'19h 28m · Synthetic visit'},{label:'Visit verification',value:'Exact arrival time is unavailable.'}],href:'/desktop?workspace=Fleet&date='+date+'&truck=9'}),alert('appointment','New Appointment',stamp,{title:'JK1000001 · Example customer',href:'/jobs?date='+date+'&appointment=101'}),alert('unknown','Source Warning',stamp,{truck:undefined,title:'Update history incomplete',href:'/?commandView=monitor',facts:[{label:'Warning',value:'Current coverage is unknown.'}]})];
+snapshot.alerts=[alert('geo','Geofence',stamp,{domain:'Fleet',truck:'Truck 9',needsAction:true,title:'Truck 9 departed NOHQ',detail:'Location update',facts:[{label:'Onsite',value:'19h 28m · Synthetic visit'},{label:'Visit verification',value:'Exact arrival time is unavailable.'}],href:'/desktop?workspace=Fleet&date='+date+'&truck=9'}),alert('appointment','New Appointment',stamp,{title:'JK1000001 · Example customer',href:'/jobs?date='+date+'&appointment=101'}),alert('unknown','Source Warning',stamp,{truck:undefined,title:'Update history incomplete',href:'/?commandView=monitor',facts:[{label:'Warning',value:'Current coverage is unknown.'}]})];
 if(snapshot.crewProgress){snapshot.crewProgress.jobs=snapshot.crewProgress.jobs.slice(0,1).map(item=>({...item,updateIds:['appointment'],needsFollowUp:true,next:'Synthetic follow-up warning'}));snapshot.crewProgress.updatesComplete=false;snapshot.crewProgress.updateHistoryReasons=['Synthetic source coverage is incomplete.'];}
 const truck=(n:number)=>({truck:'Truck '+n,latitude:30+n/100,longitude:-90-n/100,lastGpsUpdate:mode==='stale'?'2020-01-01T00:00:00Z':stamp,ignition:'OFF',operationalStatus:'Parked',lastKnownAddress:'Synthetic location '+n});
 const trucks=mode==='missing'?[]:[truck(19),{...truck(9),...(mode==='no-gps'?{latitude:null,longitude:null}: {})}];
+if(mode==='workflow-off')snapshot.sources.workflow=false;
+const workflowCalls:unknown[]=[];(window as unknown as {qaWorkflow:unknown[]}).qaWorkflow=workflowCalls;
 L.Map.addInitHook(function(this:L.Map){(window as unknown as {qaMap:L.Map}).qaMap=this;});
 window.fetch=async(input,init)=>{
- if(init?.method&&init.method!=='GET')return Response.json({error:'Writes disabled in fixture'},{status:403});
  const url=new URL(String(input),location.origin);
+ // Only this synthetic in-memory workflow responds to writes. No server is called.
+ if(url.pathname==='/api/command/alert-workflow' && init?.method==='POST'){
+  const action=JSON.parse(String(init.body));const target=snapshot.alerts.find(item=>item.id===action.alertId);
+  if(!snapshot.sources.workflow || !target || target.version!==action.expectedVersion)return Response.json({error:'Fixture conflict'},{status:409});
+  workflowCalls.push(action);await new Promise(resolve=>setTimeout(resolve,300));
+  target.workflowState=action.action==='acknowledge'?'acknowledged':'in-control';target.version++;return Response.json({ok:true});
+ }
+ if(init?.method&&init.method!=='GET')return Response.json({error:'Writes disabled in fixture'},{status:403});
  if(url.pathname==='/api/desktop/command')return Response.json(snapshot);
  if(url.pathname==='/api/desktop/schedule'){
   if(mode==='delay')await new Promise(resolve=>setTimeout(resolve,1200));

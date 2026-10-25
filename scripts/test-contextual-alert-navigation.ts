@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {alertTruck,truckMapHref,notificationDestination} from '../lib/alert-destination';
 import {desktopAlertHref} from '../desktop-ui/lib/desktop-links';
+import {pushoverFields} from '../lib/pushover-transport';
 import {pushNotificationGET} from '../lib/web-push-notification';
 import {sanitizeAuthRedirectTarget} from '../lib/auth';
 import {alert} from './fixtures/crew-progress';
@@ -40,7 +41,11 @@ async function run(){
  assert.equal(opened[0],origin+'/desktop?workspace=Command&notification='+id,'First tap opens private details, not the map');
  self.clients.matchAll=async()=>[{url:opened[0],navigate:async()=>navigated++,focus:()=>focused++}];
  handlers.notificationclick({notification:{data:shown.data,close:()=>closed++},waitUntil});await pending;
- assert.equal(navigated,1);assert.equal(focused,1);assert.equal(closed,2);
+ self.clients.matchAll=async()=>[{url:opened[0],navigate:async()=>{throw new Error('uncontrolled');},focus:()=>focused++}];
+ handlers.notificationclick({notification:{data:shown.data,close:()=>closed++},waitUntil});await pending;
+ assert.equal(focused,2);assert.equal(closed,3);
+ const fields=pushoverFields({token:'t',user:'u',device:'d'} as any,{message:{title:'Truck #9',body:'Departed NOHQ',path:destination}} as any,60);assert.equal(fields.get('url'),origin+'/desktop','Pushover retains its prior generic destination');
+ assert.equal(navigated,1);
  console.log('PASS contextual destinations, exact identity, login retention, receipt authorization and native cold/repeated clicks. No external sends.');
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});

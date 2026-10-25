@@ -143,7 +143,11 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [operationBusy, setOperationBusy] = useState(false);
   const operationBusyRef = useRef(false);
   const onOperationBusyChange = useCallback((busy: boolean) => { operationBusyRef.current = busy; setOperationBusy(busy); onBusyChange?.(busy); }, [onBusyChange]);
-  const setDrawerId = useCallback((id: string | null) => { if (!operationBusyRef.current) { setDrawerIdValue(id); setDrawerAction(null); } }, []);
+  const openDrawerRef=useRef<string|null>(null);
+  const setDrawerId = useCallback((id: string | null) => { if (!operationBusyRef.current) {
+    if(!id && openDrawerRef.current){const url=new URL(window.location.href);url.searchParams.delete('appointment');url.searchParams.delete('q');if(url.searchParams.get('focus')==='record')url.searchParams.delete('focus');window.history.replaceState(window.history.state,'',url);}
+    openDrawerRef.current=id;setDrawerIdValue(id);setDrawerAction(null);
+  } }, []);
   useEffect(() => {
     if (!drawerId) return;
     const body = drawerBodyRef.current;

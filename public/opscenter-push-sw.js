@@ -34,7 +34,7 @@ self.addEventListener('notificationclick', event => {
     const windows = await self.clients.matchAll({type:'window',includeUncontrolled:true});
     const existing = windows.find(client => client.url === destination);
     if (existing) {
-      if (existing.navigate) await existing.navigate(destination);
+      try { if (existing.navigate) await existing.navigate(destination); } catch { /* Uncontrolled clients can still be focused. */ }
       return existing.focus();
     }
     return self.clients.openWindow(destination);

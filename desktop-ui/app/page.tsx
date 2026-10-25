@@ -4291,7 +4291,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
   return (
     <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
-      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} snapshot={live?.snapshot} close={closeAlertDetails}/>}
+      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} live={live} close={closeAlertDetails} openControl={()=>{closeAlertDetails();setActiveNav('Command');setView('today');}}/>}
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">

@@ -1103,3 +1103,16 @@
 .officeState { font-size: 16px; line-height: 1.5; color: #283344; }
 .officeState.error { background: #fff0f1; color: var(--ops-brand-red); }
 .officeState.error strong { color: #111722; font-size: 16px; font-weight: 600; }
+
+/* The manager Inbox follows the office preference; embedded phone apps do not. */
+:global(html[data-ops-theme="dark"]) .standalone {
+  --inbox-bg-canvas:#101923; --inbox-bg-workspace:#172330; --inbox-bg-panel:#172330; --inbox-bg-raised:#202f3e; --inbox-bg-selected:#314c62;
+  --inbox-border:#657e91; --inbox-border-subtle:#405261;
+  --inbox-text-strong:#eef4f8; --inbox-text-primary:#eef4f8; --inbox-text-secondary:#c3dced; --inbox-text-muted:#b9c8d3; --inbox-text-subdued:#b9c8d3;
+  --inbox-accent:#f4d18d; --inbox-critical:#ffb0bf; --inbox-info:#9ed4fa;
+}
+:global(html[data-ops-theme="dark"]) .standalone :is(.pill,.metric[data-alert="true"]) { background:var(--inbox-bg-panel); }
+:global(html[data-ops-theme="dark"]) .standalone .createButton:hover { background:var(--inbox-bg-selected); }
+:global(html[data-ops-theme="dark"]) .officeState { color:#eef4f8; }
+:global(html[data-ops-theme="dark"]) .officeState.error { color:#ffb0bf; background:#3b242d; }
+:global(html[data-ops-theme="dark"]) .officeState.error strong { color:#eef4f8; }

@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MonthlyMileage } from './monthly-mileage';
 import { ServiceRecordDetails } from './convoy-records';
@@ -37,6 +38,7 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   useEffect(()=>invalidate,[snapshotKey,invalidate]);
   useEffect(() => { if (snapshot) workspaceReady('Fleet'); }, [snapshot]);
   const freshness=useWorkspaceRefresh(loadSnapshot,snapshotKey,Boolean(active)||pending,30_000,snapshotKey);
+  useRegisterDisplayedRefresh('Fleet', freshness.refreshDisplayed, Boolean(active) || pending, snapshotKey);
   const refresh=freshness.refresh;
   useEffect(()=>{onBusyChange?.(Boolean(active)||pending);return()=>onBusyChange?.(false);},[Boolean(active),pending,onBusyChange]);
   const dialogKey=active?`${active.truck.id}:${active.kind}:${active.record?.recordId||active.issue?.issueId||''}:${active.mode||'view'}`:'';

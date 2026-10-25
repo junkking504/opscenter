@@ -50,3 +50,5 @@ import './driving-scores.css';
 import './opscenter-brand.css';
 
 import './approved-workbench.css';
+
+import './theme.css';

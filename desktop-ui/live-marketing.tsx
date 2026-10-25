@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { campaignShortcutFilters, campaignShortcutCount, type CampaignShortcut } from './lib/campaign-shortcuts';
 import { CampaignLeads, CampaignResults, CampaignReviews, campaignOutcomes } from './campaign-workspace';
 import { LiveAnalytics } from './deferred-live-analytics';
@@ -29,6 +30,7 @@ export function LiveMarketing({ date, view = 'overview', report, onBusyChange, o
   }, [snapshotKey, setData]);
   useEffect(() => { if (data) workspaceReady('Marketing'); }, [data]);
   const freshness = useWorkspaceRefresh(loadSnapshot, `${date}:${revision}`, editing, 30_000, snapshotKey);
+  useRegisterDisplayedRefresh('Marketing', freshness.refreshDisplayed, editing, snapshotKey);
   useEffect(() => { if (actionFeedback) report?.(actionFeedback); }, [actionFeedback, report]);
   useEffect(() => { onBusyChange?.(editing); return () => onBusyChange?.(false); }, [editing, onBusyChange]);
   useEffect(() => {

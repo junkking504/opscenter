@@ -43,7 +43,7 @@ export function pickupSourceNoteCandidates(date:string,jobs:PickupJob[],visits:R
   return result;
 }
 
-export function pickupSourceNoteNotices(date:string,jobs:PickupJob[]) {
+export function pickupSourceNoteNotices(date:string,jobs:PickupJob[],options:{readOnly?:boolean}={}) {
   let names:string[];
   try {names=fs.readdirSync(directory());} catch{return [];}
   const notices:Array<{requestId:string;recordId:string;message:string}>=[];
@@ -54,7 +54,7 @@ export function pickupSourceNoteNotices(date:string,jobs:PickupJob[]) {
     const notes=jobs.find(job=>job.appointmentId===receipt.appointmentId)?.appointmentNotes || [];
     const clean=(text:string)=>text.replace(/\s+/g,' ').trim();
     if(receipt.status!=='verified' && notes.some(note=>clean(note).includes(clean(receipt.note)))) {
-      save({...receipt,status:'verified',updatedAt:new Date().toISOString()});
+      if(!options.readOnly) save({...receipt,status:'verified',updatedAt:new Date().toISOString()});
       continue;
     }
     if(receipt.status==='uncertain' || receipt.status==='writing' && Date.now()-Date.parse(receipt.updatedAt)>120_000)

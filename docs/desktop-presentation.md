@@ -203,3 +203,14 @@ use scoped presentation styles. Their operational controls, permissions, semanti
 warnings and source selection remain unchanged. Separate Waypoint/crew phone apps
 are outside this presentation scope. Local synthetic desktop and phone-width
 browser evidence does not establish acceptance on a physical handset.
+
+## Mobile interactions
+
+See [Mobile web interactions](mobile-interactions.md) for the optional navigation,
+preview, refresh and dismissal shortcuts, exclusion rules and validation.
+
+See [Office appearance preferences](appearance.md) for Light, Dark and System
+selection, persistence and separate-app boundaries. Ask OpsBot and the office
+record search keep their original input while a measured strip pins below the
+visible header. The shared offset reserves space for alert targets; expanded
+results fit the visual viewport and retain the existing keyboard behavior.

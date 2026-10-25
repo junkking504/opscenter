@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { chicagoDateKey } from "@/lib/chicago-date";
 import type { GlobalSearchResult, GlobalSearchResultType } from "@/lib/global-search";
 import styles from "./GlobalSearch.module.css";
+import { usePinnedSearch } from "@/desktop-ui/use-pinned-search";
 
 const typeLabels: Record<GlobalSearchResultType, string> = {
   job: "Appointments",
@@ -16,6 +17,7 @@ const typeLabels: Record<GlobalSearchResultType, string> = {
 export default function GlobalSearch() {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
+  usePinnedSearch(rootRef, {slotSelector:".ops-topbar-search",contentSelector:".ops-main-frame",fieldSelector:"form"});
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GlobalSearchResult[]>([]);

@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
@@ -38,6 +39,7 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
   const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending||editingDay,30_000,snapshotKey);
   const refresh=freshness.refresh;
   const workspaceBusy=Boolean(active)||pending||editingDay;
+  useRegisterDisplayedRefresh('Krewe', freshness.refreshDisplayed, workspaceBusy, snapshotKey);
   useEffect(()=>{onBusyChange?.(workspaceBusy);return()=>onBusyChange?.(false);},[workspaceBusy,onBusyChange]);
   const dialogKey=active?.id||'';
   useEffect(()=>{if(!dialogKey)return;drawer.current?.focus();const handle=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!busy.current){setActive(null);opener.current?.focus();}if(event.key==='Tab'){const list=Array.from(drawer.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')||[]).filter(element=>element.getClientRects().length>0);if(!list?.length)return;const first=list[0],last=list[list.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[dialogKey]);

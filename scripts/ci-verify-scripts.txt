@@ -111,3 +111,5 @@ verify:waypoint-manager:photos
 verify:waypoint-manager
 
 verify:waypoint-recovery
+verify:mobile-interactions
+verify:appearance

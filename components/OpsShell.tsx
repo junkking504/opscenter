@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import ThemeControl from "./ThemeControl";
 import OpsNav from "@/components/OpsNav";
 import OperationsClock from "@/components/OperationsClock";
 import OpsCenterLogo from "@/components/OpsCenterLogo";
@@ -93,6 +94,7 @@ export default function OpsShell({
             </div>
 
             <div className="ops-topbar-right">
+              <ThemeControl compact />
               <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-toggle-button">
                 Menu
               </label>

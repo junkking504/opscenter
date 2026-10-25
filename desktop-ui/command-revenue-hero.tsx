@@ -12,7 +12,7 @@ export function CommandRevenueHero({ kpi, date, onOpen, disabled }: { kpi?: Desk
   const percent = value != null && goal != null && goal > 0 ? Math.max(0, value / goal * 100) : null;
   return <section className="command-revenue-hero" aria-label="Revenue pace">
     <div><DeltaChip current={value} comparison={kpi?.comparison} /><span className="hero-label">{date === currentOperatingDay() ? 'Today’s revenue' : 'Day’s revenue'}</span>
-      <button className={value == null ? 'hero-value missing-value' : 'hero-value'} onClick={onOpen} disabled={disabled || !onOpen} title={value == null ? kpi?.detail || 'Revenue source unavailable' : 'Open revenue details'}>{value == null ? '—' : kpi?.value}</button>
+      <button data-gesture-preview="Revenue" className={value == null ? 'hero-value missing-value' : 'hero-value'} onClick={onOpen} disabled={disabled || !onOpen} title={value == null ? kpi?.detail || 'Revenue source unavailable' : 'Open revenue details'}>{value == null ? '—' : kpi?.value}</button>
       <MetricDetail detail={kpi?.detail || 'Revenue source unavailable'} />
     </div>
     <div className="hero-pace"><div><span>Daily goal {goal ? money(goal) : <span className="missing-value" title="Daily goal unavailable">—</span>}</span><strong>{value != null && goal ? `${money(Math.max(0, goal - value))} to go` : <span className="missing-value" title="Revenue and daily goal are required for pace">—</span>}</strong></div>

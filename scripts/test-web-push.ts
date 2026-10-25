@@ -99,7 +99,7 @@ handlers.push({data:{json:()=>({title:'Truck 2 departed',body:'Truck 2 left BRHQ
 handlers.push({data:{json:()=>({title:'Truck #9',body:'Departed Warehouse: 5:21 PM',eventId:'b'.repeat(64),subtitle:'from OpsCenter'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
 assert.deepEqual(JSON.parse(JSON.stringify(shown)),{title:'Truck #9',options:{
   body:'Departed Warehouse: 5:21 PM',icon:'/opscenter-app-192.png',badge:'/opscenter-app-192.png',
-  tag:'opscenter-'+'b'.repeat(64),renotify:true,data:{path:'/desktop?workspace=Command'}
+  tag:'opscenter-'+'b'.repeat(64),renotify:true,data:{path:'/desktop?workspace=Command',eventId:'b'.repeat(64)}
 }});
 assert.doesNotMatch(JSON.stringify(shown),/from OpsCenter/);
 const expandedBody='Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\n'+('Detail: verified fixture\n'.repeat(40));

@@ -13,7 +13,7 @@ export const workspacePages = [
 ] as const;
 export function pageHref(workspace: string, key: string, page: string, href = window.location.href) {
   const url = new URL(href);
-  for (const stale of ['appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(stale);
+  for (const stale of ['focus','alert','notification','appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(stale);
   url.searchParams.set('workspace',workspace); url.searchParams.set(key,page); url.searchParams.set('scheduleDay','today');
   if (workspace === 'Command' && page === 'tv') { url.searchParams.set('tv','1'); url.searchParams.delete('date'); url.searchParams.set('commandView','now'); }
   return url.pathname + url.search;

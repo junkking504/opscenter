@@ -1,3 +1,4 @@
+import { alertTruck, truckMapHref } from '../../lib/alert-destination';
 import type { DesktopAlert, DesktopCommandSnapshot } from './live-contract';
 
 /** Keep internal source links in the current workspace shell. */
@@ -31,7 +32,7 @@ export function desktopCustomerHref(appointmentId?: string, date?: string): stri
 }
 
 /** Use the uniquely linked source appointment; otherwise preserve the source reference. */
-export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
+function sourceAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
   const sourceHref = desktopSourceHref(alert.href, origin);
   const url = new URL(sourceHref, origin);
   if (url.origin === new URL(origin).origin && url.pathname === '/desktop' && url.searchParams.get('workspace') === 'Schedule' && url.searchParams.has('appointment')) {
@@ -52,4 +53,32 @@ export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopComm
     url.searchParams.set('scheduleDay', 'today');
   }
   return url.origin === new URL(origin).origin ? url.pathname + url.search + url.hash : url.href;
+}
+
+/** Route known identities first; unsupported items retain their exact expanded alert. */
+export function desktopAlertHref(alert: DesktopAlert, snapshot: Pick<DesktopCommandSnapshot, 'date' | 'crewProgress'>, origin: string): string {
+  const source = sourceAlertHref(alert, snapshot, origin);
+  const url = new URL(source, origin);
+  if (url.origin !== new URL(origin).origin) return source;
+  const p = url.searchParams;
+  const date = p.get('date') || snapshot.date;
+  const truck = alertTruck(alert.truck) || alertTruck(p.get('truck')) || alertTruck(alert.title.match(/^Truck\s*#?\s*\d+\b/i)?.[0]);
+  if (alert.label === 'Geofence' && truck) return truckMapHref(truck, date);
+  const workspace = p.get('workspace');
+  if (workspace === 'Schedule' && (p.has('appointment') || p.has('q'))) {
+    p.set('focus','record');
+  } else if (workspace === 'Krewe' || alert.domain === 'Krewe') {
+    url.pathname='/desktop'; p.set('workspace','Krewe'); p.set('kreweView','today');
+    const member=alert.facts.find(f=>/^(Krewe member|Crew member|Employee)$/i.test(f.label))?.value;
+    if (member && member.length <= 200) p.set('member',member);
+    p.set('focus','record');
+  } else if (workspace === 'Fleet' && truck) {
+    p.set('truck',truck); p.set('focus','record');
+  } else if (alert.label === 'Schedule Summary') {
+    url.pathname='/desktop'; p.set('workspace','Schedule'); p.set('scheduleView','board'); p.set('focus','record');
+  } else {
+    return '/desktop?' + new URLSearchParams({workspace:'Command',commandView:'now',date,alert:alert.id,focus:'alert'});
+  }
+  p.set('date',date);
+  return url.pathname+url.search+url.hash;
 }

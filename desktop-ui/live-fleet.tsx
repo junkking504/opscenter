@@ -1,3 +1,4 @@
+import { useAlertReveal } from './use-alert-reveal';
 import { MonthlyMileage } from './monthly-mileage';
 import { ServiceRecordDetails } from './convoy-records';
 import { ConvoyGuide } from './convoy-guide';
@@ -24,6 +25,7 @@ const nullVersion='74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b
 type Drawer=FleetRecord;
 /** Parent renders the approved Fleet header and tabs. report may select an ISO month/date. */
 export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:DesktopWorkspaceProps<FleetView>){
+  useAlertReveal();
   const deepLinkApplied=useRef('');
   const serviceRequest=useRef<string|null>(null);
   const selectedDate=view==='reports'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-01`:date;

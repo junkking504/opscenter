@@ -21,17 +21,22 @@ self.addEventListener('push', event => {
     body,
     icon: '/opscenter-app-192.png', badge: '/opscenter-app-192.png',
     tag, renotify: true,
-    data: { path: notificationPath(message.path) }
+    data: { path: notificationPath(message.path), eventId: /^[a-f0-9]{64}$/.test(message.eventId || '') ? message.eventId : undefined }
   }));
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   // Only the allowlisted same-origin route; normal authentication remains required.
-  const destination = new URL(notificationPath(event.notification.data?.path), self.location.origin).href;
+  const id = event.notification.data?.eventId;
+  const path = /^[a-f0-9]{64}$/.test(id || '') ? '/desktop?workspace=Command&notification=' + id : notificationPath(event.notification.data?.path);
+  const destination = new URL(path, self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({type:'window',includeUncontrolled:true});
     const existing = windows.find(client => client.url === destination);
-    if (existing) return existing.focus();
+    if (existing) {
+      if (existing.navigate) await existing.navigate(destination);
+      return existing.focus();
+    }
     return self.clients.openWindow(destination);
   })());
 });

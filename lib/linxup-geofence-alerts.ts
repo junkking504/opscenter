@@ -7,6 +7,8 @@ import {geofenceOnsiteSummary} from './geofence-alert-summary';
 import {sourceFileMemo} from './source-file-memo';
 import {trackGeofenceVisits, visitDay, type GeofenceTransition, type TrackedVisit} from './visit-tracking-agent';
 
+import { truckMapHref } from './alert-destination';
+
 // Reuse ICU formatters across GPS observations; constructing one per point
 // blocks every request while historical visit evidence is replayed.
 const geofenceDayFormatter = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'});
@@ -192,7 +194,7 @@ export function geofenceOperationalAlert(entry: GeofenceEntry, date: string): Op
       ...(entry.positionObserved ? [{label:'Arrival source',value:'Live GPS facility report'}] : []),
       {label:'Truck load',value:entry.resetLocation ? 'Reset to empty on entry' : 'Unchanged'}],
     next:entry.resetLocation ? 'Truck assumed empty on entry. Later completed jobs add to the load.' : 'Location update only; truck load is unchanged.',
-    href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(entry.truck.replace('Truck ','Truck# '))}`};
+    href:truckMapHref(entry.truck,date)};
 }
 
 export function geofenceLoadResets(date: string, entries: GeofenceEntry[]): TruckLoadEvent[] {
@@ -262,7 +264,7 @@ export function geofenceVisitAlert(visit:GeofenceVisit,date:string):OperationalA
       ...(bounds ? [{label:'Departure source',value:visit.departureSource === 'later_position' ? 'Corroborated GPS positions away from the facility; exact exit time unavailable' : 'Later positive GPS report at another facility; exact exit time unavailable'}] : []),
       ...(visit.arrivalSource === 'live_position' ? [{label:'Arrival source',value:'First positive live GPS facility report'}] : [])],
     next:bounds ? 'Departure established by later location evidence. Exit time is bounded by the last onsite report and a later position elsewhere.' : visit.durationSeconds===null?'Departure recorded; a matching entry is unavailable or ambiguous.':visit.arrivalSource === 'live_position' ? 'Observed onsite time from the first live facility report through the native exit; exact arrival time is unavailable.' : 'Completed visit duration from LinxUp entry and exit events.',
-    href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(visit.truck.replace('Truck ','Truck# '))}`};
+    href:truckMapHref(visit.truck,date)};
 }
 
 export function geofenceTimelineAlerts(date:string,entries:GeofenceEntry[],visits:GeofenceVisit[]):OperationalAlert[]{

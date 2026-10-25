@@ -4,12 +4,13 @@ import {createHash,randomUUID} from 'node:crypto';
 import {wexFuelDirectory,type WexFuelTransaction} from './wex-fuel';
 import type {WexPriceMessage} from './wex-realtime-prices';
 import {validRosterDate} from './schedule-crew-roster';
+import {isWexSource} from '../desktop-ui/lib/wex-source';
 
 import type {WexExpenseAlert,WexAlertExpenseRow,WexAlertDailyExpenses} from '../desktop-ui/lib/wex-alert-expenses-contract';
 export type {WexExpenseAlert,WexAlertExpenseRow,WexAlertDailyExpenses} from '../desktop-ui/lib/wex-alert-expenses-contract';
 const normalized=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
 const cents=(n:number)=>Math.round(n*100);
-function sourceUrlValid(value:string){try{const url=new URL(value);return url.protocol==='https:'&&['outlook.office365.com','outlook.office.com','outlook.live.com'].includes(url.hostname);}catch{return false;}}
+const sourceUrlValid=isWexSource;
 export function parseWexExpenseAlert(message:WexPriceMessage):WexExpenseAlert|null{
  if(!message||['id','sender','receivedAt','sourceUrl','body'].some(key=>typeof message[key as keyof WexPriceMessage]!=='string')||!message.id||message.sender.toLowerCase()!=='onlineservices@wexinc.com')return null;
  if(!sourceUrlValid(message.sourceUrl))return null;

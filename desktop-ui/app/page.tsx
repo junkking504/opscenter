@@ -4268,15 +4268,15 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
   const preloadMainWorkspace = (workspace: string) => { void preloadWorkspace[workspace]?.().catch(() => {}); };
   const navigateMainWorkspace = (workspace: string, requestedPage?: string) => {
-    if (mutationBusyRef.current || (live && workspace === 'Finance' && !canFinance)) return;
+    if (mutationBusyRef.current || (live && workspace === 'Finance' && !canFinance)) return false;
     const group = workspacePages.find(item => item.workspace === workspace);
-    if (!group) return;
+    if (!group) return false;
     const page = requestedPage || group.pages[0][0];
-    if (!group.pages.some(([value]) => value === page)) return;
+    if (!group.pages.some(([value]) => value === page)) return false;
     if (workspace === 'Command' && page === 'tv') {
-      if (live && !canFinance) return;
+      if (live && !canFinance) return false;
       window.location.assign(pageHref(workspace, group.key, page));
-      return;
+      return true;
     }
     const url = new URL(window.location.href);
     for (const key of ['focus','alert','notification','appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
@@ -4290,6 +4290,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (workspace === 'Marketing') setMarketingView(page as MarketingView);
     setNotificationOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    return true;
   };
 
   if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
@@ -5620,7 +5621,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Settings' && (item.workspace !== 'Finance' || canFinance))} onNavigate={navigateMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
+          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Settings' && (item.workspace !== 'Finance' || canFinance))} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
           <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${workspaceLabel(activeNav)} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>

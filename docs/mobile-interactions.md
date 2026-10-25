@@ -10,12 +10,23 @@ focus containment/return, status announcements and reduced-motion compatibility.
 
 At widths up to 900 CSS pixels, deliberate horizontal single-finger swipes on
 open page space move through the supplied permission-filtered sidebar order.
-They never wrap. The outer 28px screen edges, forms, links/buttons, text selection,
+They never wrap. Navigation commits on release after 56px, or a deliberate 32px
+fast flick (at least 0.5px/ms over 40–250ms), with horizontal travel at least
+1.8 times vertical travel. A destination hint appears after 20px of horizontal
+intent and warms only the destination code chunk before release. It never reads
+operational data. Cancellation or returning toward the starting point removes
+the hint. On an accepted release, the hint acknowledges the destination while
+React renders it as a transition, then clears when that workspace commits.
+The repeat guard is 220ms; the maximum gesture duration remains 900ms.
+The outer 28px screen edges, forms, links/buttons, text selection,
 nested scroll areas, maps/charts, videos, draggable elements and explicit
 `data-gesture-ignore` regions are excluded. Vertical intent, multiple touches,
 cancellation, active dialogs/drawers, busy edits and repeated navigation cancel
 or block a shortcut. The page has no global touch-action override or scroll
 prevention. App-wide dirty state must be supplied through `busy`.
+
+Refresh and dismissal still require a 96px downward pull within 900ms; metric
+holds remain 550ms with 12px movement tolerance.
 
 Only explicitly annotated `data-gesture-preview` metrics have hold previews.
 Their values and descriptions come from the existing display snapshot. A hold

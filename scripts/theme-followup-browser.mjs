@@ -35,12 +35,17 @@ try {
      const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');
      const color=value=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=value;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data];};
      const mix=(a,b)=>a.slice(0,3).map((v,i)=>v*a[3]/255+b[i]*(1-a[3]/255));
-     const ids=['primary','outline','destructive','brand','fleet-service','fleet-disabled','ready','attention','stop','warn-badge','finance-warning','finance-status','closeout'];
+     const ids=['primary','outline','destructive','brand','fleet-service','fleet-disabled','fleet-destructive','ready','attention','stop','warn-badge','finance-warning','finance-status','closeout'];
      return Object.fromEntries(ids.map(id=>{const e=document.getElementById(id),s=getComputedStyle(e),chain=[];for(let node=e;node;node=node.parentElement)chain.push(color(getComputedStyle(node).backgroundColor));let bg=[255,255,255];for(const c of chain.reverse())bg=mix(c,bg);const fg=mix(color(s.color),bg),a=lum(fg),b=lum(bg);return[id,{color:s.color,background:s.backgroundColor,border:s.borderLeftColor,opacity:s.opacity,contrast:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)}];}));
     });
-    for(const id of ['primary','outline','destructive','brand','fleet-service','ready','attention','stop','warn-badge','finance-warning','finance-status','closeout'])assert.ok(metrics[id].contrast>=4.5,`${engineName}/${preference}/${osScheme} ${id} contrast ${metrics[id].contrast}`);
+    for(const id of ['primary','outline','destructive','brand','fleet-service','fleet-destructive','ready','attention','stop','warn-badge','finance-warning','finance-status','closeout'])assert.ok(metrics[id].contrast>=4.5,`${engineName}/${preference}/${osScheme} ${id} contrast ${metrics[id].contrast}`);
     assert.notEqual(metrics.primary.background,metrics.outline.background);
     assert.notEqual(metrics.destructive.color,metrics.outline.color);
+    if(theme==='dark'){
+     assert.equal(metrics['fleet-destructive'].color,metrics.destructive.color,'Fleet destructive text keeps its critical role');
+     assert.equal(metrics['fleet-destructive'].background,metrics.destructive.background,'Fleet destructive surface keeps its critical role');
+     assert.equal(metrics['fleet-destructive'].border,metrics.destructive.border,'Fleet destructive border keeps its critical role');
+    }
     assert.notEqual(metrics.ready.color,metrics.attention.color);
     assert.notEqual(metrics.stop.color,metrics.attention.color);
     assert.equal(await page.locator('#fleet-disabled').isDisabled(),true);

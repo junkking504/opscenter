@@ -700,7 +700,7 @@ html[data-ops-theme="light"] .ops-app.ops-live .ops-sidebar :is(.workspace-page-
 html[data-ops-theme="light"] .ops-app.ops-live .convoy-record-categories nav button span { color:var(--oc-text-neutral-03); }
 
 /* Keep action roles distinct. A surface token is not an on-brand text color. */
-html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"]:not([data-variant="outline"]):not([data-variant="ghost"]) { color:var(--oc-theme-dark-on-brand); border-color:var(--ops-brand-red); }
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"]:not([data-variant="outline"]):not([data-variant="ghost"]):not([data-variant="destructive"]) { color:var(--oc-theme-dark-on-brand); border-color:var(--ops-brand-red); }
 html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"][data-variant="destructive"],
 html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"][data-variant="destructive"] { color:var(--oc-theme-dark-critical-text); background:var(--oc-theme-dark-critical-surface); border-color:var(--oc-theme-dark-critical-border); }
 html[data-ops-theme="dark"] .ops-app.ops-live :is(.appointment-closeout-panel > summary,.closeout-primary-actions .closeout-primary-button) { color:var(--oc-theme-dark-on-brand); }

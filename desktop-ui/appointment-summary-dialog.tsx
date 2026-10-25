@@ -10,12 +10,13 @@ import './appointment-summary-dialog.css';
 export function AppointmentSummaryDialog({job,date,close,openDetails,returnFocus}: {job:ScheduleAppointment;date:string;close:()=>void;openDetails:()=>void;returnFocus:HTMLElement|null}) {
   const dialog=useRef<HTMLDialogElement>(null);
   const latest=useRef(close);latest.current=close;
-  useEffect(()=>{const node=dialog.current;node?.showModal();return()=>{node?.close();if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});};},[returnFocus]);
+  const origin=useRef(returnFocus);
+  useEffect(()=>{const node=dialog.current,previous=origin.current;node?.showModal();return()=>{node?.close();if(previous?.isConnected)previous.focus({preventScroll:true});};},[]);
   const payment=schedulePayment(job),mismatch=scheduleTruckMismatch(job);
   const work=(job.pickupItems?.length?job.pickupItems:job.junkItems).join(' · ');
   const notes=job.appointmentNotes.map(note=>note.trim()).filter(Boolean);
   return <dialog ref={dialog} className="appointment-summary-dialog" aria-labelledby="appointment-summary-title" onCancel={event=>{event.preventDefault();latest.current();}} onClick={event=>{if(event.target===event.currentTarget)close();}}>
-    <SheetDismissHandle onDismiss={close}/>
+    <SheetDismissHandle label="Close summary" onDismiss={close}/>
     <header><div><p>{appointmentCategory(job)} · {appointmentStatus(job)}</p><h2 id="appointment-summary-title">{scheduleCustomerLabel(job)}</h2><p>{job.jkNumber} · {date}</p></div><button type="button" aria-label="Close appointment summary" onClick={close}>×</button></header>
     <div className="appointment-summary-content">
       <dl><div><dt>Time</dt><dd>{job.appointmentTime||'Time not recorded'}</dd></div><div><dt>Truck</dt><dd>{truckDisplayText(scheduleDisplayTruck(job))}</dd></div><div className="summary-wide"><dt>Service address</dt><dd>{appointmentServiceAddress(job)||'Address unavailable'}</dd></div></dl>

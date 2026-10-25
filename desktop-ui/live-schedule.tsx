@@ -357,9 +357,11 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const reset = () => { clearLinkIntent();setMapAlert(false);setSearchQuery(''); setLinkNotice(''); setFilter('all'); setScope('ALL'); setPriority(null); setSelectedId(null); setSelectedTruck(null); setMapResetKey(value => value + 1); };
   const focusTerritory = (value: string) => { clearLinkIntent();setMapAlert(false);setScope(value); setSelectedId(null); setSelectedTruck(null); setMapResetKey(key => key + 1); };
   const previewAppointment=(id:string)=>{if(operationBusyRef.current)return;if(!summaryOrigin.current?.isConnected)summaryOrigin.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSummaryId(id);};
+  const openAppointment=(id:string)=>{if(window.innerWidth<=900)previewAppointment(id);else setDrawerId(id);};
+  const closeSummary=()=>{const url=new URL(window.location.href);url.searchParams.delete('appointment');url.searchParams.delete('q');if(url.searchParams.get('focus')==='record')url.searchParams.delete('focus');window.history.replaceState(window.history.state,'',url);setSummaryId(null);};
   const selectAppointment = (id: string) => {
     if (operationBusyRef.current) return;
-    if(window.innerWidth<=900 || view!=='board'){previewAppointment(id);return;}
+    if(window.innerWidth<=900){previewAppointment(id);return;}
     clearLinkIntent();setMapAlert(false);
     setSelectedTruck(null); setSelectedId(id); setMapResetKey(key => key + 1); setShowMap(true);
     setDrawerId(view === 'board' ? null : id);
@@ -392,6 +394,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const stopOrderTruck = selectedTruck || (selected ? scheduleDisplayTruck(selected) : null);
   const drawer = jobs.find(job => job.recordId === drawerId);
   const summary=jobs.find(job=>job.recordId===summaryId);
+  useEffect(()=>{if(summaryId&&!summary)setSummaryId(null);},[summaryId,summary]);
   const truckNames = scheduleTruckNames(snapshot);
   const range = timelineRange(jobs, now.getTime(), snapshot?.operationalStops || []);
   const movePolls = useRef(new Map<string, number>());
@@ -658,10 +661,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     </section></>}
     </>}
     {view === 'calendar' && <ScheduleCalendar date={date} openDate={value => onOpenDate?.(value)} />}
-    {view === 'history' && <ScheduleHistory date={date} jobs={jobs} open={previewAppointment} />}
-    {view === 'followup' && <ScheduleFollowup jobs={jobs} open={previewAppointment} />}
+    {view === 'history' && <ScheduleHistory date={date} jobs={jobs} open={openAppointment} />}
+    {view === 'followup' && <ScheduleFollowup jobs={jobs} open={openAppointment} />}
     {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} background={startBackgroundCreation} onBusyChange={onOperationBusyChange} />}
-    {summary && <AppointmentSummaryDialog job={summary} date={date} close={()=>setSummaryId(null)} openDetails={()=>setDrawerId(summary.recordId)} returnFocus={summaryOrigin.current}/>}
+    {summary && <AppointmentSummaryDialog job={summary} date={date} close={closeSummary} openDetails={()=>setDrawerId(summary.recordId)} returnFocus={summaryOrigin.current}/>}
     {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" data-action-view={drawerAction || undefined} role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p><CustomerLink id={drawer.appointmentId} name={scheduleCustomerLabel(drawer)} busy={operationBusy}/></p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><SheetDismissHandle disabled={operationBusy || Boolean(drawerAction)} onDismiss={() => setDrawerId(null)} /><div ref={drawerBodyRef} className="record-drawer-body">
       <nav className="drawer-workflow-navigation" aria-label="Appointment actions">
         {drawerAction ? <Button variant="ghost" disabled={operationBusy} onClick={() => setDrawerAction(null)}>← Back to appointment</Button> : <>

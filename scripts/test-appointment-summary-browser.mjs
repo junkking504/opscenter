@@ -75,6 +75,26 @@ try{
     results.push({engineName,width,height,theme,scenario,layout,drawerLayout,contrast,keyboardFocus,summaryCalls,readPaths:[...new Set(finalCalls.map(call=>call.path))]});
     await page.close();
    }
+   for(const width of [390,1280])for(const view of ['history','followup']){
+    const page=await browser.newPage({viewport:{width,height:900},hasTouch:true,reducedMotion:'reduce'});
+    const errors=[],network=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.route('**/*',route=>{const url=new URL(route.request().url());if(url.hostname!=='127.0.0.1'||url.pathname.startsWith('/api/')){network.push(url.pathname);return route.abort();}return route.continue();});
+    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/appointment-summary.html?case=long&view=${view}`,{waitUntil:'networkidle'});
+    const trigger=page.getByRole('button',{name:view==='history'?'Open':'Open and Review',exact:true});
+    await trigger.click();
+    await page.locator(width<=900?'.appointment-summary-dialog':'.job-record-drawer').waitFor({state:'visible'});
+    assert.equal(await page.locator(width<=900?'.job-record-drawer':'.appointment-summary-dialog').count(),0,`${view} preserves breakpoint-specific opening`);
+    const opened=page.locator(width<=900?'.appointment-summary-dialog':'.job-record-drawer');
+    await opened.evaluate(e=>{e.getBoundingClientRect();for(const animation of e.getAnimations({subtree:true}))animation.finish();});
+    const openedBox=await opened.boundingBox();assert.ok(openedBox&&openedBox.x>=0&&openedBox.x+openedBox.width<=width+1,'Opened record panel is visible inside viewport');
+    if(output)await page.screenshot({path:path.join(output,`${engineName}-${width}-${view}.png`)});
+    await page.keyboard.press('Escape');
+    await page.locator('.appointment-summary-dialog,.job-record-drawer').waitFor({state:'detached'});
+    assert.ok(await trigger.evaluate(e=>e===document.activeElement),'Closing restores the selected record control');
+    assert.deepEqual(await page.evaluate(()=>window.summaryFixtureCalls.filter(call=>call.method!=='GET')),[]);
+    assert.deepEqual(network,[]);assert.deepEqual(errors,[]);
+    results.push({engineName,width,scenario:view,opening:width<=900?'summary':'drawer'});await page.close();
+   }
    const linked=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,reducedMotion:'reduce'});
    const linkedNetwork=[];await linked.route('**/*',route=>{const url=new URL(route.request().url());if(url.hostname!=='127.0.0.1'||url.pathname.startsWith('/api/')){linkedNetwork.push(url.pathname);return route.abort();}return route.continue();});
    await linked.goto(`http://127.0.0.1:${server.httpServer.address().port}/tests/appointment-summary.html?case=long&date=2026-10-25&appointment=999001&focus=record`,{waitUntil:'networkidle'});
@@ -83,9 +103,16 @@ try{
    assert.match(await linked.locator('.appointment-summary-dialog').innerText(),/JKSYNTHETIC/);
    const linkedCalls=await linked.evaluate(()=>window.summaryFixtureCalls);
    assert.ok(linkedCalls.every(call=>{const query=new URLSearchParams(call.search);return call.method==='GET'&&!/closeout|history|customer|prepare|operations/.test(call.path)&&(call.path!=='/api/desktop/schedule/cost'||query.get('scope')==='attendance')&&(call.path!=='/api/desktop/schedule/routes'||!query.has('appointment'));}),`Phone deep link cannot prepare operational details: ${JSON.stringify(linkedCalls)}`);
+   await linked.keyboard.press('Escape');await linked.locator('.appointment-summary-dialog').waitFor({state:'detached'});
+   for(const key of ['appointment','q','focus'])assert.equal(new URL(linked.url()).searchParams.has(key),false,'Summary close clears record link intent');
+   await linked.reload({waitUntil:'networkidle'});assert.equal(await linked.locator('.appointment-summary-dialog,.job-record-drawer').count(),0,'Reload after dismissal does not reopen record');
+   const linkedCard=linked.locator('[data-schedule-appointment]:visible').first();await linkedCard.tap();await linked.locator('.appointment-summary-dialog').waitFor({state:'visible'});
+   await linked.evaluate(()=>window.summaryFixtureRefresh(false));await linked.locator('.appointment-summary-dialog').waitFor({state:'detached'});
+   await linked.evaluate(()=>window.summaryFixtureRefresh(true));await linkedCard.waitFor({state:'visible'});
+   assert.equal(await linked.locator('.appointment-summary-dialog').count(),0,'Returning source record must not reopen a dismissed summary');
    assert.deepEqual(linkedNetwork,[]);results.push({engineName,scenario:'phone-deep-link',readCalls:linkedCalls});await linked.close();
   }finally{await browser.close();}
  }
  if(output)fs.writeFileSync(path.join(output,'results.json'),JSON.stringify(results,null,2));
- console.log(`Appointment summary: ${results.length} Chromium/WebKit phone cases pass; tap → read-only summary → explicit full details → back/close/Escape, focus/repeat, long/missing/warning values, bounded layout, no operational or external requests.`);
+ console.log(`Appointment summary: ${results.length} Chromium/WebKit responsive cases pass; tap → read-only summary → explicit full details → back/close/Escape, focus/repeat, long/missing/warning values, bounded layout, no operational or external requests.`);
 }finally{await server.close();fs.rmSync(cache,{recursive:true,force:true});}

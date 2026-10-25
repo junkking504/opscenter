@@ -26,7 +26,8 @@ or block a shortcut. The page has no global touch-action override or scroll
 prevention. App-wide dirty state must be supplied through `busy`.
 
 Refresh still requires a 96px downward pull within 900ms. Sheet dismissal uses
-a full-width grab control: 64px down within 1500ms, with horizontal/vertical
+a full-width grab control at widths up to 900 CSS pixels (including tablets only
+when within that breakpoint): 64px down within 1500ms, with horizontal/vertical
 intent, cancellation and multitouch guards. Content scrolling outside that control
 never dismisses a sheet. A visible tap/keyboard close alternative remains. Metric
 holds remain 550ms with 12px movement tolerance.
@@ -75,7 +76,7 @@ shortcut is limited to Board, whose displayed snapshot has a read-only endpoint.
 
 On phone layouts, tapping a schedule appointment opens a compact read-only
 summary from the current snapshot. History and follow-up appointment selection
-also opens this summary. It retains source status, assignment/address warnings,
+also opens this summary at phone widths; wider layouts retain direct drawer opening. It retains source status, assignment/address warnings,
 payment uncertainty and full notes behind a disclosure. It does not mount
 closeout, editing, customer history or payment-preparation components.
 
@@ -84,4 +85,6 @@ the existing drawer. Operational actions retain their existing behavior. Phone a
 from other pages resolve to the same record in the summary first; desktop
 record deep links retain their existing drawer behavior. Busy edits block dismissal and back navigation. The
 actual originating appointment control is retained for focus return, including
-Safari touch activation that does not focus a button automatically.
+Safari touch activation that does not focus a button automatically. Closing a
+linked summary clears its record-opening URL parameters. A record removed from
+the current snapshot closes its summary and does not reopen if it later returns.

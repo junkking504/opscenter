@@ -40,6 +40,12 @@ export function prepareNativeWex(packet:NativeWexPacket,dependencies:PriceDepend
  const rows=[...new Set(daily.alerts.map(a=>a.date))].flatMap(date=>reconcileWexAlertExpenses(date,daily.alerts,[]).rows);
  const prices=read<{rows:FuelPriceEvidence[]}>('realtime-prices.json',{rows:[]});
  const blocked=new Set(rows.filter(r=>r.status!=='provisional').map(r=>r.trackingNumber));
+ // A revision that no longer supplies usable gallons must invalidate its old
+ // price too. Check the full journal before filtering price-parseable messages.
+ for(const old of prices.rows){
+  const latest=daily.alerts.filter(a=>a.trackingNumber===old.trackingNumber).sort((a,b)=>Date.parse(b.receivedAt)-Date.parse(a.receivedAt))[0];
+  if(latest&&(old.amount!==latest.amount||old.gallons!==latest.gallons))blocked.add(old.trackingNumber);
+ }
  const newPrices=canonical.filter(message=>{
   const parsed=parseWexPriceMessage(message);if(!parsed)return false;
   const row=rows.find(r=>r.trackingNumber===parsed.trackingNumber);

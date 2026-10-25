@@ -35,6 +35,15 @@ try{
  const repaired=importNativeWex(packet(fresh,'<fresh@example.invalid>'),dependencies);assert.equal(repaired.newDaily,0);assert.equal(repaired.newPrices,1);
  assert.equal(readWexRealtimePrice('Truck 1',new Date('2026-10-24T20:00:00Z')).price?.trackingNumber,'67890');
  assert.equal(importNativeWex(packet(fresh,'<fresh@example.invalid>'),dependencies).newPrices,0);
+ for(const body of [fresh.body.replace('Units: 20','Units: N/A'),fresh.body.replace('Units of Measure: GA','Units of Measure: N/A')]){
+  const unknownQuantity={...fresh,receivedAt:'2026-10-24T16:02:00Z',body};
+  assert.ok(prepareNativeWex(packet(unknownQuantity,'<unknown-quantity@example.invalid>'),dependencies).blocked.includes('67890'),'unknown quantity blocks an earlier price even when the amount is unchanged');
+ }
+ const missingGallons={...fresh,receivedAt:'2026-10-24T16:02:00Z',body:fresh.body.replace('$80.00','$95.00').replace('Units: 20','Units: N/A')};
+ importNativeWex(packet(missingGallons,'<missing-gallons@example.invalid>'),dependencies);
+ assert.equal(readWexRealtimePrice('Truck 1',new Date('2026-10-24T20:00:00Z')).price,null,'later authorization with missing gallons blocks the older price');
+ assert.equal(readWexAlertExpenses('2026-10-24',[]).rows.find(r=>r.trackingNumber==='67890')?.authorizedAmount,95);
+ assert.ok(prepareNativeWex({messages:[],sources:[]},dependencies).blocked.includes('67890'),'full saved journal retains revision guard outside the current scan');
  const forged=packet();forged.sources[0].internetMessageId='<different@example.invalid>';assert.throws(()=>prepareNativeWex(forged,dependencies),/identity mismatch/);
  const conflict=packet();conflict.messages.push({...conflict.messages[0],body:conflict.messages[0].body.replace('$80.00','$85.00')});conflict.sources.push(conflict.sources[0]);assert.throws(()=>prepareNativeWex(conflict,dependencies),/Conflicting content/);
  assert.equal(readWexMailFeedStatus(()=>'not_running').watcher,'not_running');assert.equal(readWexMailFeedStatus(()=>'unknown').application?.status,'available');

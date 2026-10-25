@@ -31,7 +31,7 @@ process.env.SLACK_OPSCENTER_STATE_FILE=stateFile;
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED='true';
 process.env.SLACK_BOT_TOKEN='synthetic-test-token';
 const run=(date=day,dryRun=false)=>runSlackOpsAlerts({date,dryRun,onlyKinds:['geofence_entry','geofence_exit']});
-const timeline=(date=day)=>{const source=readGeofenceEntries(date);return geofenceTimelineAlerts(date,source.arrivals,source.visits);};
+const timeline=(date=day)=>{const source=readGeofenceEntries(date);return geofenceTimelineAlerts(date,source.arrivals,[...source.visits,...source.reviewVisits]);};
 try {
   write(day,[]);await run(); // Silent historical baseline.
   write(day,[event(0)]);
@@ -85,6 +85,33 @@ try {
   write(day,[event(1490,'entered','Truck 8')]);
   const aliasRequests=requests.length;await run();
   assert.equal(requests.length,aliasRequests,'A native-only partial replay cannot resurrect the discarded GPS alias');
+
+  // Confirmed presence survives a later contradictory departure report.
+  const cEntry=event(2000,'entered','Truck 6');
+  mock.timers.setTime(start+2000_000);write(day,[cEntry]);
+  fs.writeFileSync(positions,JSON.stringify({date:day,observations:[]}));
+  await run();
+  mock.timers.setTime(start+2300_000);
+  const onsite=[event(2000,'entered','Truck 6'),event(2150,'entered','Truck 6'),event(2300,'entered','Truck 6')];
+  fs.writeFileSync(positions,JSON.stringify({date:day,observations:onsite}));await run();
+  const confirmed=readGeofenceEntries(day).trackedVisits.find(visit=>visit.truck==='Truck 6')!;
+  assert.ok(confirmed);
+  mock.timers.setTime(start+2420_000);
+  fs.writeFileSync(positions,JSON.stringify({date:day,observations:[...onsite,{...event(2360,'entered','Truck 6'),geofence_name:'Warehouse'}]}));
+  write(day,[cEntry,event(2420,'exited','Truck 6')]);
+  // Even an already queued retraction must be canceled by contradictory evidence.
+  const state=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+  const ownedKey=Object.keys(state.notificationMessages).find(key=>key.endsWith(confirmed.id))!;
+  state.pendingGeofenceRetractions[ownedKey]=[ownedKey];
+  fs.writeFileSync(stateFile,JSON.stringify(state));
+  const deletesBefore=requests.filter(row=>row.method==='chat.delete').length;
+  await run();
+  assert.equal(requests.filter(row=>row.method==='chat.delete').length,deletesBefore,'A departure conflict cannot delete an established visit');
+  assert.ok(readGeofenceEntries(day).trackedVisits.find(visit=>visit.id===confirmed.id)?.conflict,'Confirmed presence remains countable with the conflict flag');
+  const conflictCard=timeline().find(row=>row.id===confirmed.id)!;
+  assert.equal(conflictCard.needsAction,true);assert.match(conflictCard.title,/needs review/);
+  assert.ok(requests.some(row=>row.method==='chat.update' && /GPS reports conflict/.test(row.text || '')),'Owned message surfaces the conflict');
+  assert.equal(JSON.parse(fs.readFileSync(stateFile,'utf8')).pendingGeofenceRetractions[ownedKey],undefined);
 
   // Exit just after Chicago midnight retracts the prior-day entry and its card.
   const overnight={...event(0,'entered','Truck 7'),occurred_at:'2026-09-21T04:59:00Z'};

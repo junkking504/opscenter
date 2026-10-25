@@ -119,3 +119,7 @@ The existing ticket-to-statement workflow matches yard/date/ticket identities;
 GPS presence does not automatically prove a ticket match or payment. Review GPS
 visits and receipts side by side without creating a missing-ticket exception from
 a provisional alert.
+
+A conflicting departure does not erase an independently established five-minute
+visit. Its review flag remains visible; uncertain episodes without a qualifying
+interval do not count and cannot be deleted merely for lacking evidence.

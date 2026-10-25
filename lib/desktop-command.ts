@@ -107,7 +107,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const geofences = readGeofenceEntries(date);
   const tracked = readVisitTrackingAgent(date);
   const digestMessages = withoutNativeGeofenceDuplicates(digest.messages, geofences.rawEntries, geofences.rawNativeVisits, geofences.rawTrackedVisits);
-  const alerts: DesktopCommandSnapshot['alerts'] = mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,geofences.visits),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)).map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,[...geofences.visits,...geofences.reviewVisits]),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)).map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

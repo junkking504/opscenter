@@ -17,6 +17,7 @@ type FacilityVisit = {
   lastSeenAt: string;
   conflict?: boolean;
   geofenceDwellSeconds?: number;
+  qualifiedArrivalAt?: string;
   facilityPosition?: { latitude: number; longitude: number };
 };
 

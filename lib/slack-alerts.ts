@@ -29,7 +29,7 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
-import { qualifiedGeofenceVisit, visitDay } from './visit-tracking-agent';
+import { qualifiedGeofenceVisit, shortGeofenceVisit, visitDay } from './visit-tracking-agent';
 import { qualifiedGeofenceEntry, qualifiedGeofenceDeparture, geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -1187,7 +1187,7 @@ export function buildGeofenceSlackNotifications(
   const notifications: SlackOpsAlert[] = [];
   for (const entry of entries) {
     const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at")
-      + (qualifiedGeofenceEntry(entry) ? "" : "\nVisit pending · five minutes onsite required");
+      + (entry.reviewReason ? `\n${entry.reviewReason}` : qualifiedGeofenceEntry(entry) ? "" : "\nVisit pending · five minutes onsite required");
     notifications.push({
       fingerprint: `geofence_entry:${visitDay(entry.timestamp)}:${entry.id}`,
       kind: "geofence_entry",
@@ -1651,12 +1651,12 @@ async function runGeofenceSlackAlerts(options: {
 
   // Persist explicit retraction evidence so source retention or midnight cannot
   // strand a failed deletion. Never infer a drive-by from missing data.
-  const qualifiedIds = new Set(source.episodes.filter(qualifiedGeofenceVisit).flatMap(visit=>[visit.id,...visit.entryIds]));
-  const rejected = source.episodes.filter(visit=>!!visit.departedAt && !qualifiedGeofenceVisit(visit));
+  const protectedIds = new Set(source.episodes.filter(visit=>qualifiedGeofenceVisit(visit) || visit.conflict || !!visit.departedAt && !shortGeofenceVisit(visit)).flatMap(visit=>[visit.id,...visit.entryIds]));
+  const rejected = source.episodes.filter(shortGeofenceVisit);
   for (const fingerprint of Object.keys(state.notificationMessages)) {
     const [kind,entryDate,id] = fingerprint.split(':');
     if (!['geofence_entry','geofence_exit'].includes(kind)) continue;
-    if (qualifiedIds.has(id)) { delete state.pendingGeofenceRetractions[fingerprint]; continue; }
+    if (protectedIds.has(id)) { delete state.pendingGeofenceRetractions[fingerprint]; continue; }
     const episode = rejected.find(visit=>visit.id===id || visit.entryIds.includes(id));
     if (episode) state.pendingGeofenceRetractions[fingerprint] = [...new Set([episode.id,...episode.entryIds])]
       .flatMap(alias=>[`geofence_entry:${entryDate}:${alias}`,`geofence_entry:${date}:${alias}`]);
@@ -1664,7 +1664,7 @@ async function runGeofenceSlackAlerts(options: {
   for (const [fingerprint, aliases] of Object.entries(state.pendingGeofenceRetractions)) {
     if (!kinds.has(fingerprint.split(':')[0] as SlackAlertKind)) continue;
     const receipt = state.notificationMessages[fingerprint];
-    if (!receipt) continue; // Never guess a message identity.
+    if (!receipt) { delete state.pendingGeofenceRetractions[fingerprint]; continue; } // Never guess a message identity.
     const response = await postSlackMessage(token, receipt.channelId, '', undefined, receipt.ts, true);
     if (response.ok || response.error === 'message_not_found') {
       delete state.notificationMessages[fingerprint];

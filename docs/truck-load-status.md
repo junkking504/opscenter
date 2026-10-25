@@ -2,8 +2,6 @@
 
 All named geofences follow the [five-minute minimum](visit-tracking-agents.md#five-minute-geofence-minimum). Raw crossings do not trigger automatic business effects.
 
-
-
 Truck load status is an OpsCenter operational ledger shown directly on the
 Schedule. It is separate from Linxup GPS location and from JunkWare's stored
 job closeout: those sources provide evidence for events, while this ledger

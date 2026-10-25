@@ -164,7 +164,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 Command reads native LinxUp entries and positive live GPS facility reports as
 soon as the existing refresh publishes them. Entry alerts are provisional until
 five minutes onsite is supported. Confirmation updates the existing Slack
-message; a departure before qualification removes the operational card and
+message; a proven stay under five minutes removes the operational card and
 retracts its bot-owned Slack message. See the canonical
 [five-minute lifecycle](visit-tracking-agents.md#five-minute-geofence-minimum)
 for qualification, midnight context, retry behavior and raw evidence retention.

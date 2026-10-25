@@ -2,8 +2,6 @@
 
 All named geofences follow the [five-minute minimum](visit-tracking-agents.md#five-minute-geofence-minimum). Raw crossings do not trigger automatic business effects.
 
-
-
 Effective September 15, 2026, OpsCenter projects one assumed dump expense when
 the visit-tracking agent confirms a five-minute facility visit at a landfill, transfer station or dump.
 The user supplied these minimums:

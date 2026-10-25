@@ -3,9 +3,21 @@ import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-
 import {createHash} from 'node:crypto';
 
 export const GEOFENCE_MINIMUM_DWELL_SECONDS = 300;
-export function qualifiedGeofenceVisit(visit: Pick<TrackedVisit, 'kind' | 'conflict' | 'enteredAt' | 'geofenceDwellSeconds'>): boolean {
-  return visit.kind === 'geofence' && !visit.conflict && !!visit.enteredAt
+export function qualifiedGeofenceVisit(visit: Pick<TrackedVisit, 'kind' | 'conflict' | 'qualifiedArrivalAt' | 'enteredAt' | 'geofenceDwellSeconds'>): boolean {
+  // A disputed departure cannot undo an already-proven onsite interval.
+  return visit.kind === 'geofence' && (!visit.conflict || !!visit.qualifiedArrivalAt) && !!visit.enteredAt
     && Number.isFinite(visit.geofenceDwellSeconds) && visit.geofenceDwellSeconds! >= GEOFENCE_MINIMUM_DWELL_SECONDS;
+}
+
+/** Retraction needs a proven upper bound below five minutes, not merely a
+ * lower bound that failed to reach five. GPS-only arrivals and contradictions
+ * remain reviewable evidence and cannot authorize deletion. */
+export function shortGeofenceVisit(visit: TrackedVisit): boolean {
+  if (visit.kind !== 'geofence' || visit.conflict || !visit.enteredAt || !visit.departedAt
+    || visit.nativeEntryIds?.length !== 1 || visit.nativeEnteredAt !== visit.enteredAt
+    || qualifiedGeofenceVisit(visit)) return false;
+  const upperSeconds=(Date.parse(visit.departureBounds?.by || visit.departedAt)-Date.parse(visit.enteredAt))/1000;
+  return Number.isFinite(upperSeconds) && upperSeconds >= 0 && upperSeconds < GEOFENCE_MINIMUM_DWELL_SECONDS;
 }
 
 export const VISIT_TRACKING_AGENT = 'visit-tracking' as const;
@@ -125,7 +137,9 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       active.set(key,{...previous,presenceStartedAt,
         qualifiedArrivalAt:previous.qualifiedArrivalAt || (observedSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? presenceStartedAt : undefined),
         nativeEnteredAt:previous.nativeEnteredAt || (event.type === 'entry' ? event.timestamp : undefined),
-        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,observedSeconds),facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
+        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,observedSeconds),facilityPosition:facilityPosition || previous.facilityPosition,
+        conflict:previous.conflict || ambiguous,
+        enteredAt:ambiguous && !previous.qualifiedArrivalAt ? null : previous.enteredAt,
         nativeEntryIds:event.type === 'entry' ? [...(previous.nativeEntryIds || []),event.id] : previous.nativeEntryIds,
         lastSeenAt:event.timestamp,positionEntryId:previous.positionEntryId || (event.type === 'position' ? event.id : undefined),
         entryIds:event.type === 'entry' || event.type === 'position' && !previous.positionEntryId ? [...new Set([...previous.entryIds,event.id])] : previous.entryIds});

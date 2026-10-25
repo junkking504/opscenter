@@ -5,13 +5,16 @@
 Every named geofence alerts immediately when its native entry or first positive
 GPS facility report becomes available through the existing refresh cadence.
 The alert is provisional until evidence supports at least 300 seconds onsite.
-At five minutes, the same alert becomes confirmed. If the truck departs before
-qualification, its provisional card is removed from the operational record and
-it contributes no GPS visit, unload or assumed dump cost. Raw provider evidence
-remains available for audit. A missing feed alone never proves departure.
+At five minutes, the same alert becomes confirmed. If a reliable native entry
+and departure establish an interval shorter than five minutes, its provisional card is removed from the operational record and
+it contributes no GPS visit, unload or assumed dump cost. An inferred departure
+can prove a short stay only when its upper bound is under five minutes from a
+reliable native entry. A short GPS-only lower bound is insufficient for deletion;
+closed uncertain episodes remain flagged for review and excluded from counts.
+Raw provider evidence remains available for audit. A missing feed alone never proves departure.
 
 Slack follows the same lifecycle: entry posts immediately with a pending label,
-confirmation updates that message, and a completed unqualified episode retracts
+confirmation updates that message, and a proven short episode retracts
 its bot-owned message using the saved channel and message receipt. Failed
 retractions retain their receipt for retry by the existing runner. Legacy
 messages without receipts cannot be safely deleted by guessing identity.
@@ -23,8 +26,11 @@ crossings from both the prior-day card and the owned Slack message.
 Native entry/exit pairs can prove the interval; ongoing GPS membership must form
 a continuous sequence with gaps no greater than five minutes. Wall-clock age,
 missing exits, ambiguous repeated entries and inferred departure upper bounds do
-not establish dwell. Inferred departures qualify only from the observed onsite
-lower bound. Each evidenced departure and return qualifies separately; a gap
+not establish dwell. Once a continuous five-minute interval is established, a
+later conflicting exit or repeated entry retains that qualification and its
+arrival anchor. The conflict remains visible in the review card and notification;
+it cannot authorize deletion or silently remove a visit, unload or assumed cost.
+Inferred departures qualify only from the observed onsite lower bound. Each evidenced departure and return qualifies separately; a gap
 alone cannot establish an exit and new visit. Once qualified, an unload retains
 the first qualifying continuous presence anchor so later pickups are preserved;
 an earlier isolated sighting across a GPS gap cannot backdate that unload.
@@ -34,8 +40,9 @@ The Schedule HQ fallback also requires five minutes from trip arrival/departure
 evidence or continuous onsite fixes; a route coverage timestamp is not dwell.
 
 The reader separates `alertEntries`/`arrivals` from qualified
-`trackedVisits`/`visits`. EMR GPS reconciliation must use the latter, never raw
-entries or provisional alerts. A receipt is independent evidence of a delivery;
+`trackedVisits`/`visits`; uncertain closed episodes live separately in
+`reviewVisits`. EMR GPS reconciliation must use qualified `trackedVisits` or
+`visits`, never raw entries, review-only episodes or provisional alerts. A receipt is independent evidence of a delivery;
 a short crossing cannot create an expected receipt or erase a recorded one.
 
 
@@ -60,13 +67,18 @@ report at another known facility establishes that the truck departed the first.
 Its exit is explicitly bounded **after the last onsite report and by the later
 facility report**; the later timestamp is not an exact exit time. Missing facility
 fields, unknown overlapping zones, another truck and future timestamps do not
-close a visit. Midnight uses Chicago operating dates and prior-day context.
+close a visit. Midnight uses Chicago operating dates and previous/current/next-day context.
+Every daily read replays the same available evidence and selects episodes that
+intersect that day. Overnight views share one episode ID. Unload projection
+attributes exactly one reset to the supported arrival day, even when the exit
+after midnight supplies the first proof of five-minute presence. Departure
+notifications are limited to their actual departure day.
 
 A native exit later received within the inferred bounds replaces the inferred
 exit when replayed. An exit timestamp contradicting a newer different-facility
 position retains one bounded visit with a conflict flag. Distinct repeated native
-entries without an exit retain `firstObservedAt` for the episode while exact
-arrival/duration remain unavailable. Source aliases preserve reconciliation when
+entries before qualification leave arrival/duration unconfirmed; repeats after a
+proven qualifying interval retain that interval with a conflict flag. Source aliases preserve reconciliation when
 an earlier native arrival later supplements a V3 episode.
 
 Appointment visits require the collector's confirmed appointment/truck

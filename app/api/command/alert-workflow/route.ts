@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     let sourceObservedAt: string;
     if (String(body.alertId).startsWith('linxup-geofence-')) {
       const source = readGeofenceEntries(date);
-      const entry = geofenceTimelineAlerts(date,source.arrivals,source.visits).find(row=>row.id===body.alertId);
+      const entry = geofenceTimelineAlerts(date,source.arrivals,[...source.visits,...source.reviewVisits]).find(row=>row.id===body.alertId);
       if (!entry?.timestamp) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});
       alert = entry;
       sourceObservedAt = entry.timestamp;

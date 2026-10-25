@@ -175,7 +175,8 @@ token check explicitly covers both clamps and rejects raw or undefined sizes.
 
 Dashboard cards use four purposeful roles: compact 11px labels/source summaries,
 16px controls, 24px KPI values and the 30px revenue headline. Other workspaces use
-12px captions for roomier records and tables. Regular and semibold are the main
+12px captions for roomier records and tables, with a 14px body role for dense record
+panels. Regular and semibold are the main
 weights; labels use sentence case. Values align at the top, use tabular numerals,
 and keep original calculations, warnings, freshness descriptions and drilldowns.
 Unusually long formatted values use the control-size role without truncation.

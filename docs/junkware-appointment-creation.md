@@ -42,12 +42,27 @@ with a 90-second limit and at most 20 visible results. Narrow broad searches.
 Selecting a result loads its saved contact, service and billing fields. Job and
 Estimate source rows remain distinct. A fingerprint of all eight source columns
 plus the query travels through review and creation; creation re-searches and
-requires exactly that row and the same name/phone. Changed or ambiguous records
-stop before Save; a selected existing record never falls back to New Account.
+requires that fingerprint and the same name/phone. Identical search rows are
+shown once. If multiple historical appointments share the fingerprint, selection
+opens bounded read-only probes (at most 20) in the same authenticated context and
+franchise. Every candidate must have the same nonempty JunkWare customer ID and
+identical saved contact, service and billing details, with distinct source
+appointment IDs. All probes close before the original form is selected and its
+identity/details are checked again. Changing result counts, repeated source IDs
+from unstable ordering, missing IDs, different accounts or different saved fields
+stop before Save; no row ordinal is persisted as customer identity.
+
+This resolves repeated appointment history without merging customer accounts.
+Single matches keep the original single-selection path. Stale and ambiguous
+selections have separate actionable messages, transmitted as allowlisted codes;
+raw adapter diagnostics never reach the UI or application logs. Other failures
+remain generic because their upstream text may contain private data.
+
+Changed or ambiguous records stop before Save; a selected existing record never falls back to New Account.
 Changing the draft name or phone clears that selection. Search failures remain
 separate from an empty result. No customer records or searches are stored in Git.
 
-Validation: `node --import tsx scripts/test-junkware-customer-lookup.ts` and
+Validation: `npm run verify:junkware-customer-selection` (synthetic local HTTP and Chromium fixtures) and
 `npm run verify:junkware-appointment-creation`, followed by authenticated live
 search and selection in the booking drawer.
 

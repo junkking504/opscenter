@@ -74,7 +74,7 @@ export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,
   const clean=({timestamp,latitude,longitude}:GpsRoutePoint):GpsRoutePoint=>({timestamp,latitude,longitude});
   const coveredThrough=observations.length?new Date(Math.max(...observations.map(point=>point.until))).toISOString():null;
   const trips=normalizeGpsTrips(payload,date,truck,now);
-  return {date,truck,trips,status:observations.length || trips.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gapLinks:gapLinks.map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected};
+  return {date,truck,trips,status:observations.length || trips.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gapLinks:gapLinks.map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected,coverage:observations.filter(point=>point.until>Date.parse(point.timestamp)).map(point=>({timestamp:point.timestamp,latitude:point.latitude,longitude:point.longitude,coveredUntil:new Date(point.until).toISOString()}))};
 }
 
 export function readTruckGpsRoute(date:string,truck:string,root=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),now=Date.now()):TruckGpsRoute {

@@ -1189,15 +1189,3 @@ center across query variants. Unrelated fuzzy street suggestions are ignored.
 No house number is added to the matched street evidence. The property remains
 unverified; the center is navigation-only and cannot establish GPS visits.
 This consumes existing cache evidence without additional provider requests.
-
-## Likely GPS stop continuity
-
-A nearby street/house-number suggestion can supply inferred dwell only when the
-next consecutive trip starts at the preceding destination: valid coordinates
-within 50 meters, the same normalized endpoint address, and ordered timestamps.
-Disconnected origins, missing sequence numbers or invalid timing leave the stop
-unconfirmed with no departure or invented duration. A suggested episode that
-overlaps another appointment's candidate or recorded truck visit also remains
-unconfirmed. Booking times and source assignments are unchanged.
-
-Validation: `node --import tsx scripts/test-likely-stop-match.ts`.

@@ -195,10 +195,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert log.count("loop-task: start") == 6 and "loop-task: needs-user (loop limit" in log
     assert log.count("loop-task: needs-user") == 1, "a resting state is logged once, not every tick"
 
-    # Daily cap: six runs happened today, so the next task waits for tomorrow.
+    # Six runs have already happened; a new task must still build and review.
     brief("approve-task")
-    assert "daily cap" in run(env).stdout and len(calls()) == 6
-    (evidence / "runs.json").write_text("{}")
 
     # Approved: the relay stops and hands the task to the user; sensitive paths get Opus.
     env_ok = {**env, "STUB_VERDICT": "approve", "STUB_FILE": "lib/payroll/run.ts"}
@@ -208,7 +206,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "ready for T'Jean" in relay_md("approve-task")
     review = [c for c in calls() if c["tool"] == "claude"][-1]
     assert review["args"][review["args"].index("--model") + 1] == "opus"
-    assert len(calls()) == 8
+    assert len(calls()) == 8, "the seventh and eighth daily runs are allowed"
+    assert "runs today 8 (no daily cap)" in run(env, "status").stdout
 
     # A Claude-built branch is reviewed by Codex, inside the vault folder; changes go back to the Claude thread.
     brief("claude-built", auto="Auto: review")

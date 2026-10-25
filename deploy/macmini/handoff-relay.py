@@ -34,7 +34,6 @@ import time
 from pathlib import Path
 
 MAX_REVIEWS = 3          # build + up to two fix rounds, then the user decides
-MAX_RUNS_PER_DAY = 6     # agent runs across all tasks, to stay inside the included allowance
 STEP_TIMEOUT = int(os.environ.get("RELAY_STEP_TIMEOUT", 60 * 60))  # seconds per step
 TERM_GRACE = int(os.environ.get("RELAY_TERM_GRACE", 15))           # seconds between SIGTERM and SIGKILL
 START_GRACE = 120        # seconds a freshly started runner may take to publish itself
@@ -383,7 +382,7 @@ def claude_result(p: Paths, task: str, output: str, head: str, exit_code: int = 
     result = str(data.get("result", ""))
     failure_text = result + "\n" + errors
     if (data.get("is_error") or exit_code != 0) and re.search(r"^(?:error[: ]*)?(?:you(?:'ve| have) hit your limit|rate[ _-]limit(?: error| exceeded)|usage limit (?:reached|exceeded)|quota (?:exceeded|exhausted))", failure_text, re.I | re.M):
-        # Unknown reset times get one bounded probe per hour; daily run cap still applies.
+        # Unknown reset times get one bounded probe per hour.
         # Known 'resets <hour>[am/pm] (<zone>)' is interpreted in the reported zone.
         from zoneinfo import ZoneInfo
         until = time.time() + 3600
@@ -607,9 +606,6 @@ def tick(p: Paths, dry: bool) -> int:
                 if not dry:
                     update_state(p, task, lambda s: s.__setitem__("last_logged", f"{action}:{detail}"))
             continue
-        if runs_today(p) >= MAX_RUNS_PER_DAY:
-            log(p, f"{task}: {action} held, daily cap of {MAX_RUNS_PER_DAY} runs reached", dry)
-            return 0
         cmd, cwd, _ = command(p, task, action)
         log(p, f"{task}: start {action} ({detail}) -> {cmd[0]} {' '.join(cmd[1:3])} ... in {cwd}", dry)
         if dry:
@@ -754,7 +750,7 @@ def stop(p: Paths, reason: str = "stopped by hand") -> int:
 
 
 def status(p: Paths) -> int:
-    print(f"Relay {'ON' if p.switch.exists() else 'OFF'}; runs today {runs_today(p)} of {MAX_RUNS_PER_DAY}")
+    print(f"Relay {'ON' if p.switch.exists() else 'OFF'}; runs today {runs_today(p)} (no daily cap)")
     held = load(p.lock / "step.json", None)
     if held:
         print(f"Running: {held.get('task')} {held.get('action')} (runner {load(p.lock / 'runner.json', {}).get('pid')})")

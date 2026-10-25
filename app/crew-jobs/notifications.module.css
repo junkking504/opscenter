@@ -1,0 +1,18 @@
+/* Keep notification/inbox spacing independent of generic page paragraph margins. */
+.panel .body { display:grid; gap:16px; min-width:0; }
+.setup { display:grid; gap:10px; min-width:0; }
+.panel .body p { margin:0; font-size:14px; line-height:1.5; }
+.status { font-weight:650; }
+.panel .action { min-height:44px; padding:10px 12px; font-size:14px; line-height:1.4; justify-self:start; }
+.inbox { display:grid; gap:12px; min-width:0; padding-top:16px; border-top:1px solid #dfe3da; }
+.inboxHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.panel .inboxHeader h2 { margin:0; font-size:16px; line-height:1.4; }
+.messages { display:grid; gap:8px; min-width:0; }
+.message { display:grid; gap:6px; min-width:0; background:#fff; border:1px solid #dfe3da; border-radius:10px; padding:16px; }
+.message time { color:#58665e; font-size:12px; }
+
+.panel [hidden] { display:none; }
+section.panel h1 { font-size:28px; line-height:1.25; margin:0 0 24px; }
+
+section.panel { background:transparent; border:0; padding:0; margin:8px 0 20px; }
+.panel>.action { margin-top:16px; }

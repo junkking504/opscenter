@@ -1,4 +1,4 @@
-import type {GpsTrip} from '../desktop-ui/lib/gps-route-contract';
+import type {GpsRoutePoint, GpsTrip} from '../desktop-ui/lib/gps-route-contract';
 import {gpsDistanceMeters, validGpsCoordinates} from './gps-presence-policy';
 import {normalizeServiceAddress} from './service-address-format';
 
@@ -13,8 +13,25 @@ type Point = {latitude: number; longitude: number};
 type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point} | null;
   appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; hasScheduledTime?: boolean};
 
-const NEAR_METERS = 400, FAR_METERS = 1500, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
+const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, ONSITE_METERS = 300, MAX_FIX_GAP_MS = 20 * 60_000, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
 
+/** The truck's own fixes must cover the dwell: at least one, none far from the
+ * stop, and no silent stretch longer than MAX_FIX_GAP_MS (a gap could hide a
+ * trip elsewhere). A stationary fix covers through its recorded `coveredUntil`. */
+function presentThroughout(points: GpsRoutePoint[], stop: Point, from: number, to: number) {
+  const fixes = points.flatMap(point => {
+    const at = Date.parse(point.timestamp), until = point.coveredUntil ? Date.parse(point.coveredUntil) : NaN;
+    const end = Number.isFinite(until) ? Math.max(at, until) : at;
+    return Number.isFinite(at) && at <= to && end >= from ? [{at, end, point}] : [];
+  }).sort((a, b) => a.at - b.at);
+  if (!fixes.length || fixes.some(({point}) => !validGpsCoordinates(point) || gpsDistanceMeters(point, stop) > ONSITE_METERS)) return false;
+  let covered = from;
+  for (const fix of fixes) {
+    if (fix.at - covered > MAX_FIX_GAP_MS) return false;
+    covered = Math.max(covered, fix.end);
+  }
+  return to - covered <= MAX_FIX_GAP_MS;
+}
 function parts(address: string) {
   const [street = '', city = '', ...rest] = address.split(',').map(part => part.trim());
   const match = street.match(/^(\d+[A-Z]?)\s+(.+)$/i);
@@ -38,7 +55,7 @@ const chicagoMinutes = (stamp: number, day: string) => {
  * same street and locality, an exact or one-digit-off house number, and a stop
  * that begins near the booked window. `confident` stops (dwell then departure, or
  * closed out) are treated as the visit by the caller; others stay suggestions. */
-export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day: string): LikelyStop | null {
+export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day: string, points: GpsRoutePoint[] = []): LikelyStop | null {
   if (!job.address || /cancel/i.test(job.status || '') || !/^Truck [1-9]\d*$/.test(job.truck) || !trips?.length) return null;
   const want = parts(job.address);
   if (!want || job.appointmentStartMinutes == null || job.appointmentEndMinutes == null) return null;
@@ -50,17 +67,17 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
     if (want.city && got.city && want.city !== got.city || want.zip && got.zip && want.zip !== got.zip) return [];
     const meters = pin && validGpsCoordinates(trip.to) ? gpsDistanceMeters(pin, trip.to) : null;
     if (meters !== null && meters > FAR_METERS) return [];
-    const arrival = Date.parse(trip.arrival);
-    if (!Number.isFinite(arrival)) return [];
-    const start = chicagoMinutes(arrival, day);
-    if (start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
+    // Missing locality is not a match: the stop needs a positive city/ZIP match or a nearby pin.
+    if (!(want.zip && got.zip || want.city && got.city || meters !== null)) return [];
+    const arrival = Date.parse(trip.arrival), start = chicagoMinutes(arrival, day);
+    if (!Number.isFinite(arrival) || start < job.appointmentStartMinutes! - EARLY_MS / 60_000 || start > job.appointmentEndMinutes! + LATE_MS / 60_000) return [];
     const next = ordered[index + 1];
-    const continuous = next && next.number === trip.number + 1
-      && validGpsCoordinates(trip.to) && validGpsCoordinates(next.from)
-      && gpsDistanceMeters(trip.to, next.from) <= 50
-      && normalizeServiceAddress(trip.to.address) === normalizeServiceAddress(next.from.address);
-    const departure = continuous && Date.parse(next.departure) >= arrival
-      && Date.parse(next.arrival) >= Date.parse(next.departure) ? next.departure : null;
+    // The next trip only ends this stop when it starts where the stop is, and the
+    // truck's own fixes must cover the dwell; otherwise the dwell is unsupported.
+    // An earlier route gap says nothing about fixes at this stop.
+    const linked = (a: Point, b: Point) => validGpsCoordinates(a) && validGpsCoordinates(b) && gpsDistanceMeters(a, b) <= LINK_METERS;
+    const departure = next && Date.parse(next.departure) >= arrival && linked(trip.to, next.from)
+      && presentThroughout(points, trip.to, arrival, Date.parse(next.departure)) ? next.departure : null;
     const exact = want.house === got.house;
     const closed = /complete|closed|paid/i.test(job.status || '');
     const dwellMinutes = departure ? (Date.parse(departure) - arrival) / 60_000 : 0;
@@ -74,13 +91,13 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
   return found.sort((a, b) => a.distance - b.distance)[0]?.stop || null;
 }
 
-/** A suggested episode cannot claim a second appointment's physical stop. */
-export function likelyStopHasConflict(stop: LikelyStop, others: {truck:string;arrival:string;departure:string|null}[]): boolean {
-  if (!stop.departure) return false;
-  const start=Date.parse(stop.arrival), end=Date.parse(stop.departure);
-  return others.some(other=> {
-    if (other.truck.replace(/^truck\s*#?\s*/i,'Truck ')!==stop.truck) return false;
-    const otherStart=Date.parse(other.arrival), otherEnd=other.departure ? Date.parse(other.departure) : Infinity;
-    return otherStart===otherEnd ? otherStart>=start && otherStart<=end : otherStart<end && otherEnd>start;
-  });
+/** One physical stop is one visit: a stop claimed by several appointments of a
+ * truck, or overlapping a visit another appointment already has, is contested
+ * and must stay a suggestion. */
+export function contestedLikelyStops<T>(claims: {job: T; truck: string; likely: LikelyStop}[], confirmed: {truck: string; start: number; end: number}[]) {
+  return new Set(claims.filter(({job, truck, likely}) => {
+    const start = Date.parse(likely.arrival), end = likely.departure ? Date.parse(likely.departure) : start;
+    return claims.some(other => other.job !== job && other.truck === truck && other.likely.arrival === likely.arrival)
+      || confirmed.some(visit => visit.truck === truck && visit.start <= end && start <= visit.end);
+  }).map(claim => claim.job));
 }

@@ -8,7 +8,7 @@ headline follows the existing freshness rules and preserves drill-through.
 
 Jobs, Labor, Dump + Fuel, Net and RPH remain neutral supporting tiles. RPH is
 retained from the production layout. Revenue is recorded, not verified cash;
-assumed disposal costs and all source/freshness explanations remain visible.
+assumed disposal costs and material stale, incomplete or unavailable indicators remain visible. Source timestamps and technical explanations are available through Source details, metric accessible descriptions and existing drill-through views.
 The historical operating-day controls, map and OpsBot remain available.
 
 Comparison chips sit at the top right; phone Dashboard cards place them in the heading row. Daily KPIs compare the same
@@ -25,20 +25,22 @@ accent; semantic success and failure colors remain reserved for status.
 
 `MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
 dash. Its tooltip and accessible label retain the reason; source notes and
-refresh errors remain visible. Real zeroes keep their numeric presentation.
+refresh errors remain visible. Normal views omit redundant introductions and repeated provenance; disclosures retain useful diagnostic detail. Financial reading, source aging and calculation rules are unchanged. Real zeroes keep their numeric presentation.
 
 ## Navigation
 
-The desktop sidebar uses a stationary 80px icon rail. Expanding it reveals a
-200px page panel alongside the rail, over the workspace's edge. The content width,
-workspace rows, header and footer keep the same positions in both states. Section
-chevrons replace the page list in this single fixed panel without pushing other
-workspaces down; the section label still navigates directly to its main page.
-Selecting a page navigates immediately and closes the panel. The header toggle,
-close button, outside click and Escape also dismiss it, restoring toggle focus.
-The page panel always starts closed, including after a reload; its open state
-is transient and does not use browser storage. The rail and page panel scroll independently on short
-screens. Mobile retains the existing workspace selector.
+The desktop sidebar stays 224px wide. Each workspace has a direct main-page
+link and a separate disclosure arrow for its inline page list. Lists open and
+close immediately, without width or height animation; the workspace content
+keeps the same width and horizontal position. Expanding a list moves only the
+following navigation rows, as in the selected fixed-width groups preview.
+There is no flyout, backdrop, global width toggle or overlay dismissal behavior.
+The active workspace opens its group when navigation changes workspaces; users
+can close that group independently. Leaving a workspace keeps its list open;
+only its arrow closes it. Selecting a page keeps its group visible.
+Group disclosure does not use browser storage. Navigation scrolls within the
+sidebar on short screens, keeping Settings and Sources in the footer. Mobile
+retains the existing workspace selector.
 
 Page links preserve the operating date, clear unrelated record filters, support
 keyboard and modifier clicks, and reuse the existing workspace preload. Finance
@@ -156,3 +158,14 @@ for actions and selected filters, semantic status colors for evidence, and
 content-sized financial cards so comparison chips cannot hide their labels.
 Release notices wait until the current record review or edit closes. Failed
 refreshes offer Retry and distinguish retained data from an initial load failure.
+
+## CI token consistency — October 23, 2026
+
+Newer Customer, Fleet, Campaign, Huddle, Settings and appointment styles use the
+shared color and type tokens. Component-specific colors retain their existing
+values in `design-tokens.css`; the Huddle spotlight headings use the existing
+36px type anchor instead of off-scale 38px/34px sizes. Command mobile metric
+and revenue labels use tokenized clamp endpoints. These type and color tokens
+follow the existing phase-two workspace remaps; in Command the metric lower
+bound becomes 20px, affecting viewports narrower than about 364px. The
+token check explicitly covers both clamps and rejects raw or undefined sizes.

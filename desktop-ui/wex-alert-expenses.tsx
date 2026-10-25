@@ -1,0 +1,17 @@
+import {WexSourceLink} from './wex-source-link';
+import type {WexAlertDailyExpenses} from './lib/wex-alert-expenses-contract';
+import {commercialMoney as money} from './lib/commercial-contract';
+const labels={provisional:'Provisional authorization',posted:'Reconciled to posted purchase',reversed:'Reversed authorization',declined:'Declined authorization',review:'Review evidence'};
+export function WexAlertExpenses({data}:{data?:WexAlertDailyExpenses}){
+ if(!data)return null;
+ return <section className="finance-cost-shell" id="wex-alert-expenses" aria-label="WEX daily alert records">
+  <div className="section-title"><div><span className="section-kicker">{data.date} · Authorization evidence</span><h2>WEX daily alert records</h2><p>Pending fuel authorizations appear here before settlement. They are not added to published expenses or posted fuel totals.</p></div></div>
+  <p className="wex-mail-feed-status">{data.feed?.source||data.feed?.application?<>Existing watcher: {data.feed.watcher==='running'?'running':data.feed.watcher==='not_running'?'not running':'availability unknown'}. Native mail scan: {data.feed.source?.status||'Unknown'}{data.feed.source?.checkedAt?` · checked ${data.feed.source.checkedAt}`:''}{data.feed.source?.rejected?` · ${data.feed.source.rejected} messages need attention`:''}. Last run: {data.feed.source?.trigger||'unverified'}. Snapshot import: {data.feed.application?.status||'Not verified'}{data.feed.application?.checkedAt?` · checked ${data.feed.application.checkedAt}`:''}. Latest received evidence: {data.feed.source?.latestReceivedAt||'Unavailable'}. A scan timestamp does not establish mailbox synchronization health.</>:<>Automatic mail collection has no saved status. A manual batch is not a live feed.</>}</p>
+  {data.status!=='available'?<p role="status">{data.status==='invalid'?'Saved alert records need recovery.':'No WEX alert batch has been imported for daily records.'}</p>:<>
+   <div className="capital-inline-totals"><div><span>Provisional authorizations</span><strong>{money(data.provisionalTotal)}</strong></div><div><span>Reconciled to posted</span><strong>{data.postedCount}</strong></div><div><span>Needs review</span><strong>{data.reviewCount}</strong></div></div>
+   <p>{data.importedAt?`Alert batch imported ${new Date(data.importedAt).toLocaleString('en-US',{timeZone:'America/Chicago'})} CT. `:''}Import time is not evidence of an ongoing feed. A pending authorization may already be included in published fuel; these totals must not be added together.</p>
+   <div className="finance-cost-list">{data.rows.map(row=><article key={row.id}><div><strong>{row.truck||'Truck unconfirmed'} · {row.merchant||'Merchant not recorded'}</strong><small>{labels[row.status]} · Tracking {row.trackingNumber}</small><small>Authorized {money(row.authorizedAmount)}{row.postedId?` · Posted fuel ${money(row.postedAmount)} · Transaction ${row.postedId}`:''}{row.difference!==null?` · Change ${money(row.difference)}`:''}</small><small>{row.authorizationLocal} · Authorization timezone unconfirmed</small><small>Received {row.receivedAt} · {row.revisionCount} source message{row.revisionCount===1?'':'s'}</small><small>{row.reason}</small></div><span><WexSourceLink source={row.sourceUrl} label="Source alert"/></span></article>)}</div>
+   {!data.rows.length&&<p>No imported alerts with this stated authorization date. This does not establish zero fuel spend.</p>}
+  </>}
+ </section>;
+}

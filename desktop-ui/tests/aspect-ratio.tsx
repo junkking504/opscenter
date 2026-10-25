@@ -23,6 +23,11 @@ if(commandMap) {
   scheduleJobs.forEach((row,index)=>Object.assign(row,{location:{latitude:29.92+(index%6)*.07,longitude:-90.02-Math.floor(index/6)*.18}}));
   command.alerts = Array.from({length:5},(_,index)=>command.alerts.map(row=>({...row,id:`${row.id}-${index}`}))).flat();
 }
+// Copy QA uses synthetic values only; the fixture still blocks all writes.
+if(new URLSearchParams(location.search).has('copyQA')) {
+  command.kpis.forEach(kpi=>{if(kpi.label==='Labor'){kpi.value='$0.00';kpi.detail='Recorded payroll · revenue ratio unavailable · Source Oct 25 at 8:31 AM · 3m old';} if(kpi.label==='Net'){kpi.value='—';kpi.detail='Stale source · Last recorded $450.00 · Source Oct 25 at 8:31 AM · 30m old';}});
+  if(command.crewProgress)Object.assign(command.crewProgress,{updatesComplete:false,updateHistoryReasons:['Slack: Channel history: bot is not a channel member (2); Channel history: channel unavailable (1)']});
+}
 const syntheticPace = Array.from({length:730},(_,i)=>{const day=new Date(`${date}T12:00:00Z`);day.setUTCDate(day.getUTCDate()-729+i);return {date:day.toISOString().slice(0,10),revenue:1000+(i%7)*120};});
 const priorValues={revenue:16000,jobs:55,averageJob:16000/55,costs:9500,profit:6500,margin:40.625};
 const currentValues={revenue:18000,jobs:60,averageJob:300,costs:9000,profit:9000,margin:50};

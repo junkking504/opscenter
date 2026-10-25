@@ -48,10 +48,10 @@ try {
  const job={status:'Confirmed',location:null,mapFallback:pin};
  assert.deepEqual(scheduleMapLocation(job),pin.location);
  assert.equal(needsScheduleAddressVerification(job),true);
- assert.equal(appointmentVisitPin(job),null,'A conflicting-postal street estimate cannot create live presence');
+ assert.deepEqual(appointmentVisitPin(job)?.location,pin.location,'GPS policy uses the displayed coordinate regardless of label');
  assert.equal(appointmentVisitPin({...job,location:pin.location})?.approximate,false,'Later verified coordinates win');
  const bridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify([address]),encoding:'utf8',env:process.env}));
- assert.equal(bridge[address],null,'The Python arrival/departure matcher cannot consume the new street estimate');
+ assert.deepEqual(bridge[address].location,pin.location,'Python and Schedule consume the same coordinate');
  for(const zip of ['70126','70128'])assert.equal(serviceTerritory(address.replace('70126',zip)).area,'East Metro','Dispatch territory does not imply a located property');
  saveRoad([],now+60000);assert.equal(read(),null,'Geocodio street center alone has no bounded street evidence');saveRoad();
  for(const patch of [{accuracy_type:'place'},{accuracy_type:'nearest_rooftop_match'},{accuracy:0.2},{location:{lat:30.08,lng:-89.946}},{location:{lat:30.0601,lng:-89.9449}},{location:{lat:NaN,lng:-89.946}}]) {
@@ -84,7 +84,7 @@ try {
  saveRoad([road,house]);assert.equal(read()?.location.latitude,30.0605,'House evidence always outranks the new street estimate');
  assert.equal(read()?.visitEligible,false);
  assert.equal(address,'123 Example Drive New Orleans, LA 70126','Source address stays unchanged');
- console.log('Street ZIP fallback PASS: corroboration, false-pin guards, exact verification, territory, visit exclusion and source preservation.');
+ console.log('Street ZIP fallback PASS: corroboration, false-pin guards, exact verification, territory, operational coordinate parity and source preservation.');
 } finally {
  globalThis.fetch=originalFetch;process.env=old;fs.rmSync(root,{recursive:true,force:true});
 }

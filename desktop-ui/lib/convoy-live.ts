@@ -19,6 +19,9 @@ export function liveGroup(truck: DesktopFleetTruck, outOfService: boolean): Live
   return 'offline';
 }
 
+/** True when the truck's own GPS status says it is reporting. Independent of the out-of-service bucket. */
+export const gpsReporting = (truck: Pick<DesktopFleetTruck, 'operatingStatus'>) => !['GPS Stale', 'Offline', 'GPS unavailable', 'Historical GPS'].includes(truck.operatingStatus);
+
 const finite = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 
 export function fleetDayTotals(trucks: DesktopFleetTruck[]) {
@@ -71,15 +74,33 @@ const dueDetail = (d: DueItem) => [
 ].filter(Boolean).join(' · ') || 'Check the service planner';
 export { dueDetail };
 
-export type TruckJobs = { total: number; done: number; nextLabel: string | null; presence: 'on_site' | 'at_job' | null };
+export type StopKind = 'on_site' | 'at_job' | 'last_seen' | 'ambiguous' | 'unverified' | 'untimed' | 'next';
+export type TruckJobs = { total: number; done: number; stop: { kind: StopKind; label: string } | null; isToday: boolean };
 
 const clock = (minutes: number | null) => minutes == null ? '' : new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-/** Stops assigned to one truck today, how many are closed, and where it is now. Uses the Command next-stop rules. */
+/** Stops assigned to one truck, how many are closed, and the stop the Command next-stop rules pick today. */
 export function truckJobs(appointments: ScheduleAppointment[], truck: string, isToday: boolean, now: number): TruckJobs {
   const mine = appointments.filter(a => !/cancel/i.test(a.status) && truckLabel(a.truck) === truckLabel(truck));
   const plan = nextTruckStop(appointments, truck, isToday, now);
-  const presence = plan?.state === 'on_site' || plan?.state === 'at_job' ? plan.state : null;
-  const nextLabel = plan ? [clock(plan.job.appointmentStartMinutes), plan.job.customerName].filter(Boolean).join(' ') || null : null;
-  return { total: mine.length, done: mine.filter(a => isClosed(a)).length, nextLabel, presence };
+  const stop = plan ? { kind: plan.state as StopKind, label: [clock(plan.job.appointmentStartMinutes), plan.job.customerName].filter(Boolean).join(' ') } : null;
+  return { total: mine.length, done: mine.filter(a => isClosed(a)).length, stop, isToday };
+}
+
+/** One honest line per card. Presence claims need a GPS-reporting truck and a fresh schedule; unknown states are never shown as "Next". Past days show none. */
+export function stopLine(jobs: TruckJobs, current: { gps: boolean; scheduleFresh: boolean }): string | null {
+  if (!jobs.isToday) return null;
+  const { stop } = jobs;
+  if (!stop) return current.scheduleFresh ? 'No open stops' : 'Stops not confirmed · schedule not refreshed';
+  const at = stop.label ? ` · ${stop.label}` : '';
+  const suffix = current.scheduleFresh ? '' : ' · schedule not refreshed';
+  switch (stop.kind) {
+    case 'on_site': return (current.gps && current.scheduleFresh ? `On site${at}` : `Last reported on site${at}${current.gps ? '' : ' · GPS not reporting'}`) + suffix;
+    case 'at_job': return (current.gps && current.scheduleFresh ? `At job${at}` : `Last reported at job${at}${current.gps ? '' : ' · GPS not reporting'}`) + suffix;
+    case 'last_seen': return `Last seen at${at.replace(' ·', '')}${suffix}`;
+    case 'ambiguous': return 'Check current stop in Command' + suffix;
+    case 'unverified': return `Assignment unverified${at}${suffix}`;
+    case 'untimed': return `Next, time not set${at}${suffix}`;
+    default: return `Next${at}${suffix}`;
+  }
 }

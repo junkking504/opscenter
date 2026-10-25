@@ -12,16 +12,24 @@ async function main(){
  if(!(await leader.query("SELECT pg_try_advisory_lock(hashtext('waypoint-push-sender')) AS locked")).rows[0].locked)throw Error('Waypoint sender already running.');
  const key=execFileSync('/usr/bin/security',['find-generic-password','-a','opscenter','-s','com.opscenter.web-push-vapid-private-key','-w'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
  if(!/^[A-Za-z0-9_-]{43}$/.test(key))throw Error('Signing key unavailable.');process.env.OPSCENTER_WEB_PUSH_PRIVATE_KEY=key;
- let stopping=false,running=false,dirty=false,failed=false;let heartbeat:ReturnType<typeof setInterval>|undefined;const watchers:fs.FSWatcher[]=[];
+ let stopping=false,running=false,dirty=false,failed=false;let heartbeat:ReturnType<typeof setInterval>|undefined,deliveryTimer:ReturnType<typeof setTimeout>|undefined;const watchers:fs.FSWatcher[]=[];
  const environmentFile='/Users/missioncontrol/Library/Application Support/OpsCenter/production.env',environmentStamp=fs.statSync(environmentFile).mtimeMs;
  const enabled=()=>!stopping && waypointPushEnabled();
- async function wake(){dirty=true;if(running || stopping)return;running=true;
-  try{while(dirty && enabled()){dirty=false;await recordWaypointChanges(pool);await drainWaypointPush(pool,enabled);}}
-  catch{console.error('Waypoint notification processing unavailable.');stop(true);}
+ async function wake(capture=true){if(capture)dirty=true;if(running || stopping)return;running=true;
+  if(deliveryTimer)clearTimeout(deliveryTimer);
+  try{
+   do{if(dirty){dirty=false;await recordWaypointChanges(pool);}await drainWaypointPush(pool,enabled);}while(dirty&&enabled());
+   // One local timer for durable queued work, not a source/provider poll. It also
+   // recovers a not-yet-due group after a worker restart.
+   if(enabled()){
+    const due=(await pool.query("SELECT min(not_before) AS due FROM opscenter_kernel.waypoint_push_deliveries WHERE status='pending'")).rows[0]?.due;
+    if(due)deliveryTimer=setTimeout(()=>void wake(false),Math.max(25,new Date(due).getTime()-Date.now()));
+   }
+  }catch{console.error('Waypoint notification processing unavailable.');stop(true);}
   finally{running=false;}
  }
  function ready(){const file=path.join(WAYPOINT_PUSH_HOME,'ready.json'),temp=file+'.tmp';fs.writeFileSync(temp,JSON.stringify({until:Date.now()+5000,pid:process.pid}),{mode:0o600});fs.renameSync(temp,file);}
- function stop(failure=false){failed ||= failure;if(stopping)return;stopping=true;try{fs.unlinkSync(path.join(WAYPOINT_PUSH_HOME,'ready.json'));}catch{}for(const watcher of watchers)watcher.close();if(heartbeat)clearInterval(heartbeat);}
+ function stop(failure=false){failed ||= failure;if(stopping)return;stopping=true;try{fs.unlinkSync(path.join(WAYPOINT_PUSH_HOME,'ready.json'));}catch{}for(const watcher of watchers)watcher.close();if(heartbeat)clearInterval(heartbeat);if(deliveryTimer)clearTimeout(deliveryTimer);}
  const data=process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
  await pool.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='uncertain' WHERE status='sending'");
  await leader.query('LISTEN waypoint_push');leader.on('notification',()=>void wake());leader.on('error',()=>stop(true));leader.on('end',()=>stop(true));

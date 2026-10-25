@@ -236,7 +236,7 @@ A stop before the agent has started leaves a cancel marker; the runner checks it
 
 Guardrails: the relay does nothing unless `vault/Tasks/.relay-on` exists
 (delete it to stop new steps), holds one lock for one running step, allows at
-most 3 reviews per task and 6 agent runs per day, ends a step's whole process group (SIGTERM, then SIGKILL) after 60
+most 3 reviews per task, has no daily agent-run cap, ends a step's whole process group (SIGTERM, then SIGKILL) after 60
 minutes and keeps the lock until the group is confirmed gone, and never retries a failed step. Claude runs in restricted/safe mode with only Read/Grep/Glob tools, no MCP,
 no customization settings, and an allowlisted environment. A subscription login
 (Pro/Max, first-party OAuth) and the private `.claude-subscription-only` confirmation
@@ -275,8 +275,8 @@ checkout may contain unfinished historical work and must not be reset to sync it
 The user confirmed on October 23, 2026: no Claude extra usage. If Claude exhausts
 its included allowance, Codex continues building and testing other opted-in tasks.
 Claude reviews wait until the reported reset time, or one bounded hourly probe
-when the response does not provide a parseable reset. All probes count against
-the existing six-run daily limit. No busy retries and no paid provider substitution.
+when the response does not provide a parseable reset. Daily run counts are informational and never block builds or reviews. No busy
+retries and no paid provider substitution.
 A Codex-only self-check never satisfies the cross-family production review gate.
 
 To record the user's account-setting confirmation, write a dated note to

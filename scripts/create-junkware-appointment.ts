@@ -14,8 +14,8 @@ import {
   setInputWithWebFormsPostback,
 } from "./junkware-webforms";
 
-import { searchCustomerRows, selectCustomerRow, customerResultsHaveMore } from './junkware-customer-lookup';
-import { customerSearchFields, normalizeCustomerSelection } from '../lib/junkware-customer-contract';
+import { searchCustomerRows, selectCustomerRow, customerResultsHaveMore, uniqueCustomerMatches } from './junkware-customer-lookup';
+import { CustomerSelectionError, customerSearchFields, normalizeCustomerSelection } from '../lib/junkware-customer-contract';
 
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
@@ -171,7 +171,7 @@ async function chooseFranchise(page: Page, input: JunkwareAppointmentCreationInp
 async function chooseCustomer(page: Page, input: JunkwareAppointmentCreationInput): Promise<"existing" | "new"> {
   if (input.customerSelection) {
     const matches = await searchCustomerRows(page, input.customerSelection.query);
-    const customer = await selectCustomerRow(page, matches, input.customerSelection.key);
+    const customer = await selectCustomerRow(page, matches, input.customerSelection.key, input.customerSelection.query);
     if (normalized(customer.firstName) !== normalized(input.firstName) || normalized(customer.lastName) !== normalized(input.lastName) || phoneDigits(customer.phone) !== input.phone) {
       throw new Error("The selected customer's name or phone changed. Search and select again.");
     }
@@ -456,15 +456,15 @@ async function lookupCustomer(): Promise<void> {
     await ensureAuthenticated(page, NEW_APPOINTMENT_URL);
     const matches = await searchCustomerRows(page, input.query);
     const hasMore = await customerResultsHaveMore(page, matches.length);
-    const customer = selection ? await selectCustomerRow(page, matches, selection.key) : undefined;
+    const customer = selection ? await selectCustomerRow(page, matches, selection.key, selection.query) : undefined;
     // Read only: never New Account, Save, or persist a modified source record.
-    process.stdout.write(JSON.stringify({ matches: matches.slice(0, 20), hasMore, checkedAt: new Date().toISOString(), customer }));
+    process.stdout.write(JSON.stringify({ matches: uniqueCustomerMatches(matches).slice(0, 20), hasMore, checkedAt: new Date().toISOString(), customer }));
     await context.close();
   } finally { await browser.close(); }
 }
 (process.argv.includes('--customer-lookup') ? lookupCustomer() : main()).catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   const code = /available|offer/i.test(message) ? "appointment_option_unavailable" : "appointment_creation_failed";
-  process.stderr.write(`${JSON.stringify({ ok: false, stage, code, error: message.slice(0, 300) })}\n`);
+  process.stderr.write(`${JSON.stringify({ ok: false, stage, code, ...(error instanceof CustomerSelectionError ? { lookupCode: error.code } : {}), error: message.slice(0, 300) })}\n`);
   process.exitCode = 1;
 });

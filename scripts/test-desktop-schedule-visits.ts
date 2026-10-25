@@ -122,9 +122,9 @@ const distinct = dedupeLinkedAppointmentVisitState([
 ]);
 assert.equal(distinct[0].hasVisit,true,'Distinct estimate and job visits remain separate');
 
-// A single historical point must leave a confirmed booking dispatchable.
+// A confirmed single-point arrival and departure is evidence independent of pin label.
 const pointOnly = {...visit, first_arrival:recent, final_departure:recent, visit_intervals:[{arrival:recent,departure:recent,departure_confirmed:true}]};
 const pointState = fullScheduleVisitState(job,[pointOnly],recent,[],now);
-assert.equal(pointState.hasVisit,false);
-assert.equal(pointState.hasDepartedVisit,false);
-assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...pointState}),'Confirmed');
+assert.equal(pointState.hasVisit,true);
+assert.equal(pointState.hasDepartedVisit,true);
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...pointState}),'Visited · Closeout Pending');

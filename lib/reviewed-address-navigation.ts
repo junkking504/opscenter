@@ -52,7 +52,7 @@ export function readReviewedAddressNavigation(address:string,root=rootDirectory(
     if(identity(row.originalAddress)!==identity(address))return null;
     return {location:row.location,matchedAddress:row.matchedAddress,source:row.source,sourceUrl:row.sourceUrl,
       stale:false,visitEligible:false,navigationReviewed:true,
-      detail:'Reviewed approximate address location; entrance unconfirmed. Source address preserved. Not used for arrival or departure detection.'};
+      detail:'Reviewed approximate address location; entrance unconfirmed. Source address preserved.'};
   } catch {return null;}
 }
 

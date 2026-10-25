@@ -216,7 +216,7 @@
     "verify:waypoint-push:browser": "node scripts/test-waypoint-push-browser.mjs",
     "verify:waypoint-manager:presentation": "node --import tsx scripts/test-waypoint-manager-presentation.ts && node scripts/test-waypoint-manager-navigation-browser.mjs",
     "verify:appointment-cost:browser": "node scripts/test-appointment-cost-incomplete-browser.mjs",
-    "verify:waypoint-recovery": "node --import tsx scripts/test-waypoint-manager-session.ts && node --import tsx scripts/test-waypoint-update-grouping.ts && node --import tsx scripts/test-waypoint-push-sw.ts",
+    "verify:waypoint-recovery": "node --import tsx scripts/test-waypoint-manager-session.ts && node --import tsx scripts/test-waypoint-update-grouping.ts && node --import tsx scripts/test-waypoint-notification-policy.ts && node --import tsx scripts/test-notification-destinations.ts && node --import tsx scripts/test-waypoint-push-sw.ts",
     "verify:waypoint-recovery:browser": "node scripts/test-waypoint-recovery-browser.mjs"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';import path from 'node:path';
+import assert from 'node:assert/strict';import path from 'node:path';import fs from 'node:fs';
 import {build} from 'esbuild';import {chromium,expect} from '@playwright/test';
 const root=process.cwd();
 const fixture=`
@@ -17,9 +17,9 @@ window.fetch=async(url,options={})=>{
   else if(f.mode==='anonymous'){status=401;body={error:'Setup required'};}else body={phone,manager:false};
  }else if(u.pathname==='/api/crew-jobs/manager-session')body={manager:scenario==='updates'};
  else if(u.pathname==='/api/crew-jobs/day')body={phone,date:'2026-10-24',day:scenario==='updates'?{date:'2026-10-24',version:1,truck:'Truck 4',driver:'Fictional Driver',navigators:[]}:null,roster:['Fictional Driver'],trucks:['Truck 4'],inspection:{status:'ready'}};
- else if(u.pathname==='/api/crew-jobs/current')body={state:'waiting',job:null,jobs:[],truck:'Truck 4',observedAt:null,message:'No fictional assignments',updateToken:'one'};
+ else if(u.pathname==='/api/crew-jobs/current')body={state:'assigned',job:null,jobs:[{appointmentId:'101',jkNumber:'JK101',customerName:'Fictional Crew Customer',phone:'',address:'Fictional address',date:'2026-10-24',appointmentTime:'10 AM',status:'Confirmed',appointmentNotes:[],junkItems:[],driver:'Fictional Driver',navigator:'',truck:'Truck 4',readOnly:true}],truck:'Truck 4',observedAt:null,message:'No fictional assignments',updateToken:'one'};
  else if(u.pathname==='/api/crew-jobs/updates')body={updateToken:'one'};
- else if(u.pathname==='/api/crew-jobs/notifications'&&!options.method)body={available:false,enabled:false,updates:[{id:'fictional-update',counts:{added:2,messages:1},created_at:'2026-10-24T14:00:00Z'}],messages:[{id:'fictional-message',body:'Fictional office instruction',created_at:'2026-10-24T14:00:00Z'}]};
+ else if(u.pathname==='/api/crew-jobs/notifications'&&!options.method)body={available:false,enabled:false,updates:[{id:'12345678-1234-4234-8234-123456789012',counts:{timing:1,removed:1,messages:1},changes:[{appointmentId:'101',kind:'time',before:'8 AM',after:'10 AM'},{appointmentId:'102',kind:'removed'}],created_at:'2026-10-24T14:00:00Z'}],messages:[{id:'fictional-message',body:'Fictional office instruction',created_at:'2026-10-24T14:00:00Z'}]};
  else {f.unexpected.push(u.pathname);throw Error('Unexpected fixture API '+u.pathname);}
  return {ok:status===200,status,json:async()=>body};
 };`;
@@ -29,14 +29,19 @@ const browser=await chromium.launch({headless:true});let cases=0;
 try{
  for(const width of [320,390,1280]){
   const context=await browser.newContext({viewport:{width,height:844}});
-  await context.route('**/*',route=>route.request().isNavigationRequest()?route.fulfill({status:200,contentType:'text/html',body:html}):route.abort());
+  await context.route('**/*',route=>{if(route.request().isNavigationRequest())return route.fulfill({status:200,contentType:'text/html',body:html});const url=new URL(route.request().url()),file=path.resolve(root,'public','.'+url.pathname);if(file.startsWith(path.join(root,'public')+path.sep)&&fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({path:file});return route.abort();});
   for(const scenario of ['unknown','recover','readback','interrupted','updates']){
-   const page=await context.newPage();await page.goto('https://waypoint.example.invalid/crew-jobs?fixture='+scenario+(scenario==='updates'?'&view=updates':''));
+   const page=await context.newPage();await page.goto('https://waypoint.example.invalid/crew-jobs?fixture='+scenario+(scenario==='updates'?'&view=updates&update=12345678-1234-4234-8234-123456789012':''));
    if(scenario==='unknown'){
     await expect(page.getByRole('button',{name:'Retry access check'})).toBeVisible();await expect(page.getByRole('heading',{name:'Connect Your Phone'})).toHaveCount(0);
     await page.evaluate(()=>window.fixture.mode='ready');await page.getByRole('button',{name:'Retry access check'}).click();await expect(page.getByRole('button',{name:'Refresh setup'})).toBeVisible();
    }else if(scenario==='updates'){
-    await expect(page.getByRole('heading',{name:'Recent truck updates'})).toBeVisible();await expect(page.getByText('2 appointments added',{exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Recent truck updates'})).toBeVisible();await expect(page.getByText('Appointment time or route order changed',{exact:true})).toBeVisible();
+    await expect(page.getByText('Opened from notification',{exact:true})).toBeVisible();
+    await expect(page.getByText('Time changed: 8 AM → 10 AM',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Open JK101',exact:true}).click();await expect(page.getByRole('heading',{name:'Fictional Crew Customer',exact:true})).toBeVisible();
+    await page.reload();await expect(page.getByText('Opened from notification',{exact:true})).toBeVisible();
+    if(process.env.WAYPOINT_PUSH_SCREENSHOTS){await fs.promises.mkdir(process.env.WAYPOINT_PUSH_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_PUSH_SCREENSHOTS,'update-context-'+width+'.png'),fullPage:true});}
     await expect(page.getByRole('button',{name:'Crew workflow',exact:true})).toHaveAttribute('aria-pressed','true');
     await page.getByRole('button',{name:'Read office messages'}).click();await expect(page.getByText('Fictional office instruction',{exact:true})).toBeVisible();
     await page.reload();await expect(page.getByRole('heading',{name:'Recent truck updates'})).toBeVisible();

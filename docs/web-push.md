@@ -702,3 +702,13 @@ Unknown/legacy change metadata leaves delivery on. No actor inference, receipt
 lookup, collection, delay, replay, payment/source write or access change is added.
 The setting is a delivery preference, not an enrollment or role grant, and its
 production activation requires separate release approval.
+
+## Manager notification destinations
+
+OpsCenter notifications serve managers monitoring operations; crew-only filtering
+in Waypoint does not change manager event coverage. Verified appointment notices
+retain their exact job/date link. Notifications without a job link open the
+matching Schedule, Krewe or Fleet workspace. Clicking reuses an existing OpsCenter
+window when it can navigate; otherwise it opens the requested destination. The
+same allowlisted destination is carried through the existing Pushover transport.
+No new transport, approval, polling or external sending is enabled by this change.

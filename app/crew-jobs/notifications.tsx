@@ -2,22 +2,26 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './phone-access.module.css';
 import layout from './notifications.module.css';
-import {waypointUpdateLabels,type WaypointUpdateCounts} from '@/lib/waypoint-update-context';
+import {waypointUpdateLabels,waypointJobChanges,waypointJobChangeLabel,type WaypointUpdateCounts,type WaypointJobChange} from '@/lib/waypoint-update-context';
 export type NotificationConnection='checking'|'on'|'off'|'attention';
 type Message={id:string;body:string;created_at:string};
 const endpoint='/api/crew-jobs/notifications';
-export default function WaypointNotifications({view='all',onConnectionChange,onView}:{view?:'all'|'notifications'|'messages';onConnectionChange?:(state:NotificationConnection)=>void;onView?:(view:'route'|'messages')=>void}){
+export default function WaypointNotifications({view='all',onConnectionChange,onView,jobs=[],onJob}:{view?:'all'|'notifications'|'messages';onConnectionChange?:(state:NotificationConnection)=>void;onView?:(view:'route'|'messages')=>void;jobs?:Array<{appointmentId:string;jkNumber:string;customerName:string}>;onJob?:(id:string)=>void}){
  const [available,setAvailable]=useState(false),[publicKey,setPublicKey]=useState(''),[messages,setMessages]=useState<Message[]>([]),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState('');
  const [supported,setSupported]=useState(false),[standalone,setStandalone]=useState(false),[enabled,setEnabled]=useState(false);
  const [checked,setChecked]=useState(false);
- const [updates,setUpdates]=useState<Array<{id:string;counts:WaypointUpdateCounts;created_at:string}>>([]);
+ const [updates,setUpdates]=useState<Array<{id:string;counts:WaypointUpdateCounts;changes?:WaypointJobChange[];created_at:string}>>([]);
+ const [selectedUpdate,setSelectedUpdate]=useState('');
+ useEffect(()=>{if(selectedUpdate&&view!=='messages')document.getElementById(`truck-update-${selectedUpdate}`)?.scrollIntoView({block:'start'});},[selectedUpdate,updates,view]);
  useEffect(()=>{onConnectionChange?.(!checked?'checking':error?'attention':enabled?'on':'off');},[checked,error,enabled,onConnectionChange]);
  const working=useRef(false);
  const load=useCallback(async()=>{
   if(working.current)return;working.current=true;setBusy(true);
   try{
    let key='',id='';try{key=localStorage.getItem('waypoint-push-key') || '';id=localStorage.getItem('waypoint-push-device') || '';}catch{}
-   const response=await fetch(endpoint,{cache:'no-store',headers:{'x-waypoint-notification-key':key,'x-waypoint-notification-device':id}}),body=await response.json();
+   const update=new URLSearchParams(window.location.search).get('update')||'';
+   const selected=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(update)?update:'';setSelectedUpdate(selected);
+   const response=await fetch(endpoint+(selected?`?update=${selected}`:''),{cache:'no-store',headers:{'x-waypoint-notification-key':key,'x-waypoint-notification-device':id}}),body=await response.json();
    if(!response.ok)throw Error(body.error || 'Notifications could not be loaded.');
    setMessages(body.messages || []);setUpdates(body.updates || []);setAvailable(body.available);setPublicKey(body.publicKey || '');
    const permitted='Notification' in window && Notification.permission==='granted';
@@ -60,13 +64,22 @@ export default function WaypointNotifications({view='all',onConnectionChange,onV
  <div className={layout.body}>
   {view!=='messages' && <section className={layout.messages} aria-label="Recent truck updates">
    <h2>Recent truck updates</h2>
-   <p className={styles.muted}>For today’s connected phone and truck. Several changes may arrive in one notification.</p>
-   {updates.length?updates.map(update=><article className={layout.message} key={update.id}><ul>{(waypointUpdateLabels(update.counts).length?waypointUpdateLabels(update.counts):['Truck update · open the route or office messages']).map(label=><li key={label}>{label}</li>)}</ul><time dateTime={update.created_at}>{new Date(update.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time></article>):<p className={styles.muted}>No recent update details for this phone. Check the current route and office messages.</p>}
-   {onView&&<div><button className={styles.secondary} onClick={()=>onView('route')}>View current route</button><button className={styles.secondary} onClick={()=>onView('messages')}>Read office messages</button></div>}
+   <p className={styles.muted}>Changes for this company phone’s selected truck. Routine refreshes and completed jobs do not send alerts.</p>
+   {selectedUpdate && checked && !updates.some(update=>update.id===selectedUpdate) && <p role="status">That notification is no longer available for today’s connected phone and truck. Check the current route or office messages below.</p>}
+   {updates.length?updates.map(update=><article id={`truck-update-${update.id}`} className={`${layout.message} ${update.id===selectedUpdate?layout.selected:''}`} key={update.id}>
+    {update.id===selectedUpdate&&<strong>Opened from notification</strong>}
+    <ul>{(waypointUpdateLabels(update.counts).length?waypointUpdateLabels(update.counts):['Truck update · open the route or office messages']).map(label=><li key={label}>{label}</li>)}</ul>
+    {waypointJobChanges(update.changes).map((change,index)=>{const job=jobs.find(job=>job.appointmentId===change.appointmentId);return <div className={layout.change} key={`${change.appointmentId}-${change.kind}-${index}`}>
+     <strong>{job?`${job.jkNumber} · ${job.customerName}`:`Appointment ${change.appointmentId}`}</strong><p>{waypointJobChangeLabel(change)}</p>
+     {job&&onJob?<button className={`${styles.secondary} ${layout.action}`} onClick={()=>onJob(change.appointmentId)}>Open {job.jkNumber}</button>:<p className={styles.muted}>Not available on this truck’s current route.</p>}
+    </div>;})}
+    {update.counts.messages>0&&onView&&<button className={`${styles.secondary} ${layout.action}`} onClick={()=>onView('messages')}>Read office messages</button>}
+    <time dateTime={update.created_at}>{new Date(update.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time></article>):<p className={styles.muted}>No recent update details for this phone. Check the current route and office messages.</p>}
+   {onView&&<div><button className={styles.secondary} onClick={()=>onView('route')}>View current route</button><button className={styles.secondary} onClick={()=>onView('messages')}>Open office inbox</button></div>}
   </section>}
   <section hidden={view==='messages'} className={layout.setup} aria-label="Notification status">
    <p className={layout.status}>{enabled?"Notifications are on and follow your current truck.":"Notifications are off on this phone."}</p>
-   <p className={styles.muted}>Job, route and office updates for your current truck.</p>
+   <p className={styles.muted}>New or removed jobs, time and route changes, and office messages for your current truck.</p>
    {!standalone && <p className={styles.muted}>On iPhone: Share → Add to Home Screen, then open Waypoint from that icon.</p>}
    {!supported && <p className={styles.muted}>Push notifications require a supported iPhone with Waypoint on the Home Screen.</p>}
    {!available && <p className={styles.muted}>Notification service is currently unavailable. Office messages can still be refreshed here.</p>}

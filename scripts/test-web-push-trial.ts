@@ -13,14 +13,14 @@ import { startPushDispatcher } from '../lib/web-push-dispatcher';
 // independent test cases. Every case retains its durable budget across all sends.
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'ops-trial-test-')),socket=path.join(root,'socket'),data=path.join(root,'db');fs.mkdirSync(socket);
 const env:NodeJS.ProcessEnv={NODE_ENV:'test',PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C',LC_ALL:'C'};
-const pg=(cmd:string,args:string[])=>execFileSync('/opt/homebrew/opt/postgresql@18/bin/'+cmd,args,{env,stdio:'pipe'});
+const pg=(cmd:string,args:string[])=>execFileSync(path.join(process.env.OPSCENTER_TEST_POSTGRES_BIN||'/opt/homebrew/opt/postgresql@18/bin',cmd),args,{env,stdio:'pipe'});
 let started=false,pool:Pool,stop:(()=>Promise<void>)|undefined;
 const sub=(n:number)=>({endpoint:'https://web.push.apple.com/Q'+String(n).repeat(64),keys:{p256dh:'synthetic',auth:'synthetic'}});
 const ref='isolated synthetic test approval';
 let sends=0;
 async function main(){
  pg('initdb',['-D',data,'--no-locale','-A','trust','-U','push_test']);pg('pg_ctl',['-D',data,'-l',path.join(root,'server.log'),'-o',`-h '' -k ${socket} -p 5432`,'-w','start']);started=true;
- pg('createdb',['-h',socket,'-U','push_test','opscenter_trial_preview_test']);const config={host:socket,user:'push_test',database:'opscenter_trial_preview_test'};pool=new Pool(config);const p=pool;
+ const bootstrap=new Pool({host:socket,user:'push_test',database:'postgres'});try{await bootstrap.query('CREATE DATABASE opscenter_trial_preview_test');}finally{await bootstrap.end();}const config={host:socket,user:'push_test',database:'opscenter_trial_preview_test'};pool=new Pool(config);const p=pool;
  const reset=async()=>{await p.query('DROP SCHEMA IF EXISTS opscenter_kernel CASCADE; CREATE SCHEMA opscenter_kernel');for(const file of fs.readdirSync('lib/platform/persistence/migrations').filter(n=>/^\d+.*sql$/.test(n)).sort())await p.query(fs.readFileSync(path.join('lib/platform/persistence/migrations',file),'utf8'));sends=0;};
  const candidate=(n:number,owner='owner')=>managePushDevice(owner,{action:'subscribe',subscription:sub(n),categories:['schedule'],expiresAt:new Date(Date.now()+3600000)},p);
  const approve=(id:string,n:number,minutes=30)=>controlPushTrial({action:'approve',owner:'owner',deviceId:id,fingerprint:trialFingerprint(sub(n)),expiresInMinutes:minutes},ref,p);

@@ -53,7 +53,7 @@ try {
   fs.writeFileSync(path.join(dir,`linxup_alerts_${date}.json`),JSON.stringify({date,alerts:[native(arrival)],collection_timestamp:'2026-09-15T13:16:00Z',pagination_completed:true,validation_status:'passed'}));
   fs.writeFileSync(path.join(dir,`linxup_alerts_${date}_status.json`),JSON.stringify({date,source_status:'failed'}));
   const positions=path.join(root,'history','linxup','geofence_positions');fs.mkdirSync(positions,{recursive:true});
-  fs.writeFileSync(path.join(positions,`${date}.json`),JSON.stringify({date,observations:[arrival,last,warehouse]}));
+  fs.writeFileSync(path.join(positions,`${date}.json`),JSON.stringify({date,observations:[arrival,point('Gentilly','2026-09-15T18:54:39Z'),last,warehouse]}));
   const read=readGeofenceEntries(date);
   assert.equal(read.complete,false);assert.equal(read.sourceHealth.alerts,'failed');
   assert.equal(read.trackedVisits.find(v=>v.name==='Gentilly')?.departureSource,'later_facility','failed native feed does not block current local V3 evidence');

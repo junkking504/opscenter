@@ -2,14 +2,34 @@ import type {VisitPin} from './appointment-visit-pin';
 import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-presence-policy';
 import {createHash} from 'node:crypto';
 
+export const GEOFENCE_MINIMUM_DWELL_SECONDS = 300;
+export function qualifiedGeofenceVisit(visit: Pick<TrackedVisit, 'kind' | 'conflict' | 'qualifiedArrivalAt' | 'enteredAt' | 'geofenceDwellSeconds'>): boolean {
+  // A disputed departure cannot undo an already-proven onsite interval.
+  return visit.kind === 'geofence' && (!visit.conflict || !!visit.qualifiedArrivalAt) && !!visit.enteredAt
+    && Number.isFinite(visit.geofenceDwellSeconds) && visit.geofenceDwellSeconds! >= GEOFENCE_MINIMUM_DWELL_SECONDS;
+}
+
+/** Retraction needs a proven upper bound below five minutes, not merely a
+ * lower bound that failed to reach five. GPS-only arrivals and contradictions
+ * remain reviewable evidence and cannot authorize deletion. */
+export function shortGeofenceVisit(visit: TrackedVisit): boolean {
+  if (visit.kind !== 'geofence' || visit.conflict || !visit.enteredAt || !visit.departedAt
+    || visit.nativeEntryIds?.length !== 1 || visit.nativeEnteredAt !== visit.enteredAt
+    || qualifiedGeofenceVisit(visit)) return false;
+  const upperSeconds=(Date.parse(visit.departureBounds?.by || visit.departedAt)-Date.parse(visit.enteredAt))/1000;
+  return Number.isFinite(upperSeconds) && upperSeconds >= 0 && upperSeconds < GEOFENCE_MINIMUM_DWELL_SECONDS;
+}
+
 export const VISIT_TRACKING_AGENT = 'visit-tracking' as const;
 export type VisitEvidence = 'native_geofence' | 'live_position' | 'later_facility' | 'later_position' | 'confirmed_appointment' | 'operational_confirmation';
 export type TrackedVisit = {
+  // Evidence time only: wall-clock age and inferred departure bounds never add dwell.
+  geofenceDwellSeconds?: number; qualifiedArrivalAt?: string; presenceStartedAt?: string; nativeEnteredAt?: string;
   visitPin?: VisitPin;
   agentId: typeof VISIT_TRACKING_AGENT;
   id: string; kind: 'geofence' | 'appointment'; truck: string; name: string;
   enteredAt: string | null; departedAt: string | null; lastSeenAt: string;
-  firstObservedAt: string; nativeEntryIds?: string[]; positionEntryId?: string;
+  firstObservedAt: string; reportedAt?: string; nativeEntryIds?: string[]; positionEntryId?: string;
   entryIds: string[]; arrivalSource: VisitEvidence; departureSource: VisitEvidence | null;
   departureBounds: {after: string; by: string} | null;
   durationSeconds: number | null; facility?: string; resetLocation?: 'dump' | 'metal_yard' | null;
@@ -39,7 +59,7 @@ const facilityKey = (name: string) => {
  * Historical observations replay in source time, so collection retries/reordering
  * have no effects. A missing geofence never establishes a departure.
  */
-export function trackGeofenceVisits(date: string, transitions: GeofenceTransition[], now = Date.now()): TrackedVisit[] {
+export function trackGeofenceVisits(date: string, transitions: GeofenceTransition[], now = Date.now(), allDates = false): TrackedVisit[] {
   const events = [...new Map(transitions.filter(event => Number.isFinite(Date.parse(event.timestamp)) && Date.parse(event.timestamp) <= now)
     .map(event => [`${event.type}:${event.id}`, event])).values()]
     .sort((a,b) => a.timestamp.localeCompare(b.timestamp) || ({entry:0,exit:1,position:2,coordinate:3}[a.type] - {entry:0,exit:1,position:2,coordinate:3}[b.type]));
@@ -72,15 +92,29 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       const inferred = !visit && [...completed].reverse().find(candidate=>candidate.truck === event.truck && facilityKey(candidate.name) === facilityKey(event.name) && ['later_facility','later_position'].includes(candidate.departureSource || ''));
       if (inferred) { inferred.conflict = true; continue; }
       const enteredAt = visit?.enteredAt || null;
-      completed.push({...visit, agentId:VISIT_TRACKING_AGENT, kind:'geofence',
+      const nativeSeconds = visit?.nativeEnteredAt && visit.nativeEntryIds?.length === 1
+        ? (Date.parse(event.timestamp)-Date.parse(visit.nativeEnteredAt))/1000 : 0;
+      const observedSeconds = visit && Date.parse(event.timestamp)-Date.parse(visit.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
+        ? (Date.parse(event.timestamp)-Date.parse(visit.presenceStartedAt || visit.lastSeenAt))/1000 : 0;
+      const qualifiedArrivalAt = [visit?.qualifiedArrivalAt,
+        nativeSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? visit?.nativeEnteredAt : undefined,
+        observedSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? visit?.presenceStartedAt : undefined,
+      ].filter((stamp): stamp is string => !!stamp).sort()[0];
+      completed.push({...visit, qualifiedArrivalAt, agentId:VISIT_TRACKING_AGENT, kind:'geofence',
         id:visit?.id || event.id.replace('linxup-geofence-', 'linxup-geofence-exit-'),
         truck:event.truck,name:event.name,facility:event.facility,resetLocation:event.resetLocation,
         enteredAt,departedAt:event.timestamp,lastSeenAt:visit?.lastSeenAt || event.timestamp,
         firstObservedAt:visit?.firstObservedAt || event.timestamp,entryIds:visit?.entryIds || [],arrivalSource:visit?.arrivalSource || 'native_geofence',
         departureSource:'native_geofence',departureBounds:null,
+        geofenceDwellSeconds:Math.max(visit?.geofenceDwellSeconds || 0,nativeSeconds,observedSeconds),
         durationSeconds:enteredAt ? (Date.parse(event.timestamp)-Date.parse(enteredAt))/1000 : null});
       continue;
     }
+    // An exit and a membership fix at the same instant describe the end of
+    // one episode, not an immediate return. A later fix can start a new one.
+    if (event.type === 'position' && completed.some(visit=>visit.truck===event.truck
+      && facilityKey(visit.name)===facilityKey(event.name) && visit.departedAt===event.timestamp
+      && visit.departureSource==='native_geofence')) continue;
     if (knownFacility(event)) {
       for (const [otherKey, visit] of active) {
         const gap = Date.parse(event.timestamp)-Date.parse(visit.lastSeenAt);
@@ -97,18 +131,34 @@ export function trackGeofenceVisits(date: string, transitions: GeofenceTransitio
       // Repeated live positions extend presence. A native entry supplements a
       // V3 arrival; two distinct native entries without exit remain ambiguous.
       const ambiguous = event.type === 'entry' && !!previous.nativeEntryIds?.length;
-      active.set(key,{...previous,facilityPosition:facilityPosition || previous.facilityPosition,enteredAt:ambiguous ? null : previous.enteredAt,
+      const presenceStartedAt = Date.parse(event.timestamp)-Date.parse(previous.lastSeenAt) <= GPS_MAX_POINT_GAP_MS
+        ? previous.presenceStartedAt || previous.lastSeenAt : event.timestamp;
+      const observedSeconds = (Date.parse(event.timestamp)-Date.parse(presenceStartedAt))/1000;
+      active.set(key,{...previous,presenceStartedAt,
+        qualifiedArrivalAt:previous.qualifiedArrivalAt || (observedSeconds >= GEOFENCE_MINIMUM_DWELL_SECONDS ? presenceStartedAt : undefined),
+        nativeEnteredAt:previous.nativeEnteredAt || (event.type === 'entry' ? event.timestamp : undefined),
+        geofenceDwellSeconds:Math.max(previous.geofenceDwellSeconds || 0,observedSeconds),facilityPosition:facilityPosition || previous.facilityPosition,
+        conflict:previous.conflict || ambiguous,
+        enteredAt:ambiguous && !previous.qualifiedArrivalAt ? null : previous.enteredAt,
         nativeEntryIds:event.type === 'entry' ? [...(previous.nativeEntryIds || []),event.id] : previous.nativeEntryIds,
         lastSeenAt:event.timestamp,positionEntryId:previous.positionEntryId || (event.type === 'position' ? event.id : undefined),
         entryIds:event.type === 'entry' || event.type === 'position' && !previous.positionEntryId ? [...new Set([...previous.entryIds,event.id])] : previous.entryIds});
     } else {
       active.set(key,{agentId:VISIT_TRACKING_AGENT,id:event.id,kind:'geofence',truck:event.truck,name:event.name,
+        geofenceDwellSeconds:0,presenceStartedAt:event.timestamp,nativeEnteredAt:event.type === 'entry' ? event.timestamp : undefined,
         facility:event.facility,facilityPosition,resetLocation:event.resetLocation,enteredAt:event.timestamp,departedAt:null,lastSeenAt:event.timestamp,
-        firstObservedAt:event.timestamp,positionEntryId:event.type === 'position' ? event.id : undefined,nativeEntryIds:event.type === 'entry' ? [event.id] : [],entryIds:[event.id],arrivalSource:event.type === 'entry' ? 'native_geofence' : 'live_position',
+        firstObservedAt:event.timestamp,reportedAt:event.timestamp,positionEntryId:event.type === 'position' ? event.id : undefined,nativeEntryIds:event.type === 'entry' ? [event.id] : [],entryIds:[event.id],arrivalSource:event.type === 'entry' ? 'native_geofence' : 'live_position',
         departureSource:null,departureBounds:null,durationSeconds:null});
     }
   }
-  return [...completed,...active.values()].filter(visit => visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
+  return [...completed,...active.values()].map(visit => {
+    // An isolated earlier sighting across a GPS gap cannot backdate the eventual
+    // qualified visit/unload. Raw provider identities remain available for audit.
+    if (!qualifiedGeofenceVisit(visit) || !visit.qualifiedArrivalAt) return visit;
+    return {...visit,firstObservedAt:visit.qualifiedArrivalAt,enteredAt:visit.qualifiedArrivalAt,
+      durationSeconds:visit.durationSeconds !== null && visit.departedAt
+        ? (Date.parse(visit.departedAt)-Date.parse(visit.qualifiedArrivalAt))/1000 : null};
+  }).filter(visit => allDates || visitDay(visit.departedAt || visit.enteredAt || visit.lastSeenAt) === date)
     .sort((a,b) => (b.departedAt || b.enteredAt || b.lastSeenAt).localeCompare(a.departedAt || a.enteredAt || a.lastSeenAt));
 }
 

@@ -4,6 +4,7 @@ import { PushSettings } from './components/push-settings';
 import { openingWorkspaces, readOpeningWorkspace, saveOpeningWorkspace } from './lib/workspace-preferences';
 import { workspaceLabel } from './lib/workspace-labels';
 import './settings-workspace.css';
+import './settings-presentation.css';
 
 type Source = { name: string; area: string; state: string; tone: string; freshness: string; detail?: string };
 export function SettingsWorkspace({ canFinance, live, sources, loading, error, onSourceHealth, onBusyChange }: {

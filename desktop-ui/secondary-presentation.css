@@ -1,18 +1,4 @@
-/* Settings and Source Health use the same four presentation roles as the workspaces. */
-.ops-app.ops-live .settings-workspace { gap: 16px; }
-.ops-app.ops-live .settings-card { padding: 16px; }
-.ops-app.ops-live .settings-card :is(h2,h3) { font-size: var(--oc-type-16); font-weight: 600; line-height: 1.35; }
-.ops-app.ops-live .settings-card :is(p,small,legend,.settings-field,.settings-source-list span,.settings-source-list strong) { font-size: var(--oc-type-12); line-height: 1.5; color: var(--oc-text-primary); }
-.ops-app.ops-live .settings-card :is(button,select) { min-height: 44px; font-size: var(--oc-type-16); font-weight: 400; }
-.ops-app.ops-live .settings-field select { height: 44px; }
-.ops-app.ops-live .settings-field { margin-top: 12px; }
-.ops-app.ops-live .settings-card .push-settings label { min-height: 44px; align-items: center; font-size: var(--oc-type-12); }
-.ops-app.ops-live .settings-card .push-settings input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; }
-.ops-app.ops-live .settings-card .push-settings > div { padding: 10px 0; border-top: 1px solid var(--oc-border-default); overflow-wrap: anywhere; font-size: var(--oc-type-12); }
-.ops-app.ops-live .settings-source-list article { padding: 12px; }
-.ops-app.ops-live .settings-source-list .settings-source-state { padding: 3px 6px; border-radius: var(--radius-sm); background: var(--oc-surface-muted); font-weight: 600; }
-.ops-app.ops-live .settings-source-list .settings-source-state.healthy { color: var(--oc-status-ok-ink); background: var(--oc-status-ok-tint); }
-.ops-app.ops-live .settings-source-list .settings-source-state.warning { color: var(--oc-status-warn-ink); background: var(--oc-status-warn-tint); }
+/* Source Health presentation stays in the shell for its shared drawer. */
 .ops-app.ops-live .source-health-drawer { width: min(480px, 100vw); background: var(--oc-surface-canvas); }
 .ops-app.ops-live .source-health-header h2 { font-size: var(--oc-type-24); font-weight: 600; }
 .ops-app.ops-live .source-health-header :is(span,p),
@@ -29,8 +15,6 @@
 .ops-app.ops-live .source-health-actions button,.ops-app.ops-live .source-health-header button { min-height: 44px; }
 .ops-app.ops-live .source-health-header button { min-width: 44px; }
 @media (max-width: 760px) {
-  .ops-app.ops-live .settings-source-list article { grid-template-columns: minmax(0,1fr); }
-  .ops-app.ops-live .settings-source-state { justify-self: start; }
   .ops-app.ops-live .source-health-body { padding: 8px; }
   .ops-app.ops-live .source-health-list article > div { grid-template-columns: minmax(0,1fr); }
   .ops-app.ops-live .source-health-list article > div span { min-height: 0; border-right: 0; }

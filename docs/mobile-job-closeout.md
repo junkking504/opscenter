@@ -30,6 +30,10 @@ ID for status recovery and never automatically send again.
 Truck switching keeps prior-day dispatch pointers in the confirmation fingerprint
 and append-only history but no longer treats them as today's phone assignment.
 Only an explicitly confirmed, verified switch replaces those older pointers.
+Each old assignment must resolve unambiguously to a completed or cancelled source
+row in a saved snapshot observed after its release. Missing, unfinished, ambiguous
+or unverified history remains blocked for dispatch review. Historical versions
+join the confirmation fingerprint and are checked again before final retirement.
 Current/future dispatch, today's other phone binding, unfinished destination jobs,
 pending switches and source-version checks still block conflicting switches.
 Preview errors do not claim a saved switch exists; uncertain confirmations recover

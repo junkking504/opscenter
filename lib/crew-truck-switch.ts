@@ -1,5 +1,6 @@
 import { sameTruck } from './junkware-trucks';
 import {createHash,randomUUID} from 'node:crypto';
+import type {CrewDispatch} from './crew-dispatch';
 import {CrewPhoneError,type CrewPhone} from './crew-phone';
 import {readCrewDay,requireCrewDay,saveCrewDay,crewDayRoster} from './crew-phone-day';
 import {crewInspectionState} from './crew-phone-inspection';
@@ -17,6 +18,26 @@ export const truckSwitchSources={schedule:readDesktopSchedule,assignment:readJun
 type Sources=typeof truckSwitchSources;
 const creationLock='6d1d7259-8c4c-41d8-aaf7-d19a3d04c731';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+/** Date alone never resolves old work. Require an unambiguous terminal source
+ * row observed after release; missing/unfinished/uncertain history fails closed. */
+function historicalDispatchEvidence(states:CrewDispatch[],date:string,sources:Sources){
+ const snapshots=new Map<string,ReturnType<Sources['schedule']>>();
+ const evidence:Array<{recordId:string;version:string}>=[];
+ for(const state of states)for(const assignment of [state.current,state.queued]){
+  if(!assignment || assignment.date>=date)continue;
+  if(!snapshots.has(assignment.date))snapshots.set(assignment.date,sources.schedule(assignment.date));
+  const snapshot=snapshots.get(assignment.date)!;
+  const matches=snapshot.appointments.filter(job=>job.appointmentId===assignment.appointmentId);
+  const job=matches.length===1?matches[0]:null,observedAt=Date.parse(snapshot.observedAt || '');
+  if(!job || snapshot.date!==assignment.date || job.recordId!==`${assignment.date}:appointment:${assignment.appointmentId}` || !Number.isFinite(observedAt) || observedAt<Date.parse(assignment.releasedAt) || observedAt>Date.now()+60_000
+    || !/^(completed|cancelled|canceled)\b/i.test(job.status.trim())
+    || (job.junkwareSyncStatus && job.junkwareSyncStatus!=='verified')){
+   throw new CrewPhoneError('An earlier-day dispatch assignment is unfinished or could not be verified complete or cancelled. Ask dispatch to review it before switching trucks.',409);
+  }
+  evidence.push({recordId:job.recordId,version:job.version});
+ }
+ return evidence;
+}
 function plan(phone:CrewPhone,to:string,sources:Sources){
  const day=requireCrewDay(phone);
  if(!JUNKWARE_DISPATCH_TRUCKS.includes(to) || to===day.truck)throw new CrewPhoneError('Choose a different replacement truck.');
@@ -29,11 +50,12 @@ function plan(phone:CrewPhone,to:string,sources:Sources){
  if(snapshot.appointments.some(j=>sameTruck(j.truck,to) && /^confirmed$/i.test(j.status)))throw new CrewPhoneError('That truck already has unfinished jobs. Ask dispatch to release it first.',409);
  const fromState=readCrewDispatch(day.truck),toState=readCrewDispatch(to);
  // Historical dispatch pointers outlive daily phone sessions. Keep them in the
- // fingerprint/history, but only current or future assignments reserve a truck.
+ // fingerprint/history. Older work must be verified terminal before retirement.
  if([toState.current,toState.queued].some(a=>a && a.date>=day.date))throw new CrewPhoneError('That truck has a current or upcoming dispatch assignment. Ask dispatch to release it first.',409);
  if([fromState.current,fromState.queued].some(a=>a && (a.date>day.date || (a.date===day.date && !jobs.some(j=>j.appointmentId===a.appointmentId)))))throw new CrewPhoneError('Refresh your current job and let dispatch resolve the released assignment before switching.',409);
- const fingerprint=createHash('sha256').update(JSON.stringify({day,fromState,toState,jobs:jobs.map(j=>[j.appointmentId,j.version]),to})).digest('hex');
- return {day,jobs,fromState,toState,fingerprint};
+ const historical=historicalDispatchEvidence([fromState,toState],day.date,sources);
+ const fingerprint=createHash('sha256').update(JSON.stringify({day,fromState,toState,historical,jobs:jobs.map(j=>[j.appointmentId,j.version]),to})).digest('hex');
+ return {day,jobs,fromState,toState,historical,fingerprint};
 }
 export function previewTruckSwitch(phone:CrewPhone,to:string,sources=truckSwitchSources){
  const p=plan(phone,to,sources);
@@ -47,7 +69,7 @@ export async function beginTruckSwitch(phone:CrewPhone,body:Record<string,unknow
   if(pendingTruckSwitch(phone.deviceId))throw new CrewPhoneError('Check the saved truck switch before starting another.',409);
   const p=plan(phone,body.to as string,sources);
   if(p.fingerprint!==body.fingerprint)throw new CrewPhoneError('The truck or schedule changed. Review the switch again.',409);
-  for(const job of p.jobs)if(await readPendingScheduleReceipt(job.recordId))throw new CrewPhoneError('A job has an unverified saved result. Check that result before switching trucks.',409);
+  for(const job of [...p.jobs,...p.historical])if(await readPendingScheduleReceipt(job.recordId))throw new CrewPhoneError('A job has an unverified saved result. Check that result before switching trucks.',409);
   // Repeat after awaits so a concurrent release/setup cannot bypass the confirmation.
   if(plan(phone,body.to as string,sources).fingerprint!==p.fingerprint)throw new CrewPhoneError('Dispatch changed. Review the switch again.',409);
   const now=new Date().toISOString();
@@ -98,6 +120,8 @@ export async function continueTruckSwitch(phone:CrewPhone,id:string,sources=truc
    const snapshot=sources.schedule(s.date);
    if(!crewScheduleFresh(snapshot.observedAt) || snapshot.appointments.some(j=>sameTruck(j.truck,s!.from) && /^confirmed$/i.test(j.status)))throw new CrewPhoneError('The schedule changed during this switch. Ask dispatch to review remaining jobs.',409);
    if(s.jobs.some(j=>!snapshot.appointments.some(a=>a.appointmentId===j.appointmentId && sameTruck(a.truck,s!.to) && /^confirmed$/i.test(a.status))))throw new CrewPhoneError('The moved schedule needs verification. Check the saved switch again.',409);
+   for(const job of historicalDispatchEvidence([s.sourceDispatch,s.targetDispatch],s.date,sources))if(await readPendingScheduleReceipt(job.recordId))throw new CrewPhoneError('An earlier-day job has an unverified saved result. Ask dispatch to review it before switching trucks.',409);
+   historicalDispatchEvidence([s.sourceDispatch,s.targetDispatch],s.date,sources);
    transferCrewDispatch(s.sourceDispatch,s.targetDispatch,id,s.jobs.map(j=>j.appointmentId),s.date);
    saveCrewDay(phone,{date:s.date,truck:s.to,requestId:id,expectedVersion:s.day.version,responsible:s.day.responsible,driver:s.day.driver,navigators:s.day.navigators},new Date(),crewDayRoster(),id);
    return save('Truck switched. Your unfinished jobs and crew are on the replacement truck.','complete');

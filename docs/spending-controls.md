@@ -312,3 +312,20 @@ checker, all other hosts, dependency inventory and protected-file hashes; back u
 and record the installed pair before applying this specifically approved change.
 Private configuration and durable nonrefundable quota state live outside Git. Each
 attempt permits at most one validation and one message request. See [Pushover](pushover.md).
+
+## Local UI component inventory — prepared October 26, 2026
+
+The Astryx component release declares Core and Neutral at 0.7.4 and StyleX at
+0.19.0. The integrated dark-mode switch uses Motion 12.23.12. These packages
+provide local styling, components and animation; this release adds no provider
+credential, subscription or metered request. The `reactbits.dev` hostname is
+present only in the switch's source attribution comment. Existing map tiles
+continue to use the already-inventoried OpenStreetMap service. Maximum new
+spend remains $0.
+
+The repository inventory adds exactly these four dependency names and one
+attribution hostname. The checker, other hosts and dependencies, protected-file
+hashes, private approvals, quotas and budgets remain unchanged. The installed
+inventory must not be changed until the user separately approves this exact
+update. After approval, preserve the current installed pair, apply only the
+reviewed additions, record SHA256 checksums and retain read-only permissions.

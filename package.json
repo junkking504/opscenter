@@ -59,6 +59,7 @@
     "verify:historical-searchkings": "node --import tsx scripts/test-historical-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-assignment-email": "node --import tsx scripts/test-junkware-assignment-email.ts",
+    "verify:appointment-account-markers": "node --import tsx scripts/test-appointment-account-marker.ts",
     "verify:appointment-block-selection": "node --import tsx scripts/test-appointment-block-selection.ts",
     "verify:closeout-label-contrast": "node scripts/test-closeout-label-contrast.mjs",
     "verify:junkware-booking-date": "node --import tsx scripts/test-junkware-booking-date.ts",

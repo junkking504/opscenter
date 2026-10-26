@@ -1189,3 +1189,19 @@ center across query variants. Unrelated fuzzy street suggestions are ignored.
 No house number is added to the matched street evidence. The property remains
 unverified; the center is navigation-only and cannot establish GPS visits.
 This consumes existing cache evidence without additional provider requests.
+
+
+## Mobile appointment marker height
+
+The phone full-day overview uses consistent 28px appointment markers on 32px
+lanes. Busy days and short landscape viewports use normal page scrolling rather
+than shrinking every truck's markers. Real time-footprint collisions add lanes;
+unrelated busy trucks do not change Truck 9 or any other row's block height.
+Horizontal source times, fifteen-minute display minimum, booked/GPS distinctions,
+recorded visits, facilities, missing times, selection and move verification remain
+unchanged. Truck details and the appointment register remain larger-target
+alternatives to narrow full-day markers.
+
+An asterisk marks an Amazon source business label, using the existing partner
+classifier without its customer-name fallback. The legend and accessible labels
+explain it; customer names and incidental brand mentions do not create a marker.

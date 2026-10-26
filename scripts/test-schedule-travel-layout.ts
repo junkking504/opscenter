@@ -72,7 +72,8 @@ const returning = {...job('returning',480,720),truck:'Truck 8',onsiteTime:{minut
 const between={...job('between',540,600),truck:'Truck 8'};
 const consolidated=scheduleTravelLayout([returning,between],[],timelineRange([returning,between]),'Truck 8',Date.parse('2026-09-29T18:00:00Z'),1000);
 assert.equal(consolidated.laneCount,2,'An intervening appointment uses a separate lane from the visible off-site gap');
-assert.equal(consolidated.occupiedLanes[0].length,3,'Facility packing receives two visit segments and their visible gap');
+assert.equal(consolidated.occupiedLanes[0].length,3,'Appointments take the chronological lane before off-site annotations');
+assert.equal(consolidated.placed.find(p=>p.job.recordId==='between')!.lane,0,'An off-site annotation cannot displace an intervening appointment');
 assert.notEqual(consolidated.placed.find(p=>p.job.recordId==='between')!.lane, consolidated.placed.find(p=>p.job.recordId==='returning')!.gapLanes[0]);
 console.log('Return visits preserve their striped off-site gap without covering intervening appointments.');
 
@@ -125,3 +126,44 @@ for (const c of layout.connectors) {
   assert.equal(points[1][1],c.labelTop+7,'The minute label is centered on its connector line');
   assert.equal(points[2][1],c.labelTop+7,'A continuous line carries the label to the destination');
 }
+
+// Fragmented observations and a return visit must not turn two appointments
+// into a staircase or connect a late return backward to an earlier customer.
+const visited = (id:string, intervals:Array<[string,string,string|null]>) => ({
+  ...job(`2026-10-26:appointment:${id}`,780,840),truck:'Truck 8',status:'Confirmed',
+  truckVisits:intervals.map(([arrival,observedThrough,departure])=>({truck:'Truck 8',arrival,observedThrough,departure})),
+} as ScheduleAppointment);
+const returnVisit=visited('return',[
+  ['2026-10-26T18:37:00Z','2026-10-26T18:39:00Z',null],
+  ['2026-10-26T20:03:00Z','2026-10-26T20:06:00Z',null],
+  ['2026-10-26T21:06:00Z','2026-10-26T21:06:00Z',null],
+]);
+returnVisit.truckVisitGaps=[{truck:'Truck 8',departedAt:'2026-10-26T18:53:00Z',returnedAt:'2026-10-26T20:03:00Z',kind:'off_site'}];
+const middleVisit=visited('middle',[
+  ['2026-10-26T19:17:00Z','2026-10-26T19:20:00Z',null],
+  ['2026-10-26T19:30:00Z','2026-10-26T19:31:00Z','2026-10-26T19:31:00Z'],
+]);
+const returnRange={start:420,end:1020,duration:600};
+const visitLeg=leg(returnVisit.recordId,middleVisit.recordId,0);
+for (const width of [320,720,1280]) for(const input of [[returnVisit,middleVisit],[middleVisit,returnVisit]]) {
+  const original=JSON.stringify(input);
+  const result=scheduleTravelLayout(input,[visitLeg],returnRange,'Truck 8',Date.parse('2026-10-26T22:00:00Z'),width);
+  assert.ok(result.placed.every(item=>item.segmentLanes.every(lane=>lane===0)),'All five disjoint observations stay on the chronological lane');
+  const returning=result.placed.find(item=>item.job===returnVisit)!;
+  const middle=result.placed.find(item=>item.job===middleVisit)!;
+  assert.equal(returning.gapLanes[0],1,'The off-site band stays below actual appointments');
+  assert.ok(middle.renderedSegments[0].left+middle.renderedSegments[0].width<=middle.renderedSegments[1].left+1e-9,'Display padding stops at the next recorded arrival');
+  assert.equal(result.connectors.length,1);
+  assert.equal(result.connectors[0].sourceIndex,0,'Travel starts at the earlier visit, never the final return');
+  assert.equal(result.connectors[0].targetIndex,0);
+  assert.equal(result.connectors[0].recordedOrder,true);
+  assert.equal(JSON.stringify(input),original,'Source evidence and assignments are unchanged');
+  assert.equal(returning.position.intervals[2].end-returning.position.intervals[2].start,0,'An isolated GPS report never acquires service duration');
+  assert.equal(returning.position.intervals[2].complete,false,'Unknown departure stays unknown');
+}
+const blocker=visited('intervening',[['2026-10-26T19:00:00Z','2026-10-26T19:10:00Z','2026-10-26T19:10:00Z']]);
+assert.equal(scheduleTravelLayout([returnVisit,blocker,middleVisit],[visitLeg],returnRange,'Truck 8').connectors.length,0,'A stale proposed leg cannot skip an intervening recorded appointment');
+assert.equal(scheduleTravelLayout([returnVisit,middleVisit],[leg(middleVisit.recordId,returnVisit.recordId,0)],returnRange,'Truck 8').connectors.length,0,'A route pointing backward to the first observed visit is omitted');
+const pastPlan={...job('past-plan',720,750),truck:'Truck 8'};
+assert.equal(scheduleTravelLayout([pastPlan,middleVisit],[leg(middleVisit.recordId,pastPlan.recordId,0),leg(pastPlan.recordId,middleVisit.recordId,0)],returnRange,'Truck 8').connectors.length,0,'Planned order cannot route backward through history');
+console.log('Fragmented GPS observations retain chronology, unknown timing, accessible identities and forward-only recorded connectors.');

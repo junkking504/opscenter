@@ -312,3 +312,18 @@ checker, all other hosts, dependency inventory and protected-file hashes; back u
 and record the installed pair before applying this specifically approved change.
 Private configuration and durable nonrefundable quota state live outside Git. Each
 attempt permits at most one validation and one message request. See [Pushover](pushover.md).
+
+## Theme switch animation — approved October 26, 2026
+
+The owner explicitly approved the prepared $0 dependency inventory update for
+the requested React Bits Squish Switch. Add only `motion` (direct version
+12.23.12) to the dependency inventory and `reactbits.dev` to the host inventory.
+The switch animates locally in the browser; the React Bits hostname occurs only
+in source attribution and introduces no runtime requests. No paid service,
+credentials, billing account, metered usage, quotas or budget increase is
+authorized. Existing protected-file hashes and the checker are unchanged.
+
+The separately installed pair was backed up, installed read-only and recorded
+in the external spending-controls installation record after explicit approval.
+This source inventory mirrors that approved pair so both the release build and
+the installed deployment guard enforce the same inventory.

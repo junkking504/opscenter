@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
@@ -34,12 +35,14 @@ try {
     assert.ok(reviewBox.x >= 0 && reviewBox.x + reviewBox.width <= width + 1, `WhatsApp review action fits at ${width}px`);
 
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long&source=1`);
+    await openScheduleControls(page);
     const add = page.getByRole('button', { name: 'Add Appointment', exact: true });
     await add.waitFor();
     assert.deepEqual(await visualStyle(add), reviewStyle, `Add Appointment matches the shared action style at ${width}px`);
     const addBox = await add.boundingBox();
     assert.ok(addBox.x >= 0 && addBox.x + addBox.width <= width + 1, `Add Appointment fits at ${width}px`);
 
+    await closeScheduleControls(page);
     await page.locator('[data-schedule-appointment]').first().click();
     await page.getByRole('button', { name: /Full details for/ }).click();
     const drawer = page.getByRole('dialog');

@@ -51,3 +51,6 @@ createRoot(document.getElementById('root')!).render(<Home live={{snapshot:comman
 
 import '../approved-workbench.css';
 import './css-phase-two-type-probe';
+
+// Match the production entry's final theme override layer.
+import '../theme.css';

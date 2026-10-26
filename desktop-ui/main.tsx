@@ -24,7 +24,7 @@ try {
 const root = document.getElementById('root');
 if (!root) throw new Error('OpsCenter mount point is missing.');
 if (bootstrap.mode === 'reference') {
-  createRoot(root).render(<Home />);
+  void import('./reference-workspace-styles').then(() => createRoot(root).render(<Home />)).catch(() => { root.textContent = 'Reference styles could not load. Reload to retry.'; });
 } else if (bootstrap.mode === 'command-live') {
   installMaintenanceTelemetry();
   // Start the selected Convoy read alongside shell rendering and code loading.

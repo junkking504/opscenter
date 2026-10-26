@@ -28,8 +28,10 @@ function plan(phone:CrewPhone,to:string,sources:Sources){
  if(new Set(jobs.map(j=>j.appointmentId)).size!==jobs.length || jobs.some(j=>j.junkwareSyncStatus && j.junkwareSyncStatus!=='verified'))throw new CrewPhoneError('An unfinished job needs dispatch verification before switching.',409);
  if(snapshot.appointments.some(j=>sameTruck(j.truck,to) && /^confirmed$/i.test(j.status)))throw new CrewPhoneError('That truck already has unfinished jobs. Ask dispatch to release it first.',409);
  const fromState=readCrewDispatch(day.truck),toState=readCrewDispatch(to);
- if(toState.current || toState.queued)throw new CrewPhoneError('That truck already has a phone assignment. Ask dispatch to release it first.',409);
- if([fromState.current,fromState.queued].some(a=>a && (a.date!==day.date || !jobs.some(j=>j.appointmentId===a.appointmentId))))throw new CrewPhoneError('Refresh your current job and let dispatch resolve the released assignment before switching.',409);
+ // Historical dispatch pointers outlive daily phone sessions. Keep them in the
+ // fingerprint/history, but only current or future assignments reserve a truck.
+ if([toState.current,toState.queued].some(a=>a && a.date>=day.date))throw new CrewPhoneError('That truck has a current or upcoming dispatch assignment. Ask dispatch to release it first.',409);
+ if([fromState.current,fromState.queued].some(a=>a && (a.date>day.date || (a.date===day.date && !jobs.some(j=>j.appointmentId===a.appointmentId)))))throw new CrewPhoneError('Refresh your current job and let dispatch resolve the released assignment before switching.',409);
  const fingerprint=createHash('sha256').update(JSON.stringify({day,fromState,toState,jobs:jobs.map(j=>[j.appointmentId,j.version]),to})).digest('hex');
  return {day,jobs,fromState,toState,fingerprint};
 }
@@ -96,7 +98,7 @@ export async function continueTruckSwitch(phone:CrewPhone,id:string,sources=truc
    const snapshot=sources.schedule(s.date);
    if(!crewScheduleFresh(snapshot.observedAt) || snapshot.appointments.some(j=>sameTruck(j.truck,s!.from) && /^confirmed$/i.test(j.status)))throw new CrewPhoneError('The schedule changed during this switch. Ask dispatch to review remaining jobs.',409);
    if(s.jobs.some(j=>!snapshot.appointments.some(a=>a.appointmentId===j.appointmentId && sameTruck(a.truck,s!.to) && /^confirmed$/i.test(a.status))))throw new CrewPhoneError('The moved schedule needs verification. Check the saved switch again.',409);
-   transferCrewDispatch(s.sourceDispatch,s.targetDispatch,id,s.jobs.map(j=>j.appointmentId));
+   transferCrewDispatch(s.sourceDispatch,s.targetDispatch,id,s.jobs.map(j=>j.appointmentId),s.date);
    saveCrewDay(phone,{date:s.date,truck:s.to,requestId:id,expectedVersion:s.day.version,responsible:s.day.responsible,driver:s.day.driver,navigators:s.day.navigators},new Date(),crewDayRoster(),id);
    return save('Truck switched. Your unfinished jobs and crew are on the replacement truck.','complete');
   }catch(error){return save(error instanceof Error?error.message:'The switch needs verification. Contact dispatch.','attention');}

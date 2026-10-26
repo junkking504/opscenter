@@ -24,6 +24,9 @@ async function main(){
   const sources={schedule:()=>({observedAt:new Date().toISOString(),appointments:jobs}),assignment:async(id:string)=>{const job=jobs.find(j=>j.appointmentId===id)!;return {...job,date,verifiedAt:new Date().toISOString()};},move:async(input:{appointmentId:string;truck:string})=>{moved++;const job=jobs.find(j=>j.appointmentId===input.appointmentId)!;const previousTruck=job.truck;job.truck=input.truck;if(drop){drop=false;throw new Error('Synthetic lost response after source saved');}return{...input,previousTruck,changed:true,verifiedAt:new Date().toISOString()};}} as unknown as typeof import('../lib/crew-truck-switch').truckSwitchSources;
   const first=releaseCrewJob({truck:'Truck 6',date,appointmentId:jobs[0].appointmentId,expectedVersion:0,requestId:randomUUID()},'manager');
   const queued=releaseCrewJob({truck:'Truck 6',date,appointmentId:jobs[1].appointmentId,expectedVersion:1,requestId:randomUUID()},'manager');
+  const yesterday=chicagoDateKey(new Date(Date.now()-86400000));
+  const oldTarget=releaseCrewJob({truck:'Truck 7',date:yesterday,appointmentId:'999090',expectedVersion:0,requestId:randomUUID()},'manager');
+  releaseCrewJob({truck:'Truck 7',date:yesterday,appointmentId:'999091',expectedVersion:1,requestId:randomUUID()},'manager');
   const preview=previewTruckSwitch(phone,'Truck 7',sources);assert.equal(preview.count,2);assert.equal(preview.inspection.status,'required');
   const body={action:'confirm',to:'Truck 7',requestId:randomUUID(),fingerprint:preview.fingerprint};
   await assert.rejects(beginTruckSwitch(phone,{...body,fingerprint:'stale'},sources),/changed/);
@@ -40,6 +43,7 @@ async function main(){
   await continueTruckSwitch(phone,saved.requestId,sources);const done=await continueTruckSwitch(phone,saved.requestId,sources);
   assert.equal(done.status,'complete');assert.equal(moved,2);assert.equal(jobs[2].truck,'Truck 6','Completed history stays with original truck');
   assert.equal(readCrewDispatch('Truck 6').current,null);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root,'dispatch','Truck-7','1.json'),'utf8')).current,oldTarget.current,'Prior-day destination history is retained');
   assert.deepEqual(readCrewDispatch('Truck 7').current,first.current,'Current assignment identity and release timestamp preserved');
   assert.deepEqual(readCrewDispatch('Truck 7').queued,queued.queued,'Queued job remains queued');
   assert.equal(readCrewDay(phone)?.truck,'Truck 7');assert.equal(readCrewDay(phone)?.driver,'Test Driver');assert.equal(pendingTruckSwitch(phone.deviceId),null);
@@ -48,6 +52,24 @@ async function main(){
   submitTruckInspection({requestId:randomUUID(),truck:'Truck 7',inspector:'Another crew',odometer:'12345',fuel:'Full',loadLevel:'Empty',startedAt:new Date().toISOString(),answers:INSPECTION_SECTIONS.map(s=>({id:s.id,status:'good',notes:''})),photos:[],status:'clear',notes:'',initials:'AC'},legacy.device);
   assert.equal(crewInspectionState(phone).status,'ready','Inspection from another crew today is reusable');
   assert.equal((await continueTruckSwitch(phone,saved.requestId,sources)).status,'complete');assert.equal(moved,2,'Completed retry never moves jobs again');
+  // Historical source and destination pointers must not prevent a new-day switch.
+  const second=enrollCrewPhone(createCrewPhoneEnrollment('Truck 9','Synthetic second phone','manager').code,randomBytes(32).toString('hex'));
+  saveCrewDay(second,{date,truck:'Truck 9',expectedVersion:0,requestId:randomUUID(),driver:'Test Driver',responsible:'Test Driver',navigators:[]});
+  releaseCrewJob({truck:'Truck 9',date:yesterday,appointmentId:'999092',expectedVersion:0,requestId:randomUUID()},'manager');
+  releaseCrewJob({truck:'Truck 1',date:yesterday,appointmentId:'999093',expectedVersion:0,requestId:randomUUID()},'manager');
+  const nextPreview=previewTruckSwitch(second,'Truck 1',sources);assert.equal(nextPreview.count,0);
+  const next=await beginTruckSwitch(second,{action:'confirm',to:'Truck 1',requestId:randomUUID(),fingerprint:nextPreview.fingerprint},sources);
+  assert.equal((await continueTruckSwitch(second,next.requestId,sources)).status,'complete');
+  assert.equal(readCrewDay(second)?.truck,'Truck 1');assert.equal(readCrewDispatch('Truck 1').current,null,'Old source jobs never transfer');
+  assert.equal(readCrewDispatch('Truck 9').current,null);assert.equal(moved,2,'No source writes for an empty new-day switch');
+  assert.throws(()=>previewTruckSwitch(phone,'Truck 1',sources),/another phone today/,'Today’s phone occupancy still blocks');
+  releaseCrewJob({truck:'Truck 8',date,appointmentId:'999094',expectedVersion:0,requestId:randomUUID()},'manager');
+  assert.throws(()=>previewTruckSwitch(phone,'Truck 8',sources),/current or upcoming dispatch/,'Today’s dispatch still blocks');
+  releaseCrewJob({truck:'Truck 4',date:chicagoDateKey(new Date(Date.now()+86400000)),appointmentId:'999095',expectedVersion:0,requestId:randomUUID()},'manager');
+  assert.throws(()=>previewTruckSwitch(phone,'Truck 4',sources),/current or upcoming dispatch/,'Future dispatch still blocks');
+  const emptyPreview=previewTruckSwitch(phone,'Truck 9',sources);
+  releaseCrewJob({truck:'Truck 9',date,appointmentId:'999096',expectedVersion:readCrewDispatch('Truck 9').version,requestId:randomUUID()},'manager');
+  await assert.rejects(beginTruckSwitch(phone,{action:'confirm',to:'Truck 9',requestId:randomUUID(),fingerprint:emptyPreview.fingerprint},sources),/current or upcoming dispatch/,'Concurrent release invalidates confirmation');
   jobs.push({...jobs[0],appointmentId:'999004',truck:'Truck 8'});
   assert.throws(()=>previewTruckSwitch({...phone,truck:'Truck 7'},'Truck 8',sources),/unfinished jobs/);
   console.log('PASS: confirmed truck switch; completed history and current/queued IDs preserved; source loss recovery without replay; reservations, stale confirmation, occupied destination and shared daily inspection. Synthetic data only.');

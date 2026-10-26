@@ -1,5 +1,5 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
-import { ADDRESS_VERIFICATION_POLICY, cachedAddressVerification } from './desktop-address-verification';
+import { ADDRESS_VERIFICATION_POLICY, cachedAddressVerification, cachedEvidenceMatches } from './desktop-address-verification';
 import { serviceAddressForGeocoding } from './appointment-partner';
 import crypto from "node:crypto";
 
@@ -59,17 +59,25 @@ function canonicalStreetAddress(address: string): string {
   return streetStart >= 0 ? canonical.slice(streetStart) : canonical;
 }
 
-function serviceAreaLocation(candidate: Record<string, unknown> | undefined): PlanningLocation | null {
+function serviceAreaLocation(candidate: Record<string, unknown> | undefined, address: string): PlanningLocation | null {
   if (candidate?.match_confidence !== "confirmed") return null;
   // A unique geocoder result is not sufficient: Google and other providers
   // can return a plausible nearby building. Only render a locator after the
   // provider-returned house number and street name were matched to JunkWare.
-  if (candidate.house_street_verified !== true || candidate.verification_policy !== ADDRESS_VERIFICATION_POLICY) return null;
+  if (candidate.house_street_verified !== true || !Number.isInteger(candidate.verification_policy)
+    || Number(candidate.verification_policy) < 1 || Number(candidate.verification_policy) > ADDRESS_VERIFICATION_POLICY) return null;
   const latitude = Number(candidate.latitude);
   const longitude = Number(candidate.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   if (latitude < SERVICE_AREA_BOUNDS.minimumLatitude || latitude > SERVICE_AREA_BOUNDS.maximumLatitude) return null;
   if (longitude < SERVICE_AREA_BOUNDS.minimumLongitude || longitude > SERVICE_AREA_BOUNDS.maximumLongitude) return null;
+  // A policy bump retries failures without erasing an older successful pin.
+  // Revalidate its returned address against the current full-field rules; the
+  // old confirmation flag alone cannot carry a location into the new policy.
+  if (candidate.verification_policy !== ADDRESS_VERIFICATION_POLICY
+    && !cachedEvidenceMatches(address, {location:{latitude,longitude},
+      matchedAddress:typeof candidate.matched_address==='string'?candidate.matched_address:undefined,
+      reason:'Revalidated stored address evidence'})) return null;
   return { latitude, longitude };
 }
 
@@ -82,7 +90,7 @@ export function planningLocation(
   const verified = cachedAddressVerification(address);
   if (verified?.location) return verified.location;
   for (const hash of planningAddressHashes(address)) {
-    const location = serviceAreaLocation(geocodes[hash]);
+    const location = serviceAreaLocation(geocodes[hash],address);
     if (location) return location;
   }
 
@@ -92,7 +100,7 @@ export function planningLocation(
   const target = canonicalStreetAddress(address);
   const locations = Object.values(geocodes)
     .filter((candidate) => canonicalStreetAddress(String(candidate.normalized_address || "")) === target)
-    .map(serviceAreaLocation)
+    .map(candidate=>serviceAreaLocation(candidate,address))
     .filter((location): location is PlanningLocation => location !== null);
   const uniqueLocations = Array.from(new Map(
     locations.map((location) => [`${location.latitude},${location.longitude}`, location]),

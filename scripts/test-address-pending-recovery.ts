@@ -6,6 +6,8 @@ import {createHash} from 'node:crypto';
 import {cleanServiceQuery,legacyServiceQuery,serviceUnitIdentifiers,normalizeServiceAddress,appointmentServiceAddress} from '../lib/service-address-format';
 import {readAddressMapFallback} from '../lib/address-map-fallback';
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
+import {planningLocation} from '../lib/planning-geocodes';
+import {ADDRESS_VERIFICATION_POLICY} from '../lib/desktop-address-verification';
 import {addressProviderHealth} from '../lib/address-provider-health';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'address-pending-'));
 const before={...process.env},fetchBefore=globalThis.fetch;
@@ -48,6 +50,17 @@ try {
   for(const patch of [{maxSpendMicros:1},{noPaymentMethod:false},{maxRequests:2501},{enabled:false},{apiKey:''},{validUntil:'bad'}])assert.equal(health(patch).tone,'warning');
   assert.ok(!JSON.stringify(health()).includes('synthetic-secret'),'Health never exposes credentials');
   fs.writeFileSync(process.env.GEOCODIO_FREE_CONFIG_FILE!,'broken');assert.equal(addressProviderHealth(now).tone,'warning');
+  const oldPin={latitude:29.95,longitude:-90.05,normalized_address:'123 EXAMPLE ST, NEW ORLEANS, 70114',
+    match_confidence:'confirmed',house_street_verified:true,verification_policy:ADDRESS_VERIFICATION_POLICY-1,
+    matched_address:'123 EXAMPLE ST, NEW ORLEANS, LA, 70114'};
+  const sourceVariant='Amazon Mattress Removal 123 Example St NEW ORLEANS, LA 70114';
+  const geocodes={old:oldPin};
+  assert.deepEqual(planningLocation(sourceVariant,geocodes),{latitude:29.95,longitude:-90.05},'Revalidate older successful evidence across business, comma, state and case variants without requests');
+  for(const patch of [{matched_address:undefined},{matched_address:'124 EXAMPLE ST, NEW ORLEANS, LA, 70114'},
+    {matched_address:'123 OTHER ST, NEW ORLEANS, LA, 70114'},{matched_address:'123 EXAMPLE ST, KENNER, LA, 70114'},
+    {verification_policy:0},{verification_policy:ADDRESS_VERIFICATION_POLICY+1},{house_street_verified:false},
+    {latitude:0},{match_confidence:'approximate'}])assert.equal(planningLocation(sourceVariant,{old:{...oldPin,...patch}}),null,JSON.stringify(patch));
+  assert.equal(planningLocation(sourceVariant,{old:oldPin,conflict:{...oldPin,latitude:29.96}}),null,'Conflicting revalidated points stay unresolved');
   assert.equal(calls,0);
   console.log('Address recovery PASS: highway units, guarded direction relocation, cached evidence, and early free-account expiry warning; no provider requests.');
 } finally {process.env=before;globalThis.fetch=fetchBefore;fs.rmSync(root,{recursive:true,force:true});}

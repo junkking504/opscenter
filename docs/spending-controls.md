@@ -312,3 +312,12 @@ checker, all other hosts, dependency inventory and protected-file hashes; back u
 and record the installed pair before applying this specifically approved change.
 Private configuration and durable nonrefundable quota state live outside Git. Each
 attempt permits at most one validation and one message request. See [Pushover](pushover.md).
+
+## Theme switch inventory — approved October 26, 2026
+
+The owner explicitly approved adding only `motion` for local light/dark switch
+animation and `reactbits.dev` for source attribution, with **$0 new spending**.
+No runtime requests to the attribution site, provider accounts, credentials,
+metered APIs, subscriptions, quotas or budget changes are authorized. Preserve
+the unchanged checker, existing entries and protected-file hashes. Back up the
+installed pair and record approval and both SHA256 checksums before deploying.

@@ -43,6 +43,7 @@ assert.equal(commandCancellationAlerts([{...message,threadReply:true}], [cancele
 let authorized = true, currentJobs = [canceled], observedAt: string | null = '2026-09-07T14:00:00Z';
 let saved: Record<string, unknown> | undefined;
 const dependencies: Record<string, unknown> = {
+  '@/lib/truck-inspection-updates': {},
   '@/lib/streamlined-operational-alerts': {streamlineOperationalAlerts},
   '@/lib/desktop-schedule-source': {readJobRows:()=>currentJobs,junkwareScheduleUpdatedAt:()=>observedAt},
   '@/lib/command-cancellations': {commandCancellationAlerts},

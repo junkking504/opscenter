@@ -1,4 +1,5 @@
 import { streamlineOperationalAlerts } from '@/lib/streamlined-operational-alerts';
+import { readInspectionTimeline, mergeInspectionTimeline } from '@/lib/truck-inspection-updates';
 import { readJobRows, junkwareScheduleUpdatedAt } from '@/lib/desktop-schedule-source';
 import { commandCancellationAlerts } from '@/lib/command-cancellations';
 import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
@@ -53,7 +54,21 @@ export async function POST(request: Request) {
     // every review, including native LinxUp events that never passed through Slack.
     let alert: OperationalAlert;
     let sourceObservedAt: string;
-    if (String(body.alertId).startsWith('linxup-geofence-')) {
+    if (String(body.alertId).startsWith('truck_inspection:')) {
+      const source = readInspectionTimeline(date);
+      const entry = source.alerts.find(row => row.id === body.alertId);
+      if (!entry?.timestamp) return NextResponse.json({error:'The source inspection is unavailable. Refresh and try again.'},{status:source.complete ? 404 : 503,headers});
+      alert = entry;
+      sourceObservedAt = entry.timestamp;
+      // Older delivery receipts can be pruned while Slack copies and their
+      // review ownership survive. Match the dashboard's exact-fingerprint
+      // aliases when available; a failed Slack read never blocks a native review.
+      try {
+        const digest = await readSlackDailyDigest(date);
+        const copies = digest.messages.filter(message => message.eventFingerprint === entry.eventFingerprint).map(toOperationalAlert);
+        alert = mergeInspectionTimeline(copies, [entry]).find(candidate => candidate.id === entry.id)!;
+      } catch { /* Keep the native report and any durable delivery aliases. */ }
+    } else if (String(body.alertId).startsWith('linxup-geofence-')) {
       const source = readGeofenceEntries(date);
       const entry = geofenceTimelineAlerts(date,source.arrivals,[...source.visits,...source.reviewVisits]).find(row=>row.id===body.alertId);
       if (!entry?.timestamp) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});

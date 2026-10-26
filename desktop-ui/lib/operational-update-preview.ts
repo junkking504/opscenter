@@ -2,6 +2,7 @@ import type { DesktopAlert } from './live-contract';
 type PreviewAlert=Pick<DesktopAlert,'label'|'title'|'facts'|'timestamp'|'updatedAt'>;
 export function operationalUpdatePreview(alert:PreviewAlert, customer?:string):string {
   const fact=(pattern:RegExp)=>alert.facts.find(f=>pattern.test(f.label))?.value;
+  if(alert.label==='Inspection Submitted') return [fact(/^Inspector$/i),fact(/^Reported status$/i)].filter(Boolean).join(' · ') || alert.title;
   if(alert.label==='Krewe Summary') {
     const clocks=alert.facts.filter(f=>/^\d{1,2}:\d{2}(?:\s*[AP]M)?$/i.test(f.value.trim()));
     if(clocks.length)return `${clocks.length} clocked in · ${clocks.slice(0,2).map(f=>`${f.label} ${f.value}`).join(' · ')}${clocks.length>2?` · +${clocks.length-2} more`:''}`;

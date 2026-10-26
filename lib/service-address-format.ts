@@ -15,19 +15,25 @@ const units = /(?:\b(?:suite|ste|unit|apt|apartment|floor|fl|building|bldg|lot|t
 // A bare alphanumeric unit is recognized only after a road suffix and before
 // a complete locality/ZIP tail. Never consume highway identifiers or numbers.
 const bareUnit = /(\b(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|terrace|ter|circle|cir|trail|trl)\.?)[,\s]+([A-Z]{1,2}\d{1,4}[A-Z]?|[A-Z])(?=[,\s]+[A-Z][A-Z .'-]*,?\s+(?:(?:LA|LOUISIANA)[,\s]+)?\d{5}(?:-\d{4})?\s*$)/ig;
-const explicitServiceUnits = (address: string, bareLetters = true) => address.replace(bareUnit,(match, suffix: string, unit: string, offset: number) => {
-  const prefix = address.slice(0,offset);
-  if (/\b(?:county|parish|state|farm)\s*$/i.test(prefix)) return match;
-  if (unit.length === 1) {
-    // A post-direction is not a unit; "Avenue B" is a street name. Require
-    // a house plus a real street name before the suffix, not just a direction.
-    const street = firstHouseAndStreet(prefix)?.street;
-    if (!bareLetters || /^[NSEW]$/i.test(unit) || !street
-      || !/^(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH))(?:\s+(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH)))*$/i.test(street.trim())
-      || /^(?:N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)$/i.test(street.trim())) return match;
-  }
-  return `${suffix} Unit ${unit}`;
-});
+// A numbered highway followed by a letter+number unit is also a complete
+// road. Keep route suffixes (16A/16-A), directions and second roads intact.
+const highwayUnit = /^(\d+[A-Z]?\s+(?:(?:(?:LA|Louisiana|US|U\.S\.|State)[ -]*(?:(?:Highway|Hwy|Route|Rte|Rt)\.?\s*)?)|(?:Highway|Hwy)\.?\s+)\d+)[,\s]+([A-Z]{1,2}\d{1,4}[A-Z]?)(?=[,\s]+[A-Z][A-Z .'-]*,?\s+(?:(?:LA|LOUISIANA)[,\s]+)?\d{5}(?:-\d{4})?\s*$)/i;
+const explicitServiceUnits = (input: string, bareLetters = true) => {
+  const address = bareLetters ? input.replace(highwayUnit, '$1 Unit $2') : input;
+  return address.replace(bareUnit,(match, suffix: string, unit: string, offset: number) => {
+    const prefix = address.slice(0,offset);
+    if (/\b(?:county|parish|state|farm)\s*$/i.test(prefix)) return match;
+    if (unit.length === 1) {
+      // A post-direction is not a unit; "Avenue B" is a street name. Require
+      // a house plus a real street name before the suffix, not just a direction.
+      const street = firstHouseAndStreet(prefix)?.street;
+      if (!bareLetters || /^[NSEW]$/i.test(unit) || !street
+        || !/^(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH))(?:\s+(?:[A-Z][A-Z.'’-]*|\d+(?:ST|ND|RD|TH)))*$/i.test(street.trim())
+        || /^(?:N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)$/i.test(street.trim())) return match;
+    }
+    return `${suffix} Unit ${unit}`;
+  });
+};
 const roadEnd = /\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|pky|terrace|ter|circle|cir|trail|trl|trace|trce|square|sq|way|loop)\.?[,\s]*$/i;
 function recognizedUnit(address:string,unit:string,index:number) {
   // These labels also occur in road names (Space Walk, Trailer Park Rd).

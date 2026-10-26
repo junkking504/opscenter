@@ -1,10 +1,23 @@
 import { notificationDestination } from './alert-destination';
 import { createCipheriv, createECDH, hkdfSync, randomBytes } from 'node:crypto';
 import type { PushSubscriptionRecord } from './web-push-store';
+import {waypointUpdatePath} from './waypoint-entry';
 export type PushMessage={title:string;body:string;eventId?:string;path?:string};
 export type PushEnvelope={message:PushMessage;subscription:PushSubscriptionRecord;recordedAt?:string};
-/** Revalidate persisted destinations before encrypting; no payload-supplied external URLs. */
-export const pushPath = notificationDestination;
+export function pushWorkspacePath(category:unknown):string {
+ return `/desktop?workspace=${category==='fleet'?'Fleet':category==='krewe'?'Krewe':category==='schedule'?'Schedule':'Command'}`;
+}
+/** Only fixed authenticated app routes, never an arbitrary URL or media link. */
+export function pushPath(value:unknown):string|undefined {
+ if(typeof value!=='string')return undefined;
+ if(waypointUpdatePath(value))return value;
+ if(/^\/desktop\?workspace=(Command|Schedule|Krewe|Fleet)$/.test(value))return value;
+ const contextual=notificationDestination(value);if(contextual)return contextual;
+ const match=value.match(/^\/jobs\?date=(\d{4}-\d{2}-\d{2})#job-jk[0-9]{1,12}$/);
+ if(!match)return undefined;
+ const date=new Date(match[1]+'T12:00:00Z');
+ return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===match[1]?value:undefined;
+}
 export function pushMessage(value:unknown):PushMessage|null {
  const v=value as Partial<PushMessage>|undefined;
  if(!v||typeof v.title!=='string'||typeof v.body!=='string'||!v.title.trim()||!v.body.trim())return null;

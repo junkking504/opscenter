@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium,webkit} from 'playwright';
 
@@ -37,7 +38,9 @@ for (const engine of [chromium,webkit]) {
       await pointVisit.waitFor();
       assert.match(await pointVisit.getAttribute('aria-label'),/10:23 AM.*GPS visit · duration unavailable/);
       assert.match(await pointVisit.innerText(),/GPS/);
+      await openScheduleControls(page);
       assert.match(await page.locator('.schedule-summary-button').filter({hasText:'Unassigned'}).innerText(),/Unassigned\s*0/i);
+      await closeScheduleControls(page);
       assert.equal(await pointVisit.getAttribute('data-visit-truck'),'Truck 8');
       await page.getByRole('button',{name:'Select Truck# 8 on map',exact:true}).click();
       await trips.first().waitFor();

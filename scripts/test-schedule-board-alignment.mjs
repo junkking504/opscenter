@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({headless:true});
@@ -7,7 +8,9 @@ try {
   for (const [width,height] of [[1920,1080],[1440,900],[1280,768],[755,900],[390,900],[320,900]]) {
     await page.setViewportSize({width,height});
     await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?scenario=same-time&loads=1');
+    await openScheduleControls(page);
     await page.locator('.day-switcher button').first().click();
+    await closeScheduleControls(page);
     const jump=page.getByRole('button',{name:/All Appointments 4 View list below/});
     await jump.waitFor();
     const box=await jump.boundingBox();

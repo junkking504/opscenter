@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({headless:true});
@@ -5,7 +6,9 @@ try {
   for(const width of [320,390,1280]) for(const result of ['verified','uncertain','failed']) {
     const page=await browser.newPage({viewport:{width,height:900}});
     await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?scenario=same-time&result='+result);
+    await openScheduleControls(page);
     await page.locator('.day-switcher button').first().click();
+    await closeScheduleControls(page);
     await page.getByRole('button',{name:'View details for JK1001001',exact:true}).click();
     const drawer=page.getByRole('dialog',{name:'JK1001001',exact:true});
     await drawer.getByRole('button',{name:'Reschedule Appointment',exact:true}).click();

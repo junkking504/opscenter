@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 
@@ -19,7 +20,9 @@ try {
       return Response.json(body);
     };
   });
+  await openScheduleControls(page);
   await page.getByRole('button',{name:'Refresh day',exact:true}).click();
+  await closeScheduleControls(page);
   const block=page.locator('[data-schedule-appointment$=":appointment:1001"]');
   await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment$=":appointment:1001"]')?.getAttribute('aria-label')?.includes('Canceled'));
   const verify=page.getByRole('button',{name:/No pin/}).first();

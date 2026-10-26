@@ -20,6 +20,7 @@
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-source-data-agents.ts && node --import tsx scripts/test-agent-hierarchy.ts && node --import tsx scripts/test-address-agent-coverage.ts && python3 scripts/test-agent-runner.py && npm run verify:waypoint-agent",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts && node --import tsx scripts/test-knowledge-answer.ts && node --import tsx scripts/test-opswiki-name.ts && node --import tsx scripts/test-vault-knowledge.ts",
+    "verify:inspection-updates": "node --import tsx scripts/test-inspection-updates.ts && node --import tsx scripts/test-inspection-workflow.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",
@@ -114,7 +115,7 @@
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts && node --import tsx scripts/test-cancellation-precedence.ts",
-    "verify:service-addresses": "node --import tsx scripts/test-property-name-search.ts && node --import tsx scripts/test-address-unit-locality.ts && node --import tsx scripts/test-address-number-highway.ts && node --import tsx scripts/test-reviewed-address-navigation.ts && GEOCODIO_FREE_CONFIG_FILE=/dev/null npm run test:service-addresses",
+    "verify:service-addresses": "node --import tsx scripts/test-address-pending-recovery.ts && node --import tsx scripts/test-property-name-search.ts && node --import tsx scripts/test-address-unit-locality.ts && node --import tsx scripts/test-address-number-highway.ts && node --import tsx scripts/test-reviewed-address-navigation.ts && GEOCODIO_FREE_CONFIG_FILE=/dev/null npm run test:service-addresses",
     "test:service-addresses": "node --import tsx scripts/test-appointment-locator.ts && node --import tsx scripts/test-address-map-query.ts && node --import tsx scripts/test-address-map-refresh.ts && node --import tsx scripts/test-address-map-fallback.ts && node --import tsx scripts/test-address-street-zip-fallback.ts && node --import tsx scripts/test-address-street-center.ts && python3 scripts/test-schedule-address-refresh-isolation.py && node --import tsx scripts/test-junkware-address-text.ts && node --import tsx scripts/test-desktop-address-verification.ts && node --import tsx scripts/test-osm-service-address.ts && node --import tsx scripts/test-planning-geocodes.ts && node --import tsx scripts/test-reviewed-service-address.ts && node --import tsx scripts/test-address-pipeline-hardening.ts && node --import tsx scripts/test-address-refresh-recovery.ts && node --import tsx scripts/test-parish-service-address.ts && node --import tsx scripts/test-parish-address-preflight.ts && node --import tsx scripts/test-geocodio-free-fallback.ts",
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",
@@ -241,7 +242,8 @@
     "react-dom": "^19.2.7",
     "sharp": "0.35.3",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "motion": "12.23.12"
   },
   "devDependencies": {
     "@astryxdesign/cli": "0.7.4",

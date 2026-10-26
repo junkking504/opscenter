@@ -69,6 +69,23 @@ function compactHighwayMatch(address:string,candidate:Candidate) {
     && normalize(road[1])===source[2].toUpperCase() && road[2]===source[3]
     && normalize(candidate.city)===normalize(source[4]) && candidate.zip===source[6]);
 }
+// Some sources write a road's direction after its suffix. Only a matching
+// rooftop may move that same direction before the street for display. This
+// does not equate opposite directions or change exact address verification.
+function relocatedDirectionMatch(address:string,candidate:Candidate) {
+  if(candidate.source!=='Geocodio' || !candidate.rooftop || candidate.streetOnly
+    || serviceUnitIdentifiers(candidate.street).length) return false;
+  const full=normalize(cleanServiceQuery(fullFieldStreetAddress(address)));
+  const tail=` ${normalize(candidate.city)} ${candidate.state} ${candidate.zip}`;
+  const noStateTail=` ${normalize(candidate.city)} ${candidate.zip}`;
+  const postal=full.endsWith(tail)?tail:full.endsWith(noStateTail)?noStateTail:null;
+  if(!postal) return false;
+  const road=serviceHouseAndStreet(full.slice(0,-postal.length));
+  const parts=road?.street.match(/^([A-Z][A-Z0-9 ]* (?:ST|RD|AVE|DR|LN|CT|BLVD|PL|PKWY|TER|CIR|TRL|TRCE|SQ|WAY|LOOP)) (N|S|E|W|NE|NW|SE|SW)$/);
+  return Boolean(road && parts && !/^(?:N|S|E|W|NE|NW|SE|SW) /.test(parts[1])
+    && normalizeHouseNumber(road.house)===normalizeHouseNumber(candidate.house)
+    && `${parts[2]} ${parts[1]}`===normalize(candidate.street));
+}
 export function mapCandidateMatches(address:string,candidate:Candidate) {
   if(serviceStreetCandidates(mapAddress(address)).length!==1)return false;
   if(typeof candidate.house!=='string'||![candidate.street,candidate.city,candidate.state,candidate.zip].every(value=>typeof value==='string'&&value.length>0))return false;
@@ -79,7 +96,7 @@ export function mapCandidateMatches(address:string,candidate:Candidate) {
   // in for the requested one. Multiple unit/building identities stay unresolved.
   if(new Set(sourceUnits).size>1 || new Set(candidateUnits).size>1
     || sourceUnits.length && candidateUnits.length && sourceUnits[0]!==candidateUnits[0])return false;
-  if(compactHighwayMatch(address,candidate))return true;
+  if(compactHighwayMatch(address,candidate) || relocatedDirectionMatch(address,candidate))return true;
   const full=cleanServiceQuery(fullFieldStreetAddress(withoutServiceUnit(mapAddress(address))));
   const parsed=serviceHouseAndStreet(full);
   const missingSuffix=omittedHouseSuffix(address,candidate);
@@ -125,7 +142,7 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const identity=(row:Candidate)=>JSON.stringify([row.house,row.street,row.city,row.state,row.zip,row.latitude,row.longitude,row.source]);
   const matches=rows.filter(row=>mapCandidateMatches(address,row));
   // A directional interpretation cannot choose between distinct premises.
-  if(matches.some(row=>compactHighwayMatch(address,row))
+  if(matches.some(row=>compactHighwayMatch(address,row) || relocatedDirectionMatch(address,row))
     &&new Set(matches.map(row=>JSON.stringify([normalizeHouseNumber(row.house),normalize(row.street),row.latitude,row.longitude]))).size>1)return null;
   matches.sort((a,b)=>candidateScore(address,b)-candidateScore(address,a) || identity(a).localeCompare(identity(b)));
   const row=matches[0];
@@ -134,7 +151,7 @@ function bestCandidate(address:string,rows:CachedCandidate[]):AddressMapFallback
   const missingSuffix=omittedHouseSuffix(address,row);
   return {location:{latitude:row.latitude,longitude:row.longitude},matchedAddress,source:row.source,sourceUrl:row.sourceUrl,stale:row.stale,
     visitEligible:false,
-    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${compactHighwayMatch(address,row) ? ' Source house suffix interpreted as a highway direction; property address remains unverified.' : ''}${mapUnit(address) ? ' Unit entrance not located.' : ''}${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
+    detail:`${row.stale?'Last available map result. ':''}Best available address match. ${row.precision}.${compactHighwayMatch(address,row) ? ' Source house suffix interpreted as a highway direction; property address remains unverified.' : ''}${relocatedDirectionMatch(address,row) ? ' Source post-direction matched to the same provider road direction; property address remains unverified.' : ''}${mapUnit(address) ? ' Unit entrance not located.' : ''}${row.streetZipCorroborated ? ` Source ZIP differs from provider ZIP ${row.zip}; street corroborated by cached Geocodio evidence.` : ''}${missingSuffix ? ` Building location; source address suffix ${missingSuffix} is unconfirmed.` : ''}`};
 }
 function read(file:string):any {try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
 function cacheUsable(value:any,now:number) {return value&&Number.isFinite(value.expires)&&value.expires>now-7*86400_000;}

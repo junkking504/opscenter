@@ -195,6 +195,17 @@ launcher masks. The page supplies its own Apple touch icon and favicon.
 
 ## Slack receipt alerts
 
+Dashboard Operational updates reads saved inspections directly, independently of
+Slack delivery and channel history. Each report appears on its Chicago receipt
+day, including historical days and drafts started up to seven days earlier. It
+shows the inspector, reported status, all findings and notes, and the original
+dated report link. Problem/stop reports and notes require follow-up; a clear
+report without notes is informational. Submission never grants supervisor
+clearance. Exact Slack copies are merged using the receipt fingerprint while
+preserving workflow aliases; separate reports on the same truck remain separate.
+Unreadable inspection history is disclosed without hiding other update sources.
+The Slack history warning remains independent of native inspection availability.
+
 Every saved Five Point Inspection received on the current Chicago day sends a
 receipt alert to `#ops-fleet` (`SLACK_OPS_FLEET_CHANNEL_ID`). This includes reports
 already received earlier on the day this feature is enabled; older receipts are

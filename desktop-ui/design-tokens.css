@@ -4,6 +4,7 @@
  * Brand identity remains authoritative in styles/brand-tokens.css. */
 :root {
   /* Shared title resolves here before workspace-local type remapping. */
+  --oc-text-on-brand: #fff;
   --oc-page-title: var(--oc-type-26);
   --oc-compact-label: 8px;
   --oc-shadow-alpha-01: #0007;

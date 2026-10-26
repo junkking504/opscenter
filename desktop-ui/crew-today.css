@@ -25,7 +25,7 @@
 .crew-today-rph strong { overflow-wrap: anywhere; }
 .crew-today-actions { display: flex; gap: 8px; }
 .crew-today-actions button, .crew-today-empty button { min-height: 36px; border: 1px solid var(--oc-border-neutral-14); border-radius: 6px; padding: 8px 11px; background: var(--oc-surface-raised); color: var(--oc-border-green-01); cursor: pointer; white-space: nowrap; font-size: var(--oc-type-12); font-weight: 650; }
-.crew-today-actions .crew-today-edit { background: var(--oc-border-green-01); color: var(--oc-surface-raised); border-color: var(--oc-border-green-01); }
+.crew-today-actions .crew-today-edit { background: var(--oc-border-green-01); color: var(--oc-text-on-brand); border-color: var(--oc-border-green-01); }
 .crew-today-driving { display: grid; gap: 5px; min-width: 0; }
 .crew-today-issue { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0; border: 0; border-left: 3px solid var(--oc-border-amber-02); padding: 8px 10px; background: var(--oc-status-warn-tint); color: var(--oc-text-amber-07); font: inherit; font-size: var(--oc-type-12); line-height: 1.45; text-align: left; cursor: pointer; }
 .crew-today-issue:hover { background: var(--oc-surface-amber-01); }

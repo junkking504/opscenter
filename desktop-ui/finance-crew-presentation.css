@@ -38,7 +38,7 @@
 .ops-live .live-krewe :is(.crew-section-nav,.crew-week-nav) button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
 .ops-live .live-krewe .crew-today-heading { background: var(--oc-surface-muted); }
 .ops-live .live-krewe .crew-today-actions button { font-size: var(--oc-type-12); font-weight: 600; }
-.ops-live .live-krewe .crew-today-actions .crew-today-edit { background: var(--ops-brand-red); border-color: var(--ops-brand-red); color: var(--oc-surface-raised); }
+.ops-live .live-krewe .crew-today-actions .crew-today-edit { background: var(--ops-brand-red); border-color: var(--ops-brand-red); color: var(--oc-text-on-brand); }
 .ops-live .live-krewe .crew-employee-list button[aria-pressed=true] { border-color: var(--ops-brand-red); background: var(--oc-status-critical-tint); box-shadow: inset 3px 0 var(--ops-brand-red); }
 .ops-live .live-krewe .crew-today-issue { flex-wrap: wrap; }
 @media (max-width: 760px) {

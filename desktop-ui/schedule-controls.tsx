@@ -1,7 +1,8 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useRef, useState } from "react";
 import './schedule-controls.css';
-import { Button } from "./components/ui/button";
+import { Button } from "@astryxdesign/core/Button";
+import { BrandTheme } from "../components/astryx/BrandTheme";
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
 import {
   assignmentNeedsVerification,
@@ -86,7 +87,7 @@ export default function ScheduleControls({
     (start === "" || Number(start) === job.appointmentStartMinutes);
   const assignmentWindow = scheduleMoveWindow(job, start === "" ? null : Number(start));
   return (
-    <section className="drawer-dispatch-controls">
+    <BrandTheme><section className="drawer-dispatch-controls">
       <div hidden={mode === "cancel"}>
       <div className="drawer-control-heading">
         <strong>Add Appointment Note</strong>
@@ -97,7 +98,7 @@ export default function ScheduleControls({
           <span>Add Appointment Note</span>
           <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} disabled={blocked} />
         </label>
-        <Button className="drawer-cancel-action" variant="outline" disabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }}>Save Note in JunkWare</Button>
+        <Button label="Save Note in JunkWare" className="drawer-cancel-action" variant="secondary" isDisabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }} />
       </div>
       <details className="drawer-secondary-controls">
       <summary>Assignment &amp; call-ahead</summary>
@@ -150,24 +151,20 @@ export default function ScheduleControls({
             </label>
           </div>
           <div className="drawer-quick-actions">
-            <Button
-              variant="outline"
-              disabled={blocked || unchangedAssignment || assignmentNeedsVerification(job) || !assignmentWindow.supported}
+            <Button label="Move Appointment"
+              variant="secondary"
+              isDisabled={blocked || unchangedAssignment || assignmentNeedsVerification(job) || !assignmentWindow.supported}
               onClick={() =>
                 onMove({ job, truck, start: start === "" ? null : Number(start), conflicts: [] })
               }
-            >
-              Move Appointment
-            </Button>
-            {!isClosed(job) && <Button
-              variant="outline"
-              disabled={blocked}
+             />
+            {!isClosed(job) && <Button label={job.callAhead === "called" ? "Clear Call Ahead" : "Mark Call Ahead"}
+              variant="secondary"
+              isDisabled={blocked}
               onClick={() => {
                 void run("call_ahead", { called: job.callAhead !== "called" });
               }}
-            >
-              {job.callAhead === "called" ? "Clear Call Ahead" : "Mark Call Ahead"}
-            </Button>}
+            />}
           </div>
         </>
       )}
@@ -193,14 +190,12 @@ export default function ScheduleControls({
               disabled={blocked}
             />
           </label>
-          {!confirmCancel && <Button
+          {!confirmCancel && <Button label="Review Cancellation"
             className="drawer-cancel-action"
-            variant="outline"
-            disabled={blocked || !reason.trim()}
+            variant="secondary"
+            isDisabled={blocked || !reason.trim()}
             onClick={() => setConfirmCancel(true)}
-          >
-            Review Cancellation
-          </Button>}
+           />}
           {confirmCancel && (
             <div ref={cancelReviewRef} tabIndex={-1} className="drawer-cancel-confirmation" role="group" aria-label="Review cancellation">
               <strong>{job.jkNumber} · {job.customerName}</strong>
@@ -210,22 +205,18 @@ export default function ScheduleControls({
                 plan.
               </p>
               <div className="drawer-quick-actions">
-                <Button
-                  variant="outline"
-                  disabled={blocked}
+                <Button label="Keep Appointment"
+                  variant="secondary"
+                  isDisabled={blocked}
                   onClick={() => { setConfirmCancel(false); cancelReasonRef.current?.focus(); }}
-                >
-                  Keep Appointment
-                </Button>
-                <Button
+                 />
+                <Button label={busy ? "Verifying…" : "Confirm Cancellation"}
                   variant="destructive"
-                  disabled={blocked || !reason.trim()}
+                  isDisabled={blocked || !reason.trim()}
                   onClick={() => {
                     void run("cancel", { reason });
                   }}
-                >
-                  {busy ? "Verifying…" : "Confirm Cancellation"}
-                </Button>
+                />
               </div>
             </div>
           )}
@@ -245,6 +236,6 @@ export default function ScheduleControls({
         />
       )}
       {error && <p role="alert">{error}</p>}
-    </section>
+    </section></BrandTheme>
   );
 }

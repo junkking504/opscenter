@@ -80,6 +80,7 @@ try{
   await expect(page.getByRole('heading',{name:'Active / Scheduled (2)',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Completed (20)',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Cancelled (1)',exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'All appointments map'}).getByText('0 mapped · 23 without a map location')).toBeVisible();
   if(width===390&&process.env.WAYPOINT_TEST_ARTIFACTS){fs.mkdirSync(process.env.WAYPOINT_TEST_ARTIFACTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_TEST_ARTIFACTS,'manager-list-390.png'),fullPage:true});}
   const headings=await page.locator('h2[id^="manager-"]').allTextContents();assert.deepEqual(headings,['Active / Scheduled (2)','Completed (20)','Cancelled (1)']);
   await expect(page.getByText('Completed Duration:',{exact:false})).toHaveCount(0);

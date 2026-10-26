@@ -39,7 +39,25 @@ for (const engine of [chromium, webkit]) {
             assert.equal(await page.locator('#fixture-writes').innerText(), 'Writes: 0');
             continue;
           }
-          assert.equal(await page.locator('.workspace-heading').evaluate(e=>getComputedStyle(e).display),'none','The board reclaims the page-heading space');
+          assert.ok(await page.getByRole('tablist',{name:'Command views'}).isVisible(),'Workspace navigation stays visible');
+          if(width===1920 && scenario==='crowded' && map) {
+            for(const view of ['Calendar','Customers','Estimates','Follow-Up','History']) {
+              await page.getByRole('tab',{name:view,exact:true}).click();
+              await page.getByRole('heading',{name:`${view} fixture view`}).waitFor();
+              await page.getByRole('tab',{name:'Board',exact:true}).click();
+              await page.locator('[data-schedule-appointment]').first().waitFor();
+            }
+            await page.getByRole('button',{name:'Board controls',exact:true}).click();
+            await page.getByRole('textbox',{name:'Filter source appointments'}).fill('Example');
+            await page.keyboard.press('Escape');
+            const filteredToggle=page.getByRole('button',{name:'Board controls · Filters active',exact:true});
+            assert.ok(await filteredToggle.evaluate(e=>document.activeElement===e),'Escape restores focus and keeps the active-filter indicator');
+            await filteredToggle.click();
+            await page.getByRole('textbox',{name:'Filter source appointments'}).fill('');
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(150);
+          }
+          if(width===1024 && scenario==='dense' && map && engine.name()==='chromium' && process.env.BOARD_DENSE_SCREENSHOT) await page.screenshot({path:process.env.BOARD_DENSE_SCREENSHOT});
           const fit = await page.locator('.schedule-board-shell').evaluate(shell => {
             const panel = shell.getBoundingClientRect();
             const scroll = shell.querySelector('.schedule-board-scroll');
@@ -56,6 +74,11 @@ for (const engine of [chromium, webkit]) {
             }
             return {
               naturalRows, condensed, cards,
+              coveredLabels: rows.filter(row=>{
+                const label=row.querySelector('.schedule-truck-cell strong');
+                const r=label.getBoundingClientRect();
+                return !row.querySelector('.schedule-truck-cell').contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+              }).map(row=>row.dataset.scheduleTruck),
               outside: [...shell.querySelectorAll('[data-schedule-appointment],.schedule-truck-cell')].filter(element => {
                 const r=element.getBoundingClientRect();
                 return r.width<=0 || r.height<=0 || r.top<panel.top-.5 || r.bottom>Math.min(panel.bottom,innerHeight)+.5 || r.left<panel.left-.5 || r.right>panel.right+.5;
@@ -77,11 +100,11 @@ for (const engine of [chromium, webkit]) {
             await page.screenshot({path:process.env.BOARD_SCREENSHOT});
             await page.getByRole('button',{name:'Board controls',exact:true}).click();
             assert.ok(await page.getByRole('textbox',{name:'Filter source appointments'}).isVisible());
-            await page.screenshot({path:'/tmp/truck-board-controls.png'});
             await page.getByRole('button',{name:'Hide controls',exact:true}).click();
           }
           assert.equal(fit.count, 10, context);
           assert.deepEqual(fit.outside, [], context);
+          assert.deepEqual(fit.coveredLabels, [], context);
           assert.deepEqual(fit.intersections, [], context);
           assert.equal(fit.blocks, { crowded: 14, dense: 24, fleet: 24, 'return-visit': 2 }[scenario], context);
           assert.ok(fit.scale > 0 && fit.scale <= 1, context);

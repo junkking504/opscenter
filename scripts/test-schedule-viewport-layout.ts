@@ -23,3 +23,5 @@ assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[100]);
 assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33]);
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
 console.log('Complete-board fitting, natural sizes when possible, label/footer clearance and short screens passed.');
+
+assert.equal(scheduleViewportLayout([32],[24],0).fits,false,'A zero-sized measurement never claims visible appointments');

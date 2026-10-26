@@ -2,6 +2,7 @@
  * If the complete day still exceeds the viewport, fit it rather than hide rows.
  */
 export function scheduleViewportLayout(natural: number[], labels: number[], available: number, footers: number[] = []) {
+  if (natural.length && available < natural.length) return {scale:1,chromeScale:1,heights:natural.map((height,i)=>Math.max(height,labels[i]||20)),fits:false};
   const heightsAt = (scale: number) => natural.map((height, index) => {
     const footer = footers[index] || 0;
     return Math.ceil(Math.max(labels[index] || 20, (height - footer) * scale + footer));

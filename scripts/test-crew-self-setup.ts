@@ -5,7 +5,7 @@ import path from 'node:path';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {crewPhoneSession} from '../lib/crew-phone-http';
 import {requestCrewPhoneSetup,crewPhoneDeliveryHealth,sendCrewPhoneSetup} from '../lib/crew-phone-delivery';
-import {enrollCrewPhone} from '../lib/crew-phone-store';
+import {enrollCrewPhone,revokeCrewPhone} from '../lib/crew-phone-store';
 
 async function main(){
   const previous={...process.env},originalFetch=globalThis.fetch;
@@ -40,6 +40,12 @@ async function main(){
     assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).truck,'Truck 6');
     await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/already requested/);
     const receipts=path.join(dir,'deliveries');
+    const cancelled=JSON.parse(fs.readFileSync(path.join(receipts,`${requestId}.json`),'utf8'));
+    revokeCrewPhone(cancelled.deviceId,'synthetic-manager');
+    const cancelledReply=await crewPhoneSession(request({action:'request-code',choiceId,requestId}));
+    assert.equal(cancelledReply.status,409);assert.match((await cancelledReply.json()).error,/cancelled/);
+    await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/already requested/,'Cancellation does not waive server cooldown');
+    assert.equal(calls,1,'Cancelled status and a blocked resend never contact delivery');
     const original=JSON.parse(fs.readFileSync(path.join(receipts,`${requestId}.json`),'utf8'));
     for(let i=0;i<3;i++) {const row={...original,requestId:i===0?requestId:randomUUID(),createdAt:new Date(Date.now()-(20+i)*60_000).toISOString()};fs.writeFileSync(path.join(receipts,`${row.requestId}.json`),JSON.stringify(row));}
     await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/today/);assert.equal(calls,1);

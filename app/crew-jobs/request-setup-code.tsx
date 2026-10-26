@@ -38,7 +38,9 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
   }
   function choosePhone(){onChoosePhone();setCodeVisible(false);setError('');setMessage('');}
   function newRequest(){
-    if(saved && Date.now()-saved.createdAt<10*60_000){setError('Check WhatsApp for the existing code. Wait 10 minutes before requesting a new one.');return;}
+    if(busy || sending.current)return;
+    const remaining=saved ? Math.ceil((saved.createdAt+10*60_000-Date.now())/60_000) : 0;
+    if(remaining>0){setError(`New-code requests are limited to once every 10 minutes, even if a code is cancelled. Try again in ${remaining} ${remaining===1?'minute':'minutes'}, or contact your manager.`);return;}
     try{localStorage.removeItem(storageKey);setSaved(null);choosePhone();}catch{setError('Allow browser storage before requesting a new code.');}
   }
   return <section className={styles.connection} aria-labelledby="connect-phone-heading">
@@ -62,6 +64,10 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
       {children}
       {saved?.choiceId===choiceId && <button className={styles.connectionLink} disabled={busy} onClick={()=>void requestCode()}>Check send status</button>}
     </div>}
+    {(codeVisible || saved) && <div className={styles.form}>
+      <button className={styles.secondary} disabled={busy} onClick={newRequest}>Request a new code</button>
+      <p className={styles.muted}>Codes expire after 10 minutes. New-code requests have a separate 10-minute limit, including cancelled codes.</p>
+    </div>}
     {message && <p className={styles.connectionNotice} role="status">{message}</p>}
     {(error || connectionError) && <p className={styles.error} role="alert">{error || connectionError}</p>}
     <ol className={styles.connectionSteps} aria-label="Start your day">
@@ -73,7 +79,6 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
       <summary>Need help connecting?</summary>
       <p>Check WhatsApp for the code from Operations. If the connection is uncertain, check its status before trying again.</p>
       <button className={styles.secondary} disabled={busy} onClick={onCheckConnection}>Check connection</button>
-      {saved && <button className={styles.secondary} disabled={busy} onClick={newRequest}>Request a new code</button>}
     </details>
   </section>;
 }

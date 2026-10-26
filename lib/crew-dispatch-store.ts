@@ -116,12 +116,15 @@ export function advanceCrewDispatch(state: CrewDispatch, receipt: Completion, so
 
 /** Preserve assignment identities and release order across a reserved truck handoff.
  * Both trucks remain unavailable until the caller saves the completed switch. */
-export function transferCrewDispatch(from:CrewDispatch,to:CrewDispatch,requestId:string,appointmentIds:string[]) {
+export function transferCrewDispatch(from:CrewDispatch,to:CrewDispatch,requestId:string,appointmentIds:string[],date:string) {
+ if(!validCrewDate(date))throw new CrewPhoneError('A valid switch date is required.');
  const actor=`waypoint-switch:${requestId}`;
- const transferred=[from.current,from.queued].filter((a):a is CrewAssignment=>Boolean(a && appointmentIds.includes(a.appointmentId)));
+ const transferred=[from.current,from.queued].filter((a):a is CrewAssignment=>Boolean(a && a.date===date && appointmentIds.includes(a.appointmentId)));
  append(from.truck,requestId,from.version,actor,{action:'truck-switch-out',to:to.truck},state=>({...state,current:null,queued:null}),new Date(),undefined,requestId);
  return append(to.truck,requestId,to.version,actor,{action:'truck-switch-in',from:from.truck,transferred},state=>{
-  if(state.current || state.queued)throw new CrewPhoneError('The replacement truck has another crew assignment. Contact dispatch.',409);
+  if([state.current,state.queued].some(a=>a && a.date>=date))throw new CrewPhoneError('The replacement truck has another crew assignment. Contact dispatch.',409);
+  // Replace only older-day pointers, by appending a revision after confirmation.
+  // Historical assignments and their audit records remain unchanged.
   return {...state,current:transferred[0] || null,queued:transferred[1] || null};
  },new Date(),undefined,requestId);
 }

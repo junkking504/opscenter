@@ -59,7 +59,9 @@ Tailwind excludes synthetic `desktop-ui/tests` fixtures from utility discovery;
 production component discovery is unchanged. Settings-only presentation rules
 load after its existing deferred base stylesheet; Source Health rules stay in the
 shell. Their selectors and declarations are unchanged. No download budgets are
-raised.
+raised. Isolated Finance chart/detail control rules also travel with Finance
+(and the reference-only style entry); rules that depend on shell cascade order
+remain eager.
 
 Check cold imports and preserved control behavior with
 `scripts/test-deferred-controls-browser.mjs` against the synthetic dispatch

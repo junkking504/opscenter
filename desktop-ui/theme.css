@@ -2,6 +2,8 @@
    retain their source colors; no image filters or data changes are applied. */
 html[data-ops-theme="dark"] .ops-app.ops-live { background: var(--oc-theme-dark-canvas); color: var(--oc-theme-dark-text); }
 html[data-ops-theme="dark"] .ops-app.ops-live > :not(.ops-sidebar) {
+  /* Resolve the shared border where dark tokens are defined, not on the light parent. */
+  --desktop-card-border: 1px solid var(--oc-theme-dark-border);
   --oc-border-amber-01: var(--oc-theme-dark-border);
   --oc-border-amber-02: var(--oc-theme-dark-border);
   --oc-border-amber-03: var(--oc-theme-dark-border);

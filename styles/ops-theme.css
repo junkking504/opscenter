@@ -1,16 +1,19 @@
 @import "../desktop-ui/theme.css";
 /* Shared office theme control; keyboard and native touch selection are retained. */
-.ops-theme-control { display: grid; grid-template-columns: auto minmax(100px,160px); gap: 8px 12px; align-items: center; color: var(--oc-text-primary,#243b4d); font-family: inherit; font-size: 16px; font-weight: 400; line-height: 1.5; }
-.ops-theme-control label { font-size: 12px; font-weight: 600; }
-.ops-theme-control select { width: 100%; height: 44px; min-height: 44px; border: 1px solid #8798a5; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 16px; color: inherit; background: var(--oc-surface-raised,#fff); }
-.ops-theme-control select:focus-visible { outline: 2px solid #477aa6; outline-offset: 3px; }
-.ops-theme-control p,.ops-theme-control > span { grid-column: 1/-1; margin: 0; font-size: 12px; }
-.ops-theme-control.is-compact { display: flex; gap: 6px; flex-shrink: 0; }
-.ops-theme-control.is-compact select { width: 100px; }
+.ops-theme-control { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; color: var(--oc-text-primary,#243b4d); font-family: inherit; font-size: 14px; line-height: 1.5; }
+.ops-theme-control p { flex-basis: 100%; margin: 0; font-size: 12px; }
+.ops-theme-control.is-compact { flex-wrap: nowrap; flex-shrink: 0; }
+.ops-theme-toggle { --oc-theme-switch-track: #dbe4e9; --oc-theme-switch-track-on: #314c62; --oc-theme-switch-thumb: #243b4d; --oc-theme-switch-thumb-on: #eef4f8; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.ops-theme-current { min-width: 34px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ops-theme-control .squish-switch { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; flex: 0 0 64px; }
+.ops-theme-control .squish-switch::after { inset: 0; }
+.ops-theme-control .squish-switch:focus-visible { outline: 2px solid var(--oc-theme-switch-thumb); outline-offset: 3px; border-radius: 20px; }
+.ops-theme-control .ops-theme-system { border: 1px solid var(--oc-border-default,#8798a5); border-radius: 6px; padding: 8px 12px; min-height: 44px; color: inherit; background: var(--oc-surface-raised,#fff); font: inherit; cursor: pointer; }
+.ops-theme-control .ops-theme-system[aria-pressed="true"] { border-color: currentColor; font-weight: 600; }
+html[data-ops-theme="dark"] .ops-theme-toggle { --oc-theme-switch-track: #405261; --oc-theme-switch-thumb: #eef4f8; }
+@media(max-width:760px) { .ops-theme-control.is-compact .ops-theme-current { display: none; } .ops-theme-toggle { gap: 5px; } }
 .ops-theme-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media(max-width:760px) { .ops-theme-control.is-compact label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } .ops-theme-control.is-compact select { width:100px; padding:4px; font-size:16px; } }
 html[data-ops-theme="dark"] .ops-theme-control { color: #eef4f8; }
-html[data-ops-theme="dark"] .ops-theme-control select { color-scheme: dark; background: #172330; color: #eef4f8; border-color: #657e91; }
 /* Root office pages use local legacy aliases as well as the shared palette. */
 html[data-ops-theme="dark"] :is(.ops-main,.ops-secondary-page,.ops-login-shell[data-opscenter-login] .ops-login-access-panel) {
   --oc-bg:#101923; --oc-surface:#172330; --oc-surface-raised:#172330; --oc-surface-soft:#202f3e;

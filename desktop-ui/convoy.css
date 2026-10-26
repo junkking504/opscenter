@@ -146,18 +146,18 @@
 .convoy-dashboard :is(p,dd,button,select) {font-size:var(--oc-type-13);line-height:1.5}
 .convoy-dashboard :is(small,dt) {font-size:var(--oc-type-12);line-height:1.45;color:var(--convoy-muted)}
 .convoy-metrics {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
-.convoy-workspace .convoy-metric {background:white;border:1px solid var(--convoy-line);border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;min-height:128px;min-width:0;color:var(--convoy-ink)}
+.convoy-workspace .convoy-metric {background:var(--oc-surface-raised);border:1px solid var(--convoy-line);border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;min-height:128px;min-width:0;color:var(--convoy-ink)}
 .convoy-metric > strong {font-size:var(--oc-type-32);line-height:1.34;font-weight:600;font-variant-numeric:tabular-nums}
 .convoy-metric > span {font-size:var(--oc-type-14);font-weight:600}
 button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(--oc-surface-neutral-02)}
 .convoy-dashboard-grid {display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:24px;align-items:start}
-.convoy-dash-panel {background:white;border:1px solid var(--convoy-line);border-radius:8px;min-width:0;overflow:hidden}
+.convoy-dash-panel {background:var(--oc-surface-raised);border:1px solid var(--convoy-line);border-radius:8px;min-width:0;overflow:hidden}
 .convoy-dash-panel > header {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 20px}
 .convoy-dash-panel > header p {margin-top:8px;color:var(--convoy-muted)}
 .convoy-side-stack {display:grid;gap:20px;min-width:0}
 .convoy-table-tools {display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 16px 18px}
 .convoy-table-tools > div {display:flex;gap:8px}
-.convoy-table-tools button {border:1px solid var(--convoy-line);background:white;border-radius:8px;padding:10px 14px;font-weight:600}
+.convoy-table-tools button {border:1px solid var(--convoy-line);background:var(--oc-surface-raised);border-radius:8px;padding:10px 14px;font-weight:600}
 .convoy-table-tools button[aria-pressed=true] {background:var(--oc-surface-neutral-01)}
 .convoy-search {display:flex;align-items:center;gap:6px;color:var(--convoy-muted);max-width:200px}
 .convoy-search input {min-width:0;width:100%;font-size:var(--oc-type-13);padding:8px 0;background:transparent}
@@ -190,7 +190,7 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-coverage .convoy-mileage > strong {font-size:var(--oc-type-32);font-weight:600}
 .convoy-coverage button {justify-self:start}
 .convoy-workspace .convoy-muted {color:var(--convoy-muted);font-size:var(--oc-type-13);line-height:1.5}
-.convoy-planning-date {padding:20px;background:white;border:1px solid var(--convoy-line);border-radius:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:var(--oc-type-13)}
+.convoy-planning-date {padding:20px;background:var(--oc-surface-raised);border:1px solid var(--convoy-line);border-radius:8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:var(--oc-type-13)}
 .convoy-planning-date span {color:var(--convoy-muted)}
 .convoy-scheduled {padding:22px 24px;border-top:1px solid var(--convoy-line);display:flex;align-items:center;justify-content:space-between;gap:16px}
 .convoy-scheduled > div {display:grid;gap:12px}
@@ -199,7 +199,7 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-scheduled button {flex-shrink:0}
 .convoy-scheduled .convoy-badge {justify-self:start}
 .convoy-planner-truck {display:flex;align-items:center;gap:12px;font-size:var(--oc-type-14);font-weight:600}
-.convoy-planner-truck select,.convoy-form-context select {padding:10px 12px;background:white;border:1px solid var(--convoy-line);border-radius:8px}
+.convoy-planner-truck select,.convoy-form-context select {padding:10px 12px;background:var(--oc-surface-raised);border:1px solid var(--convoy-line);border-radius:8px}
 .convoy-plan-table {min-width:600px}
 .convoy-plan-table td {vertical-align:top}
 .convoy-detail-title {display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -211,10 +211,10 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-attention dt:not(:first-child) {margin-top:10px}
 .convoy-workspace .convoy-service-dialog {position:fixed;top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(580px,calc(100vw - 32px));height:auto;max-height:calc(100dvh - 40px);border:1px solid var(--oc-border-neutral-02);border-radius:12px;box-shadow:0 20px 70px var(--oc-surface-overlay-03);overflow-y:auto}
 .convoy-service-dialog .record-drawer-body {overflow:visible;padding:24px;gap:20px}
-.convoy-service-dialog .record-drawer-header {position:sticky;top:0;z-index:1;background:white;padding:20px 24px}
+.convoy-service-dialog .record-drawer-header {position:sticky;top:0;z-index:1;background:var(--oc-surface-raised);padding:20px 24px}
 .convoy-service-dialog .record-drawer-header h2 {font-size:var(--oc-type-22);line-height:1.35}
 .convoy-service-dialog .fleet-form-grid {gap:16px;margin-block:20px}
-.convoy-service-dialog .fleet-form-grid input {height:40px;background:white}
+.convoy-service-dialog .fleet-form-grid input {height:40px;background:var(--oc-surface-raised)}
 .convoy-service-dialog .fleet-form-grid label > span {font-size:var(--oc-type-13);color:var(--oc-accent-blue-01)}
 .convoy-form-context {display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--oc-surface-neutral-01);padding:16px;border-radius:8px}
 .convoy-form-context label {display:grid;gap:6px;font-size:var(--oc-type-13)}
@@ -263,11 +263,11 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-guide > summary::after {content:'+';margin-left:auto;font-size:var(--oc-type-18)}
 .convoy-guide[open] > summary::after {content:'−'}
 .convoy-guide-steps {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0}
-.convoy-guide-steps button {padding:14px;text-align:left;border:1px solid var(--oc-border-neutral-04);border-radius:6px;background:white;display:grid;gap:8px;line-height:1.5}
+.convoy-guide-steps button {padding:14px;text-align:left;border:1px solid var(--oc-border-neutral-04);border-radius:6px;background:var(--oc-surface-raised);display:grid;gap:8px;line-height:1.5}
 .convoy-guide-steps strong {display:flex;gap:8px;justify-content:space-between;color:var(--oc-text-green-01)}
 .convoy-guide-steps span,.convoy-guide > p {font-size:var(--oc-type-13);color:var(--oc-text-green-21);line-height:1.6}
 .convoy-guide > p + p {margin-top:8px}
-.convoy-records {border:1px solid var(--convoy-line);border-radius:9px;background:white;min-width:0;overflow:hidden}
+.convoy-records {border:1px solid var(--convoy-line);border-radius:9px;background:var(--oc-surface-raised);min-width:0;overflow:hidden}
 .convoy-records-heading {display:flex;gap:16px;align-items:flex-start;justify-content:space-between;padding:22px 20px 16px}
 .convoy-records h2 {font-size:var(--oc-type-19);font-weight:650}
 .convoy-records-heading p {color:var(--oc-text-green-02);font-size:var(--oc-type-13);margin-top:5px}
@@ -307,7 +307,7 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-invoice-photos {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .convoy-invoice-photos a {display:flex;flex-direction:column;gap:8px;border:1px solid var(--oc-border-neutral-11);border-radius:8px;padding:8px;font-size:var(--oc-type-12);color:var(--oc-text-green-01);text-align:center}
 .convoy-invoice-photos img {width:100%;height:220px;object-fit:contain;background:var(--oc-surface-neutral-01);border-radius:4px}
-.convoy-monthly-report {border:1px solid var(--oc-border-neutral-05);border-radius:8px;background:white;padding:16px;min-width:0}
+.convoy-monthly-report {border:1px solid var(--oc-border-neutral-05);border-radius:8px;background:var(--oc-surface-raised);padding:16px;min-width:0}
 .convoy-monthly-report > summary {font-weight:600;cursor:pointer;color:var(--oc-text-green-01);min-height:28px}
 .convoy-monthly-report[open] > summary {margin-bottom:16px}
 .convoy-maintenance-trucks {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 20px 20px}
@@ -362,7 +362,7 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-filter-count {background:var(--oc-surface-neutral-17);border-radius:4px;padding:1px 5px;font-size:var(--oc-type-12)}
 .convoy-journal-filters {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:14px 0}
 .convoy-journal-filters label {display:grid;gap:6px;min-width:0;font-size:var(--oc-type-12);font-weight:600}
-.convoy-journal-filters :is(input,select) {min-width:0;max-width:100%;min-height:38px;padding:7px;border:1px solid var(--oc-border-neutral-11);background:white;border-radius:5px;font-size:var(--oc-type-13);font-weight:400}
+.convoy-journal-filters :is(input,select) {min-width:0;max-width:100%;min-height:38px;padding:7px;border:1px solid var(--oc-border-neutral-11);background:var(--oc-surface-raised);border-radius:5px;font-size:var(--oc-type-13);font-weight:400}
 .convoy-applied-filters {display:flex;gap:12px;align-items:center;justify-content:space-between;color:var(--oc-text-green-10);font-size:var(--oc-type-12);line-height:1.5;padding:10px 0;overflow-wrap:anywhere}
 .convoy-applied-filters button {display:inline-flex;align-items:center;gap:6px;white-space:nowrap;text-decoration:underline;flex-shrink:0;min-height:32px}
 .convoy-journal-list {margin-top:2px}
@@ -487,7 +487,7 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
  .convoy-inspection-visit>summary>.convoy-disclosure {grid-column:2;grid-row:1}
  .convoy-inspection-body {padding:4px 12px 16px}
  .convoy-mobile-filter {display:flex;align-items:center;gap:10px;font-size:var(--oc-type-12);color:var(--oc-text-green-14);width:100%}
- .convoy-mobile-filter select {min-width:0;flex:1;min-height:40px;border:1px solid var(--oc-border-neutral-11);background:white;border-radius:5px;padding:6px;font-size:var(--oc-type-13)}
+ .convoy-mobile-filter select {min-width:0;flex:1;min-height:40px;border:1px solid var(--oc-border-neutral-11);background:var(--oc-surface-raised);border-radius:5px;padding:6px;font-size:var(--oc-type-13)}
  .convoy-work-row>summary {grid-template-columns:16px minmax(0,1fr) 16px}
  .convoy-work-row>summary>.convoy-status {grid-row:2;grid-column:2;justify-self:start}
  .convoy-work-row>summary>.convoy-disclosure {grid-row:1;grid-column:3}

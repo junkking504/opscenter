@@ -5,9 +5,9 @@
 .ops-theme-control.is-compact { flex-wrap: nowrap; flex-shrink: 0; }
 .ops-theme-toggle { --oc-theme-switch-track: #dbe4e9; --oc-theme-switch-track-on: #314c62; --oc-theme-switch-thumb: #243b4d; --oc-theme-switch-thumb-on: #eef4f8; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .ops-theme-current { min-width: 34px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.ops-theme-control .squish-switch { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; flex: 0 0 64px; }
+.ops-theme-control :is(.squish-switch,.ops-theme-fallback) { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; flex: 0 0 64px; }
 .ops-theme-control .squish-switch::after { inset: 0; }
-.ops-theme-control .squish-switch:focus-visible { outline: 2px solid var(--oc-theme-switch-thumb); outline-offset: 3px; border-radius: 20px; }
+.ops-theme-control :is(.squish-switch,.ops-theme-fallback):focus-visible { outline: 2px solid var(--oc-theme-switch-thumb); outline-offset: 3px; border-radius: 20px; }
 .ops-theme-control .ops-theme-system { border: 1px solid var(--oc-border-default,#8798a5); border-radius: 6px; padding: 8px 12px; min-height: 44px; color: inherit; background: var(--oc-surface-raised,#fff); font: inherit; cursor: pointer; }
 .ops-theme-control .ops-theme-system[aria-pressed="true"] { border-color: currentColor; font-weight: 600; }
 html[data-ops-theme="dark"] .ops-theme-toggle { --oc-theme-switch-track: #405261; --oc-theme-switch-thumb: #eef4f8; }
@@ -60,3 +60,6 @@ html[data-ops-theme="dark"] .ops-main .ops-map-tile-warning { color:#f4d18d; bac
   .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls button { min-width:44px; min-height:44px; height:44px; }
   .ops-app.ops-live[data-css-phase-two] .ops-content .live-header-shell .viewing-day-controls > button:last-child { grid-column:1/-1; justify-self:end; }
 }
+
+.ops-theme-fallback > span { width:64px; height:32px; border-radius:16px; position:relative; }
+.ops-theme-fallback > span > span { position:absolute; left:0; top:3px; width:26px; height:26px; border-radius:13px; }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useState, useSyncExternalStore } from 'react';
-import SquishSwitch from './ui/squish-switch/SquishSwitch';
+import { lazy, Suspense, useId, useState, useSyncExternalStore } from 'react';
+const SquishSwitch = lazy(() => import('./ui/squish-switch/SquishSwitch'));
 import '../styles/ops-theme.css';
 
 type ThemeChoice = 'light' | 'dark' | 'system';
@@ -27,10 +27,17 @@ export default function ThemeControl({ compact = false }: { compact?: boolean })
   return <div className={`ops-theme-control${compact ? ' is-compact' : ''}`}>
     <div className="ops-theme-toggle" title={choice === 'system' ? 'Following device appearance' : undefined}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></svg>
+      <Suspense fallback={<button id={id} type="button" role="switch" aria-label="Dark mode" aria-checked={dark}
+        className="ops-theme-fallback" onClick={() => apply(dark ? 'light' : 'dark')}>
+        <span style={{ background: dark ? 'var(--oc-theme-switch-track-on)' : 'var(--oc-theme-switch-track)' }}>
+          <span style={{ transform: `translateX(${dark ? 35 : 3}px)`, background: dark ? 'var(--oc-theme-switch-thumb-on)' : 'var(--oc-theme-switch-thumb)' }} />
+        </span>
+      </button>}>
       <SquishSwitch id={id} checked={dark} onChange={on => apply(on ? 'dark' : 'light')}
         ariaLabel="Dark mode" width={64} height={32} radius={16}
         trackColor="var(--oc-theme-switch-track)" trackOnColor="var(--oc-theme-switch-track-on)"
         thumbColor="var(--oc-theme-switch-thumb)" thumbOnColor="var(--oc-theme-switch-thumb-on)" />
+      </Suspense>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg>
       <label htmlFor={id} className="ops-theme-current">{dark ? 'Dark' : 'Light'}</label>
     </div>

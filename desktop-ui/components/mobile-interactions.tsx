@@ -30,7 +30,12 @@ function blockedSurface(target: Element, root: HTMLElement) {
   return false;
 }
 function editingOrDialog() {
-  return Boolean([...document.querySelectorAll('dialog[open],[role="dialog"],[aria-modal="true"],.record-drawer,.drawer-backdrop')].some(node=>node.getClientRects().length>0 && !node.closest('[hidden],[inert]')) || document.activeElement?.matches('input,textarea,select,[contenteditable]:not([contenteditable="false"])'));
+  // A native workspace picker can retain focus after its popup closes on iOS.
+  // Page-space touch events are then safe navigation, not an unfinished edit.
+  // Touches on the picker itself remain excluded by blockedSurface.
+  const focused=document.activeElement;
+  const editing=focused?.matches('input,textarea,select,[contenteditable]:not([contenteditable="false"])') && !focused.matches('select[data-workspace-picker]');
+  return Boolean([...document.querySelectorAll('dialog[open],[role="dialog"],[aria-modal="true"],.record-drawer,.drawer-backdrop')].some(node=>node.getClientRects().length>0 && !node.closest('[hidden],[inert]')) || editing);
 }
 
 /** Passive listeners only: no global touch-action override or scroll prevention. */

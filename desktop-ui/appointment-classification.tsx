@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import type {ScheduleAppointment} from './lib/schedule-contract';
-import {sendScheduleChange,checkScheduleChange,ChangeReceipt,type Receipt} from './schedule-controls';
+import {sendScheduleChange,checkScheduleChange,ChangeReceipt,type Receipt} from './schedule-receipt';
 import {Button} from './components/ui/button';
 
 export function AppointmentClassification({job,date,saved,onBusyChange}: {job:ScheduleAppointment;date:string;saved:()=>void;onBusyChange:(busy:boolean)=>void}) {

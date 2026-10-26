@@ -7,7 +7,7 @@ import type {ManagerContext} from '@/app/crew-jobs/manager-presentation';
 import type {LeaveGuard} from '@/app/crew-jobs/manager-navigation';
 import styles from './waypoint-app.module.css';
 import { CREW_JOBS_ORIGIN } from '@/lib/crew-phone';
-import {WAYPOINT_UPDATES_PATH} from '@/lib/waypoint-entry';
+import {waypointEntryTarget} from '@/lib/waypoint-entry';
 import TruckInspectionApp from './TruckInspectionApp';
 
 type Step = 'connect' | 'setup' | 'inspection' | 'jobs';
@@ -16,7 +16,7 @@ export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'insp
   const [manager,setManager]=useState(false),[managerView,setManagerView]=useState(false);
   const [accountManager,setAccountManager]=useState(false);
   const [sessionState,setSessionState]=useState<'loading'|'ready'|'error'>('loading'),[attempt,setAttempt]=useState(0);
-  const [updatesEntry,setUpdatesEntry]=useState(false);
+  const [updatesEntry,setUpdatesEntry]=useState('/crew-jobs');
   const managerContext=useRef<ManagerContext>({}),crewContext=useRef<CrewViewContext>({});
   const saveManagerContext=useCallback((value:Partial<ManagerContext>)=>{managerContext.current={...managerContext.current,...value};},[]);
   const saveCrewContext=useCallback((value:Partial<CrewViewContext>)=>{crewContext.current={...crewContext.current,...value};},[]);
@@ -30,7 +30,7 @@ export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'insp
     if(jobsHref)return;
     let active=true;
     const updates=new URLSearchParams(window.location.search).get('view')==='updates';
-    setUpdatesEntry(updates);if(updates)crewContext.current={...crewContext.current,view:'notifications'};
+    setUpdatesEntry(waypointEntryTarget(window.location.pathname+window.location.search));if(updates)crewContext.current={...crewContext.current,view:'notifications'};
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10_000);
     setSessionState('loading');
     async function check(path:string,phone=false):Promise<boolean|null>{
@@ -62,7 +62,7 @@ export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'insp
       </ol> : null}
     </header>
     {(manager||accountManager)&&<nav aria-label="Waypoint views" className={styles.managerViews}><button onClick={()=>switchView(true)} aria-pressed={managerView}>Manager</button><button onClick={()=>switchView(false)} aria-pressed={!managerView}>Crew workflow</button></nav>}
-    {!jobsHref&&sessionState==='ready'&&!manager&&!accountManager&&step==='connect'&&<nav className={styles.managerViews}><a href={`/login?next=${encodeURIComponent(updatesEntry?WAYPOINT_UPDATES_PATH:'/crew-jobs')}`}>Manager sign-in</a></nav>}
+    {!jobsHref&&sessionState==='ready'&&!manager&&!accountManager&&step==='connect'&&<nav className={styles.managerViews}><a href={`/login?next=${encodeURIComponent(updatesEntry)}`}>Manager sign-in</a></nav>}
     {accountManager&&<nav className={styles.managerViews}><a href="/api/auth/logout" onClick={event=>{if(!canSwitch())event.preventDefault();}}>Sign out of manager account</a></nav>}
     <div>{test && <p role="status" style={{padding:"12px 20px",background:"#fff3cd",color:"#664d03",margin:0}}><strong>Test mode</strong> · Fictional assignments. Truck changes, inspections and payments stay in this test.</p>}{jobsHref ? <TruckInspectionApp /> : sessionState==='loading'?<p className={styles.sessionNotice} role="status">Checking Waypoint access…</p>:sessionState==='error'?<section className={styles.sessionNotice} role="alert"><p>Waypoint access could not be checked. Retry to open your portal.</p><button onClick={()=>setAttempt(value=>value+1)}>Retry access check</button></section>:managerView&&(manager||accountManager)?<ManagerApp context={managerContext.current} onContextChange={saveManagerContext} onGuard={managerGuard} onCrew={()=>{setManagerView(false);window.scrollTo({top:0});}}/>:<CrewPhoneApp context={crewContext.current} onContextChange={saveCrewContext} onGuard={crewGuard} onStepChange={setStep} onTestChange={setTest} onManagerChange={setManager} />}</div>
   </div>;

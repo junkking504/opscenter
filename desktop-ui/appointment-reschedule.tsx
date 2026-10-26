@@ -1,7 +1,7 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './components/ui/button';
-import {ChangeReceipt,checkScheduleChange,sendScheduleChange,type Receipt} from './schedule-controls';
+import {ChangeReceipt,checkScheduleChange,sendScheduleChange,type Receipt} from './schedule-receipt';
 import {assignmentNeedsVerification,isClosed,scheduleMoveWindow,truckLabel,type ScheduleAppointment} from './lib/schedule-contract';
 
 export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate,active=true}:{job:ScheduleAppointment;date:string;active?:boolean;saved:(destination:string)=>void;onBusyChange:(busy:boolean)=>void;onOpenDate?:(date:string)=>void}) {

@@ -32,6 +32,10 @@ whole list. A vertical movement or any native scroll still cancels a swipe;
 horizontal tables, timelines and carousels retain their own gesture. The shared
 content listener covers every workspace subpage, not just the opening views.
 Source Health and other dialogs intentionally block background navigation.
+The main workspace picker is marked `data-workspace-picker`: retained focus
+following a closed native picker does not count as an unfinished edit. The
+picker's own touch target remains excluded, as do focused ordinary form selects,
+search fields and other editable controls.
 The Huddle full-screen display and separate Waypoint/legacy office routes are
 not part of the seven-workspace swipe sequence.
 
@@ -97,6 +101,10 @@ summary from the current snapshot. History and follow-up appointment selection
 also opens this summary at phone widths; wider layouts retain direct drawer opening. It retains source status, assignment/address warnings,
 payment uncertainty and full notes behind a disclosure. It does not mount
 closeout, editing, customer history or payment-preparation components.
+The service address is a touch- and keyboard-accessible Directions link using
+the existing source-address navigation helper. It opens separately without
+closing the summary or mounting the full drawer. Missing addresses have no link;
+address-verification warnings remain visible.
 
 Full details is an explicit second action; Back to summary preserves access to
 the existing drawer. Operational actions retain their existing behavior. Phone appointment links

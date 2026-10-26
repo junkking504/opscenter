@@ -20,10 +20,18 @@ Returning to Waypoint or refreshing messages retries a missed restore. Server-si
 revocation, provider expiry and an expired subscription are never silently undone.
 Notifications do not bypass inspection or grant appointment access.
 
-The lock screen contains only a generic truck-update notice; no customer name,
-address, office-message body or financial detail is sent. Tap opens the authenticated Updates view on
-the same origin. The view shows non-sensitive change categories and links to the
-current route and office messages; sign-in keeps this fixed destination. The service worker has no fetch handler, cache or data endpoint.
+Waypoint notifications serve crews using company truck phones. OpsCenter manager
+notifications remain a separate operational-monitoring channel. The lock screen
+identifies the selected truck and change categories/counts; no customer name,
+address, office-message body, job reference or financial detail is sent. The
+existing Apple transport encrypts this small payload to the subscribed phone.
+Tap opens the exact grouped update in the authenticated Updates view on the same
+origin. Sign-in preserves that allowlisted update ID. The view identifies affected
+appointments, shows verified time changes, and opens a job still on the current
+route or the office inbox. Removed appointments remain explicitly unavailable;
+missing/old-day/cross-truck update IDs never gain access to another scope. If an
+existing app window cannot navigate, the worker opens the requested destination
+instead of focusing an unrelated screen. The service worker has no fetch handler, cache or data endpoint.
 Waypoint has no in-app disable control. iPhone notification permission remains
 controlled by iOS; server-side unsubscribe/revocation stays available to invalidate
 a subscription and is respected by automatic restore.
@@ -50,25 +58,27 @@ baseline and first view of another truck/date are silent. An unavailable schedul
 never becomes a removal; message baselines still advance independently.
 
 Filesystem events can coalesce, so this is a latest-update alert, not a complete
-history of every intermediate schedule change. Status changes, including completion, can produce schedule updates. The source reader retains its
+history of every intermediate schedule change. Only new/removed active appointments, verified time changes, relative route-order
+changes, reopened appointments and office messages interrupt crews. Completion,
+completed-job enrichment/removal, note/detail refreshes and numeric route
+renumbering stay silent. Missing or partial timing is not evidence of a move.
+A legacy baseline without a comparison projection is silently re-established. The source reader retains its
 existing freshness and verified-membership rules and shared Amazon visibility.
 A notification means open the latest authorized view. The sender never opens
 JunkWare or changes an appointment, payment, assignment or route.
 
 One database transaction publishes a baseline, a hashed/minimal comparison
-projection and a durable pending delivery with count-only context. Cosmetic
-whitespace/note ordering is silent. Routine detail/completion changes wait at
-most 15 seconds; a local due-work timer drains them without polling a source or
-provider. New/removed appointments, timing/route changes, status reversals and
-new office messages are immediate. A due delivery reserves all recent pending
+projection and a durable pending delivery with scoped change context. Cosmetic
+whitespace/note ordering is silent. Actionable schedule changes are grouped for 15 seconds; a local due-work timer
+drains them without polling a source or provider. Office messages are immediate. A due delivery reserves all recent pending
 rows for the exact device/phone/truck/date in one transaction and sends one
-wake-up. An urgent event flushes routine pending work immediately; legitimate
+wake-up. An office message flushes pending schedule work immediately; legitimate
 A→B→A changes are retained, not suppressed by a historical-hash blacklist.
-Every grouped row keeps its context and shares the attempted result. Context is
+Every grouped row keeps its original context, the shared notification context/ID
+and the attempted result. The in-app feed renders a sent group once. Context is
 read only after current phone/day authorization and is restricted to that phone,
-truck and date; it contains counts/categories, not customer details. First legacy
-baseline changes without a comparison projection remain eligible as a generic
-schedule update. Existing initial/new-scope silent baselines remain unchanged.
+truck and date; it contains counts/categories, appointment IDs and bounded before/after times,
+not customer details. Job links resolve against the current authorized route. Existing initial/new-scope silent baselines remain unchanged.
 
 One database transaction publishes a baseline and a durable pending delivery.
 A singleton database advisory lock prevents competing senders. A committed
@@ -156,3 +166,24 @@ widths. `node --import tsx scripts/test-waypoint-update-grouping.ts --database`
 uses an isolated temporary PostgreSQL cluster and mocked send callbacks to verify
 group reservation, routine timing, urgent events, private scoped context and no
 accepted/uncertain replay. These checks do not establish iPhone presentation.
+
+## Notification regression checks
+
+`npm run verify:waypoint-recovery` covers silent enrichment/completion refreshes,
+actionable changes, encrypted category context, exact destinations and navigation
+failure recovery. `verify:waypoint-recovery:browser` checks the selected update,
+job opening, office inbox and narrow-screen layout with fictional records.
+The PostgreSQL grouping suites accept `OPSCENTER_TEST_POSTGRES_BIN` for an
+isolated PostgreSQL binary directory; they never use the production database.
+Handset arrival, sound and tap-through require a separate company-phone check.
+
+## Saved-branch reconciliation — October 26, 2026
+
+The actionable-change policy supersedes the earlier four-minute detail throttle:
+routine enrichment and completion-only refreshes create no crew notification.
+Actionable schedule changes coalesce for 15 seconds, while office messages flush
+immediately. The selected due row remains included in its reservation across
+SQL/JavaScript clock boundaries. Existing native manager receipt navigation and
+source destinations are preserved alongside the new crew update links.
+Deployment does not enable sending; the owner-disabled Waypoint configuration
+remains authoritative until the owner explicitly re-enables it.

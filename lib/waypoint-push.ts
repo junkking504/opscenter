@@ -1,5 +1,5 @@
 import {waypointPushProjection,waypointPushChange,type WaypointPushProjection} from './waypoint-push-change';
-import {waypointUpdateCounts} from './waypoint-update-context';
+import {waypointUpdateCounts,waypointJobChanges} from './waypoint-update-context';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
@@ -14,6 +14,9 @@ import {chicagoDateKey} from './chicago-date';
 import {crewAssignedDay} from './crew-assigned-day';
 import {sameTruck,JUNKWARE_DISPATCH_TRUCKS} from './junkware-trucks';
 
+// Actionable schedule changes coalesce briefly; routine enrichment stays silent.
+// Office messages flush immediately. The first pending event fixes the deadline.
+export const WAYPOINT_ROUTINE_BATCH_SECONDS=15;
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 export const WAYPOINT_PUSH_HOME='/Users/missioncontrol/Library/Application Support/OpsCenter/waypoint-push';
 export function waypointPushEnabled(home=WAYPOINT_PUSH_HOME,now=Date.now()) {
@@ -126,7 +129,7 @@ export async function recordWaypointChanges(pool:Pool=getKernelPool(),sources={a
    const prior=(await client.query('SELECT scope,revision,projection_json FROM opscenter_kernel.waypoint_push_baselines WHERE device_id=$1 AND kind=$2 FOR UPDATE',[device.id,kind])).rows[0];
    if(prior?.scope===scope && prior.revision!==revision){
     const change=waypointPushChange(prior.projection_json as WaypointPushProjection|null,projection,kind);
-    if(change.changed)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status,context_json,not_before) VALUES($1,$2,$3,$4,$5,'pending',$6::jsonb,now()+($7 * interval '1 second'))",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey(),JSON.stringify(change.counts),change.urgent?0:15]);
+    if(change.changed)await client.query("INSERT INTO opscenter_kernel.waypoint_push_deliveries(id,device_id,phone_id,truck,service_date,status,context_json,not_before) VALUES($1,$2,$3,$4,$5,'pending',$6::jsonb,now()+($7 * interval '1 second'))",[randomUUID(),device.id,phone.deviceId,phone.truck,chicagoDateKey(),JSON.stringify({...change.counts,changes:change.changes}),change.urgent?0:WAYPOINT_ROUTINE_BATCH_SECONDS]);
    }
    await client.query('INSERT INTO opscenter_kernel.waypoint_push_baselines(device_id,kind,scope,revision,projection_json) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(device_id,kind) DO UPDATE SET scope=EXCLUDED.scope,revision=EXCLUDED.revision,projection_json=EXCLUDED.projection_json,updated_at=now()',[device.id,kind,scope,revision,JSON.stringify(projection)]);
    await client.query('COMMIT');
@@ -149,7 +152,14 @@ export async function retainWaypointPush(pool:Pool=getKernelPool()) {
 
 /** Authentication and today's day are required by the caller. No endpoint/key or
  * customer data is returned; grouping is scoped to the current phone/truck/date. */
-export async function waypointUpdates(phone:CrewPhone,pool:Pool=getKernelPool()) {
- const rows=(await pool.query("SELECT id,context_json,created_at FROM opscenter_kernel.waypoint_push_deliveries WHERE phone_id=$1 AND truck=$2 AND service_date=$3 AND status<>'skipped' ORDER BY created_at DESC,id DESC LIMIT 30",[phone.deviceId,phone.truck,chicagoDateKey()])).rows;
- return rows.map(row=>({id:row.id,counts:waypointUpdateCounts(row.context_json),created_at:row.created_at}));
+export async function waypointUpdates(phone:CrewPhone,pool:Pool=getKernelPool(),selected?:string|null) {
+ const selectedId=selected&&uuid.test(selected)?selected:null;
+ const rows=(await pool.query(`SELECT * FROM (
+  SELECT DISTINCT ON (COALESCE(q.context_json->>'notificationId',q.id::text))
+   COALESCE(q.context_json->>'notificationId',q.id::text) AS id,COALESCE(q.context_json->'notificationContext',q.context_json) AS context_json,q.created_at
+  FROM opscenter_kernel.waypoint_push_deliveries q
+  WHERE phone_id=$1 AND truck=$2 AND service_date=$3 AND status<>'skipped'
+  ORDER BY COALESCE(q.context_json->>'notificationId',q.id::text),q.created_at DESC
+ ) updates ORDER BY (id=$4) DESC NULLS LAST,created_at DESC,id DESC LIMIT 30`,[phone.deviceId,phone.truck,chicagoDateKey(),selectedId])).rows;
+ return rows.map(row=>({id:row.id,counts:waypointUpdateCounts(row.context_json),changes:waypointJobChanges(row.context_json?.changes),created_at:row.created_at}));
 }

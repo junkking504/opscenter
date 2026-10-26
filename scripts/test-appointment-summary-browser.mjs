@@ -35,6 +35,21 @@ try{
     if(scenario==='long'){assert.match(text,/Synthetic Customer/);assert.match(text,/Example Boulevard/);assert.match(text,/side entrance/i);}
     if(scenario==='missing'){assert.match(text,/Address unavailable/);assert.match(text,/Time not recorded/);assert.match(text,/Payment updating/);assert.doesNotMatch(text,/\$0\.00/);}
     if(scenario==='warning'){assert.match(text,/Assignment not verified/);assert.match(text,/No payment recorded/);assert.doesNotMatch(text,/Payment details unavailable/);}
+    const directions=summary.getByRole('link',{name:/Directions/});
+    if(scenario==='missing')assert.equal(await directions.count(),0,'Missing address has no directions target');
+    else {
+      const href=await directions.getAttribute('href');
+      assert.equal(new URL(href).searchParams.get('destination'),'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130');
+      assert.equal(await directions.getAttribute('target'),'_blank');
+      assert.equal(await directions.getAttribute('rel'),'noopener noreferrer');
+      assert.ok((await directions.boundingBox()).height>=44,'Directions has a comfortable touch target');
+      // Intercept the synthetic destination before any external navigation.
+      await directions.evaluate(a=>{window.summaryDirections=[];a.addEventListener('click',event=>{event.preventDefault();window.summaryDirections.push(a.href);});});
+      await directions.tap();await directions.focus();await page.keyboard.press('Enter');
+      assert.deepEqual(await page.evaluate(()=>window.summaryDirections),[href,href],'Touch and keyboard activate the source-backed directions link');
+      assert.equal(await summary.isVisible(),true,'Directions does not dismiss the summary');
+      assert.equal(await page.locator('.job-record-drawer').count(),0,'Directions never opens the operational drawer');
+    }
     const layout=await summary.evaluate(e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,client:e.clientWidth,scroll:e.scrollWidth,page:document.documentElement.scrollWidth,width:innerWidth,height:innerHeight};});
     assert.ok(layout.left>=-1&&layout.right<=width+1&&layout.top>=-1&&layout.bottom<=height+1,JSON.stringify(layout));
     assert.ok(layout.scroll<=layout.client+1,'Long summary values must wrap without horizontal overflow');
@@ -47,7 +62,7 @@ try{
       const rgba=value=>{context.clearRect(0,0,1,1);context.fillStyle=value;context.fillRect(0,0,1,1);return [...context.getImageData(0,0,1,1).data];};
       const mix=(a,b)=>a.slice(0,3).map((v,i)=>v*a[3]/255+b[i]*(1-a[3]/255));
       const lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
-      return [...dialog.querySelectorAll('p,h2,dt,dd,strong,small,summary,button')].filter(e=>e.textContent.trim()&&e.getClientRects().length).map(e=>{const style=getComputedStyle(e),chain=[];for(let node=e;node;node=node.parentElement)chain.push(rgba(getComputedStyle(node).backgroundColor));let bg=[255,255,255];for(const color of chain.reverse())bg=mix(color,bg);const fg=mix(rgba(style.color),bg),a=lum(fg),b=lum(bg);return {text:e.textContent.slice(0,70),color:style.color,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
+      return [...dialog.querySelectorAll('p,h2,dt,dd,strong,small,summary,button,a')].filter(e=>e.textContent.trim()&&e.getClientRects().length).map(e=>{const style=getComputedStyle(e),chain=[];for(let node=e;node;node=node.parentElement)chain.push(rgba(getComputedStyle(node).backgroundColor));let bg=[255,255,255];for(const color of chain.reverse())bg=mix(color,bg);const fg=mix(rgba(style.color),bg),a=lum(fg),b=lum(bg);return {text:e.textContent.slice(0,70),color:style.color,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
     });
     for(const sample of contrast)assert.ok(sample.ratio>=4.5,`${engineName}/${theme} text contrast ${JSON.stringify(sample)}`);
     const full=summary.getByRole('button',{name:'Full details',exact:true});await full.scrollIntoViewIfNeeded();

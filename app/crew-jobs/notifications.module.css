@@ -10,6 +10,8 @@
 .messages { display:grid; gap:8px; min-width:0; }
 .message { display:grid; gap:6px; min-width:0; background:#fff; border:1px solid #dfe3da; border-radius:10px; padding:16px; }
 .message time { color:#58665e; font-size:12px; }
+.message.selected { border:2px solid #255a3f; scroll-margin-top:16px; }
+.change { display:grid; gap:8px; padding-top:12px; border-top:1px solid #dfe3da; overflow-wrap:anywhere; }
 
 .panel [hidden] { display:none; }
 section.panel h1 { font-size:28px; line-height:1.25; margin:0 0 24px; }

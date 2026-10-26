@@ -1,4 +1,5 @@
 import './finance-base.css';
+import './finance-deferred-presentation.css';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { MetricDetail } from './metric-detail';
 import {WexAlertExpenses} from './wex-alert-expenses';

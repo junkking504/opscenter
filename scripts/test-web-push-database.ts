@@ -17,7 +17,7 @@ import type { PushBatch } from '../lib/web-push-events';
 
 // Installed local PostgreSQL only. Private Unix socket; TCP listening disabled.
 // No environment database URL, production config, Keychain or network sender.
-const bin='/opt/homebrew/opt/postgresql@18/bin';
+const bin=process.env.OPSCENTER_TEST_POSTGRES_BIN||'/opt/homebrew/opt/postgresql@18/bin';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'ops-push-test-'));
 const socket=path.join(root,'socket'),data=path.join(root,'db');fs.mkdirSync(socket);
 let started=false,pool:Pool|undefined,stop:(()=>Promise<void>)|undefined;
@@ -27,7 +27,7 @@ async function until(check:()=>Promise<boolean>){const end=Date.now()+4000;while
 async function main(){
  pg('initdb',['-D',data,'--no-locale','-A','trust','-U','push_test']);
  pg('pg_ctl',['-D',data,'-l',path.join(root,'server.log'),'-o',`-h '' -k ${socket} -p 5432`,'-w','start']);started=true;
- pg('createdb',['-h',socket,'-U','push_test','opscenter_push_preview_test']);
+ const bootstrap=new Pool({host:socket,user:'push_test',database:'postgres'});try{await bootstrap.query('CREATE DATABASE opscenter_push_preview_test');}finally{await bootstrap.end();}
  const config={host:socket,user:'push_test',database:'opscenter_push_preview_test'};
  pool=new Pool(config);const p=pool;
  await p.query('CREATE SCHEMA opscenter_kernel');

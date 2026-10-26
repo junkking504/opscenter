@@ -30,7 +30,7 @@ export default function ThemeControl({ compact = false }: { compact?: boolean })
       <Suspense fallback={<button id={id} type="button" role="switch" aria-label="Dark mode" aria-checked={dark}
         className="ops-theme-fallback" onClick={() => apply(dark ? 'light' : 'dark')}>
         <span style={{ background: dark ? 'var(--oc-theme-switch-track-on)' : 'var(--oc-theme-switch-track)' }}>
-          <span style={{ transform: `translateX(${dark ? 35 : 3}px)`, background: dark ? 'var(--oc-theme-switch-thumb-on)' : 'var(--oc-theme-switch-thumb)' }} />
+          <span style={{ transform: `translateX(${dark ? 36 : 4}px)`, background: dark ? 'var(--oc-theme-switch-thumb-on)' : 'var(--oc-theme-switch-thumb)' }} />
         </span>
       </button>}>
       <SquishSwitch id={id} checked={dark} onChange={on => apply(on ? 'dark' : 'light')}

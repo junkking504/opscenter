@@ -9,6 +9,7 @@ import React, {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent
 } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform, useVelocity } from 'motion/react';
@@ -136,6 +137,7 @@ const SquishSwitch: React.FC<SquishSwitchProps> = ({
   };
   const down = (e: PointerEvent<HTMLButtonElement>) => {
     if (disabled || grip.current || e.button !== 0) return;
+    skipClick.current = false;
     grip.current = {
       id: e.pointerId,
       grab: localX(e.clientX) - x.get(),
@@ -164,18 +166,18 @@ const SquishSwitch: React.FC<SquishSwitchProps> = ({
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
-    if (!cancelled) commit(g.moved ? x.get() > mid : !onRef.current);
-    skipClick.current = true;
-    setTimeout(() => {
-      skipClick.current = false;
-    }, 0);
+    // Taps commit through the native click, including delayed touch clicks.
+    // Drags commit once on release; retain suppression until the next gesture.
+    if (!cancelled && g.moved) commit(x.get() > mid);
+    skipClick.current = cancelled || g.moved;
     setDragging(false);
   };
-  const click = () => {
-    if (skipClick.current) {
+  const click = (e: MouseEvent<HTMLButtonElement>) => {
+    if (skipClick.current && e.detail !== 0) {
       skipClick.current = false;
       return;
     }
+    skipClick.current = false;
     if (!disabled) commit(!onRef.current);
   };
 

@@ -2,7 +2,7 @@
 
 import { MetricDetail } from '../metric-detail';
 
-import { SettingsWorkspace } from '../settings-workspace';
+import { SettingsWorkspace, AgentHierarchy, MaintenanceMonitor, LivePhotoReview, TruckAgents } from '../deferred-secondary-workspaces';
 import { readOpeningWorkspace } from '../lib/workspace-preferences';
 import { ReleaseUpdateToast } from '../release-update-toast';
 import { ShopTv } from '../shop-tv';
@@ -11,6 +11,7 @@ import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
 import { MobileInteractions } from '../components/mobile-interactions';
+import { useWorkspaceMotion } from '../use-workspace-motion';
 import ThemeControl from '../../components/ThemeControl';
 import { useDisplayedRefresh } from '../displayed-refresh';
 import { metricNumber } from '../command-revenue-hero';
@@ -18,8 +19,6 @@ import { CommandRevenueHero } from '../command-revenue-hero';
 import '../css-phase-two.css';
 import { cssPhaseTwoWorkspaces } from '../lib/css-phase-two';
 import { truckDisplayText } from '../../lib/junkware-trucks';
-import TruckAgents from '../truck-agents';
-import AgentHierarchy from '../agent-hierarchy';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
 import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
@@ -53,8 +52,6 @@ import LiveControl from '../live-control';
 import { LiveAnalytics } from '../deferred-live-analytics';
 import { commandKpiDestination } from '../lib/command-kpi-navigation';
 import { ActionHints } from '../action-hints';
-import MaintenanceMonitor from '../maintenance-monitor';
-import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 const { Component: Customers } = preloadableWorkspace(() => import('../customers'));
 const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
@@ -985,6 +982,7 @@ const preloadWorkspace: Record<string, () => Promise<unknown>> = { Schedule: pre
 
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const gestureContentRef = useRef<HTMLElement>(null);
+  const workspaceMotionRef = useRef<HTMLDivElement>(null);
   const prototypeReceiptScope = useId();
   const prototypeReceiptSequence = useRef(0);
   const nextPrototypeReceiptId = (prefix: string) => `${prefix}-${prototypeReceiptScope}-${++prototypeReceiptSequence.current}`;
@@ -4293,6 +4291,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     return true;
   };
 
+  const activePage = activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? financeView : activeNav === 'Marketing' ? marketingView : 'overview';
+  useWorkspaceMotion(workspaceMotionRef, activeNav, activePage, workspacePages);
+
   if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
 
   return (
@@ -4383,7 +4384,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /></div>}
         </div>
 
-        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
+        <div ref={workspaceMotionRef} className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
@@ -5621,7 +5622,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Settings' && (item.workspace !== 'Finance' || canFinance))} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
+          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Finance' || canFinance)} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
           <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${workspaceLabel(activeNav)} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>

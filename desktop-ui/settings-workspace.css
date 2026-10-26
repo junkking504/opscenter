@@ -14,7 +14,7 @@
 .settings-card .push-settings > small { display:block; margin-top:12px; color:var(--oc-text-muted); line-height:1.6; }
 .settings-card .push-settings fieldset { border:0; padding:0; }
 .settings-connections { grid-column:1 / -1; }
-.settings-connections .section-title { flex-wrap:wrap; gap:12px; }
+:where(.settings-connections) .section-title { flex-wrap:wrap; gap:12px; }
 .settings-source-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .settings-source-list article { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:8px; padding:16px; border:1px solid var(--oc-border-default); border-radius:8px; }
 .settings-source-list strong,.settings-source-list span { display:block; font-size:var(--oc-type-13); overflow-wrap:anywhere; }
@@ -26,3 +26,7 @@
 .workspace-rail-link[aria-disabled="true"] { opacity:.5; cursor:wait; }
 @media(max-width:1000px) { .settings-workspace,.settings-source-list { grid-template-columns:1fr; } }
 @media(max-width:760px) { .settings-card { padding:16px; } .settings-source-list article { grid-template-columns:1fr; } .settings-source-state { max-width:none; } }
+
+/* Keep shared presentation precedence independent of deferred loading. */
+.ops-live .settings-card .push-settings p { margin:8px 0; }
+.settings-card .section-title button { color:var(--oc-text-neutral-06); }

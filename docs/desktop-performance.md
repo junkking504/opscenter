@@ -45,6 +45,24 @@ are opened. This does not add reads, background jobs or polling. Existing
 reference-only mode waits for `reference-workspace-styles.ts` before rendering,
 so it retains the same four base packets without adding them to live cold opens.
 
+Appointment drawer `ScheduleControls` loads only when the drawer opens, through
+`deferred-schedule-controls.tsx`. Its existing Astryx controls, theme and scoped
+CSS load together before rendering; a local loading status keeps the rest of the
+drawer available. Shared receipt helpers are imported directly from
+`schedule-receipt.tsx`, so classification and rescheduling do not eagerly import
+the controls. The board retains its stable shell CSS order; only the separately
+layered Astryx packet travels with the deferred controls.
+
+Fleet's collapsed help guide loads its content on first expansion and keeps it
+mounted for later openings. Existing navigation and all guidance remain intact.
+Tailwind excludes synthetic `desktop-ui/tests` fixtures from utility discovery;
+production component discovery is unchanged. No download budgets are raised.
+
+Check cold imports and preserved control behavior with
+`scripts/test-deferred-controls-browser.mjs` against the synthetic dispatch
+fixture described in [Astryx adoption](astryx-components.md), plus the existing
+Astryx and schedule browser suites.
+
 ## Budget
 
 `npm run verify:desktop-bundle-budget` (after `npm run build:desktop`) fails

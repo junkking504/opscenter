@@ -5,7 +5,7 @@ const labels=natural.map(()=>26);
 const footers=natural.map(height=>height>36?23:0);
 for(const available of [200,320,500,550,700,1000]){
  const layout=scheduleViewportLayout(natural,labels,available,footers);
- assert.ok(layout.scale>=.75 && layout.scale<=1,'Keep lanes readable');
+ assert.ok(layout.scale>=.3 && layout.scale<=1,'Keep compact lanes visible');
  assert.equal(layout.fits,layout.heights.reduce((a,b)=>a+b,0)<=available);
  layout.heights.forEach((height,i)=>{
   assert.ok(height>=labels[i],'Truck labels retain their full height');
@@ -24,8 +24,7 @@ assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,3
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
 console.log('Schedule vertical fit, label/footer clearance and readable overflow passed.');
 
-const readable=scheduleViewportLayout(natural,labels,320,footers,true);
-assert.equal(readable.scale,1,'Phase 2 preserves natural text and lane height');
-assert.deepEqual(readable.heights,natural);
-assert.equal(readable.fits,false,'Dense Phase 2 boards use their existing scroll area');
-assert.equal(scheduleViewportLayout(natural,labels,1000,footers,true).heights.reduce((a,b)=>a+b,0),1000,'Sparse Phase 2 boards still fill the panel');
+const compact=scheduleViewportLayout(natural,labels,400,footers);
+assert.ok(compact.fits && compact.scale<.75,'Busy boards compact lanes instead of hiding the last trucks');
+compact.heights.forEach((height,i)=>assert.ok(height>=labels[i] && height>=footers[i],'Labels and status footers remain readable'));
+assert.equal(scheduleViewportLayout(natural,labels,1000,footers).heights.reduce((a,b)=>a+b,0),1000,'Sparse boards still fill the panel');

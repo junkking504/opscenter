@@ -52,7 +52,6 @@ import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-
 import ScheduleMap from './schedule-map';
 import ScheduleRouteConnector from './schedule-route-connector';
 import {scheduleViewportLayout} from './lib/schedule-viewport-layout';
-import {cssPhaseTwoWorkspaces} from './lib/css-phase-two';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import { scheduleOperationalStopLayout } from './lib/schedule-operational-stop-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -199,8 +198,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const fit = () => {
       setMobileTimeline(window.innerWidth <= 900);
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
-      // Reserve the 44px list jump banner, its 8px top gap, and 24px below it.
-      const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
+      // Reserve the list jump banner and its spacing, keeping the remaining
+      // screen height available for truck lanes.
+      const reserve = window.innerWidth >= 1000 ? 60 : 76;
+      const height = `${Math.max(240, window.innerHeight - pageTop - reserve)}px`;
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
       const rows = [...board.querySelectorAll<HTMLElement>('[data-schedule-truck]')];
@@ -222,13 +223,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const scroller = board.querySelector<HTMLElement>('.schedule-board-scroll');
       const available = Math.max(0, (scroller?.clientHeight ?? parseFloat(height) - titleHeight - 2) - rulerHeight);
       const layout = window.innerWidth >= 1000
-        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0), cssPhaseTwoWorkspaces.has('Schedule'))
+        ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0))
         : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
         row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
-        row.removeAttribute('data-condensed');
+        row.toggleAttribute('data-condensed', layout.scale < .75);
       });
     };
     let fitFrame = 0;

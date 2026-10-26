@@ -48,6 +48,16 @@ for (const engine of [chromium, webkit]) {
               await page.locator('[data-schedule-appointment]').first().waitFor();
             }
             await page.getByRole('button',{name:'Board controls',exact:true}).click();
+            await page.getByRole('button',{name:'Add Appointment',exact:true}).click();
+            const booking=page.getByRole('dialog',{name:'New Appointment',exact:true});
+            await booking.waitFor();
+            await booking.getByRole('button',{name:'Close',exact:true}).first().click();
+            assert.equal(await page.locator('.schedule-board-controls-trigger').getAttribute('aria-expanded'),'true','Closing the booking dialog preserves the controls panel');
+            await page.getByRole('button',{name:'Krewe roster',exact:true}).click();
+            await page.getByRole('dialog',{name:'Krewe roster',exact:true}).waitFor();
+            await page.getByRole('button',{name:'Close krewe roster',exact:true}).click();
+            await page.getByRole('button',{name:'Refresh day',exact:true}).click();
+            await page.locator('[data-schedule-appointment]').first().waitFor();
             await page.getByRole('textbox',{name:'Filter source appointments'}).fill('Example');
             await page.keyboard.press('Escape');
             const filteredToggle=page.getByRole('button',{name:'Board controls · Filters active',exact:true});

@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
@@ -6,7 +7,9 @@ try {
   const page = await browser.newPage();
   await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort());
   await page.goto(`${process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3168'}/tests/schedule-destinations.html?scenario=same-time&details=long`);
+  await openScheduleControls(page);
   await page.getByRole('button', { name: /^2026-09-07/ }).click();
+  await closeScheduleControls(page);
   await page.locator('[data-schedule-appointment^="2026-09-07:"]').first().waitFor();
   await page.evaluate(() => {
     const original = window.fetch;
@@ -33,7 +36,9 @@ try {
   await page.locator('[data-schedule-appointment$=":appointment:1001"]').click();
   const summary = page.getByRole('region', { name: 'Selected job JK1001001', exact: true });
   await page.waitForFunction(() => window.closestReads.length === 1);
+  await openScheduleControls(page);
   await page.getByRole('button', { name: 'Refresh day', exact: true }).click();
+  await closeScheduleControls(page);
   await page.waitForFunction(() => window.scheduleRefreshes >= 2);
   assert.equal(await page.evaluate(() => window.closestReads.length), 1);
   assert.equal(await page.evaluate(() => window.closestReads[0].signal.aborted), false, 'Other appointment changes do not cancel proximity');

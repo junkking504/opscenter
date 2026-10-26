@@ -1203,5 +1203,12 @@ unchanged. Truck details and the appointment register remain larger-target
 alternatives to narrow full-day markers.
 
 An asterisk marks an Amazon source business label, using the existing partner
-classifier without its customer-name fallback. The legend and accessible labels
-explain it; customer names and incidental brand mentions do not create a marker.
+classifier without its customer-name fallback, or a national-account marker:
+855-888-0112 in source appointment notes or the full job description (projected
+as `appointmentNotes` and `pickupItems`). National-account phone candidates are
+matched as whole numbers after normalizing punctuation and optional US country
+code 1. Longer numbers, identifiers and fragments split across notes do not match.
+The legend and accessible labels explain the marker. Customer names, customer
+contact numbers and incidental brand mentions do not create one. Missing or
+unmatched descriptions mean no positive marker; they never establish a verified
+non-national classification. Amazon retains its existing label when both apply.

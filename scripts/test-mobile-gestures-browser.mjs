@@ -35,13 +35,14 @@ try{
   ['#swipe-space',[[250,30],[240,80],[100,80]],{}],
   ['#swipe-space',[[250,30],[100,30]],{cancel:true}],
   ['#swipe-space',[[250,30],[100,30]],{multi:true}],
-  ['#nested',[[250,30],[100,30]],{}],
+  ['#nested-owned',[[250,30],[100,30]],{}],
   ['#carousel',[[250,30],[100,30]],{}],
   ['#map',[[250,10],[100,10]],{}],
   ['#drag',[[250,10],[100,10]],{}],
   ['input',[[250,10],[100,10]],{}],
   ['#metric',[[250,10],[100,10]],{}],
  ]){await touch(selector,points,options);assert.equal((await state()).active,'Schedule',`excluded/cancelled ${selector} ${JSON.stringify(points)}`);}
+ await touch('#nested',[[250,30],[100,30]]);await page.waitForFunction(()=>JSON.parse(document.querySelector('#results').textContent).active==='Krewe');assert.equal((await state()).active,'Krewe','vertical-only list permits horizontal swipe');await page.getByLabel('Choose workspace').selectOption('Schedule');await page.getByLabel('Choose workspace').evaluate(el=>el.blur());await page.waitForTimeout(700);
  await page.getByRole('button',{name:'Busy: false'}).click();await swipe();assert.equal((await state()).active,'Schedule','busy suppresses navigation');await page.getByRole('button',{name:'Busy: true'}).click();
  await page.getByRole('button',{name:'Toggle drawer'}).click();await swipe();assert.equal((await state()).active,'Schedule','unsaved drawer suppresses navigation');await page.getByRole('button',{name:'Toggle drawer'}).click();
  await page.getByRole('textbox',{name:'Unsaved note'}).focus();await swipe();assert.equal((await state()).active,'Schedule','focused form suppresses navigation');await page.getByRole('textbox').evaluate(el=>el.blur());
@@ -66,7 +67,7 @@ try{
  await page.waitForTimeout(700);await pull(page.getByRole('button',{name:'Refresh data',exact:true}),120,120);await page.waitForTimeout(200);assert.equal((await state()).refreshes,0,'diagonal pull must not become click');
  await page.waitForTimeout(700);await pull(page.getByRole('button',{name:'Refresh data',exact:true}));await page.waitForTimeout(200);assert.equal((await state()).refreshes,1,'dedicated pull refresh exactly once');
  await page.waitForTimeout(700);await page.getByRole('button',{name:'Refresh data',exact:true}).click();await page.waitForTimeout(200);assert.equal((await state()).refreshes,2,'visible refresh alternative');
- await page.getByLabel('Choose workspace').selectOption('Fleet');await page.waitForTimeout(700);await swipe();await page.waitForFunction(()=>JSON.parse(document.querySelector('#results').textContent).active==='Marketing');assert.equal((await state()).active,'Marketing','hidden Finance skipped');await page.waitForTimeout(700);await swipe();assert.equal((await state()).active,'Marketing','last page does not wrap');
+ await page.getByLabel('Choose workspace').selectOption('Fleet');await page.waitForTimeout(700);await swipe();await page.waitForFunction(()=>JSON.parse(document.querySelector('#results').textContent).active==='Marketing');assert.equal((await state()).active,'Marketing','hidden Finance skipped');await page.waitForTimeout(700);await swipe();await page.waitForFunction(()=>JSON.parse(document.querySelector('#results').textContent).active==='Settings');assert.equal((await state()).active,'Settings','Settings included');await page.waitForTimeout(700);await swipe();assert.equal((await state()).active,'Settings','last page does not wrap');
  await page.getByLabel('Choose workspace').selectOption('Command');await page.waitForTimeout(700);await touch('#swipe-space',[[100,30],[230,30]]);assert.equal((await state()).active,'Command','first page does not wrap');
  if(evidence)await page.screenshot({path:`${evidence}/gesture-controls-mobile.png`,fullPage:true});
  await page.setViewportSize({width:1200,height:900});await swipe();assert.equal((await state()).active,'Command','desktop gestures disabled');

@@ -628,6 +628,7 @@ html[data-ops-theme="dark"] .ops-app.ops-live .recharts-tooltip-label { color: v
 html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-container { background: var(--oc-theme-dark-map-canvas); }
 html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-attribution { color: var(--oc-theme-dark-map-text); background: var(--oc-theme-dark-on-brand); }
 html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-attribution a { color: var(--oc-theme-dark-map-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-zoom a:not(.leaflet-disabled) { color: var(--oc-theme-dark-map-text); }
 html[data-ops-theme="light"] .ops-app.ops-live { color-scheme: light; }
 
 html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar,

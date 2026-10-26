@@ -58,8 +58,12 @@ JunkWare or changes an appointment, payment, assignment or route.
 One database transaction publishes a baseline, a hashed/minimal comparison
 projection and a durable pending delivery with count-only context. Cosmetic
 whitespace/note ordering is silent. Routine detail/completion changes wait at
-most 15 seconds; a local due-work timer drains them without polling a source or
-provider. New/removed appointments, timing/route changes, status reversals and
+most four minutes from the first pending routine event; later events never
+extend that deadline. Continuous routine changes therefore produce at most one
+routine wake-up per four minutes per subscription, without sliding-window
+starvation. An urgent update can flush the pending routine context early. The
+four-minute bound stays below the five-minute queue freshness limit. A local
+due-work timer drains pending work without polling a source or provider. New/removed appointments, timing/route changes, status reversals and
 new office messages are immediate. A due delivery reserves all recent pending
 rows for the exact device/phone/truck/date in one transaction and sends one
 wake-up. An urgent event flushes routine pending work immediately; legitimate

@@ -21,3 +21,28 @@ assert.equal(waypointStops([{...ordered[0],truck:'',sharedAmazon:true}],'Truck 2
 assert.equal(hasWaypointLocation({number:1,job:{mapLocation:{latitude:NaN,longitude:-90,approximate:false}} as CrewScheduledJob}),false);
 assert.equal(hasWaypointLocation({number:1,job:{mapLocation:{latitude:29,longitude:-90,approximate:true}} as CrewScheduledJob}),true);
 console.log('Waypoint route map PASS: authorized projection, stable order/numbering, missing/approximate pins, completed and shared separation.');
+
+// Map membership is independent of the selected truck's remaining Route Order.
+import {crewMapAppointments,managerMapAppointments,hasMapLocation} from '../lib/waypoint-map';
+const full=crewMapAppointments([
+ {...payload.jobs![0],truck:'Truck 2',routePosition:3},
+ {...payload.jobs![0],appointmentId:'other',truck:'Truck 9',routePosition:1},
+ {...payload.jobs![0],appointmentId:'completed',status:'Completed'},
+ {...payload.jobs![0],appointmentId:'unassigned',truck:'',sharedAmazon:true,mapLocation:null},
+]);
+assert.deepEqual(full.map(row=>row.id),['100','other','completed','unassigned']);
+assert.deepEqual(full.map(row=>row.label),['T2·3','T9·1','T2✓','U·1']);
+assert.equal(full.filter(hasMapLocation).length,3);
+assert.equal(crewMapAppointments([payload.jobs![0]]).length,1,'The projection never fetches or adds unauthorized records');
+const managed=managerMapAppointments([
+ {recordId:'active',truck:'Truck 2',status:'Confirmed',customerName:'Active',address:'Example',location:{latitude:29,longitude:-90}},
+ {recordId:'done',truck:'Truck 9',status:'Completed',customerName:'Done',address:'Example',location:{latitude:30,longitude:-90}},
+ {recordId:'cancelled',truck:'',status:'Canceled',customerName:'Cancelled',address:'Example',location:null,mapFallback:{location:{latitude:31,longitude:-90}}},
+ {recordId:'missing',truck:'',status:'Confirmed',customerName:'Missing',address:'',location:null},
+ {recordId:'invalid',truck:'Truck 2',status:'Confirmed',customerName:'Invalid',address:'',location:{latitude:NaN,longitude:0}},
+] as import('../lib/desktop-schedule').DesktopAppointment[]);
+assert.equal(managed.length,5,'All statuses, trucks and unassigned records remain available');
+assert.equal(managed.filter(hasMapLocation).length,3);
+assert.equal(managed[2].location?.approximate,true,'Saved approximate coordinates are usable and labelled');
+assert.equal(managed[1].label,'T9✓');assert.equal(managed[2].label,'U×');
+console.log('Waypoint all-appointments map PASS: all supplied records, completed/cancelled/unassigned, fallback provenance, invalid locations, unchanged access scope.');

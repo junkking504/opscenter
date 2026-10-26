@@ -45,6 +45,7 @@ try{
  for(const width of [320,390,430,1440]){
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin);await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'All appointments map'}).getByText('0 mapped · 3 without a map location')).toBeVisible();
   const nav=page.getByRole('navigation',{name:'Your day'});
   for(const label of ['Route','Completed','Performance','Notifications','Messages']){const box=await nav.getByRole('button',{name:label,exact:true}).boundingBox();if(label==='Route')await expect(nav.getByRole('button',{name:label,exact:true})).toHaveAttribute('aria-current','page');assert.ok(box.height>=44 && box.y+box.height<=900 && box.y>700);}
   await expect.poll(()=>nav.locator('img').evaluateAll(images=>images.every(image=>image.complete && image.naturalWidth>0))).toBe(true);

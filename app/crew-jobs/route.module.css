@@ -46,3 +46,12 @@
 .stops li:not(:first-child) .number { background:#e7e9e3; color:#25312c; }
 .mapExpand { display:flex; align-items:center; gap:5px; min-height:44px; padding:8px 0 8px 8px; border:0; background:none; color:#58665e; font:500 12px/1.4 system-ui,sans-serif; cursor:pointer; }
 .mapExpand img { width:16px; height:16px; }
+
+.appointmentMap { margin-block:16px; min-width:0; }
+.appointmentMap .sectionHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:16px 0 10px; }
+.appointmentMap .sectionHeading h2 { font-size:23px; letter-spacing:-.6px; margin:0 0 3px; }
+.mapDirectory { margin-block:10px; border-bottom:1px solid #dfe3da; }
+.mapDirectory summary { min-height:44px; padding:10px 0; font:600 14px/1.5 system-ui,sans-serif; cursor:pointer; }
+.mapDirectory .otherJob { overflow-wrap:anywhere; }
+.marker.completedMarker { background:#35634d; }
+.marker.cancelledMarker { background:#626963; }

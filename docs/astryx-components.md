@@ -61,3 +61,27 @@ because its render, link and icon contracts differ.
 
 References: https://astryx.atmeta.com/components and
 https://astryx.atmeta.com/docs/getting-started.
+
+## All-appointments map
+
+The map appears in both the manager appointment browser and the crew Route
+view. Its membership is independent of the selected truck's remaining Route
+Order. Manager pins include every appointment in the selected date's authorized
+schedule snapshot, including completed, cancelled and unassigned work. Crew
+pins include every appointment already supplied by the existing scoped API.
+This does not broaden a crew session's access to other trucks.
+
+`lib/waypoint-map.ts` projects saved coordinates and saved approximate fallbacks
+without geocoding. Completed and cancelled pins carry status marks. Co-located
+appointments share a count marker with individually selectable popup entries.
+Unmapped appointments remain in an expandable list; a mapped-appointment list
+also supports browsing when tiles fail. The manager truck filter changes the
+list, while the map continues to show all available trucks. Map selection uses
+the existing detail-opening and unsaved-work guards.
+
+Additional checks: `scripts/test-waypoint-route-map.ts`,
+`scripts/test-waypoint-all-map-browser.mjs`, and the existing crew and manager
+navigation browser suites. The new map test mocks map tiles and exercises
+320/390/1440px, all statuses/trucks, co-location, approximate/missing locations,
+selection and expansion. `--serve` on that script opens a synthetic preview on
+127.0.0.1:3199; it never connects to operational APIs.

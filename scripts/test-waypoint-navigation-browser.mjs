@@ -20,7 +20,7 @@ const match=window.matchMedia;window.matchMedia=q=>q==='(display-mode: standalon
 window.fetch=async(url,options={})=>{
  const route=new URL(url,location.href).pathname;let body;
  if(options.method && options.method!=='GET')throw Error('Unexpected fixture write');
- if(route==='/api/crew-jobs/session')body={phone};
+ if(route==='/api/crew-jobs/session')body={phone,manager:false};
  else if(route==='/api/crew-jobs/manager-session')body={manager:false};
  else if(route==='/api/crew-jobs/day')body={phone,date,day:{date,version:1,truck:phone.truck,driver:'Sample Driver',navigators:['Sample Navigator']},inspection:{status:'ready'},trucks:['Truck 4','Truck 2'],roster:[]};
  else if(route==='/api/crew-jobs/current')body={state:window.fixture.empty?'waiting':'assigned',truck:phone.truck,job:window.fixture.empty?null:job,jobs:phone.test?undefined:window.fixture.empty?[]:jobs,visibility:mapped?'truck':'all-trucks',message:phone.test&&window.fixture.empty?'All three test assignments are complete.':undefined,updateToken:'one',summary:window.fixture.summary?summary:null};

@@ -1,0 +1,9 @@
+@import '@astryxdesign/core/astryx.css';
+@import '../../themes/opscenter/opscenter-brand.css';
+
+/* Existing clients own their document resets. Scope normalization to adopted
+   controls so introducing Astryx cannot reset unrelated pages. */
+.astryx-button { box-sizing: border-box; font-family: var(--font-family-body); }
+@media (max-width: 640px) {
+  .astryx-button { min-height: 44px; }
+}

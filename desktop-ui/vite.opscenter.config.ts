@@ -10,7 +10,7 @@ export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   base: '/desktop-assets/',
   plugins: [react(), { name: 'ops-theme-before-paint', transformIndexHtml: { order: 'pre', handler: () => [{ tag: 'script', children: OPS_THEME_BOOTSTRAP, injectTo: 'head-prepend' }] } }],
-  resolve: { dedupe: ['react', 'react-dom'], alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
+  resolve: { dedupe: ['react', 'react-dom', '@astryxdesign/core', '@astryxdesign/theme-neutral', '@stylexjs/stylex'], alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
   css: { postcss: { plugins: [tailwindcss()] } },
   build: {
     manifest: true,

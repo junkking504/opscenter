@@ -1,3 +1,4 @@
+import '../components/astryx/layers.css';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
 import { createRoot } from 'react-dom/client';

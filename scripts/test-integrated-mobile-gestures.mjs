@@ -5,6 +5,7 @@ const evidence=process.env.GESTURE_EVIDENCE_DIR;
 const browser=await chromium.launch({headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true,reducedMotion:'reduce'});
+ page.setDefaultTimeout(30000);
  const errors=[];page.on('pageerror',error=>{if(!errors.includes(error.message))errors.push(error.message);});
  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
  const cdp=await page.context().newCDPSession(page);
@@ -24,7 +25,9 @@ try{
   },{direction,cancel});
  };
  for(const role of ['manager','operator']){
+  const precedingUrl=page.url();
   await page.goto(`${base}?date=2026-10-13&role=${role}`);await page.locator('.command-metrics').waitFor();
+  const historyLength=await page.evaluate(()=>history.length);
   const expected=role==='manager'?['Dashboard','Command','Krewe','Fleet','Finance','Marketing','Settings']:['Dashboard','Command','Krewe','Fleet','Marketing','Settings'];
   assert.deepEqual(await page.getByLabel('Choose workspace').locator('option').allTextContents(),expected);
   const hero=page.locator('.hero-value');await hero.scrollIntoViewIfNeeded();const box=await hero.boundingBox();
@@ -46,6 +49,10 @@ try{
   await page.waitForFunction(count=>window.gestureQa.reads.filter(url=>url.startsWith('/api/desktop/command')).length>count,before);
   await page.getByRole('searchbox').first().focus();await syntheticSwipe();assert.equal(await current(),'Command','focused search cancels workspace swipe');await page.getByRole('searchbox').first().evaluate(el=>el.blur());
   await syntheticSwipe(1,'.workspace',true);assert.equal(await current(),'Command','touchcancel does not navigate');
+  // iOS may keep the workspace picker focused after its native popup closes.
+  await page.getByLabel('Choose workspace').focus();
+  await page.getByLabel('Choose workspace').selectOption('Command');
+  assert.equal(await page.getByLabel('Choose workspace').evaluate(el=>el===document.activeElement),true);
   // Genuine browser touch on non-control footer text confirms the integrated root listener.
   const footer=page.locator('.command-footer > span');await footer.scrollIntoViewIfNeeded();const f=await footer.boundingBox();
   const y=f.y+Math.min(f.height/2,12);
@@ -71,9 +78,14 @@ try{
   await syntheticSwipe();assert.equal(await current(),'Settings','last workspace does not wrap');
   await page.waitForTimeout(700);await syntheticSwipe(-1);await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,'Marketing');assert.equal(await current(),'Marketing','reverse sidebar order');
   assert.deepEqual((await qa()).writes,[],'no operational action activated');
+  assert.equal(await page.evaluate(()=>history.length),historyLength,'Workspace swipes preserve existing replace-state history behavior');
+  assert.equal(new URL(page.url()).searchParams.get('workspace'),'Marketing','URL tracks the final workspace');
+  await page.goBack();assert.equal(page.url(),precedingUrl,'Browser back retains the preceding document');
+  await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-label="Choose workspace"]')?.value==='Marketing');
+  assert.deepEqual((await qa()).writes,[],'History restoration has no operational actions');
  }
  await page.goto(`${base}?date=2026-10-13&role=manager`);await page.locator('.command-metrics').waitFor();
- await page.getByLabel('Theme',{exact:true}).selectOption('dark');
+ await page.getByRole('switch',{name:'Dark mode',exact:true}).click();
  assert.equal(await page.locator('html').getAttribute('data-ops-theme'),'dark');
  await page.getByRole('button',{name:'Preview metrics',exact:true}).click();await page.getByRole('dialog').waitFor();
  const theme=await page.getByRole('dialog').evaluate(el=>({background:getComputedStyle(el).backgroundColor,text:getComputedStyle(el).color}));
@@ -82,7 +94,7 @@ try{
  await page.locator('.mobile-preview-dialog dl > div').last().scrollIntoViewIfNeeded();
  const lastPreview=await page.locator('.mobile-preview-dialog dl > div').last().boundingBox();assert.ok(lastPreview.y>=0 && lastPreview.y+lastPreview.height<=844,'last metric remains scroll-accessible');
  if(evidence)await page.screenshot({path:`${evidence}/integrated-preview-dark-scroll.png`});
- await page.keyboard.press('Escape');await page.getByLabel('Theme',{exact:true}).selectOption('light');
+ await page.keyboard.press('Escape');await page.getByRole('switch',{name:'Dark mode',exact:true}).click();
  assert.deepEqual(errors,[],'no runtime errors');
  console.log('Integrated Home gestures PASS: Manager/Operator order, seven KPI previews, actual touch/hold/pull/dismiss, safe Dashboard/Command reads, search/cancel/drawer guards, zero operational actions.');
 }finally{await browser.close();}

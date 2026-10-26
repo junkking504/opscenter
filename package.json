@@ -20,6 +20,7 @@
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-source-data-agents.ts && node --import tsx scripts/test-agent-hierarchy.ts && node --import tsx scripts/test-address-agent-coverage.ts && python3 scripts/test-agent-runner.py && npm run verify:waypoint-agent",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts && node --import tsx scripts/test-knowledge-answer.ts && node --import tsx scripts/test-opswiki-name.ts && node --import tsx scripts/test-vault-knowledge.ts",
+    "verify:inspection-updates": "node --import tsx scripts/test-inspection-updates.ts && node --import tsx scripts/test-inspection-workflow.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",

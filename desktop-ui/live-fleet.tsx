@@ -1,3 +1,4 @@
+import './fleet-base.css';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MonthlyMileage } from './monthly-mileage';
@@ -7,7 +8,7 @@ import {fleetServiceTypes} from '../lib/fleet-service-plan';
 import {Mileage} from './convoy-dashboard';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { LiveAnalytics } from './deferred-live-analytics';
-import TruckAgents from './truck-agents';
+import {TruckAgents} from './deferred-secondary-workspaces';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';
 import { convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';

@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { adjacentWorkspace, downwardIntent, GESTURE, horizontalIntent, type GesturePoint } from '../lib/mobile-gestures';
 import '../mobile-interactions.css';
 
@@ -15,13 +16,16 @@ type Props = {
   onRefresh?: () => Promise<void>;
   previews?: readonly MetricPreview[];
 };
-const excluded='a,input,textarea,select,button,[contenteditable]:not([contenteditable="false"]),[draggable="true"],[role="slider"],[role="tablist"],[data-gesture-ignore],summary,img,svg,canvas,video,.leaflet-container,.recharts-wrapper,.maplibregl-map,.mapboxgl-map';
+const excluded='a,input,textarea,select,button,[contenteditable]:not([contenteditable="false"]),[draggable="true"],[role="slider"],[role="scrollbar"],[role="separator"],[role="tablist"],[aria-roledescription="carousel"],[data-gesture-ignore],summary,img,svg,canvas,video,audio,iframe,object,embed,.leaflet-container,.recharts-wrapper,.maplibregl-map,.mapboxgl-map';
 function selectionActive() { return Boolean(window.getSelection()?.toString()); }
 function blockedSurface(target: Element, root: HTMLElement) {
   if (target.closest(excluded)) return true;
   for (let node: Element | null=target; node && node!==root; node=node.parentElement) {
     const style=getComputedStyle(node);
-    if ((/(auto|scroll)/.test(style.overflowX) && node.scrollWidth>node.clientWidth+1) || (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight>node.clientHeight+1)) return true;
+    // A vertical list is still page space for a deliberate horizontal swipe.
+    // Native vertical scrolling cancels the sequence below. Horizontal scrollers
+    // (tables, carousels, timelines) own their horizontal gesture instead.
+    if (/(auto|scroll)/.test(style.overflowX) && node.scrollWidth>node.clientWidth+1) return true;
   }
   return false;
 }
@@ -42,7 +46,8 @@ export function MobileInteractions(props: Props) {
   const cooldown=useRef(0);
   const pendingNavigation=useRef<string | null>(null);
   useEffect(()=>{
-    if(pendingNavigation.current!==props.activeWorkspace)return;
+    // A newer menu/history navigation can supersede the pending swipe.
+    if(!pendingNavigation.current)return;
     pendingNavigation.current=null;
     setNavigationHint(null);
     setStatus(`${latest.current.workspaces.find(item=>item.workspace===props.activeWorkspace)?.label || props.activeWorkspace} selected`);
@@ -70,12 +75,13 @@ export function MobileInteractions(props: Props) {
     let suppressedUntil=0;
     let prepared: string | null=null;
     const clear=()=>{start=null;end=null;previewSequence=false;prepared=null;if(!pendingNavigation.current)setNavigationHint(null);if(hold)clearTimeout(hold);hold=undefined;};
-    const available=()=>!latest.current.busy && !pendingNavigation.current && !pendingRef.current && !editingOrDialog() && !selectionActive() && Date.now()>cooldown.current && window.innerWidth<=900;
+    const available=()=>!latest.current.busy && !pendingNavigation.current && !pendingRef.current && !editingOrDialog() && !selectionActive() && Date.now()>cooldown.current && window.innerWidth<=900 && (window.visualViewport?.scale ?? 1)<=1.01;
     const begin=(event: TouchEvent)=>{
       clear();
       if (event.touches.length!==1 || !available() || !(event.target instanceof Element)) return;
       const target=event.target;
       const point=event.touches[0];
+      if (point.clientX<GESTURE.edge || point.clientX>window.innerWidth-GESTURE.edge) return;
       start={x:point.clientX,y:point.clientY,at:Date.now()};end=start;
       const previewTarget=target.closest<HTMLElement>('[data-gesture-preview]');
       const item=previewTarget && latest.current.previews?.find(value=>value.id===previewTarget.dataset.gesturePreview);
@@ -154,7 +160,7 @@ export function MobileInteractions(props: Props) {
     finally{pendingRef.current=false;setPending(false);}
   };
   return <>
-    {navigationHint && <div className={`mobile-navigation-hint ${navigationHint.direction===1?'next':'previous'}`} aria-hidden="true" data-gesture-ignore>{navigationHint.direction===-1 && <span>← </span>}{navigationHint.label}{navigationHint.direction===1 && <span> →</span>}</div>}
+    {navigationHint && createPortal(<div className={`mobile-navigation-hint ${navigationHint.direction===1?'next':'previous'}`} aria-hidden="true" data-gesture-ignore>{navigationHint.direction===-1 && <span>← </span>}{navigationHint.label}{navigationHint.direction===1 && <span> →</span>}</div>, document.body)}
     <div className="mobile-interactions" data-gesture-ignore>
       <details><summary>Touch shortcuts</summary><p>Swipe left or right on open page space to change workspace. The workspace menu also works.{!!props.previews?.length && ' Hold a metric for a preview.'}{props.onRefresh && ' Pull the Refresh data button down to update displayed data.'}</p></details>
       {props.onRefresh && <PullAction disabled={props.busy || pending} onAction={()=>void refresh()} label={pending?'Refreshing…':'Refresh data'} />}

@@ -2,7 +2,7 @@ import React, {useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {MobileInteractions} from '../components/mobile-interactions';
 import '../design-tokens.css';
-const workspaces=[{workspace:'Command',label:'Dashboard'},{workspace:'Schedule',label:'Command'},{workspace:'Krewe',label:'Krewe'},{workspace:'Fleet',label:'Fleet'},{workspace:'Marketing',label:'Marketing'}];
+const workspaces=[{workspace:'Command',label:'Dashboard'},{workspace:'Schedule',label:'Command'},{workspace:'Krewe',label:'Krewe'},{workspace:'Fleet',label:'Fleet'},{workspace:'Marketing',label:'Marketing'},{workspace:'Settings',label:'Settings'}];
 function Fixture(){
  const root=useRef<HTMLElement|null>(null);
  const [active,setActive]=useState('Command'),[busy,setBusy]=useState(false),[drawer,setDrawer]=useState(false),[refreshes,setRefreshes]=useState(0),[opens,setOpens]=useState(0);
@@ -12,7 +12,7 @@ function Fixture(){
  <button type="button" onClick={()=>setBusy(!busy)}>Busy: {String(busy)}</button><button type="button" onClick={()=>setDrawer(!drawer)}>Toggle drawer</button>
  <div id="swipe-space">Open page space</div>
  <button type="button" id="metric" data-gesture-preview="revenue" onClick={()=>setOpens(value=>value+1)}>Revenue $125</button>
- <input aria-label="Unsaved note" defaultValue="draft"/><div id="nested"><div>Nested scrolling</div></div><div id="carousel"><div>Horizontal content</div></div><div id="map" className="leaflet-container">Map</div><div id="drag" draggable>Drag appointment</div><div id="selection">Selectable description</div>
+ <input aria-label="Unsaved note" defaultValue="draft"/><div id="nested"><div>Nested vertical scrolling</div></div><div id="nested-owned" data-gesture-ignore><div>Explicitly owned scrolling</div></div><div id="carousel"><div>Horizontal content</div></div><div id="map" className="leaflet-container">Map</div><div id="drag" draggable>Drag appointment</div><div id="selection">Selectable description</div>
  {drawer && <aside className="record-drawer">Unsaved record</aside>}
  <MobileInteractions contentRef={root} activeWorkspace={active} workspaces={workspaces} onNavigate={setActive} busy={busy} previews={[{id:'revenue',label:'Revenue',value:'$125',detail:'Synthetic metric; no operational records'}]} onRefresh={async()=>{setRefreshes(value=>value+1);await new Promise(resolve=>setTimeout(resolve,100));}}/>
  <output id="results">{JSON.stringify({active,refreshes,opens})}</output>

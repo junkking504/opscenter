@@ -66,10 +66,10 @@ try{
   if(evidence && role==='manager'){await page.waitForTimeout(250);await page.screenshot({path:`${evidence}/integrated-appointment-detail.png`});}
   await pull(page.locator('.job-record-drawer').getByRole('button',{name:'Close details',exact:true}));await page.locator('.job-record-drawer').waitFor({state:'detached'});
   await page.getByLabel('Choose workspace').selectOption('Command');await page.getByLabel('Choose workspace').evaluate(el=>el.blur());await page.waitForTimeout(700);
-  const order=role==='manager'?['Schedule','Krewe','Fleet','Finance','Marketing']:['Schedule','Krewe','Fleet','Marketing'];
+  const order=role==='manager'?['Schedule','Krewe','Fleet','Finance','Marketing','Settings']:['Schedule','Krewe','Fleet','Marketing','Settings'];
   for(const workspace of order){await syntheticSwipe();await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,workspace);await page.waitForTimeout(700);}
-  await syntheticSwipe();assert.equal(await current(),'Marketing','no wrap or Settings insertion');
-  await page.waitForTimeout(700);await syntheticSwipe(-1);await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,role==='manager'?'Finance':'Fleet');assert.equal(await current(),role==='manager'?'Finance':'Fleet','reverse sidebar order');
+  await syntheticSwipe();assert.equal(await current(),'Settings','last workspace does not wrap');
+  await page.waitForTimeout(700);await syntheticSwipe(-1);await page.waitForFunction(value=>document.querySelector('[aria-label="Choose workspace"]').value===value,'Marketing');assert.equal(await current(),'Marketing','reverse sidebar order');
   assert.deepEqual((await qa()).writes,[],'no operational action activated');
  }
  await page.goto(`${base}?date=2026-10-13&role=manager`);await page.locator('.command-metrics').waitFor();

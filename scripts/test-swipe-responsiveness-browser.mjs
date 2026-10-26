@@ -96,7 +96,7 @@ try {
   {points:[[15,30],[100,30]]},
   {points:[[270,30],[210,30]],cancel:true},
   {points:[[270,30],[200,30],[262,30]]},
-  {selector:'#map'}, {selector:'input'}, {selector:'#nested'}, {selector:'#carousel'}, {selector:'#drag'},
+  {selector:'#map'}, {selector:'input'}, {selector:'#nested-owned'}, {selector:'#carousel'}, {selector:'#drag'},
  ]){await gesture(scenario);assert.equal((await state()).active,'Fleet',`Rejected ${JSON.stringify(scenario)}`);assert.equal(await page.locator('.mobile-navigation-hint').count(),0,'Hint clears after rejected/cancelled gesture');}
  await page.getByRole('button',{name:'Busy: false'}).click();await gesture();assert.equal((await state()).active,'Fleet','Busy edits block navigation');await page.getByRole('button',{name:'Busy: true'}).click();
  await page.getByRole('button',{name:'Toggle drawer'}).click();await gesture();assert.equal((await state()).active,'Fleet','Unsaved drawer blocks navigation');await page.getByRole('button',{name:'Toggle drawer'}).click();

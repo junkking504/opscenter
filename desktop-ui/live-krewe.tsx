@@ -1,3 +1,4 @@
+import './krewe-base.css';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MetricValue } from './metric-value';

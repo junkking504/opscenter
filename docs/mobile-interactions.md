@@ -9,7 +9,8 @@ remain usable without gestures. Controls retain visible focus, native dialog
 focus containment/return, status announcements and reduced-motion compatibility.
 
 At widths up to 900 CSS pixels, deliberate horizontal single-finger swipes on
-open page space move through the supplied permission-filtered sidebar order.
+open page space move through all seven main workspaces, including Settings,
+in the supplied permission-filtered sidebar order.
 They never wrap. Navigation commits on release after 56px, or a deliberate 32px
 fast flick (at least 0.5px/ms over 40–250ms), with horizontal travel at least
 1.8 times vertical travel. A destination hint appears after 20px of horizontal
@@ -19,11 +20,28 @@ the hint. On an accepted release, the hint acknowledges the destination while
 React renders it as a transition, then clears when that workspace commits.
 The repeat guard is 220ms; the maximum gesture duration remains 900ms.
 The outer 28px screen edges, forms, links/buttons, text selection,
-nested scroll areas, maps/charts, videos, draggable elements and explicit
+horizontal scroll areas, maps/charts, audio/video players, embedded content,
+slider/scrollbar/resize controls, draggable elements and explicit
 `data-gesture-ignore` regions are excluded. Vertical intent, multiple touches,
 cancellation, active dialogs/drawers, busy edits and repeated navigation cancel
 or block a shortcut. The page has no global touch-action override or scroll
 prevention. App-wide dirty state must be supplied through `busy`.
+
+Vertical-only scrolling lists no longer disable horizontal navigation for the
+whole list. A vertical movement or any native scroll still cancels a swipe;
+horizontal tables, timelines and carousels retain their own gesture. The shared
+content listener covers every workspace subpage, not just the opening views.
+Source Health and other dialogs intentionally block background navigation.
+The Huddle full-screen display and separate Waypoint/legacy office routes are
+not part of the seven-workspace swipe sequence.
+
+Committed workspace and header-tab changes receive a 240ms directional settle:
+18px of horizontal travel and 94–100% opacity, with no delay before navigation,
+hidden frame, cloned records or component remount. The header and pinned search
+do not move. Reverse navigation uses the opposite direction; interrupted motion
+is cancelled before a new interaction. Reduced Motion disables animation and
+also cancels one already running. Existing URL replacement and swipe focus
+return are unchanged. Superseding a pending swipe clears its hint and lock.
 
 Refresh still requires a 96px downward pull within 900ms. Sheet dismissal uses
 a full-width grab control at widths up to 900 CSS pixels (including tablets only

@@ -1,4 +1,62 @@
-.ops-live .schedule-crew-roster{box-sizing:border-box;margin:auto;width:min(760px,calc(100vw - 24px));max-height:85dvh;overflow:auto;border:1px solid var(--line,var(--oc-border-neutral-06));border-radius:12px;padding:20px;background:var(--surface,var(--oc-surface-raised));color:var(--text,var(--oc-text-blue-24))}.ops-live .schedule-crew-roster::backdrop{background:var(--oc-shadow-alpha-01)}.ops-live .crew-roster-heading{display:flex;justify-content:space-between;gap:16px}.ops-live .crew-roster-heading h2{margin:0}.ops-live .crew-roster-rows{display:grid;gap:10px;margin:16px 0}.ops-live .crew-roster-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--oc-border-neutral-06)}.ops-live .crew-roster-row label{display:grid;gap:4px;font-size:var(--oc-type-12)}.ops-live .crew-roster-row select,.ops-live .crew-roster-row input{width:100%;min-width:0;min-height:38px;border:1px solid var(--oc-border-neutral-25);border-radius:6px;padding:6px;background:var(--surface,var(--oc-surface-raised));color:inherit}.ops-live .schedule-crew-roster button{min-height:38px;padding:6px 12px}.ops-live .schedule-crew-roster small{display:block;margin-top:10px}@media(max-width:600px){.ops-live .crew-roster-row{grid-template-columns:1fr 1fr}.ops-live .crew-roster-row strong{grid-column:1/-1}.ops-live .schedule-crew-roster{padding:14px}}
-
-.ops-live .schedule-crew-roster input[type="time"]{display:block;width:100%;max-width:none;min-width:120px;height:38px}.ops-live .schedule-crew-roster select{height:38px}.ops-live .schedule-crew-roster button{border:1px solid var(--oc-border-neutral-07);border-radius:6px;background:var(--oc-surface-neutral-02);color:var(--oc-text-green-05);cursor:pointer}.ops-live .schedule-search-actions>button{white-space:nowrap;padding:8px 12px;border:1px solid var(--oc-border-neutral-07);border-radius:6px;background:white;color:var(--oc-text-green-05)}
-.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-crew-roster input[type="time"]{width:100%!important;max-width:none!important;min-width:120px;flex:none}
+/* Keep the roster independent of the surrounding schedule toolbar's input sizing. */
+.ops-live dialog.schedule-crew-roster{box-sizing:border-box;margin:auto;width:min(720px,calc(100vw - 24px));max-width:calc(100vw - 16px);max-height:min(90dvh,860px);padding:0;overflow:hidden;border:1px solid var(--oc-border-default);border-radius:16px;background:var(--oc-surface-raised);color:var(--oc-text-blue-24);font-size:var(--oc-type-14);line-height:1.4;box-shadow:0 24px 80px var(--oc-shadow-alpha-02)}
+.ops-live dialog.schedule-crew-roster[open]{display:flex;flex-direction:column}
+.ops-live .schedule-crew-roster::backdrop{background:var(--oc-shadow-alpha-01)}
+.ops-live .schedule-crew-roster *{box-sizing:border-box}
+.ops-live .schedule-crew-roster .crew-roster-heading{display:flex;flex:none;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px 10px}
+.ops-live .schedule-crew-roster .crew-roster-heading h2{margin:0;font-size:var(--oc-type-24);font-weight:600;line-height:1.2;letter-spacing:-.02em}
+.ops-live .schedule-crew-roster .crew-roster-heading p{margin:4px 0 0;color:var(--oc-text-neutral-03);font-size:var(--oc-type-12);line-height:1.4}
+.ops-live .schedule-crew-roster .crew-roster-summary{display:flex;flex:none;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:0 18px 12px;border-bottom:1px solid var(--oc-border-default);color:var(--oc-text-neutral-03);font-size:var(--oc-type-12)}
+.ops-live .schedule-crew-roster .crew-roster-summary strong{font-size:inherit;color:var(--oc-text-blue-24);font-weight:600}
+.ops-live .schedule-crew-roster .crew-roster-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px}
+.ops-live .schedule-crew-roster .crew-roster-readonly{margin:12px 0;font-size:var(--oc-type-12);color:var(--oc-text-neutral-03)}
+.ops-live .schedule-crew-roster .crew-roster-rows{display:grid;gap:0;margin:0}
+.ops-live .schedule-crew-roster .crew-roster-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start;gap:12px;padding:12px 0;border:0;border-bottom:1px solid var(--oc-border-default)}
+.ops-live .schedule-crew-roster .crew-roster-row:last-child{border-bottom:0}
+.ops-live .schedule-crew-roster .crew-roster-person{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:10px;min-width:0}
+.ops-live .schedule-crew-roster .crew-roster-person>strong{min-width:0;margin:0;overflow-wrap:anywhere;font-size:var(--oc-type-16);line-height:1.3;font-weight:600}
+.ops-live .schedule-crew-roster .crew-roster-assignment{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;min-width:0}
+.ops-live .schedule-crew-roster .crew-roster-row label,.ops-live .schedule-crew-roster .crew-roster-start{display:grid;gap:4px;min-width:0;margin:0;color:var(--oc-text-neutral-03);font-size:var(--oc-type-12);line-height:1.3}
+.ops-live .schedule-crew-roster .crew-roster-person .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.ops-live .schedule-crew-roster :is(button,select,input){min-height:44px;border:1px solid var(--oc-border-neutral-25);border-radius:8px;padding:8px 10px;color:var(--oc-text-blue-24);background:var(--oc-surface-raised);font:inherit;font-size:var(--oc-type-16);line-height:1.25}
+.ops-live .schedule-crew-roster :is(select,input){display:block;width:100%;min-width:0;max-width:none}
+.ops-live .schedule-crew-roster button{cursor:pointer}
+.ops-live .schedule-crew-roster :is(button,select,input):disabled{cursor:default;opacity:.6}
+.ops-live .schedule-crew-roster :is(button,select,input):focus-visible{outline:2px solid var(--ops-brand-red);outline-offset:2px}
+.ops-live .schedule-crew-roster .crew-roster-time-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;text-align:left;font-variant-numeric:tabular-nums}
+.ops-live .schedule-crew-roster .crew-roster-time-trigger>span{white-space:nowrap}
+.ops-live .schedule-crew-roster .crew-roster-time-trigger svg{flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ops-live .schedule-crew-roster .crew-roster-time-trigger[aria-expanded="true"]{border-color:var(--ops-brand-red)}
+.ops-live .schedule-crew-roster .crew-roster-time-editor{grid-column:1/-1;display:grid;gap:12px;padding:12px;border:1px solid var(--oc-border-default);border-radius:10px;background:var(--oc-surface-neutral-02)}
+.ops-live .schedule-crew-roster .crew-roster-time-presets>span{display:block;margin-bottom:6px;font-size:var(--oc-type-12);color:var(--oc-text-neutral-03)}
+.ops-live .schedule-crew-roster .crew-roster-time-presets>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ops-live .schedule-crew-roster .crew-roster-time-presets button{font-variant-numeric:tabular-nums}
+.ops-live .schedule-crew-roster .crew-roster-time-presets button[aria-pressed="true"]{border-color:var(--ops-brand-red);box-shadow:inset 0 0 0 1px var(--ops-brand-red)}
+.ops-live .schedule-crew-roster .crew-roster-custom-time{display:flex;align-items:end;gap:8px}
+.ops-live .schedule-crew-roster .crew-roster-custom-time label{flex:1;min-width:0}
+.ops-live .schedule-crew-roster .crew-roster-custom-time input[type="time"]{width:100%;min-width:0;height:44px;font-size:var(--oc-type-16);font-variant-numeric:tabular-nums}
+.ops-live .schedule-crew-roster .crew-roster-footer{flex:none;padding:12px 18px;border-top:1px solid var(--oc-border-default);background:var(--oc-surface-raised)}
+.ops-live .schedule-crew-roster .crew-roster-footer:empty{display:none}
+.ops-live .schedule-crew-roster .crew-roster-message{margin:0 0 10px;font-size:var(--oc-type-14);line-height:1.4;overflow-wrap:anywhere}
+.ops-live .schedule-crew-roster .crew-roster-message:last-child{margin-bottom:0}
+.ops-live .schedule-crew-roster .crew-roster-save{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.ops-live .schedule-crew-roster .crew-roster-save>div{min-width:0}
+.ops-live .schedule-crew-roster .crew-roster-save strong{font-size:var(--oc-type-12);font-weight:600}
+.ops-live .schedule-crew-roster .crew-roster-save small{display:block;margin-top:2px;color:var(--oc-text-neutral-03);font-size:var(--oc-type-12);line-height:1.3}
+.ops-live .schedule-crew-roster .crew-roster-save-button{flex:none;background:var(--ops-brand-red);color:var(--oc-theme-dark-on-brand);border-color:var(--ops-brand-red);font-weight:600}
+.ops-live .schedule-crew-roster .crew-roster-discard p{margin:0 0 10px;font-size:var(--oc-type-14);font-weight:600}
+.ops-live .schedule-crew-roster .crew-roster-discard>div{display:flex;flex-wrap:wrap;gap:8px}
+/* Later schedule rules target all descendant controls, not only the toolbar. */
+.ops-app.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-crew-roster :is(button,input,select){min-height:44px;height:auto;font-size:var(--oc-type-16);padding:8px 10px}
+.ops-app.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-crew-roster select{height:44px}
+.ops-app.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-crew-roster input[type="time"]{width:100%!important;max-width:none!important;min-width:0;height:44px;flex:none}
+.ops-live .schedule-search-actions>button{white-space:nowrap;padding:8px 12px;border:1px solid var(--oc-border-neutral-07);border-radius:6px;background:var(--oc-surface-raised);color:var(--oc-text-green-05)}
+@media(max-width:600px){
+ .ops-live dialog.schedule-crew-roster{width:calc(100vw - 16px);max-height:calc(100dvh - 32px);border-radius:14px}
+ .ops-live .schedule-crew-roster .crew-roster-heading{padding:14px 14px 10px}
+ .ops-live .schedule-crew-roster .crew-roster-summary{padding-inline:14px}
+ .ops-live .schedule-crew-roster .crew-roster-body{padding-inline:14px}
+ .ops-live .schedule-crew-roster .crew-roster-row{grid-template-columns:minmax(0,1fr);gap:8px;padding-block:10px}
+ .ops-live .schedule-crew-roster .crew-roster-person{grid-template-columns:minmax(0,1fr) 122px}
+ .ops-live .schedule-crew-roster .crew-roster-footer{padding:10px 14px max(10px,env(safe-area-inset-bottom))}
+}

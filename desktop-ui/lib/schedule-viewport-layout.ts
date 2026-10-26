@@ -1,6 +1,5 @@
-/** Fit the overview without shrinking truck labels or the live status footer.
- * Compact busy lanes before introducing scrolling. Truck labels and live
- * status footers keep their natural size; extremely short windows still scroll.
+/** Fill spare panel space without shrinking appointments, labels or footers.
+ * Busy schedules retain their natural row heights and remain scrollable.
  */
 export function scheduleViewportLayout(natural: number[], labels: number[], available: number, footers: number[] = []) {
   const heightsAt = (scale: number) => natural.map((height, index) => {
@@ -18,16 +17,5 @@ export function scheduleViewportLayout(natural: number[], labels: number[], avai
       + (index < spare % naturalHeights.length ? 1 : 0));
     return { scale: 1, heights, fits: true };
   }
-  let scale = .3;
-  let upper = 1;
-  if (fits(heightsAt(scale))) {
-    // Include per-row rounding in the fit, so the final row never loses pixels.
-    for (let i = 0; i < 24; i++) {
-      const candidate = (scale + upper) / 2;
-      if (fits(heightsAt(candidate))) scale = candidate;
-      else upper = candidate;
-    }
-  }
-  const heights = heightsAt(scale);
-  return { scale, heights, fits: fits(heights) };
+  return { scale: 1, heights: naturalHeights, fits: false };
 }

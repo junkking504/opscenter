@@ -83,8 +83,8 @@ const fragmented={...job,truckVisits:[
 ]} as ScheduleAppointment;
 const fragmentedLayout=scheduleTravelLayout([fragmented],[],range,'Truck 8',now,450,true);
 const fragments=fragmentedLayout.placed[0];
-assert.equal(fragments.segmentLanes[0],fragments.segmentLanes[1],'Disjoint same-job GPS observations share a chronological lane');
-assert.ok(fragments.renderedSegments[0].left+fragments.renderedSegments[0].width<=fragments.renderedSegments[1].left+1e-9,'Rendered padding never covers the next observation');
+assert.ok(fragments.segmentLanes[0]!==fragments.segmentLanes[1] || fragments.renderedSegments[0].left+fragments.renderedSegments[0].width<=fragments.renderedSegments[1].left+1e-9,'Rendered hit areas never cover the next observation on the same lane');
+assert.ok(fragments.renderedSegments.every(segment=>segment.width*450>=12),'Narrow desktop observations remain visibly selectable');
 const leg={truck:'Truck 8',fromAppointmentId:job.recordId,toAppointmentId:job.recordId,fromJk:'JK1',toJk:'JK1',travelMinutes:10,miles:4.4,gapMinutes:0} as Parameters<typeof scheduleTravelLayout>[1][number];
 const travel=scheduleTravelLayout([fragmented],[leg,{...leg}],range,'Truck 8',now,450,true);
 assert.equal(travel.connectors.length,0,'Duplicate same-job route legs cannot imply travel backward between GPS fragments');

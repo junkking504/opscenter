@@ -92,7 +92,10 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const renderedSegments = position.segments.map(segment => {
       const next = position.actual ? recordedStarts.find(left => left > segment.left + 1e-9) : undefined;
       const padding = next === undefined ? minimumFraction : Math.min(minimumFraction, next-segment.left);
-      return {...segment, width:Math.max(segment.width,padding)};
+      // Very close observations must stay visible and selectable. Their hit
+      // areas can use separate lanes instead of collapsing into subpixel bars.
+      const hitWidth = position.actual ? 12/(timelineWidth || 640) : 0;
+      return {...segment, width:Math.max(segment.width,padding,hitWidth)};
     });
     const footprints = renderedSegments.map(segment => ({left:segment.left,right:segment.left+segment.width}));
     // Pack every segment, including segments belonging to the same job.
@@ -129,11 +132,12 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     let sourceIndex = from.position.intervals.length-1;
     const targetIndex = 0;
     const targetStart = to.position.intervals[targetIndex].start;
-    const recordedOrder = from.position.actual && to.position.actual;
+    const recordedOrder = from.position.actual && to.position.actual
+      && !('likely' in from.position && from.position.likely) && !('likely' in to.position && to.position.likely);
     // A proposed future stop cannot point back into already recorded history.
     if (!from.position.actual && to.position.actual) return [];
     if (from.position.actual) {
-      if (recordedOrder) {
+      if (to.position.actual) {
         sourceIndex = from.position.intervals.findLastIndex(interval => interval.end <= targetStart);
         if (sourceIndex < 0 || from === to) return [];
         const sourceEnd = from.position.intervals[sourceIndex].end;

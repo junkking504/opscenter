@@ -191,6 +191,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const split = useScheduleSplit(boardLayoutRef, mapPanelRef, hasSnapshot && !mapOnly && showMap && view === 'board');
   const [timelineWidth,setTimelineWidth]=useState<number>();
   const [mobileTimeline,setMobileTimeline]=useState(false);
+  const [boardControlsOpen,setBoardControlsOpen]=useState(false);
   const appointmentRegisterRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const board = boardLayoutRef.current;
@@ -224,12 +225,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const available = Math.max(0, (scroller?.clientHeight ?? parseFloat(height) - titleHeight - 2) - rulerHeight);
       const layout = window.innerWidth >= 1000
         ? scheduleViewportLayout(natural, labels.map(value=>Math.max(24,value)), available, rows.map(row => row.querySelector('.schedule-truck-progress') ? 23 : 0))
-        : {scale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
+        : {scale:1,chromeScale:1,heights:natural.map((value,i)=>Math.max(value,labels[i],32)),fits:false};
       rows.forEach((row, index) => {
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
+        row.style.setProperty('--schedule-chrome-scale', String(layout.chromeScale));
         row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
-        row.removeAttribute('data-condensed');
+        row.toggleAttribute('data-condensed', layout.scale < .75);
       });
     };
     let fitFrame = 0;
@@ -238,12 +240,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       fitFrame = requestAnimationFrame(fit);
     };
     const observer = new ResizeObserver(scheduleFit);
-    document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .truck-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
+    document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .truck-summary-strip, .schedule-focus-toolbar, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
     board.querySelectorAll('.live-truck-timeline').forEach(element => observer.observe(element));
     window.addEventListener('resize', scheduleFit);
     fit();
     return () => { observer.disconnect(); cancelAnimationFrame(fitFrame); window.removeEventListener('resize', scheduleFit); };
-  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline]);
+  }, [hasSnapshot, snapshot, routing, mapOnly, view, selectedId, showMap, timelineWidth, mobileTimeline, boardControlsOpen, linkNotice, error]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   const refreshDisplayed = useCallback(async (signal: AbortSignal) => {
@@ -561,15 +563,19 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
 
   const addAppointmentAction = <Button className="schedule-add-appointment" variant="brand" size="action" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button>;
   if (!snapshot) return <section className="empty-state" role="status"><strong>{error || 'Loading Schedule from JunkWare…'}</strong><span>No sample appointments are used.</span></section>;
-  return <TruckCameraController className="live-schedule-camera"><section onClickCapture={event=>{const target=event.target instanceof Element?event.target:null;if(target&&!target.closest('dialog,.record-drawer'))summaryOrigin.current=target.closest<HTMLElement>('button,a[href],[tabindex]');}} className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ' schedule-dispatch'}`}>
+  return <TruckCameraController className="live-schedule-camera"><section onClickCapture={event=>{const target=event.target instanceof Element?event.target:null;if(target&&!target.closest('dialog,.record-drawer'))summaryOrigin.current=target.closest<HTMLElement>('button,a[href],[tabindex]');if(target&&!target.closest('.schedule-board-tools,.schedule-focus-toolbar'))setBoardControlsOpen(false);}} className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ` schedule-dispatch${view === 'board' ? ' schedule-focus-board' : ''}`}`} data-controls-open={boardControlsOpen} onKeyDown={event=>{if(event.key==='Escape')setBoardControlsOpen(false);}}>
+    {!mapOnly && view === 'board' && <div className="schedule-focus-toolbar"><div><strong>Truck Schedule</strong><span>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</span></div><Button type="button" variant="outline" size="sm" aria-expanded={boardControlsOpen} onClick={()=>setBoardControlsOpen(open=>!open)}>{boardControlsOpen ? 'Hide controls' : 'Board controls'}</Button></div>}
+    <div className="schedule-board-tools" role="region" aria-label="Board controls">
     {!mapOnly && <div className="schedule-control-bar">
       <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
       <div className="schedule-control-actions"><div className="schedule-search-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { clearLinkIntent();setSearchQuery(event.target.value); setLinkNotice(''); }} />{addAppointmentAction}<ScheduleCrewRoster key={date} date={date} busy={operationBusy} /></div><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button>{split.controls}<Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;setCostRevision(n=>n+1);refresh();}}>Refresh day</Button></div>
     </div>}
-    {!mapOnly && linkNotice && <p className="live-schedule-status schedule-link-notice" role="status">{linkNotice}</p>}
-    {view === 'board' && <>{!mapOnly && <div className="schedule-summary-strip">{[
+    {view === 'board' && !mapOnly && <div className="schedule-summary-strip">{[
       ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => scheduleDisplayTruck(job) === 'Unassigned').length], ['verify', 'Area only', jobs.filter(needsScheduleMapLocation).length],
     ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
+    </div>
+    {!mapOnly && linkNotice && <p className="live-schedule-status schedule-link-notice" role="status">{linkNotice}</p>}
+    {view === 'board' && <>
     {error && <div className="live-schedule-status live-schedule-error" role="alert">{error}</div>}
     {!mapOnly && <TruckSummaryStrip snapshot={snapshot} now={now.getTime()} select={selectTruck} disabled={operationBusy} />}
     <div ref={dispatchSurfaceRef} className={`schedule-dispatch-surface${selected ? ' has-selected-job' : ''}`}>

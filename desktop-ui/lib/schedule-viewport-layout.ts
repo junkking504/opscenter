@@ -1,5 +1,5 @@
-/** Fill spare panel space without shrinking appointments, labels or footers.
- * Busy schedules retain their natural row heights and remain scrollable.
+/** Prefer natural lane sizes after reclaiming the controls above the board.
+ * If the complete day still exceeds the viewport, fit it rather than hide rows.
  */
 export function scheduleViewportLayout(natural: number[], labels: number[], available: number, footers: number[] = []) {
   const heightsAt = (scale: number) => natural.map((height, index) => {
@@ -15,7 +15,21 @@ export function scheduleViewportLayout(natural: number[], labels: number[], avai
     const heights = naturalHeights.map((height, index) => height
       + Math.floor(spare / naturalHeights.length)
       + (index < spare % naturalHeights.length ? 1 : 0));
-    return { scale: 1, heights, fits: true };
+    return { scale: 1, chromeScale: 1, heights, fits: true };
   }
-  return { scale: 1, heights: naturalHeights, fits: false };
+  // Preserve readable truck labels and progress footers while fitting lanes.
+  // No arbitrary minimum zoom may send the final appointment below the screen.
+  const fitAllChrome = !fits(heightsAt(0));
+  const candidate = (scale: number) => fitAllChrome
+    ? naturalHeights.map(height => Math.ceil(height * scale))
+    : heightsAt(scale);
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (low + high) / 2;
+    if (fits(candidate(mid))) low = mid;
+    else high = mid;
+  }
+  const heights = candidate(low);
+  return { scale: low, chromeScale: fitAllChrome ? low : 1, heights, fits: fits(heights) };
 }

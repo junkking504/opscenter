@@ -28,3 +28,30 @@
   .ops-live .schedule-dispatch .schedule-operational-stop > span,
   .ops-live .schedule-dispatch .route-connector-label { transform: scaleY(var(--schedule-timeline-inverse-scale,1)); transform-origin: center; }
 }
+
+/* The dispatch overview owns the screen. Keep the shared controls reachable,
+ * but spend their resting height on trucks and appointments. */
+.schedule-focus-toolbar { display: none; }
+@media (min-width: 1000px) {
+  .ops-live .schedule-focus-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin-bottom: 6px; }
+  .ops-live .schedule-focus-toolbar > div { display: flex; align-items: baseline; gap: 12px; }
+  .ops-live .schedule-focus-toolbar strong { font-size: var(--oc-type-16); }
+  .ops-live .schedule-focus-toolbar span { font-size: var(--oc-type-12); color: var(--oc-text-secondary); }
+  .ops-app.ops-live:has(.schedule-focus-board) .ops-content .workspace > .workspace-heading,
+  .ops-live .schedule-focus-board[data-controls-open="false"] > .schedule-board-tools { display: none; }
+  .ops-live .schedule-focus-board { position: relative; }
+  .ops-live .schedule-focus-board > .schedule-board-tools { position: absolute; top: 38px; left: 0; right: 0; z-index: 80; padding: 12px; border: 1px solid var(--oc-border-default); border-radius: 8px; background: var(--oc-surface-raised); box-shadow: 0 6px 20px rgb(0 0 0 / 16%); }
+  .ops-live .schedule-focus-board .schedule-board-tools .schedule-control-bar { flex-wrap: wrap; }
+  .ops-live .schedule-focus-board .schedule-board-tools .schedule-control-actions { flex-wrap: wrap; }
+  .ops-live:has(.schedule-focus-board) .workspace { padding-top: 8px; }
+  .ops-live .live-schedule.schedule-focus-board .schedule-board-layout .schedule-board-scroll { overflow: hidden; }
+  .ops-live .schedule-focus-board .truck-summary-strip { flex-wrap: nowrap; }
+  .ops-live .schedule-focus-board .truck-summary-card { flex: 1 1 0; min-width: 0; }
+  .ops-live .schedule-focus-board .truck-summary-card :is(header,div) { overflow: hidden; }
+  .ops-live .schedule-focus-board .truck-summary-card :is(header,div) > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@media (min-width: 1000px) {
+  .ops-live .schedule-focus-board .schedule-truck-cell > :is(strong,span,small) { transform: scaleY(var(--schedule-chrome-scale,1)); }
+  .ops-live .live-schedule.schedule-focus-board .schedule-truck-progress { transform: scaleY(var(--schedule-chrome-scale,1)); transform-origin: bottom; bottom: calc(2px * var(--schedule-chrome-scale,1)); }
+}

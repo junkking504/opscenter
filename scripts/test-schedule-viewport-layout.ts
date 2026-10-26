@@ -5,7 +5,7 @@ const labels=natural.map(()=>26);
 const footers=natural.map(height=>height>36?23:0);
 for(const available of [200,320,500,550,700,1000]){
  const layout=scheduleViewportLayout(natural,labels,available,footers);
- assert.ok(layout.scale>=.3 && layout.scale<=1,'Keep compact lanes visible');
+ assert.equal(layout.scale,1,'Never shrink appointment lanes');
  assert.equal(layout.fits,layout.heights.reduce((a,b)=>a+b,0)<=available);
  layout.heights.forEach((height,i)=>{
   assert.ok(height>=labels[i],'Truck labels retain their full height');
@@ -17,14 +17,16 @@ for(const available of [200,320,500,550,700,1000]){
  }
 }
 const fitted=scheduleViewportLayout(natural,labels,550,footers);
-assert.ok(fitted.fits && fitted.scale<1,'A moderately crowded board fits every row');
+assert.equal(fitted.scale,1,'Crowded boards preserve natural lane height');
+assert.deepEqual(fitted.heights,natural,'Crowded boards scroll instead of shrinking');
 assert.equal(scheduleViewportLayout(natural,labels,200,footers).fits,false,'Extremely short windows fall back to scrolling');
 assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[100]);
 assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33],'Spare pixels are shared evenly without overflow');
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
-console.log('Schedule vertical fit, label/footer clearance and readable overflow passed.');
+console.log('Natural schedule rows, label/footer clearance and reachable overflow passed.');
 
 const compact=scheduleViewportLayout(natural,labels,400,footers);
-assert.ok(compact.fits && compact.scale<.75,'Busy boards compact lanes instead of hiding the last trucks');
+assert.equal(compact.scale,1,'Busy boards never compress appointment text');
+assert.equal(compact.fits,false,'Busy boards retain reachable scrolling');
 compact.heights.forEach((height,i)=>assert.ok(height>=labels[i] && height>=footers[i],'Labels and status footers remain readable'));
 assert.equal(scheduleViewportLayout(natural,labels,1000,footers).heights.reduce((a,b)=>a+b,0),1000,'Sparse boards still fill the panel');

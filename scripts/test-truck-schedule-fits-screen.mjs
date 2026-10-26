@@ -33,6 +33,7 @@ for (const engine of [chromium, webkit]) {
             await page.locator('.mobile-schedule-overview').waitFor();
             assert.equal(await page.locator('[data-schedule-truck]').count(), 0, 'Phone uses its unchanged overview');
             assert.ok(await page.locator('[data-schedule-appointment]').count() > 0);
+            if (scenario === 'crowded') assert.ok(await page.locator('.truck-summary-card').first().evaluate(e => e.getBoundingClientRect().height > 70), 'Phone summary cards remain expanded');
             assert.equal(await page.locator('#fixture-writes').innerText(), 'Writes: 0');
             continue;
           }
@@ -41,6 +42,9 @@ for (const engine of [chromium, webkit]) {
             const scroll = shell.querySelector('.schedule-board-scroll');
             const rows = [...shell.querySelectorAll('[data-schedule-truck]')];
             const intersections = [];
+            const naturalRows = rows.every(row => row.getBoundingClientRect().height >= Number(row.dataset.naturalHeight) - 1);
+            const condensed = rows.some(row => row.hasAttribute('data-condensed'));
+            const cards = [...document.querySelectorAll('.truck-summary-card')].map(card => ({ height: card.getBoundingClientRect().height, title: card.title, contextHidden: getComputedStyle(card.querySelector('.truck-summary-route')).position === 'absolute' }));
             for (const row of rows) {
               const blocks = [...row.querySelectorAll('.schedule-appointment,.schedule-operational-stop')].map(element => element.getBoundingClientRect());
               for (let a = 0; a < blocks.length; a++) for (let b = a + 1; b < blocks.length; b++) {
@@ -48,6 +52,7 @@ for (const engine of [chromium, webkit]) {
               }
             }
             return {
+              naturalRows, condensed, cards,
               last: rows.at(-1)?.getBoundingClientRect().bottom,
               panelBottom: panel.bottom,
               hiddenPixels: scroll.scrollHeight - scroll.clientHeight,
@@ -63,17 +68,11 @@ for (const engine of [chromium, webkit]) {
           assert.equal(fit.count, 10, context);
           assert.deepEqual(fit.intersections, [], context);
           assert.equal(fit.blocks, { crowded: 14, dense: 24, 'return-visit': 2 }[scenario], context);
-          if (width >= 1280) {
-            assert.ok(fit.last <= fit.panelBottom + 1, context);
-            assert.ok(fit.panelBottom <= height + 1, context);
-            assert.ok(fit.hiddenPixels <= 1, context);
-            assert.ok(fit.jumpBottom <= height + 1, context);
-          } else if (width >= 1000 && fit.hiddenPixels > 1) {
-            assert.equal(fit.overflow, 'auto', 'Very short windows retain a reachable fallback');
-            assert.ok(fit.scale >= .3, 'Do not shrink lanes to invisibility');
-          } else if (width < 1000) {
-            assert.equal(fit.scale, 1, 'Phone lanes retain their existing size');
-          }
+          assert.equal(fit.scale, 1, context);
+          assert.equal(fit.condensed, false, context);
+          assert.equal(fit.naturalRows, true, context);
+          assert.ok(fit.cards.every(card => card.height <= 50 && card.contextHidden && card.title.includes('excludes tips') && card.title.includes('Crew:')), 'Desktop summary cards use two lines and retain supporting context');
+          if (fit.hiddenPixels > 1) assert.equal(fit.overflow, 'auto', 'Natural rows remain reachable');
           const last = page.locator('[data-schedule-appointment]').last();
           await last.click();
           await page.locator('.schedule-selected-job-pane').waitFor();
@@ -82,7 +81,7 @@ for (const engine of [chromium, webkit]) {
           await page.evaluate(() => window.scrollTo(0, 0));
         }
       }
-      console.log(`${engine.name()} ${width}x${height}: compact rows, separate appointments, selection and map on/off passed`);
+      console.log(`${engine.name()} ${width}x${height}: compact summary cards, natural rows, separate appointments, selection and map on/off passed`);
     }
   } finally { await browser.close(); }
 }

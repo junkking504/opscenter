@@ -74,6 +74,16 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 .truck-summary-card header strong { font-size: var(--oc-type-13); }
 .truck-summary-card span,.truck-summary-card small { font-size: var(--oc-type-11); }
 .truck-summary-card small,.truck-summary-route { display: block; color: var(--oc-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Desktop dispatch keeps the space above the timeline to two readable lines.
+ * Supporting route, crew and charge context remains available to assistive
+ * technology and in the card's hover description. Phone cards stay expanded. */
+@media (min-width: 1000px) {
+  .ops-app .schedule-dispatch .truck-summary-strip { padding-block: 0 4px; }
+  .ops-app .schedule-dispatch .truck-summary-card { padding: 4px 8px; }
+  .ops-app .schedule-dispatch .truck-summary-card :is(header, div) { min-height: 18px; line-height: 18px; }
+  .ops-app .schedule-dispatch .truck-summary-card strong { font-size: var(--oc-type-13); }
+  .ops-app .schedule-dispatch .truck-summary-card > :is(.truck-summary-route, small) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+}
 .truck-off-chip { flex-shrink: 0; align-self: center; padding: 6px 10px; border-radius: var(--desktop-card-radius); background: var(--oc-surface-muted); color: var(--oc-text-muted); font-size: var(--oc-type-12); }
 .ops-app .crew-compact-update { border-bottom: 1px solid var(--oc-border-default); background: var(--oc-surface-raised); }
 .ops-app .crew-compact-update > summary { display: grid; grid-template-columns: 72px 132px 72px minmax(100px,1fr) 72px 14px; gap: 8px; align-items: center; padding: 8px 10px; min-height: 42px; cursor: pointer; list-style: none; font-size: var(--oc-type-13); color: var(--oc-text-primary); }

@@ -229,7 +229,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
         row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
         row.style.setProperty('--schedule-timeline-inverse-scale', String(1 / layout.scale));
-        row.toggleAttribute('data-condensed', layout.scale < .75);
+        row.removeAttribute('data-condensed');
       });
     };
     let fitFrame = 0;
@@ -238,7 +238,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       fitFrame = requestAnimationFrame(fit);
     };
     const observer = new ResizeObserver(scheduleFit);
-    document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
+    document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .truck-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
     board.querySelectorAll('.live-truck-timeline').forEach(element => observer.observe(element));
     window.addEventListener('resize', scheduleFit);
     fit();

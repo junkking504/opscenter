@@ -9,9 +9,13 @@ export function historyQuery(query: string): HistoryQuery | null {
   if (/^jk\s*\d{4,12}$/i.test(value)) return { field: 'AppointmentCodeTB', value: value.replace(/\s/g, '').toUpperCase() };
   if (/^[+()\d .-]+$/.test(value) && /^1?\d{10}$/.test(value.replace(/\D/g, ''))) return { field: 'PhoneTB', value: value.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') };
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { field: 'EmailTB', value };
-  if (/^\d+[a-z]?(?:[-/]\d+)?\s+[a-z]/i.test(value)) return { field: 'AddressTB', value };
   const explicit = value.match(/^(address|surname):\s*(.{3,})$/i);
   if (explicit) return { field: explicit[1].toLowerCase() === 'address' ? 'AddressTB' : 'LastNameTB', value: explicit[2] };
+  // A numeric prefix alone is also common in operational questions. Require a
+  // meaningful street token and keep question/quantity language with OpsBot.
+  // Explicit address: remains available for ambiguous or unusually short streets.
+  const question = /\?|\b(?:who|what|when|where|why|how|which|biggest|largest|smallest|best|worst|top|total|average|revenue|profit|costs?|jobs?|trucks?|crews?|employees?|hours?|days?|weeks?|months?|appointments?|customers?|estimates?|invoices?|stops?|teams?|calls?|things|today|yesterday|tomorrow)\b/i.test(value);
+  if (!question && /^\d+[a-z]?(?:[-/]\d+)?\s+[a-z][a-z'-]{2,}(?:\s|$)/i.test(value)) return { field: 'AddressTB', value };
   return null;
 }
 

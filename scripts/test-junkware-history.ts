@@ -14,6 +14,13 @@ const result={results:[recent,old],hasMore:false,checkedAt:'2026-10-27T12:30:00Z
 async function main(){
  for(const q of ['100 Example','JK1000001','(504) 555-0100','test@example.invalid','surname: Example']){assert.ok(historyQuery(q));assert.equal(searchSubmission(q,true,[],[]),'lookup','Enter must not spend a question for an identifier');}
  for(const q of ['Who did the most work?','total revenue','What happened yesterday?','truck 9','12','a'.repeat(121)])assert.equal(historyQuery(q),null);
+ for(const q of ['5 biggest jobs last week?','3 trucks idle today','10 largest jobs this month','2 crews','2026 revenue','1 M','1 Ma','100 Ex']){
+  assert.equal(historyQuery(q),null,'Questions and incomplete street tokens must not start source browsers');
+  assert.equal(searchSubmission(q,true,[],[]),'assistant','Keep Enter available for numeric-leading questions');
+ }
+ assert.equal(historyQuery('1 Oak')?.field,'AddressTB');
+ assert.equal(historyQuery('100 Main St Apt 2')?.field,'AddressTB');
+ assert.equal(historyQuery('address: 10 Jobs Lane')?.field,'AddressTB','Explicit addresses resolve ambiguous words');
  assert.equal(historyQuery('JK 1000001')?.value,'JK1000001');
  assert.equal(historyQuery('+1 (504) 555-0100')?.value,'5045550100');
  assert.equal(historyDate('11/11/2025'),'2025-11-11');assert.throws(()=>historyDate('02/30/2026'));

@@ -76,6 +76,10 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   const placements = separateCanceled
     ? [...ordered.filter(item => !isCanceled(item.job)), ...ordered.filter(item => isCanceled(item.job))]
     : ordered;
+  // The ruler owns recorded chronology. A short observation can have a larger
+  // hit area, but that padding must stop before the next recorded arrival.
+  const recordedStarts = placements.flatMap(({position}) => position.actual
+    ? position.segments.map(segment => segment.left) : []).sort((a,b) => a-b);
   let canceledLaneStart: number | undefined;
   const placed = placements.map(({job,position}) => {
     // Cancellations stay below every active appointment, even at different times.
@@ -83,12 +87,17 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
     const firstLane = canceledLaneStart ?? 0;
     // Pack the rendered footprint only, so back-to-back appointments can
     // share a lane. Travel labels reserve their own space below the blocks.
-    // Preserve the fifteen-minute minimum for short visit blocks.
+    // Planned cards keep their minimum; recorded padding yields to later arrivals.
     const minimumFraction = scheduleBlockMinimumWidth(range.duration);
-    const footprints = position.segments.map(segment => ({
-      left: segment.left,
-      right: segment.left + Math.max(segment.width, minimumFraction),
-    }));
+    const renderedSegments = position.segments.map(segment => {
+      const next = position.actual ? recordedStarts.find(left => left > segment.left + 1e-9) : undefined;
+      const padding = next === undefined ? minimumFraction : Math.min(minimumFraction, next-segment.left);
+      // Very close observations must stay visible and selectable. Their hit
+      // areas can use separate lanes instead of collapsing into subpixel bars.
+      const hitWidth = position.actual ? 12/(timelineWidth || 640) : 0;
+      return {...segment, width:Math.max(segment.width,padding,hitWidth)};
+    });
+    const footprints = renderedSegments.map(segment => ({left:segment.left,right:segment.left+segment.width}));
     // Pack every segment, including segments belonging to the same job.
     const segmentLanes = footprints.map(footprint => {
       let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(
@@ -98,8 +107,16 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
       (lanes[lane] ||= []).push(footprint);
       return lane;
     });
-    const gapLanes = position.gapSegments.map((segment,index) => {
-      const footprint = {left:segment.left,right:segment.left+(position.gaps[index].kind==='dump' ? 24/(timelineWidth || 640) : segment.width)};
+    const lane = segmentLanes[0] ?? 0;
+    const renderedEnd = Math.max(position.end, ...footprints.map(interval => range.start + interval.right * range.duration));
+    return { job, position, lane, segmentLanes, renderedSegments, gapLanes:[] as number[], renderedEnd };
+  });
+  // An annotation about being away from one job must not displace an actual
+  // appointment in that interval. Reserve all appointment footprints first.
+  for (const item of placed) {
+    item.gapLanes = item.position.gapSegments.map((segment,index) => {
+      const footprint = {left:segment.left,right:segment.left+(item.position.gaps[index].kind==='dump' ? 24/(timelineWidth || 640) : segment.width)};
+      const firstLane = separateCanceled && isCanceled(item.job) ? canceledLaneStart ?? 0 : 0;
       let lane = lanes.findIndex((intervals, index) => index >= firstLane && intervals.every(interval =>
         footprint.right <= interval.left + 1e-9 || footprint.left >= interval.right - 1e-9,
       ));
@@ -107,16 +124,33 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
       (lanes[lane] ||= []).push(footprint);
       return lane;
     });
-    const lane = segmentLanes[0] ?? 0;
-    const renderedEnd = Math.max(position.end, ...footprints.map(interval => range.start + interval.right * range.duration));
-    return { job, position, lane, segmentLanes, gapLanes, renderedEnd };
-  });
+  }
   const pairs = legs.flatMap(leg => {
     const from = placed.find(item => item.job.recordId === leg.fromAppointmentId);
     const to = placed.find(item => item.job.recordId === leg.toAppointmentId);
     if (!from || !to) return [];
-    const overlap = Math.min(from.position.end, to.position.end) > Math.max(from.position.start, to.position.start);
-    return [{ leg, from, to, vertical: overlap && from.lane !== to.lane }];
+    let sourceIndex = from.position.intervals.length-1;
+    const targetIndex = 0;
+    const targetStart = to.position.intervals[targetIndex].start;
+    const recordedOrder = from.position.actual && to.position.actual
+      && !('likely' in from.position && from.position.likely) && !('likely' in to.position && to.position.likely);
+    // A proposed future stop cannot point back into already recorded history.
+    if (!from.position.actual && to.position.actual) return [];
+    if (from.position.actual) {
+      if (to.position.actual) {
+        sourceIndex = from.position.intervals.findLastIndex(interval => interval.end <= targetStart);
+        if (sourceIndex < 0 || from === to) return [];
+        const sourceEnd = from.position.intervals[sourceIndex].end;
+        const interveningVisit = placed.some(item => item !== from && item !== to && item.position.actual
+          && item.position.intervals.some(interval => interval.start < targetStart && interval.end > sourceEnd));
+        if (interveningVisit) return [];
+      } else if (from.position.intervals[sourceIndex].end > targetStart) return [];
+    }
+    const sourceInterval = from.position.intervals[sourceIndex];
+    const targetInterval = to.position.intervals[targetIndex];
+    const overlap = Math.min(sourceInterval.end,targetInterval.end) > Math.max(sourceInterval.start,targetInterval.start);
+    return [{ leg, from, to, sourceIndex, targetIndex, recordedOrder,
+      vertical: overlap && from.segmentLanes[sourceIndex] !== to.segmentLanes[targetIndex] }];
   });
   const laneStep = mobile ? 48 : 22;
   const cardHeight = mobile ? 46 : 24;
@@ -134,13 +168,12 @@ export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: Schedule
   const occupiedLanes = lanes.map(lane => [...lane]);
   const readableConnectors = pairs.map(pair => {
     const {from,to} = pair;
-    const last = from.position.segments.length - 1;
-    const source = from.position.segments[last];
-    const target = to.position.segments[0];
-    const sourceLane = from.segmentLanes[last] ?? from.lane;
-    const targetLane = to.segmentLanes[0] ?? to.lane;
-    const sourceRight = source.left + Math.max(source.width, scheduleBlockMinimumWidth(range.duration));
-    const targetRight = target.left + Math.max(target.width, scheduleBlockMinimumWidth(range.duration));
+    const source = from.renderedSegments[pair.sourceIndex];
+    const target = to.renderedSegments[pair.targetIndex];
+    const sourceLane = from.segmentLanes[pair.sourceIndex] ?? from.lane;
+    const targetLane = to.segmentLanes[pair.targetIndex] ?? to.lane;
+    const sourceRight = source.left + source.width;
+    const targetRight = target.left + target.width;
     const forwardGap = target.left >= sourceRight;
     const reverseGap = source.left >= targetRight;
     const separated = forwardGap || reverseGap;

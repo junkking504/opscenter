@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import type {Page} from '@playwright/test';
 import {searchHistoryOnPage} from './search-junkware-history';
 
@@ -17,7 +18,7 @@ function source(pages:ReturnType<typeof row>[][],options:{empty?:boolean;wrongPa
    fill:async(value:string)=>{values.set(selector,value);},selectOption:async(value:string)=>{values.set(selector,value);},
    inputValue:async()=>values.get(selector)||'',
    textContent:async()=>String(selector.endsWith('CurrentPageLbl')?(options.wrongPage?1:current+1):pages.length),
-   evaluateAll:async(callback:(nodes:unknown[])=>unknown)=>callback(selector.includes(' option')?(options.markets||['352','477','399','484']).map(value=>({value})):pages[current]),
+   evaluateAll:async(callback:(nodes:unknown[])=>unknown)=>vm.runInNewContext('('+callback.toString()+')(nodes)',{nodes:selector.includes(' option')?(options.markets||['352','477','399','484']).map(value=>({value})):pages[current]}),
   }),
   getByText:()=>({isVisible:async()=>Boolean(options.empty)}),
  } as unknown as Page;

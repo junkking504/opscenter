@@ -1,4 +1,5 @@
 import { readSearchJson, SearchRequestError, searchFailureMessage } from './lib/search-response';
+import { historyQuery, mergeHistoryResults } from '../lib/junkware-history-contract';
 import { searchSubmission } from './lib/search-intent';
 import { workspaceLabel } from './lib/workspace-labels';
 import { useEffect, useRef, useState } from 'react';
@@ -23,11 +24,21 @@ const searchUnavailable = 'Saved-record search is temporarily unavailable. Try a
 const localUnavailable = 'OpsBot’s saved-source lookup is temporarily unavailable. You can still search saved records below.';
 const assistantUnavailable = 'Ask OpsBot did not return an answer. You can still search saved records below. A submitted pilot question may still count.';
 export default function LiveSearch({ date, navigate, disabled, finance, openRequest = 0 }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean; openRequest?: number }) {
-  const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [results, setResults] = useState<Result[]>([]); const [error, setError] = useState('');
+  const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [savedResults, setResults] = useState<Result[]>([]); const [error, setError] = useState('');
   const [scope,setScope]=useState<Scope>('all');const [limit,setLimit]=useState(10);const [loading,setLoading]=useState(false);
   const [coverage,setCoverage]=useState<Coverage|null>(null);const [total,setTotal]=useState(0);const [hasMore,setHasMore]=useState(false);
   const [knowledgeAnswer,setKnowledgeAnswer]=useState<KnowledgeAnswer|null>(null);const [knowledgeLoading,setKnowledgeLoading]=useState(false);const [knowledgeError,setKnowledgeError]=useState('');
   const [opsBotStatus,setOpsBotStatus]=useState<OpsBotStatus|null>(null);const [opsBotAnswer,setOpsBotAnswer]=useState<OpsBotAnswer|null>(null);const [opsBotLoading,setOpsBotLoading]=useState(false);const [opsBotError,setOpsBotError]=useState('');
+  const [history,setHistory]=useState<{key:string;results:Result[];loading:boolean;error:string;hasMore:boolean;checkedAt:string|null}>({key:'',results:[],loading:false,error:'',hasMore:false,checkedAt:null});
+  const [historyRetry,setHistoryRetry]=useState(0);
+  const historyEligible=Boolean(historyQuery(query));
+  const historyKey=JSON.stringify([query,scope]);
+  const currentHistory=history.key===historyKey?history:null;
+  const historyLoading=historyEligible&&open&&(currentHistory?.loading??true);
+  const combined=mergeHistoryResults(savedResults,currentHistory?.results||[]);
+  const appointmentRows=combined.filter(row=>row.type==='job');
+  const results=combined.filter(row=>row.type!=='job'||appointmentRows.indexOf(row)<limit);
+  const more=hasMore||appointmentRows.length>limit;
   const input = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   usePinnedSearch(shell);
@@ -43,6 +54,16 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
       .finally(()=>{if(!abort.signal.aborted)setLoading(false);});},200);
     return()=>{abort.abort();window.clearTimeout(timer);};
   },[date,query,scope,limit,open]);
+  useEffect(()=>{
+    if(!historyEligible||!open)return;
+    const abort=new AbortController();
+    setHistory({key:historyKey,results:[],loading:true,error:'',hasMore:false,checkedAt:null});
+    const unavailable='JunkWare history could not be checked. Older appointments may be missing. Try again.';
+    const timer=window.setTimeout(()=>{void fetch(`/api/global-search?source=junkware&q=${encodeURIComponent(query)}&scope=${scope}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(75000)])})
+      .then(async response=>{const body=await readSearchJson<{results:Result[];hasMore:boolean;checkedAt:string}>(response,unavailable);if(!response.ok)throw new SearchRequestError(body.error||unavailable);if(!Array.isArray(body.results)||!body.checkedAt)throw new SearchRequestError(unavailable);if(!abort.signal.aborted)setHistory({key:historyKey,results:body.results,loading:false,error:'',hasMore:body.hasMore,checkedAt:body.checkedAt});})
+      .catch(failure=>{if(!abort.signal.aborted)setHistory({key:historyKey,results:[],loading:false,error:searchFailureMessage(failure,unavailable),hasMore:false,checkedAt:null});});},900);
+    return()=>{abort.abort();window.clearTimeout(timer);};
+  },[query,scope,historyKey,historyEligible,open,historyRetry]);
   useEffect(()=>{
     const abort=new AbortController();setKnowledgeAnswer(null);setKnowledgeError('');
     if(query.trim().length<2||!open){setKnowledgeLoading(false);return;}
@@ -93,12 +114,12 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
   };
   return <div ref={shell} className="global-search-shell">
     {open&&<button className="global-search-backdrop" aria-label="Close search" onClick={()=>setOpen(false)}/>}
-    <div className={`global-search${open?' active':''}`}><Search size={17}/><Input ref={input} value={query} disabled={disabled} onFocus={()=>setOpen(true)} onChange={event=>{setQuery(event.target.value);setLimit(10);setOpsBotAnswer(null);setOpsBotError('');setOpen(true);}} placeholder="Ask OpsBot or search records" aria-label="Ask OpsBot or search records" aria-expanded={open} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();if(submission==='assistant')void askOpsBot();else if(submission==='command'&&commands[0])go(commands[0]);else if(submission==='record'&&!loading&&results[0])openResult((results.find(row=>row.title.toLowerCase()===query.trim().toLowerCase())||results[0]).href);else if(knowledgeAnswer)openKnowledge(knowledgeAnswer.entryId);}}}/>{query?<button aria-label="Clear search" onClick={()=>{setQuery('');setLimit(10);setOpsBotAnswer(null);setOpsBotError('');}}><X size={14}/></button>:<kbd>/</kbd>}</div>
+    <div className={`global-search${open?' active':''}`}><Search size={17}/><Input ref={input} value={query} disabled={disabled} onFocus={()=>setOpen(true)} onChange={event=>{setQuery(event.target.value);setLimit(10);setOpsBotAnswer(null);setOpsBotError('');setOpen(true);}} placeholder="Ask OpsBot or search records" aria-label="Ask OpsBot or search records" aria-expanded={open} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();if(submission==='assistant')void askOpsBot();else if(submission==='command'&&commands[0])go(commands[0]);else if(submission==='record'&&!loading&&results[0])openResult((results.find(row=>row.title.toLowerCase()===query.trim().toLowerCase())||results[0]).href);else if(submission==='lookup'){if(currentHistory?.error)setHistoryRetry(value=>value+1);}else if(knowledgeAnswer)openKnowledge(knowledgeAnswer.entryId);}}}/>{query?<button aria-label="Clear search" onClick={()=>{setQuery('');setLimit(10);setOpsBotAnswer(null);setOpsBotError('');}}><X size={14}/></button>:<kbd>/</kbd>}</div>
     {open&&<section className="global-search-panel cross-date-search" role="dialog" aria-label="OpsCenter launcher">
       <header><div><span>Ask OpsBot</span><strong>GPT-6 Luna with OpsCenter sources</strong></div></header>
       <div className="search-date-toolbar"><span>Appointments</span><div role="group" aria-label="Appointment Search Dates">{(['all','upcoming','past'] as Scope[]).map(value=><button key={value} aria-pressed={scope===value} disabled={disabled} onClick={()=>{setScope(value);setLimit(10);}}>{value==='all'?'All':value==='upcoming'?'Upcoming':'Past'}</button>)}</div><small>{scope==='upcoming'?'Today onward':scope==='past'?'Before today':'Past and upcoming'} · Krewe and Fleet use the selected operating day.</small></div>
       <div className="global-search-results-body">
-        {finance&&<section className="opsbot-prompt-card" aria-label="Ask OpsBot"><div><Bot size={18}/><span><strong>Ask OpsBot</strong><small>Press Enter to ask; select a record below to open it.</small><small>{opsBotStatus?`${opsBotStatus.remaining} of ${opsBotStatus.limit} pilot questions remaining`:'Checking availability…'}</small></span></div><button disabled={disabled||opsBotLoading||query.trim().length<2} onClick={()=>void askOpsBot()}>{opsBotLoading?'Thinking…':'Ask OpsBot'}</button>{opsBotStatus&&!opsBotStatus.available&&<p>{opsBotStatus.reason||'Ask OpsBot is unavailable.'}</p>}</section>}
+        {finance&&<section className="opsbot-prompt-card" aria-label="Ask OpsBot"><div><Bot size={18}/><span><strong>Ask OpsBot</strong><small>{historyEligible?'Searching appointment history; select a record below to open it.':'Press Enter to ask; select a record below to open it.'}</small><small>{opsBotStatus?`${opsBotStatus.remaining} of ${opsBotStatus.limit} pilot questions remaining`:'Checking availability…'}</small></span></div><button disabled={disabled||opsBotLoading||query.trim().length<2} onClick={()=>void askOpsBot()}>{opsBotLoading?'Thinking…':'Ask OpsBot'}</button>{opsBotStatus&&!opsBotStatus.available&&<p>{opsBotStatus.reason||'Ask OpsBot is unavailable.'}</p>}</section>}
         {opsBotAnswer&&<section className="opsbot-answer-card" aria-label="Ask OpsBot answer"><header><strong>Ask OpsBot answer</strong><span>{opsBotAnswer.model}</span></header><OpsBotMarkdown text={opsBotAnswer.answer}/>{opsBotAnswer.sources.length>0&&<footer><small>Sources</small><div>{opsBotAnswer.sources.map((source,index)=>source.href?<button key={`${source.label}-${index}`} onClick={()=>openResult(source.href!)}><strong>{source.label}</strong><span>{source.detail}</span><ArrowRight size={12}/></button>:<span key={`${source.label}-${index}`}><strong>{source.label}</strong> · {source.detail}</span>)}</div></footer>}</section>}
         {opsBotError&&<p className="opsbot-answer-error" role="alert">{opsBotError}</p>}
         {knowledgeLoading&&<p className="knowledge-answer-loading" role="status">Checking OpsWiki…</p>}
@@ -106,12 +127,15 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
         {knowledgeError&&!opsBotAnswer&&!opsBotLoading&&<p className="knowledge-answer-error" role="status">{knowledgeError}</p>}
         {commands.length>0&&<section className="launcher-command-group"><div className="launcher-command-grid">{commands.map(name=><button key={name} disabled={disabled} onClick={()=>go(name)}><strong>Open {workspaceLabel(name)}</strong><ArrowRight size={14}/></button>)}</div></section>}
         {loading&&<p role="status">Searching Collected Records…</p>}
-        {!loading&&<div className="global-search-groups">{[['job','Appointments'],['crew','Krewe'],['truck','Fleet']].map(([type,label])=>{const rows=results.filter(row=>row.type===type);if(!rows.length)return null;return <section className="global-search-group" key={type} aria-label={label}><header><strong>{label}</strong><small>{type==='job'?`${rows.length} of ${total}`:rows.length}</small></header><div>{rows.map(result=><button key={result.id} disabled={disabled} onClick={()=>openResult(result.href)}><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.source}</small></div><ArrowRight size={15}/></button>)}</div></section>;})}</div>}
-        {!loading&&hasMore&&(limit<100?<button className="search-show-more" onClick={()=>setLimit(value=>Math.min(100,value+20))}>Show More Appointments</button>:<p>Showing 100 appointments. Refine the name, JK number, phone, or address to narrow the results.</p>)}
+        {(!loading||Boolean(currentHistory?.results.length))&&<div className="global-search-groups">{[['job','Appointments'],['crew','Krewe'],['truck','Fleet']].map(([type,label])=>{const rows=results.filter(row=>row.type===type);if(!rows.length)return null;return <section className="global-search-group" key={type} aria-label={label}><header><strong>{label}</strong><small>{type==='job'?historyEligible?`${rows.length} shown`:`${rows.length} of ${total}`:rows.length}</small></header><div>{rows.map(result=><button key={result.id} disabled={disabled} onClick={()=>openResult(result.href)}><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.source}</small></div><ArrowRight size={15}/></button>)}</div></section>;})}</div>}
+        {!loading&&more&&(limit<100?<button className="search-show-more" onClick={()=>setLimit(value=>Math.min(100,value+20))}>Show More Appointments</button>:<p>Showing 100 appointments. Refine the name, JK number, phone, or address to narrow the results.</p>)}
+        {historyLoading&&<p role="status">Searching JunkWare appointment history…</p>}
+        {currentHistory?.checkedAt&&<p className="search-coverage">JunkWare history checked · {scope==='all'?'All appointment dates':scope==='past'?'Before today':'Today onward'}. {currentHistory.hasMore?'More matches are available. Refine the address, JK number, phone, email, or surname: to narrow the search.':''}</p>}
+        {currentHistory?.error&&<p role="alert">{currentHistory.error} <button className="search-show-more" onClick={()=>setHistoryRetry(value=>value+1)}>Retry history search</button></p>}
         {error&&<p role="alert">{error}</p>}
-        {query.trim().length>=2&&!loading&&!results.length&&!error&&!opsBotAnswer&&!opsBotLoading&&<p>{knowledgeAnswer?'No matching live source records. The answer above comes from saved knowledge.':'No matching saved records. Try All or a different name, JK number, phone, or address. This does not search JunkWare live.'}</p>}
+        {query.trim().length>=2&&!loading&&!historyLoading&&!results.length&&!error&&!currentHistory?.error&&!opsBotAnswer&&!opsBotLoading&&<p>{currentHistory?.checkedAt?'No matching appointments found. Try All or refine your search.':'No matching saved records. Search JunkWare history with a street number and address, JK number, phone, email, or surname: followed by a last name.'}</p>}
         {query.trim().length<2&&<p>Ask OpsBot about operations, an OpsCenter procedure, decision, or prior fix—or search by customer, JK number, phone, or service address.</p>}
-        {coverage&&<p className="search-coverage">{coverage.dateCount?`Collected appointment dates: ${coverage.from}–${coverage.to}.`:'No collected appointment dates in this range.'} Some dates may not be loaded. Results reflect saved source snapshots, not a new JunkWare search.</p>}
+        {coverage&&<p className="search-coverage">{coverage.dateCount?`Collected appointment dates: ${coverage.from}–${coverage.to}.`:'No collected appointment dates in this range.'} Saved dates may have gaps. Address, JK number, phone, email, and surname: searches also check JunkWare history.</p>}
       </div><footer><span><kbd>Esc</kbd> Close</span></footer>
     </section>}
   </div>;

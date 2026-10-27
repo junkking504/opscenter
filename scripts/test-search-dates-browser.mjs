@@ -5,6 +5,17 @@ try{
  const page=await browser.newPage({viewport:{width:1280,height:900}});await page.goto('http://127.0.0.1:3148/tests/search-dates.html');
  const search=page.getByRole('textbox',{name:'Ask OpsBot or search records'});await search.fill('Synthetic');
  await page.getByText('10 of 12',{exact:true}).waitFor();
+ await search.fill('100 Example');
+ await page.getByRole('button',{name:/Historical Customer · JK1000001/}).waitFor();
+ assert.ok(await page.getByText(/No collected appointment dates/).count(),'History must appear without a collected date');
+ await search.press('Enter');assert.equal(await page.getByRole('alert').count(),0,'Identifier Enter must not submit to OpsBot');
+ await search.fill('101 Example');await page.getByRole('button',{name:/Historical Customer · JK1000001/}).waitFor();
+ assert.equal(await page.getByRole('button',{name:/Recent Customer · JK1000002/}).count(),1,'Keep newer saved matches alongside missing history');
+ await search.fill('102 Example');await page.getByRole('alert').waitFor();
+ assert.match(await page.getByRole('alert').innerText(),/Older appointments may be missing/);
+ assert.equal(await page.getByText(/No matching appointments found/).count(),0);
+ await search.fill('104 Example');await page.getByText(/No matching appointments found/).waitFor();
+ await search.fill('Synthetic');await page.getByText('10 of 12',{exact:true}).waitFor();
  const firstResult=page.getByRole('button',{name:/Synthetic Customer · JK1000000/});
  assert.equal(await firstResult.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,'Search results must paint above the Schedule board');
  const backdrop=page.getByRole('button',{name:'Close search',exact:true});

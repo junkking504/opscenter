@@ -99,7 +99,7 @@
     "verify:crew-portal-corrections": "node --import tsx scripts/test-crew-portal-corrections.ts",
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "verify:inbox-theme": "node --import tsx scripts/test-inbox-preview-theme.ts",
-    "verify:global-search": "node --import tsx scripts/test-global-search.ts",
+    "verify:global-search": "node --import tsx scripts/test-global-search.ts && node --import tsx scripts/test-search-response.ts && node --import tsx scripts/test-junkware-history.ts && node --import tsx scripts/test-junkware-history-source.ts",
     "verify:related-record-links": "node --import tsx scripts/test-related-record-links.ts",
     "verify:date-calendar": "node --import tsx scripts/test-date-calendar.ts",
     "verify:schedule-naming": "node --import tsx scripts/test-schedule-naming.ts",

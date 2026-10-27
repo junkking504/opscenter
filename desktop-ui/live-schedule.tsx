@@ -93,7 +93,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [creationOpen, setCreationOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>(() => Object.fromEntries([baseDate,dateForDay(baseDate,'tomorrow')].flatMap(date => { const cached=cachedWorkspace<ScheduleSnapshot>(`/api/desktop/schedule?date=${date}&load=1`); return cached ? [[date,cached.value]] : []; })));
   const [refreshKey, setRefreshKey] = useState(0);
-  const refreshSourceDate = useRef('');
+  const refreshSourceDate = useRef(new URLSearchParams(window.location.search).get('sourceLookup')==='1'?baseDate:'');
+  const historyLoadPending = useRef(Boolean(refreshSourceDate.current));
   const snapshotGeneration = useRef(0);
   const snapshotPolls = useRef(0);
   const [backgroundMoves, setBackgroundMoves] = useState<Record<string, BackgroundScheduleMove>>({});
@@ -285,9 +286,9 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         const result = await Promise.all((mapOnly ? ['today'] as const : ['today', 'tomorrow'] as const).map(async key => {
           const dayDate = dateForDay(baseDate, key);
           const force = refreshSourceDate.current === dayDate;
-          if (force) refreshSourceDate.current = '';
           const cacheKey = `/api/desktop/schedule?date=${dayDate}&load=1`;
           const body = await fetchWorkspace<ScheduleSnapshot>(`${cacheKey}${force?'&refresh=1':''}`, AbortSignal.any([abort.signal, AbortSignal.timeout(30_000)]), cacheKey);
+          if (!abort.signal.aborted && run === snapshotGeneration.current && force) {refreshSourceDate.current = '';historyLoadPending.current = false;}
           // Publish each verified day as it arrives. Tomorrow must not block today.
           if (!abort.signal.aborted && run === snapshotGeneration.current) setSnapshots(previous => ({...previous,[body.date]:body}));
           return body;
@@ -306,7 +307,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   }, [baseDate, refreshKey, mapOnly]);
   useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setSummaryId(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); }, [date, setDrawerId]);
   useEffect(() => {
-    if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current) return;
+    if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current || historyLoadPending.current) return;
     // A queued date can initially contain no appointments. Keep the navigation
     // intent until the source has finished checking that day.
     if (snapshot.sourceRequest?.state === 'queued' || snapshot.sourceRequest?.state === 'loading') return;

@@ -1,0 +1,92 @@
+/* Dashboard's presentation roles: caption/label 11, control/section 16,
+   KPI 24 and revenue/page title 30; regular and semibold only.
+   Keep this scoped to the persisted Dashboard key, not adjacent workspaces. */
+.ops-app.ops-live[data-css-phase-two="Command"] :is(.command-revenue-hero,.command-metrics) {
+  font-weight: 400;
+  color: var(--oc-text-primary);
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .metric-strip.command-metrics {
+  width: 100%; gap: 6px; overflow: visible; padding: 0;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button.kpi-card {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  height: auto; min-height: 0; min-width: 0; padding: 10px; gap: 4px;
+  text-align: left; overflow: visible;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 4px; min-height: 16px; padding: 0;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-heading > span:first-child,
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-label {
+  color: var(--oc-text-primary); font-size: var(--oc-type-11);
+  font-weight: 600; line-height: 1.35; text-transform: none; letter-spacing: 0;
+}
+/* Every card already exposes its drilldown through button semantics and focus.
+   Avoid giving cards without a comparison a different heading treatment. */
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics .kpi-card-affordance { display: none !important; }
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button > strong {
+  margin: 0; font-family: inherit; font-size: var(--oc-type-24);
+  font-weight: 600; line-height: 1.15; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics :is(.kpi-secondary,button > small),
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero :is(small,p),
+.ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > div {
+  color: var(--oc-text-primary); font-size: var(--oc-type-11);
+  font-weight: 400; line-height: 1.35; letter-spacing: 0; text-transform: none;
+  white-space: normal; overflow: visible;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero {
+  padding: 12px; gap: 12px; margin-bottom: 6px; align-items: start;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-label { padding: 0; }
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-value {
+  font-family: inherit; font-size: var(--oc-type-30); font-weight: 600;
+  line-height: 1.15; min-height: 0; margin: 4px 0; overflow-wrap: anywhere; max-width: 100%;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .hero-pace strong { font-weight: 600; }
+.ops-app.ops-live[data-css-phase-two="Command"] :is(.command-metrics,.command-revenue-hero) .delta-chip {
+  position: static; flex: 0 0 auto; padding: 1px 4px;
+  font-size: var(--oc-type-11); font-weight: 600; line-height: 1.2;
+  letter-spacing: 0; text-transform: none;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero > div:first-child > .delta-chip { float: right; }
+.ops-app.ops-live[data-css-phase-two="Command"] :is(.command-metrics,.command-revenue-hero) .missing-value {
+  color: var(--oc-text-primary); font-size: var(--oc-type-11); font-weight: 400;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button:focus-visible {
+  outline: 2px solid var(--ops-brand-red); outline-offset: 2px;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .ops-content .workspace .workspace-heading h1 {
+  font-size: var(--oc-type-30); font-weight: 600;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .ops-content .workspace .shared-workspace-tabs > button,
+.ops-app.ops-live[data-css-phase-two="Command"] .shared-workspace-tabs button span {
+  font-size: var(--oc-type-11); font-weight: 600;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell :is(.viewing-day-context strong,.viewing-day-context span,.viewing-day-context small) {
+  font-size: var(--oc-type-11); font-weight: 600; text-transform: none; letter-spacing: 0;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell :is(.viewing-day-controls button,.viewing-day-controls input,.global-search input) {
+  font-size: var(--oc-type-16); font-weight: 400;
+}
+.ops-app.ops-live[data-css-phase-two="Command"] .crew-alert-heading h2 {
+  font-size: var(--oc-type-16); font-weight: 600;
+}
+@media (max-width: 760px) {
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero {
+    padding: 6px; column-gap: 8px; row-gap: 2px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button.kpi-card { padding: 6px; gap: 2px; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .hero-pace > div { text-align: right; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .delta-chip { justify-self: end; }
+}
+
+@media (max-width: 760px) {
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-metrics :is(.kpi-secondary,button > small),
+  .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero :is(small,p) { line-height: 1.2; }
+}
+
+.ops-app.ops-live[data-css-phase-two="Command"] .command-metrics > button > strong.long-value { font-size: var(--oc-type-16); }

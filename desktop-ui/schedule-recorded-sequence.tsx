@@ -14,7 +14,7 @@ export default function ScheduleRecordedSequence({ jobs, stops, trucks, now, sel
   return <><button type="button" className="schedule-recorded-sequence-button" popoverTarget={id}>Recorded stops</button>
     <div id={id} popover="auto" className="schedule-recorded-sequence" role="dialog" aria-label="Recorded truck stop sequence">
       <header><h3>Recorded stops</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close recorded stops">×</button></header>
-      <p>Jobs, HQ and facility visits in recorded arrival order. Gaps are elapsed time between records, not measured driving time. Overlapping records need verification.</p>
+      <p>Recorded arrival order · Gaps are elapsed time, not driving time. Verify overlapping records.</p>
       {!rows.length && <p>No recorded visits available.</p>}
       {rows.map(({truck,sequence}) => {
         return <section key={truck}><h4>{truckDisplayText(truck)}</h4>{sequence.length ? <ol>{sequence.map((stop,index) => {

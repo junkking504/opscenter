@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({headless:true});
@@ -7,7 +8,10 @@ try {
   for(const [width,height] of [[1440,900],[1280,768],[1024,768],[768,1000],[390,1000],[320,1000]]) {
     await page.setViewportSize({width,height});
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long`);
+    await openScheduleControls(page);
     await page.locator('.day-switcher button').first().click();
+    await closeScheduleControls(page);
+    await openScheduleControls(page);
     const add=page.getByRole('button',{name:'Add Appointment',exact:true});
     await add.waitFor();
     assert.equal(await page.locator('.schedule-duplicates').count(),0,'No standalone duplicate booking panel');
@@ -36,6 +40,7 @@ try {
     assert.equal(await page.locator('.schedule-summary-button').first().getAttribute('aria-pressed'),'true');
     const metrics=page.locator('.schedule-summary-strip');
     assert.ok(await metrics.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'all count filters fit without horizontal scrolling');
+    await closeScheduleControls(page);
     if(width===1440||width===390)await page.screenshot({path:`/tmp/schedule-hierarchy-${width}.png`});
     const block=page.locator('[data-schedule-appointment]').first();
     await block.waitFor();
@@ -113,7 +118,9 @@ try {
   }
   for(const [mode,text] of [['stale','Unavailable'],['failed','Unavailable'],['address','Precise location unavailable']]) {
     await page.goto(`${base}/tests/schedule-destinations.html?details=long&routes=${mode}`);
+    await openScheduleControls(page);
     await page.locator('.day-switcher button').first().click();
+    await closeScheduleControls(page);
     await page.locator('[data-schedule-appointment]').first().click();
     await page.waitForFunction(text=>document.querySelector('.selected-job-closest strong')?.textContent===text,text);
     assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');

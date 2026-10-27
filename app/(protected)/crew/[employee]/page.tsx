@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import { truckDisplayText } from '../../../../lib/junkware-trucks';
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
@@ -91,7 +92,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
   ];
 
   return (
-    <div className="ops-dashboard ops-employee-page">
+    <div className="ops-dashboard ops-employee-page ops-secondary-page">
       <PageHeader
         title={employee}
         subtitle={`Current pay period: ${detail.periodStart} through ${detail.periodEnd}`}

@@ -96,6 +96,31 @@ a message. The initial connector import is a point-in-time read. No autonomous
 Outlook polling is installed by this change; future connector imports update the
 snapshot. The UI must not represent a retained alert as a continuously live feed.
 
+For an authorized refresh, use the existing Outlook connector to search only the
+verified WEX sender over a bounded recent interval. Follow every returned page;
+an error or incomplete scan is not a successful refresh. Keep exact message IDs,
+sender, received timestamps, source URLs and the purchase/quantity/time/driver/
+merchant fields required by the importer. Store this minimized JSON outside Git
+with mode 0600; do not retain card/account identifiers or email boilerplate.
+
+Run `node --import tsx scripts/import-wex-realtime-prices.ts <private-file> --dry-run`
+first. It reports aggregate accepted/rejected, attributed, added and total counts
+and `sourceSha256`, without changing the snapshot. Apply the same private file
+with `--expected-sha256=<sourceSha256>` to refuse an intervening source change.
+An exclusive `.lock` prevents concurrent imports; investigate an interrupted
+writer before removing its lock. Conflicting tracking evidence fails before
+replacement. Empty/all-rejected batches leave the snapshot and import timestamp
+unchanged. Existing direct importer calls remain supported.
+
+Recurring connector execution is a separate activation: a local scheduler cannot
+use a ChatGPT Outlook connector merely because the one-time import works. Use an
+approved connector-capable local task with a bounded overlap, pagination, private
+input, preflight and checked import, or separately approve a mailbox collector.
+Do not export connector credentials, create an app registration, expand scopes,
+send notifications or post expenses to establish this price feed. Refreshing the
+snapshot never extends an alert's seven-day eligibility. Test the importer with
+`node --import tsx scripts/test-wex-realtime-import.ts` using synthetic data.
+
 Cost settings use immutable versioned revisions under `appointment-costs` outside
 Git, scoped by date and appointment ID. The registered local action
 `schedule.appointment-cost.save` requires sensitive.write, rejects stale versions,
@@ -121,3 +146,21 @@ current location for a past visit. Existing shared job legs retain their allocat
 When no next job is assigned, the return remains a labeled warehouse assumption,
 not evidence of a return actually driven. Unassigned closest-truck planning is
 unchanged. No source assignment, address or payment is modified.
+
+
+## Incomplete cost visibility
+
+The shared calculator retains a known-cost subtotal when fuel, road mileage,
+travel time, crew rates, on-site time or disposal is unavailable. Attendance
+subtotals contain only known fuel, known travel labor and entered overhead.
+Break-even subtotals also contain known on-site labor, entered disposal and other
+costs, divided by the existing revenue-fee denominator. They are explicitly
+incomplete, never complete attendance, break-even or a minimum charge. Cards and
+Cost details list the missing inputs; attendance excludes break-even-only gaps.
+The existing disposal-only card treatment above is retained. Source failures
+without a calculation remain unavailable rather than receiving a default sum.
+
+Fuel still requires the existing eligible WEX alert or saved manual assumption.
+The point-in-time alert import is not an ongoing feed; stale/missing evidence
+must not be extended, replaced with posted CSV prices or made zero by presentation.
+Default overhead is labeled provisional on the board as well as in details.

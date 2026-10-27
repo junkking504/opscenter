@@ -6,6 +6,7 @@ verify:address-research
 verify:agent-hierarchy
 verify:appointment-block-selection
 verify:appointment-visit-alerts
+verify:alert-navigation
 verify:ask-opsbot
 verify:assignment-recovery
 verify:call-in-plan
@@ -105,3 +106,11 @@ verify:whatsapp-crew-expenses
 verify:whatsapp-job-closeouts
 verify:whatsapp-job-photos
 verify:whatsapp-resale
+
+verify:waypoint-manager:photos
+verify:waypoint-manager
+
+verify:waypoint-recovery
+verify:mobile-interactions
+verify:appearance
+verify:inspection-updates

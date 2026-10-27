@@ -45,7 +45,7 @@ export function ConvoyRecords({snapshot,trucks,truckId='',onTruck,open,compact=f
         {[{id:'',label:'All trucks'},...trucks].map(truck=><button key={truck.id} aria-pressed={truckId===truck.id} onClick={()=>{onTruck(truck.id);setExpanded('');}}><span>{truckLabel(truck.label)}</span><span>{truckMatches.filter(r=>!truck.id||sameTruck(r.truck,truck.id)).length}</span></button>)}
       </nav>
       <div className="convoy-record-categories"><h2>Work category</h2><nav aria-label="Filter records by work category"><button aria-pressed={!category} onClick={()=>setCategory('')}><span>All work</span><span>{workMatches.length}</span></button>{categories.map(c=><button key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}><span>{c}</span><span>{workMatches.filter(r=>r.categories.includes(c)).length}</span></button>)}</nav></div>
-      <p className="convoy-library-hint">Select a visit to see the work and invoice photos.</p>
+
     </aside>}
     <div className="convoy-journal">
       <header className="convoy-journal-header"><div><h2>{compact?'Service & repair history':truckId?`${truckLabel(truckId)} history`:'All truck history'}</h2><span role="status">{entries.length} {entries.length===1?'record':'records'} · {from||to?'Selected dates':'All dates'}</span></div><Button variant="ghost" size="sm" onClick={exportRecords} disabled={!entries.length}><Download size={16}/>Export</Button></header>

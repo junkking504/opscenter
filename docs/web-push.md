@@ -702,3 +702,37 @@ Unknown/legacy change metadata leaves delivery on. No actor inference, receipt
 lookup, collection, delay, replay, payment/source write or access change is added.
 The setting is a delivery preference, not an enrollment or role grant, and its
 production activation requires separate release approval.
+
+## Contextual alert details and item navigation
+
+Native notification clicks with a retained event ID open `/desktop` alert details
+first. The authenticated, manager-only GET `/api/push/notification` returns a
+retained receipt only when a delivery was attempted to a device owned by that
+account. It never enrolls, sends, marks read, acknowledges, or changes a record;
+responses are private/no-store. Missing or expired receipts show a concise
+unavailable state. No notification content is placed in the URL.
+
+The details headline opens the corresponding record. Geofence headlines select
+the exact truck on the operations map, preserve the event day, and display GPS
+freshness; historical dates never display current-position pins. Schedule links
+retain exact appointment IDs when available and otherwise retain the JK reference
+without guessing among matches. Crew links retain member identity when known.
+Fleet load/record alerts retain the truck record. Unmapped alerts keep their
+source details without inventing a destination. Destination panels open and reveal
+once after loading, clear of the header; refreshes do not repeat the scroll.
+
+Legacy notifications without a retained event ID keep their previously allowlisted
+job route or Dashboard fallback. Existing delivery categories, approvals, expiry,
+Waypoint preferences, and sending limits are unchanged. Browser fixtures and
+service-worker doubles do not establish physical handset delivery/tap acceptance.
+
+Alerts without a valid source retain their visible details without inventing a headline destination. Existing valid source links, including Finance and Marketing, remain headline destinations when no more precise record identity is available. Pushover keeps its existing generic desktop fallback and existing job links; the native receipt flow does not change its link contract.
+
+## Manager notification destinations
+
+OpsCenter notifications serve managers monitoring operations; crew-only filtering
+in Waypoint does not change manager event coverage. Verified appointment notices
+retain their exact job/date link. Notifications without a job link open the
+matching Schedule, Krewe or Fleet workspace. Clicking reuses an existing OpsCenter
+window when it can navigate; otherwise it opens the requested destination. Pushover preserves its existing job-link and generic fallback contract.
+No new transport, approval, polling or external sending is enabled by this change.

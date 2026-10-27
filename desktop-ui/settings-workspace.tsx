@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import ThemeControl from '../components/ThemeControl';
 import { PushSettings } from './components/push-settings';
 import { openingWorkspaces, readOpeningWorkspace, saveOpeningWorkspace } from './lib/workspace-preferences';
 import { workspaceLabel } from './lib/workspace-labels';
 import './settings-workspace.css';
+import './settings-presentation.css';
 
 type Source = { name: string; area: string; state: string; tone: string; freshness: string; detail?: string };
 export function SettingsWorkspace({ canFinance, live, sources, loading, error, onSourceHealth, onBusyChange }: {
@@ -14,7 +16,7 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
   return <div className="settings-workspace">
     <section className="settings-card" aria-labelledby="preferences-title">
       <div className="section-title"><h2 id="preferences-title">My Preferences</h2></div>
-      <p>Choose where OpsCenter opens in this browser.</p>
+
       <label className="settings-field" htmlFor="opening-workspace"><span>Default opening page</span>
         <select id="opening-workspace" value={opening} onChange={event => {
           const value = event.target.value;
@@ -22,8 +24,9 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
           else setMessage('Could not save this preference. Browser storage may be unavailable.');
         }}>{openingWorkspaces.filter(value => value !== 'Finance' || canFinance).map(value => <option key={value} value={value}>{workspaceLabel(value)}</option>)}</select>
       </label>
-      <p className="settings-note">Applies when you open OpsCenter without a saved page or date link. This preference is shared by people using this browser and does not sync to other devices.</p>
+      <p className="settings-note">Shared by users of this browser. Saved page and date links take precedence.</p>
       <p role="status">{message}</p>
+      <ThemeControl />
     </section>
     <section className="settings-card" aria-labelledby="notifications-title">
       <div className="section-title"><h2 id="notifications-title">Notifications</h2></div>
@@ -31,7 +34,7 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
     </section>
     <section className="settings-card settings-connections" aria-labelledby="connections-title">
       <div className="section-title"><h2 id="connections-title">Connections</h2><button type="button" onClick={onSourceHealth}>View source details</button></div>
-      <p>Connection status and last observed updates from OpsCenter’s existing source checks.</p>
+
       {error && <p role="status">Connection status could not refresh. Any retained observations are shown below.</p>}
       {loading ? <p role="status">Loading connection status…</p> : sources.length ? <div className="settings-source-list">{sources.map(source => <article key={source.name}>
         <div><strong>{source.name}</strong><span>{source.area}</span></div>

@@ -22,7 +22,7 @@ export function truckSummaries(snapshot: ScheduleSnapshot, now: number) {
 }
 export function TruckSummaryStrip({ snapshot, now, select, disabled }: { snapshot: ScheduleSnapshot; now: number; select: (truck: string) => void; disabled?: boolean }) {
   const {active, off} = truckSummaries(snapshot,now);
-  return <section className="truck-summary-strip" aria-label="Truck route summaries">{active.map(row => <button type="button" className="truck-summary-card" key={row.truck} onClick={() => select(row.truck)} disabled={disabled}>
+  return <section className="truck-summary-strip" aria-label="Truck route summaries">{active.map(row => <button type="button" className="truck-summary-card" key={row.truck} onClick={() => select(row.truck)} disabled={disabled} title={`${row.route}\nRecorded charges · excludes tips\nCrew: ${row.crew}`}>
     <header><strong>{row.truck}</strong><span title={row.observedAt ? `GPS observed ${row.observedAt}` : 'No current GPS observation'}><MetricValue value={row.status} /></span></header>
     <span className="truck-summary-route" title={row.route}>{row.route}</span>
     <div><strong><MetricValue value={row.revenue == null ? null : row.revenue.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})} reason="Completed job charges are incomplete" /></strong><span>{row.completed}/{row.jobs} jobs done{row.appointments > row.jobs ? ` · ${row.appointments - row.jobs} estimates` : ''}</span></div>

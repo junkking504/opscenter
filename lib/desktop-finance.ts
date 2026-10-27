@@ -19,6 +19,8 @@ import { buildMonthlySummary, buildFinanceTrendSummary, readMonthlyAuthority } f
 import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readResaleStore, upsertResaleItem, type ResaleItemInput } from '@/lib/resale-items';
 import { readWexFuelFinance } from '@/lib/wex-fuel';
+import { readWexAlertExpenses } from '@/lib/wex-alert-expenses';
+import {readWexMailFeedStatus} from '@/lib/wex-mail-feed';
 import { buildDailyFinanceSummary, type DailyFinanceSummary } from '@/lib/daily-finance-summary';
 import { commercialDirectory, commercialVersion, executeCommercialOperation, validCommercialDate, CommercialActionError } from '@/lib/desktop-marketing';
 import type { InteractiveOpsRole } from '@/lib/ops-roles';
@@ -34,7 +36,7 @@ function readOperatingTrends(date: string) {
   try { return operatingTrendsSnapshot(readPredictionDataset(), date); }
   catch { return null; }
 }
-export function readDesktopFinance(date: string): FinanceData & { fuelReconciliation: ReturnType<typeof readFuelReconciliation>; dailyBreakdown: DailyFinanceSummary; dailyFreshness: DailyFinanceEvidence; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
+export function readDesktopFinance(date: string): FinanceData & { wexAlertExpenses: ReturnType<typeof readWexAlertExpenses>; fuelReconciliation: ReturnType<typeof readFuelReconciliation>; dailyBreakdown: DailyFinanceSummary; dailyFreshness: DailyFinanceEvidence; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
   // Request-local reuse keeps headlines and trends on the same source read,
   // without retaining financial data or write versions across refreshes.
   const daily = new Map<string, AnyRecord | null>();
@@ -71,6 +73,8 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   const markets = [...new Set(monthly.entries.flatMap(entry => [...Object.keys(entry.metrics.revenue_by_market || {}), ...Object.keys(entry.metrics.jobs_by_market || {})]))];
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
   const wexFuel = readWexFuelFinance(date);
+  const wexAlertExpenses = readWexAlertExpenses(date, wexFuel.transactions);
+  wexAlertExpenses.feed=readWexMailFeedStatus();
   const dumpExpenses = readDumpExpenses(date);
   const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel, dumpExpenses.assumedTotal);
   const fuelReconciliation = readFuelReconciliation(date, wexFuel);
@@ -89,7 +93,7 @@ export function readDesktopFinance(date: string): FinanceData & { fuelReconcilia
   const priorSummary = buildDailyFinanceSummary(priorMetrics, priorFuel);
   const priorDisplay = presentDailyFinance(priorSummary, dailyFinanceEvidence(priorMetrics, priorSummary, priorDate, priorFuel), priorDate);
   const dailyComparison = {label:`same weekday last week · ${priorDate} (completed day; recorded costs)`, revenue:priorDisplay.revenue.value, labor:priorDisplay.labor.value, dumps:priorDisplay.dumps.value, fuel:priorDisplay.fuel.value, totalCosts:priorDisplay.totalCosts.value, net:priorDisplay.net.value};
-  return { dailyComparison, fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  return { dailyComparison, wexAlertExpenses, fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
     operatingTrends: readOperatingTrends(date),
     revenuePace: (() => {

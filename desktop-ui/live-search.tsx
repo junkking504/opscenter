@@ -7,6 +7,8 @@ import { desktopSourceHref } from './lib/desktop-links';
 import type { KnowledgeAnswer } from './lib/knowledge-answer';
 import OpsBotMarkdown from './components/opsbot-markdown';
 import './live-search.css';
+import './pinned-search.css';
+import { usePinnedSearch } from './use-pinned-search';
 export function desktopHref(href: string): string { return desktopSourceHref(href, window.location.origin); }
 
 type Result = { id: string; type: string; title: string; subtitle: string; source: string; href: string };
@@ -22,6 +24,8 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
   const [knowledgeAnswer,setKnowledgeAnswer]=useState<KnowledgeAnswer|null>(null);const [knowledgeLoading,setKnowledgeLoading]=useState(false);const [knowledgeError,setKnowledgeError]=useState('');
   const [opsBotStatus,setOpsBotStatus]=useState<OpsBotStatus|null>(null);const [opsBotAnswer,setOpsBotAnswer]=useState<OpsBotAnswer|null>(null);const [opsBotLoading,setOpsBotLoading]=useState(false);const [opsBotError,setOpsBotError]=useState('');
   const input = useRef<HTMLInputElement>(null);
+  const shell = useRef<HTMLDivElement>(null);
+  usePinnedSearch(shell);
   const commands = ['Command', 'Schedule', 'Krewe', 'Fleet', ...(finance ? ['Finance'] : []), 'Marketing'].filter(name => `${name} ${workspaceLabel(name)}`.toLowerCase().includes(query.toLowerCase()));
   useEffect(() => { const listener = (event: KeyboardEvent) => { if (disabled) return; if (event.key === 'Escape') {setOpen(false);input.current?.blur();} if (event.key === '/' && !/input|textarea|select/i.test((event.target as HTMLElement)?.tagName)) { event.preventDefault(); setOpen(true); input.current?.focus(); } }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [disabled]);
   useEffect(()=>{
@@ -80,7 +84,7 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
     }catch(failure){setOpsBotError(failure instanceof Error?failure.message:'Ask OpsBot could not complete this question.');}
     finally{setOpsBotLoading(false);}
   };
-  return <div className="global-search-shell">
+  return <div ref={shell} className="global-search-shell">
     {open&&<button className="global-search-backdrop" aria-label="Close search" onClick={()=>setOpen(false)}/>}
     <div className={`global-search${open?' active':''}`}><Search size={17}/><Input ref={input} value={query} disabled={disabled} onFocus={()=>setOpen(true)} onChange={event=>{setQuery(event.target.value);setLimit(10);setOpsBotAnswer(null);setOpsBotError('');setOpen(true);}} placeholder="Ask OpsBot or search records" aria-label="Ask OpsBot or search records" aria-expanded={open} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();if(submission==='assistant')void askOpsBot();else if(submission==='command'&&commands[0])go(commands[0]);else if(submission==='record'&&!loading&&results[0])openResult((results.find(row=>row.title.toLowerCase()===query.trim().toLowerCase())||results[0]).href);else if(knowledgeAnswer)openKnowledge(knowledgeAnswer.entryId);}}}/>{query?<button aria-label="Clear search" onClick={()=>{setQuery('');setLimit(10);setOpsBotAnswer(null);setOpsBotError('');}}><X size={14}/></button>:<kbd>/</kbd>}</div>
     {open&&<section className="global-search-panel cross-date-search" role="dialog" aria-label="OpsCenter launcher">

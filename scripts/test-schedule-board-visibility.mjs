@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium, webkit} from 'playwright';
 
@@ -16,7 +17,14 @@ for (const engine of [chromium, webkit]) {
         assert.ok(await page.locator('.appointment-territory-toolbar button').evaluateAll(buttons=>buttons.every(el=>el.getBoundingClientRect().height>=38)),'Prominent register territory targets');
         assert.ok(await page.locator('.appointment-territory-heading').evaluateAll(headings=>headings.every(el=>el.getBoundingClientRect().height>=54)),'Distinct territory banners');
         for (const map of [true,false]) {
-          if (!map) await page.getByRole('switch',{name:'Show map',exact:true}).click();
+          if (!map) { await openScheduleControls(page); await page.getByRole('switch',{name:'Show map',exact:true}).click(); await closeScheduleControls(page); }
+          if(width<1000) {
+            await page.locator('.mobile-schedule-overview').waitFor();
+            assert.equal(await page.locator('[data-schedule-appointment]').count(),count);
+            assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
+            continue;
+          }
+          await page.waitForTimeout(150);
           const geometry=await page.locator('.schedule-board-shell').evaluate(shell=>{
             const box=shell.getBoundingClientRect();
             const scroll=shell.querySelector('.schedule-board-scroll');

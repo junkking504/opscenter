@@ -1189,3 +1189,26 @@ center across query variants. Unrelated fuzzy street suggestions are ignored.
 No house number is added to the matched street evidence. The property remains
 unverified; the center is navigation-only and cannot establish GPS visits.
 This consumes existing cache evidence without additional provider requests.
+
+
+## Mobile appointment marker height
+
+The phone full-day overview uses consistent 28px appointment markers on 32px
+lanes. Busy days and short landscape viewports use normal page scrolling rather
+than shrinking every truck's markers. Real time-footprint collisions add lanes;
+unrelated busy trucks do not change Truck 9 or any other row's block height.
+Horizontal source times, fifteen-minute display minimum, booked/GPS distinctions,
+recorded visits, facilities, missing times, selection and move verification remain
+unchanged. Truck details and the appointment register remain larger-target
+alternatives to narrow full-day markers.
+
+An asterisk marks an Amazon source business label, using the existing partner
+classifier without its customer-name fallback, or a national-account marker:
+855-888-0112 in source appointment notes or the full job description (projected
+as `appointmentNotes` and `pickupItems`). National-account phone candidates are
+matched as whole numbers after normalizing punctuation and optional US country
+code 1. Longer numbers, identifiers and fragments split across notes do not match.
+The legend and accessible labels explain the marker. Customer names, customer
+contact numbers and incidental brand mentions do not create one. Missing or
+unmatched descriptions mean no positive marker; they never establish a verified
+non-national classification. Amazon retains its existing label when both apply.

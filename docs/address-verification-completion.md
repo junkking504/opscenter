@@ -1,5 +1,34 @@
 # Address verification completion
 
+## October 26, 2026: recurring pending-address recovery
+
+Policy 22 separates a letter-number unit following a complete numbered highway
+(e.g. `45678 Highway 17 C42`) from the road query. The original unit remains in
+crew instructions. Route suffixes, single-letter directions, incomplete postal
+tails and additional numbered streets are not treated as units. Legacy provider
+keys remain readable and prior negative checks retry under the existing cadence.
+Older successful shared geocodes retain their coordinates only after their stored
+matched address passes current full-field verification for the requested address.
+This preserves pins across harmless case, punctuation, state and business-prefix
+variants without new requests or promoting unverified/stale-policy flags alone.
+
+A source road direction after its suffix may match the same direction before
+that road in cached Geocodio rooftop evidence for approximate display. Exact
+house, street, direction, locality, state and ZIP remain required. The recovery
+rejects unit-bearing provider candidates, opposite directions, interpolation,
+and distinct competing matching premises. It does not change source text or
+exact-property verification.
+
+Source Health now reports the free geocoder's account-review status, warns three
+days before expiry, and identifies expiration explicitly. This is a read-only
+configuration check, not a provider uptime or quota guarantee. Account review
+still requires checking no payment method and the provider free cutoff before
+renewing the existing protected configuration; no automatic renewal, paid usage,
+transport, quota or spending-gate change is included.
+
+Regression: `scripts/test-address-pending-recovery.ts`, included in the full
+address suite, uses synthetic cache evidence and no network requests.
+
 ## October 23, 2026 Number units and compact highway navigation
 
 Policy 21 recognizes `Number` as a unit label after a complete road suffix,

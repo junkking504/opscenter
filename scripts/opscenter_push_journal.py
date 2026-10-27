@@ -2,6 +2,7 @@
 No network, credentials or delivery timers. Only selected fact hashes are retained.
 """
 from __future__ import annotations
+from urllib.parse import urlencode
 import fcntl
 import hashlib
 import json
@@ -443,7 +444,7 @@ def project(path, payload):
                     lines = [f"{display_name} clocked {'in' if kind == 'in' else 'out'}: {clock_label(value)}"]
                     if kind == "out":
                         lines += clock_out_pay(payload, row, day, value)
-                    item["notification"] = {"title": "Krewe", "body": "\n".join(lines)}
+                    item["notification"] = {"title": "Krewe", "body": "\n".join(lines), "path": "/desktop?" + urlencode({"workspace": "Krewe", "kreweView": "today", "date": day, "member": display_name, "focus": "record"})}
                     items.append(item)
         batch(f"krewe:{day}", "krewe", source.get("as_of"), items)
     elif path.name == f"linxup_alerts_{day}.json" and path.parent.name != "raw":
@@ -462,7 +463,8 @@ def project(path, payload):
             at = occurred.strftime("%I:%M %p").lstrip("0")
             action = "Arrived" if kind == "geofence_entered" else "Departed"
             item["notification"] = {"title": truck_notification_title(row["truck_number"]),
-                                    "body": f"{action}{' at' if kind == 'geofence_entered' else ''} {geofence_display_name(row['geofence_name'])}: {at}\nDate: {occurred.date().isoformat()} (Central)"}
+                                    "body": f"{action}{' at' if kind == 'geofence_entered' else ''} {geofence_display_name(row['geofence_name'])}: {at}\nDate: {occurred.date().isoformat()} (Central)",
+                                    "path": "/desktop?" + urlencode({"workspace": "Schedule", "scheduleView": "board", "date": occurred.date().isoformat(), "truck": truck_notification_title(row["truck_number"]).replace("#", ""), "focus": "truck"})}
             items.append(item)
         batch(f"fleet:{day}", "fleet", payload.get("collection_timestamp"), items)
     return batches

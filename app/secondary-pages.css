@@ -1,0 +1,99 @@
+/* Scoped office/support styles. The separate crew/Waypoint pages keep their own UI. */
+.ops-secondary-page { color: var(--oc-text); font-size: 16px; line-height: 1.5; min-width: 0; }
+.ops-secondary-page :is(h1,.ops-page-title) { font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; }
+.ops-secondary-page :is(h2,.ops-section-title) { font-size: 24px; font-weight: 600; line-height: 1.3; }
+.ops-secondary-page :is(h3,strong) { font-weight: 600; }
+.ops-secondary-page :is(p,li,dd,label,select,input,textarea) { font-size: 16px; line-height: 1.5; }
+.ops-secondary-page :is(.ops-eyebrow,.ops-card-title,.ops-kpi-sub,.ops-detail-grid > div > span) { font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.ops-secondary-page :is(.ops-detail-grid strong,.ops-legal-copy,.ops-muted) { overflow-wrap: anywhere; }
+.ops-secondary-page .ops-detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.ops-secondary-page .ops-detail-grid > div { min-width: 0; }
+.ops-secondary-page .ops-detail-grid strong { font-size: 16px; font-weight: 400; line-height: 1.5; }
+.ops-secondary-page .ops-compact-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.ops-secondary-page .ops-compact-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--oc-line); border-radius: var(--oc-radius-sm); color: var(--ops-brand-red); background: var(--oc-surface); }
+.ops-secondary-page :is(button,input,select,textarea,.ops-button,.ops-refresh-button) { min-height: 44px; max-width: 100%; box-sizing: border-box; font-size: 16px; }
+.ops-secondary-page select { height: 44px; }
+.ops-secondary-page :is(button,a,input,select,textarea,summary):focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
+.ops-secondary-page .ops-employee-score-grid > div { min-width: 0; }
+.ops-secondary-page :is(.ops-kpi-value,.ops-employee-stat-value) { font-size: 24px; font-weight: 600; overflow-wrap: anywhere; }
+.ops-secondary-page.ops-office-tools { background: var(--oc-bg); color: var(--oc-text); }
+.ops-secondary-page.ops-office-tools h2 { font-size: 24px; font-weight: 600; }
+.ops-secondary-page.ops-office-tools > div { max-width: 900px; }
+.ops-secondary-page.ops-office-tools section { background: var(--oc-surface); border-color: var(--oc-line); border-radius: var(--oc-radius-md); }
+.ops-secondary-page.ops-office-tools :is(section,li) { overflow-wrap: anywhere; }
+.ops-secondary-page.ops-office-tools :is(button,input,select,textarea) { font-weight: 400; }
+.ops-login-shell[data-opscenter-login] .ops-login-access-card h1 { font-size: 30px; font-weight: 600; }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-access-index,.ops-login-form label > span,.ops-login-footnote,.ops-login-designation,.ops-login-system-line) { font-size: 12px; font-weight: 400; line-height: 1.5; text-transform: none; letter-spacing: 0; }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-access-card > p,.ops-login-form .ops-field,.ops-login-button,.ops-login-error) { font-size: 16px; line-height: 1.5; }
+.ops-login-shell[data-opscenter-login] .ops-login-button { font-weight: 600; }
+.ops-login-shell[data-opscenter-login] .ops-login-access-card { padding: 24px; border-radius: var(--oc-radius-md); }
+@media (max-width: 760px) {
+  .ops-secondary-page .ops-detail-grid { grid-template-columns: minmax(0,1fr); }
+  .ops-secondary-page .ops-card-header { flex-wrap: wrap; gap: 12px; }
+  .ops-secondary-page :is(.ops-employee-score-grid,.ops-employee-driving-summary) { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ops-secondary-page.ops-office-tools { padding: 16px 12px; }
+  .ops-secondary-page.ops-office-tools section { padding: 16px; }
+  .ops-login-shell[data-opscenter-login] .ops-login-access-card { padding: 20px; }
+}
+
+/* Public routes do not inherit .ops-main's light palette. Resolve both legacy
+   and office variables locally so a dark root token cannot split the theme. */
+.ops-secondary-page,
+.ops-login-shell[data-opscenter-login] .ops-login-access-panel {
+  --oc-bg: #f1f3f1;
+  --oc-surface: #ffffff;
+  --oc-surface-raised: #f7f8f6;
+  --oc-surface-soft: #ecefec;
+  --oc-text: #171a1d;
+  --oc-text-secondary: #3f4843;
+  --oc-text-muted: #606873;
+  --oc-line: #d7dbd7;
+  --oc-line-strong: #c9cfca;
+  --ops-bg: var(--oc-bg);
+  --ops-panel: var(--oc-surface);
+  --ops-panel-soft: var(--oc-surface-raised);
+  --ops-panel-strong: var(--oc-surface-soft);
+  --ops-text: var(--oc-text);
+  --ops-muted: var(--oc-text-muted);
+  --ops-muted-2: var(--oc-text-muted);
+  --ops-border: var(--oc-line);
+  --ops-border-strong: var(--oc-line-strong);
+  --ops-gold: #684800;
+  --ops-green: #075f3b;
+  color-scheme: light;
+  color: var(--oc-text);
+  background: var(--oc-bg);
+}
+body > .ops-secondary-page { box-sizing: border-box; width: 100%; max-width: 1280px; margin: 0 auto; padding: 24px; }
+.ops-secondary-page.ops-card,
+.ops-secondary-page .ops-card { background: var(--oc-surface); color: var(--oc-text); border-color: var(--oc-line); box-shadow: 0 1px 0 rgba(17,20,25,.025); }
+.ops-secondary-page .ops-page-header { background: transparent; border-color: var(--oc-line); color: var(--oc-text); box-shadow: none; }
+.ops-secondary-page :is(h1,h2,h3,.ops-page-title,.ops-section-title,.ops-card-title,.ops-legal-copy,.ops-detail-grid strong) { color: var(--oc-text); }
+.ops-secondary-page :is(.ops-muted,.ops-small-muted,.ops-page-header-subtitle,.ops-page-header-meta,.ops-page-header-status,.ops-page-header-updated,.ops-eyebrow,.ops-kpi-sub,.ops-detail-grid > div > span) { color: var(--oc-text-muted); }
+.ops-secondary-page .ops-detail-grid > div { background: var(--oc-surface-raised); border-color: var(--oc-line); }
+.ops-secondary-page :is(.ops-button,.ops-refresh-button) { color: var(--ops-brand-red); background: var(--oc-surface); border: 1px solid var(--ops-brand-red); white-space: normal; }
+.ops-secondary-page .ops-alert-warning { color: #684800; background: #fff8df; border-color: #ead9a4; }
+.ops-secondary-page .ops-alert-warning strong { color: inherit; }
+.ops-login-shell[data-opscenter-login] .ops-login-access-card { background: var(--oc-surface); color: var(--oc-text); border-color: var(--oc-line); }
+.ops-login-shell[data-opscenter-login] .ops-login-access-card h1 { color: var(--oc-text); text-transform: none; }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-access-card > p,.ops-login-form label > span,.ops-login-footnote) { color: var(--oc-text-muted); }
+.ops-login-shell[data-opscenter-login] .ops-login-form .ops-field { color: var(--oc-text); background: var(--oc-surface); border-color: var(--oc-line-strong); }
+.ops-login-shell[data-opscenter-login] .ops-login-form .ops-field::placeholder { color: var(--oc-text-muted); }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-access-index,.ops-login-error) { color: var(--ops-brand-red); }
+.ops-login-shell[data-opscenter-login] .ops-login-button { color: #fff; background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
+.ops-login-shell[data-opscenter-login] .ops-login-button:hover { background: var(--ops-brand-red-hover); }
+.ops-login-shell[data-opscenter-login] .ops-login-footnote { border-color: var(--oc-line); }
+@media (max-width: 760px) { body > .ops-secondary-page { padding: 16px 12px; } }
+
+body:has(> .ops-secondary-page) { background: #f1f3f1; }
+body > .ops-secondary-page { min-height: 100dvh; align-content: start; }
+.ops-secondary-page .ops-compact-links a { font-weight: 600; }
+.ops-login-shell[data-opscenter-login] { min-width: 0; }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-brand-panel,.ops-login-access-panel,.ops-login-brand,.ops-login-access-card,.ops-login-form,.ops-login-form label,.ops-field,.ops-login-button) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.ops-login-shell[data-opscenter-login] .ops-login-brand :is(img,svg) { max-width: 100%; height: auto; }
+.ops-login-shell[data-opscenter-login] :is(.ops-login-designation,.ops-login-system-line) { color: #b9bec6; }
+.ops-login-shell[data-opscenter-login] .ops-login-footnote { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 840px) {
+  .ops-login-shell[data-opscenter-login] { grid-template-columns: minmax(0,1fr); }
+  .ops-login-shell[data-opscenter-login] .ops-login-access-panel { padding: 32px 16px; }
+}

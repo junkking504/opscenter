@@ -6,6 +6,7 @@ import '../app/globals.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
 import '../daily-finance-freshness.css';
+import '../approved-workbench.css';
 const data: FinanceData = {
  date:'2026-09-16', available:true, generatedAt:new Date().toISOString(),
  daily:{revenue:4200,costs:1800,profit:2400,recyclingIncome:0},
@@ -17,6 +18,7 @@ const data: FinanceData = {
  resale:[],resaleUpdatedAt:null,recycling:[],recyclingVersion:'fixture',recyclingIncomeRows:[]
 };
 // Synthetic records only. This fixture never contacts financial providers.
+data.revenuePace = [2025,2026].flatMap(year=>Array.from({length:16},(_,index)=>({date:`${year}-09-${String(index+1).padStart(2,'0')}`,revenue:index===10?null:index===5?0:1800+(index%4)*1200+(year===2026?250:0)})));
 data.reconciliation.recordedPayments = { total: 1200, cash: 200, check: 300 };
 data.reconciliation.summary = { junkware_count: 4, junkware_total: 1200, merchant_center_total: 400, matched_count: 1, net_difference: -300, exception_count: 1 };
 data.reconciliation.paymentsByJob = (['card','card','cash','check'] as const).map((tender,index)=>({date:data.date,jkNumber:`DEMO-${index+1}`,customer:['Sample card customer','Sample pending customer','Sample cash customer','Sample check customer'][index],paymentMethod:tender,tender,checkNumber:tender==='check'?'1234':undefined,truck:`Truck ${index+1}`,paidAmount:[400,300,200,300][index],revenueAmount:[380,300,200,300][index],tipAmount:index===0?20:0,qboTransactionId:index===0?'DEMO-QBO-1':null,qboStatus:index===0?'Posted':null,reconciliation:index===0?'Matched':'Unmatched'}));
@@ -28,5 +30,5 @@ const fixture = {...data,
  fuelReconciliation:{date:data.date,wexImportedAt:data.generatedAt,wexAvailable:true,matchedCount:1,differenceCount:0,reportedTotal:89,wexFuelTotal:89,rows:[{id:'demo-fuel',truck:'Truck 1',date:data.date,location:'Sample fuel station',status:'matched',reason:'Matching sample receipt and amount',reportedId:'demo-reported',wexId:'demo-wex',reportedAmount:89,wexFuelAmount:89,wexNetAmount:89,difference:0}]}
 };
 window.fetch = async () => new Response(JSON.stringify(fixture), {status:200,headers:{'Content-Type':'application/json'}});
-function Fixture() { const [view,setView]=useState<FinanceView>('overview'); return <div className="ops-app ops-live"><aside className="ops-sidebar"><div className="brand-lockup"><strong>OpsCenter</strong></div><nav className="primary-nav">{['Command','Control','Crew','Convoy','Capital','Campaign'].map(name=><div className={`nav-item ${name==='Capital'?'active':''}`} key={name}>{name}</div>)}</nav></aside><main className="ops-content"><div className="workspace"><div className="workspace-heading"><div><h1>Capital</h1><p>Performance, payments and financial decisions. All in one place.</p></div><div className="workspace-tabs finance-view-switcher" role="tablist" aria-label="Capital views">{(['overview','payments','expenses','accounting','resale','recycling','trends'] as const).map(item=><button key={item} role="tab" aria-selected={view===item} className={view===item?'active':''} onClick={()=>setView(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</div></div><LiveFinance date={data.date} view={view} onViewChange={setView}/></div></main></div>; }
+function Fixture() { const [view,setView]=useState<FinanceView>('overview'); return <div className="ops-app ops-live"><aside className="ops-sidebar"><div className="brand-lockup"><strong>OpsCenter</strong></div><nav className="primary-nav">{['Command','Control','Crew','Convoy','Capital','Campaign'].map(name=><div className={`nav-item ${name==='Capital'?'active':''}`} key={name}>{name}</div>)}</nav></aside><main className="ops-content"><div className="workspace"><div className="workspace-heading"><div><h1>Capital</h1><p>Performance, payments and financial decisions. All in one place.</p></div><div className="workspace-tabs shared-workspace-tabs finance-view-switcher" role="tablist" aria-label="Capital views">{(['overview','payments','expenses','accounting','resale','recycling','trends'] as const).map(item=><button key={item} role="tab" aria-selected={view===item} className={view===item?'active':''} onClick={()=>setView(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</div></div><LiveFinance date={data.date} view={view} onViewChange={setView}/></div></main></div>; }
 createRoot(document.getElementById('root')!).render(<Fixture/>);

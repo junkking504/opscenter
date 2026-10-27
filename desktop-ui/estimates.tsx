@@ -52,7 +52,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
   const rows = searched.filter(row => matches(row,filter)).sort((a,b) => compareEstimates(a,b,sort));
   const picked = snapshot?.rows.find(row => row.id === selected);
   return <section className="estimate-workspace" aria-label="Estimates across dates">
-    <header className="estimate-heading"><div><span className="estimate-kicker">Customer follow-up · across dates</span><h2>Estimates</h2><p>Quotes given to customers, their next action, and the jobs they become.</p></div><button disabled={busy || loading} onClick={() => void load().catch(() => {})}>{loading ? 'Loading…' : 'Reload records'}</button></header>
+    <header className="estimate-heading"><div><span className="estimate-kicker">Customer follow-up · across dates</span><h2>Estimates</h2></div><button disabled={busy || loading} onClick={() => void load().catch(() => {})}>{loading ? 'Loading…' : 'Reload records'}</button></header>
     {error && <p className="estimate-error" role="alert">{error} {snapshot && 'The previous snapshot remains visible.'}</p>}
     {notice && <p className="estimate-save-message" role="status">{notice}</p>}
     {!snapshot && !error && <p role="status">Reading estimate history…</p>}
@@ -66,7 +66,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
         <div><strong>{row.followup.owner || 'Unassigned'}</strong><span>{row.followup.nextFollowup || 'Next action not set'}{row.overdue ? ' · Overdue' : row.dueToday ? ' · Due today' : ''}</span><small>{row.bookings.map(job => `${job.jk || job.id} · ${job.date}`).join(' · ')}</small></div>
         <div className="estimate-row-actions"><button disabled={busy} onClick={() => { setSelected(row.id); window.setTimeout(() => document.getElementById('estimate-detail')?.scrollIntoView({block:'start'}),0); }} aria-label={`Review ${row.jk || row.id}`}>Review estimate</button>{row.phone.replace(/\D/g,'').length >= 7 && <a href={`tel:${row.phone.replace(/\D/g,'')}`}>Call {row.phone}</a>}</div>
       </article>)}</div>
-      {!rows.length && <p className="estimate-empty">No estimates match these filters. Source coverage is described above.</p>}
+      {!rows.length && <p className="estimate-empty">No estimates match these filters.</p>}
       {rows.length > limit && <button onClick={() => setLimit(value => value + 50)}>Show 50 more · {rows.length-limit} remaining</button>}
     </>}
   </section>;

@@ -1,5 +1,6 @@
 import { fromDailyFinanceMetrics } from './finance-trend-comparison';
 import { operationalUpdateGaps } from './operational-update-health';
+import { readInspectionTimeline, mergeInspectionTimeline } from './truck-inspection-updates';
 import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
 import { financeReading } from './daily-finance-freshness';
 import { readDesktopKrewe } from './desktop-krewe';
@@ -106,8 +107,9 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
   const tracked = readVisitTrackingAgent(date);
-  const digestMessages = withoutNativeGeofenceDuplicates(digest.messages, geofences.entries, geofences.nativeVisits);
-  const alerts: DesktopCommandSnapshot['alerts'] = mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,geofences.visits),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)).map(alert => {
+  const digestMessages = withoutNativeGeofenceDuplicates(digest.messages, geofences.rawEntries, geofences.rawNativeVisits, geofences.rawTrackedVisits);
+  const inspections = readInspectionTimeline(date);
+  const alerts: DesktopCommandSnapshot['alerts'] = mergeInspectionTimeline(mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,[...geofences.visits,...geofences.reviewVisits]),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)), inspections.alerts).map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });
@@ -151,9 +153,10 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const crewProgress = buildCrewProgress({date,appointments,visits,alerts,
       scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
       visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
-      updatesComplete: digest.status === 'ready' && digest.complete === true && geofences.complete,
+      updatesComplete: digest.status === 'ready' && digest.complete === true && geofences.complete && inspections.complete,
     });
   crewProgress.updateHistoryReasons = operationalUpdateGaps(digest, geofences);
+  if (!inspections.complete) crewProgress.updateHistoryReasons.push('Inspection submission history could not be read completely.');
   for (const job of crewProgress.jobs.filter(job=>job.needsFollowUp)) {
     const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
     if (latest) latest.needsAction = true;

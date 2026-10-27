@@ -1,0 +1,718 @@
+/* Dark overrides for existing office tokens. Branding, images and map tiles
+   retain their source colors; no image filters or data changes are applied. */
+html[data-ops-theme="dark"] .ops-app.ops-live { background: var(--oc-theme-dark-canvas); color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live > :not(.ops-sidebar) {
+  /* Resolve the shared border where dark tokens are defined, not on the light parent. */
+  --desktop-card-border: 1px solid var(--oc-theme-dark-border);
+  --oc-border-amber-01: var(--oc-theme-dark-border);
+  --oc-border-amber-02: var(--oc-theme-dark-border);
+  --oc-border-amber-03: var(--oc-theme-dark-border);
+  --oc-border-amber-04: var(--oc-theme-dark-border);
+  --oc-border-amber-05: var(--oc-theme-dark-border);
+  --oc-border-amber-06: var(--oc-theme-dark-border);
+  --oc-border-amber-07: var(--oc-theme-dark-border);
+  --oc-border-amber-08: var(--oc-theme-dark-border);
+  --oc-border-amber-09: var(--oc-theme-dark-chart-forecast);
+  --oc-border-amber-10: var(--oc-theme-dark-border);
+  --oc-border-amber-11: var(--oc-theme-dark-border);
+  --oc-border-amber-12: var(--oc-theme-dark-border);
+  --oc-border-amber-13: var(--oc-theme-dark-border);
+  --oc-border-amber-14: var(--oc-theme-dark-border);
+  --oc-border-amber-15: var(--oc-theme-dark-border);
+  --oc-border-amber-16: var(--oc-theme-dark-border);
+  --oc-border-amber-17: var(--oc-theme-dark-border);
+  --oc-border-amber-18: var(--oc-theme-dark-border);
+  --oc-border-amber-19: var(--oc-theme-dark-border);
+  --oc-border-amber-20: var(--oc-theme-dark-border);
+  --oc-border-amber-21: var(--oc-theme-dark-border);
+  --oc-border-amber-22: var(--oc-theme-dark-border);
+  --oc-border-amber-23: var(--oc-theme-dark-border);
+  --oc-border-amber-24: var(--oc-theme-dark-border);
+  --oc-border-amber-25: var(--oc-theme-dark-border);
+  --oc-border-amber-26: var(--oc-theme-dark-border);
+  --oc-border-amber-27: var(--oc-theme-dark-border);
+  --oc-border-amber-28: var(--oc-theme-dark-border);
+  --oc-border-amber-29: var(--oc-theme-dark-border);
+  --oc-border-amber-30: var(--oc-theme-dark-border);
+  --oc-border-amber-31: var(--oc-theme-dark-border);
+  --oc-border-amber-32: var(--oc-theme-dark-border);
+  --oc-border-amber-33: var(--oc-theme-dark-border);
+  --oc-border-amber-34: var(--oc-theme-dark-border);
+  --oc-border-amber-35: var(--oc-theme-dark-border);
+  --oc-border-amber-36: var(--oc-theme-dark-border);
+  --oc-border-amber-37: var(--oc-theme-dark-border);
+  --oc-border-amber-38: var(--oc-theme-dark-border);
+  --oc-border-amber-39: var(--oc-theme-dark-border);
+  --oc-border-amber-40: var(--oc-theme-dark-border);
+  --oc-border-blue-01: var(--oc-theme-dark-border);
+  --oc-border-blue-02: var(--oc-theme-dark-border);
+  --oc-border-blue-03: var(--oc-theme-dark-border);
+  --oc-border-blue-04: var(--oc-theme-dark-border);
+  --oc-border-blue-05: var(--oc-theme-dark-border);
+  --oc-border-blue-06: var(--oc-theme-dark-border);
+  --oc-border-blue-07: var(--oc-theme-dark-border);
+  --oc-border-blue-08: var(--oc-theme-dark-border);
+  --oc-border-blue-09: var(--oc-theme-dark-border);
+  --oc-border-blue-10: var(--oc-theme-dark-border);
+  --oc-border-blue-11: var(--oc-theme-dark-border);
+  --oc-border-blue-12: var(--oc-theme-dark-border);
+  --oc-border-blue-13: var(--oc-theme-dark-border);
+  --oc-border-blue-14: var(--oc-theme-dark-border);
+  --oc-border-blue-15: var(--oc-theme-dark-border);
+  --oc-border-blue-16: var(--oc-theme-dark-border);
+  --oc-border-blue-17: var(--oc-theme-dark-border);
+  --oc-border-blue-18: var(--oc-theme-dark-border);
+  --oc-border-blue-19: var(--oc-theme-dark-border);
+  --oc-border-blue-20: var(--oc-theme-dark-border);
+  --oc-border-blue-21: var(--oc-theme-dark-border);
+  --oc-border-blue-22: var(--oc-theme-dark-border);
+  --oc-border-blue-23: var(--oc-theme-dark-border);
+  --oc-border-blue-24: var(--oc-theme-dark-border);
+  --oc-border-blue-25: var(--oc-theme-dark-border);
+  --oc-border-blue-26: var(--oc-theme-dark-border);
+  --oc-border-blue-27: var(--oc-theme-dark-border);
+  --oc-border-blue-28: var(--oc-theme-dark-border);
+  --oc-border-blue-29: var(--oc-theme-dark-border);
+  --oc-border-blue-30: var(--oc-theme-dark-border);
+  --oc-border-blue-31: var(--oc-theme-dark-border);
+  --oc-border-blue-32: var(--oc-theme-dark-border);
+  --oc-border-blue-33: var(--oc-theme-dark-border);
+  --oc-border-blue-34: var(--oc-theme-dark-border);
+  --oc-border-blue-35: var(--oc-theme-dark-border);
+  --oc-border-blue-36: var(--oc-theme-dark-border);
+  --oc-border-blue-37: var(--oc-theme-dark-border);
+  --oc-border-blue-38: var(--oc-theme-dark-border);
+  --oc-border-blue-39: var(--oc-theme-dark-border);
+  --oc-border-default: var(--oc-theme-dark-border);
+  --oc-border-green-01: var(--oc-theme-dark-border);
+  --oc-border-green-02: var(--oc-theme-dark-border);
+  --oc-border-green-03: var(--oc-theme-dark-border);
+  --oc-border-green-04: var(--oc-theme-dark-border);
+  --oc-border-green-05: var(--oc-theme-dark-border);
+  --oc-border-green-06: var(--oc-theme-dark-border);
+  --oc-border-green-07: var(--oc-theme-dark-border);
+  --oc-border-green-08: var(--oc-theme-dark-border);
+  --oc-border-green-09: var(--oc-theme-dark-border);
+  --oc-border-green-10: var(--oc-theme-dark-border);
+  --oc-border-green-11: var(--oc-theme-dark-border);
+  --oc-border-green-12: var(--oc-theme-dark-border);
+  --oc-border-green-13: var(--oc-theme-dark-border);
+  --oc-border-green-14: var(--oc-theme-dark-border);
+  --oc-border-green-15: var(--oc-theme-dark-border);
+  --oc-border-green-16: var(--oc-theme-dark-border);
+  --oc-border-green-17: var(--oc-theme-dark-border);
+  --oc-border-green-18: var(--oc-theme-dark-border);
+  --oc-border-green-19: var(--oc-theme-dark-border);
+  --oc-border-green-20: var(--oc-theme-dark-border);
+  --oc-border-green-21: var(--oc-theme-dark-border);
+  --oc-border-green-22: var(--oc-theme-dark-border);
+  --oc-border-green-23: var(--oc-theme-dark-border);
+  --oc-border-green-24: var(--oc-theme-dark-border);
+  --oc-border-neutral-01: var(--oc-theme-dark-border);
+  --oc-border-neutral-02: var(--oc-theme-dark-border);
+  --oc-border-neutral-03: var(--oc-theme-dark-border);
+  --oc-border-neutral-04: var(--oc-theme-dark-border);
+  --oc-border-neutral-05: var(--oc-theme-dark-border);
+  --oc-border-neutral-06: var(--oc-theme-dark-border);
+  --oc-border-neutral-07: var(--oc-theme-dark-border);
+  --oc-border-neutral-08: var(--oc-theme-dark-border);
+  --oc-border-neutral-09: var(--oc-theme-dark-border);
+  --oc-border-neutral-10: var(--oc-theme-dark-border);
+  --oc-border-neutral-11: var(--oc-theme-dark-border);
+  --oc-border-neutral-12: var(--oc-theme-dark-border);
+  --oc-border-neutral-13: var(--oc-theme-dark-border);
+  --oc-border-neutral-14: var(--oc-theme-dark-border);
+  --oc-border-neutral-15: var(--oc-theme-dark-border);
+  --oc-border-neutral-16: var(--oc-theme-dark-border);
+  --oc-border-neutral-17: var(--oc-theme-dark-border);
+  --oc-border-neutral-18: var(--oc-theme-dark-border);
+  --oc-border-neutral-19: var(--oc-theme-dark-border);
+  --oc-border-neutral-20: var(--oc-theme-dark-border);
+  --oc-border-neutral-21: var(--oc-theme-dark-border);
+  --oc-border-neutral-22: var(--oc-theme-dark-border);
+  --oc-border-neutral-23: var(--oc-theme-dark-border);
+  --oc-border-neutral-24: var(--oc-theme-dark-border);
+  --oc-border-neutral-25: var(--oc-theme-dark-border);
+  --oc-border-neutral-26: var(--oc-theme-dark-border);
+  --oc-border-neutral-27: var(--oc-theme-dark-border);
+  --oc-border-neutral-28: var(--oc-theme-dark-border);
+  --oc-border-neutral-29: var(--oc-theme-dark-border);
+  --oc-border-neutral-30: var(--oc-theme-dark-border);
+  --oc-border-neutral-31: var(--oc-theme-dark-border);
+  --oc-border-neutral-32: var(--oc-theme-dark-border);
+  --oc-border-neutral-33: var(--oc-theme-dark-border);
+  --oc-border-neutral-34: var(--oc-theme-dark-border);
+  --oc-border-neutral-35: var(--oc-theme-dark-border);
+  --oc-border-neutral-36: var(--oc-theme-dark-border);
+  --oc-border-neutral-37: var(--oc-theme-dark-border);
+  --oc-border-neutral-38: var(--oc-theme-dark-border);
+  --oc-border-neutral-39: var(--oc-theme-dark-border);
+  --oc-border-neutral-40: var(--oc-theme-dark-border);
+  --oc-border-neutral-41: var(--oc-theme-dark-border);
+  --oc-border-neutral-42: var(--oc-theme-dark-border);
+  --oc-border-neutral-43: var(--oc-theme-dark-border);
+  --oc-border-neutral-44: var(--oc-theme-dark-border);
+  --oc-border-neutral-45: var(--oc-theme-dark-border);
+  --oc-border-red-01: var(--oc-theme-dark-border);
+  --oc-border-red-02: var(--oc-theme-dark-border);
+  --oc-border-red-03: var(--oc-theme-dark-border);
+  --oc-border-red-04: var(--oc-theme-dark-border);
+  --oc-border-red-05: var(--oc-theme-dark-border);
+  --oc-border-red-06: var(--oc-theme-dark-border);
+  --oc-border-red-07: var(--oc-theme-dark-border);
+  --oc-border-red-08: var(--oc-theme-dark-border);
+  --oc-border-red-09: var(--oc-theme-dark-border);
+  --oc-border-red-10: var(--oc-theme-dark-border);
+  --oc-border-red-11: var(--oc-theme-dark-border);
+  --oc-border-red-12: var(--oc-theme-dark-border);
+  --oc-border-red-13: var(--oc-theme-dark-border);
+  --oc-border-red-14: var(--oc-theme-dark-border);
+  --oc-border-teal-01: var(--oc-theme-dark-border);
+  --oc-border-teal-02: var(--oc-theme-dark-border);
+  --oc-border-violet-01: var(--oc-theme-dark-border);
+  --oc-border-violet-02: var(--oc-theme-dark-border);
+  --oc-border-violet-03: var(--oc-theme-dark-border);
+  --oc-border-violet-04: var(--oc-theme-dark-border);
+  --oc-border-violet-05: var(--oc-theme-dark-border);
+  --oc-border-violet-06: var(--oc-theme-dark-border);
+  --oc-border-violet-07: var(--oc-theme-dark-border);
+  --oc-border-violet-08: var(--oc-theme-dark-border);
+  --oc-border-violet-09: var(--oc-theme-dark-border);
+  --oc-border-violet-10: var(--oc-theme-dark-border);
+  --oc-border-violet-11: var(--oc-theme-dark-border);
+  --oc-border-violet-12: var(--oc-theme-dark-border);
+  --oc-border-violet-13: var(--oc-theme-dark-border);
+  --oc-surface-amber-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-05: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-06: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-07: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-08: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-09: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-10: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-11: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-12: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-13: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-14: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-15: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-16: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-17: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-amber-18: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-05: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-06: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-07: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-08: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-09: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-10: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-11: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-12: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-13: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-14: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-15: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-16: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-17: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-18: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-19: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-20: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-blue-21: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-canvas: var(--oc-theme-dark-canvas);
+  --oc-surface-green-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-05: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-06: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-07: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-08: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-09: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-10: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-11: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-12: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-13: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-green-14: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-muted: var(--oc-theme-dark-muted-surface);
+  --oc-surface-neutral-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-05: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-06: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-07: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-08: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-09: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-10: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-11: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-12: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-13: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-14: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-15: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-16: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-17: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-18: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-19: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-20: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-21: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-22: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-23: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-24: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-25: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-26: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-27: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-28: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-neutral-29: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-05: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-06: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-07: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-08: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-09: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-10: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-11: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-12: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-13: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-14: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-15: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-16: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-17: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-18: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-19: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-20: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-21: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-22: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-23: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-24: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-overlay-25: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-raised: var(--oc-theme-dark-surface);
+  --oc-surface-red-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-red-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-red-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-teal-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-teal-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-violet-01: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-violet-02: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-violet-03: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-violet-04: var(--oc-theme-dark-neutral-surface);
+  --oc-surface-violet-05: var(--oc-theme-dark-neutral-surface);
+  --oc-text-amber-01: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-02: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-03: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-04: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-05: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-06: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-07: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-08: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-09: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-10: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-11: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-12: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-13: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-14: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-15: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-16: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-17: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-18: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-19: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-20: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-21: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-22: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-23: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-24: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-25: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-26: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-27: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-28: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-29: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-30: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-31: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-32: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-33: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-34: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-35: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-36: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-37: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-38: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-39: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-40: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-41: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-42: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-43: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-44: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-45: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-46: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-47: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-48: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-49: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-50: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-51: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-52: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-53: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-54: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-55: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-56: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-57: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-58: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-59: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-60: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-61: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-62: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-63: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-64: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-65: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-66: var(--oc-theme-dark-muted-text);
+  --oc-text-amber-67: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-01: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-02: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-03: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-04: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-05: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-06: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-07: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-08: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-09: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-10: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-11: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-12: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-13: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-14: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-15: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-16: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-17: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-18: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-19: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-20: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-21: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-22: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-23: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-24: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-25: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-26: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-27: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-28: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-29: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-30: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-31: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-32: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-33: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-34: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-35: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-36: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-37: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-38: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-39: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-40: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-41: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-42: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-43: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-44: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-45: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-46: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-47: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-48: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-49: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-50: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-51: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-52: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-53: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-54: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-55: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-56: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-57: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-58: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-59: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-60: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-61: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-62: var(--oc-theme-dark-muted-text);
+  --oc-text-blue-63: var(--oc-theme-dark-muted-text);
+  --oc-text-green-01: var(--oc-theme-dark-muted-text);
+  --oc-text-green-02: var(--oc-theme-dark-muted-text);
+  --oc-text-green-03: var(--oc-theme-dark-muted-text);
+  --oc-text-green-04: var(--oc-theme-dark-muted-text);
+  --oc-text-green-05: var(--oc-theme-dark-muted-text);
+  --oc-text-green-06: var(--oc-theme-dark-muted-text);
+  --oc-text-green-07: var(--oc-theme-dark-muted-text);
+  --oc-text-green-08: var(--oc-theme-dark-muted-text);
+  --oc-text-green-09: var(--oc-theme-dark-muted-text);
+  --oc-text-green-10: var(--oc-theme-dark-muted-text);
+  --oc-text-green-11: var(--oc-theme-dark-muted-text);
+  --oc-text-green-12: var(--oc-theme-dark-muted-text);
+  --oc-text-green-13: var(--oc-theme-dark-muted-text);
+  --oc-text-green-14: var(--oc-theme-dark-muted-text);
+  --oc-text-green-15: var(--oc-theme-dark-muted-text);
+  --oc-text-green-16: var(--oc-theme-dark-muted-text);
+  --oc-text-green-17: var(--oc-theme-dark-muted-text);
+  --oc-text-green-18: var(--oc-theme-dark-muted-text);
+  --oc-text-green-19: var(--oc-theme-dark-muted-text);
+  --oc-text-green-20: var(--oc-theme-dark-muted-text);
+  --oc-text-green-21: var(--oc-theme-dark-muted-text);
+  --oc-text-green-22: var(--oc-theme-dark-muted-text);
+  --oc-text-green-23: var(--oc-theme-dark-muted-text);
+  --oc-text-green-24: var(--oc-theme-dark-muted-text);
+  --oc-text-green-25: var(--oc-theme-dark-muted-text);
+  --oc-text-green-26: var(--oc-theme-dark-muted-text);
+  --oc-text-green-27: var(--oc-theme-dark-muted-text);
+  --oc-text-green-28: var(--oc-theme-dark-muted-text);
+  --oc-text-green-29: var(--oc-theme-dark-muted-text);
+  --oc-text-green-30: var(--oc-theme-dark-muted-text);
+  --oc-text-green-31: var(--oc-theme-dark-muted-text);
+  --oc-text-green-32: var(--oc-theme-dark-muted-text);
+  --oc-text-green-33: var(--oc-theme-dark-muted-text);
+  --oc-text-green-34: var(--oc-theme-dark-muted-text);
+  --oc-text-green-35: var(--oc-theme-dark-muted-text);
+  --oc-text-green-36: var(--oc-theme-dark-muted-text);
+  --oc-text-green-37: var(--oc-theme-dark-muted-text);
+  --oc-text-green-38: var(--oc-theme-dark-muted-text);
+  --oc-text-green-39: var(--oc-theme-dark-muted-text);
+  --oc-text-green-40: var(--oc-theme-dark-muted-text);
+  --oc-text-green-41: var(--oc-theme-dark-muted-text);
+  --oc-text-green-42: var(--oc-theme-dark-muted-text);
+  --oc-text-green-43: var(--oc-theme-dark-muted-text);
+  --oc-text-green-44: var(--oc-theme-dark-muted-text);
+  --oc-text-green-45: var(--oc-theme-dark-muted-text);
+  --oc-text-green-46: var(--oc-theme-dark-muted-text);
+  --oc-text-green-47: var(--oc-theme-dark-muted-text);
+  --oc-text-green-48: var(--oc-theme-dark-muted-text);
+  --oc-text-green-49: var(--oc-theme-dark-muted-text);
+  --oc-text-green-50: var(--oc-theme-dark-muted-text);
+  --oc-text-green-51: var(--oc-theme-dark-muted-text);
+  --oc-text-green-52: var(--oc-theme-dark-muted-text);
+  --oc-text-green-53: var(--oc-theme-dark-muted-text);
+  --oc-text-green-54: var(--oc-theme-dark-muted-text);
+  --oc-text-green-55: var(--oc-theme-dark-muted-text);
+  --oc-text-green-56: var(--oc-theme-dark-muted-text);
+  --oc-text-green-57: var(--oc-theme-dark-muted-text);
+  --oc-text-green-58: var(--oc-theme-dark-muted-text);
+  --oc-text-green-59: var(--oc-theme-dark-muted-text);
+  --oc-text-green-60: var(--oc-theme-dark-muted-text);
+  --oc-text-green-61: var(--oc-theme-dark-muted-text);
+  --oc-text-green-62: var(--oc-theme-dark-muted-text);
+  --oc-text-green-63: var(--oc-theme-dark-muted-text);
+  --oc-text-green-64: var(--oc-theme-dark-muted-text);
+  --oc-text-green-65: var(--oc-theme-dark-muted-text);
+  --oc-text-green-66: var(--oc-theme-dark-muted-text);
+  --oc-text-green-67: var(--oc-theme-dark-muted-text);
+  --oc-text-green-68: var(--oc-theme-dark-muted-text);
+  --oc-text-green-69: var(--oc-theme-dark-muted-text);
+  --oc-text-green-70: var(--oc-theme-dark-muted-text);
+  --oc-text-green-71: var(--oc-theme-dark-muted-text);
+  --oc-text-green-72: var(--oc-theme-dark-muted-text);
+  --oc-text-green-73: var(--oc-theme-dark-muted-text);
+  --oc-text-green-74: var(--oc-theme-dark-muted-text);
+  --oc-text-green-75: var(--oc-theme-dark-muted-text);
+  --oc-text-green-76: var(--oc-theme-dark-muted-text);
+  --oc-text-green-77: var(--oc-theme-dark-muted-text);
+  --oc-text-green-78: var(--oc-theme-dark-muted-text);
+  --oc-text-green-79: var(--oc-theme-dark-muted-text);
+  --oc-text-green-80: var(--oc-theme-dark-muted-text);
+  --oc-text-green-81: var(--oc-theme-dark-muted-text);
+  --oc-text-green-82: var(--oc-theme-dark-muted-text);
+  --oc-text-green-83: var(--oc-theme-dark-muted-text);
+  --oc-text-green-84: var(--oc-theme-dark-muted-text);
+  --oc-text-green-85: var(--oc-theme-dark-muted-text);
+  --oc-text-green-86: var(--oc-theme-dark-muted-text);
+  --oc-text-green-87: var(--oc-theme-dark-muted-text);
+  --oc-text-muted: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-01: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-02: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-03: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-04: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-05: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-06: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-07: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-08: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-09: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-10: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-11: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-12: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-13: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-14: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-15: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-16: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-17: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-18: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-19: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-20: var(--oc-theme-dark-muted-text);
+  --oc-text-neutral-21: var(--oc-theme-dark-muted-text);
+  --oc-text-primary: var(--oc-theme-dark-text);
+  --oc-text-red-01: var(--oc-theme-dark-muted-text);
+  --oc-text-red-02: var(--oc-theme-dark-muted-text);
+  --oc-text-red-03: var(--oc-theme-dark-muted-text);
+  --oc-text-red-04: var(--oc-theme-dark-muted-text);
+  --oc-text-red-05: var(--oc-theme-dark-muted-text);
+  --oc-text-teal-01: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-01: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-02: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-03: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-04: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-05: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-06: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-07: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-08: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-09: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-10: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-11: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-12: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-13: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-14: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-15: var(--oc-theme-dark-muted-text);
+  --oc-text-violet-16: var(--oc-theme-dark-muted-text);
+  --oc-accent-blue-01: var(--oc-theme-dark-text);
+  --oc-accent-blue-05: var(--oc-theme-dark-chart-actual);
+  --oc-accent-blue-06: var(--oc-theme-dark-chart-actual);
+  --oc-accent-blue-09: var(--oc-theme-dark-chart-secondary);
+  --oc-status-info-ink: var(--oc-theme-dark-info-text);
+  --oc-status-info-accent: var(--oc-theme-dark-chart-actual);
+  --oc-status-info-tint: var(--oc-theme-dark-info-surface);
+  --oc-status-ok-ink: var(--oc-theme-dark-success-text);
+  --oc-status-ok-accent: var(--oc-theme-dark-success-accent);
+  --oc-status-ok-tint: var(--oc-theme-dark-success-surface);
+  --oc-status-warn-ink: var(--oc-theme-dark-warning-text);
+  --oc-status-warn-accent: var(--oc-theme-dark-warning-accent);
+  --oc-status-warn-tint: var(--oc-theme-dark-warning-surface);
+  --oc-status-critical-ink: var(--oc-theme-dark-critical-text);
+  --oc-status-critical-tint: var(--oc-theme-dark-critical-surface);
+  --oc-campaign-flag-ink: var(--oc-theme-dark-warning-text);
+  --oc-campaign-flag-surface: var(--oc-theme-dark-warning-surface);
+  --oc-campaign-flag-border: var(--oc-theme-dark-warning-border);
+  --oc-customer-surface: var(--oc-theme-dark-surface);
+  --oc-customer-heading: var(--oc-theme-dark-text);
+  --oc-customer-ink: var(--oc-theme-dark-secondary-text);
+  --oc-customer-link: var(--oc-theme-dark-info-text);
+  --oc-customer-history-link: var(--oc-theme-dark-info-text);
+  --oc-customer-border: var(--oc-theme-dark-border);
+  --oc-customer-input-border: var(--oc-theme-dark-input-border);
+  --oc-customer-caption-surface: var(--oc-theme-dark-muted-surface);
+  --oc-schedule-control-ink: var(--oc-theme-dark-text);
+  --oc-schedule-control-border: var(--oc-theme-dark-input-border);
+  --oc-fleet-moving-surface: var(--oc-theme-dark-success-surface);
+  --oc-fleet-moving-ink: var(--oc-theme-dark-success-text);
+  --oc-fleet-idle-surface: var(--oc-theme-dark-warning-surface);
+  --oc-fleet-idle-ink: var(--oc-theme-dark-warning-text);
+  --oc-fleet-critical-surface: var(--oc-theme-dark-critical-surface);
+  --oc-fleet-critical-ink: var(--oc-theme-dark-critical-text);
+  --background: var(--oc-surface-canvas);
+  --foreground: var(--oc-text-primary);
+  --card: var(--oc-surface-raised);
+  --card-foreground: var(--oc-text-primary);
+  --border: var(--oc-border-default);
+  --input: var(--oc-theme-dark-input-border);
+  --muted: var(--oc-surface-muted);
+  --muted-foreground: var(--oc-text-muted);
+  --secondary: var(--oc-surface-muted);
+  --secondary-foreground: var(--oc-text-primary);
+  --primary: var(--oc-theme-dark-chart-actual);
+  --primary-foreground: var(--oc-theme-dark-canvas);
+  --destructive: var(--oc-theme-dark-critical-text);
+  color-scheme: dark;
+}
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.topbar,.live-search-below-day,.viewing-day-context,.mobile-primary-nav,.global-search,.global-search-panel,.source-health-drawer,.settings-card) { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(input,select,textarea) { color-scheme: dark; background-color: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-input-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(input,textarea)::placeholder { color: var(--oc-theme-dark-muted-text); opacity: 1; }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.workspace-tabs,.live-schedule-tabs,.capital-payment-tabs) button { color: var(--oc-theme-dark-secondary-text); background: var(--oc-theme-dark-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.workspace-tabs,.live-schedule-tabs,.capital-payment-tabs) button.active { color: var(--oc-theme-dark-on-brand); background: var(--oc-theme-dark-selected-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.global-search,.global-search input,.source-health-actions button,.source-health-header button) { color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.settings-card button,.source-health-list article > button,.kpi-card,.command-metric-detail button) { color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .source-health-list article > button { color: var(--oc-theme-dark-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.recharts-cartesian-axis-tick-value,.recharts-label) { fill: var(--oc-theme-dark-muted-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .recharts-default-tooltip { background: var(--oc-theme-dark-surface) !important; border-color: var(--oc-theme-dark-input-border) !important; color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .recharts-tooltip-label { color: var(--oc-theme-dark-text); }
+/* Map tiles are a separate visual layer, kept intact for street-label contrast. */
+html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-container { background: var(--oc-theme-dark-map-canvas); }
+html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-attribution { color: var(--oc-theme-dark-map-text); background: var(--oc-theme-dark-on-brand); }
+html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-attribution a { color: var(--oc-theme-dark-map-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live .leaflet-control-zoom a:not(.leaflet-disabled) { color: var(--oc-theme-dark-map-text); }
+html[data-ops-theme="light"] .ops-app.ops-live { color-scheme: light; }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar,
+html[data-ops-theme="dark"] .ops-app.ops-live .sidebar-footer { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.nav-item,.nav-label,.sidebar-footer button,.sidebar-footer a) { color: var(--oc-theme-dark-secondary-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar .nav-item.active { color: var(--oc-theme-dark-on-brand); background: var(--oc-theme-dark-selected-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.crew-all-updates,.crew-alert-search,.crew-follow-filter,.map-focus-chip) { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .map-focus-chip :is(span,strong,button) { color: var(--oc-theme-dark-secondary-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button.active { color: var(--oc-theme-dark-link); border-color: var(--oc-theme-dark-brand-red); background: var(--oc-theme-dark-critical-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live[data-css-phase-two] .command-metrics > button.kpi-card { border-right-color: var(--oc-theme-dark-border); border-bottom-color: var(--oc-theme-dark-border); border-left-color: var(--oc-theme-dark-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .live-header-shell { background:var(--oc-theme-dark-surface); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.convoy-card-open-label,.convoy-card-close-label,.campaign-card-action,.capital-text-button,.capital-attention-footer) { color: var(--oc-theme-dark-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live .live-schedule.schedule-dispatch .schedule-summary-button.active :is(span,strong) { color: var(--oc-theme-dark-info-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"][data-variant="brand"] { background: var(--ops-brand-red); color: var(--oc-theme-dark-on-brand); border-color: var(--ops-brand-red); }
+html[data-ops-theme="dark"] .ops-app.ops-live .appointment-territory-toolbar button.active { background: var(--oc-theme-dark-selected-surface); color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .appointment-territory-toolbar button small { background: var(--oc-theme-dark-muted-surface); color: var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-alerts { --crew-ink:var(--oc-theme-dark-text); --crew-muted:var(--oc-theme-dark-muted-text); --crew-line:var(--oc-theme-dark-border); background:var(--oc-theme-dark-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-alerts :is(.crew-update-label,.crew-event-window,.crew-event-truck) { color:var(--oc-theme-dark-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-alerts :is(a,.crew-photo-button,.crew-update-content footer button) { color:var(--oc-theme-dark-info-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-update-completed :is(.crew-update-label,.crew-completion-amount dt,.crew-completion-amount dd) { color:var(--oc-theme-dark-success-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-update-estimate :is(.crew-update-label,.crew-completion-amount dt,.crew-completion-amount dd) { color:var(--oc-theme-dark-violet-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-photo-dialog { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-surface); border-color:var(--oc-theme-dark-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-photo-dialog > header button { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-muted-surface); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .live-schedule .schedule-control-actions button:not([data-variant="brand"]),
+html[data-ops-theme="dark"] .ops-app.ops-live .schedule-recorded-sequence-button { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-surface); border-color:var(--oc-theme-dark-input-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .live-map-territories button,
+html[data-ops-theme="dark"] .ops-app.ops-live .live-map-territories button small { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-muted-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .live-map-territories button[aria-pressed="true"] { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-selected-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .schedule-appointments-jump :is(strong,span) { color:var(--oc-theme-dark-info-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link { color:var(--oc-theme-dark-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.campaign-workspace,.crew-section-nav) button[aria-pressed="true"] { color:var(--oc-theme-dark-link); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.capital-payment-pulse,.capital-destinations) :is(span,strong),
+html[data-ops-theme="dark"] .ops-app.ops-live .finance-performance-details > summary { color:var(--oc-theme-dark-link); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .search-date-toolbar div button[aria-pressed="true"] { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-selected-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .opsbot-prompt-card > button { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-selected-surface); }
+
+/* Keep supporting copy at AA contrast in the existing light palette. */
+html[data-ops-theme="light"] .ops-app.ops-live > :not(.ops-sidebar) {
+  --oc-text-muted:var(--oc-text-neutral-03);
+  --oc-text-neutral-01:var(--oc-text-neutral-03);
+  --oc-text-neutral-02:var(--oc-text-neutral-03);
+  --oc-text-neutral-09:var(--oc-text-neutral-03);
+}
+
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.workspace-brand-name,.workspace-rail-link,.workspace-rail-link span,.workspace-page-link,.workspace-group-toggle) { color:var(--oc-theme-dark-secondary-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link.active,.workspace-page-link[aria-current="page"]) { color:var(--oc-theme-dark-link); background:var(--oc-theme-dark-critical-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .notification-trigger b { color:var(--oc-theme-dark-on-brand); }
+/* The existing record-link rule is important; preserve that contract here. */
+html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link,
+html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link:hover,
+html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link:focus-visible { color:var(--oc-theme-dark-link) !important; text-decoration-color:var(--oc-theme-dark-link) !important; }
+html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link:focus-visible { outline:2px solid var(--oc-theme-dark-info-text); outline-offset:2px; }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .crew-source-notice { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); border-color:var(--oc-theme-dark-warning-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live .command-revenue-hero { border-color:var(--oc-theme-dark-border); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-reading.load { --reading-color:var(--oc-theme-dark-violet-text); }
+html[data-ops-theme="light"] .ops-app.ops-live .convoy-record-trucks button span { color:var(--oc-text-neutral-03); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live :is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--oc-theme-dark-info-text); outline-offset:2px; }
+
+/* Monthly performance uses the same readable KPI surface in both appearances. */
+html[data-ops-theme] .ops-app.ops-live .capital-workspace .finance-performance-kpis > article:first-child { color:var(--oc-text-primary); background:var(--oc-surface-raised); border-color:var(--oc-border-default); }
+html[data-ops-theme] .ops-app.ops-live .capital-workspace .finance-performance-kpis > article:first-child :is(span,strong,small,.missing-value) { color:var(--oc-text-primary); }
+
+/* Final desktop-detail contrast checks. */
+html[data-ops-theme="dark"] .ops-app.ops-live .campaign-eyebrow.campaign-accent { color:var(--oc-theme-dark-link); }
+html[data-ops-theme="light"] .ops-app.ops-live .ops-sidebar :is(.workspace-page-link,.health-pulse small) { color:var(--oc-text-neutral-03); }
+html[data-ops-theme="light"] .ops-app.ops-live .convoy-record-categories nav button span { color:var(--oc-text-neutral-03); }
+
+/* Keep action roles distinct. A surface token is not an on-brand text color. */
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"]:not([data-variant="outline"]):not([data-variant="ghost"]):not([data-variant="destructive"]) { color:var(--oc-theme-dark-on-brand); border-color:var(--ops-brand-red); }
+html[data-ops-theme="dark"] .ops-app.ops-live [data-slot="button"][data-variant="destructive"],
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-workspace button[data-slot="button"][data-variant="destructive"] { color:var(--oc-theme-dark-critical-text); background:var(--oc-theme-dark-critical-surface); border-color:var(--oc-theme-dark-critical-border); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.appointment-closeout-panel > summary,.closeout-primary-actions .closeout-primary-button) { color:var(--oc-theme-dark-on-brand); }
+
+/* These classes describe evidence-backed states; do not flatten them into gray. */
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-status.ready { color:var(--oc-theme-dark-success-text); background:var(--oc-theme-dark-success-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.convoy-status.attention,.convoy-badge.warning,.capital-status.warning) { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .convoy-status.stop { color:var(--oc-theme-dark-critical-text); background:var(--oc-theme-dark-critical-surface); }
+
+/* The resolved app preference wins over the legacy OS-only statement fragment. */
+html[data-ops-theme="light"] .ops-app.ops-live .statement-review { color:var(--oc-status-warn-ink); background:var(--oc-status-warn-tint); border-left-color:var(--oc-status-warn-accent); }
+html[data-ops-theme="dark"] .ops-app.ops-live .statement-review { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); border-left-color:var(--oc-theme-dark-warning-border); }

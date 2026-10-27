@@ -23,6 +23,51 @@ in import order in `desktop-ui/live-schedule-styles.ts`. Loading them later
 would change the cascade order depending on which page opened first. When a
 Schedule module gains a stylesheet, add it there.
 
+
+Route-exclusive normal rules for Krewe, Fleet, Marketing and Finance are in
+`desktop-ui/{krewe,fleet,marketing,finance}-base.css`, imported before each
+workspace's existing styles. Mixed selectors, functional selectors and
+`!important` declarations remain in the shell. The extraction changes neither
+declarations nor their order within each family. The repository-relative
+`desktop-ui/css-extraction-manifest.json` records hashes and original rule
+positions; `scripts/test-css-extraction.mjs` reconstructs the original rule
+sequence and runs with `npm run verify:css-architecture`. Future changes to
+these audited packets must update the manifest with a fresh cascade comparison,
+not simply remove the check. Compare cold entry and warmed styles in both
+navigation orders, light/dark themes and phone/desktop layouts.
+
+Settings, Agent Hierarchy, Maintenance Monitor, Photo Review and Truck Agents
+use `desktop-ui/deferred-secondary-workspaces.tsx`. Their existing conditional
+rendering loads the component and its scoped CSS together; the Vite dynamic
+import waits for its CSS dependencies before rendering. Suspense supplies a
+visible loading status. Truck recommendations in Fleet wait until truck details
+are opened. This does not add reads, background jobs or polling. Existing
+reference-only mode waits for `reference-workspace-styles.ts` before rendering,
+so it retains the same four base packets without adding them to live cold opens.
+
+Appointment drawer `ScheduleControls` loads only when the drawer opens, through
+`deferred-schedule-controls.tsx`. Its existing Astryx controls, theme and scoped
+CSS load together before rendering; a local loading status keeps the rest of the
+drawer available. Shared receipt helpers are imported directly from
+`schedule-receipt.tsx`, so classification and rescheduling do not eagerly import
+the controls. The board retains its stable shell CSS order; only the separately
+layered Astryx packet travels with the deferred controls.
+
+Fleet's collapsed help guide loads its content on first expansion and keeps it
+mounted for later openings. Existing navigation and all guidance remain intact.
+Tailwind excludes synthetic `desktop-ui/tests` fixtures from utility discovery;
+production component discovery is unchanged. Settings-only presentation rules
+load after its existing deferred base stylesheet; Source Health rules stay in the
+shell. Their selectors and declarations are unchanged. No download budgets are
+raised. Isolated Finance chart/detail control rules also travel with Finance
+(and the reference-only style entry); rules that depend on shell cascade order
+remain eager.
+
+Check cold imports and preserved control behavior with
+`scripts/test-deferred-controls-browser.mjs` against the synthetic dispatch
+fixture described in [Astryx adoption](astryx-components.md), plus the existing
+Astryx and schedule browser suites.
+
 ## Budget
 
 `npm run verify:desktop-bundle-budget` (after `npm run build:desktop`) fails

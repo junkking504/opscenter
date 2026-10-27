@@ -184,12 +184,17 @@ class JournalTest(unittest.TestCase):
                     payload = {"date": day, "collection_timestamp": at, "pagination_completed": True,
                                "validation_status": "passed", "alerts": [row]}
                     item = journal.project(Path(f"linxup_alerts_{day}.json"), payload)[0]["observations"][0]
-                    self.assertEqual(item["notification"], {"title": "Truck #9", "body": f"{action}{' at' if kind == 'geofence_entered' else ''} NOHQ: 5:21 PM\nDate: {day} (Central)"})
+                    self.assertEqual(item["notification"], {"title": "Truck #9", "path": f"/desktop?workspace=Schedule&scheduleView=board&date={day}&truck=Truck+9&focus=truck", "body": f"{action}{' at' if kind == 'geofence_entered' else ''} NOHQ: 5:21 PM\nDate: {day} (Central)"})
                     expected = journal.observation(row["alert_id"], {key: row.get(key) for key in
                         ("alert_type_normalized", "alert_type", "truck_number", "geofence_name", "occurred_at", "duration_seconds")})
                     self.assertEqual({key: item[key] for key in expected}, expected)
                     self.assertEqual(row["truck_number"], label)
                     self.assertEqual(journal.truck_notification_title(item["notification"]["title"]), "Truck #9")
+        next_day = (local + timedelta(days=1)).date().isoformat()
+        payload["date"] = next_day
+        cross_midnight = journal.project(Path(f"linxup_alerts_{next_day}.json"), payload)[0]["observations"][0]["notification"]
+        self.assertIn(f"date={day}&", cross_midnight["path"])
+        self.assertIn(f"Date: {day}", cross_midnight["body"])
         self.assertEqual(journal.truck_notification_title("Truckster"), "Truck #Truckster")
         self.assertEqual(journal.truck_notification_title("Truck #09"), "Truck #09")
 
@@ -421,7 +426,7 @@ class JournalTest(unittest.TestCase):
                    'metrics':{'payroll':{'status':'current','as_of':STAMP}}},'payroll_records':[row]}
         path = Path(f'daily_metrics_{day}.json')
         first = journal.project(path,payload)[0]['observations'][0]
-        self.assertEqual(first['notification'], {'title':'Krewe','body':'Synthetic Person clocked out: 6:45 PM\nTotal pay: $196.00\nHourly pay: $156.00\nTips: $0.00\nBonuses: $40.00'})
+        self.assertEqual(first['notification'], {'title':'Krewe','path':f'/desktop?workspace=Krewe&kreweView=today&date={day}&member=Synthetic+Person&focus=record','body':'Synthetic Person clocked out: 6:45 PM\nTotal pay: $196.00\nHourly pay: $156.00\nTips: $0.00\nBonuses: $40.00'})
         self.assertEqual(first['revision'], journal.observation(['synthetic person','out'],'06:45 PM')['revision'])
         row['pay_is_final'] = False
         unknown = journal.project(path,payload)[0]['observations'][0]
@@ -446,7 +451,7 @@ class JournalTest(unittest.TestCase):
                    "payroll_records": [{"name": "Synthetic Person", "clock_in": "08:00", "clock_out": "09:00", "pay": 12345}]}
         batch = journal.project(Path(f"daily_metrics_{DAY}.json"), metrics)[0]
         self.assertEqual(len(batch["observations"]), 2)
-        self.assertEqual(batch["observations"][0]["notification"], {"title": "Krewe", "body": "Synthetic Person clocked in: 8:00 AM"})
+        self.assertEqual(batch["observations"][0]["notification"], {"title": "Krewe", "body": "Synthetic Person clocked in: 8:00 AM", "path": f"/desktop?workspace=Krewe&kreweView=today&date={DAY}&member=Synthetic+Person&focus=record"})
         self.assertEqual(batch["observations"][1]["notification"]["body"], "Synthetic Person clocked out: 9:00 AM\nTotal pay: Not verified\nHourly pay: Not verified\nTips: Not verified\nBonuses: Not verified")
         self.assertNotIn("12345", json.dumps(batch))
         metrics["source_freshness"]["sources"]["junkware_employees"]["status"] = "stale"

@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {prepareWexRealtimePrices,importWexRealtimePrices,wexPriceFile,readWexFleetPlanningPrice} from '../lib/wex-realtime-prices';
+
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'wex-import-'));
+process.env.WEX_FUEL_DATA_DIR=root;
+const message={id:'synthetic',sender:'OnlineServices@wexinc.com',receivedAt:'2026-10-24T15:01:00Z',sourceUrl:'https://outlook.office365.com/owa/?synthetic',body:'Tracking Number: 12345\nReason: A $80.00 Fuel purchase has exceeded your Real-Time Alert value.\nAuthorization Date & Time: 10/24/2026 10:00:00\nUnits: 20\nUnits of Measure: GA\nDriver First Name: Synthetic\nDriver Last Name: Person'};
+const attribute=()=>({status:'unavailable' as const,truck:null,transactionAt:'2026-10-24T15:00:00Z',method:null,evidence:'Synthetic only',candidates:[]});
+const assignments=()=>['Truck 4'];
+try{
+ const plan=prepareWexRealtimePrices([message],attribute,assignments);
+ assert.equal(plan.sourceSha256,'missing');
+ assert.deepEqual(plan.summary,{supplied:1,imported:1,matched:1,rejected:0,added:1,total:1});
+ assert.equal(fs.existsSync(wexPriceFile()),false,'dry-run must not create a snapshot');
+ importWexRealtimePrices([message],attribute,assignments,plan.sourceSha256);
+ const before=fs.readFileSync(wexPriceFile(),'utf8');
+ assert.equal(fs.statSync(wexPriceFile()).mode&0o777,0o600);
+ const replay=prepareWexRealtimePrices([message,message],attribute,assignments);
+ assert.equal(replay.summary.added,0);assert.equal(replay.rows.length,1);
+ assert.equal(replay.rows[0].at,'2026-10-24T15:00:00Z');
+ assert.throws(()=>importWexRealtimePrices([message],attribute,assignments,'missing'),/changed after preflight/);
+ assert.equal(fs.readFileSync(wexPriceFile(),'utf8'),before);
+ assert.equal(fs.existsSync(wexPriceFile()+'.lock'),false);
+ const conflict={...message,body:message.body.replace('$80.00','$90.00')};
+ assert.throws(()=>importWexRealtimePrices([conflict],attribute,assignments),/Conflicting/);
+ assert.equal(fs.readFileSync(wexPriceFile(),'utf8'),before);
+ assert.throws(()=>prepareWexRealtimePrices([message,conflict],attribute,assignments),/Conflicting/);
+ const rejected={...message,body:message.body.replace('Units: 20','Units: N/A')};
+ assert.deepEqual(importWexRealtimePrices([rejected],attribute,assignments),{imported:0,matched:0});
+ importWexRealtimePrices([],attribute,assignments);
+ assert.equal(fs.readFileSync(wexPriceFile(),'utf8'),before,'empty/rejected input must preserve import timestamp');
+ fs.writeFileSync(wexPriceFile()+'.lock','other writer');
+ assert.throws(()=>importWexRealtimePrices([message],attribute,assignments),/EEXIST/);
+ assert.equal(fs.readFileSync(wexPriceFile()+'.lock','utf8'),'other writer');
+ fs.unlinkSync(wexPriceFile()+'.lock');
+ assert.equal(readWexFleetPlanningPrice(new Date('2026-10-31T15:00:00Z')).price?.price,4);
+ assert.equal(readWexFleetPlanningPrice(new Date('2026-10-31T15:00:01Z')).price,null);
+ assert.equal(readWexFleetPlanningPrice(new Date('2026-10-24T14:59:59Z')).price,null);
+ const ambiguous=prepareWexRealtimePrices([{...message,body:message.body.replace('12345','67890')}],attribute,()=>['Truck 4','Truck 9']);
+ assert.equal(ambiguous.rows.find(row=>row.trackingNumber==='67890')?.truck,null);
+ assert.throws(()=>prepareWexRealtimePrices([{}] as never),/complete Outlook/);
+ fs.writeFileSync(wexPriceFile(),JSON.stringify({rows:[replay.rows[0],replay.rows[0]]}));
+ assert.throws(()=>prepareWexRealtimePrices([message],attribute,assignments),/Invalid saved/);
+ console.log('WEX dry-run, snapshot precondition, lock ownership, atomic conflicts, replay, unknown attribution and freshness checks passed.');
+}finally{fs.rmSync(root,{recursive:true,force:true});}

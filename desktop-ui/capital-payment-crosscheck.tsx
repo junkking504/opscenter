@@ -15,7 +15,7 @@ export function CapitalPaymentCrosscheck({ issues, filter, selected, onFilter, o
   const possibleJobs = current?.reasons.includes('QBO only') ? issues.filter(issue => issue.possibleQbo.some(tx => current.qbo.some(source => source.id === tx.id && source.type === tx.type))) : [];
   const observed = (value?: string | null) => value ? new Date(value).toLocaleString() : 'Unavailable';
   return <section id="payment-crosscheck" className="capital-panel payment-crosscheck" aria-label="Cross-check payments" tabIndex={-1}>
-    <header><div><span className="capital-eyebrow">NEEDS ATTENTION</span><h3>Cross-check payments</h3><p>Select an inconsistency to compare its sources and open the original transaction.</p></div><strong>{issues.length} records to review</strong></header>
+    <header><div><span className="capital-eyebrow">NEEDS ATTENTION</span><h3>Cross-check payments</h3></div><strong>{issues.length} records to review</strong></header>
     <div className="capital-toolbar"><div className="capital-filter-group" role="group" aria-label="Filter inconsistencies">{([
       ['all', 'All inconsistencies'], ['cards', 'Unverified cards'], ['accounting', 'Accounting'], ['cash', 'Cash & checks'], ['processor', 'Processor'],
     ] as const).map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => onFilter(key)}>{label} · {issues.filter(issue => key === 'all' || issue.categories.includes(key)).length}</button>)}</div></div>

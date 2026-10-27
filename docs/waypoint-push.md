@@ -8,18 +8,33 @@ provider, paid SDK, inference call, source polling, or WhatsApp path.
 
 In Waypoint, authenticated live phones with today's truck/crew selected open
 **Notifications & office messages**. On iPhone, use Share → Add to Home Screen,
-then open that icon and tap **Enable notifications for today**. The browser's
+then open that icon and tap **Enable notifications** once. The browser's
 permission request occurs only from that tap. Today’s connection and current truck
 are rechecked before enrollment and before each network attempt, including after
 DNS. The control displays the server’s current enabled state, not just a saved
 browser preference. Revocation, expiration, a truck change and unsubscribe block old queued work.
-Enable again after daily enrollment; browser notification permission persists.
+Daily expiry pauses delivery without clearing the browser’s opt-in. After daily
+truck/crew setup, Waypoint automatically restores the existing enabled subscription
+using its private browser capability, without another permission prompt or tap.
+Returning to Waypoint or refreshing messages retries a missed restore. Server-side
+revocation, provider expiry and an expired subscription are never silently undone.
 Notifications do not bypass inspection or grant appointment access.
 
-The lock screen contains only a generic truck-update notice; no customer name,
-address, office-message body or financial detail is sent. Tap opens Waypoint on
-the same origin. The service worker has no fetch handler, cache or data endpoint.
-Disable revokes the server subscription first, then unsubscribes the browser.
+Waypoint notifications serve crews using company truck phones. OpsCenter manager
+notifications remain a separate operational-monitoring channel. The lock screen
+identifies the selected truck and change categories/counts; no customer name,
+address, office-message body, job reference or financial detail is sent. The
+existing Apple transport encrypts this small payload to the subscribed phone.
+Tap opens the exact grouped update in the authenticated Updates view on the same
+origin. Sign-in preserves that allowlisted update ID. The view identifies affected
+appointments, shows verified time changes, and opens a job still on the current
+route or the office inbox. Removed appointments remain explicitly unavailable;
+missing/old-day/cross-truck update IDs never gain access to another scope. If an
+existing app window cannot navigate, the worker opens the requested destination
+instead of focusing an unrelated screen. The service worker has no fetch handler, cache or data endpoint.
+Waypoint has no in-app disable control. iPhone notification permission remains
+controlled by iOS; server-side unsubscribe/revocation stays available to invalidate
+a subscription and is respected by automatic restore.
 
 Office dispatch uses **Crew dispatch → Message [truck]**. Messages are immutable,
 limited to 1,000 characters and the selected truck/current Central date. An exact
@@ -43,10 +58,27 @@ baseline and first view of another truck/date are silent. An unavailable schedul
 never becomes a removal; message baselines still advance independently.
 
 Filesystem events can coalesce, so this is a latest-update alert, not a complete
-history of every intermediate schedule change. Status changes, including completion, can produce schedule updates. The source reader retains its
+history of every intermediate schedule change. Only new/removed active appointments, verified time changes, relative route-order
+changes, reopened appointments and office messages interrupt crews. Completion,
+completed-job enrichment/removal, note/detail refreshes and numeric route
+renumbering stay silent. Missing or partial timing is not evidence of a move.
+A legacy baseline without a comparison projection is silently re-established. The source reader retains its
 existing freshness and verified-membership rules and shared Amazon visibility.
 A notification means open the latest authorized view. The sender never opens
 JunkWare or changes an appointment, payment, assignment or route.
+
+One database transaction publishes a baseline, a hashed/minimal comparison
+projection and a durable pending delivery with scoped change context. Cosmetic
+whitespace/note ordering is silent. Actionable schedule changes are grouped for 15 seconds; a local due-work timer
+drains them without polling a source or provider. Office messages are immediate. A due delivery reserves all recent pending
+rows for the exact device/phone/truck/date in one transaction and sends one
+wake-up. An office message flushes pending schedule work immediately; legitimate
+A→B→A changes are retained, not suppressed by a historical-hash blacklist.
+Every grouped row keeps its original context, the shared notification context/ID
+and the attempted result. The in-app feed renders a sent group once. Context is
+read only after current phone/day authorization and is restricted to that phone,
+truck and date; it contains counts/categories, appointment IDs and bounded before/after times,
+not customer details. Job links resolve against the current authorized route. Existing initial/new-scope silent baselines remain unchanged.
 
 One database transaction publishes a baseline and a durable pending delivery.
 A singleton database advisory lock prevents competing senders. A committed
@@ -66,9 +98,19 @@ unchanged. Private subscription material remains in production PostgreSQL.
 Office messages and completed delivery outcomes older than 14 days are retired at
 sender startup; pending/sending work is protected from deletion. Subscriptions belong to a random private browser capability retained on the
 iPhone, independent of the enrolling manager. The server stores only its hash.
-Daily re-enrollment explicitly binds the same browser to the new phone session.
+Daily setup automatically binds an already-enabled browser to the new phone session.
+Restore requires current authorized phone/day access and the existing browser
+capability and matching browser endpoint; it cannot create a subscription or enable
+a disabled one. A revoked previous phone disables its subscription before restore,
+even if the background worker has not yet observed the revocation. An unchanged
+binding is a no-op, preserving its baseline and pending alerts. A new binding skips
+old pending alerts and starts a silent baseline.
 Other browsers cannot claim or unsubscribe its endpoint without that capability.
-Enabled subscriptions are bounded to ten per current daily phone. Re-enabling
+Enabled subscriptions are bounded to ten per current daily phone. Inactive daily
+phone bindings retain the opt-in but cannot queue or send; they wait for restore.
+Explicit phone revocation disables its subscription. Ordinary expired daily bindings
+retain opt-in indefinitely so a returning phone does not lose its preference; these
+rows remain subject to ownership, current authorization and provider-expiry checks. Re-enabling
 resets the baseline and skips old pending notifications, keeping old alerts silent.
 Disabled, settled subscriptions older than 14 days are retired at startup under
 row locks; live subscriptions and unresolved delivery references are protected.
@@ -103,3 +145,45 @@ Run typecheck, targeted lint, spending checks, the existing crew/dispatch tests,
 service-worker/browser fixtures and production build before exact-commit review.
 Physical iPhone permission and real presentation/tap-through remain separate
 acceptance evidence; never claim arrival from Apple acceptance alone.
+
+The sender decodes shell-quoted roster JSON (including apostrophes) without evaluating shell commands. Malformed roster arrays stop startup rather than silently leaving eligible phones without notifications. After updating the reviewed launcher source, reconcile the installed `waypoint-push/run-waypoint-push.py` copy and restart only `com.opscenter.waypoint-push`; routine application deployment does not replace that external launcher. Verify a fresh ready lease and current-phone baselines.
+
+## Session recovery and update entry
+
+A failed phone/account read is unknown access, not evidence that a new enrollment
+is needed. Entry waits for checks and offers retry on failure. An already-connected
+enrollment response retains its 409 safeguard and carries a typed recovery code;
+the client restores only a successful current-cookie GET read. Failed read-back
+preserves pending recovery state. No code validation, manager grant, day or
+inspection requirement is bypassed. Existing named-manager remembered-browser
+restoration is bounded to Waypoint entry/gateway routes and preserves current
+identity precedence, duplicate-cookie denial and demotion/revocation checks.
+
+`verify:waypoint-recovery` runs credential-free manager, change-policy and service
+worker tests. `verify:waypoint-recovery:browser` covers synthetic failed/interrupted
+reads, repeated submits, 409 recovery and notification entry at phone/desktop
+widths. `node --import tsx scripts/test-waypoint-update-grouping.ts --database`
+uses an isolated temporary PostgreSQL cluster and mocked send callbacks to verify
+group reservation, routine timing, urgent events, private scoped context and no
+accepted/uncertain replay. These checks do not establish iPhone presentation.
+
+## Notification regression checks
+
+`npm run verify:waypoint-recovery` covers silent enrichment/completion refreshes,
+actionable changes, encrypted category context, exact destinations and navigation
+failure recovery. `verify:waypoint-recovery:browser` checks the selected update,
+job opening, office inbox and narrow-screen layout with fictional records.
+The PostgreSQL grouping suites accept `OPSCENTER_TEST_POSTGRES_BIN` for an
+isolated PostgreSQL binary directory; they never use the production database.
+Handset arrival, sound and tap-through require a separate company-phone check.
+
+## Saved-branch reconciliation — October 26, 2026
+
+The actionable-change policy supersedes the earlier four-minute detail throttle:
+routine enrichment and completion-only refreshes create no crew notification.
+Actionable schedule changes coalesce for 15 seconds, while office messages flush
+immediately. The selected due row remains included in its reservation across
+SQL/JavaScript clock boundaries. Existing native manager receipt navigation and
+source destinations are preserved alongside the new crew update links.
+Deployment does not enable sending; the owner-disabled Waypoint configuration
+remains authoritative until the owner explicitly re-enables it.

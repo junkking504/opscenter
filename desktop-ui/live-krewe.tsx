@@ -1,3 +1,6 @@
+import './krewe-base.css';
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
+import { useAlertReveal } from './use-alert-reveal';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
 import { truckDisplayText } from '../lib/junkware-trucks';
@@ -21,6 +24,7 @@ const metric=(value:number|null|undefined)=>value==null?'—':value.toLocaleStri
 const ampm=(value:string)=>{if(!/^\d{2}:\d{2}$/.test(value))return value;const [h,m]=value.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;};
 /** Parent owns the approved workspace header/tabs; report optionally selects an ISO month/date. */
 export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspaceProps<KreweView>){
+  useAlertReveal();
   const deepLinkApplied=useRef('');
   const [recordPanel,setRecordPanel]=useState<'pay'|'hours'|'driving'>('pay');
   const [periodPanel,setPeriodPanel]=useState<'pay'|'review'|'production'>('pay');
@@ -36,6 +40,7 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
   const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending||editingDay,30_000,snapshotKey);
   const refresh=freshness.refresh;
   const workspaceBusy=Boolean(active)||pending||editingDay;
+  useRegisterDisplayedRefresh('Krewe', freshness.refreshDisplayed, workspaceBusy, snapshotKey);
   useEffect(()=>{onBusyChange?.(workspaceBusy);return()=>onBusyChange?.(false);},[workspaceBusy,onBusyChange]);
   const dialogKey=active?.id||'';
   useEffect(()=>{if(!dialogKey)return;drawer.current?.focus();const handle=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!busy.current){setActive(null);opener.current?.focus();}if(event.key==='Tab'){const list=Array.from(drawer.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')||[]).filter(element=>element.getClientRects().length>0);if(!list?.length)return;const first=list[0],last=list[list.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[dialogKey]);
@@ -54,7 +59,7 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
     finally{busy.current=false;setPending(false);}
   }
   async function save(name:string,action:string,expectedVersion:string,values:Record<string,unknown>){if(busy.current)return;busy.current=true;setPending(true);onBusyChange?.(true);setError('');const requestId=crypto.randomUUID();setLastRequest(requestId);try{const response=await fetch('/api/desktop/krewe',{method:'POST',signal:AbortSignal.timeout(30_000),credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:selectedDate,name,action,expectedVersion,values,requestId})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Save failed.');if(body.receipt.status==='verified'){setActive(null);opener.current?.focus({preventScroll:true});}await refresh();setError(body.receipt.status==='verified'?(body.receipt.message||'Saved and verified.'):(body.receipt.message||'Verification pending. Check the recorded state before another change.'));}catch(failure){setError(`${failure instanceof Error?failure.message:'Result could not be confirmed.'} Check Saved Result before trying again.`);}finally{busy.current=false;setPending(false);onBusyChange?.(false);}}
-  if(!snapshot)return <section className="krewe-workspace live-krewe"><WorkspaceFreshness state={freshness}/><div className="job-record-empty-row" role="status">{error||(freshness.error?'Krewe records could not load. Use Retry above.':'Loading authoritative Krewe records…')}</div></section>;
+  if(!snapshot)return <section className="krewe-workspace live-krewe"><WorkspaceFreshness state={freshness}/><div className="job-record-empty-row" role="status">{error||(freshness.error?'Krewe records could not load. Use Retry above.':'Loading Krewe records…')}</div></section>;
   const members=snapshot.members;const totals=snapshot.totals;const plan=snapshot.callIn;
   const comparisonKeys: Record<string, keyof CrewAmounts> = {'Regular hours':'regularHours','Overtime hours':'overtimeHours','Credited revenue':'revenue','Krewe revenue':'revenue','Hourly labor':'labor','Hourly labor cost':'labor','Tips':'tips','Bonuses':'bonuses','Total bonuses':'bonuses','Supplemental':'supplemental','Total pay':'totalPay','Total payroll':'totalPay','Jobs completed':'jobs'};
   const summary=(items:Array<[string,number|null,boolean?]>,className:string)=><div className={className}>{items.map(([label,value,currency])=><article key={label}><DeltaChip current={value} comparison={snapshot.comparison && comparisonKeys[label] ? {prior:snapshot.comparison.totals[comparisonKeys[label]],label:snapshot.comparison.label} : undefined} lowerIsBetter={/hours|labor|pay|bonus|tips|supplemental/i.test(label)} /><span>{label}</span><strong><MetricValue value={currency?money(value):metric(value)} /></strong></article>)}</div>;

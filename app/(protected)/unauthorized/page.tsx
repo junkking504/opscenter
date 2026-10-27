@@ -1,3 +1,4 @@
+import "@/app/secondary-pages.css";
 import Link from "next/link";
 import { opsRoleLabel, normalizeInteractiveOpsRole } from "@/lib/ops-roles";
 
@@ -10,7 +11,7 @@ export default async function UnauthorizedPage({
   const requiredRole = normalizeInteractiveOpsRole(params?.required, "manager");
 
   return (
-    <section className="ops-card" aria-labelledby="access-restricted-title">
+    <section className="ops-card ops-secondary-page" aria-labelledby="access-restricted-title">
       <div className="ops-card-header compact">
         <div>
           <div className="ops-eyebrow">Role-protected area</div>

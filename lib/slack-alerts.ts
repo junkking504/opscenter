@@ -29,7 +29,8 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
-import { geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
+import { qualifiedGeofenceVisit, shortGeofenceVisit, visitDay } from './visit-tracking-agent';
+import { qualifiedGeofenceEntry, qualifiedGeofenceDeparture, geofenceTransitionAlertText, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -100,6 +101,7 @@ type SlackAlertState = {
   deliveredGeofenceNotificationsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
+  pendingGeofenceRetractions: Record<string, string[]>;
   notificationMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   closeoutMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   paymentNotificationsInitializedAt: string;
@@ -185,6 +187,7 @@ function emptyState(): SlackAlertState {
     deliveredGeofenceNotificationsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
+    pendingGeofenceRetractions: {},
     notificationMessages: {},
     closeoutMessages: {},
     paymentNotificationsInitializedAt: "",
@@ -259,6 +262,7 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
           ? payload.deliveredTruckCloseoutsByDate
           : {},
+      pendingGeofenceRetractions: payload?.pendingGeofenceRetractions && typeof payload.pendingGeofenceRetractions === "object" ? payload.pendingGeofenceRetractions : {},
       notificationMessages: payload?.notificationMessages && typeof payload.notificationMessages === "object" ? payload.notificationMessages : {},
       closeoutMessages: payload?.closeoutMessages && typeof payload.closeoutMessages === "object" ? payload.closeoutMessages : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
@@ -1182,9 +1186,10 @@ export function buildGeofenceSlackNotifications(
 ): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   for (const entry of entries) {
-    const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at");
+    const plainText = geofenceTransitionAlertText(entry.truck, entry.name, "at")
+      + (entry.reviewReason ? `\n${entry.reviewReason}` : qualifiedGeofenceEntry(entry) ? "" : "\nVisit pending · five minutes onsite required");
     notifications.push({
-      fingerprint: `geofence_entry:${date}:${entry.id}`,
+      fingerprint: `geofence_entry:${visitDay(entry.timestamp)}:${entry.id}`,
       kind: "geofence_entry",
       lifecycle: "notification",
       severity: "warning",
@@ -1197,7 +1202,7 @@ export function buildGeofenceSlackNotifications(
       verbatimPlainText: true,
     });
   }
-  for (const visit of visits) {
+  for (const visit of visits.filter(qualifiedGeofenceDeparture)) {
     const plainText = geofenceTransitionAlertText(visit.truck, visit.name, "departed");
     notifications.push({
       fingerprint: `geofence_exit:${date}:${visit.id}`,
@@ -1216,13 +1221,20 @@ export function buildGeofenceSlackNotifications(
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
 }
 
-function allGeofenceNotifications(date: string): { notifications: SlackOpsAlert[]; available: boolean } {
-  if (date !== chicagoDateKey()) return { notifications: [], available: false };
+function allGeofenceNotifications(date: string, state: SlackAlertState) {
   const source = readGeofenceEntries(date);
-  return {
-    notifications: buildGeofenceSlackNotifications(date, source.entries, source.nativeVisits),
-    available: source.available,
-  };
+  const notifications = buildGeofenceSlackNotifications(date, source.alertEntries, source.nativeVisits)
+    .map(alert => {
+      // A late native entry may precede the first GPS report. Keep the message
+      // already owned by this episode instead of posting a second entry.
+      if (alert.kind !== 'geofence_entry') return alert;
+      const id = alert.fingerprint.split(':')[2];
+      const episode = source.rawTrackedVisits.find(visit=>visit.id===id);
+      const alias = episode && Object.keys(state.notificationMessages).find(key=>key.startsWith('geofence_entry:') && episode.entryIds.includes(key.split(':')[2]));
+      return alias ? {...alert,fingerprint:alias} : alert;
+    }).filter(alert=>alert.fingerprint.split(':')[1]===date || !!state.notificationMessages[alert.fingerprint]);
+  return {notifications, episodes:source.rawTrackedVisits,
+    available:source.available || !!source.sourceHealth.positionsObservedAt};
 }
 
 /**
@@ -1353,17 +1365,18 @@ async function postSlackMessage(
   text: string,
   threadTs?: string,
   updateTs?: string,
+  deleteMessage = false,
 ): Promise<SlackApiResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch(`https://slack.com/api/${updateTs ? "chat.update" : "chat.postMessage"}`, {
+    const response = await fetch(`https://slack.com/api/${deleteMessage ? "chat.delete" : updateTs ? "chat.update" : "chat.postMessage"}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json; charset=utf-8",
       },
-      body: JSON.stringify({
+      body: JSON.stringify(deleteMessage ? {channel:channelId,ts:updateTs} : {
         channel: channelId,
         text,
         mrkdwn: true,
@@ -1405,7 +1418,7 @@ async function syncNotificationMessages(state: SlackAlertState, alerts: SlackOps
     if (!saved) result.posted.push(alert);
   }
   const dates = [...new Set(Object.keys(state.notificationMessages).map(key=>key.split(":")[1]))].sort().slice(-10);
-  state.notificationMessages = Object.fromEntries(Object.entries(state.notificationMessages).filter(([key])=>dates.includes(key.split(":")[1])));
+  state.notificationMessages = Object.fromEntries(Object.entries(state.notificationMessages).filter(([key])=>dates.includes(key.split(":")[1]) || !!state.pendingGeofenceRetractions[key]));
 }
 
 export function summarizeCrewClockIns(date: string, alerts: SlackOpsAlert[]): SlackOpsAlert[] {
@@ -1614,7 +1627,7 @@ async function runGeofenceSlackAlerts(options: {
   const { date, dryRun, enabled, kinds } = options;
   if (date !== chicagoDateKey()) return slackAlertRunResult(date, dryRun, enabled, []);
   const state = readState();
-  const source = allGeofenceNotifications(date);
+  const source = allGeofenceNotifications(date, state);
   const allNotifications = source.notifications;
   const initialized = Boolean(state.geofenceNotificationsInitializedAt);
   const delivered = new Set(state.deliveredGeofenceNotificationsByDate[date] || []);
@@ -1622,7 +1635,7 @@ async function runGeofenceSlackAlerts(options: {
   const pending = initialized ? selected.filter((alert) => !delivered.has(alert.fingerprint)) : [];
   const result = slackAlertRunResult(date, dryRun, enabled, initialized ? pending : selected);
 
-  if (dryRun || !enabled || !source.available) return result;
+  if (dryRun || !enabled || (!source.available && !Object.keys(state.pendingGeofenceRetractions).length)) return result;
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
   if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
 
@@ -1636,6 +1649,30 @@ async function runGeofenceSlackAlerts(options: {
     return result;
   }
 
+  // Persist explicit retraction evidence so source retention or midnight cannot
+  // strand a failed deletion. Never infer a drive-by from missing data.
+  const protectedIds = new Set(source.episodes.filter(visit=>qualifiedGeofenceVisit(visit) || visit.conflict || !!visit.departedAt && !shortGeofenceVisit(visit)).flatMap(visit=>[visit.id,...visit.entryIds]));
+  const rejected = source.episodes.filter(shortGeofenceVisit);
+  for (const fingerprint of Object.keys(state.notificationMessages)) {
+    const [kind,entryDate,id] = fingerprint.split(':');
+    if (!['geofence_entry','geofence_exit'].includes(kind)) continue;
+    if (protectedIds.has(id)) { delete state.pendingGeofenceRetractions[fingerprint]; continue; }
+    const episode = rejected.find(visit=>visit.id===id || visit.entryIds.includes(id));
+    if (episode) state.pendingGeofenceRetractions[fingerprint] = [...new Set([episode.id,...episode.entryIds])]
+      .flatMap(alias=>[`geofence_entry:${entryDate}:${alias}`,`geofence_entry:${date}:${alias}`]);
+  }
+  for (const [fingerprint, aliases] of Object.entries(state.pendingGeofenceRetractions)) {
+    if (!kinds.has(fingerprint.split(':')[0] as SlackAlertKind)) continue;
+    const receipt = state.notificationMessages[fingerprint];
+    if (!receipt) { delete state.pendingGeofenceRetractions[fingerprint]; continue; } // Never guess a message identity.
+    const response = await postSlackMessage(token, receipt.channelId, '', undefined, receipt.ts, true);
+    if (response.ok || response.error === 'message_not_found') {
+      delete state.notificationMessages[fingerprint];
+      delete state.pendingGeofenceRetractions[fingerprint];
+      delivered.add(fingerprint);
+      for (const alias of aliases) delivered.add(alias);
+    } else result.failures.push({fingerprint,error:response.error || 'Geofence retraction failed'});
+  }
   await syncNotificationMessages(state, selected, delivered, token, result);
   state.deliveredGeofenceNotificationsByDate[date] = Array.from(delivered);
   state.deliveredGeofenceNotificationsByDate = pruneGeofenceNotificationDates(state.deliveredGeofenceNotificationsByDate);

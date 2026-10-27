@@ -7,7 +7,7 @@ import {runOperationalAgents} from '../lib/operational-agents';
 import {trackedGeofenceVisits} from '../lib/linxup-geofence-alerts';
 import type {TruckExpense} from '../lib/truck-expense-notifications';
 const date='2026-09-15',at=(clock:string)=>`${date}T${clock}:00-05:00`,now=Date.parse(at('23:00'));
-const visits=trackedGeofenceVisits(date,[{truck_number:'4',occurred_at:at('13:49'),geofence_name:'Gentilly'},{truck_number:'4',occurred_at:at('14:15'),geofence_name:'Warehouse'}],[],now);
+const visits=trackedGeofenceVisits(date,[{truck_number:'4',occurred_at:at('13:49'),geofence_name:'Gentilly'},{truck_number:'4',occurred_at:at('13:54'),geofence_name:'Gentilly'},{truck_number:'4',occurred_at:at('14:15'),geofence_name:'Warehouse'}],[],now);
 const tracking={agentId:'visit-tracking' as const,date,visits,sourceHealth:{alerts:'failed',positionsObservedAt:at('14:15')},complete:false};
 const actual:TruckExpense={id:'a'.repeat(32),date,market:'352',truck:'Truck# 4',kind:'dump',transactionAt:at('17:00'),location:'Gentillt',receipt:'',amount:70,notify:false};
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'operational-agents-')),previous=process.env.OPSCENTER_DATA_DIR;

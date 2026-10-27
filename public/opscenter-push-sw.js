@@ -1,6 +1,7 @@
 // Validate again at click time; notification data may outlive this worker version.
 function notificationPath(value) {
   if(typeof value==='string') {
+    if(/^\/desktop\?workspace=(Command|Schedule|Krewe|Fleet)$/.test(value))return value;
     const match=value.match(/^\/jobs\?date=(\d{4}-\d{2}-\d{2})#job-jk[0-9]{1,12}$/);
     if(match) {
       const date=new Date(match[1]+'T12:00:00Z');
@@ -21,17 +22,27 @@ self.addEventListener('push', event => {
     body,
     icon: '/opscenter-app-192.png', badge: '/opscenter-app-192.png',
     tag, renotify: true,
-    data: { path: notificationPath(message.path) }
+    data: { path: notificationPath(message.path), eventId: /^[a-f0-9]{64}$/.test(message.eventId || '') ? message.eventId : undefined }
   }));
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   // Only the allowlisted same-origin route; normal authentication remains required.
-  const destination = new URL(notificationPath(event.notification.data?.path), self.location.origin).href;
+  const id = event.notification.data?.eventId;
+  const path = /^[a-f0-9]{64}$/.test(id || '') ? '/desktop?workspace=Command&notification=' + id : notificationPath(event.notification.data?.path);
+  const destination = new URL(path, self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({type:'window',includeUncontrolled:true});
     const existing = windows.find(client => client.url === destination);
-    if (existing) return existing.focus();
+    if (existing) {
+      try { if (existing.navigate) await existing.navigate(destination); } catch { /* Uncontrolled clients can still be focused. */ }
+      return existing.focus();
+    }
+    const app = windows.find(client => {
+      const url=new URL(client.url);
+      return url.origin===self.location.origin && (url.pathname==='/desktop'||url.pathname==='/jobs');
+    });
+    if(app){try{const navigated=await app.navigate(destination);if(navigated)return navigated.focus();}catch{/* Open the destination when navigation is refused. */}}
     return self.clients.openWindow(destination);
   })());
 });

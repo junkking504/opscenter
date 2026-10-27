@@ -1,3 +1,6 @@
+import './fleet-base.css';
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
+import { useAlertReveal } from './use-alert-reveal';
 import { MonthlyMileage } from './monthly-mileage';
 import { ServiceRecordDetails } from './convoy-records';
 import { ConvoyGuide } from './convoy-guide';
@@ -5,7 +8,7 @@ import {fleetServiceTypes} from '../lib/fleet-service-plan';
 import {Mileage} from './convoy-dashboard';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { LiveAnalytics } from './deferred-live-analytics';
-import TruckAgents from './truck-agents';
+import {TruckAgents} from './deferred-secondary-workspaces';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';
 import { convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
@@ -24,6 +27,7 @@ const nullVersion='74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b
 type Drawer=FleetRecord;
 /** Parent renders the approved Fleet header and tabs. report may select an ISO month/date. */
 export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:DesktopWorkspaceProps<FleetView>){
+  useAlertReveal();
   const deepLinkApplied=useRef('');
   const serviceRequest=useRef<string|null>(null);
   const selectedDate=view==='reports'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-01`:date;
@@ -35,6 +39,7 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   useEffect(()=>invalidate,[snapshotKey,invalidate]);
   useEffect(() => { if (snapshot) workspaceReady('Fleet'); }, [snapshot]);
   const freshness=useWorkspaceRefresh(loadSnapshot,snapshotKey,Boolean(active)||pending,30_000,snapshotKey);
+  useRegisterDisplayedRefresh('Fleet', freshness.refreshDisplayed, Boolean(active) || pending, snapshotKey);
   const refresh=freshness.refresh;
   useEffect(()=>{onBusyChange?.(Boolean(active)||pending);return()=>onBusyChange?.(false);},[Boolean(active),pending,onBusyChange]);
   const dialogKey=active?`${active.truck.id}:${active.kind}:${active.record?.recordId||active.issue?.issueId||''}:${active.mode||'view'}`:'';
@@ -63,15 +68,15 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   return <section className={`fleet-workspace live-fleet convoy-workspace fleet-view-${view}`}>
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}
     {lastRequest&&<Button variant="outline" size="sm" disabled={pending} onClick={()=>void checkSavedResult()}>Check Saved Result</Button>}
-    {!snapshot.sourceAvailable&&view!=='service'&&view!=='overview'&&<p className="convoy-source-alert">GPS source unavailable for this viewing day. Stored inspections and repairs remain visible.</p>}
+    {!snapshot.sourceAvailable&&view!=='service'&&view!=='overview'&&<p className="convoy-source-alert">GPS unavailable for this day.</p>}
     {snapshot.warnings.filter(warning=>warning.startsWith('Repair source')).map(warning=><p className="convoy-source-alert" key={warning}>{warning}</p>)}
 
     {!['overview','reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
-    <div className="convoy-top-actions"><span>{serviceTruck?truckDisplayText(serviceTruck):'All trucks'} · {view==='reports'?'History includes all dates':'Choose a truck to see its details'}</span><div className="convoy-actions"><Button variant="outline" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'issue',truck});}}>Report a problem</Button><Button className="convoy-primary" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'maintenance',truck,initialStatus:'completed'});}}>Record service</Button></div></div>
+    <div className="convoy-top-actions"><span>{serviceTruck?truckDisplayText(serviceTruck):'All trucks'}{view==='reports'?' · All dates':''}</span><div className="convoy-actions"><Button variant="outline" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'issue',truck});}}>Report a problem</Button><Button className="convoy-primary" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'maintenance',truck,initialStatus:'completed'});}}>Record service</Button></div></div>
     <ConvoyViews now={freshness.now} onView={onViewChange} snapshot={snapshot} trucks={trucks} view={view} truckId={serviceTruck} onTruck={setServiceTruck} open={open}/>
     {['overview','reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.mileageRetrievedAt||snapshot.sourceUpdatedAt} sourceLabel={snapshot.mileageRetrievedAt?'Tracking feed retrieved':'GPS observed'} budgetMinutes={snapshot.mileageRetrievedAt?1440:3}/>
-    {view === 'reports' && <details className="convoy-monthly-report"><summary>Truck usage & fuel charts</summary><LiveAnalytics date={date} scope="fleet" /></details>}
+    {view === 'reports' && <details className="convoy-monthly-report"><summary>Truck usage & fuel charts</summary><LiveAnalytics refreshWorkspace="Fleet" date={date} scope="fleet" /></details>}
     {convoyWarnings(snapshot.warnings,view,serviceTruck).length>0&&<details className="convoy-source-details"><summary>Source details · {convoyWarnings(snapshot.warnings,view,serviceTruck).length} notes</summary>{convoyWarnings(snapshot.warnings,view,serviceTruck).map(warning=><p key={warning}>{truckDisplayText(warning)}</p>)}</details>}
     {!trucks.length&&<div className="job-record-empty-row">No source fleet records are available.</div>}
     {active&&<div><button className="record-drawer-backdrop" aria-label="Close record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}/><aside className={`record-drawer truck-record-drawer ${['interval','maintenance'].includes(active.kind)?'convoy-service-dialog':''}`} role="dialog" aria-modal="true" aria-label={truckDisplayText(`${active.truck.label} ${active.kind}`)} ref={drawer} tabIndex={-1}><header className="record-drawer-header"><div><span>Fleet · {date}</span><h2>{active.kind==='interval'?'Set maintenance interval':active.kind==='maintenance'?(active.record?(active.mode==='edit'?'Edit service record':'Service record'):draft.status==='scheduled'?'Schedule service':'Record completed service'):truckDisplayText(active.issue?.title||active.truck.label)}</h2></div><Button variant="ghost" size="icon" aria-label="Close Fleet record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}><X/></Button></header><div className="record-drawer-body">{['truck','load','checklist'].includes(active.kind)&&<section className="fleet-drawer-overview">{[['Readiness',active.truck.readiness],['Assignment',active.truck.assignment],['GPS coordinates',recordedValue(active.truck.location,'Unavailable')],['GPS observation',active.truck.gpsAt||'Unavailable'],['Vehicle',recordedValue(active.truck.vehicle)],['Inspection',active.truck.checklist]].map(([label,value])=><div key={label}><span>{truckDisplayText(label)}</span><strong>{truckDisplayText(value)}</strong></div>)}</section>}

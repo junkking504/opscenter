@@ -1,0 +1,21 @@
+/* Source Health presentation stays in the shell for its shared drawer. */
+.ops-app.ops-live .source-health-drawer { width: min(480px, 100vw); background: var(--oc-surface-canvas); }
+.ops-app.ops-live .source-health-header h2 { font-size: var(--oc-type-24); font-weight: 600; }
+.ops-app.ops-live .source-health-header :is(span,p),
+.ops-app.ops-live .source-health-summary span,
+.ops-app.ops-live .source-health-note :is(p,strong) { font-size: var(--oc-type-12); font-weight: 400; line-height: 1.5; color: var(--oc-text-primary); letter-spacing: 0; text-transform: none; }
+.ops-app.ops-live .source-health-summary strong { font-size: var(--oc-type-24); font-weight: 600; }
+.ops-app.ops-live .source-health-list article > header { grid-template-columns: 8px minmax(0,1fr); gap: 6px 8px; padding: 12px; }
+.ops-app.ops-live .source-health-list article > header em { grid-column: 2; justify-self: start; }
+.ops-app.ops-live .source-health-list article :is(header strong,header span,header em,div span,div b,button) { font-size: var(--oc-type-12); font-weight: 400; line-height: 1.5; letter-spacing: 0; text-transform: none; overflow-wrap: anywhere; }
+.ops-app.ops-live .source-health-list article :is(header strong,header em,div b) { font-weight: 600; }
+.ops-app.ops-live .source-health-list article > header strong { font-size: var(--oc-type-16); }
+.ops-app.ops-live .source-health-list article > div span { color: var(--oc-text-primary); }
+.ops-app.ops-live .source-health-list article > button { min-height: 44px; color: var(--ops-brand-red); font-weight: 600; }
+.ops-app.ops-live .source-health-actions button,.ops-app.ops-live .source-health-header button { min-height: 44px; }
+.ops-app.ops-live .source-health-header button { min-width: 44px; }
+@media (max-width: 760px) {
+  .ops-app.ops-live .source-health-body { padding: 8px; }
+  .ops-app.ops-live .source-health-list article > div { grid-template-columns: minmax(0,1fr); }
+  .ops-app.ops-live .source-health-list article > div span { min-height: 0; border-right: 0; }
+}

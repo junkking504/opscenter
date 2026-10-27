@@ -2,7 +2,9 @@ import type {Pool} from 'pg';
 import {activeNotificationPhone} from './waypoint-push';
 import {sendAppleWakeup,transportDependencies} from './web-push-transport';
 import {chicagoDateKey} from './chicago-date';
-export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endpoint:string,authorize:()=>Promise<boolean>,deadline:number)=>sendAppleWakeup(endpoint,authorize,deadline,{...transportDependencies,enabled}),phones={active:activeNotificationPhone}) {
+import {emptyWaypointUpdates,waypointUpdateCounts,waypointJobChanges,waypointNotificationMessage,type WaypointUpdateCounts} from './waypoint-update-context';
+import type {PushEnvelope} from './web-push-message';
+export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endpoint:string,authorize:()=>Promise<boolean>,deadline:number,envelope?:PushEnvelope)=>sendAppleWakeup(endpoint,authorize,deadline,{...transportDependencies,enabled},envelope),phones={active:activeNotificationPhone}) {
  async function allowed(row:{device_id:string;phone_id:string;truck:string;service_date:string;owner_id:string}){
   if(!enabled() || row.service_date!==chicagoDateKey())return false;
   const phone=phones.active(row.phone_id,row.truck);if(!phone)return false;
@@ -11,16 +13,27 @@ export async function drainWaypointPush(pool:Pool,enabled:()=>boolean,send=(endp
  }
  async function drain(){
   for(let n=0;n<1000 && enabled();n++){
-   const client=await pool.connect();let row;
-   try{await client.query('BEGIN');row=(await client.query("SELECT q.*,q.service_date::text AS service_date,d.owner_id,d.subscription_json FROM opscenter_kernel.waypoint_push_deliveries q JOIN opscenter_kernel.waypoint_push_devices d ON d.id=q.device_id WHERE q.status='pending' ORDER BY q.created_at LIMIT 1 FOR UPDATE OF q SKIP LOCKED")).rows[0];
+   const client=await pool.connect();let row;let ids:string[]=[];
+   try{await client.query('BEGIN');row=(await client.query("SELECT q.*,q.service_date::text AS service_date,d.owner_id,d.subscription_json FROM opscenter_kernel.waypoint_push_deliveries q JOIN opscenter_kernel.waypoint_push_devices d ON d.id=q.device_id WHERE q.status='pending' AND q.not_before<=now() ORDER BY q.created_at LIMIT 1 FOR UPDATE OF q SKIP LOCKED")).rows[0];
     if(!row){await client.query('COMMIT');return;}
     const valid=Date.now()-new Date(row.created_at).getTime()<5*60000 && await allowed(row);
-    await client.query('UPDATE opscenter_kernel.waypoint_push_deliveries SET status=$2,attempted_at=now() WHERE id=$1',[row.id,valid?'sending':'skipped']);await client.query('COMMIT');if(!valid)continue;
+    if(!valid){await client.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='skipped',attempted_at=now() WHERE id=$1",[row.id]);await client.query('COMMIT');continue;}
+    // Reserve every recent pending update for this exact recipient/scope before
+    // one wake-up. An urgent row flushes routine changes without discarding context.
+    const group=(await client.query("SELECT id,context_json FROM opscenter_kernel.waypoint_push_deliveries WHERE device_id=$1 AND phone_id=$2 AND truck=$3 AND service_date=$4 AND status='pending' AND (id=$5 OR created_at>now()-interval '5 minutes') ORDER BY created_at,id FOR UPDATE",[row.device_id,row.phone_id,row.truck,row.service_date,row.id])).rows;
+    ids=group.map(item=>item.id);
+    const counts=emptyWaypointUpdates();
+    for(const item of group){const value=waypointUpdateCounts(item.context_json);for(const key of Object.keys(counts) as Array<keyof WaypointUpdateCounts>)counts[key]+=value[key];}
+    const changes=waypointJobChanges(group.flatMap(item=>waypointJobChanges(item.context_json?.changes)));
+    const context={...counts,changes};
+    row.message=waypointNotificationMessage(row.truck,counts,row.id);
+    // Group context and its destination survive worker/browser restarts.
+    await client.query("UPDATE opscenter_kernel.waypoint_push_deliveries SET status='sending',attempted_at=now(),context_json=context_json || jsonb_build_object('notificationId',$2::text,'notificationContext',$3::jsonb) WHERE id=ANY($1::uuid[])",[ids,row.id,JSON.stringify(context)]);await client.query('COMMIT');
    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
    // A committed sending row is never replayed, including crashes before I/O.
    let result='uncertain';
-   try{if(await allowed(row)){const status=await send(row.subscription_json.endpoint,()=>allowed(row),Date.now()+8000);result=status===201?'accepted':[404,410].includes(status)?'expired':'rejected';}else result='skipped';}catch{/* Uncertain sends retain their reservation. */}
-   await pool.query('UPDATE opscenter_kernel.waypoint_push_deliveries SET status=$2 WHERE id=$1',[row.id,result]);
+   try{if(await allowed(row)){const status=await send(row.subscription_json.endpoint,()=>allowed(row),Date.now()+8000,{subscription:row.subscription_json,message:row.message});result=status===201?'accepted':[404,410].includes(status)?'expired':'rejected';}else result='skipped';}catch{/* Uncertain sends retain their reservation. */}
+   await pool.query('UPDATE opscenter_kernel.waypoint_push_deliveries SET status=$2 WHERE id=ANY($1::uuid[])',[ids,result]);
    if(result==='expired')await pool.query('UPDATE opscenter_kernel.waypoint_push_devices SET enabled=false WHERE id=$1 AND phone_id=$2 AND subscription_json=$3::jsonb',[row.device_id,row.phone_id,JSON.stringify(row.subscription_json)]);
   }
  }

@@ -1,3 +1,4 @@
+import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import './daily-finance-freshness.css';
 import { ageFinanceKpi } from '../lib/daily-finance-freshness';
 import { subscribeCommandArrivalUpdates } from './lib/arrival-updates';
@@ -25,11 +26,11 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
   const generation = useRef(0);
   const readsPending = useRef(0);
   const commandReceived = useRef(false);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal?: AbortSignal) => {
     readsPending.current += 1;
     try {
       const run = ++generation.current;
-      const response = await fetch(`/api/desktop/command?date=${encodeURIComponent(date)}`, { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(30_000) });
+      const response = await fetch(`/api/desktop/command?date=${encodeURIComponent(date)}`, { cache: 'no-store', credentials: 'same-origin', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) });
       const body = await response.json();
       if (response.status === 401) {
         window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
@@ -43,6 +44,12 @@ export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootst
       }
     } finally { readsPending.current -= 1; }
   }, [date]);
+  const refreshDisplayed = useCallback(async (signal: AbortSignal) => {
+    if (signal.aborted || pendingRef.current || workspaceBusy.current || readsPending.current > 0) throw new Error('Dashboard refresh is busy.');
+    await refresh(signal);
+  }, [refresh]);
+  useRegisterDisplayedRefresh('Command', refreshDisplayed, Boolean(pendingAlertId), date);
+  useRegisterDisplayedRefresh('Settings', refreshDisplayed, Boolean(pendingAlertId), date);
   useEffect(() => {
     let disposed = false, queued = false;
     const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; commandReceived.current = false; setSnapshot(bootstrap ? workspaceShell({...bootstrap,date:currentDay()}) : null); setDate(currentDay()); return; } void refresh().catch(() => setError(commandReceived.current ? 'Live data could not refresh. The last verified snapshot remains visible.' : 'Dashboard sources could not load. Other workspaces remain available.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };

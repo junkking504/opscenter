@@ -1,6 +1,6 @@
 import {truckMoveOwner,type TruckMove} from './web-push-truck-move';
 import {schedulePath,pushSchedule,scheduleCounterpart,schedulePushMessage,type SchedulePeer} from './web-push-schedule';
-import { pushMessage, type PushEnvelope } from './web-push-message';
+import { pushMessage, pushWorkspacePath, type PushEnvelope } from './web-push-message';
 import { lockPushTrial, trialReason, trialFingerprint, authorizePushAttempt } from './web-push-trial';
 import { pushRetirementCutoff } from './web-push-archive';
 import { retainPushMetadata } from './web-push-retention';
@@ -162,7 +162,7 @@ export async function drainPushOutbox(d:PushWorkerDependencies) {
           else {await client.query('INSERT INTO opscenter_kernel.push_trial_attempts(ordinal,claim_token,event_id,device_id) VALUES($1,$2,$3,$4)',[trial.attempts_used+1,token,row.event_id,row.device_id]);
           await client.query('UPDATE opscenter_kernel.push_trial SET attempts_used=attempts_used+1 WHERE singleton=true');}
           const message=pushMessage(delivery.notification_json)||{title:`OpsCenter ${delivery.category} update`,body:`A new ${delivery.category} change was recorded. Open OpsCenter for the source record.`};
-          return {envelope:{subscription:device.subscription_json,recordedAt:new Date(delivery.source_recorded_at||delivery.occurred_at).toISOString(),message:{...message,eventId:row.event_id}},endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min((trial.ongoing_started_at?trial.ongoing_expires_at!:trial.deadline!).getTime(),device.expires_at.getTime())};
+          return {envelope:{subscription:device.subscription_json,recordedAt:new Date(delivery.source_recorded_at||delivery.occurred_at).toISOString(),message:{...message,path:message.path||pushWorkspacePath(delivery.category),eventId:row.event_id}},endpoint:device.subscription_json.endpoint as string,owner:device.owner_id as string,token,deadline:Math.min((trial.ongoing_started_at?trial.ongoing_expires_at!:trial.deadline!).getTime(),device.expires_at.getTime())};
         });
       } finally {client.release();}
       if(!claim)continue;

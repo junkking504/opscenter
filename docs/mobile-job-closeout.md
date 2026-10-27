@@ -18,6 +18,27 @@ Build with `node scripts/build-mobile-closeout-preview.mjs <output-directory>`.
 Open the generated `index.html` locally. Test with
 `node --import tsx scripts/test-mobile-closeout.ts <index.html>`.
 
+## Code recovery and truck switching — October 26, 2026
+
+The new-code control sits beside code entry, before the setup steps and help.
+Code expiry and the resend cooldown are distinct ten-minute rules. Cancellation
+does not waive the server cooldown or daily/monthly limits. The client explains
+the remaining local wait without suggesting a cancelled code can still be used;
+the server remains authoritative. Pending/uncertain sends retain their request
+ID for status recovery and never automatically send again.
+
+Truck switching keeps prior-day dispatch pointers in the confirmation fingerprint
+and append-only history but no longer treats them as today's phone assignment.
+Only an explicitly confirmed, verified switch replaces those older pointers.
+Each old assignment must resolve unambiguously to a completed or cancelled source
+row in a saved snapshot observed after its release. Missing, unfinished, ambiguous
+or unverified history remains blocked for dispatch review. Historical versions
+join the confirmation fingerprint and are checked again before final retirement.
+Current/future dispatch, today's other phone binding, unfinished destination jobs,
+pending switches and source-version checks still block conflicting switches.
+Preview errors do not claim a saved switch exists; uncertain confirmations recover
+through the saved-switch lookup without re-running the replacement-truck preview.
+
 ## Company-phone access — September 18, 2026
 
 Crew job access uses **company phones only**. Managers may use their personal
@@ -1103,3 +1124,57 @@ Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
 `verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
 `verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
 and receipt recovery. No real customer correction is a deployment test.
+
+## Waypoint crew navigation
+
+After daily setup and inspection, the crew screen has persistent bottom entries for
+Route, Completed, Performance, Notifications and Messages. Completed records and
+today’s performance open directly rather than through accordions below the route.
+Truck filtering is preserved across these views and appointment-detail return.
+The bottom navigation stays hidden during appointment details/edits so the existing
+draft and in-flight-work guards remain authoritative. Test phones expose the
+three assignment/performance views without live notification controls.
+
+Notifications and office messages share one mounted connection/inbox component;
+switching views does not resubscribe or re-prompt for permission. The route’s
+notification status opens the notification screen. Initial permission remains a
+one-time phone action, with no in-app Disable Notifications control. See
+[Waypoint push](waypoint-push.md) for daily-session restoration and authorization.
+
+## Manager appointment navigation and source presentation
+
+The manager account/phone view at `/crew-jobs` is a separate all-truck management
+surface. Crew visibility still comes from the existing crew APIs; selecting a
+manager view does not grant a phone any additional permissions.
+
+Manager appointments have explicit **Active / Scheduled**, **Completed**, and
+**Cancelled** sections with counts for the selected truck. Each section sorts by
+booked start/end time (unknown times last), then stable job/record identity. Cards
+show the booked Central-time window, assigned truck and territory. Source status
+strings such as `Completed Duration: 60 min(s)` display as `Completed`; that source
+duration is not GPS/on-site duration.
+
+A sticky Back control returns from details to the dated, filtered list and its
+scroll position. Switching between Manager and Crew workflow remembers the two
+views' contexts for that mounted Waypoint session. Back, view switching and
+sign-out respect manager drafts, in-flight work and unresolved receipts. Existing
+crew setup, inspection, customer-editor and checkout guards remain in force.
+Booking and detail-editor close controls use the same guard. Check an uncertain
+saved result before leaving; a failed or reconciled result permits a reviewed
+return. Reload is guarded while a manager form is dirty or unresolved; browser
+reload does not persist the manager form itself.
+
+The manager display adapter recognizes cancellation contact cells that contain
+name, phone, numbered street and reason, including reasons without the word
+“cancel”. It presents a clean heading and a separate reason without modifying
+source values, ingestion/merge logic or raw notes. When the displayed reason is
+normalized, **Original cancellation text** keeps the complete source text
+inspectable. Normal customer names and non-cancelled rows are not split by this
+contact rule. All regression fixtures are fictional.
+
+Regression checks: `npm run verify:waypoint-manager:presentation`,
+`npm run verify:waypoint-manager`, `npm run verify:waypoint-navigation:browser`,
+and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
+local API mocks; they are not physical iPhone acceptance or live-data write tests.
+
+Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`; files in `public/` alone do not make them available on the Waypoint hostname. Route icon URLs use `?v=2` to bypass cached 404 responses from the initial navigation release. `verify:crew-phones` checks every shipped SVG through the hostname middleware, and the navigation browser check requires all five icons to decode.

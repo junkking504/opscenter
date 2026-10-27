@@ -103,3 +103,23 @@ the result. Reruns return the prior import without duplicating records.
 Nothing in this workflow posts to QBO or claims a bank deposit. Synthetic tests:
 `npm run verify:recycling`; existing WhatsApp context/media and resale regressions
 also cover the shared intake path. Never send test receipts to real recipients.
+
+## GPS visit evidence for receipt comparison
+
+EMR and every other recycling geofence follow the
+[five-minute visit rule](visit-tracking-agents.md#five-minute-geofence-minimum).
+An immediate entry alert is pending evidence, not a delivery count. Compare
+monthly tickets against qualified `readGeofenceEntries(date).trackedVisits`
+with `resetLocation === 'metal_yard'`; deduplicate episode IDs across day reads
+for overnight visits. Short crossings and episodes without five minutes of
+supported presence are excluded. Recorded tickets, weights and payments remain
+independent and are never removed because GPS evidence is missing or excluded.
+
+The existing ticket-to-statement workflow matches yard/date/ticket identities;
+GPS presence does not automatically prove a ticket match or payment. Review GPS
+visits and receipts side by side without creating a missing-ticket exception from
+a provisional alert.
+
+A conflicting departure does not erase an independently established five-minute
+visit. Its review flag remains visible; uncertain episodes without a qualifying
+interval do not count and cannot be deleted merely for lacking evidence.

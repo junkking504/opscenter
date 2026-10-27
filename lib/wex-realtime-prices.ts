@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {createHash,randomUUID} from 'node:crypto';
 import {wexFuelDirectory,type WexFuelTransaction} from './wex-fuel';
 import {attributeWexTransactionToLinxup} from './wex-linxup-attribution';
 import {sameTruck,truckNumber} from './junkware-trucks';
@@ -8,10 +9,11 @@ import {readJobRows} from './desktop-schedule-source';
 import {normalizePayrollEmployeeKey as employeeKey} from './payroll-corrections';
 import {validRosterDate} from './schedule-crew-roster';
 import type {FuelPriceEvidence} from './appointment-cost-model';
+import {isWexSource} from '../desktop-ui/lib/wex-source';
 export type WexPriceMessage={id:string;sender:string;receivedAt:string;body:string;sourceUrl:string};
 export function parseWexPriceMessage(message:WexPriceMessage){
  if(message.sender.toLowerCase()!=='onlineservices@wexinc.com')return null;
- try{const url=new URL(message.sourceUrl);if(url.protocol!=='https:'||!['outlook.office365.com','outlook.office.com','outlook.live.com'].includes(url.hostname))return null;}catch{return null;}
+ if(!isWexSource(message.sourceUrl))return null;
  const body=message.body.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ');
  const field=(name:string)=>body.match(new RegExp(name+':\\s*\\|?\\s*([^\\n|]+)','i'))?.[1]?.trim()||'';
  const trackingNumber=field('Tracking Number'),units=field('Units of Measure');
@@ -38,19 +40,42 @@ function employeeTrucks(transaction:WexFuelTransaction){
  return trucks;
 }
 export const wexPriceFile=()=>path.join(wexFuelDirectory(),'realtime-prices.json');
-export function importWexRealtimePrices(messages:WexPriceMessage[],attribute=attributeWexTransactionToLinxup,assignments=employeeTrucks){
+export function prepareWexRealtimePrices(messages:WexPriceMessage[],attribute=attributeWexTransactionToLinxup,assignments=employeeTrucks){
+ if(!Array.isArray(messages)||messages.some(message=>!message||['id','sender','receivedAt','body','sourceUrl'].some(key=>typeof message[key as keyof WexPriceMessage]!=='string')))throw new Error('Expected an array of complete Outlook WEX messages.');
  const rows:FuelPriceEvidence[]=[];
  for(const message of messages){const parsed=parseWexPriceMessage(message);if(!parsed)continue;const attribution=attribute(parsed.transaction);rows.push({price:parsed.price,amount:parsed.amount,gallons:parsed.gallons,trackingNumber:parsed.trackingNumber,truck:chooseWexTruck(assignments(parsed.transaction),attribution.status==='attributed'?attribution.truck:null),at:attribution.transactionAt||parsed.receivedAt,source:`WEX Outlook purchase alert · ${parsed.transaction.driver} · dated crew assignment / GPS · amount ÷ gallons`,sourceUrl:parsed.sourceUrl});}
- const file=wexPriceFile();let prior:FuelPriceEvidence[]=[];try{prior=JSON.parse(fs.readFileSync(file,'utf8')).rows;}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+ const file=wexPriceFile();let prior:FuelPriceEvidence[]=[],sourceBytes:Buffer|null=null;try{sourceBytes=fs.readFileSync(file);prior=JSON.parse(sourceBytes.toString('utf8')).rows;}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+ if(!Array.isArray(prior)||prior.some(row=>!row||!/^\d+$/.test(row.trackingNumber||''))||new Set(prior.map(row=>row.trackingNumber)).size!==prior.length)throw new Error('Invalid saved WEX price snapshot.');
  const byId=new Map(prior.map(row=>[row.trackingNumber,row]));
  for(const row of rows){const old=byId.get(row.trackingNumber);if(old&&(old.amount!==row.amount||old.gallons!==row.gallons))throw new Error('Conflicting WEX alert evidence.');byId.set(row.trackingNumber,row);}
- fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});const temp=file+'.'+process.pid+'.tmp';
- fs.writeFileSync(temp,JSON.stringify({source:'Outlook WEX real-time alerts',importedAt:new Date().toISOString(),rows:[...byId.values()]}),{mode:0o600});fs.renameSync(temp,file);
- return {imported:rows.length,matched:rows.filter(row=>row.truck).length};
+ return {file,sourceSha256:sourceBytes?createHash('sha256').update(sourceBytes).digest('hex'):'missing',rows:[...byId.values()],summary:{supplied:messages.length,imported:rows.length,matched:rows.filter(row=>row.truck).length,rejected:messages.length-rows.length,added:byId.size-prior.length,total:byId.size}};
+}
+export function importWexRealtimePrices(messages:WexPriceMessage[],attribute=attributeWexTransactionToLinxup,assignments=employeeTrucks,expectedSha256?:string,blockedTrackingNumbers:string[]=[]){
+ const file=wexPriceFile(),lock=file+'.lock';
+ fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+ // Never remove another writer's lock, including one left after an interruption.
+ const fd=fs.openSync(lock,'wx',0o600);
+ const temp=file+'.'+randomUUID()+'.tmp';
+ try{
+  const plan=prepareWexRealtimePrices(messages,attribute,assignments);
+  if(expectedSha256!==undefined&&expectedSha256!==plan.sourceSha256)throw new Error('WEX snapshot changed after preflight; inspect and prepare again.');
+  // A failed/empty mailbox scan must not make stale evidence look newly imported.
+  let previous:{importedAt?:string;blockedTrackingNumbers?:string[]}={};try{previous=JSON.parse(fs.readFileSync(file,'utf8'));}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+  const blocked=[...new Set([...(previous.blockedTrackingNumbers||[]),...blockedTrackingNumbers])].sort();
+  if(blocked.some(id=>!/^\d+$/.test(id)))throw Error('Invalid WEX blocked tracking identity.');
+  if(plan.summary.imported||JSON.stringify(blocked)!==JSON.stringify(previous.blockedTrackingNumbers||[])){
+   fs.writeFileSync(temp,JSON.stringify({source:'Outlook WEX real-time alerts',importedAt:plan.summary.imported?new Date().toISOString():previous.importedAt||null,rows:plan.rows,blockedTrackingNumbers:blocked}),{mode:0o600,flag:'wx'});
+   fs.renameSync(temp,file);
+  }
+  return {imported:plan.summary.imported,matched:plan.summary.matched};
+ }finally{
+  fs.rmSync(temp,{force:true});fs.closeSync(fd);fs.unlinkSync(lock);
+ }
 }
 export function readWexRealtimePrice(truck:string,asOf=new Date()){
- let data:{importedAt:string;rows:FuelPriceEvidence[]};try{data=JSON.parse(fs.readFileSync(wexPriceFile(),'utf8'));}catch{return {price:null,importedAt:null};}
- const rows=data.rows.filter(row=>sameTruck(row.truck,truck)&&Number.isFinite(row.price)&&row.price>0&&Number.isFinite(Date.parse(row.at))&&Date.parse(row.at)<=asOf.getTime()).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+ let data:{importedAt:string;rows:FuelPriceEvidence[];blockedTrackingNumbers?:string[]};try{data=JSON.parse(fs.readFileSync(wexPriceFile(),'utf8'));const status=path.join(wexFuelDirectory(),'mail-feed-status.json');if(fs.existsSync(status)&&['applying','apply_failed'].includes(JSON.parse(fs.readFileSync(status,'utf8')).status))return {price:null,importedAt:data.importedAt};}catch{return {price:null,importedAt:null};}
+ if(!Array.isArray(data.rows)||data.blockedTrackingNumbers!==undefined&&!Array.isArray(data.blockedTrackingNumbers))return {price:null,importedAt:data.importedAt};
+ const rows=data.rows.filter(row=>!data.blockedTrackingNumbers?.includes(row.trackingNumber)&&sameTruck(row.truck,truck)&&Number.isFinite(row.price)&&row.price>0&&Number.isFinite(Date.parse(row.at))&&Date.parse(row.at)<=asOf.getTime()).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  return {price:rows[0]||null,importedAt:data.importedAt};
 }
 

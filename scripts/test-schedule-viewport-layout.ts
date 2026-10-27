@@ -3,29 +3,25 @@ import {scheduleViewportLayout} from '../desktop-ui/lib/schedule-viewport-layout
 const natural=[36,36,36,64,36,110,36,36,128,114];
 const labels=natural.map(()=>26);
 const footers=natural.map(height=>height>36?23:0);
-for(const available of [200,320,500,550,700,1000]){
+for(const available of [100,200,320,500,550,700,1000]){
  const layout=scheduleViewportLayout(natural,labels,available,footers);
- assert.ok(layout.scale>=.75 && layout.scale<=1,'Keep lanes readable');
- assert.equal(layout.fits,layout.heights.reduce((a,b)=>a+b,0)<=available);
+ assert.equal(layout.fits,true,'The complete board fits even in a short viewport');
+ assert.ok(layout.heights.reduce((a,b)=>a+b,0)<=available);
+ assert.ok(layout.scale>0 && layout.scale<=1);
  layout.heights.forEach((height,i)=>{
-  assert.ok(height>=labels[i],'Truck labels retain their full height');
-  assert.ok(height>=(natural[i]-footers[i])*layout.scale+footers[i],'Status footer does not overlap scaled lanes');
+  assert.ok(height>=labels[i]*layout.chromeScale,'Truck labels stay inside their rows');
+  assert.ok(height>=(natural[i]-footers[i])*layout.scale+footers[i]*layout.chromeScale-0.001,'Footer stays clear of appointment lanes');
  });
  if(available>=natural.reduce((a,b)=>a+b,0)) {
-  assert.equal(layout.scale,1);
-  assert.equal(layout.heights.reduce((a,b)=>a+b,0),available,'Sparse schedules fill the shared panel height');
+  assert.equal(layout.scale,1,'Reclaimed space preserves natural appointment size');
+  assert.equal(layout.chromeScale,1);
+  assert.equal(layout.heights.reduce((a,b)=>a+b,0),available);
  }
 }
-const fitted=scheduleViewportLayout(natural,labels,550,footers);
-assert.ok(fitted.fits && fitted.scale<1,'A moderately crowded board fits every row');
-assert.equal(scheduleViewportLayout(natural,labels,200,footers).fits,false,'Extremely short windows fall back to scrolling');
+assert.equal(scheduleViewportLayout(natural,labels,550,footers).chromeScale,1,'Normal viewports preserve labels and progress text');
 assert.deepEqual(scheduleViewportLayout([24],[36],100).heights,[100]);
-assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33],'Spare pixels are shared evenly without overflow');
+assert.deepEqual(scheduleViewportLayout([32,32,32],[24,24,24],101).heights,[34,34,33]);
 assert.deepEqual(scheduleViewportLayout([],[],0).heights,[]);
-console.log('Schedule vertical fit, label/footer clearance and readable overflow passed.');
+console.log('Complete-board fitting, natural sizes when possible, label/footer clearance and short screens passed.');
 
-const readable=scheduleViewportLayout(natural,labels,320,footers,true);
-assert.equal(readable.scale,1,'Phase 2 preserves natural text and lane height');
-assert.deepEqual(readable.heights,natural);
-assert.equal(readable.fits,false,'Dense Phase 2 boards use their existing scroll area');
-assert.equal(scheduleViewportLayout(natural,labels,1000,footers,true).heights.reduce((a,b)=>a+b,0),1000,'Sparse Phase 2 boards still fill the panel');
+assert.equal(scheduleViewportLayout([32],[24],0).fits,false,'A zero-sized measurement never claims visible appointments');

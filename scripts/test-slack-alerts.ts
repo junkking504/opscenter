@@ -57,6 +57,7 @@ assert.equal(
   "Baton Rouge",
 );
 const geofenceEntry = {
+  geofenceDwellSeconds:300,
   id: "entry-1",
   truck: "Truck 8",
   name: "Warehouse",
@@ -723,8 +724,10 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
 const originalFetch = globalThis.fetch;
 const postedMessages: string[] = [];
 const updates: Array<{ts:string;text:string}> = [];
+const deletes: Array<{ts:string;channel:string}> = [];
 globalThis.fetch = (async (_input, init) => {
   const body = JSON.parse(String(init?.body || "{}"));
+  if(String(_input).endsWith('/chat.delete')) { deletes.push(body); return new Response(JSON.stringify({ok:true})); }
   if(String(_input).endsWith('/chat.update')) { updates.push(body); return new Response(JSON.stringify({ok:true,ts:body.ts})); }
   postedMessages.push(String(body.text || ""));
   return new Response(JSON.stringify({ ok: true, channel: body.channel, ts: `1000.${postedMessages.length}` }), {
@@ -756,9 +759,9 @@ try {
   fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit] }));
   assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_exit"]);
   const nativeReentry = { ...nativeEntry, occurred_at: "2026-08-12T19:00:00Z" };
-  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry] }));
-  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry"]);
-  assert.equal(postedMessages.at(-1), "Truck 8 at NOHQ");
+  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry, {...nativeReentry,alert_type:"GEOFENCE_EXITED",occurred_at:"2026-08-12T19:05:00Z"}] }));
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);
+  assert.ok(postedMessages.includes("Truck 8 at NOHQ"));
   assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Geofence notifications deduplicate across minute refreshes");
   postedMessages.length = 0;
 

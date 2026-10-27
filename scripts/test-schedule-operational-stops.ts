@@ -15,7 +15,8 @@ const tracked = [
   {id:'hq-visit',kind:'geofence' as const,truck:'Truck 6',name:'Warehouse',facility:'Junk King warehouse',resetLocation:null,enteredAt:'2026-10-01T02:15:23Z',departedAt:null,lastSeenAt:'2026-10-01T02:36:16Z'},
   {id:'brhq-visit',kind:'geofence' as const,truck:'Truck 7',name:'Warehouse',facility:'Junk King warehouse',resetLocation:null,enteredAt:'2026-09-30T13:15:23Z',departedAt:'2026-09-30T13:36:16Z',lastSeenAt:'2026-09-30T13:35:16Z',facilityPosition:{latitude:30.4191544,longitude:-91.144973}},
 ];
-const stops=scheduleOperationalStops('2026-09-30',tracked);
+const stops=scheduleOperationalStops('2026-09-30',tracked.map(visit=>({...visit,geofenceDwellSeconds:300})));
+assert.equal(scheduleOperationalStops('2026-09-30',tracked.map(visit=>({...visit,geofenceDwellSeconds:299}))).length,0,'Short geofence crossings cannot become board stops');
 assert.deepEqual(stops.filter(stop=>stop.truck==='Truck 6').map(stop=>[stop.kind,stop.label,Math.floor(stop.startMinutes),Math.floor(stop.endMinutes)]),[
   ['dump','Dump',799,816],['dump','Dump',912,925],['hq','NOHQ Visit',1275,1296],
 ]);
@@ -25,7 +26,7 @@ assert.equal(stops.find(stop=>stop.id==='brhq-visit')?.label,'BRHQ Visit','A gen
 
 const gpsHqStops=scheduleGpsHqStops('2026-10-01',[
   {date:'2026-10-01',truck:'Truck 2',status:'available',observedAt:'2026-10-01T15:20:00Z',coveredThrough:'2026-10-01T15:20:00Z',paths:[],gapLinks:[],gaps:0,rejected:0,
-    points:[{timestamp:'2026-10-01T15:15:00Z',latitude:29.9863006,longitude:-90.0586452}],trips:[
+    points:['15:00','15:05','15:10','15:15'].map(clock=>({timestamp:`2026-10-01T${clock}:00Z`,latitude:29.9863006,longitude:-90.0586452})),trips:[
       {id:'t2-out',number:1,departure:'2026-10-01T13:10:00Z',arrival:'2026-10-01T13:40:00Z',from:{latitude:29.9863006,longitude:-90.0586452,address:'NOHQ'},to:{latitude:29.95,longitude:-90.1,address:'Customer'}},
       {id:'t2-back',number:2,departure:'2026-10-01T14:30:00Z',arrival:'2026-10-01T15:00:00Z',from:{latitude:29.95,longitude:-90.1,address:'Customer'},to:{latitude:29.9863006,longitude:-90.0586452,address:'NOHQ'}},
     ]},
@@ -35,9 +36,9 @@ const gpsHqStops=scheduleGpsHqStops('2026-10-01',[
     ]},
 ]);
 assert.deepEqual(gpsHqStops.map(stop=>[stop.truck,stop.label,Math.floor(stop.startMinutes),Math.floor(stop.endMinutes),stop.ongoing]),[
-  ['Truck 2','NOHQ Visit',490,490,false],['Truck 2','NOHQ Visit',600,620,true],['Truck 3','BRHQ Visit',630,660,false],
+  ['Truck 2','NOHQ Visit',600,615,true],['Truck 3','BRHQ Visit',630,660,false],
 ],'Trips leaving and returning to HQ produce one block per confirmed contiguous visit without inventing dwell time');
-assert.equal(mergeScheduleOperationalStops([{...gpsHqStops[2],id:'native'}],gpsHqStops).filter(stop=>stop.truck==='Truck 3').length,1,'Native geofence evidence wins over an overlapping trip-derived HQ visit');
+assert.equal(mergeScheduleOperationalStops([{...gpsHqStops[1],id:'native'}],gpsHqStops).filter(stop=>stop.truck==='Truck 3').length,1,'Native geofence evidence wins over an overlapping trip-derived HQ visit');
 
 const terrencia={recordId:'2026-09-30:appointment:4090218',appointmentId:'4090218',jkNumber:'JK4103396',customerName:'Terrencia Polk',truck:'Truck 6',status:'Completed',hasScheduledTime:true,appointmentStartMinutes:660,appointmentEndMinutes:720,
   truckVisits:[{truck:'Truck 6',arrival:'2026-09-30T17:10:44Z',departure:'2026-09-30T18:00:24Z',observedThrough:'2026-09-30T18:00:24Z'},{truck:'Truck 6',arrival:'2026-09-30T18:53:30Z',departure:'2026-09-30T19:50:15Z',observedThrough:'2026-09-30T19:50:15Z'}],
@@ -87,10 +88,21 @@ console.log('Schedule operational stops passed: dump/HQ/EMR visits, overnight HQ
 
 // An overnight native HQ stay owns its trip-origin evidence even when the
 // native exit is more than two minutes later than the trip departure.
-const overnight=scheduleOperationalStops('2026-10-02',[{id:'overnight',kind:'geofence',truck:'Truck 4',name:'Warehouse',facility:'Junk King warehouse',enteredAt:'2026-10-01T19:00:00Z',departedAt:'2026-10-02T12:54:00Z',lastSeenAt:'2026-10-02T12:53:00Z'}]);
+const overnight=scheduleOperationalStops('2026-10-02',[{id:'overnight',geofenceDwellSeconds:300,kind:'geofence',truck:'Truck 4',name:'Warehouse',facility:'Junk King warehouse',enteredAt:'2026-10-01T19:00:00Z',departedAt:'2026-10-02T12:54:00Z',lastSeenAt:'2026-10-02T12:53:00Z'}]);
 const origin={...overnight[0],id:'trip-origin',enteredAt:'2026-10-02T12:49:00Z',departedAt:'2026-10-02T12:49:00Z',observedThrough:'2026-10-02T12:49:00Z',startMinutes:469,endMinutes:469};
 assert.equal(mergeScheduleOperationalStops(overnight,[origin]).length,1,'One continuous overnight HQ stay must not become two visits');
 assert.equal(overnight[0].startMinutes,420,'The starting HQ stay is visible before morning dump and appointment stops');
 const later={...origin,id:'real-return',enteredAt:'2026-10-02T16:00:00Z',departedAt:'2026-10-02T16:00:00Z',observedThrough:'2026-10-02T16:00:00Z',startMinutes:660,endMinutes:660};
 assert.equal(mergeScheduleOperationalStops(overnight,[origin,later]).length,2,'A genuine later HQ return stays separate');
 console.log('Overnight HQ and trip origin consolidate without hiding a later return.');
+
+const hq={latitude:29.9863006,longitude:-90.0586452,address:'HQ'},other={latitude:29.95,longitude:-90.1,address:'Elsewhere'};
+const baseRoute={date:'2026-10-01',truck:'Truck 9',status:'available' as const,observedAt:'2026-10-01T17:00:00Z',coveredThrough:'2026-10-01T17:00:00Z',paths:[],gapLinks:[],gaps:0,rejected:0};
+const returning={id:'back',number:1,departure:'2026-10-01T14:00:00Z',arrival:'2026-10-01T15:00:00Z',from:other,to:hq};
+assert.equal(scheduleGpsHqStops(baseRoute.date,[{...baseRoute,trips:[returning],points:[{...hq,timestamp:'2026-10-01T15:00:00Z'}]}]).length,0,'Route coverage cannot manufacture five minutes onsite');
+for(const [exit,count] of [['15:04:59',0],['15:05:00',1]] as const) {
+ const route={...baseRoute,points:[],trips:[returning,{id:'out',number:2,departure:`2026-10-01T${exit}Z`,arrival:'2026-10-01T15:30:00Z',from:hq,to:other}]};
+ assert.equal(scheduleGpsHqStops(baseRoute.date,[route]).length,count,'HQ fallback honors exact five-minute threshold');
+}
+assert.equal(scheduleGpsHqStops(baseRoute.date,[{...baseRoute,trips:[returning],points:[{...hq,timestamp:'2026-10-01T15:20:00Z'}]}]).length,0,'A gap between HQ fixes cannot count as dwell');
+console.log('HQ fallback excludes short and uncorroborated stops.');

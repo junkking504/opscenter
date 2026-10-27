@@ -113,6 +113,9 @@ async function main() {
     assert.deepEqual(await (await crewPhoneSession(request(payload))).json(), json, 'Lost response can be recovered by the same phone');
     const cookieHeader = { Cookie: `${CREW_PHONE_COOKIE}=${apiKey}` };
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 200);
+    const connected=await crewPhoneSession(request({action:'enroll',code:'unused-fictional-code',connectionKey:key()},cookieHeader));
+    assert.equal(connected.status,409);assert.equal((await connected.json()).code,'already_connected');
+    assert.equal((await (await crewPhoneSession(request(undefined,cookieHeader))).json()).phone.deviceId,json.phone.deviceId,'409 preserves current identity for read-only recovery');
     assert.equal((await crewPhoneSession(request(undefined, { Cookie: `${cookieHeader.Cookie}; ${cookieHeader.Cookie}` }))).status, 401);
     assert.equal((await crewPhoneSession(request({ action: 'disconnect' }, cookieHeader))).status, 200);
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 401);
@@ -179,6 +182,18 @@ async function main() {
       for(const route of ['/truck-inspection','/api/truck-inspection','/truck-inspection/manifest.webmanifest', '/truck-inspection/brand-logo.svg', '/crew-jobs','/crew-jobs/manifest.webmanifest','/crew-jobs/icon.png', '/crew-jobs/waypoint-favicon-v2.png', '/crew-jobs/waypoint-crown-road-v1-32.png', '/crew-jobs/waypoint-crown-road-v1-180.png', '/crew-jobs/waypoint-crown-road-v1-192.png', '/crew-jobs/waypoint-crown-road-v1-512.png', '/crew-jobs/waypoint-compass-crown-v2-32.png', '/crew-jobs/waypoint-compass-crown-v2-180.png', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/crew-jobs/waypoint-compass-crown-v2-512.png', '/crew-jobs/waypoint-compass-crown-v1-32.png', '/crew-jobs/waypoint-compass-crown-v1-180.png', '/crew-jobs/waypoint-compass-crown-v1-192.png', '/crew-jobs/waypoint-compass-crown-v1-512.png','/api/crew-jobs/session','/api/crew-jobs/day','/api/crew-jobs/inspection', '/api/crew-jobs/switch-truck','/api/crew-jobs/current','/api/crew-jobs/updates','/api/crew-jobs/photos','/api/crew-jobs/closeout','/_next/static/sample.js']) {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
+      }
+      // Every shipped icon must pass the real hostname boundary, not only
+      // the synthetic browser fixture's static file server.
+      for (const file of fs.readdirSync(path.join(process.cwd(), 'public/crew-jobs/icons')).filter(file => file.endsWith('.svg'))) {
+        for (const suffix of ['', '?v=2']) {
+          const route = `/crew-jobs/icons/${file}${suffix}`;
+          const allowed = await middleware(new NextRequest(`${jobsOrigin}${route}`));
+          assert.equal(allowed.headers.get('x-middleware-next'), '1', `${jobsOrigin}${route}`);
+        }
+      }
+      for (const route of ['/crew-jobs/icons/unknown.svg', '/crew-jobs/icons/private.json']) {
+        assert.equal((await middleware(new NextRequest(`${jobsOrigin}${route}`))).status, 404, `Unlisted icon path stays denied: ${route}`);
       }
       // Named managers now sign into Waypoint; crew cookies still cannot grant
       // manager access (the unauthorized API assertion above remains required).

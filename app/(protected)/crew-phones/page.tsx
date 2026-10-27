@@ -1,4 +1,5 @@
 'use client';
+import '@/app/secondary-pages.css';
 import { truckDisplayText } from '../../../lib/junkware-trucks';
 import { useEffect, useRef, useState } from 'react';
 import { CREW_JOBS_ORIGIN, type CrewPhone, type CrewPhoneDirectory, type CrewPhoneDelivery } from '@/lib/crew-phone';
@@ -45,7 +46,7 @@ export default function CompanyPhones() {
     } catch (error) { setError(error instanceof Error ? error.message : 'The phone change could not be verified. Refresh before trying again.'); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  return <main className={styles.page}><div className={styles.content}>
+  return <main className={`${styles.page} ops-secondary-page ops-office-tools`}><div className={styles.content}>
     <h1>Company phones</h1><p>Waypoint: <a href={CREW_JOBS_ORIGIN}>waypoint.junk-king.app</a></p><p>Set up job access on company-issued phones only. The crew selects its assigned truck during daily Waypoint setup.</p>
     <p>Managers can use personal phones with their manager accounts for <a href="/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board">full schedule access</a>.</p><p><a href="/crew-dispatch">Open crew dispatch</a></p>
     {error && <p role="alert" className={styles.error}>{error}</p>}

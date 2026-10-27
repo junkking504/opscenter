@@ -21,6 +21,8 @@ without mixing live runtime data or secrets into Git.
 
 ## Product and architecture
 
+- [Astryx component adoption](astryx-components.md)
+
 - [Ask OpsBot read-only assistant](ask-opsbot.md)
 - [OpsWiki operational knowledge](second-brain.md)
 

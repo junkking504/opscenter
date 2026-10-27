@@ -118,6 +118,15 @@ This prevents compilation from exhausting memory while traversing live records.
 
 For production deployments:
 
+On Mission Control, `./deploy/macmini/ship.sh <PR number> [--dry-run]` is an
+optional wrapper for an explicitly authorized release. Before merging it checks
+the exact PR head against the installed review gate and requires that it contain
+both the active release and current production. A real merge pins that head;
+deployment then uses `deploy-from-macbook.sh` over localhost SSH and its fixed
+installed controller. There is no controller-path override. Dry run performs
+the read-only Git fetches and checks but neither merges nor deploys. The
+installed controller repeats review and lineage checks before activation.
+
 Run the launcher from the reviewed source checkout or task worktree. Its Git
 check supports both ordinary checkouts and linked worktrees.
 

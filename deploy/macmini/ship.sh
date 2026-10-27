@@ -53,5 +53,5 @@ gh pr merge "$PR" --merge --match-head-commit "$head_sha"
 git fetch origin production
 sha=$(git rev-parse origin/production)
 echo "Deploying $sha"
-export OPSCENTER_MC_HOST=localhost
+export OPSCENTER_MC_HOST=127.0.0.1
 exec "$SCRIPT_DIR/deploy-from-macbook.sh" origin/production

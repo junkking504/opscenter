@@ -54,6 +54,6 @@ elif name=='git':
             assert 'gh pr merge' not in effects and 'launcher ' not in effects,(mode,effects)
         else:
             assert 'gh pr merge 73 --merge --match-head-commit '+'a'*40 in effects,effects
-            assert effects.index('gate\n')<effects.index('gh pr merge')<effects.index('launcher localhost origin/production'),effects
+            assert effects.index('gate\n')<effects.index('gh pr merge')<effects.index('launcher 127.0.0.1 origin/production'),effects
         assert '/never/run' not in effects
 print('PASS: ship refuses unreviewed, moved, stale and failed-CI heads before merging; dry run has no writes; approved exact head merges before the fixed launcher, ignoring controller overrides. Offline stubs only.')

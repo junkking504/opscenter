@@ -69,6 +69,17 @@ with tempfile.TemporaryDirectory() as directory:
     row=run([point,{**point,'timestamp':'2026-09-08T15:24:00Z','latitude':31},{**point,'timestamp':'2026-09-08T15:25:00Z','latitude':31},{**point,'timestamp':'2026-09-08T15:30:00Z','latitude':31}])
     assert row['visit_count']==1 and row['final_departure']==point['timestamp'], 'Single-point visit survives a confirmed departure'
     assert row['onsite_minutes']==0, 'Do not invent time onsite'
+    parked=[point,{**point,'timestamp':'2026-09-08T16:23:42Z'},
+            {**point,'timestamp':'2026-09-08T17:23:42Z'}]
+    row=run(parked)
+    assert row['visit_count']==1 and row['first_arrival']==point['timestamp']
+    assert row['final_departure'] is None and row['onsite_minutes']==120
+    assert row['gps_coverage_quality']=='incomplete' and len(row['visit_intervals'][0]['coverage_gaps'])==2
+    assert row['match_reason']=='qualifying_visit_with_gps_gaps', 'Retain uncertainty while preserving visit identity'
+    # Main groups each truck separately before applying the continuity policy.
+    matcher.mappings_for_date=lambda target:[SimpleNamespace(junkware_truck_number=truck,linxup_tracker_id=truck) for truck in ['Truck 3','Truck 8']]
+    run(parked+[{**p,'truck_number':'Truck 8'} for p in parked])
+    assert {(r['truck_number'],r['visit_count']) for r in captured['visits']}=={('Truck 3',1),('Truck 8',1)}
 try:
     policy.appointment_day_policy('unreviewed collector shape')
     raise AssertionError('Incompatible collector must stop')

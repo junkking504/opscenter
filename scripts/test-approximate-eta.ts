@@ -14,7 +14,7 @@ async function main() {
   assert.deepEqual(destinations,[point]);
   return [{condition:'ROUTE_EXISTS',duration:'601s',distanceMeters:8000,geometry:[verified,point]}];
  };
- const closest=await calculateClosestTrucks(job,[gps],true,provider);
+ const closest=await calculateClosestTrucks(job,[gps],true,provider,now);
  assert.equal(closest[0].minutes,11);assert.equal(closest[0].approximate,true);
  const legs=await calculateDesktopRouteLegs([first,job],provider);
  assert.equal(legs[0].travelMinutes,11);assert.equal(legs[0].approximate,true);
@@ -23,7 +23,7 @@ async function main() {
  assert.equal(progress[0].minutes,11);assert.equal(progress[0].approximate,true);assert.equal(progress[0].arrivalAt,'2026-10-10T17:40:01.000Z');
  assert.equal(JSON.stringify(job),before,'Routing must not mutate verified location, assignment, or visit evidence');
  assert.equal(needsScheduleAddressVerification(job),true);
- const exact=await calculateClosestTrucks({...job,location:verified},[gps],true,async(_o,d)=>{assert.deepEqual(d,[verified]);return [{condition:'ROUTE_EXISTS',duration:'300s',distanceMeters:1000}];});
+ const exact=await calculateClosestTrucks({...job,location:verified},[gps],true,async(_o,d)=>{assert.deepEqual(d,[verified]);return [{condition:'ROUTE_EXISTS',duration:'300s',distanceMeters:1000}];},now);
  assert.equal(exact[0].approximate,false,'Exact coordinates supersede the candidate');
  const missing={...job,mapFallback:null};
  assert.equal((await calculateClosestTrucks(missing,[gps],true,async()=>{throw Error('Must not route missing points');}))[0].status,'address_unverified');

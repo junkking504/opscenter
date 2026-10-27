@@ -1,5 +1,19 @@
 # Schedule and Finance presentation
 
+## Closest-truck eligibility
+
+The selected appointment card and register compare trucks whose latest valid
+GPS observation is from the current America/Chicago operating day and outside
+both existing warehouse boundaries (NOHQ and BRHQ, 300 meters). A truck still
+at either warehouse, including one that returned after earlier work, is excluded
+before road routing. Missing, future or prior-day GPS timestamps do not establish
+today's activity and are excluded without asserting that the truck stayed home.
+Today's offsite observation is sufficient; a captured warehouse-exit event is
+not required. Same-day parked positions and nonwarehouse facilities remain
+eligible. Original GPS timestamps remain attached to estimates. An empty
+eligible set produces no closest-truck suggestion. Validate with
+`npm run verify:closest-truck`.
+
 ## Command historical refresh isolation
 
 Command consumes live GPS/photo source-change hints only for the current Central

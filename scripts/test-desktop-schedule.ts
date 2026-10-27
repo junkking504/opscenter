@@ -27,14 +27,14 @@ async function main() {
       {latitude:30.41,longitude:-91.15},
       {latitude:30.01,longitude:-90.11},
       {latitude:29.99,longitude:-90.06},
-    ], 'Every valid last-known truck coordinate is eligible even when GPS age or missing fallback ignition metadata makes live motion unavailable');
+    ], 'Same-day offsite coordinates stay eligible even when GPS age or ignition metadata makes live motion unavailable');
     return [
       {originIndex:0,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'3600s',distanceMeters:69201.8},
       {originIndex:1,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'3300s',distanceMeters:65982.4},
       {originIndex:2,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'8400s',distanceMeters:185074.56},
       {originIndex:3,destinationIndex:0,condition:'ROUTE_EXISTS',duration:'7200s',distanceMeters:160934.4},
     ];
-  });
+  }, Date.parse('2026-09-25T22:00:00Z'));
   assert.deepEqual(closest.map(row=>[row.truck,row.status,row.minutes,row.miles]),[
     ['Truck# 6','available',55,41],
     ['Truck# 3','available',60,43],
@@ -42,7 +42,39 @@ async function main() {
     ['Truck# 8','available',140,115],
     ['Truck# 1','gps_unavailable',null,null],
     ['Truck# 5','gps_unavailable',null,null],
-  ], 'Closest truck ranking uses last-known locations and excludes only trucks without valid coordinates');
+  ], 'Closest truck ranking preserves same-day offsite last-known locations');
+  const now = Date.parse('2026-10-27T19:00:00Z');
+  const active = {truck:'Truck 8',latitude:29.95,longitude:-90.12,lastGpsUpdate:'2026-10-27T15:00:00Z',speed:0,ignition:'OFF'} as ScheduleTruck;
+  const nohq = {...active,truck:'Truck 6',latitude:29.9863006,longitude:-90.0586452};
+  const brhq = {...active,truck:'Truck 3',latitude:30.4191544,longitude:-91.1449730};
+  const excluded = [nohq, brhq,
+    {...active,truck:'Yesterday',lastGpsUpdate:'2026-10-27T04:59:59Z'},
+    {...active,truck:'No timestamp',lastGpsUpdate:null},
+    {...active,truck:'Invalid timestamp',lastGpsUpdate:'invalid'},
+    {...active,truck:'Future timestamp',lastGpsUpdate:'2026-10-27T19:01:00Z'},
+  ];
+  const dump = {...active,truck:'Truck 9',latitude:30.0064,longitude:-89.9766};
+  const eligibleOnly = await calculateClosestTrucks(jobs[0], [...excluded,active,dump], true, async origins => {
+    assert.deepEqual(origins,[{latitude:active.latitude,longitude:active.longitude},{latitude:dump.latitude,longitude:dump.longitude}],
+      'Warehouse and unconfirmed daily activity must never reach the route provider');
+    return origins.map((_,originIndex)=>({originIndex,condition:'ROUTE_EXISTS',duration:`${600+originIndex*60}s`,distanceMeters:1000}));
+  }, now);
+  assert.deepEqual(eligibleOnly.filter(row=>row.status==='available').map(row=>row.truck),['Truck 8','Truck 9']);
+  assert.deepEqual(eligibleOnly.filter(row=>row.status==='at_warehouse').map(row=>row.truck),['Truck 6','Truck 3']);
+  assert.equal(eligibleOnly.filter(row=>row.status==='day_activity_unconfirmed').length,4);
+  const neverRoute = async () => { throw Error('Excluded trucks must not be routed'); };
+  assert.ok((await calculateClosestTrucks(jobs[0],excluded,true,neverRoute,now)).every(row=>row.minutes===null));
+  // Eligibility changes with the latest report: departure, return, departure again.
+  const provider = async () => [{condition:'ROUTE_EXISTS',duration:'600s',distanceMeters:1000}];
+  const state = async (truck: ScheduleTruck, clock = now) => (await calculateClosestTrucks(jobs[0],[truck],true,provider,clock))[0].status;
+  assert.equal(await state(nohq),'at_warehouse');
+  assert.equal(await state({...nohq,lastGpsUpdate:'2026-10-27T04:59:59Z'}),'day_activity_unconfirmed','Old warehouse coordinates do not establish today\'s activity');
+  assert.equal(await state({...active,truck:nohq.truck}),'available');
+  assert.equal(await state({...nohq,lastGpsUpdate:'2026-10-27T18:00:00Z',speed:5}),'at_warehouse','Moving within the warehouse still does not qualify');
+  assert.equal(await state({...active,truck:nohq.truck,lastGpsUpdate:'2026-10-27T18:30:00Z'}),'available');
+  assert.equal(await state({...active,lastGpsUpdate:'2026-10-27T05:00:00Z'}),'available','Central midnight starts the operating day');
+  assert.equal(await state(active,Date.parse('2026-10-28T05:00:00Z')),'day_activity_unconfirmed','Yesterday\'s offsite report expires at Central midnight');
+  assert.ok((await calculateClosestTrucks(jobs[0],[active],false,neverRoute,now)).every(row=>row.status==='not_live_day'));
   assert.equal(needsScheduleAddressVerification({...jobs[1],location:null}),true,'Active unverified work remains visible for address review');
   const pairs = scheduleRoutePairs(jobs);
   assert.equal(pairs.length, 2);

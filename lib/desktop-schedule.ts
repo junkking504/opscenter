@@ -12,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readJobRows, separateCancellationContact, junkwareScheduleUpdatedAt, type JobRow } from '@/lib/desktop-schedule-source';
-import { buildFleetMapPayload } from '@/lib/fleet-map';
+import { buildFleetMapPayload, operationalLocationCodeAt } from '@/lib/fleet-map';
+import { chicagoDateKey } from './report-dates';
 import { planningLocation } from '@/lib/planning-geocodes';
 import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
@@ -221,7 +222,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
   return legs;
 }
 
-export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix): Promise<ClosestTruck[]> {
+export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix, now = Date.now()): Promise<ClosestTruck[]> {
   if (/cancel/i.test(appointment.status)) return [];
   const destination = scheduleMapLocation(appointment);
   const rows: ClosestTruck[] = trucks.map(truck => {
@@ -229,11 +230,15 @@ export async function calculateClosestTrucks(appointment: DesktopAppointment, tr
       && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude)
       && Math.abs(truck.latitude) <= 90 && Math.abs(truck.longitude) <= 180
       && !(truck.latitude === 0 && truck.longitude === 0);
-    // A powered-down LinxUp tracker stops reporting. Its last valid coordinate
-    // therefore remains the truck's location for proximity ranking even when
-    // the fallback feed cannot provide an explicit ignition-off field. Keep the
-    // real observation time for confidence; age alone must not discard it.
-    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : 'routing_unavailable' };
+    const facility = located ? operationalLocationCodeAt({latitude: truck.latitude!, longitude: truck.longitude!}) : null;
+    const atWarehouse = facility === 'NOHQ' || facility === 'BRHQ';
+    const observedAt = Date.parse(truck.lastGpsUpdate || '');
+    // Today's offsite observation proves daily activity without requiring a
+    // captured warehouse-exit event. A prior-day location does not. Retain
+    // same-day parked locations, but exclude a return to either warehouse.
+    const activeToday = Number.isFinite(observedAt) && observedAt <= now
+      && chicagoDateKey(new Date(observedAt)) === chicagoDateKey(new Date(now));
+    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : !activeToday ? 'day_activity_unconfirmed' : atWarehouse ? 'at_warehouse' : 'routing_unavailable' };
   });
   const eligible = rows.filter(row => row.status === 'routing_unavailable');
   for (let offset = 0; offset < eligible.length; offset += 25) {
@@ -289,8 +294,8 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
   const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location, job.mapFallback])], () => calculateDesktopRouteLegs(snapshot.appointments));
-  // Last-known coordinates remain eligible until a newer valid report replaces
-  // them. The timestamp stays in the cache identity and response for confidence.
+  // Same-day offsite coordinates remain eligible until a newer report replaces
+  // them. The date and GPS timestamp also invalidate cached eligibility.
   const now = Date.now();
   const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, target.mapFallback, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
   const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.visitOrder,j.junkwareSyncStatus,j.location,j.mapFallback,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));

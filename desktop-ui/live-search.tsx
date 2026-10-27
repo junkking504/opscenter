@@ -1,3 +1,4 @@
+import { readSearchJson, SearchRequestError, searchFailureMessage } from './lib/search-response';
 import { searchSubmission } from './lib/search-intent';
 import { workspaceLabel } from './lib/workspace-labels';
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +18,10 @@ type OpsBotAnswer = { answer: string; sources: OpsBotSource[]; model: string; re
 type OpsBotStatus = { available: boolean; reason: string | null; remaining: number; limit: number };
 type Scope='all'|'upcoming'|'past';
 type Coverage={dateCount:number;from:string|null;to:string|null};
+type SearchResults = { results?: Result[]; coverage?: Coverage; appointmentTotal?: number; hasMore?: boolean };
+const searchUnavailable = 'Saved-record search is temporarily unavailable. Try again later.';
+const localUnavailable = 'OpsBot’s saved-source lookup is temporarily unavailable. You can still search saved records below.';
+const assistantUnavailable = 'Ask OpsBot did not return an answer. You can still search saved records below. A submitted pilot question may still count.';
 export default function LiveSearch({ date, navigate, disabled, finance, openRequest = 0 }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean; openRequest?: number }) {
   const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [results, setResults] = useState<Result[]>([]); const [error, setError] = useState('');
   const [scope,setScope]=useState<Scope>('all');const [limit,setLimit]=useState(10);const [loading,setLoading]=useState(false);
@@ -33,8 +38,8 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
     if(query.trim().length<2||!open){setLoading(false);return;}
     setLoading(true);
     const timer=window.setTimeout(()=>{void fetch(`/api/global-search?q=${encodeURIComponent(query)}&date=${date}&scope=${scope}&limit=${limit}`,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(20000)])})
-      .then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'Source search is unavailable.');if(!abort.signal.aborted){setResults(body.results||[]);setCoverage(body.coverage||null);setTotal(body.appointmentTotal||0);setHasMore(Boolean(body.hasMore));}})
-      .catch(failure=>{if(!abort.signal.aborted)setError(failure instanceof Error?failure.message:'Source search is unavailable.');})
+      .then(async response=>{const body=await readSearchJson<SearchResults>(response,searchUnavailable);if(!response.ok)throw new SearchRequestError(body.error||searchUnavailable);if(!abort.signal.aborted){setResults(body.results||[]);setCoverage(body.coverage||null);setTotal(body.appointmentTotal||0);setHasMore(Boolean(body.hasMore));}})
+      .catch(failure=>{if(!abort.signal.aborted)setError(searchFailureMessage(failure,searchUnavailable));})
       .finally(()=>{if(!abort.signal.aborted)setLoading(false);});},200);
     return()=>{abort.abort();window.clearTimeout(timer);};
   },[date,query,scope,limit,open]);
@@ -43,7 +48,7 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
     if(query.trim().length<2||!open){setKnowledgeLoading(false);return;}
     setKnowledgeLoading(true);
     const timer=window.setTimeout(()=>{void fetch(`/api/desktop/knowledge/answer?q=${encodeURIComponent(query)}`,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(4000)])})
-      .then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'OpsWiki answer is unavailable.');if(!abort.signal.aborted)setKnowledgeAnswer(body.answer||null);})
+      .then(async response=>{const body=await readSearchJson<{answer?:KnowledgeAnswer}>(response,'OpsWiki answer is unavailable.');if(!response.ok)throw new SearchRequestError(body.error||'OpsWiki answer is unavailable.');if(!abort.signal.aborted)setKnowledgeAnswer(body.answer||null);})
       .catch(()=>{if(!abort.signal.aborted)setKnowledgeError('OpsWiki answer is unavailable. Source-record search is still available.');})
       .finally(()=>{if(!abort.signal.aborted)setKnowledgeLoading(false);});},80);
     return()=>{abort.abort();window.clearTimeout(timer);};
@@ -52,7 +57,7 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
     const abort=new AbortController();
     if(!open||!finance)return()=>abort.abort();
     void fetch('/api/desktop/ask-opsbot',{cache:'no-store',credentials:'same-origin',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(5000)])})
-      .then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'Ask OpsBot is unavailable.');if(!abort.signal.aborted)setOpsBotStatus(body);})
+      .then(async response=>{const body=await readSearchJson<OpsBotStatus>(response,'Ask OpsBot is unavailable.');if(!response.ok)throw new SearchRequestError(body.error||'Ask OpsBot is unavailable.');if(!abort.signal.aborted)setOpsBotStatus(body);})
       .catch(()=>{if(!abort.signal.aborted)setOpsBotStatus({available:false,reason:'Ask OpsBot is unavailable.',remaining:0,limit:50});});
     return()=>abort.abort();
   },[open,finance]);
@@ -70,18 +75,20 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
   const askOpsBot=async()=>{
     if(disabled||opsBotLoading||query.trim().length<2)return;
     setOpsBotLoading(true);setOpsBotError('');setOpsBotAnswer(null);
+    let unavailable=localUnavailable;
     try{
       const localResponse=await fetch('/api/desktop/ask-opsbot/local',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:query.trim(),date}),signal:AbortSignal.timeout(20000)});
-      const localBody=await localResponse.json();
-      if(!localResponse.ok)throw Error(localBody.error||'OpsCenter sources could not answer this question.');
+      const localBody=await readSearchJson<OpsBotAnswer & {matched:boolean}>(localResponse,localUnavailable);
+      if(!localResponse.ok)throw new SearchRequestError(localBody.error||localUnavailable);
       if(localBody.matched){setOpsBotAnswer(localBody);return;}
-      if(!opsBotStatus?.available)throw Error(opsBotStatus?.reason||'Ask OpsBot is unavailable.');
+      if(!opsBotStatus?.available)throw new SearchRequestError(opsBotStatus?.reason||'Ask OpsBot is unavailable.');
+      unavailable=assistantUnavailable;
       const response=await fetch('/api/desktop/ask-opsbot',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:query.trim(),date}),signal:AbortSignal.timeout(60000)});
-      const body=await response.json();
+      const body=await readSearchJson<OpsBotAnswer & OpsBotStatus>(response,assistantUnavailable);
       if(typeof body.remaining==='number')setOpsBotStatus({available:Boolean(body.available),reason:body.reason||null,remaining:body.remaining,limit:body.limit||50});
-      if(!response.ok)throw Error(body.error||'Ask OpsBot could not complete this question.');
+      if(!response.ok)throw new SearchRequestError(body.error||assistantUnavailable);
       setOpsBotAnswer(body);
-    }catch(failure){setOpsBotError(failure instanceof Error?failure.message:'Ask OpsBot could not complete this question.');}
+    }catch(failure){setOpsBotError(searchFailureMessage(failure,unavailable));}
     finally{setOpsBotLoading(false);}
   };
   return <div ref={shell} className="global-search-shell">
@@ -102,7 +109,7 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
         {!loading&&<div className="global-search-groups">{[['job','Appointments'],['crew','Krewe'],['truck','Fleet']].map(([type,label])=>{const rows=results.filter(row=>row.type===type);if(!rows.length)return null;return <section className="global-search-group" key={type} aria-label={label}><header><strong>{label}</strong><small>{type==='job'?`${rows.length} of ${total}`:rows.length}</small></header><div>{rows.map(result=><button key={result.id} disabled={disabled} onClick={()=>openResult(result.href)}><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.source}</small></div><ArrowRight size={15}/></button>)}</div></section>;})}</div>}
         {!loading&&hasMore&&(limit<100?<button className="search-show-more" onClick={()=>setLimit(value=>Math.min(100,value+20))}>Show More Appointments</button>:<p>Showing 100 appointments. Refine the name, JK number, phone, or address to narrow the results.</p>)}
         {error&&<p role="alert">{error}</p>}
-        {query.trim().length>=2&&!loading&&!results.length&&!error&&!opsBotAnswer&&!opsBotLoading&&<p>{knowledgeAnswer?'No matching live source records. The answer above comes from saved knowledge.':finance?'Press Enter or select Ask OpsBot to answer this question from OpsCenter sources.':'No matching records in this search. Try All or a different name, JK number, phone, or address.'}</p>}
+        {query.trim().length>=2&&!loading&&!results.length&&!error&&!opsBotAnswer&&!opsBotLoading&&<p>{knowledgeAnswer?'No matching live source records. The answer above comes from saved knowledge.':'No matching saved records. Try All or a different name, JK number, phone, or address. This does not search JunkWare live.'}</p>}
         {query.trim().length<2&&<p>Ask OpsBot about operations, an OpsCenter procedure, decision, or prior fix—or search by customer, JK number, phone, or service address.</p>}
         {coverage&&<p className="search-coverage">{coverage.dateCount?`Collected appointment dates: ${coverage.from}–${coverage.to}.`:'No collected appointment dates in this range.'} Some dates may not be loaded. Results reflect saved source snapshots, not a new JunkWare search.</p>}
       </div><footer><span><kbd>Esc</kbd> Close</span></footer>

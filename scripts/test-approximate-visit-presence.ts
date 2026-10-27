@@ -38,7 +38,7 @@ try {
  const pin={...fallback,approximate:true};
  const row={appointment_id:'101',jk_number:'JK1000001',truck_number:'Truck 3',match_confidence:'confirmed',visit_count:1,visit_pin:pin,visit_intervals:[{arrival:stamp(1),departure:null,source_timestamps:[stamp(1),stamp(2)]}]};
  assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now).truckOnSite,true,'Recorded GPS remains usable regardless of pin label');
- assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now,undefined,[job,neighbor]).truckOnSite,false,'New ambiguity also suppresses an open ledger badge');
+ assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now,undefined,[job,neighbor]).truckOnSite,true,'A unique observed point remains attributable when circles overlap elsewhere');
  assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now+2*3600_000).truckOnSite,false);
  const tracked=trackAppointmentVisits(date,[row,row],now);
  assert.equal(tracked.length,1);assert.equal(tracked[0].visitPin?.approximate,true);
@@ -82,6 +82,25 @@ try {
    assert.equal(currentGpsPresence(value,[{...truck,lastGpsUpdate:stamp(11)}],[value],now),undefined,'Future GPS cannot arrive');
    assert.equal(currentGpsJobLocation(value,[truck],[value],now+2*3600_000),undefined,'Expired parked heartbeat cannot locate truck');
    assert.equal(currentGpsPresence(value,[truck],[value,{...neighbor,location}],now),undefined,'Label does not resolve co-located appointments');
+ }
+ // Two sites 360m apart overlap only around their midpoint.
+ const adjacent={...neighbor,location:{latitude:30.00324,longitude:-90}};
+ const midpoint={...truck,latitude:30.00162};
+ for (const value of [job,{...job,location,mapFallback:null}]) {
+   const appointments=[value,adjacent];
+   assert.equal(ambiguousVisitPin(value,appointments,truck),false);
+   assert.equal(currentGpsPresence(value,[truck],appointments,now)?.truck,'Truck 3');
+   assert.equal(currentGpsJobLocation(value,[truck],appointments,now)?.truck,'Truck 3');
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[truck],now,undefined,appointments).truckOnSite,true);
+   assert.equal(currentGpsPresence(value,[midpoint],appointments,now),undefined,'Completed neighbors still compete at a shared point');
+   assert.equal(currentGpsJobLocation(value,[midpoint],appointments,now),undefined);
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[midpoint],now,undefined,appointments).truckOnSite,false);
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[midpoint],now,undefined,appointments).lastSeenOnsiteTruck,undefined);
+   const canceled=[value,{...adjacent,status:'Canceled'}];
+   assert.equal(currentGpsPresence(value,[midpoint],canceled,now)?.truck,'Truck 3');
+   const approaching={...truck,routePoints:[{...midpoint,timestamp:stamp(7)},{...truck,timestamp:stamp(8)}]};
+   assert.equal(currentGpsPresence(value,[approaching],appointments,now)?.arrival,stamp(8).replace('Z','.000Z'),'Arrival must not backdate through ambiguous approach');
+   assert.equal(currentGpsPresence(value,[{...truck,latitude:adjacent.location.latitude}],appointments,now),undefined,'A point at the neighbor cannot be assigned here');
  }
  assert.equal(appointmentVisitPin({...job,mapFallback:{...fallback,location:{latitude:NaN,longitude:-90}}}),null);
  assert.equal(appointmentVisitPin({...job,mapFallback:null}),null);

@@ -219,3 +219,19 @@ not replay the original automatic write. Pending changes retain their explicit
 reconciliation state; unknown, future or older source observations cannot erase
 a verified move.
 Validate with `npm run verify:gps-visit-assignment`.
+
+### Nearby appointment circles
+
+Appointment ambiguity is evaluated at each recorded GPS position. A position
+inside exactly one non-canceled appointment's 200-meter circle can establish
+that visit even when another circle overlaps elsewhere. A point shared by two
+circles establishes neither arrival and does not extend attributed onsite time
+or prove departure. Completed appointments still compete; booked time, truck
+assignment and verified/approximate labels do not resolve physical ambiguity.
+Schedule uses the same point-level test for current presence, parked location
+and open visit badges. Its arrival fallback cannot backdate through ambiguous
+approach points. Freshness, source precedence, prospective approximate-pin
+activation and conservative departure evidence remain unchanged.
+
+Validate with `npm run verify:approximate-visits` and
+`node --import tsx scripts/test-schedule-gps-presence.ts`.

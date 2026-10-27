@@ -462,3 +462,18 @@ release. `scripts/test-detector-restart-race.ts` covers both cases.
 See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,
 first proxy bootstrap, graceful rollback, routine activation and retained-slot
 protections. Source deployment alone does not enable slot mode.
+
+## Zero-touch releases (auto-ship)
+
+`deploy/macmini/auto-ship.sh` ships the oldest open production PR labeled
+`ready-to-ship`. It refreshes the dedicated `worktrees/ship` checkout and runs
+`ship.sh` (CI, conflicts, `claude-stop` label, review gate), so the installed
+controller still builds, health-checks and restores the previous release on
+failure. It ships at most one release per hour, skips while the controller's
+deploy lock exists, keeps the label while CI is still running, and on any other
+failure removes the label, adds `ship-failed` and comments on the PR.
+
+It is not installed by merging. Install deliberately from
+`launchd/com.opscenter.auto-ship.plist.example`. Off switch:
+`touch "$HOME/Library/Application Support/OpsCenter/auto-ship.off"`.
+Check offline with `python3 scripts/test-auto-ship.py`.

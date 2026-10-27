@@ -163,6 +163,37 @@ Validate with `scripts/test-linxup-instant-arrivals.py` against the installed
 matcher and the Schedule presence/visit/block tests. Use synthetic fixtures and
 mocked writers; a live daily replay is not necessary for the approximate-pin change.
 
+### Continuous appointment visits between GPS reports
+
+The app-owned matcher policy keeps the original arrival until positive departure
+evidence. The installed collector's five-minute gap between inside points no
+longer creates a second appointment visit. An hourly parked heartbeat, ignition
+cycle, or missing/stale GPS report cannot end a visit. Coverage gaps remain in
+the output and mark coverage incomplete; elapsed visit time does not assert
+continuous GPS sampling. Schedule's current-position freshness remains separate.
+
+Departure retains the existing conservative rule: at least two distinct fixes
+beyond twice the site radius, at least one minute apart, with no gap over five
+minutes between corroborating fixes and at least the configured departure grace
+since the last inside point. Boundary jitter and conflicting same-time positions
+interrupt corroboration. A later inside report after that confirmed departure
+starts a genuine return visit; time away remains excluded. The endpoint remains
+the last recorded inside fix, not the wall clock or an invented exact exit.
+
+This policy is applied by the existing wrapper on ordinary collection after an
+approved release. It does not modify the external collector source, raw GPS,
+appointment bookings, historical closeouts, expenses, or existing notification
+receipts. It does not replay earlier dates. Existing Chicago operating-day
+isolation, appointment pin ambiguity/identity and per-truck matching stay intact.
+Legacy already-split records remain subject to the reader's conservative segment
+handling until a separately authorized recomputation; do not blindly merge all
+displayed bars or delete old arrival alerts.
+
+Validate with `scripts/test-linxup-continuous-visits.py`,
+`scripts/test-linxup-instant-arrivals.py`, `scripts/test-approximate-arrivals.py`
+and the existing appointment tracking and Schedule tests. All matcher fixtures
+use synthetic records and disabled live writers.
+
 ## Assign unassigned appointments from GPS visits
 
 For today's unassigned appointments, one uniquely identified visiting truck is

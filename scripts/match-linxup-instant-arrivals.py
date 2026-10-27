@@ -48,6 +48,8 @@ def appointment_day_policy(source: str) -> str:
          '"minimum_qualifying_dwell_minutes": 0,'),
         ('"minimum_consecutive_inside_points": args.minimum_inside_points,',
          '"minimum_consecutive_inside_points": 1,'),
+        ('boundary_gaps = [gap for visit in visits for gap in visit.get("boundary_coverage_gaps", [])]',
+         'boundary_gaps = [gap for visit in visits for gap in visit.get("boundary_coverage_gaps", []) + visit.get("coverage_gaps", [])]'),
     ]
     for old, new in replacements:
         if source.count(old) != 1:
@@ -182,35 +184,64 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
             stamp = module.parse_timestamp(point.get('timestamp'))
             if stamp and valid(point):
                 grouped.setdefault(stamp, []).append(point)
-        clean = []
+        clean, ambiguous_times = [], []
         for stamp, samples in sorted(grouped.items()):
             authoritative = [p for p in samples if p.get('delivery_source') == 'v3_position_push']
             samples = authoritative or samples
             positions = {(p['latitude'], p['longitude']) for p in samples}
             if len(positions) == 1:
                 clean.append(samples[0])
-        visits, distance, gaps, pass_by = original_qualifying(clean, lat, lon, radius, dwell, count, grace)
-        for index, visit in enumerate(visits):
-            last = module.parse_timestamp(visit['source_timestamps'][-1])
-            next_start = module.parse_timestamp(visits[index+1]['arrival']) if index+1 < len(visits) else None
-            outside = []
-            confirmed = False
-            for point in clean:
-                stamp = module.parse_timestamp(point['timestamp'])
-                if stamp <= last or next_start and stamp >= next_start:
+            else:
+                ambiguous_times.append(stamp)
+        # Keep the collector's coverage diagnostics, but do not use its
+        # five-minute inside-point clusters as visit identities. Missing fixes
+        # (including parked heartbeats) are not evidence of leaving the site.
+        _, distance, gaps, _ = original_qualifying(clean, lat, lon, radius, dwell, count, grace)
+        measured = [(module.parse_timestamp(p['timestamp']), p,
+                     module.haversine_meters(lat, lon, p['latitude'], p['longitude'])) for p in clean]
+        visits, inside, outside = [], [], []
+
+        def finish(confirmed):
+            first, last = measured[inside[0]], measured[inside[-1]]
+            duration = (last[0] - first[0]).total_seconds() / 60
+            if len(inside) < count or duration < dwell:
+                return
+            boundaries = []
+            for left, right in ((measured[inside[0]-1], first) if inside[0] else (None, None),
+                                (last, measured[inside[-1]+1]) if inside[-1]+1 < len(measured) else (None, None)):
+                if left and right and (right[0]-left[0]).total_seconds() > 600:
+                    boundaries.append({'start': module.iso_utc(left[0]), 'end': module.iso_utc(right[0]),
+                                       'minutes': round((right[0]-left[0]).total_seconds()/60, 2)})
+            visits.append({'arrival': module.iso_utc(first[0]),
+                           # Preserve the existing last-inside endpoint policy;
+                           # neither the wall clock nor silence creates an exit.
+                           'departure': module.iso_utc(last[0]) if confirmed else None,
+                           'departure_confirmed': confirmed, 'onsite_minutes': round(duration, 2),
+                           'inside_point_count': len(inside),
+                           'source_timestamps': [module.iso_utc(measured[i][0]) for i in inside],
+                           'boundary_coverage_gaps': boundaries,
+                           'coverage_gaps': [gap for gap in gaps if first[0] <= module.parse_timestamp(gap['start'])
+                                             and module.parse_timestamp(gap['end']) <= last[0]]})
+
+        for index, (stamp, _, meters) in enumerate(measured):
+            if meters <= radius:
+                inside.append(index)
+                outside = []
+            elif inside:
+                if meters <= radius * 2:
+                    outside = []  # Boundary jitter is not departure.
                     continue
-                if module.haversine_meters(lat, lon, point['latitude'], point['longitude']) <= radius * 2:
-                    outside = []
-                    continue
-                if outside and (stamp-outside[-1]).total_seconds() > 300:
+                if outside and ((stamp-outside[-1]).total_seconds() > 300
+                                or any(outside[-1] < uncertain < stamp for uncertain in ambiguous_times)):
                     outside = []
                 outside.append(stamp)
-                if len(outside) > 1 and (stamp-outside[0]).total_seconds() >= 60 and (stamp-last).total_seconds() >= grace*60:
-                    confirmed = True
-                    break
-            visit['departure_confirmed'] = confirmed
-            visit['departure'] = module.iso_utc(last) if confirmed else None
-        return visits, distance, gaps, pass_by
+                if (len(outside) > 1 and (stamp-outside[0]).total_seconds() >= 60
+                        and (stamp-measured[inside[-1]][0]).total_seconds() >= grace*60):
+                    finish(True)
+                    inside, outside = [], []
+        if inside:
+            finish(False)
+        return visits, distance, gaps, not visits and any(item[2] <= radius for item in measured)
     module.qualifying_visits = operational_visits
 
 

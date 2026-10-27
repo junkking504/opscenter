@@ -13,14 +13,17 @@ export function appointmentVisitPin(job: Pick<VisitPinJob,'location'|'mapFallbac
 export function visitEvidenceLocation(job: Pick<VisitPinJob,'location'|'mapFallback'>, recorded?: VisitPin|null) {
   return recorded && validGpsCoordinates(recorded.location) ? recorded.location : appointmentVisitPin(job)?.location;
 }
-/** Overlapping 200m circles cannot uniquely identify a stop, regardless of label.
- * Include completed appointments: booking status cannot disambiguate physical GPS.
+/** Ambiguity belongs to the observed point, not the overlap of two circles.
+ * Completed jobs still compete; booking status and assignment cannot locate GPS.
+ * Without a usable observation, retain the conservative pin-only check.
  */
-export function ambiguousVisitPin(job:VisitPinJob, appointments:VisitPinJob[]) {
+export function ambiguousVisitPin(job:VisitPinJob, appointments:VisitPinJob[], position?: {latitude?:number|null;longitude?:number|null}) {
   const pin=appointmentVisitPin(job);
-  return !!pin && appointments.some(other=>{
+  if (!pin) return false;
+  const observed=position && validGpsCoordinates(position) ? position : undefined;
+  return appointments.some(other=>{
     if(other.appointmentId===job.appointmentId || /cancel/i.test(other.status || ''))return false;
     const candidate=appointmentVisitPin(other);
-    return candidate && gpsDistanceMeters(pin.location,candidate.location)<=2*GPS_SITE_RADIUS_METERS;
+    return candidate && gpsDistanceMeters(observed || pin.location,candidate.location) <= (observed ? GPS_SITE_RADIUS_METERS : 2*GPS_SITE_RADIUS_METERS);
   });
 }

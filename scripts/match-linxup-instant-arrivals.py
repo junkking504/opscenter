@@ -50,6 +50,12 @@ def appointment_day_policy(source: str) -> str:
          '"minimum_consecutive_inside_points": 1,'),
         ('boundary_gaps = [gap for visit in visits for gap in visit.get("boundary_coverage_gaps", [])]',
          'boundary_gaps = [gap for visit in visits for gap in visit.get("boundary_coverage_gaps", []) + visit.get("coverage_gaps", [])]'),
+        ('args.departure_grace_minutes,\n            )',
+         'args.departure_grace_minutes,\n                geocode.get("neighbors", []), args.geofence_radius,\n            )'),
+        ('args.departure_grace_minutes,\n                )',
+         'args.departure_grace_minutes,\n                    geocode.get("neighbors", []), args.geofence_radius,\n                )'),
+        ('base["match_reason"] = "pass_by_without_qualifying_dwell"',
+         'base["match_reason"] = "ambiguous_visit_position" if geocode.get("neighbors") else "pass_by_without_qualifying_dwell"'),
     ]
     for old, new in replacements:
         if source.count(old) != 1:
@@ -161,20 +167,21 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
                 verified = geocodes.get(module.address_hash(module.normalize_address(raw)))
                 if verified and verified.get('match_confidence') == 'confirmed' and valid(verified):
                     pins[row['_appointment_id']] = dict(verified)
-        # Geometric ambiguity has the same rule for every label. Assignment and
-        # booking status do not distinguish physically overlapping sites.
+        # Only points shared by circles are ambiguous. Keep neighboring pins
+        # for point-level checks; do not block the entire appointment.
         values = list(pins.values())
         for index, a in enumerate(values):
             for b in values[index+1:]:
                 if module.haversine_meters(a['latitude'], a['longitude'], b['latitude'], b['longitude']) <= 2 * radius:
-                    a['blocked'] = b['blocked'] = True
+                    a.setdefault('neighbors', []).append({'latitude': b['latitude'], 'longitude': b['longitude']})
+                    b.setdefault('neighbors', []).append({'latitude': a['latitude'], 'longitude': a['longitude']})
         return pins
     module.resolve_visit_pins = resolve
 
     original_qualifying = getattr(module, '_base_qualifying_visits', module.qualifying_visits)
     module._base_qualifying_visits = original_qualifying
 
-    def operational_visits(points, lat, lon, radius, dwell, count, grace):
+    def operational_visits(points, lat, lon, radius, dwell, count, grace, neighbors=(), competition_radius=None):
         # Reconcile one observation per instant before visit matching. V2 may
         # later add rounded/derived coordinates for an authoritative V3 fix;
         # that enrichment must not erase the arrival or change its notice key.
@@ -223,8 +230,14 @@ def configure_visit_pins(module, read_fallbacks=cached_map_pins, started_at=None
                            'coverage_gaps': [gap for gap in gaps if first[0] <= module.parse_timestamp(gap['start'])
                                              and module.parse_timestamp(gap['end']) <= last[0]]})
 
-        for index, (stamp, _, meters) in enumerate(measured):
+        for index, (stamp, point, meters) in enumerate(measured):
             if meters <= radius:
+                if any(module.haversine_meters(pin['latitude'], pin['longitude'], point['latitude'], point['longitude'])
+                       <= (competition_radius if competition_radius is not None else radius) for pin in neighbors):
+                    # An overlapping fix proves neither arrival nor departure.
+                    # Do not extend the last attributable onsite observation.
+                    outside = []
+                    continue
                 inside.append(index)
                 outside = []
             elif inside:

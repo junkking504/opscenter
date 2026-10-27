@@ -65,6 +65,32 @@ with tempfile.TemporaryDirectory() as directory:
         pins[neighbor_address]={**pin,'sourceAddress':neighbor_address,'location':{'latitude':30.001,'longitude':-90.}}
         assert all(row['visit_count']==0 for row in run(samples))
         jobs.pop();pins.pop(neighbor_address)
+    # Nearby circles may overlap while the actual point identifies exactly one.
+    for approximate in [False, True]:
+        pin['approximate'] = approximate
+        neighbor_address = '125 Synthetic Rd Hammond, LA 70403'
+        jobs.append({**jobs[0], 'appt_id': '102', 'job_id': 'JK_NEIGHBOR',
+                     'address': neighbor_address, 'job_status': 'Completed'})
+        pins[neighbor_address] = {**pin, 'sourceAddress': neighbor_address,
+                                 'location': {'latitude': 30.00324, 'longitude': -90.}}
+        rows = run([point(0,30.00162), *samples])
+        here = next(r for r in rows if r['appointment_id'] == '101')
+        there = next(r for r in rows if r['appointment_id'] == '102')
+        assert here['visit_count'] == 1 and here['first_arrival'] == point(1)['timestamp']
+        assert here['final_departure'] == point(2)['timestamp']
+        assert there['visit_count'] == 0, 'Do not assign a stop to both nearby appointments'
+        rows = run([point(1,30.00162)])
+        assert all(r['visit_count'] == 0 for r in rows), 'Actual shared point remains ambiguous'
+        rows = run([point(1,30.00324)])
+        assert next(r for r in rows if r['appointment_id']=='102')['visit_count'] == 1
+        assert next(r for r in rows if r['appointment_id']=='101')['visit_count'] == 0
+        rows = run([point(1),point(2,30.00162)])
+        here = next(r for r in rows if r['appointment_id']=='101')
+        assert here['source_timestamps'] == [point(1)['timestamp']], 'Overlap cannot extend attributed presence'
+        assert here['final_departure'] is None, 'Overlap cannot invent departure'
+        jobs[-1]['job_status'] = 'Canceled'
+        assert next(r for r in run([point(1,30.00162)]) if r['appointment_id']=='101')['visit_count'] == 1
+        jobs.pop(); pins.pop(neighbor_address)
     saved=matcher.VISIT_HISTORY/'linxup_appointment_visits_2026-09-08.json'
     saved.write_text(json.dumps({'visits':[{'appointment_id':'101','visit_pin':pin}]}))
     before=saved.read_bytes()

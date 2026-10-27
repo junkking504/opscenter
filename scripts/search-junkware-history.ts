@@ -28,10 +28,14 @@ export async function searchHistoryOnPage(page:Page, query:string, scope:Appoint
     for(const field of ['AppointmentTypeDD','StatusDD','FranchiseDD'])if(await page.locator(prefix+field).inputValue()!=='')throw new Error('Search restrictions changed');
     const rows=await page.locator("tr[id^='ctl00_Content_ListView1_ctrl'][id$='_ItemRow']").evaluateAll(nodes=>nodes.map(node=>{
       const cells=Array.from(node.querySelectorAll('td'));
-      const text=(n:Element|undefined)=>(n as HTMLElement|undefined)?.innerText?.replace(/\s+/g,' ').trim()||'';
+      // Keep this serialized callback self-contained. tsx adds a Node-side
+      // __name helper to locally named functions, which is absent in the page.
+      const texts=cells.map(cell=>(cell as HTMLElement).innerText.replace(/\s+/g,' ').trim());
       const customer=cells[3];
       const name=customer?Array.from(customer.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent||'').join(' ').replace(/\s+/g,' ').trim().replace(/,$/,''):'';
-      return {appointmentId:node.getAttribute('onclick')?.match(/window\.location\s*=\s*['"]appointment\.aspx\?id=(\d+)['"]/i)?.[1]||'',date:text(cells[0]),time:text(cells[1]),jk:text(cells[2]).match(/JK\d+/i)?.[0]?.toUpperCase()||'',type:text(cells[2]).replace(/JK\d+/i,'').trim(),name,address:text(customer?.querySelector('a[href*="maps"]')||undefined),phone:text(customer?.querySelector('a[href^="tel:"]')||undefined),status:text(cells[6]),cellCount:cells.length};
+      const address=(customer?.querySelector('a[href*="maps"]') as HTMLElement|null)?.innerText?.replace(/\s+/g,' ').trim()||'';
+      const phone=(customer?.querySelector('a[href^="tel:"]') as HTMLElement|null)?.innerText?.replace(/\s+/g,' ').trim()||'';
+      return {appointmentId:node.getAttribute('onclick')?.match(/window\.location\s*=\s*['"]appointment\.aspx\?id=(\d+)['"]/i)?.[1]||'',date:texts[0]||'',time:texts[1]||'',jk:(texts[2]||'').match(/JK\d+/i)?.[0]?.toUpperCase()||'',type:(texts[2]||'').replace(/JK\d+/i,'').trim(),name,address,phone,status:texts[6]||'',cellCount:cells.length};
     }));
     if(!rows.length){
       if(pageNumber===1&&await page.getByText('No results found.',{exact:true}).isVisible())return {results:[],hasMore:false,checkedAt:new Date().toISOString()};

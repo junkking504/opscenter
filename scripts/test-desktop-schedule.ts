@@ -68,6 +68,7 @@ async function main() {
   const provider = async () => [{condition:'ROUTE_EXISTS',duration:'600s',distanceMeters:1000}];
   const state = async (truck: ScheduleTruck, clock = now) => (await calculateClosestTrucks(jobs[0],[truck],true,provider,clock))[0].status;
   assert.equal(await state(nohq),'at_warehouse');
+  assert.equal(await state({...nohq,lastGpsUpdate:'2026-10-27T04:59:59Z'}),'day_activity_unconfirmed','Old warehouse coordinates do not establish today\'s activity');
   assert.equal(await state({...active,truck:nohq.truck}),'available');
   assert.equal(await state({...nohq,lastGpsUpdate:'2026-10-27T18:00:00Z',speed:5}),'at_warehouse','Moving within the warehouse still does not qualify');
   assert.equal(await state({...active,truck:nohq.truck,lastGpsUpdate:'2026-10-27T18:30:00Z'}),'available');

@@ -238,7 +238,7 @@ export async function calculateClosestTrucks(appointment: DesktopAppointment, tr
     // same-day parked locations, but exclude a return to either warehouse.
     const activeToday = Number.isFinite(observedAt) && observedAt <= now
       && chicagoDateKey(new Date(observedAt)) === chicagoDateKey(new Date(now));
-    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : atWarehouse ? 'at_warehouse' : !activeToday ? 'day_activity_unconfirmed' : 'routing_unavailable' };
+    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : !activeToday ? 'day_activity_unconfirmed' : atWarehouse ? 'at_warehouse' : 'routing_unavailable' };
   });
   const eligible = rows.filter(row => row.status === 'routing_unavailable');
   for (let offset = 0; offset < eligible.length; offset += 25) {

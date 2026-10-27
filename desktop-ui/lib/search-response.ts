@@ -5,7 +5,8 @@ export async function readSearchJson<T extends object>(response: Response, unava
   if (response.status === 401 || (response.redirected && /\/login(?:[/?#]|$)/.test(response.url))) {
     throw new SearchRequestError('Your OpsCenter session has expired. Refresh the page and sign in again.');
   }
-  if (response.redirected || !/\bapplication\/(?:[\w.-]+\+)?json\b/i.test(response.headers.get('content-type') || '')) {
+  // Session renewal can redirect a GET back to the same API with valid JSON.
+  if (!/\bapplication\/(?:[\w.-]+\+)?json\b/i.test(response.headers.get('content-type') || '')) {
     throw new SearchRequestError(unavailable);
   }
   let body: unknown;

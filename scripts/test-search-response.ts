@@ -16,9 +16,12 @@ async function main() {
   const login = new Response('<html>Sign in</html>');
   Object.defineProperties(login, { redirected: { value: true }, url: { value: 'https://example.test/login?next=search' } });
   await assert.rejects(readSearchJson(login, fallback), /session has expired/);
-  const redirect = Response.json({ results: [] });
+  const redirect = new Response('<html>Maintenance</html>', { headers: { 'Content-Type': 'text/html' } });
   Object.defineProperties(redirect, { redirected: { value: true }, url: { value: 'https://example.test/maintenance' } });
   await assert.rejects(readSearchJson(redirect, fallback), { message: fallback });
+  const renewed = Response.json({ results: [] });
+  Object.defineProperties(renewed, { redirected: { value: true }, url: { value: 'https://example.test/api/global-search?q=example' } });
+  assert.deepEqual(await readSearchJson(renewed, fallback), { results: [] }, 'Session renewal redirects must preserve successful API results');
   const result = { results: [{ id: 'synthetic', title: 'Example record' }], appointmentTotal: 1 };
   assert.deepEqual(await readSearchJson(Response.json(result), fallback), result);
   // Preserve HTTP error payloads and usage metadata for the caller to handle.

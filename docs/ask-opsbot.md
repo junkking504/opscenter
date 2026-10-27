@@ -23,11 +23,12 @@ calendar-period average when coverage is missing. These answers consume no AI qu
 Enter submits to the assistant regardless of wording, except exact workspace or record matches; records also retain click navigation.
 Local answers remain available when the paid pilot is paused or exhausted.
 The panel distinguishes an empty saved-record search from an unavailable request.
-HTML, redirected, malformed, timed-out, or disconnected responses show a
+HTML, sign-in redirects, malformed, timed-out, or disconnected responses show a
 plain-language recovery message, never the underlying JSON parser exception.
 An uncertain paid response is not automatically retried, and the panel warns
 that a submitted pilot question may still count. Empty search results do not
 establish that a customer or address is absent from JunkWare.
+Session-renewal redirects that return valid JSON continue normally.
 
 Saved-source lookup also answers simple clocked/worked crew, booked schedule,
 named employee day/week/pay-period gross, saved daily revenue/sales/expense/profit,

@@ -15,6 +15,17 @@ try{
  await page.getByRole('button',{name:'Past',exact:true}).click();await page.getByText(/No matching saved records/).waitFor();
  await page.getByRole('button',{name:'All',exact:true}).click();await page.getByText('10 of 12',{exact:true}).waitFor();
  await search.fill('fail');await page.getByRole('alert').waitFor();assert.equal(await page.getByText(/No matching saved records/).count(),0,'Failure must not claim there are no appointments');
+ for(const query of ['html search','expired']) {
+  await search.fill(query);await page.getByRole('alert').waitFor();
+  assert.match(await page.getByRole('alert').innerText(),query==='expired'?/session has expired/:/Saved-record search is temporarily unavailable/);
+  assert.equal(await page.getByText(/No matching saved records/).count(),0);
+ }
+ for(const query of ['html local','html paid']) {
+  await search.fill(query);await page.getByRole('button',{name:'Ask OpsBot',exact:true}).click();
+  const alert=page.getByRole('alert');await alert.waitFor();
+  assert.match(await alert.innerText(),query==='html local'?/saved-source lookup is temporarily unavailable/:/submitted pilot question may still count/);
+  assert(!/Unexpected token|DOCTYPE/.test(await alert.innerText()));
+ }
  await search.fill('slow');await page.waitForTimeout(250);await search.fill('Synthetic');await page.getByText('10 of 12',{exact:true}).waitFor();await page.waitForTimeout(750);assert.equal(await page.getByText('Stale Response',{exact:true}).count(),0);
  if(process.env.SEARCH_SCREENSHOT)await page.screenshot({path:process.env.SEARCH_SCREENSHOT});
  await search.press('Escape');assert.equal(await page.getByRole('dialog',{name:'OpsCenter launcher'}).count(),0);await search.click();await page.getByText('10 of 12',{exact:true}).waitFor();

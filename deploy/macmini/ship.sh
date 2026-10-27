@@ -7,14 +7,21 @@ set -euo pipefail
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-CONTROLLER="${OPSCENTER_CONTROLLER:-/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh}"
+SCRIPT_DIR="${0:A:h}"
+REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
+REVIEW_GATE="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/check-review-gate.py"
+ACTIVE_RELEASE="/Users/missioncontrol/opscenter-v2/opscenter"
+RECEIPTS="/Users/missioncontrol/opscenter-v2/vault/Tasks"
 PR="${1:-}"
 DRY_RUN=false
 [[ "${2:-}" == "--dry-run" ]] && DRY_RUN=true
 
 fail() { echo "ship stopped: $*" >&2; exit 1; }
 [[ "$PR" =~ ^[0-9]+$ ]] || fail "usage: ship.sh <PR number> [--dry-run]"
+[[ $# -le 2 && ( $# -lt 2 || "$2" == "--dry-run" ) ]] || fail "usage: ship.sh <PR number> [--dry-run]"
 command -v gh >/dev/null || fail "gh CLI not found"
+[[ -f "$REVIEW_GATE" && -d "$ACTIVE_RELEASE" ]] || fail "run on Mission Control with the installed review gate"
+cd "$REPOSITORY_ROOT"
 
 json=$(gh pr view "$PR" --json state,baseRefName,mergeable,isDraft,labels,statusCheckRollup,headRefOid)
 field() { print -r -- "$json" | python3 -c "import sys,json;d=json.load(sys.stdin);print($1)"; }
@@ -28,11 +35,23 @@ field() { print -r -- "$json" | python3 -c "import sys,json;d=json.load(sys.stdi
 bad=$(field 'len([c for c in d["statusCheckRollup"] if (c.get("conclusion") or c.get("state")) not in ("SUCCESS","NEUTRAL","SKIPPED")])')
 [[ "$bad" == "0" ]] || fail "CI is not fully green ($bad checks pending or failing)"
 
-echo "PR #$PR ready: open, mergeable, CI green, no stop label."
+head_sha=$(field 'd["headRefOid"]')
+[[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || fail "invalid PR head"
+git fetch origin production
+git fetch origin "refs/pull/$PR/head"
+[[ "$(git rev-parse FETCH_HEAD)" == "$head_sha" ]] || fail "PR head changed; retry against the new head"
+active_sha=$(git -C "$ACTIVE_RELEASE" rev-parse HEAD)
+git merge-base --is-ancestor "$active_sha" "$head_sha" || fail "PR must contain the active release"
+git merge-base --is-ancestor origin/production "$head_sha" || fail "merge current production into the PR and review it first"
+python3 "$REVIEW_GATE" "$REPOSITORY_ROOT" "$active_sha" "$head_sha" "$RECEIPTS" \
+  || fail "review approval is missing; production was not changed"
+
+echo "PR #$PR ready: exact head reviewed, current production included, CI green."
 if $DRY_RUN; then echo "dry run: would merge (merge commit) and deploy origin/production."; exit 0; fi
 
-gh pr merge "$PR" --merge
+gh pr merge "$PR" --merge --match-head-commit "$head_sha"
 git fetch origin production
 sha=$(git rev-parse origin/production)
 echo "Deploying $sha"
-exec "$CONTROLLER" "$sha"
+export OPSCENTER_MC_HOST=127.0.0.1
+exec "$SCRIPT_DIR/deploy-from-macbook.sh" origin/production

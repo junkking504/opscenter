@@ -46,12 +46,12 @@ export async function managePushDevice(owner: string, input: {action:'subscribe'
   } catch(error) {await client.query('ROLLBACK');throw error;} finally {client.release();}
 }
 export async function listPushDevices(owner: string, pool: Pool = getKernelPool()) {
-  const result=await pool.query(`SELECT d.id,d.categories,d.created_at,d.expires_at,d.subscription_json,t.device_id,t.subscription_hash
+  const result=await pool.query(`SELECT d.id,d.categories,d.created_at,d.expires_at,d.subscription_json,d.consented_at,d.consent_fingerprint,t.device_id,t.subscription_hash
     FROM opscenter_kernel.push_devices d LEFT JOIN opscenter_kernel.push_trial t ON t.singleton=true AND t.owner_id=d.owner_id
-    WHERE d.owner_id=$1 AND d.revoked_at IS NULL AND d.expires_at>clock_timestamp() ORDER BY d.created_at DESC`,[owner]);
-  return result.rows.map(({subscription_json,device_id,subscription_hash,...device})=>{
+    WHERE d.owner_id=$1 AND d.revoked_at IS NULL AND (d.expires_at IS NULL OR d.expires_at>clock_timestamp()) ORDER BY d.created_at DESC`,[owner]);
+  return result.rows.map(({subscription_json,device_id,subscription_hash,consent_fingerprint,...device})=>{
     const fingerprint=trialFingerprint(subscription_json);
-    return {...device,fingerprint,approved:device.id===device_id&&fingerprint===subscription_hash};
+    return {...device,fingerprint,approved:device.consented_at?fingerprint===consent_fingerprint:device.id===device_id&&fingerprint===subscription_hash};
   });
 }
 

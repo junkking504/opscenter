@@ -737,55 +737,57 @@ matching Schedule, Krewe or Fleet workspace. Clicking reuses an existing OpsCent
 window when it can navigate; otherwise it opens the requested destination. Pushover preserves its existing job-link and generic fallback contract.
 No new transport, approval, polling or external sending is enabled by this change.
 
-## Re-enable a revoked manager phone
+## Persistent manager device toggle
 
-A revoked ongoing phone cannot be restored by saving categories, restarting the
-sender or changing iOS notification settings. Settings distinguishes the alert
-service (off, paused, running) from phone authorization. A running service is not
-proof that a phone is authorized or that Apple acceptance reached the screen.
+Settings > Phone notifications now offers **Notifications on this phone: On / Off**.
+An authenticated configured owner turns ON on that phone and accepts browser/iOS
+permission if needed. There is no app-imposed authorization expiry, request-ID
+exchange or separate operator approval. Categories remain schedule, krewe and
+fleet; existing late-arrival and owner truck-reassignment exclusions are unchanged.
+Authentication, manager role, exact configured owner, trusted origin, CSRF checks,
+endpoint validation and device ownership still apply. Each browser subscription
+has its own consent and audit record; saving another phone never migrates an
+existing revoked device. GET, startup and deployment never enable a device.
 
-The phone explicitly checks the re-enable consent and taps **Request re-enable
-for this phone**. Permission is requested only from that gesture. This creates a
-15-minute pending request, not a delivery grant. The screen shows the request ID
-and fingerprint only when they match the browser's actual subscription. Status
-refresh never asks for permission or sends a test. A lost POST response retains
-the subscription so a read/retry can reconcile it without creating another one.
+Migration `0015_push_device_consent.sql` adds nullable per-device consent fields
+and allows no expiry only with explicit consent. Existing devices and trial/audit
+history stay unchanged. ON records a fingerprint and a new-events cutoff. Repeated
+identical ON requests are idempotent. Category changes reset that device's cutoff;
+pre-enable occurrence/recording and queued backlog cannot deliver. OFF revokes the
+owned device, skips pending delivery and is checked again immediately before
+transport. A notification already handed to Apple may still arrive. Browser
+subscription expiry and provider 404/410 revoke/stop delivery. An invalid endpoint
+must be renewed by a new explicit ON gesture; it is never retried automatically.
+Session-cookie expiry does not expire device consent. Account removal, ownership
+checks and the global sender stop still prevent delivery.
 
-After the owner verifies those exact details from the intended phone and
-explicitly authorizes restoration, the local operator may run:
+Device preference and alert-service availability are separate. The UI can retain
+ON while a stopped/offline sender is unavailable; it never reports that as phone
+receipt. Browser/iOS permission cannot be overridden by the app. Lost responses
+require Refresh status to reconcile the exact subscription, not another automatic
+request. No test notification is sent by ON, OFF, saving categories or status reads.
 
-```sh
-node --import tsx scripts/control-web-push-reenable.ts \
-  --owner '<existing owner identity>' --request '<displayed request ID>' \
-  --fingerprint '<displayed fingerprint>' --handset-confirmed \
-  --approval-reference '<specific owner authorization reference>' --apply
-```
+### Release and sender lifecycle
 
-Before authorization, restart the existing supervisor from the newly deployed
-release and verify its readiness. The command requires a valid send lease that
-attests the worker supports the re-enable cutoff; an older still-running sender
-is refused. This is separate from releasing the web application.
+Publish/deploy only after explicit release authorization. The normal controller
+applies the inert migration. Restart the existing sender from that active release
+using its established supervisor lock and reversible saved configuration. For
+persistent service use the explicit private configuration
+`{"mode":"send","persistent":true}` without `setupUntil`. This is a separate
+operator-controlled service setting, not a device authorization; the current task
+has prepared code only and has not applied this setting. Keep existing environment,
+signing identity, recipients and exclusions. Legacy bounded observe/trial modes
+remain supported for their existing tests and tools. Persistent mode still uses
+short-lived liveness leases, startup timeout, parent-death detection, global OFF
+and fail-closed shutdown. A supervisor failure pauses delivery without deleting
+any device preference. Every network attempt retains a finite 30-second deadline
+and the existing shorter transport timeout even though consent has no app expiry.
 
-Use the established protected Mission Control database configuration, without
-push signing secrets. Never run this command from startup, an HTTP request or a
-deployment. It rejects changed/expired requests, another owner, an active target,
-an operator-stopped grant, broadened categories and expired original grants.
-There is no expired-grant renewal or automatic approval. The request may contain
-a fresh subscription after browser unsubscribe; it must be verified as a new
-fingerprint, not inferred from a saved device ID.
+The old recovery request/operator command is retained only for historical bounded
+grant compatibility, not exposed by the normal API/UI. Pending old requests do
+not enable anything and expire through existing retention. No review records,
+authorization history, device revocations or sender settings are reset by release.
 
-Approval preserves the original ongoing expiry, trial dates, attempt ledger,
-revocation/audit history and existing exclusions. The new device's expiry may be
-shorter (current authenticated enrollment/subscription limit), never longer.
-Pending old deliveries are skipped; a separate re-enable timestamp blocks delayed
-pre-reenable events at fan-out, reservation and the final transport authorization.
-No test notification or provider call is made by request or approval. The phone
-then taps **Refresh status** to confirm its exact subscription is approved.
-
-Migration `0014_push_reenable.sql` adds an inert pending-request table and the
-nullable cutoff. Deployment still needs explicit authorization; installing the
-schema does not reauthorize any phone. Requests contain subscription keys only in
-the existing private database, one pending row per owner, and are removed by the
-existing event-driven retention pass after expiry. Public responses contain only
-verification metadata, never endpoint/key material. Tests use disposable databases
-and mocked browser/transport operations; they do not prove iPhone receipt.
+Validation uses disposable PostgreSQL and mocked notifications, plus responsive
+Chromium/WebKit fixtures. Provider acceptance and actual physical-phone receipt
+remain separate acceptance results.

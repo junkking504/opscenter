@@ -1,21 +1,21 @@
-import { readPushReenable, requestPushReenable } from './web-push-reenable';
+import { enablePushDevice } from './web-push-toggle';
 import { pushLease } from './web-push-runtime';
 import { readPushTrial } from './web-push-trial';
 import { readPushJournalHealth } from './web-push-journal-health';
 import type { AuthSession } from './auth';
 import { opsRoleCan } from './ops-roles';
-import { supervisedPushEnrollment } from './web-push-runtime';
+import { pushEnrollmentEnabled } from './web-push-policy';
 import { pushCategories, pushSubscription } from './web-push-policy';
 import { listPushDevices, managePushDevice, readPushHealth } from './web-push-store';
 type PushSession=Pick<AuthSession,'email'|'role'|'expiresAt'>|null;
 const headers={'Cache-Control':'private, no-store, max-age=0'};
-const defaultService={enabled:supervisedPushEnrollment,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice,health:readPushHealth,journal:readPushJournalHealth,trial:readPushTrial,recovery:readPushReenable,requestRecovery:requestPushReenable,sender:()=>({enabled:process.env.OPSCENTER_WEB_PUSH_ENABLED==='1',ready:pushLease('send')})};
-type PushService=Omit<typeof defaultService,'health'|'journal'|'trial'|'recovery'|'requestRecovery'|'sender'> & {health?:typeof readPushHealth;journal?:typeof readPushJournalHealth;trial?:typeof readPushTrial;recovery?:typeof readPushReenable;requestRecovery?:typeof requestPushReenable;sender?:typeof defaultService.sender};
+const defaultService={enabled:pushEnrollmentEnabled,publicKey:()=>process.env.OPSCENTER_WEB_PUSH_PUBLIC_KEY,origin:()=>process.env.OPSCENTER_WEB_PUSH_ORIGIN,list:listPushDevices,manage:managePushDevice,health:readPushHealth,journal:readPushJournalHealth,trial:readPushTrial,enableDevice:enablePushDevice,sender:()=>({enabled:process.env.OPSCENTER_WEB_PUSH_ENABLED==='1',ready:pushLease('send')})};
+type PushService=Omit<typeof defaultService,'health'|'journal'|'trial'|'enableDevice'|'sender'> & {health?:typeof readPushHealth;journal?:typeof readPushJournalHealth;trial?:typeof readPushTrial;enableDevice?:typeof enablePushDevice;sender?:typeof defaultService.sender};
 export async function pushDevicesGET(session: PushSession, service:PushService=defaultService) {
   if(!session) return Response.json({error:'Authentication required.'},{status:401,headers});
   if(!opsRoleCan(session.role,'sensitive.write')) return Response.json({error:'Manager access required.'},{status:403,headers});
   const journal=service.journal?{journal:await service.journal()}:{};
-  try {const trial=service.trial?await service.trial(session.email):null;const recovery=service.recovery?await service.recovery(session.email):null;const enrollmentEnabled=service.enabled();const enabled=enrollmentEnabled&&!!trial?.canRequest;return Response.json({...journal,trial,enabled,...(service.sender?{sender:service.sender()}:{}),...(recovery?{recovery,enrollmentEnabled}:{}),publicKey:(enabled||enrollmentEnabled&&recovery?.eligible)?service.publicKey():null,devices:await service.list(session.email),health:service.health?await service.health():[]},{headers});}
+  try {const trial=service.trial?await service.trial(session.email):null;const enabled=service.enabled()&&!!trial?.ownerEligible&&trial.status!=='stopped';return Response.json({...journal,enabled,mode:'device-toggle',sender:service.sender?.(),publicKey:enabled?service.publicKey():null,devices:await service.list(session.email),health:service.health?await service.health():[]},{headers});}
   catch {return Response.json({...journal,enabled:false,publicKey:null,devices:[],storage:'unavailable'},{headers});}
 }
 export async function pushDevicesPOST(request: Request, session: PushSession, service:PushService=defaultService) {
@@ -33,17 +33,9 @@ export async function pushDevicesPOST(request: Request, session: PushSession, se
       await service.manage(session.email,{action:'unsubscribe',deviceId:input.deviceId,expiresAt:session.expiresAt});
       return Response.json({ok:true},{headers});
     }
-    if(input.action==='request-reenable') {
-      if(input.confirm!==true || !service.enabled() || !service.requestRecovery) return Response.json({error:'Phone recovery is not available.'},{status:409,headers});
-      const subscription=pushSubscription(input.subscription);
-      const result=await service.requestRecovery(session.email,{subscription,categories:pushCategories(input.categories),expiresAt:session.expiresAt});
-      return Response.json({...result,approvalRequired:true},{headers});
-    }
-    if(input.action!=='subscribe') throw new Error('Invalid action.');
-    if(!service.enabled()||!service.trial||!(await service.trial(session.email)).canRequest) return Response.json({error:'Notifications have not been activated.'},{status:503,headers});
-    const subscription=pushSubscription(input.subscription),categories=pushCategories(input.categories);
-    const expiresAt=new Date(Math.min(session.expiresAt.getTime(),Date.now()+30*86400000,subscription.expirationTime || Infinity));
-    const deviceId=await service.manage(session.email,{action:'subscribe',subscription,categories,expiresAt});
-    return Response.json({deviceId,expiresAt,approvalRequired:true},{headers});
-  } catch {return Response.json({error:'Notification change could not be saved. Refresh and retry.'},{status:400,headers});}
+    if(input.action!=='enable'||input.confirm!==true) throw new Error('Explicit device ON action required.');
+    if(!service.enabled()||!service.enableDevice) return Response.json({error:'Notifications are not configured.'},{status:503,headers});
+    const result=await service.enableDevice(session.email,{subscription:pushSubscription(input.subscription),categories:pushCategories(input.categories)});
+    return Response.json({...result,enabled:true},{headers});
+  } catch(error) {if(error instanceof Error&&error.message==='subscription_invalid')return Response.json({error:'subscription_invalid'},{status:409,headers});return Response.json({error:'Notification change could not be saved. Refresh and retry.'},{status:400,headers});}
 }

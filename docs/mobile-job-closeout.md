@@ -1215,3 +1215,12 @@ estimate photo exemptions. Existing closeout controls remain authoritative.
 Tests: `npm run verify:appointment-signatures` uses isolated temporary artifacts;
 `npm run verify:appointment-signatures:browser` uses synthetic drawings and mocked
 transport, never customer records or live signatures.
+
+### Program labels in service addresses
+
+Waypoint address links and OpsCenter appointment details separate the exact
+`Amazon Mattress Removal` prefix into a Program label when the remaining text
+is a single complete street address. Display and directions retain street/unit
+information; ambiguous addresses and other building/business names stay intact.
+This is presentation only: original source fields, partner identity, inventory,
+address verification and GPS matching are unchanged.

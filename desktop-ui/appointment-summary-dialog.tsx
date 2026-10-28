@@ -1,3 +1,4 @@
+import {appointmentAddressDisplay} from '../lib/appointment-address-display';
 import { appointmentAccountLabel } from '../lib/appointment-account-marker';
 import { useEffect, useRef } from 'react';
 import { SheetDismissHandle } from './components/mobile-interactions';
@@ -18,12 +19,13 @@ export function AppointmentSummaryDialog({job,date,close,openDetails,returnFocus
   const payment=schedulePayment(job),mismatch=scheduleTruckMismatch(job);
   const work=appointmentSummaryWork(job),cancellation=appointmentSummaryCancellation(job),phoneHref=appointmentSummaryPhoneHref(job.phone);
   const sourceWork=(job.pickupItems?.length?job.pickupItems:job.junkItems).join(' · ');
-  const address=appointmentServiceAddress(job),directionsHref=appointmentDirectionsHref(address);
+  const {address}=appointmentAddressDisplay(appointmentServiceAddress(job)),{programLabel}=appointmentAddressDisplay(job.address),directionsHref=appointmentDirectionsHref(address);
   const notes=job.appointmentNotes.map(note=>note.trim()).filter(Boolean);
   return <dialog ref={dialog} className="appointment-summary-dialog" aria-labelledby="appointment-summary-title" onCancel={event=>{event.preventDefault();latest.current();}} onClick={event=>{if(event.target===event.currentTarget)close();}}>
     <SheetDismissHandle label="Close summary" onDismiss={close}/>
     <header><div><p>{appointmentCategory(job)} · {appointmentStatus(job)}</p><h2 id="appointment-summary-title">{scheduleCustomerLabel(job)}</h2><p>{job.jkNumber}{appointmentAccountLabel(job)&&<span role="img" aria-label={appointmentAccountLabel(job)||undefined}> *</span>} · {date}</p></div><button type="button" aria-label="Close appointment summary" onClick={close}>×</button></header>
     <div className="appointment-summary-content">
+      {programLabel&&<p>Program: {programLabel}</p>}
       <dl><div><dt>Time</dt><dd>{job.appointmentTime||'Time not recorded'}</dd></div><div><dt>Truck</dt><dd>{truckDisplayText(scheduleDisplayTruck(job))}</dd></div><div className="summary-wide"><dt>Service address</dt><dd>{directionsHref?<a style={{display:'flex',flexDirection:'column',justifyContent:'center',minHeight:44,color:'inherit',textDecoration:'underline',textUnderlineOffset:'.15em'}} href={directionsHref} aria-label={`Directions to ${address} (opens in a new tab)`} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()}>{address}<span style={{fontSize:'var(--oc-type-12)'}}>Directions ↗</span></a>:address||'Address unavailable'}</dd></div></dl>
       <dl><div className="summary-wide"><dt>Customer phone</dt><dd>{phoneHref?<a style={{display:'flex',alignItems:'center',minHeight:44,color:'inherit',textDecoration:'underline',textUnderlineOffset:'.15em'}} href={phoneHref} aria-label={`Call ${job.phone}`} onClick={event=>event.stopPropagation()}>{job.phone}</a>:job.phone.trim() && !/^(?:—|-|n\/a|unavailable)$/i.test(job.phone.trim()) ? `${job.phone} · Phone unavailable for calling` : 'Phone unavailable'}</dd></div></dl>
       {assignmentNeedsVerification(job)&&<p className="summary-warning">Assignment not verified</p>}

@@ -1,3 +1,5 @@
+import {appointmentAddressDisplay} from '../lib/appointment-address-display';
+import {appointmentDirectionsHref} from '../lib/appointment-navigation';
 import assert from 'node:assert/strict';
 import {bonusProgress,mapsDirections} from '../lib/waypoint-day-summary';
 import {projectWaypointDay} from '../lib/waypoint-day-summary-source';
@@ -38,3 +40,22 @@ for(const collected of [0,1236]){
  assert.equal(synced.revenue,1573.84,'Metrics catch-up cannot add the same billed job twice');assert.equal(synced.completed?.length,2);
 }
 console.log('PASS: billed revenue before/after collection, crew credit and metrics catch-up without duplicate revenue.');
+
+// Program labels are presentation metadata, never part of the street or inventory.
+const sourceAddress='Amazon Mattress Removal 123 Example Ave, New Orleans, LA 70117';
+const sourceJob=Object.freeze({address:sourceAddress,junkItems:Object.freeze(['Chair/recliner'])});
+assert.deepEqual(appointmentAddressDisplay(sourceJob.address),{address:'123 Example Ave, New Orleans, LA 70117',programLabel:'Amazon Mattress Removal'});
+assert.equal(sourceJob.address,sourceAddress);assert.deepEqual(sourceJob.junkItems,['Chair/recliner']);
+for(const suffix of ['', ' Apt 2', ' Building B', ' Suite 14']) {
+ const street=`123 Example Ave${suffix}, New Orleans, LA 70117`;
+ const input=`Amazon Mattress Removal ${street}`;
+ assert.equal(appointmentAddressDisplay(input).address,street);
+ assert.equal(new URL(mapsDirections(input)!).searchParams.get('destination'),street);
+ assert.equal(new URL(appointmentDirectionsHref(input)!).searchParams.get('destination'),street);
+}
+for(const input of ['Amazon Mattress Removal','Amazon Mattress Removal Warehouse 2 123 Example Ave, New Orleans, LA 70117','Amazon Mattress Removal 123 Example Ave','Amazon Mattress Removal 123 Example Ave and 456 Other St, New Orleans, LA 70117','Amazon Mattress Removal Center 123 Example Ave, New Orleans, LA 70117','Example Building 123 Example Ave, New Orleans, LA 70117','Building 2, 123 Example Ave, New Orleans, LA 70117','123 Amazon Mattress Removal Ave, New Orleans, LA 70117','Amazonia 123 Example Ave, New Orleans, LA 70117']) {
+ assert.deepEqual(appointmentAddressDisplay(input),{address:input,programLabel:null},'Ambiguous or legitimate premises must remain intact');
+ assert.equal(new URL(mapsDirections(input)!).searchParams.get('destination'),input);
+}
+assert.equal(appointmentAddressDisplay('amazon mattress removal 123 Example Ave, New Orleans, LA 70117').programLabel,'amazon mattress removal');
+console.log('PASS program/address separation, preserved source/items, building/unit/ambiguous addresses and Waypoint/OpsCenter directions.');

@@ -6,15 +6,16 @@ export type OperationReceipt = {
   sourceResult?: Record<string, unknown>;
 };
 
+type ReceiptDependencies = { endpoint?: string; fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void> };
+
 /** Submit exactly once. A lost response is not evidence that JunkWare failed. */
 export async function submitScheduleOperation(
   payload: Record<string, unknown> & { requestId: string },
-  dependencies: { endpoint?: string; fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void>; waitForCompletion?: boolean } = {},
+  dependencies: ReceiptDependencies & { waitForCompletion?: boolean } = {},
 ): Promise<OperationReceipt> {
   const request = dependencies.fetch || fetch;
   const endpoint=dependencies.endpoint || '/api/desktop/schedule/operations';
   const now = dependencies.now || Date.now;
-  const pause = dependencies.pause || ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
   const deadline = now() + 10 * 60_000;
   try {
     const response = await request(endpoint, {
@@ -30,16 +31,26 @@ export async function submitScheduleOperation(
       return { requestId: payload.requestId, status: 'failed', message: body.error || 'The appointment change was rejected.' };
     }
   } catch { /* The durable receipt, not the connection, determines the outcome. */ }
+  return waitForScheduleReceipt(payload.requestId, dependencies, deadline);
+}
+
+/** Read only: an accepted checkout is not a verified completion. Never repost. */
+export async function waitForScheduleReceipt(requestId: string, dependencies: ReceiptDependencies = {}, until?: number): Promise<OperationReceipt> {
+  const request = dependencies.fetch || fetch;
+  const endpoint = dependencies.endpoint || '/api/desktop/schedule/operations';
+  const now = dependencies.now || Date.now;
+  const pause = dependencies.pause || ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
+  const deadline = until ?? now() + 10 * 60_000;
   while (now() < deadline) {
     try {
-      const response = await request(`${endpoint}${endpoint.includes("?")?"&":"?"}requestId=${encodeURIComponent(payload.requestId)}`, {
+      const response = await request(`${endpoint}${endpoint.includes("?")?"&":"?"}requestId=${encodeURIComponent(requestId)}`, {
         credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15_000),
       });
       if (response.status === 401 || response.status === 403) break;
       const body = await response.json();
-      if (body.receipt && body.receipt.status !== 'pending') return body.receipt;
+      if (response.ok && body.receipt?.requestId === requestId && ['verified','failed','uncertain','reconciled'].includes(body.receipt.status)) return body.receipt;
     } catch { /* A read can be retried; the POST must not be. */ }
     await pause(2_000);
   }
-  return { requestId: payload.requestId, status: 'uncertain', message: 'Verification has not finished. Check Saved Result before another change; do not resubmit.' };
+  return { requestId, status: 'uncertain', message: 'Verification has not finished. Check Saved Result before another change; do not resubmit.' };
 }

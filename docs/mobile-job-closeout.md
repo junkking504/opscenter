@@ -1178,3 +1178,6 @@ and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
 local API mocks; they are not physical iPhone acceptance or live-data write tests.
 
 Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`; files in `public/` alone do not make them available on the Waypoint hostname. Route icon URLs use `?v=2` to bypass cached 404 responses from the initial navigation release. `verify:crew-phones` checks every shipped SVG through the hostname middleware, and the navigation browser check requires all five icons to decode.
+
+## Pending closeout presentation — October 28, 2026
+Waypoint and OpsCenter use the same bounded, read-only receipt waiter after a durable closeout submission. A queued response is not completion: the form stays open until verified, failed or uncertain. Waiting reads only the original receipt and never replays a POST or invokes missing-submission recovery. Background status reads remain available after leaving/reopening the form. Missing office-owned referral information is reported before a Waypoint submission; that field remains office-controlled. Existing roles, photo rules, estimate outcome/discount requirements, payments and source verification remain unchanged.

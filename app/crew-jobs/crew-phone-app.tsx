@@ -195,7 +195,9 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     return()=>clearTimeout(timer);
   },[assignment,busy,details]);
   useEffect(()=>{
-    if(!pendingCloseout?.requestId)return;
+    // The open form uses the same receipt waiter as OpsCenter. Background reads
+    // resume when the user leaves it; neither path repeats the submission.
+    if(!pendingCloseout?.requestId || details && closeout)return;
     const pending=pendingCloseout as {assignmentId:string;requestId:string};
     let canceled=false,timer:ReturnType<typeof setTimeout>|undefined;
     const check=async()=>{
@@ -221,7 +223,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
       if(!canceled)timer=setTimeout(check,3000);
     };
     void check();return()=>{canceled=true;if(timer)clearTimeout(timer);};
-  },[pendingCloseout?.assignmentId,pendingCloseout?.requestId]);
+  },[pendingCloseout?.assignmentId,pendingCloseout?.requestId,details,closeout]);
   async function refresh() {
     if(viewGuard.blocked()){viewGuard.defer();return;}
     const request=++jobRequest.current,viewVersion=viewGuard.version();setLoading(true);setError('');setSessionUnavailable(false);

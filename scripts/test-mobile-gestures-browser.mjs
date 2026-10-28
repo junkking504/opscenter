@@ -40,7 +40,6 @@ try{
   ['#map',[[250,10],[100,10]],{}],
   ['#drag',[[250,10],[100,10]],{}],
   ['input',[[250,10],[100,10]],{}],
-  ['#metric',[[250,10],[100,10]],{}],
  ]){await touch(selector,points,options);assert.equal((await state()).active,'Schedule',`excluded/cancelled ${selector} ${JSON.stringify(points)}`);}
  await touch('#nested',[[250,30],[100,30]]);await page.waitForFunction(()=>JSON.parse(document.querySelector('#results').textContent).active==='Krewe');assert.equal((await state()).active,'Krewe','vertical-only list permits horizontal swipe');await page.getByLabel('Choose workspace').selectOption('Schedule');await page.getByLabel('Choose workspace').evaluate(el=>el.blur());await page.waitForTimeout(700);
  await page.getByRole('button',{name:'Busy: false'}).click();await swipe();assert.equal((await state()).active,'Schedule','busy suppresses navigation');await page.getByRole('button',{name:'Busy: true'}).click();

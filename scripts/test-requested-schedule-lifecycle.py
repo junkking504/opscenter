@@ -16,6 +16,10 @@ spec = importlib.util.spec_from_file_location('reader', SCRIPT)
 reader = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reader)
 IMPORT = f"import importlib.util; s=importlib.util.spec_from_file_location('reader',{str(SCRIPT)!r}); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); "
+# This outer watchdog includes two interpreter starts and module imports on
+# shared build runners. Reader deadlines and process-safety timings below are
+# tested separately and remain unchanged.
+CLI_TEST_WATCHDOG_SECONDS = 20
 
 
 def await_file(file, process):
@@ -117,12 +121,12 @@ with tempfile.TemporaryDirectory(prefix='reader-lifecycle-test-') as directory:
     result = {'collection_timestamp':'2026-09-09T17:00:00Z','appointment_rows':[], 'cancel_rows':[], 'verification':{'all_territories_verified':True,'verified_markets':['synthetic-market'],'territories':[]}}
     fake_collector.write_text(base + f'def collect_attendance_source(day):\n    return {result!r}\ndef close_browser():\n    pass\n')
     command = [sys.executable, str(SCRIPT), '--date', '2026-09-09', '--opsbot-dir', str(fake), '--output', str(output)]
-    assert subprocess.run(command, timeout=5).returncode == 0
+    assert subprocess.run(command, timeout=CLI_TEST_WATCHDOG_SECONDS).returncode == 0
     verified = output.read_bytes()
     assert json.loads(verified)['markets_scraped'] == ['synthetic-market']
     result['verification']['all_territories_verified'] = False
     fake_collector.write_text(base + f'def collect_attendance_source(day):\n    return {result!r}\ndef close_browser():\n    pass\n')
-    assert subprocess.run(command, timeout=5, stderr=subprocess.PIPE).returncode != 0
+    assert subprocess.run(command, timeout=CLI_TEST_WATCHDOG_SECONDS, stderr=subprocess.PIPE).returncode != 0
     assert output.read_bytes() == verified, 'Incomplete collection must preserve the verified cache'
     result['verification']['all_territories_verified'] = True
     fake_collector.write_text(base + f'def collect_attendance_source(day):\n    return {result!r}\ndef close_browser():\n    while True: pass\n')

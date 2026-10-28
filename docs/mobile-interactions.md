@@ -9,7 +9,7 @@ remain usable without gestures. Controls retain visible focus, native dialog
 focus containment/return, status announcements and reduced-motion compatibility.
 
 At widths up to 900 CSS pixels, deliberate horizontal single-finger swipes on
-open page space move through all seven main workspaces, including Settings,
+page content (including cards, buttons, links, icons and images) move through all seven main workspaces, including Settings,
 in the supplied permission-filtered sidebar order.
 They never wrap. Navigation commits on release after 56px, or a deliberate 32px
 fast flick (at least 0.5px/ms over 40–250ms), with horizontal travel at least
@@ -19,8 +19,8 @@ operational data. Cancellation or returning toward the starting point removes
 the hint. On an accepted release, the hint acknowledges the destination while
 React renders it as a transition, then clears when that workspace commits.
 The repeat guard is 220ms; the maximum gesture duration remains 900ms.
-The outer 28px screen edges, forms, links/buttons, text selection,
-horizontal scroll areas, maps/charts, audio/video players, embedded content,
+The outer 28px screen edges, form inputs/labels, active text selection,
+horizontal scroll areas, maps/charts/canvas, audio/video players, embedded content,
 slider/scrollbar/resize controls, draggable elements and explicit
 `data-gesture-ignore` regions are excluded. Vertical intent, multiple touches,
 cancellation, active dialogs/drawers, busy edits and repeated navigation cancel
@@ -54,6 +54,13 @@ intent, cancellation and multitouch guards. Content scrolling outside that contr
 never dismisses a sheet. A visible tap/keyboard close alternative remains. Metric
 holds remain 550ms with 12px movement tolerance.
 
+A horizontal movement on a metric cancels its pending hold and can navigate.
+An accepted horizontal sequence consumes its release-click so a button, link or
+newly exposed control cannot activate. A fresh pointer press and keyboard activation
+remain available. Ordinary taps and disclosure clicks retain their original behavior.
+These are intent thresholds, not a guarantee of knowing intent: interactive maps,
+carousels and editing still own conflicting gestures, and browser edge-back wins.
+
 Only explicitly annotated `data-gesture-preview` metrics have hold previews.
 Their values and descriptions come from the existing display snapshot. A hold
 never performs the metric's click action. The explicit Preview metrics button is
@@ -81,6 +88,12 @@ CDP touch navigation/pull/dismiss and synthetic cancellation/exclusion cases.
 Chart reader integration is covered by
 `node scripts/test-chart-refresh-browser.mjs` in Chromium and WebKit, including
 zero/missing values, shared-flight reads, error retention and cancellation.
+The content-intent regression `node scripts/test-page-swipe-intent-browser.mjs`
+covers ordinary card/button/link/icon/KPI starts, release-click suppression,
+short/diagonal/vertical/return/cancel sequences, repeated gestures, selection and
+editing, protected drag/map/scroller surfaces, portrait/landscape, desktop cutoff
+and Reduced Motion. Chromium additionally uses native CDP touch dispatch; WebKit
+uses DOM-dispatched TouchEvents because its desktop Touch constructor is unavailable.
 No private records or operational services are required. Physical handset
 acceptance is separate from these browser checks.
 

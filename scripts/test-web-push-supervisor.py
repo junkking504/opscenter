@@ -24,7 +24,7 @@ journal = load('journal', 'opscenter_push_journal.py')
 CHILD = '''import json,os,time
 from pathlib import Path
 p=Path(os.environ['OPSCENTER_WEB_PUSH_READY_FILE'])
-p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True}));p.chmod(0o600)
+p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True,'reenableVersion':1}));p.chmod(0o600)
 time.sleep(0.15)
 '''
 
@@ -71,7 +71,7 @@ class SupervisionTests(unittest.TestCase):
                  "fd=int(os.environ['OPSCENTER_WEB_PUSH_PARENT_FD'])\n"
                  'assert stat.S_ISFIFO(os.fstat(fd).st_mode)\n'
                  "p=Path(os.environ['OPSCENTER_WEB_PUSH_READY_FILE'])\n"
-                 "p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True}));p.chmod(0o600)\n"
+                 "p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True,'reenableVersion':1}));p.chmod(0o600)\n"
                  f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
                  'while os.read(fd,1):\n    pass\nsys.exit(7)\n')
         supervisor.atomic(self.root / 'sender.json', {'mode': 'observe', 'setupUntil': time.time() + 30})
@@ -127,6 +127,7 @@ class SupervisionTests(unittest.TestCase):
         try:supervisor.supervise(self.root,self.env,[sys.executable,'-c',CHILD.replace('0.15','10')],lambda:None,self.forbidden_key,.01)
         finally:thread.join()
         self.assertEqual(seen[0]['mode'],'observe')
+        self.assertEqual(seen[0]['reenableVersion'],1)
         self.assertFalse((self.root/'capture-lease.json').exists())
     def test_startup_failure_never_grants_lease(self):
         self.assertEqual(supervisor.supervise(self.root,self.env,[sys.executable,'-c','raise SystemExit(1)'],lambda:None,self.forbidden_key,.01),1)

@@ -32,6 +32,7 @@ try {
  assert.equal((await page.evaluate(()=>window.pushCalls)).permission,0,'no permission request on mount');
  const summaries=page.locator('.crew-compact-update > summary');assert.equal(await summaries.count(),3);
  const text=await summaries.allTextContents();assert.match(text[0],/departed NOHQ.*59m/);assert.match(text[1],/2 clocked in.*Example Driver.*08:46 AM.*Example Navigator.*08:37 AM.*Original.*Updated/s);assert.match(text[2],/3 appointments in schedule snapshot/);
+ await page.locator('.crew-source-notice summary').click();
  assert.match(await page.locator('.crew-source-notice').innerText(),/LinxUp.*missing.*unknown/);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'mobile has no horizontal overflow');
  await page.screenshot({path:output+'/mobile.png',fullPage:true});

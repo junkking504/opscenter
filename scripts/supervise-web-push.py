@@ -141,14 +141,16 @@ def supervise(state, env, command, pause, key=signing_key, tick=2.0):
             if json.loads(private_read(state / 'sender.json', 4096)) != config:
                 break
             ready_now = False
+            reenable_version = 0
             try:
                 item = json.loads(private_read(ready, 1024))
                 ready_now = item.get('nonce') == nonce and item.get('pid') == child.pid and item.get('ready') is True
+                reenable_version = 1 if ready_now and item.get('reenableVersion') == 1 else 0
             except (OSError, ValueError):
                 pass
             if ready_now:
                 was_ready = True
-                atomic(lease, {'version': 1, 'mode': mode, 'nonce': nonce, 'expiresAt': min(until, time.time() + 5)})
+                atomic(lease, {'version': 1, 'mode': mode, 'nonce': nonce, 'expiresAt': min(until, time.time() + 5), 'reenableVersion': reenable_version})
             elif was_ready or time.time() >= startup_deadline:
                 break
             time.sleep(tick)

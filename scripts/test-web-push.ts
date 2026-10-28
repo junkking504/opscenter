@@ -120,5 +120,17 @@ for(const path of ['https://evil.test','//evil.test','/jobs?date=2026-02-30#job-
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
 
+// Requesting recovery never invokes subscription approval or sending.
+let recoveryRequests=0;
+const recoveryApi={...api,requestRecovery:async(owner:string)=>{assert.equal(owner,'owner');recoveryRequests++;return {requestId:'synthetic-request'};}};
+activation=true;
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable'}),actor,recoveryApi)).status,409);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true}),actor,recoveryApi)).status,200);
+assert.equal(recoveryRequests,1);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true},'https://evil.test'),actor,recoveryApi)).status,403);
+activation=false;
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true}),actor,recoveryApi)).status,409);
+assert.equal(recoveryRequests,1);
+
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

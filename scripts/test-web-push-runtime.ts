@@ -15,6 +15,9 @@ try {
   assert.equal(pushLease('send',nonce,root,now),false);
   write({...good,mode:'send'});assert.equal(pushLease('send',nonce,root,now),true);
   assert.equal(pushLease('send','b'.repeat(32),root,now),false);
+  assert.equal(pushLease('send',nonce,root,now,true),false,'older sender cannot authorize recovered delivery');
+  write({...good,mode:'send',reenableVersion:1});assert.equal(pushLease('send',nonce,root,now,true),true);
+  assert.equal(pushLease('send',nonce,root,104000,true),false,'capability cannot bypass expired lease');
   for(const update of [{expiresAt:100},{expiresAt:111},{expiresAt:'104'},{mode:'off'},{nonce:'bad'},{version:2}]) {
     write({...good,...update});assert.equal(pushLease(undefined,undefined,root,now),false);
   }

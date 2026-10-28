@@ -736,3 +736,56 @@ retain their exact job/date link. Notifications without a job link open the
 matching Schedule, Krewe or Fleet workspace. Clicking reuses an existing OpsCenter
 window when it can navigate; otherwise it opens the requested destination. Pushover preserves its existing job-link and generic fallback contract.
 No new transport, approval, polling or external sending is enabled by this change.
+
+## Re-enable a revoked manager phone
+
+A revoked ongoing phone cannot be restored by saving categories, restarting the
+sender or changing iOS notification settings. Settings distinguishes the alert
+service (off, paused, running) from phone authorization. A running service is not
+proof that a phone is authorized or that Apple acceptance reached the screen.
+
+The phone explicitly checks the re-enable consent and taps **Request re-enable
+for this phone**. Permission is requested only from that gesture. This creates a
+15-minute pending request, not a delivery grant. The screen shows the request ID
+and fingerprint only when they match the browser's actual subscription. Status
+refresh never asks for permission or sends a test. A lost POST response retains
+the subscription so a read/retry can reconcile it without creating another one.
+
+After the owner verifies those exact details from the intended phone and
+explicitly authorizes restoration, the local operator may run:
+
+```sh
+node --import tsx scripts/control-web-push-reenable.ts \
+  --owner '<existing owner identity>' --request '<displayed request ID>' \
+  --fingerprint '<displayed fingerprint>' --handset-confirmed \
+  --approval-reference '<specific owner authorization reference>' --apply
+```
+
+Before authorization, restart the existing supervisor from the newly deployed
+release and verify its readiness. The command requires a valid send lease that
+attests the worker supports the re-enable cutoff; an older still-running sender
+is refused. This is separate from releasing the web application.
+
+Use the established protected Mission Control database configuration, without
+push signing secrets. Never run this command from startup, an HTTP request or a
+deployment. It rejects changed/expired requests, another owner, an active target,
+an operator-stopped grant, broadened categories and expired original grants.
+There is no expired-grant renewal or automatic approval. The request may contain
+a fresh subscription after browser unsubscribe; it must be verified as a new
+fingerprint, not inferred from a saved device ID.
+
+Approval preserves the original ongoing expiry, trial dates, attempt ledger,
+revocation/audit history and existing exclusions. The new device's expiry may be
+shorter (current authenticated enrollment/subscription limit), never longer.
+Pending old deliveries are skipped; a separate re-enable timestamp blocks delayed
+pre-reenable events at fan-out, reservation and the final transport authorization.
+No test notification or provider call is made by request or approval. The phone
+then taps **Refresh status** to confirm its exact subscription is approved.
+
+Migration `0014_push_reenable.sql` adds an inert pending-request table and the
+nullable cutoff. Deployment still needs explicit authorization; installing the
+schema does not reauthorize any phone. Requests contain subscription keys only in
+the existing private database, one pending row per owner, and are removed by the
+existing event-driven retention pass after expiry. Public responses contain only
+verification metadata, never endpoint/key material. Tests use disposable databases
+and mocked browser/transport operations; they do not prove iPhone receipt.

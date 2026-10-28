@@ -571,7 +571,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
   }
   const nextMobileStep = mobile && mobileStep < stepLabels.length-2 && !reviewing && !pendingReceipt && !verified && targetStatus !== '9';
   const actions = expanded && live ? <div className="closeout-primary-actions">
-    <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : receipt?.dryRun ? 'Dry run complete' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
+    <div className="closeout-action-context"><strong>{saving ? 'Verifying closeout' : pendingReceipt ? 'Check the previous save' : receipt?.dryRun ? 'Dry run complete' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
     {error && <p role="alert">{error}</p>}
     {saving && submissionStatus && <p className="closeout-transfer-progress" role="status" aria-live="polite">{submissionStatus}</p>}
     <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (nextMobileStep ? advanceMobileStep(mobileStep + 1) : pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && (!canWrite || photoBlocked))}>{nextMobileStep ? currentPhotoCategory && photoSteps?.submitStep && (currentPhotoCategory==='before' || afterPhotoRequired) ? `Submit ${currentPhotoCategory} photos & continue` : `Continue to ${stepLabels[mobileStep+1].toLowerCase()}` : saving ? crewMode ? "Sending checkout…" : "Saving and verifying…" : pendingReceipt ? 'Check Saved Result' : verified ? receipt?.dryRun ? 'Start another dry run' : 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? crewMode ? "Submit checkout" : `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
@@ -635,7 +635,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
               <div><span>Saved total</span><strong>{live.total || "Unavailable"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
             </div>}
-            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{crewMode ? submissionStatus || 'Sending checkout to the server…' : 'Saving changes and checking them in JunkWare…'}</div> : null}
+            {saving && !(crewMode && mobile && submissionStatus) ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{crewMode ? submissionStatus || 'Sending checkout to the server…' : 'Saving changes and checking them in JunkWare…'}</div> : null}
 
             {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section estimate-outcome-fields">
               <h4>Estimate outcome required by JunkWare</h4>

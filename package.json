@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:photo-clarity:browser": "node --import tsx scripts/test-photo-clarity-browser.ts",
     "verify:numeric-keyboards:browser": "node --import tsx scripts/test-numeric-keyboards-browser.ts",
     "verify:closeout-preparation": "node --import tsx scripts/test-closeout-preparation.ts && node --import tsx scripts/test-closeout-preparation-browser.ts",
     "verify:waypoint-visibility": "node --import tsx scripts/test-crew-appointment-visibility.ts && node --import tsx scripts/test-crew-visibility-routes.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts",

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import styles from './phone-access.module.css';
 import { readPhotoResponse } from './photo-response';
+import {photoProgressCounts} from './photo-progress';
 import {MAX_CHECKOUT_PHOTOS} from '@/lib/crew-photo-limits';
 
 import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
@@ -129,15 +130,21 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     catch(error){setError(error instanceof Error?error.message:'Photo verification is pending.');throw error;}
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
   }}));
-  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{optional ? "After photos are optional for this estimate outcome. Continue to Payment when ready." : dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Add ${visibleCategory || 'job'} photos, then tap Submit photos & continue. Upload and verification continue while you fill out the next step.` : 'Upload job photos and check the saved result.'}</p>
-    {!ready && !error && <p role="status">Checking saved photos…</p>}
-    <p className={styles.muted}>{photos.filter(row=>row.status!=='verified').length} of {MAX_CHECKOUT_PHOTOS} selected · Before and After combined</p>
+  const counts=photoProgressCounts(photos.filter(row=>!visibleCategory || row.category===visibleCategory));
+  const progressDetails=[[counts.selected,'ready to submit'],[counts.queued,dryRun?'on this phone':'queued'],[counts.transferring,'transferring'],[counts.verifying,'verifying'],[counts.attention,'need attention']].filter(([count])=>Number(count)>0).map(([count,label])=>`${count} ${label}`).join(' · ');
+  return <section className={`${styles.card} ${styles.photoCard}`}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p className={styles.photoHint}>{optional ? "Optional for this estimate. Continue to Payment." : dryRun ? "Test mode · photos stay on this phone." : deferred ? "Add photos, then submit to continue. Uploads run in the background." : 'Add photos, then tap Upload photo.'}</p>
+    <div className={styles.photoProgress} role="status" aria-live="polite" aria-atomic="true" data-attention={counts.attention>0 || Boolean(error)}>
+      <strong>{preparing || (busy?'Saving selection…':!ready?(error?'Photos unavailable':'Checking saved photos…'):counts.total?`${counts.saved} of ${counts.total} saved`:'No photos added')}</strong>
+      {!preparing && !busy && ready && progressDetails && <span>{progressDetails}</span>}
+      {counts.total>0 && !preparing && <progress aria-label="Photos saved in JunkWare" value={counts.saved} max={counts.total}/>}
+    </div>
+    <p className={styles.photoLimit}>{MAX_CHECKOUT_PHOTOS} photos max · Before + After</p>
     {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}>
-      <label className={styles.photoPicker}><strong>Add {category} photos</strong><span>Take photos or choose from this phone</span><input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || locked || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
+      <label className={styles.photoPicker}><strong>Add {category} photos</strong><span>Camera or photo library</span><input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || locked || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
       <div className={styles.photoGrid}>
       {previews.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.url}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={row.url} alt={`${category} photo preview`}/><p>Preparing for checkout…</p>
+        <img src={row.url} alt={`${category} photo preview`}/><p>Preparing…</p>
       </div>)}
       {photos.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.requestId}>
         {/* Local camera/library preview; never sent to an image optimization service. */}
@@ -149,10 +156,10 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
       </div>)}
       </div>
     </div>)}
-    {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
     {photos.some(row=>row.submitted && row.transferError && !row.receiptId) && <button className={styles.secondary} disabled={busy || locked} onClick={()=>void resumePhotoTransfers(key).catch(()=>setError('Photo storage is unavailable. Retry saved photos.'))}>Resume photo transfer</button>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>{dryRun?'This is a dry run. No photos will be uploaded.':deferred?optional?'Before photos remain required. After photos are optional for this estimate outcome.':'Before and After photos are required. Submit each photo step to continue immediately; uploads do not block Charges or Payment. Keep Waypoint open until final checkout confirms the server save.':'Selected photos stay on this phone until removed or disconnected. Uploads start only when you tap Upload photo.'}</p>
+    {deferred && !dryRun && <p className={styles.photoHint}>{optional?'Before photos required · After optional.':'Before and After photos required.'}</p>}
+
   </section>;
 }

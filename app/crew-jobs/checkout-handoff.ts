@@ -86,7 +86,7 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
     dependencies.keepReceipt(receipt);
     update({ receipt, phase: ['pending', 'verified'].includes(receipt.status) ? 'accepted' : 'attention', message:
       receipt.status === 'verified' ? 'Closed out · verified in JunkWare.' : receipt.status === 'pending'
-        ? 'Verification pending. The server received this checkout, but the appointment is not completed yet. Do not submit it again.'
+        ? 'Received · completion pending. Do not submit again.'
         : `Checkout needs attention. ${receipt.message} Do not enter another payment.` });
     return receipt;
   };

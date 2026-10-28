@@ -1,0 +1,9 @@
+.clock-entry { display: grid; gap: 5px; min-width: 0; }
+.clock-entry-controls { display: flex; gap: 4px; min-width: 0; }
+.clock-entry .clock-entry-controls input, .clock-entry .clock-entry-controls select { font: inherit; font-size: 16px; min-height: 44px; height: auto; border: 1px solid var(--border, var(--oc-border-neutral-05)); border-radius: 6px; padding: 8px; background: var(--oc-surface-raised); color: var(--oc-text-neutral-01); }
+.clock-entry .clock-entry-controls input { min-width: 0; width: 100%; }
+.clock-entry .clock-entry-controls select { flex: 0 0 66px; width: 66px; }
+.clock-entry input:focus-visible, .clock-entry select:focus-visible { outline: 2px solid var(--ring, #b3263c); outline-offset: 2px; }
+.clock-entry small { color: var(--oc-text-neutral-01); font-size: 13px; }
+@media(max-width: 600px) { .krewe-drawer-controls .krewe-time-fields { grid-template-columns: 1fr; } }
+.krewe-day-fields > .clock-entry { grid-column: 1 / -1; }

@@ -1,19 +1,11 @@
+import ClockEntry from './clock-entry';
+import {parseClockEntry,validClockEntry} from './lib/clock-entry';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopKreweDay } from './lib/people-fleet-contract';
 import './krewe-day-editor.css';
 
 type Action = 'correction' | 'bonus';
 type SavedRequest = { id: string; action: Action };
-const clockInput = (value: string) => {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return /^\d{2}:\d{2}$/.test(value) ? value : '';
-  return `${String(Number(match[1]) % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0)).padStart(2, '0')}:${match[2]}`;
-};
-const clockDisplay = (value: string) => {
-  if (!value) return '';
-  const [hour, minute] = value.split(':').map(Number);
-  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
-};
 const money = (amount: number) => amount.toLocaleString('en-US', {style:'currency',currency:'USD'});
 
 export default function KreweDayEditor({ date, periodDate, name, action, onClose, onSaved }: {
@@ -35,7 +27,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
     if (body.date !== date || !body.member) throw new Error('The selected day could not be confirmed.');
     if (signal?.aborted) return;
     setRecord(body);
-    setDraft({clockIn:clockInput(body.member.clockIn),clockOut:clockInput(body.member.clockOut),hourlyRate:body.member.hourlyRate?.toString() || '',note:'',amount:'',bonusNote:''});
+    setDraft({clockIn:parseClockEntry(body.member.clockIn)?.display || '',clockOut:parseClockEntry(body.member.clockOut)?.display || '',hourlyRate:body.member.hourlyRate?.toString() || '',note:'',amount:'',bonusNote:''});
   }, [date,periodDate,name]);
 
   useEffect(() => {
@@ -59,11 +51,12 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   }
   async function save(selectedAction: Action) {
     if (busy.current || request || !record?.canWrite) return;
+    if(selectedAction==='correction'&&(!validClockEntry(draft.clockIn)||!validClockEntry(draft.clockOut,true))){setMessage('Enter a valid clock-in and clock-out time.');return;}
     busy.current = true; setPending(true); setMessage('');
     const saved = {id:crypto.randomUUID(),action:selectedAction};
     try {
       sessionStorage.setItem(storageKey,JSON.stringify(saved)); setRequest(saved);
-      const values = selectedAction === 'bonus' ? {amount:Number(draft.amount),note:draft.bonusNote} : {clockIn:clockDisplay(draft.clockIn),clockOut:clockDisplay(draft.clockOut),hourlyRate:Number(draft.hourlyRate),note:draft.note};
+      const values = selectedAction === 'bonus' ? {amount:Number(draft.amount),note:draft.bonusNote} : {clockIn:parseClockEntry(draft.clockIn)?.display || '',clockOut:parseClockEntry(draft.clockOut)?.display || '',hourlyRate:Number(draft.hourlyRate),note:draft.note};
       const response = await fetch('/api/desktop/krewe', {method:'POST',credentials:'same-origin',signal:AbortSignal.timeout(30_000),headers:{'Content-Type':'application/json'},body:JSON.stringify({date,periodDate,name:record.member.name,action:selectedAction,values,requestId:saved.id,expectedVersion:record.member.actionVersions?.[selectedAction]})});
       const body = await response.json();
       if (body.receipt?.status === 'verified') await verified(saved);
@@ -105,9 +98,9 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
       {!record.canWrite && <p>Manager write access is required to make changes.</p>}
       <form onSubmit={event => {event.preventDefault(); void save('correction');}}>
         <h3>Edit hours</h3><fieldset disabled={disabled}>
-          <div className="krewe-day-fields"><label>Clock-in<input type="time" required autoFocus={action === 'correction'} value={draft.clockIn} onChange={e=>setDraft({...draft,clockIn:e.target.value})}/></label><label>Clock-out<input type="time" value={draft.clockOut} onChange={e=>setDraft({...draft,clockOut:e.target.value})}/></label><label>Hourly rate<input type="number" min="0.01" step="0.01" required value={draft.hourlyRate} onChange={e=>setDraft({...draft,hourlyRate:e.target.value})}/></label></div>
+          <div className="krewe-day-fields"><ClockEntry label="Clock-in" required autoFocus={action === 'correction'} value={draft.clockIn} onChange={value=>setDraft({...draft,clockIn:value})}/><ClockEntry label="Clock-out" value={draft.clockOut} onChange={value=>setDraft({...draft,clockOut:value})}/><label>Hourly rate<input type="number" min="0.01" step="0.01" required value={draft.hourlyRate} onChange={e=>setDraft({...draft,hourlyRate:e.target.value})}/></label></div>
           <label>Correction reason<input required value={draft.note} onChange={e=>setDraft({...draft,note:e.target.value})}/></label>
-          <button type="submit" disabled={!draft.note.trim() || !draft.clockIn || !(Number(draft.hourlyRate)>0)}>Save hours</button>
+          <button type="submit" disabled={!draft.note.trim() || !validClockEntry(draft.clockIn) || !validClockEntry(draft.clockOut,true) || !(Number(draft.hourlyRate)>0)}>Save hours</button>
         </fieldset>
       </form>
       <form onSubmit={event => {event.preventDefault(); void save('bonus');}}>

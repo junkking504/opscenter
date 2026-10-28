@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:numeric-keyboards:browser": "node --import tsx scripts/test-numeric-keyboards-browser.ts",
     "verify:closeout-preparation": "node --import tsx scripts/test-closeout-preparation.ts && node --import tsx scripts/test-closeout-preparation-browser.ts",
     "verify:waypoint-visibility": "node --import tsx scripts/test-crew-appointment-visibility.ts && node --import tsx scripts/test-crew-visibility-routes.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-job-scope.ts",
     "verify:approximate-visits": "python3 -B scripts/test-approximate-arrivals.py && python3 -B scripts/test-linxup-continuous-visits.py && node --import tsx scripts/test-approximate-visit-presence.ts && node --import tsx scripts/test-address-map-fallback.ts",

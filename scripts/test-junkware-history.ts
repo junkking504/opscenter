@@ -47,13 +47,14 @@ async function main(){
  let attempts=0;const retry=createHistoryLookup(async()=>{attempts++;if(attempts===1)throw Error('source failed');return result;});
  await assert.rejects(retry('100 Example','all'));assert.equal((await retry('100 Example','all')).results.length,2);
  // Exercise the real route with isolated authentication and source dependencies.
- let actor: {role:string}|null={role:'admin'},allowed=true,sourceCalls=0,savedCalls=0,fail=false;
+ let actor: {role:string}|null={role:'admin'},allowed=true,sourceCalls=0,savedCalls=0,customerCalls=0,customerAllowed=true,customerFail=false,fail=false;
  const mocks:Record<string,unknown>={
   'next/server':{NextResponse:Response},'next/headers':{cookies:async()=>({get:()=>({value:'test-session'})})},
   '@/lib/auth':{AUTH_SESSION_COOKIE:'session',verifyAuthSessionCookie:async()=>actor},
-  '@/lib/ops-roles':{authorizeOpsRequest:()=>({allowed})},
+  '@/lib/ops-roles':{authorizeOpsRequest:()=>({allowed}),opsRoleCan:()=>customerAllowed},
   '@/lib/platform/request-actor':{validOperatingDate:()=> '2026-10-27'},
-  '@/lib/global-search':{buildGlobalSearchResponse:()=>{savedCalls++;return {results:[],coverage:{dateCount:0}};}},
+  '@/lib/customer-accounts':{readCustomers:async()=>{customerCalls++;if(customerFail)throw Error('private customer data');return {customers:[{id:'500'}],total:1};}},
+  '@/lib/global-search':{customerSearchResult:()=>({id:'customer:500',type:'customer',title:'Sample Customer',href:'/desktop?workspace=Schedule&scheduleView=customers&customer=500'}),buildGlobalSearchResponse:()=>{savedCalls++;return {results:[],coverage:{dateCount:0}};}},
   '@/lib/junkware-history-contract':{historyQuery},
   '@/lib/junkware-history-search':{HISTORY_UNAVAILABLE,lookupJunkwareHistory:async(_q:string,scope:string)=>{sourceCalls++;if(fail)throw Error('private upstream data');return {...result,results:scope==='past'?[old]:result.results};}},
  };
@@ -66,7 +67,7 @@ async function main(){
  const called=sourceCalls;actor=null;assert.equal((await request()).status,401);actor={role:'admin'};allowed=false;assert.equal((await request()).status,403);allowed=true;assert.equal(sourceCalls,called);
  assert.equal((await request('source=junkware&q=who%20worked')).status,400);assert.equal(sourceCalls,called);
  fail=true;const failure=await request();assert.equal(failure.status,503);assert.equal((await failure.json()).error,HISTORY_UNAVAILABLE);
- await request('q=Example');assert.equal(savedCalls,1,'Saved search remains independently available');
+ const saved=await (await request('q=Example')).json();assert.equal(savedCalls,1,'Saved search remains independently available');assert.equal(saved.results[0].type,'customer');assert.equal(customerCalls,1);customerAllowed=false;assert.equal((await (await request('q=Example')).json()).results.length,0);assert.equal(customerCalls,1,'No customer lookup without existing operations.read permission');customerAllowed=true;customerFail=true;const customerFailure=await (await request('q=Example')).json();assert.match(customerFailure.customerError,/could not be searched/);assert.equal(customerFailure.results.length,0);assert.ok(!customerFailure.customerError.includes('private'));
  assert.equal(authorizeOpsRequest('operator','/api/global-search','GET').allowed,true);
  console.log('PASS: historical discovery without saved days, partial saved matches, deduplication, scope, links, identifier Enter, cache/coalescing/concurrency, failures and API authorization. No live data or provider calls.');
 }

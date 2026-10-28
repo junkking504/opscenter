@@ -1,3 +1,5 @@
+import {desktopCustomerHref} from '../desktop-ui/lib/desktop-links';
+import type {CustomerSummary} from '../desktop-ui/lib/customer-history-contract';
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { crewMemberHref, fleetTruckHref, jobScheduleHref } from "@/lib/related-record-links";
@@ -6,7 +8,7 @@ import path from 'node:path';
 import {readJobRows,junkwareScheduleUpdatedAt} from './desktop-schedule-source';
 import {chicagoDateKey} from './report-dates';
 
-export type GlobalSearchResultType = "job" | "crew" | "truck";
+export type GlobalSearchResultType = "job" | "crew" | "truck" | "customer";
 
 export type GlobalSearchResult = {
   id: string;
@@ -59,7 +61,7 @@ export function searchGlobalIndex(
   perType = RESULTS_PER_TYPE,
 ): GlobalSearchResult[] {
   if (normalized(query).length < 2) return [];
-  const counts: Record<GlobalSearchResultType, number> = { job: 0, crew: 0, truck: 0 };
+  const counts: Record<GlobalSearchResultType, number> = { job: 0, crew: 0, truck: 0, customer: 0 };
   return index
     .map((result, order) => ({ result, order, score: resultScore(result, query) }))
     .filter((entry) => entry.score >= 0)
@@ -167,4 +169,9 @@ export function buildGlobalSearchResponse(query:string,date:string,scope:Appoint
   const visible=new Set([...jobs.slice(0,limit),...others.filter((row,index)=>others.slice(0,index).filter(other=>other.type===row.type).length<5)].map(row=>row.id));
   const dates=appointmentIndex(today).dates.filter(date=>scope==='all'||(scope==='upcoming'?date>=today:date<today)).sort();
   return {results:ranked.filter(row=>visible.has(row.id)),appointmentTotal:jobs.length,hasMore:jobs.length>limit,today,coverage:{dateCount:dates.length,from:dates[0]||null,to:dates.at(-1)||null}};
+}
+
+/** Reuse the existing account directory identity; do not group customers by name here. */
+export function customerSearchResult(customer:CustomerSummary):GlobalSearchResult {
+ return {id:`customer:${customer.id}`,type:'customer',title:customer.name,subtitle:[customer.address,customer.phone,`${customer.appointments} appointments`].filter(Boolean).join(' · '),source:'Saved customer account',href:desktopCustomerHref(customer.id,customer.latestDate),searchText:[customer.name,customer.phone,customer.email,customer.address].join(' ')};
 }

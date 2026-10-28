@@ -3,7 +3,7 @@ import { getKernelPool } from './platform/persistence/pool';
 import { pushHash } from './web-push-policy';
 import type { PushSubscriptionRecord } from './web-push-store';
 export const trialFingerprint = (subscription:PushSubscriptionRecord) => pushHash([subscription.endpoint,subscription.keys.p256dh,subscription.keys.auth]);
-export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;ongoing_started_at?:Date|null;ongoing_expires_at?:Date|null;now:Date};
+export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;ongoing_started_at?:Date|null;ongoing_expires_at?:Date|null;reenabled_at?:Date|null;now:Date};
 export async function lockPushTrial(client:PoolClient):Promise<TrialRow> {
   // Global order everywhere: trial, device, delivery. clock_timestamp is read
   // AFTER waiting for the lock, never transaction-start now().
@@ -99,6 +99,6 @@ export async function authorizePushAttempt(pool:Pool,token:string,endpoint:strin
     WHERE a.claim_token=$1 AND q.claim_token=$1 AND q.status='sending'
       AND t.device_id=d.id AND t.owner_id=d.owner_id AND t.started_at IS NOT NULL AND t.stopped_at IS NULL
       AND ((a.ongoing AND t.ongoing_started_at IS NOT NULL AND t.ongoing_expires_at>clock_timestamp()) OR (NOT a.ongoing AND t.ongoing_started_at IS NULL AND t.deadline>clock_timestamp())) AND d.expires_at>clock_timestamp() AND d.revoked_at IS NULL
-      AND e.category=ANY(d.categories) AND COALESCE(e.source_recorded_at,e.occurred_at)>=COALESCE(t.ongoing_started_at,t.started_at)`,[token]);
+      AND (t.reenabled_at IS NULL OR e.occurred_at>=t.reenabled_at) AND e.category=ANY(d.categories) AND COALESCE(e.source_recorded_at,e.occurred_at)>=GREATEST(COALESCE(t.ongoing_started_at,t.started_at),t.reenabled_at)`,[token]);
   const row=result.rows[0];return !!row&&row.subscription_json.endpoint===endpoint&&trialFingerprint(row.subscription_json)===row.subscription_hash;
 }

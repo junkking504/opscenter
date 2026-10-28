@@ -2,6 +2,7 @@ import type { PoolClient, Client } from 'pg';
 /** Event/startup maintenance, never an interval. Preserve source watermarks
  * while retained publications may still need ordered recovery. */
 export async function retainPushMetadata(client:PoolClient|Client) {
+  await client.query("DELETE FROM opscenter_kernel.push_reenable_requests WHERE expires_at<now()");
   await client.query("DELETE FROM opscenter_kernel.push_events WHERE recorded_at<now()-interval '14 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.event_id=push_events.id AND q.status IN ('pending','sending'))");
   await client.query("DELETE FROM opscenter_kernel.push_ongoing_attempts a WHERE reserved_at<now()-interval '90 days' AND NOT EXISTS(SELECT 1 FROM opscenter_kernel.push_deliveries q WHERE q.claim_token=a.claim_token AND q.status IN ('pending','sending'))");
   await client.query("DELETE FROM opscenter_kernel.push_audit WHERE recorded_at<now()-interval '90 days'");

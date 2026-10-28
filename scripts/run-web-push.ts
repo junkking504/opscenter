@@ -72,7 +72,7 @@ async function main(){
     journalWake=journal.wake;
     await maintenance.maintain(); // close the startup delivery-completion race
     await checkTrial();
-    if(!stopping)fs.writeFileSync(readyFile,JSON.stringify({nonce,pid:process.pid,ready:true}),{mode:0o600,flag:'wx'});
+    if(!stopping)fs.writeFileSync(readyFile,JSON.stringify({nonce,pid:process.pid,ready:true,reenableVersion:1}),{mode:0o600,flag:'wx'});
     process.once('SIGTERM',()=>{void stop();});process.once('SIGINT',()=>{void stop();});
     // No polling health timer: watcher/DB failures close resources and exit.
     if('active' in journal&&!journal.active){await stop();throw new Error('push_journal_failed');}

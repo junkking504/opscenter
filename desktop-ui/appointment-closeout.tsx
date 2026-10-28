@@ -421,7 +421,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
     if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
-    if (completing && !crewMode && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
+    if (completing && live.howHeard && !live.howHeard.value) { setError(crewMode ? 'The office must complete the customer referral information in JunkWare before checkout. Checkout has not been submitted.' : 'Choose how the customer heard about us.'); return; }
     if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
       const payment = { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() };

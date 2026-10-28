@@ -11,6 +11,7 @@ import styles from './phone-access.module.css';
 import navigation from './navigation.module.css';
 import {createWaypointViewGuard} from './view-guard';
 import JobCloseout from './job-closeout';
+import AppointmentSignatureSection from './appointment-signature';
 import AssignmentOutcome from './assignment-outcome';
 import DaySummary,{AddressLink} from './day-summary';
 import CustomerPhoneLink from './customer-phone-link';
@@ -317,6 +318,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
             if(viewGuard.selected()===viewedJob.appointmentId){setDetails(false);setCloseout(false);}
             void loadJob();
           }} onHandoffFailed={message=>{setPendingCloseout(null);showBackgroundNotice(message,viewedJob.assignmentId!);}}/> : <><h2>Items to remove</h2><p>{viewedJob.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{viewedJob.appointmentNotes.length?viewedJob.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{viewedJob.driver || (viewedJob.readOnly?'Not listed':day?.driver)} · Driver</p><p>{viewedJob.navigator || (!viewedJob.readOnly && day?.navigators.join(', ')) || 'No navigator'} · Navigator</p>
+          <AppointmentSignatureSection key={`signature:${viewedJob.appointmentId}`} appointmentId={viewedJob.appointmentId} assignmentId={viewedJob.assignmentId} deviceId={phone.deviceId} readOnly={viewedJob.readOnly} test={phone.test} onBusyChange={setBusy}/>
           {!phone.test && !viewedJob.readOnly && sameTruck(viewedJob.truck,phone.truck) && viewedJob.assignmentId && /^confirmed$/i.test(viewedJob.status) && <button className={styles.secondary} disabled={busy || Boolean(pendingCloseout)} onClick={()=>setEditingCustomer(true)}>Edit customer information</button>}
           {!viewedJob.readOnly && viewedJob.assignmentId && !/^completed$/i.test(viewedJob.status) ? <button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>{pendingCloseout?.assignmentId===viewedJob.assignmentId?'Check saved checkout':'Start closeout · Before photos'}</button> : <p className={styles.muted}>{viewedJob.readOnly?'View only · Closeout stays with the assigned truck.':/^completed$/i.test(viewedJob.status)?'Completed in JunkWare.':'Closeout is available when dispatch releases this appointment.'}</p>}<button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to Assignments</button></>}
         </section>}

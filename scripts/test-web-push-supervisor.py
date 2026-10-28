@@ -143,6 +143,17 @@ class SupervisionTests(unittest.TestCase):
         supervisor.atomic(self.root/'sender.json',{**self.config,'mode':'send'})
         with self.assertRaisesRegex(ValueError,'mode_configuration_mismatch'):
             supervisor.supervise(self.root,self.env,[],lambda:None,self.forbidden_key,.01)
+    def test_persistent_sender_has_no_setup_deadline(self):
+        config={'mode':'send','persistent':True}
+        supervisor.atomic(self.root/'sender.json',config)
+        env={**self.env,'OPSCENTER_WEB_PUSH_ENABLED':'1'}
+        # Mock key and child: never access Keychain or a provider.
+        self.assertEqual(supervisor.supervise(self.root,env,[sys.executable,'-c',CHILD],lambda:None,lambda:'x'*43,.01),0)
+        self.assertEqual(json.loads((self.root/'sender.json').read_text()),{**config,'mode':'off'})
+        supervisor.atomic(self.root/'sender.json',{**config,'setupUntil':time.time()+20})
+        with self.assertRaisesRegex(ValueError,'persistent_send_only'):
+            supervisor.supervise(self.root,env,[],lambda:None,lambda:'x'*43,.01)
+
     def test_environment_excludes_secrets_and_does_not_execute(self):
         file=self.root/'environment'
         file.write_text('OPS_AUTH_USERNAME=fixture\nOPSCENTER_PUSHOVER_CONFIG="/private/config with spaces.json"\nPUSHOVER_TOKEN=private\nOPS_AUTH_PASSWORD_HASH=private\nOPSCENTER_WEB_PUSH_PRIVATE_KEY=private\nSLACK_TOKEN=private\nOPSCENTER_WEB_PUSH_ENABLED=0\nOPS_AUTH_ROLE_BINDINGS="$(never-execute)"\n');file.chmod(0o600)

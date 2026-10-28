@@ -51,14 +51,14 @@ assert.ok(verify('sha256',Buffer.from(parts.slice(0,2).join('.')),{key:publicKey
 // Exercise the actual HTTP handler with verified-session and persistence doubles.
 const actor={email:'owner',role:'manager' as const,expiresAt:new Date(Date.now()+86400000)};
 let saves=0;let activation=false;
-const api={trial:async()=>({status:'awaiting_device',ownerEligible:true,canRequest:true,deadline:null,attemptsUsed:0,maxAttempts:3,durationMinutes:30}),enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
+const api={trial:async()=>({status:'awaiting_device',ownerEligible:true,canRequest:true,deadline:null,attemptsUsed:0,maxAttempts:3,durationMinutes:30}),enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],enableDevice:async(owner:string)=>{assert.equal(owner,'owner');saves++;return {deviceId:'fixture-device',expiresAt:null};},manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
 const request=(body:unknown,origin='https://ops.example.test')=>new Request('https://ops.example.test/api/push/devices',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
 assert.equal((await pushDevicesGET(null,api)).status,401);
 assert.equal((await pushDevicesGET({...actor,role:'operator'},api)).status,403);
 assert.equal((await pushDevicesPOST(request({}),null,api)).status,401);
 assert.equal((await pushDevicesPOST(request({},'https://evil.test'),actor,api)).status,403);
 assert.equal((await pushDevicesPOST(request({},''),actor,api)).status,403);
-const enroll={action:'subscribe',subscription,categories:['fleet'],owner:'attacker'};
+const enroll={action:'enable',confirm:true,subscription,categories:['fleet'],owner:'attacker'};
 assert.equal((await pushDevicesPOST(request(enroll),actor,api)).status,503);assert.equal(saves,0);
 activation=true;assert.equal((await pushDevicesPOST(request(enroll),actor,api)).status,200);assert.equal(saves,1);
 assert.equal((await pushDevicesPOST(request({...enroll,subscription:{endpoint:'http://127.0.0.1'}}),actor,api)).status,400);assert.equal(saves,1);
@@ -120,17 +120,17 @@ for(const path of ['https://evil.test','//evil.test','/jobs?date=2026-02-30#job-
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
 
-// Requesting recovery never invokes subscription approval or sending.
-let recoveryRequests=0;
-const recoveryApi={...api,requestRecovery:async(owner:string)=>{assert.equal(owner,'owner');recoveryRequests++;return {requestId:'synthetic-request'};}};
+// Explicit consent is mandatory; the superseded request ceremony cannot grant.
 activation=true;
-assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable'}),actor,recoveryApi)).status,409);
-assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true}),actor,recoveryApi)).status,200);
-assert.equal(recoveryRequests,1);
-assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true},'https://evil.test'),actor,recoveryApi)).status,403);
-activation=false;
-assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable',confirm:true}),actor,recoveryApi)).status,409);
-assert.equal(recoveryRequests,1);
+const beforeConsent=saves;
+assert.equal((await pushDevicesPOST(request({...enroll,confirm:false}),actor,api)).status,400);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable'}),actor,api)).status,400);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'subscribe'}),actor,api)).status,400);
+assert.equal(saves,beforeConsent);
+assert.equal((await pushDevicesPOST(request(enroll),actor,{...api,enableDevice:async()=>{throw Error('subscription_invalid');}})).status,409);
+assert.equal((await pushDevicesPOST(request(enroll),{...actor,role:'operator'},api)).status,403);
+const crossSite=request(enroll);crossSite.headers.set('sec-fetch-site','cross-site');
+assert.equal((await pushDevicesPOST(crossSite,actor,api)).status,403);
 
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

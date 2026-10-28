@@ -90,10 +90,15 @@ def supervise(state, env, command, pause, key=signing_key, tick=2.0):
         return 0
     until = config.get('setupUntil')
     ongoing = config.get('ongoing') is True
+    persistent = config.get('persistent') is True
+    if persistent:
+        if mode != 'send' or until is not None:
+            raise ValueError('persistent_send_only')
+        until = float('inf')
     maximum = 30 * 86400 if ongoing and mode == 'send' else 3600
     if ongoing and mode != 'send':
         raise ValueError('ongoing_send_only')
-    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not time.time() < until <= time.time() + maximum:
+    if mode not in ('observe', 'send') or not isinstance(until, (float, int)) or not persistent and not time.time() < until <= time.time() + maximum:
         raise ValueError('bounded_setup_required')
     if env.get('OPSCENTER_WEB_PUSH_ENABLED') != ('1' if mode == 'send' else '0'):
         raise ValueError('mode_configuration_mismatch')
@@ -119,6 +124,7 @@ def supervise(state, env, command, pause, key=signing_key, tick=2.0):
         lease.unlink(missing_ok=True)
         pause()
         child_env = dict(env, OPSCENTER_PROCESS_ROLE='push-observer' if mode == 'observe' else 'push-dispatcher', OPSCENTER_WEB_PUSH_CAPTURE='1', OPSCENTER_WEB_PUSH_JOURNAL_DIR=str(journal), OPSCENTER_WEB_PUSH_READY_FILE=str(ready), OPSCENTER_WEB_PUSH_RUN_NONCE=nonce)
+        child_env['OPSCENTER_WEB_PUSH_PERSISTENT'] = '1' if persistent else '0'
         child_env.pop('OPSCENTER_WEB_PUSH_PRIVATE_KEY', None)
         if mode != 'send':
             child_env.pop('OPSCENTER_PUSHOVER_CONFIG', None)

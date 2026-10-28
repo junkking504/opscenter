@@ -45,6 +45,7 @@ async function main(){
     if(!trial)throw new Error('trial_missing');
     clearTimeout(deadlineTimer);
     const expires=trial.ongoing_started_at?trial.ongoing_expires_at:trial.deadline;
+    if(process.env.OPSCENTER_WEB_PUSH_PERSISTENT==='1'&&!observing){if(trial.stopped_at)void stop();return;}
     if(trial.stopped_at||(!trial.ongoing_started_at&&trial.attempts_used>=3)||expires&&expires<=trial.now||observing&&trial.started_at){void stop();return;}
     if(expires)deadlineTimer=setTimeout(()=>{trialChanged();},Math.min(2147483647,Math.max(0,expires.getTime()-trial.now.getTime())));
   };

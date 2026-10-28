@@ -1,3 +1,5 @@
+import {appointmentAddressDisplay} from './appointment-address-display';
+
 /** Revenue tiers from OpsBot process_daily_metrics.py, effective 2026-07-13.
  * Highest tier only; revenue is the individual's credited share, not truck sales. */
 export const REVENUE_BONUS_TIERS = [[1000,20],[1250,40],[1500,60],[1750,75],[2000,100],[2250,125],[2500,150],[2750,175],[3000,200],[3250,250],[3500,300],[3750,350],[4000,400]] as const;
@@ -15,4 +17,4 @@ export const moneyValue=(value:unknown):number|null=>{
   if(value===null || value===undefined || String(value).trim()==='')return null;
   const n=Number(String(value).replace(/[$,\s]/g,''));return Number.isFinite(n)?Math.round(n*100)/100:null;
 };
-export function mapsDirections(address:string){return address.trim() && !/^(—|-|unknown|unavailable)$|address (unavailable|pending)|verification pending/i.test(address)?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`:null;}
+export function mapsDirections(address:string){address=appointmentAddressDisplay(address).address;return address.trim() && !/^(—|-|unknown|unavailable)$|address (unavailable|pending)|verification pending/i.test(address)?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`:null;}

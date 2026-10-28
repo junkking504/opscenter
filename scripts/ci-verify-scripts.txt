@@ -5,6 +5,7 @@
 verify:address-research
 verify:agent-hierarchy
 verify:appointment-block-selection
+verify:appointment-signatures
 verify:appointment-visit-alerts
 verify:alert-navigation
 verify:ask-opsbot

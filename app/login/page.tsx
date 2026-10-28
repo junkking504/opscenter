@@ -1,4 +1,5 @@
 import "@/app/secondary-pages.css";
+import "./waypoint-login.css";
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, sanitizeAuthRedirectTarget } from "@/lib/auth";
@@ -33,7 +34,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const rateLimited = error === "rate-limited";
 
   return (
-    <main className="ops-login-shell" data-opscenter-login={waypoint ? undefined : true}>
+    <main className="ops-login-shell" data-opscenter-login={waypoint ? undefined : true} data-waypoint-login={waypoint || undefined}>
+      {!waypoint && <>
       <div className="ops-login-grid" aria-hidden="true" />
       <section className="ops-login-brand-panel">
         <div className="ops-login-brand" style={{ display: "block", width: 360, maxWidth: "100%" }}>
@@ -46,6 +48,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <span>Protected Access</span>
         </div>
       </section>
+      </>}
 
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">

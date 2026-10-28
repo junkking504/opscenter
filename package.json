@@ -173,6 +173,7 @@
     "verify:crew-truck-switch": "tsx scripts/test-crew-truck-switch.ts",
     "verify:waypoint-agent": "node --import tsx scripts/test-waypoint-agent.ts",
     "verify:waypoint-assignment-refresh:browser": "node scripts/test-waypoint-assignment-refresh-browser.mjs",
+    "verify:waypoint-contact-links:browser": "node scripts/test-waypoint-contact-links-browser.mjs",
     "verify:waypoint-customer-phone:browser": "node scripts/test-waypoint-customer-phone-browser.mjs",
     "verify:waypoint-sandbox": "node --import tsx scripts/test-waypoint-sandbox.ts && node --import tsx scripts/test-waypoint-day-summary.ts",
     "verify:crew-self-setup": "node --import tsx scripts/test-crew-self-setup.ts",
@@ -229,7 +230,9 @@
     "verify:appearance": "node --import tsx scripts/test-ops-theme.ts",
     "verify:clock-entry:browser": "node --import tsx scripts/test-clock-entry-browser.ts",
     "verify:search-destinations": "node --import tsx scripts/test-search-destinations.ts",
-    "verify:search-destinations:browser": "node --import tsx scripts/test-search-destinations-browser.ts"
+    "verify:search-destinations:browser": "node --import tsx scripts/test-search-destinations-browser.ts",
+    "verify:appointment-signatures": "node --import tsx scripts/test-appointment-signatures.ts",
+    "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.4",

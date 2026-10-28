@@ -46,3 +46,13 @@ assert.match(render({}),/destination=100%20Example%20Street/);
 assert.match(render({phone:''}),/Phone unavailable/);
 assert.doesNotMatch(render({phone:''}),/href="tel:/);
 console.log('Appointment summary content PASS: source status/reasons, detailed note fallback, quantities/negation/full-note retention, phone normalization and missing contacts.');
+
+const labeled='Amazon Mattress Removal 100 Example Street Apt 4, New Orleans, LA 70130';
+for(const mapAddress of [undefined,'100 Example Street Apt 4, New Orleans, LA 70130']) {
+ const html=render({address:labeled,mapAddress});
+ assert.match(html,/Program: Amazon Mattress Removal/);
+ assert.match(html,/destination=100%20Example%20Street(?:%2C)?%20Apt%204/);
+ assert.doesNotMatch(html,/destination=Amazon/);
+ assert.doesNotMatch(html,/Amazon Mattress Removal 100/);
+}
+console.log('PASS summary keeps program separate from source or verified street, preserving apartment and directions.');

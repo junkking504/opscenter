@@ -1181,3 +1181,46 @@ Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`
 
 ## Pending closeout presentation — October 28, 2026
 Waypoint and OpsCenter use the same bounded, read-only receipt waiter after a durable closeout submission. A queued response is not completion: the form stays open until verified, failed or uncertain. Waiting reads only the original receipt and never replays a POST or invokes missing-submission recovery. Background status reads remain available after leaving/reopening the form. Missing office-owned referral information is reported before a Waypoint submission; that field remains office-controlled. Existing roles, photo rules, estimate outcome/discount requirements, payments and source verification remain unchanged.
+
+## Optional appointment signatures
+
+Waypoint appointment details offer an optional signature section for each
+currently authorized appointment, including estimates and completed jobs. Other
+trucks' view-only appointments remain view-only; test phones do not write live
+signature artifacts. Existing phone enrollment, daily crew, inspection and fresh
+assignment checks still apply. The new `/api/crew-jobs/signatures` route requires
+those checks itself, plus the normal JSON/origin checks on saves.
+
+The signer enters their name and deliberately starts the drawing area; vertical
+scroll remains available outside it and across the inactive pad. Clear and
+cancel discard the unsaved drawing. Pointer cancellation removes the unfinished
+stroke. Saved records include bounded vector strokes, a server timestamp,
+appointment identity and a private device/day/truck audit binding. The app does
+not add acknowledgment wording or infer legal consent from the drawing.
+
+Artifacts are immutable JSON files under the existing private application data
+root's `appointment-signatures/<appointmentId>/` directory (0700 directories,
+0600 files). A request UUID identifies one exact payload; repeated saves return
+the same durable receipt. Explicit re-signing adds a record without overwriting
+history. No external storage service, provider upload or new credential is used.
+The UI retains a submitted request in phone session storage before sending and
+uses a read-only receipt lookup after an interrupted response or reload. An
+explicit retry after a confirmed missing receipt reuses that request UUID.
+
+This optional record is saved in OpsCenter, not JunkWare's native signature
+field. It does not complete a job, stage charges/payments, send notices, satisfy
+or remove the existing Amazon native closeout-signature requirement, or change
+estimate photo exemptions. Existing closeout controls remain authoritative.
+
+Tests: `npm run verify:appointment-signatures` uses isolated temporary artifacts;
+`npm run verify:appointment-signatures:browser` uses synthetic drawings and mocked
+transport, never customer records or live signatures.
+
+### Program labels in service addresses
+
+Waypoint address links and OpsCenter appointment details separate the exact
+`Amazon Mattress Removal` prefix into a Program label when the remaining text
+is a single complete street address. Display and directions retain street/unit
+information; ambiguous addresses and other building/business names stay intact.
+This is presentation only: original source fields, partner identity, inventory,
+address verification and GPS matching are unchanged.

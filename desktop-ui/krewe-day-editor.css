@@ -14,3 +14,7 @@
 .krewe-day-editor :focus-visible, .hours-day-actions button:focus-visible { outline: 2px solid var(--oc-text-green-19); outline-offset: 2px; }
 .krewe-day-feedback { padding: 10px; background: var(--oc-border-neutral-23); border-left: 3px solid var(--oc-border-green-04); }
 .hours-day-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 8px 8px; }
+
+.krewe-day-feedback > p { margin: 0; }
+.krewe-day-feedback[data-attention] { background: var(--oc-status-warn-tint); border-color: var(--oc-status-warn-accent); color: var(--oc-status-warn-ink); }
+.krewe-day-editor summary { cursor: pointer; padding: 10px 0; min-height: 44px; }

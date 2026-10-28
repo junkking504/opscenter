@@ -1,6 +1,6 @@
+import './krewe-base.css';
 import ClockEntry from './clock-entry';
 import {parseClockEntry,validClockEntry} from './lib/clock-entry';
-import './krewe-base.css';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { useAlertReveal } from './use-alert-reveal';
 import { MetricValue } from './metric-value';

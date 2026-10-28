@@ -81,21 +81,23 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   async function reload() {
     if (busy.current) return;
     busy.current=true; setPending(true);
-    try { await load(); setMessage('Current day loaded. Review the values before saving.'); }
+    try { await load(); setMessage('Day loaded. Review before saving.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'This day could not be loaded.'); }
     finally { busy.current=false; setPending(false); }
   }
   const disabled = pending || Boolean(request) || !record?.canWrite;
+  const attention = Boolean(request) || !record;
+  const feedback = message === 'Saved in OpsCenter. Use JunkWare to correct an overnight shift with its explicit clock-out date.'
+    ? 'Overnight shift: edit its clock-out date in JunkWare. Update unconfirmed.' : message;
   return <dialog className="krewe-day-editor" ref={dialog} aria-labelledby="krewe-day-title" onCancel={event => {event.preventDefault(); if (!busy.current) onClose();}}>
     <header><div><span>Work date · {date}</span><h2 id="krewe-day-title">{name}</h2></div><button type="button" disabled={pending} onClick={onClose} aria-label="Close day editor">×</button></header>
-    <p>Time edits apply only to {date}. OpsCenter recalculates pay using available weekly hours. Times and the shift hourly rate are saved to JunkWare and verified.</p>
-    {message && <p className="krewe-day-feedback" role="status">{message}</p>}
+    {message && <div className="krewe-day-feedback" data-attention={attention || undefined}><p role={attention ? "alert" : "status"}>{feedback}</p>{feedback !== message && <details><summary>Details</summary><p>{message}</p></details>}</div>}
     {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check saved result</button>}
-    {!record && <><p>{pending ? 'Working…' : 'Load this day’s current record to edit.'}</p><button type="button" disabled={pending} onClick={() => void reload()}>Reload this day</button></>}
+    {!record && <>{!message && <p>Loading day…</p>}<button type="button" disabled={pending} onClick={() => void reload()}>Reload day</button></>}
     {record && <>
       <p>{record.member.status} · {record.member.clockIn || 'No clock-in'} – {record.member.clockOut || 'No clock-out'}</p>
-      {record.member.hourlyRate === null && <p>No rate is recorded for this date. Enter the applicable hourly rate to correct time.</p>}
-      {!record.canWrite && <p>Manager write access is required to make changes.</p>}
+      {record.member.hourlyRate === null && <p>Hourly rate missing for this date.</p>}
+      {!record.canWrite && <p>Read-only · manager access required.</p>}
       <form onSubmit={event => {event.preventDefault(); void save('correction');}}>
         <h3>Edit hours</h3><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><ClockEntry label="Clock-in" required autoFocus={action === 'correction'} value={draft.clockIn} onChange={value=>setDraft({...draft,clockIn:value})}/><ClockEntry label="Clock-out" value={draft.clockOut} onChange={value=>setDraft({...draft,clockOut:value})}/><label>Hourly rate<input type="number" min="0.01" step="0.01" required value={draft.hourlyRate} onChange={e=>setDraft({...draft,hourlyRate:e.target.value})}/></label></div>
@@ -104,11 +106,12 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
         </fieldset>
       </form>
       <form onSubmit={event => {event.preventDefault(); void save('bonus');}}>
-        <h3>Manual bonus</h3><p>OpsCenter bonus record. JunkWare timesheets do not provide a bonus field.</p><fieldset disabled={disabled}>
+        <h3>Manual bonus</h3><p>Recorded only in OpsCenter.</p><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><label>Bonus amount<input type="number" min="0.01" step="0.01" required autoFocus={action === 'bonus'} value={draft.amount} onChange={e=>setDraft({...draft,amount:e.target.value})}/></label><label>Bonus reason<input required value={draft.bonusNote} onChange={e=>setDraft({...draft,bonusNote:e.target.value})}/></label></div>
           <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save bonus</button>
         </fieldset>
       </form>
+      <details><summary>How saving works</summary><p>Changes apply only to {date}. Times and shift rate are verified in JunkWare; pay uses available weekly hours. Manual bonuses stay in OpsCenter.</p></details>
       {record.member.junkwareSync && <p role="status">{record.member.junkwareSync.message}</p>}
       {record.member.correction && <p>Last correction: {record.member.correction.note} · {record.member.correction.updatedBy} · {record.member.correction.updatedAt}</p>}
       {!!record.manualBonuses.length && <section aria-label="Saved manual bonuses"><h3>Saved manual bonuses · {date}</h3>{record.manualBonuses.map(bonus=><p key={bonus.entryId}><strong>{money(bonus.amount)}</strong> · {bonus.note}</p>)}</section>}

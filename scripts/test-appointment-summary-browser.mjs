@@ -16,7 +16,7 @@ try{
  for(const [engineName,engine] of Object.entries(process.env.SUMMARY_BROWSER==='webkit'?{webkit}:process.env.SUMMARY_BROWSER==='chromium'?{chromium}:{chromium,webkit})){
   const browser=await engine.launch({headless:true});
   try{
-   for(const [width,height,theme] of (process.env.SUMMARY_SMOKE?[[390,844,'light']]:[[390,844,'light'],[390,844,'dark'],[320,640,'dark'],[844,390,'dark']]))for(const scenario of (process.env.SUMMARY_SMOKE?['long']:['long','missing','warning'])){
+   for(const [width,height,theme] of (process.env.SUMMARY_SMOKE?[[390,844,'light']]:[[390,844,'light'],[390,844,'dark'],[320,640,'dark'],[844,390,'dark']]))for(const scenario of (process.env.SUMMARY_SMOKE?['long']:['long','missing','warning','details'])){
     const page=await browser.newPage({viewport:{width,height},hasTouch:true,reducedMotion:'reduce'});
     const errors=[],network=[];page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(value=>localStorage.setItem('opscenter.theme.v1',value),theme);
@@ -32,9 +32,26 @@ try{
     const summaryCalls=(await calls()).slice(baseline);
     assert.ok(summaryCalls.every(call=>call.method==='GET'&&!/closeout|cost|history|customer|prepare|operations/.test(call.path)),`Summary must not prepare full detail operations: ${JSON.stringify(summaryCalls)}`);
     const text=await summary.innerText();assert.match(text,/JKSYNTHETIC/);
+    assert.doesNotMatch(text,/Cancellation reason/,'Active source status must not display a placeholder cancellation warning');
     if(scenario==='long'){assert.match(text,/Synthetic Customer/);assert.match(text,/Example Boulevard/);assert.match(text,/side entrance/i);}
     if(scenario==='missing'){assert.match(text,/Address unavailable/);assert.match(text,/Time not recorded/);assert.match(text,/Payment updating/);assert.doesNotMatch(text,/\$0\.00/);}
     if(scenario==='warning'){assert.match(text,/Assignment not verified/);assert.match(text,/No payment recorded/);assert.doesNotMatch(text,/Payment details unavailable/);}
+    if(scenario==='details'){
+      assert.match(await summary.locator('.summary-work').innerText(),/about 5 items: 4 broken stone panels, 80 to 95 lbs each, and a tire filled with sand/);
+      await summary.getByText('Request and notes',{exact:true}).click();
+      assert.match(await summary.locator('details').innerText(),/Customer will be absent; call with a quote/,'Full source instructions remain available');
+      await summary.getByText('Request and notes',{exact:true}).click();
+    }
+    const phoneLink=summary.getByRole('link',{name:/^Call /});
+    if(scenario==='missing'){assert.equal(await phoneLink.count(),0);assert.match(text,/Phone unavailable/);}
+    else {
+      assert.equal(await phoneLink.getAttribute('href'),'tel:+15550101001');
+      await phoneLink.scrollIntoViewIfNeeded();assert.ok((await phoneLink.boundingBox()).height>=44);
+      await phoneLink.evaluate(a=>{window.summaryPhoneClicks=0;a.addEventListener('click',e=>{e.preventDefault();window.summaryPhoneClicks++;});});
+      await phoneLink.tap();await phoneLink.focus();await page.keyboard.press('Enter');
+      assert.equal(await page.evaluate(()=>window.summaryPhoneClicks),2,'Phone supports touch and keyboard without placing a real call');
+      assert.equal(await summary.isVisible(),true);assert.equal(await page.locator('.job-record-drawer').count(),0);
+    }
     const directions=summary.getByRole('link',{name:/Directions/});
     if(scenario==='missing')assert.equal(await directions.count(),0,'Missing address has no directions target');
     else {
@@ -54,7 +71,7 @@ try{
     assert.ok(layout.left>=-1&&layout.right<=width+1&&layout.top>=-1&&layout.bottom<=height+1,JSON.stringify(layout));
     assert.ok(layout.scroll<=layout.client+1,'Long summary values must wrap without horizontal overflow');
     if(output)await page.screenshot({path:path.join(output,`${engineName}-${theme}-${width}x${height}-${scenario}-compact.png`),fullPage:false});
-    if(scenario!=='missing'){await summary.getByText('Request and notes',{exact:true}).click();assert.match(await summary.innerText(),/complete source request remains available/);}
+    if(scenario!=='missing'){await summary.getByText('Request and notes',{exact:true}).click();assert.match(await summary.innerText(),scenario==='details'?/Disposing about 5 items like 4 broken stone panels/:/complete source request remains available/);}
     await summary.getByRole('button',{name:'Full details',exact:true}).focus();
     const keyboardFocus=[];for(let index=0;index<7;index++){await page.keyboard.press('Tab');const focus=await summary.evaluate(e=>({inside:e.contains(document.activeElement),body:document.activeElement===document.body,tag:document.activeElement?.tagName}));keyboardFocus.push(focus);assert.ok(focus.inside||focus.body,'Native modal must not focus background page controls');}
     const contrast=await summary.evaluate(dialog=>{

@@ -118,6 +118,12 @@ The service address is a touch- and keyboard-accessible Directions link using
 the existing source-address navigation helper. It opens separately without
 closing the summary or mounting the full drawer. Missing addresses have no link;
 address-verification warnings remain visible.
+The customer phone uses a separate touch- and keyboard-accessible call link;
+missing or invalid numbers are explicitly unavailable. Cancellation reasons only
+appear for source-canceled appointments, including an unavailable-reason fallback.
+Work prefers the source pickup description, then specific request sentences from
+notes, before category tags. Text extraction removes introductory boilerplate
+without inventing items or quantities; full source notes remain in the disclosure.
 
 Full details is an explicit second action; Back to summary preserves access to
 the existing drawer. Operational actions retain their existing behavior. Phone appointment links

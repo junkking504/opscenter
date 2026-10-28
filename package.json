@@ -223,7 +223,7 @@
     "verify:waypoint-recovery": "node --import tsx scripts/test-waypoint-manager-session.ts && node --import tsx scripts/test-waypoint-update-grouping.ts && node --import tsx scripts/test-waypoint-notification-policy.ts && node --import tsx scripts/test-notification-destinations.ts && node --import tsx scripts/test-waypoint-push-sw.ts",
     "verify:waypoint-recovery:browser": "node scripts/test-waypoint-recovery-browser.mjs",
     "verify:alert-navigation": "node --import tsx scripts/test-contextual-alert-navigation.ts && node --import tsx scripts/test-desktop-links.ts",
-    "verify:mobile-interactions": "node --import tsx scripts/test-mobile-gestures.ts && node --import tsx scripts/test-workspace-motion.ts && node --import tsx scripts/test-displayed-refresh.ts && node --import tsx scripts/test-display-only-refresh.ts",
+    "verify:mobile-interactions": "node --import tsx scripts/test-mobile-gestures.ts && node --import tsx scripts/test-workspace-motion.ts && node --import tsx scripts/test-displayed-refresh.ts && node --import tsx scripts/test-display-only-refresh.ts && node --import tsx scripts/test-appointment-summary-content.ts",
     "verify:appearance": "node --import tsx scripts/test-ops-theme.ts"
   },
   "dependencies": {

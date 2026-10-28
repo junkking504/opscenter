@@ -21,6 +21,6 @@
 .ops-app.ops-live .settings-card .push-device-toggle { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; max-width:420px; min-height:48px; color:var(--oc-text-primary); text-align:left; }
 .push-toggle-state { display:flex; align-items:center; gap:8px; }
 .push-toggle-track { display:inline-flex; align-items:center; width:44px; height:26px; padding:3px; border:1px solid var(--oc-border-default); border-radius:20px; background:var(--oc-text-muted); }
-.push-toggle-track > span { display:block; width:18px; height:18px; border-radius:50%; background:#fff; }
-.push-device-toggle[aria-checked="true"] .push-toggle-track { background:#bd1237; }
+.push-toggle-track > span { display:block; width:18px; height:18px; border-radius:50%; background:var(--oc-text-on-brand); }
+.push-device-toggle[aria-checked="true"] .push-toggle-track { background:var(--ops-brand-red); }
 .push-device-toggle[aria-checked="true"] .push-toggle-track > span { transform:translateX(18px); }

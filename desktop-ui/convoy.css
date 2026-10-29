@@ -532,3 +532,11 @@ button.convoy-metric:hover {border-color:var(--oc-text-green-01);background:var(
 .convoy-monthly-mileage > strong {font-size:var(--oc-type-16);font-weight:500;font-variant-numeric:tabular-nums}
 .convoy-monthly-mileage small {display:block;white-space:normal;line-height:1.5}
 .convoy-monthly-mileage summary {cursor:pointer}
+
+.ops-live .convoy-page-purpose { color: var(--oc-text-neutral-03); font-size: var(--oc-type-13); margin: 0 0 12px; }
+.ops-live .convoy-badge.stop,
+.ops-live .clb-dot.no_inspection { color: var(--oc-status-critical-ink); background: var(--oc-status-critical-tint); }
+
+.ops-live .convoy-status-totals > .convoy-critical-count,
+.ops-live .clb-tile.convoy-critical-count > strong,
+.ops-live .clb-tile.convoy-critical-count > span { color: var(--oc-status-critical-ink); }

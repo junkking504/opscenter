@@ -83,7 +83,7 @@ function truckServiceSummary(snapshot: DesktopFleetSnapshot, truck: DesktopFleet
 function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: DashboardProps & {truck: DesktopFleetTruck}) {
   const {plans, plan, detail, status} = truckServiceSummary(snapshot, truck, now);
   return <article className="convoy-truck-dashboard">
-    <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>
+    <header><button className="convoy-truck-link" onClick={()=>onTruck(truck.id)}><Truck size={19}/>{label(truck)}<ArrowRight size={14}/></button><Badge tone={truck.readiness === 'In Use, No Inspection' ? 'stop' : truck.readiness === 'Ready' ? 'neutral' : 'warning'}>{truck.readiness}</Badge></header>
     <p className="convoy-truck-activity">{truck.operatingStatus} · Inspection: {truck.checklist}</p>
     <div className="convoy-truck-identification">
       <div><span className="convoy-fact-label">VIN</span><TruckVin truck={truck}/></div>
@@ -94,7 +94,7 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
       <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
       <TruckLevelGauges truck={truck}/>
     </div>
-    <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('maintenance');}}>Daily inspection</button><button onClick={()=>open({kind:'load',truck})}>Update load</button></footer>
+    <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('inspections');}}>Daily inspection</button><button onClick={()=>open({kind:'load',truck})}>Update load</button></footer>
   </article>;
 }
 function baselineNeeded(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
@@ -422,9 +422,9 @@ export function ConvoyDashboard(props: DashboardProps) {
                 return <tr key={t.id}>
                   <td data-label="Truck / VIN"><button className="convoy-truck-link" onClick={()=>onTruck(t.id)}><Truck size={15}/>{label(t)}<ArrowRight size={12}/></button>
                     <small className="convoy-row-vin" title="VIN · LinxUp vehicle record">{t.vinNeedsVerification ? 'VIN needs verification' : t.vin || 'VIN not recorded'}</small></td>
-                  <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
+                  <td data-label="Status"><Badge tone={t.readiness === 'In Use, No Inspection' ? 'stop' : t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
-                    <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
+                    <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('inspections');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
                   <td data-label="Mileage"><strong><MetricValue value={q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)} /></strong></td>
                   <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
                   <td data-label="Fuel" title={fuel?.detail}><strong><MetricValue value={fuel ? `${fuel.percent}%` : 'Not recorded'} /></strong>
@@ -476,7 +476,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
           <h2>{label(truck)}</h2>
           <p>{recordedValue(truck.vehicle, "Vehicle details not recorded")}</p>
         </div>
-        <Badge tone={truck.readiness === "Out of service" ? "warning" : "neutral"}>
+        <Badge tone={["Out of service", "In Use, No Inspection"].includes(truck.readiness) ? "stop" : "neutral"}>
           {truck.readiness}
         </Badge>
         <Button variant="outline" onClick={() => open({ kind: "truck", truck })}>
@@ -534,8 +534,9 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
               }}
             >
               <Wrench size={15} />
-              Inspections & repairs
+              Repairs
             </Button>
+            <Button variant="outline" disabled={!snapshot.canWrite} onClick={() => open({kind:"issue",truck})}>Report a Problem</Button>
             <Button variant="outline" onClick={() => open({ kind: "load", truck })}>
               Record current load
             </Button>
@@ -543,7 +544,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
               className="convoy-primary"
               onClick={() => open({ kind: "maintenance", truck, initialStatus: "completed" })}
             >
-              Record service
+              Record Service
             </Button>
           </section>
           <Coverage snapshot={snapshot} trucks={[truck]} now={now} />

@@ -75,7 +75,7 @@ assert.equal(timelineWindow(shortActive,'Truck 3',now+25*60_000)?.intervals[0].c
 console.log('Truck visit blocks passed: per-truck intervals, split trips, active growth, stale stop, assignment changes, duplicates, identity, invalid evidence and unchanged sources.');
 
 // A tracker may create several short observations of a single appointment.
-// Their minimum-width cards must pack independently on a narrow desktop board.
+// Short-card padding stops at the next observation, preserving chronological lanes.
 const fragmented={...job,truckVisits:[
   {truck:'Truck 8',arrival:'2026-09-14T16:16:00Z',observedThrough:'2026-09-14T16:21:00Z'},
   {truck:'Truck 8',arrival:'2026-09-14T16:26:00Z',observedThrough:'2026-09-14T16:38:00Z'},
@@ -83,12 +83,12 @@ const fragmented={...job,truckVisits:[
 ]} as ScheduleAppointment;
 const fragmentedLayout=scheduleTravelLayout([fragmented],[],range,'Truck 8',now,450,true);
 const fragments=fragmentedLayout.placed[0];
-assert.notEqual(fragments.segmentLanes[0],fragments.segmentLanes[1],'Same-job GPS cards cannot overlap at their rendered minimum width');
+assert.ok(fragments.segmentLanes[0]!==fragments.segmentLanes[1] || fragments.renderedSegments[0].left+fragments.renderedSegments[0].width<=fragments.renderedSegments[1].left+1e-9,'Rendered hit areas never cover the next observation on the same lane');
+assert.ok(fragments.renderedSegments.every(segment=>segment.width*450>=12),'Narrow desktop observations remain visibly selectable');
 const leg={truck:'Truck 8',fromAppointmentId:job.recordId,toAppointmentId:job.recordId,fromJk:'JK1',toJk:'JK1',travelMinutes:10,miles:4.4,gapMinutes:0} as Parameters<typeof scheduleTravelLayout>[1][number];
 const travel=scheduleTravelLayout([fragmented],[leg,{...leg}],range,'Truck 8',now,450,true);
-assert.notDeepEqual([travel.connectors[0].labelLeft,travel.connectors[0].labelTop],[travel.connectors[1].labelLeft,travel.connectors[1].labelTop],'Every named travel card occupies its own slot');
-assert.ok(travel.connectors.every(c=>c.top+c.labelTop>=travel.laneCount*travel.laneStep),'Travel labels sit below all appointment lanes');
-console.log('Fragmented same-job visits and crowded travel labels use independent collision lanes.');
+assert.equal(travel.connectors.length,0,'Duplicate same-job route legs cannot imply travel backward between GPS fragments');
+console.log('Fragmented observations remain separate evidence without artificial overlap or self-route connectors.');
 
 const zeroClosed={...ledger[0],visit_intervals:[{arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T14:00:00Z'}]};
 assert.equal(scheduleTruckVisits(job,[zeroClosed],[],[job],now).length,0,'Identical closed timestamps do not establish a visit');

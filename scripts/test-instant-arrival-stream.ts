@@ -8,18 +8,17 @@ import {geofencePositionArrivals, geofenceLoadResets, geofenceTimelineAlerts, ge
 const date = '2026-09-10', now = Date.parse(`${date}T21:00:00Z`);
 const observation = {truck_number:'Truck 3',geofence_name:'Example yard',occurred_at:`${date}T20:00:00Z`};
 const entered = {...observation,alert_type:'GEOFENCE_ENTERED'};
-const arrival = geofencePositionArrivals(date, [observation], [], now);
-assert.equal(arrival.length, 1, 'First positive report announces arrival without a second report or feed');
-assert.equal(Date.parse(arrival[0].timestamp), Date.parse(observation.occurred_at));
-assert.equal(geofenceLoadResets(date, arrival).length, 0, 'Position membership does not invent a load reset');
-assert.equal(geofencePositionArrivals(date, [observation, {...observation,occurred_at:`${date}T20:01:00Z`}], [], now).length, 1);
-assert.equal(geofencePositionArrivals(date, [observation], [entered], now).length, 0, 'Explicit entry replaces a matching position alert');
-assert.equal(geofencePositionArrivals(date, [observation], [{...entered,occurred_at:`${date}T20:00:05Z`}], now).length, 0, 'Later source entry reconciles the earlier position alert');
+const confirmed = {...observation,occurred_at:`${date}T20:05:00Z`};
+assert.equal(geofencePositionArrivals(date, [observation], [], now).length,1,'One report immediately alerts while the visit is pending');
+const arrival = geofencePositionArrivals(date, [observation,confirmed], [], now);
+assert.equal(arrival.length,1,'Five minutes of supported presence establishes arrival');
+assert.equal(Date.parse(arrival[0].timestamp),Date.parse(observation.occurred_at));
+assert.equal(geofenceLoadResets(date,arrival).length,0,'Unknown named yard does not unload');
+assert.equal(geofencePositionArrivals(date,[observation,{...observation,occurred_at:`${date}T20:01:00Z`}],[],now).length,1);
+assert.equal(geofencePositionArrivals(date,[observation,confirmed],[entered],now).length,0,'Native entry owns the identity');
 const exit = {...entered,alert_type:'GEOFENCE_EXITED',occurred_at:`${date}T20:02:00Z`};
-assert.equal(geofencePositionArrivals(date, [observation], [entered, exit], now).length, 0);
-assert.equal(geofencePositionArrivals(date, [{...observation,occurred_at:`${date}T20:03:00Z`}, observation], [exit, entered], now).length, 1, 'A first report after a real exit immediately announces reentry, even out of order');
-assert.equal(geofencePositionArrivals(date, [{...observation,occurred_at:`${date}T22:00:00Z`}], [], now).length, 0);
-assert.equal(geofenceTimelineAlerts(date, [...geofenceEntries(date,[entered],now), ...geofencePositionArrivals(date,[observation],[entered],now)], []).length, 1);
+assert.equal(geofencePositionArrivals(date,[{...observation,occurred_at:`${date}T20:03:00Z`},observation],[exit,entered],now).length,1,'Reentry alerts immediately and must qualify separately');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered],now),[]).length,1);
 
 async function main() {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opscenter-arrival-stream-'));

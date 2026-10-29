@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Page } from '@playwright/test';
-import { customerSearchFields, type CustomerMatch, type CustomerDetails } from '../lib/junkware-customer-contract';
-import { clickWithWebFormsCompletion } from './junkware-webforms';
+import { CustomerSelectionError, customerSearchFields, type CustomerMatch, type CustomerDetails } from '../lib/junkware-customer-contract';
+import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 
 const ROWS = "[id^='ctl00_Content_CustomerLV_'][id$='_ItemRow']";
 export function customerRow(cells: string[]): CustomerMatch {
@@ -27,13 +27,59 @@ export async function customerResultsHaveMore(page: Page, count: number) {
   const tableText = await row.locator('xpath=ancestor::table[1]').innerText();
   return [...tableText.matchAll(/\bof\s+(\d+)\b/gi)].some(match => Number(match[1]) > 1);
 }
-export function selectedCustomerIndex(matches: CustomerMatch[], key: string) {
+/** Repeated history rows are equivalent only after JunkWare proves their identity
+ * and all fields we would reuse. Row positions and matching names are not IDs. */
+type SelectedSource = { customerId: string; appointmentId: string; customer: CustomerDetails };
+
+function matchingIndexes(matches: CustomerMatch[], key: string) {
   const indexes = matches.flatMap((row, index) => row.key === key ? [index] : []);
-  if (indexes.length !== 1) throw new Error('The selected JunkWare customer changed or is ambiguous. Search and select again.');
-  return indexes[0];
+  if (!indexes.length) throw new CustomerSelectionError('customer_changed');
+  return indexes;
 }
-export async function selectCustomerRow(page: Page, matches: CustomerMatch[], key: string): Promise<CustomerDetails> {
-  const index = selectedCustomerIndex(matches, key);
+
+export function uniqueCustomerMatches(matches: CustomerMatch[]): CustomerMatch[] {
+  return [...new Map(matches.map(match => [match.key, match])).values()];
+}
+
+export async function selectCustomerRow(page: Page, matches: CustomerMatch[], key: string, query?: string): Promise<CustomerDetails> {
+  const indexes = matchingIndexes(matches, key);
+  if (indexes.length === 1) return (await readSelectedCustomer(page, indexes[0], matches[indexes[0]])).customer;
+  if (!query || indexes.length > 20) throw new CustomerSelectionError('customer_ambiguous');
+
+  // Resolve history duplicates on separate read-only pages. Leave the caller's
+  // current search and franchise intact for the final selection/create flow.
+  const url = page.url();
+  const franchise = await page.locator('#ctl00_FranchiseDD').inputValue();
+  const sources: SelectedSource[] = [];
+  for (let ordinal = 0; ordinal < indexes.length; ordinal++) {
+    const probe = await page.context().newPage();
+    try {
+      await probe.goto(url, { waitUntil: 'domcontentloaded' });
+      await selectWithWebFormsPostback(probe, '#ctl00_FranchiseDD', franchise, 'the franchise selection');
+      const refreshed = await searchCustomerRows(probe, query);
+      const refreshedIndexes = matchingIndexes(refreshed, key);
+      if (refreshedIndexes.length !== indexes.length) throw new CustomerSelectionError('customer_changed');
+      sources.push(await readSelectedCustomer(probe, refreshedIndexes[ordinal], refreshed[refreshedIndexes[ordinal]]));
+    } finally { await probe.close(); }
+  }
+  const first = sources[0];
+  if (sources.some(source => !/^[1-9]\d*$/.test(source.customerId) || !/^[1-9]\d*$/.test(source.appointmentId)
+    || source.customerId !== first.customerId
+    || JSON.stringify(source.customer) !== JSON.stringify(first.customer))
+    || new Set(sources.map(source => source.appointmentId)).size !== sources.length) {
+    throw new CustomerSelectionError('customer_ambiguous');
+  }
+  // A reorder/change during the probes must not silently select a different
+  // account or contact record from the caller's still-open search page.
+  const selected = await readSelectedCustomer(page, indexes[0], matches[indexes[0]]);
+  if (selected.customerId !== first.customerId || !sources.some(source => source.appointmentId === selected.appointmentId)
+    || JSON.stringify(selected.customer) !== JSON.stringify(first.customer)) {
+    throw new CustomerSelectionError('customer_changed');
+  }
+  return selected.customer;
+}
+
+async function readSelectedCustomer(page: Page, index: number, match: CustomerMatch): Promise<SelectedSource> {
   const rowId = await page.locator(ROWS).nth(index).getAttribute('id');
   if (!rowId) throw new Error('The selected JunkWare customer is unavailable.');
   await clickWithWebFormsCompletion(page, `#${rowId}`, 'the existing customer selection');
@@ -45,10 +91,13 @@ export async function selectCustomerRow(page: Page, matches: CustomerMatch[], ke
   };
   const business = page.locator('#ctl00_Content_BusinessYesNoRBL_0');
   return {
-    firstName: await value('FirstNameTB'), lastName: await value('LastNameTB'), phone: await value('Phone1TB'), email: await value('EmailTB'),
-    business: await business.count() ? await business.isChecked() : Boolean(matches[index].company), company: await value('CompanyTB'),
-    billingAddress: await value('BillingAddressTB'), billingZip: await value('BillingZipTB'), billingEmail: await value('BillingEmailTB'),
-    serviceAddress: await value('AppointmentAddressTB'), serviceZip: await value('AppointmentZipTB'),
-    serviceContactName: await value('ServiceContactNameTB'), serviceContactPhone: await value('ServiceContactPhoneTB'),
+    customerId: await value('CustomerIDHF'), appointmentId: await value('SelectedAppointmentIDHF'),
+    customer: {
+      firstName: await value('FirstNameTB'), lastName: await value('LastNameTB'), phone: await value('Phone1TB'), email: await value('EmailTB'),
+      business: await business.count() ? await business.isChecked() : Boolean(match.company), company: await value('CompanyTB'),
+      billingAddress: await value('BillingAddressTB'), billingZip: await value('BillingZipTB'), billingEmail: await value('BillingEmailTB'),
+      serviceAddress: await value('AppointmentAddressTB'), serviceZip: await value('AppointmentZipTB'),
+      serviceContactName: await value('ServiceContactNameTB'), serviceContactPhone: await value('ServiceContactPhoneTB'),
+    },
   };
 }

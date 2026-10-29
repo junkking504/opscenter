@@ -12,7 +12,7 @@ import {
   createTrustedDeviceCookieValue,
   isValidJunkKingEmail,
   opsAuthRole,
-  opsAuthIdentity,
+  isLocalOpsIdentity,
   publicAuthRoute,
   protectedApiRoute,
   shouldRefreshTrustedDevice,
@@ -20,6 +20,7 @@ import {
   inspectAuthSessionCookie,
   verifyTrustedDeviceCookie,
 } from "@/lib/auth";
+import { isWaypointAccount } from "@/lib/waypoint-account";
 import { authorizeOpsRequest, opsRoleLabel } from "@/lib/ops-roles";
 import {
   CREW_IDENTITY_HEADER,
@@ -155,6 +156,25 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
+    // The phone host bypasses office middleware below. Restore only an existing
+    // named manager's remembered session on manager entry/gateway requests.
+    // Keep host allowlists and each handler's authorization checks in force.
+    if (['/crew-jobs', '/login', '/api/crew-jobs/manager-session', '/api/crew-jobs/manager'].includes(pathname)) {
+      const cookieValues = (name: string) => (request.headers.get('cookie') || '').split(';').map(value => value.trim()).filter(value => value.startsWith(`${name}=`)).map(value => value.slice(name.length + 1));
+      const sessions = cookieValues(AUTH_SESSION_COOKIE);
+      const trusted = cookieValues(AUTH_TRUSTED_DEVICE_COOKIE);
+      if (sessions.length <= 1 && trusted.length === 1) {
+        const { session } = await inspectAuthSessionCookie(sessions[0]);
+        const device = await verifyTrustedDeviceCookie(trusted[0], request);
+        // A valid signed-in identity takes precedence over another remembered user.
+        if (device && isWaypointAccount(device) && (!session || (session.email === device.email && shouldRefreshTrustedDevice(device)))) {
+          return initializeOpsSession(request, device.email, {
+            rememberDevice: shouldRefreshTrustedDevice(device), redirect: false,
+          });
+        }
+      }
+    }
+    if (['/login','/api/auth/login','/api/auth/logout','/api/crew-jobs/manager-session'].includes(pathname)) return NextResponse.next();
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
     if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });
@@ -265,7 +285,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     const accessEmail = accessAssertion ? await verifyOpsAccessJwt(accessAssertion) : null;
     const rememberedEmail = session?.email || trustedDevice?.email || null;
 
-    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && rememberedEmail !== opsAuthIdentity()) {
+    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && !isLocalOpsIdentity(rememberedEmail)) {
       return initializeOpsSession(request, accessEmail, {
         rememberDevice: true,
         redirect: request.method === "GET" || request.method === "HEAD",

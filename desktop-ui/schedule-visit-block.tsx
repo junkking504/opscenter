@@ -1,6 +1,7 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { Check, GripVertical, X } from 'lucide-react';
 import type { PointerEvent } from 'react';
+import { appointmentAccountLabel } from '../lib/appointment-account-marker';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { appointmentCategory, appointmentColorClass, appointmentStatus, isClosed, scheduleMoveRestriction, scheduleStatusTone, scheduleTimelineBlockMovable, timelinePlacement, type ScheduleAppointment } from './lib/schedule-contract';
 import { scheduleBlockMinimumWidth } from './lib/schedule-travel-layout';
@@ -12,36 +13,39 @@ const duration = (minutes:number) => {
   const rounded=Math.round(minutes),hours=Math.floor(rounded/60),remainder=rounded%60;
   return hours ? `${hours}h${remainder?`${remainder}m`:''}` : `${rounded}m`;
 };
-export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,mobile=false,selected,muted,matched,dragging,busy,onPointerDown,onSelect}: {
-  job:ScheduleAppointment; truck:string; position:NonNullable<ReturnType<typeof timelinePlacement>>; segmentIndex:number; top:number;
+export default function ScheduleVisitBlock({job,truck,position,segmentIndex,displayWidth,top,mobile=false,selected,muted,matched,dragging,busy,onPointerDown,onSelect}: {
+  job:ScheduleAppointment; truck:string; position:NonNullable<ReturnType<typeof timelinePlacement>>; segmentIndex:number; displayWidth?:number; top:number;
   mobile?:boolean; selected:boolean; muted:boolean; matched:boolean; dragging:boolean; busy:boolean; onPointerDown:(event:PointerEvent<HTMLDivElement>)=>void; onSelect:()=>void;
 }) {
   const interval=position.intervals[segmentIndex],segment=position.segments[segmentIndex];
+  const likely='likely' in position && position.likely === true;
   const sequenced='sequence' in position && position.sequence === true;
-  const tone=position.actual ? interval.ongoing?'on-site':isClosed(job)?scheduleStatusTone(job):'visited' : scheduleStatusTone(job);
-  const state=position.actual ? interval.ongoing?'On site':interval.complete?'Recorded visit':'Departure unconfirmed' : appointmentStatus(job);
+  const tone=likely ? 'visited' : position.actual ? interval.ongoing?'on-site':isClosed(job)?scheduleStatusTone(job):'visited' : scheduleStatusTone(job);
+  const state=likely ? 'Likely stop · needs review' : position.actual ? interval.ongoing?'On site':interval.complete?'Recorded visit':'Departure unconfirmed' : appointmentStatus(job);
   const partner=appointmentPartner(job);
+  const account=appointmentAccountLabel(job);
   const visitTruckCount=new Set((job.truckVisits || []).map(visit=>truckDisplayText(visit.truck))).size;
   const movable=scheduleTimelineBlockMovable(job,position.actual,busy) && (!position.actual || visitTruckCount<=1);
-  const description=sequenced ? `Confirmed route order: after ${job.routeAfterLabel || job.routeAfterAppointmentId}. Exact arrival time is unavailable.` : position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
+  const description=likely ? `${job.likelyStop?.reason || 'Likely matching GPS stop'}. Not a confirmed visit; review before relying on arrival or departure times.` : sequenced ? `Confirmed route order: after ${job.routeAfterLabel || job.routeAfterAppointmentId}. Exact arrival time is unavailable.` : position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
   const minutes=interval.end-interval.start;
-  const time=sequenced ? `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` : position.actual ? minutes===0 ? `${clock(interval.start)} · GPS visit · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
+  const time=sequenced ? `After ${job.routeAfterLabel || job.routeAfterAppointmentId} · exact time unavailable` : position.actual ? minutes===0 ? `${clock(interval.start)} · ${likely?'Likely GPS stop':'GPS visit'} · duration unavailable` : `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min ${likely?'at likely stop':'on site'}` : `${job.appointmentTime} · ${isClosed(job)?'Booked window · time on site not measured':'Planned booked window'}`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';
   const approximate=job.truckVisits?.some(visit=>visit.approximate && visit.truck===truck);
-  const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time}${approximate ? ' · Approximate pin' : ''} · ${state}${position.actual && position.intervals.length>1?` · GPS segment ${segmentIndex+1} of ${position.intervals.length} for this appointment`:''}${assignment}${partner?` · ${partner.name}`:''}`;
+  const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time}${approximate ? ' · Approximate pin' : ''} · ${state}${position.actual && position.intervals.length>1?` · GPS segment ${segmentIndex+1} of ${position.intervals.length} for this appointment`:''}${assignment}${partner?` · ${partner.name}`:''}${account&&!partner?` · ${account}`:''}`;
   const minimumWidth=scheduleBlockMinimumWidth(position.rangeDuration);
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
-    style={{left:`${segment.left*100}%`,width:`${Math.max(minimumWidth,segment.width)*100}%`,top,height:mobile?44:22}}
+    style={{left:`${segment.left*100}%`,width:`${(displayWidth ?? Math.max(minimumWidth,segment.width))*100}%`,top,height:mobile?44:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
-    aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':sequenced?'sequence':'booked'}
+    aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={likely?'likely':position.actual?'actual':sequenced?'sequence':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}
     data-visit-point={position.actual && minutes===0?true:undefined}
     data-visit-left={position.actual?segment.left:undefined} data-visit-right={position.actual?segment.left+segment.width:undefined}
     onPointerDown={movable?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
-    {partner && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}
+    {partner && !account && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}
     {movable && <GripVertical className="schedule-grip" size={9} aria-hidden="true"/>}
-    <em title={state} style={partner?{paddingLeft:12,boxSizing:"border-box"}:undefined} className={`schedule-block-status status-${tone}`}>
+    <em title={state} style={partner&&!account?{paddingLeft:12,boxSizing:"border-box"}:undefined} className={`schedule-block-status status-${tone}`}>
       {tone==='completed'?<Check size={12} strokeWidth={3} aria-hidden="true"/>:tone==='canceled'?<X size={12} strokeWidth={3} aria-hidden="true"/>:tone==='visited'?<b aria-hidden="true">?</b>:null}
+      {account&&<b className="schedule-account-asterisk" aria-hidden="true">*</b>}
       {position.actual && <span className="schedule-visit-duration" aria-hidden="true">{approximate ? '≈' : ''}{duration(minutes)}</span>}
     </em>
   </div>;

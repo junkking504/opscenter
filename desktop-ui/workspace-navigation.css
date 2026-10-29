@@ -1,0 +1,33 @@
+/* One visible section-navigation system across OpsCenter workspaces. */
+.ops-app.ops-live .ops-content .workspace .workspace-heading h1 { font-size: var(--oc-type-24); font-weight: 600; letter-spacing: -.02em; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs {
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 6px;
+  border: 1px solid var(--oc-border-default); border-radius: var(--radius-lg);
+  background: var(--oc-surface-muted); box-shadow: none;
+}
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 44px; height: auto; padding: 8px 12px; font-size: var(--oc-type-12);
+  font-weight: 600; line-height: 1.3; color: var(--oc-text-primary);
+  border: 1px solid var(--oc-border-default); border-radius: var(--radius-sm);
+  background: var(--oc-surface-raised); box-shadow: none; cursor: pointer;
+}
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button.active {
+  color: var(--ops-brand-red); border-color: var(--ops-brand-red);
+  background: var(--oc-status-critical-tint); box-shadow: inset 0 -2px var(--ops-brand-red);
+}
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
+.ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button:disabled { cursor: not-allowed; }
+.ops-app.ops-live .shared-workspace-tabs button span { font-size: var(--oc-type-12); font-weight: 600; margin: 0; }
+.ops-app.ops-live .live-header-shell .viewing-day-context :is(strong,span,small) { font-size: var(--oc-type-12); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.ops-app.ops-live .workspace-footer { font-size: var(--oc-type-12); font-weight: 400; }
+@media (max-width: 760px) {
+  .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: 100%; }
+  .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button { width: 100%; min-width: 0; padding: 8px 4px; white-space: normal; }
+  .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs:has(>button:nth-child(4):last-child),
+  .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs:has(>button:nth-child(2):last-child) { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  /* Dashboard uses its compact four-tab row so the KPI overview stays close. */
+  .ops-app.ops-live[data-css-phase-two="Command"] .ops-content .workspace .shared-workspace-tabs { display: flex; gap: 3px; padding: 3px; flex-wrap: nowrap; }
+  .ops-app.ops-live[data-css-phase-two="Command"] .ops-content .workspace .shared-workspace-tabs > button { flex: 1 1 auto; width: auto; padding: 4px; min-height: 40px; font-size: var(--oc-type-11); }
+  .ops-app.ops-live[data-css-phase-two="Command"] .shared-workspace-tabs button span { font-size: var(--oc-type-11); }
+}

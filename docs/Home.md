@@ -21,6 +21,8 @@ without mixing live runtime data or secrets into Git.
 
 ## Product and architecture
 
+- [Astryx component adoption](astryx-components.md)
+
 - [Ask OpsBot read-only assistant](ask-opsbot.md)
 - [OpsWiki operational knowledge](second-brain.md)
 
@@ -31,6 +33,8 @@ without mixing live runtime data or secrets into Git.
 - [Operating Inbox vertical slice](OPERATING_INBOX_VERTICAL_SLICE.md)
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)
+
+- [OpsCenter named accounts](ops-accounts.md)
 
 ## Integrations and operating areas
 
@@ -50,7 +54,9 @@ without mixing live runtime data or secrets into Git.
 - [Slack and OpsCenter](slack-opscenter.md)
 - [Waypoint iPhone notifications and office messages](waypoint-push.md)
 - [Direct Web Push preparation and activation boundary](web-push.md)
+- [Optional Pushover manager alert delivery](pushover.md)
 - [Dated crew roster](schedule-crew-roster.md)
+- [Manager time-entry deletion](timecard-deletion.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [Appointment customer history](customer-history.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)

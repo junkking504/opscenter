@@ -1,13 +1,16 @@
 "use client";
 
+import {exactSearchDestination} from '@/desktop-ui/lib/search-destination';
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { chicagoDateKey } from "@/lib/chicago-date";
 import type { GlobalSearchResult, GlobalSearchResultType } from "@/lib/global-search";
 import styles from "./GlobalSearch.module.css";
+import { usePinnedSearch } from "@/desktop-ui/use-pinned-search";
 
 const typeLabels: Record<GlobalSearchResultType, string> = {
+  customer: "Customers",
   job: "Appointments",
   crew: "Krewe",
   truck: "Fleet",
@@ -16,7 +19,11 @@ const typeLabels: Record<GlobalSearchResultType, string> = {
 export default function GlobalSearch() {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
+  usePinnedSearch(rootRef, {slotSelector:".ops-topbar-search",contentSelector:".ops-main-frame",fieldSelector:"form"});
   const inputRef = useRef<HTMLInputElement>(null);
+  const [customerTotal,setCustomerTotal]=useState(0);
+  const [notice,setNotice]=useState("");
+  const [resultQuery,setResultQuery]=useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,11 +45,11 @@ export default function GlobalSearch() {
         signal: controller.signal,
       })
         .then((response) => response.ok ? response.json() : Promise.reject(new Error("Search unavailable")))
-        .then((payload: { results?: GlobalSearchResult[] }) => setResults(payload.results || []))
+        .then((payload: { results?: GlobalSearchResult[];customerTotal?:number }) => {if(!controller.signal.aborted){setResults(payload.results || []);setResultQuery(normalized);setCustomerTotal(payload.customerTotal||0);}})
         .catch((error: Error) => {
-          if (error.name !== "AbortError") setResults([]);
+          if (!controller.signal.aborted && error.name !== "AbortError") {setResults([]);setNotice("Search unavailable. Try again.");}
         })
-        .finally(() => setLoading(false));
+        .finally(() => {if(!controller.signal.aborted)setLoading(false);});
     }, 220);
     return () => {
       window.clearTimeout(timer);
@@ -75,9 +82,11 @@ export default function GlobalSearch() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const destination = results[0]?.href || `/jobs?date=${encodeURIComponent(date)}&q=${encodeURIComponent(query.trim())}`;
+    if(loading||resultQuery!==query.trim()){setNotice('Searching records…');return;}
+    const destination=exactSearchDestination(query,results);
+    if(!destination||(destination.type==='customer'&&customerTotal>5)){setNotice(results.length?'Choose the matching record below.':'No exact record found.');return;}
     setOpen(false);
-    router.push(destination);
+    router.push(destination.href);
   }
 
   const rankedTypes = Array.from(new Set(results.map((result) => result.type)));
@@ -101,7 +110,7 @@ export default function GlobalSearch() {
           placeholder="Search all of OpsCenter"
           onFocus={() => setOpen(true)}
           onChange={(event) => {
-            setQuery(event.target.value);
+            setQuery(event.target.value);setNotice("");
             setOpen(true);
           }}
         />
@@ -110,8 +119,9 @@ export default function GlobalSearch() {
 
       {open && query.trim().length >= 2 ? (
         <div className={styles.results} id="ops-global-search-results" aria-live="polite">
+          {notice&&<div className={styles.message}>{notice}</div>}
           {loading ? <div className={styles.message}>Searching current operational records…</div> : null}
-          {!loading && grouped.length === 0 ? <div className={styles.message}>No matching appointments, Krewe, or trucks.</div> : null}
+          {!loading && grouped.length === 0 ? <div className={styles.message}>No matching appointments, customers, Krewe, or trucks.</div> : null}
           {!loading ? grouped.map((group) => (
             <section className={styles.group} key={group.type} aria-label={typeLabels[group.type]}>
               <div className={styles.groupLabel}>{typeLabels[group.type]}</div>

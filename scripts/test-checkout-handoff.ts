@@ -39,7 +39,7 @@ async function main(){
   assert.equal(photoPosts,2,'Lost photo acknowledgement is recovered without another upload');
   assert.equal(saved.phase,'submitting');assert.equal(closeoutPosts,1);
   await transferCheckout(structuredClone(saved),deps);
-  assert.equal(saved.phase,'accepted');assert.match(saved.message,/Safe to close/);assert.match(saved.message,/pending/);
+  assert.equal(saved.phase,'accepted');assert.match(saved.message,/Received.*completion pending.*Do not submit again/);assert.match(saved.message,/pending/);
   assert.equal(closeoutPosts,1,'Lost checkout acknowledgement is read back, never duplicated');
   closeout={requestId:'checkout-original',action:'closeout',status:'verified',message:'Verified'};
   await transferCheckout(saved,deps);assert.match(saved.message,/verified in JunkWare/);

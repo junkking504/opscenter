@@ -35,7 +35,7 @@ try {
  assert.equal(fs.readFileSync(reviewedNavigationFile(address,root),'utf8'),before,'Concurrent/repeated conflicting reviews cannot overwrite');
  const pin=readAddressMapFallback(address)!;
  assert.deepEqual(pin.location,record.location);assert.equal(pin.navigationReviewed,true);assert.equal(pin.visitEligible,false);
- assert.match(pin.detail,/entrance unconfirmed/);assert.match(pin.detail,/Not used for arrival or departure/);
+ assert.match(pin.detail,/entrance unconfirmed/);assert.doesNotMatch(pin.detail,/Not used for arrival or departure/);
  assert.equal(pin.matchedAddress,record.matchedAddress);
  assert.deepEqual(readAddressMapFallback('123 Example Dr New Orleans, LA 70126'),pin,'Punctuation, suffix and LA normalization retain original identity');
  for(const changed of [address.replace('123','124'),address.replace('Drive','Lane'),address.replace('Example','North Example'),address.replace('70126','70128'),address.replace('New Orleans','Slidell'),address.replace('Drive,','Drive Apt 2,')]) {
@@ -45,16 +45,16 @@ try {
  assert.deepEqual(scheduleMapLocation(job),record.location);
  assert.equal(needsScheduleAddressVerification(job),true);
  assert.equal(planningLocation(address,{}),null,'Navigation evidence never becomes verified property evidence');
- assert.equal(appointmentVisitPin(job),null,'A truck at this point cannot become a GPS visit');
+ assert.deepEqual(appointmentVisitPin(job)?.location,record.location,'Navigation confidence does not veto GPS operations');
  const now=Date.now(),parked={truck:'Truck 8',...record.location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[]};
  const visitJob={...job,appointmentId:'synthetic',truck:'Truck 8'};
- assert.equal(currentGpsPresence(visitJob,[parked],[visitJob],now),undefined);
- assert.equal(currentGpsJobLocation(visitJob,[parked],[visitJob],now),undefined);
+ assert.equal(currentGpsPresence(visitJob,[parked],[visitJob],now)?.current,true);
+ assert.equal(currentGpsJobLocation(visitJob,[parked],[visitJob],now)?.truck,'Truck 8');
  const verified={latitude:30.051,longitude:-89.951};
  assert.deepEqual(scheduleMapLocation({...job,location:verified}),verified,'Verified property evidence has precedence');
  assert.equal(appointmentVisitPin({...job,location:verified})?.approximate,false);
  const bridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify([address]),encoding:'utf8',env:process.env}));
- assert.equal(bridge[address],null,'Python arrival/departure matcher excludes reviewed navigation');
+ assert.deepEqual(bridge[address].location,record.location,'Python and Schedule use the same selected pin');
  const query=osmMapAddressQuery(address)!;
  const cacheFile=path.join(process.env.OSM_ADDRESS_CACHE_DIR!,createHash('sha256').update('search?'+new URLSearchParams({q:query,format:'jsonv2',addressdetails:'1',limit:'5',countrycodes:'us'})).digest('hex')+'.json');
  fs.mkdirSync(path.dirname(cacheFile),{recursive:true});
@@ -71,5 +71,5 @@ try {
  assert.equal(link.searchParams.get('destination'),address,'Directions uses the source address, not a generic map pin or corrected ZIP');
  for(const empty of ['','—','unknown'])assert.equal(appointmentDirectionsHref(empty),null);
  assert.equal(record.originalAddress,address);
- console.log('Reviewed navigation PASS: scoped evidence, precedence, atomic publication, source preservation, GPS exclusions and address directions.');
+ console.log('Reviewed navigation PASS: scoped evidence, precedence, atomic publication, source preservation, GPS coordinate parity and address directions.');
 } finally {globalThis.fetch=oldFetch;process.env=old;fs.rmSync(root,{recursive:true,force:true});}

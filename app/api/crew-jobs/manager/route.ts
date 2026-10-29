@@ -1,3 +1,4 @@
+import {waypointAccount} from '@/lib/waypoint-account';
 import {crewPhoneBody,crewPhoneFailure,crewPhoneResponse} from '@/lib/crew-phone-http';
 import {requireWaypointManager,withWaypointManager} from '@/lib/waypoint-manager-context';
 import {WAYPOINT_MANAGER_RESOURCES,validateManagerResource,type WaypointManagerResource} from '@/lib/waypoint-manager-policy';
@@ -7,6 +8,7 @@ import {CrewPhoneError} from '@/lib/crew-phone';
 import {crewDayRoster,readCrewDay,saveCrewDay} from '@/lib/crew-phone-day';
 import {JUNKWARE_DISPATCH_TRUCKS} from '@/lib/junkware-trucks';
 import {pendingTruckSwitch} from '@/lib/crew-truck-switch-store';
+import {managerPhotoHeaders,managerPhotoProjection,managerPhotoSelection,managerResponseProjection,readManagerPhoto} from '@/lib/waypoint-manager-photos';
 import * as operations from '@/app/api/desktop/schedule/operations/route';
 import * as creation from '@/app/api/desktop/schedule/creation/route';
 import * as creationCheck from '@/app/api/desktop/schedule/creation/check/route';
@@ -21,18 +23,31 @@ export const maxDuration=600;
 const handlers:Record<WaypointManagerResource,{GET?:(r:Request)=>Promise<Response>;POST?:(r:Request)=>Promise<Response>}>=
  {operations,creation,'creation-check':creationCheck,customers,order,edit,phones,dispatch};
 async function handle(request:Request){try{
- const phone=requireWaypointManager(request),url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
+ const account=await waypointAccount(request);
+ let phone;
+ if(account){try{phone=requireWaypointManager(request);}catch{phone=null;}}else{phone=requireWaypointManager(request);}
+ const url=new URL(request.url),resource=url.searchParams.get('resource') || 'schedule';
  const body=request.method==='POST'?await crewPhoneBody(request,64_000):undefined;
+ if(resource==='photo' && request.method==='GET'){
+  if(request.headers.get('sec-fetch-site')==='cross-site')throw new CrewPhoneError('Open the manager appointment to view photos.',403);
+  const source=managerPhotoSelection(url.searchParams,readDesktopSchedule);
+  let image;try{image=await readManagerPhoto(source);}catch{throw new CrewPhoneError('Photo unavailable. Refresh the appointment and try again.',404);}
+  // A slow download cannot outlive revocation or a removed/replaced source photo.
+  if(account){if(!await waypointAccount(request))throw new CrewPhoneError('Manager access is required.',403);}else{requireWaypointManager(request);}
+  if(managerPhotoSelection(url.searchParams,readDesktopSchedule)!==source)throw new CrewPhoneError('Photo unavailable.',404);
+  return new Response(new Uint8Array(image.bytes),{headers:{...managerPhotoHeaders,'Content-Type':image.mimeType,'Content-Length':String(image.bytes.length)}});
+ }
  if(resource==='schedule' && request.method==='GET'){
   const date=url.searchParams.get('date') || chicagoDateKey();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw new CrewPhoneError('Choose a valid date.');
   // Local snapshot only: management browsing must not launch source writes,
   // geocoding, notifications or dispatch recovery in the background.
   const snapshot=readDesktopSchedule(date);
-  return crewPhoneResponse({date,observedAt:snapshot.observedAt,appointments:snapshot.appointments,
-   phone,day:readCrewDay(phone),roster:crewDayRoster(),trucks:JUNKWARE_DISPATCH_TRUCKS});
+  return crewPhoneResponse({date,observedAt:snapshot.observedAt,appointments:snapshot.appointments.map(row=>managerPhotoProjection(row,date)),
+   phone,day:phone?readCrewDay(phone):null,roster:crewDayRoster(),trucks:JUNKWARE_DISPATCH_TRUCKS});
  }
  if(resource==='context' && body){
+  if(!phone)throw new CrewPhoneError('Open the crew workflow and connect an approved manager phone before setting work context.',403);
   if(pendingTruckSwitch(phone.deviceId))throw new CrewPhoneError('Finish the saved truck switch before changing manager work context.',409);
   // Explicit daily attribution change, no job transfers. Standard crew routes
   // still require inspection and the exact saved crew version before closeout.
@@ -47,7 +62,9 @@ async function handle(request:Request){try{
  if(!handler)throw new CrewPhoneError('Method not allowed.',405);
  // Next's tracked background work inherits the request-local identity; every
  // delegated auth check revalidates the original phone and active manager grant.
- return await withWaypointManager(request,()=>handler(delegated));
+ const response=account ? await handler(delegated) : await withWaypointManager(request,()=>handler(delegated));
+ const headers=new Headers(response.headers);headers.delete('content-length');headers.set('Cache-Control','private, no-store, max-age=0');
+ return Response.json(managerResponseProjection(await response.json()),{status:response.status,headers});
 }catch(error){return crewPhoneFailure(error);}}
 export const GET=handle;
 export const POST=handle;

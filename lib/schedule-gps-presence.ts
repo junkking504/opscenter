@@ -21,13 +21,13 @@ export function gpsPositionAtAppointment(location: Coordinates | null | undefine
 // creates an arrival time, on-site duration, map beacon or visit interval.
 export function currentGpsJobLocation(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
   const pin=appointmentVisitPin(job), location=pin?.location;
-  if (!location || ambiguousVisitPin(job,appointments) || /cancel/i.test(job.status || '')) return undefined;
+  if (!location || /cancel/i.test(job.status || '')) return undefined;
   const assignedTruck = truckLabel(job.truck || '');
   if (assignedTruck === 'Unassigned') return undefined;
   const candidates = trucks.flatMap(truck => {
     if (truckLabel(truck.truck) !== assignedTruck || !parkedTruckObservation(truck)) return [];
     const observation = gpsPositionAtAppointment(location, truck, now);
-    if (!observation?.inside || !observation.current) return [];
+    if (!observation?.inside || !observation.current || ambiguousVisitPin(job,appointments,truck)) return [];
     if (Date.parse(job.onsiteTime?.departure || '') >= observation.stamp) return [];
     const position = { latitude: truck.latitude!, longitude: truck.longitude! };
     const nearby = appointments.filter(row => appointmentVisitPin(row) && !/cancel/i.test(row.status || '')
@@ -45,13 +45,17 @@ export function currentGpsJobLocation(job: PresenceJob, trucks: PresenceTruck[],
 export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
   const eligible = (row: PresenceJob) => appointmentVisitPin(row) && !/cancel|completed|closed/i.test(row.status || '');
   const pin=appointmentVisitPin(job), location=pin?.location;
-  if (!location || ambiguousVisitPin(job,appointments) || /cancel|completed|closed/i.test(job.status || '')) return undefined;
+  if (!location || /cancel|completed|closed/i.test(job.status || '')) return undefined;
   const candidates = trucks.flatMap(truck => {
     const observation = gpsPositionAtAppointment(location, truck, now);
-    if (!observation?.inside || now - observation.stamp > 12 * 3600_000) return [];
+    if (!observation?.inside || now - observation.stamp > 12 * 3600_000 || ambiguousVisitPin(job,appointments,truck)) return [];
     const { stamp } = observation;
     const departedAt = Date.parse(job.onsiteTime?.departure || '');
-    const since = Number.isFinite(departedAt) ? departedAt : -Infinity;
+    // Do not backdate arrival through an earlier point shared by two jobs.
+    const ambiguousAt = Math.max(-Infinity, ...(truck.routePoints || [])
+      .filter(point => Date.parse(point.timestamp) < stamp && ambiguousVisitPin(job,appointments,point))
+      .map(point => Date.parse(point.timestamp) + 1));
+    const since = Math.max(Number.isFinite(departedAt) ? departedAt : -Infinity, ambiguousAt);
     const dwell = onsiteGpsDwell(location, truck, truck.routePoints || [], since)
       || gpsObservedPresence(location, truck, truck.routePoints || [], since);
     if (Date.parse(job.onsiteTime?.departure || '') >= stamp) return [];

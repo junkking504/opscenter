@@ -253,7 +253,8 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           </span>
           {(query || filter !== "all") && <button onClick={reset}>Clear filters</button>}
         </div>
-        {shown.map((t) => {
+        <nav className="convoy-status-totals" aria-label="Inspection status totals">{filters.map(([key, text]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}><strong>{scoped.filter(t => matches(t, key) && searchMatches(t)).length}</strong><span>{text}</span></button>)}</nav>
+        <div className="convoy-inspection-cards">{shown.map((t) => {
           const active = activeFor(t),
             resolved = snapshot.issues.filter(
               (i) => sameTruck(i.truck, t.id) && i.status === "resolved",
@@ -265,29 +266,18 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
               open={truckId === t.id || undefined}
             >
               <summary>
-                <span className="convoy-visit-icon">
-                  <Truck size={21} />
-                </span>
+                <span className="convoy-visit-icon" aria-hidden="true"><Truck size={40} /></span>
                 <span className="convoy-visit-label">
                   <strong><MetricValue value={label(t.label)} /></strong>
-                  <span>
-                    Inspection: {t.checklist} · {active.length} active{" "}
-                    {active.length === 1 ? "repair" : "repairs"}
-                  </span>
-                  <span className="convoy-visit-metadata">
-                    {t.inspectionFindings?.[0]?.notes ||
-                      active[0]?.title ||
-                      (t.checklist === "Missing"
-                        ? "Inspection needed for this day"
-                        : "Open inspection details")}
-                  </span>
+                  <span className={`convoy-status ${t.readiness === "Out of service" ? "stop" : t.readiness === "Ready" && t.checklist !== "Missing" ? "ready" : "attention"}`}>{truckCondition(t)}</span>
                 </span>
-                <span
-                  className={`convoy-status ${t.readiness === "Out of service" ? "stop" : t.readiness === "Ready" ? "ready" : "attention"}`}
-                >
-                  {truckCondition(t)}
+                <span className="convoy-card-badges">
+                  <span>Service: {t.serviceStatus || 'Not recorded'}</span>
+                  <span className={t.checklist === 'Missing' ? 'is-missing' : ''}>Inspection: {t.checklist || 'Not recorded'}</span>
+                  <span>{active.length} active {active.length === 1 ? 'repair' : 'repairs'}</span>
                 </span>
-                <ChevronRight size={18} className="convoy-disclosure" />
+                <span className="convoy-visit-metadata">{t.inspectionFindings?.[0]?.notes || active[0]?.title || (t.checklist === "Missing" ? "Inspection needed for this day" : "Open inspection details")}</span>
+                <span className="convoy-card-action"><span className="convoy-card-open-label">View details</span><span className="convoy-card-close-label">Hide details</span><ChevronRight size={18} className="convoy-disclosure" /></span>
               </summary>
               <div className="convoy-inspection-body"><section className="convoy-inspection-levels"><div className="convoy-level-group"><h3>Daily inspection readings</h3><TruckLevelGauges truck={t} inspection/></div><div className="convoy-level-group"><h3>Latest truck levels</h3><TruckLevelGauges truck={t}/></div><small>Latest levels include subsequent pickups, verified unloads and fuel purchases.</small></section>
                 <section
@@ -380,7 +370,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
               </div>
             </details>
           );
-        })}
+        })}</div>
         {!shown.length && (
           <div className="convoy-repair-empty">
             <ClipboardCheck size={24} />

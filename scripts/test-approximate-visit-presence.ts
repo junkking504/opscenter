@@ -28,17 +28,17 @@ const stamp=(m:number)=>`2026-09-08T15:${String(m).padStart(2,'0')}:00Z`;
 const truck={truck:'Truck 3',...location,lastGpsUpdate:stamp(9),speed:0,ignition:'OFF',routePoints:[]};
 const unchanged=JSON.stringify(job);
 try {
- assert.equal(appointmentVisitPin(job),null);
+ assert.deepEqual(appointmentVisitPin(job)?.location,location);
  assert.equal(appointmentVisitPin({...job,location})?.approximate,false,'Verified coordinates win');
- assert.equal(currentGpsPresence(job,[truck],[job],now),undefined);
- assert.equal(currentGpsJobLocation(job,[truck],[job],now),undefined);
+ assert.equal(currentGpsPresence(job,[truck],[job],now)?.current,true);
+ assert.equal(currentGpsJobLocation(job,[truck],[job],now)?.truck,'Truck 3');
  const neighbor={...job,appointmentId:'102',location:{latitude:30.003,longitude:-90},mapFallback:null,status:'Completed'};
- assert.equal(ambiguousVisitPin(job,[job,neighbor]),false,'Approximate navigation no longer participates in visit matching');
+ assert.equal(ambiguousVisitPin(job,[job,neighbor]),true,'Overlapping locations are ambiguous regardless of labels');
  // A historical ledger remains readable with its original provenance.
  const pin={...fallback,approximate:true};
  const row={appointment_id:'101',jk_number:'JK1000001',truck_number:'Truck 3',match_confidence:'confirmed',visit_count:1,visit_pin:pin,visit_intervals:[{arrival:stamp(1),departure:null,source_timestamps:[stamp(1),stamp(2)]}]};
- assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now).truckOnSite,false,'Historical approximate evidence cannot assert current presence');
- assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now,undefined,[job,neighbor]).truckOnSite,false,'New ambiguity also suppresses an open ledger badge');
+ assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now).truckOnSite,true,'Recorded GPS remains usable regardless of pin label');
+ assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now,undefined,[job,neighbor]).truckOnSite,true,'A unique observed point remains attributable when circles overlap elsewhere');
  assert.equal(scheduleVisitState(job,[row],stamp(9),[truck],now+2*3600_000).truckOnSite,false);
  const tracked=trackAppointmentVisits(date,[row,row],now);
  assert.equal(tracked.length,1);assert.equal(tracked[0].visitPin?.approximate,true);
@@ -46,7 +46,7 @@ try {
  // A later changed display pin must not manufacture or prevent departure.
  const moved={...job,mapFallback:{...fallback,location:{latitude:30.01,longitude:-90}}};
  const departure=reconcileAppointmentPositions(tracked,[moved],[outside],now);
- assert.equal(departure[0].departedAt,null,'A historical approximate pin cannot infer a new departure');
+ assert.equal(departure[0].departedAt,new Date(stamp(6)).toISOString(),'Departure uses recorded coordinates and two later outside fixes');
  assert.equal(departure[0].durationSeconds,null);
  assert.equal(reconcileAppointmentPositions(tracked,[job],[{...outside,routePoints:[]}],now)[0].departedAt,null);
  const arrivalAlert=appointmentVisitAlerts([], [row], [job], date,now)[0];
@@ -74,7 +74,36 @@ try {
  assert.match(html,/≈1m/,'Visible visit duration carries approximation');
  const zeroPosition=timelinePlacement({...renderJob,truckVisits:scheduleTruckVisits(job,[zero],[],[job],now)},{start:480,end:1080,duration:600},'Truck 3',now);
  assert.equal(zeroPosition?.actual,true,'A closed approximate single-point observation remains a GPS block');
- assert.equal(visitedAssignmentTruck({...job,recordId:`${date}:appointment:101`,truck:'Unassigned',location,truckVisits:visits} as DesktopAppointment,date,now),null,'Approximate visit must not become an automatic source assignment after address verification');
+ assert.equal(visitedAssignmentTruck({...job,recordId:`${date}:appointment:101`,truck:'Unassigned',location,truckVisits:visits} as DesktopAppointment,date,now),'Truck 3','Unique visit evidence can support assignment regardless of pin label');
+ for(const value of [job,{...job,location,mapFallback:null}]) {
+   assert.equal(currentGpsPresence(value,[truck],[value],now)?.current,true);
+   assert.equal(currentGpsJobLocation(value,[truck],[value],now)?.truck,'Truck 3');
+   assert.equal(currentGpsPresence(value,[{...truck,latitude:30.01}],[value],now),undefined,'Outside radius cannot arrive');
+   assert.equal(currentGpsPresence(value,[{...truck,lastGpsUpdate:stamp(11)}],[value],now),undefined,'Future GPS cannot arrive');
+   assert.equal(currentGpsJobLocation(value,[truck],[value],now+2*3600_000),undefined,'Expired parked heartbeat cannot locate truck');
+   assert.equal(currentGpsPresence(value,[truck],[value,{...neighbor,location}],now),undefined,'Label does not resolve co-located appointments');
+ }
+ // Two sites 360m apart overlap only around their midpoint.
+ const adjacent={...neighbor,location:{latitude:30.00324,longitude:-90}};
+ const midpoint={...truck,latitude:30.00162};
+ for (const value of [job,{...job,location,mapFallback:null}]) {
+   const appointments=[value,adjacent];
+   assert.equal(ambiguousVisitPin(value,appointments,truck),false);
+   assert.equal(currentGpsPresence(value,[truck],appointments,now)?.truck,'Truck 3');
+   assert.equal(currentGpsJobLocation(value,[truck],appointments,now)?.truck,'Truck 3');
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[truck],now,undefined,appointments).truckOnSite,true);
+   assert.equal(currentGpsPresence(value,[midpoint],appointments,now),undefined,'Completed neighbors still compete at a shared point');
+   assert.equal(currentGpsJobLocation(value,[midpoint],appointments,now),undefined);
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[midpoint],now,undefined,appointments).truckOnSite,false);
+   assert.equal(scheduleVisitState(value,[row],stamp(9),[midpoint],now,undefined,appointments).lastSeenOnsiteTruck,undefined);
+   const canceled=[value,{...adjacent,status:'Canceled'}];
+   assert.equal(currentGpsPresence(value,[midpoint],canceled,now)?.truck,'Truck 3');
+   const approaching={...truck,routePoints:[{...midpoint,timestamp:stamp(7)},{...truck,timestamp:stamp(8)}]};
+   assert.equal(currentGpsPresence(value,[approaching],appointments,now)?.arrival,stamp(8).replace('Z','.000Z'),'Arrival must not backdate through ambiguous approach');
+   assert.equal(currentGpsPresence(value,[{...truck,latitude:adjacent.location.latitude}],appointments,now),undefined,'A point at the neighbor cannot be assigned here');
+ }
+ assert.equal(appointmentVisitPin({...job,mapFallback:{...fallback,location:{latitude:NaN,longitude:-90}}}),null);
+ assert.equal(appointmentVisitPin({...job,mapFallback:null}),null);
  assert.equal(JSON.stringify(job),unchanged,'No address or assignment promotion');
 } finally {fs.rmSync(root,{recursive:true,force:true});}
-console.log('PASS approximate GPS exclusion and historical UI/alerts: current/stale/future GPS, ambiguity, pin provenance, bounded departure, stable alert identities, zero-duration exit, verified precedence and assignment exclusion; no sends.');
+console.log('PASS label-independent GPS operations and historical UI/alerts: current/stale/future GPS, ambiguity, pin provenance, bounded departure, stable alert identities, zero-duration exit, verified precedence and assignment parity; no sends.');

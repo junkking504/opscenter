@@ -1,0 +1,40 @@
+/* Inspection and lead cards share the existing brand and status tokens. */
+.ops-live .convoy-inspection-library .convoy-inspection-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; align-items: start; }
+.ops-live .convoy-inspection-library .convoy-inspection-visit { border: 1px solid var(--oc-border-default); border-radius: var(--radius-lg); background: var(--oc-surface-raised); overflow: hidden; }
+.ops-live .convoy-inspection-library .convoy-inspection-visit[open] { grid-column: 1 / -1; }
+.ops-live .convoy-inspection-library .convoy-inspection-visit > summary { display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 8px 12px; align-items: center; padding: 12px; }
+.ops-live .convoy-inspection-library .convoy-visit-icon { display: flex; width: 52px; height: 52px; color: var(--oc-text-primary); background: var(--oc-surface-muted); }
+.ops-live .convoy-inspection-library .convoy-visit-label > strong { font-size: var(--oc-type-24); font-weight: 600; line-height: 1.2; }
+.ops-live .convoy-inspection-library .convoy-visit-label > .convoy-status { justify-self: start; font-size: var(--oc-type-12); font-weight: 600; }
+.ops-live .convoy-inspection-library :is(.convoy-card-badges,.convoy-visit-metadata,.convoy-card-action) { grid-column: 1 / -1; font-size: var(--oc-type-12); line-height: 1.4; }
+.ops-live .convoy-card-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.ops-live .convoy-card-badges > span { padding: 3px 6px; border-radius: var(--radius-sm); background: var(--oc-surface-muted); color: var(--oc-text-primary); }
+.ops-live .convoy-card-badges > .is-missing { background: var(--oc-status-warn-tint); color: var(--oc-status-warn-ink); }
+.ops-live .convoy-inspection-library .convoy-visit-metadata { color: var(--oc-text-primary); -webkit-line-clamp: 2; }
+.ops-live .convoy-inspection-library .convoy-card-action { display: flex; align-items: center; justify-content: space-between; min-height: 32px; font-weight: 600; color: var(--ops-brand-red); border-top: 1px solid var(--oc-border-default); padding-top: 6px; }
+.ops-live .convoy-card-close-label,.ops-live .convoy-inspection-visit[open] .convoy-card-open-label { display: none; }
+.ops-live .convoy-inspection-visit[open] .convoy-card-close-label { display: inline; }
+.ops-live .convoy-inspection-library .convoy-inspection-body { padding: 4px 12px 12px; }
+.ops-live .convoy-status-totals { display: none; }
+.ops-live .campaign-workspace .campaign-queue-list { gap: 8px; }
+.ops-live .campaign-workspace .campaign-lead-card { padding: 12px; gap: 6px; border: 1px solid var(--oc-border-default); border-radius: var(--radius-lg); background: var(--oc-surface-raised); color: var(--oc-text-primary); }
+.ops-live .campaign-workspace .campaign-lead-card[aria-pressed=true] { border-color: var(--ops-brand-red); background: var(--oc-status-critical-tint); }
+.ops-live .campaign-workspace .campaign-lead-card .campaign-row-heading strong { font-size: var(--oc-type-16); font-weight: 600; line-height: 1.3; }
+.ops-live .campaign-workspace .campaign-lead-card :is(.campaign-lead-meta,.campaign-lead-badges,.campaign-row-preview,.campaign-card-action) { font-size: var(--oc-type-12); font-weight: 400; line-height: 1.4; }
+.ops-live .campaign-lead-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.ops-live .campaign-lead-badges > span { padding: 3px 6px; background: var(--oc-surface-muted); border-radius: var(--radius-sm); color: var(--oc-text-primary); }
+.ops-live .campaign-lead-badges > .campaign-outcome-badge { font-weight: 600; }
+.ops-live .campaign-lead-badges > .attention { color: var(--oc-status-warn-ink); background: var(--oc-status-warn-tint); }
+.ops-live .campaign-lead-badges > .matched { color: var(--oc-status-info-ink); background: var(--oc-status-info-tint); }
+.ops-live .campaign-workspace .campaign-lead-card .campaign-row-preview { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ops-live .campaign-workspace .campaign-lead-card .campaign-card-action { display: flex; align-items: center; justify-content: space-between; min-height: 32px; font-weight: 600; color: var(--ops-brand-red); }
+.ops-live .campaign-workspace .campaign-lead-card:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .ops-live .convoy-inspection-library .convoy-inspection-cards { grid-template-columns: minmax(0,1fr); }
+  .ops-live .convoy-inspection-library .convoy-mobile-filter { display: none; }
+  .ops-live .convoy-status-totals { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin: 8px 0 12px; }
+  .ops-live .convoy-status-totals button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid var(--oc-border-default); border-radius: var(--radius-sm); background: var(--oc-surface-raised); color: var(--oc-text-primary); font-size: var(--oc-type-12); text-align: left; }
+  .ops-live .convoy-status-totals strong { font-size: var(--oc-type-24); font-weight: 600; }
+  .ops-live .convoy-status-totals button[aria-pressed=true] { border-color: var(--ops-brand-red); background: var(--oc-status-critical-tint); }
+  .ops-live .convoy-status-totals button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
+}

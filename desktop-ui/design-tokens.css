@@ -4,6 +4,7 @@
  * Brand identity remains authoritative in styles/brand-tokens.css. */
 :root {
   /* Shared title resolves here before workspace-local type remapping. */
+  --oc-text-on-brand: #fff;
   --oc-page-title: var(--oc-type-26);
   --oc-compact-label: 8px;
   --oc-shadow-alpha-01: #0007;
@@ -662,4 +663,85 @@
   --oc-type-32: 32px;
   --oc-type-36: 36px;
   --oc-type-42: 42px;
+}
+
+/* Existing component colors promoted without changing their rendered values. */
+:root {
+  --oc-campaign-flag-ink: #8a4b08;
+  --oc-campaign-flag-border: #b97827;
+  --oc-campaign-flag-surface: #fff6df;
+  --oc-fleet-moving-accent: #2f7d4f;
+  --oc-fleet-idle-accent: #b7791f;
+  --oc-fleet-offline-accent: #8a8f98;
+  --oc-fleet-critical-accent: #c0392b;
+  --oc-fleet-moving-surface: #e3f3e9;
+  --oc-fleet-moving-ink: #1f5a38;
+  --oc-fleet-stale-border: #e3c98a;
+  --oc-fleet-idle-surface: #fbf0d9;
+  --oc-fleet-idle-ink: #7a4d0b;
+  --oc-fleet-critical-surface: #fbe4e1;
+  --oc-fleet-critical-ink: #8a2316;
+  --oc-customer-border: #dbe3ed;
+  --oc-customer-surface: #f8fafc;
+  --oc-customer-heading: #0f172a;
+  --oc-customer-history-link: #1d4ed8;
+  --oc-customer-ink: #243c4b;
+  --oc-customer-link: #165581;
+  --oc-customer-input-border: #cbd5e1;
+  --oc-customer-caption-surface: #eef6fb;
+  --oc-huddle-win-surface: #20384d;
+  --oc-huddle-highlight: #ffda75;
+  --oc-huddle-target-surface: #165a42;
+  --oc-huddle-ranking-surface: #152c40;
+  --oc-huddle-row-border: #e0e5ea;
+  --oc-huddle-heading-ink: #536476;
+  --oc-huddle-card-border: #516477;
+  --oc-huddle-card-surface: #102b42;
+  --oc-huddle-muted: #b8c9d9;
+  --oc-huddle-button-border: #6c8195;
+  --oc-schedule-control-border: #b7c8d4;
+  --oc-schedule-control-ink: #243b4c;
+}
+
+/* User-selectable dark appearance; original light anchors remain unchanged. */
+:root {
+  --oc-theme-dark-canvas: #101923;
+  --oc-theme-dark-surface: #172330;
+  --oc-theme-dark-muted-surface: #202f3e;
+  --oc-theme-dark-neutral-surface: #1b2936;
+  --oc-theme-dark-success-surface: #19382d;
+  --oc-theme-dark-warning-surface: #362c19;
+  --oc-theme-dark-critical-surface: #3b242d;
+  --oc-theme-dark-violet-surface: #30263f;
+  --oc-theme-dark-blue-surface: #1e3142;
+  --oc-theme-dark-teal-surface: #193638;
+  --oc-theme-dark-info-surface: #1b344b;
+  --oc-theme-dark-text: #eef4f8;
+  --oc-theme-dark-muted-text: #b9c8d3;
+  --oc-theme-dark-secondary-text: #c3dced;
+  --oc-theme-dark-success-text: #9adeb9;
+  --oc-theme-dark-warning-text: #f4d18d;
+  --oc-theme-dark-critical-text: #ffb0bf;
+  --oc-theme-dark-violet-text: #d8b8f0;
+  --oc-theme-dark-teal-text: #a4ded8;
+  --oc-theme-dark-border: #405261;
+  --oc-theme-dark-success-border: #3a6954;
+  --oc-theme-dark-warning-border: #846c38;
+  --oc-theme-dark-critical-border: #885060;
+  --oc-theme-dark-violet-border: #66527d;
+  --oc-theme-dark-blue-border: #45657e;
+  --oc-theme-dark-input-border: #657e91;
+  --oc-theme-dark-chart-actual: #8ac9f5;
+  --oc-theme-dark-chart-secondary: #b4c2ce;
+  --oc-theme-dark-chart-forecast: #f2c563;
+  --oc-theme-dark-info-text: #9ed4fa;
+  --oc-theme-dark-success-accent: #59bb87;
+  --oc-theme-dark-warning-accent: #e8b64d;
+  --oc-theme-dark-selected-surface: #314c62;
+  --oc-theme-dark-on-brand: #fff;
+  --oc-theme-dark-link: #ffadbc;
+  --oc-theme-dark-map-canvas: #dbe4e9;
+  --oc-theme-dark-map-text: #171a1d;
+  --oc-theme-dark-map-link: #275e91;
+  --oc-theme-dark-brand-red: #b51935;
 }

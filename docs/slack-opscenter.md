@@ -161,38 +161,27 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 
 ## LinxUp facility entries
 
-Command also reads native LinxUp `GEOFENCE_ENTERED` events from the selected
-operating day's collected alert file, without requiring a Slack message. The
-one-minute LinxUp runner refreshes this separate alert feed alongside GPS
-positions; geofence entry visibility no longer waits on the slower full refresh.
-The alert read has a 20-second timeout, retains the collector's existing history
-on failure, and cannot stop position/appointment-visit processing. Entries
-show truck, facility, entered time, and the load effect in the same newest-first
-timeline. Warehouse entries keep the current load; transfer stations, landfills,
-and metal recycling yards reset it to empty. Known configured facility aliases
-are recognized; unknown geofences remain informational. Provider retries combine
-by truck, geofence, and actual entry time; later reentries remain distinct.
-On `GEOFENCE_EXITED`, the entry card becomes a **Site Visit Completed** alert,
-ordered at departure time, with arrival, departure, and total time on site. The
-same entry identity preserves review/Control links. Separate visits stay separate;
-exact provider retries are deduplicated. Pairing uses truck and geofence name,
-plus the previous operating day's history for visits crossing midnight. Missing
-or ambiguous entry events produce a departure summary with duration unavailable.
-Only the original entry affects truck load; departure never applies another reset.
-Entry and completed-visit alerts support the same review/Control actions, with server-side source
-lookup and LinxUp provenance. Each new native entry and matching native exit also
-posts once to that truck's Slack channel after the alert refresh. First enablement
-silently baselines existing same-day events so deployment cannot replay the day's
-history. Every native geofence entry posts the same single-line truck status,
-`Truck N at Location`, and its matching exit posts `Truck N departed Location`.
-Operator-facing facility aliases stay concise, including NOHQ, BRHQ, Gentilly,
-Stranco, EMR, River Birch, Baton Rouge Landfill, and Green Meadow. Command shows
-one native visit card: `Truck N at Location` while open, upgraded to
-`Truck N visited Location` after departure. A matching truck-channel delivery
-copy is excluded from Command so the transition is not shown twice. Inferred GPS-bounded visits do
-not produce geofence Slack notifications. No source record mutation is made.
-Unavailable or partial LinxUp alert collections remain explicit in Source Health;
-stop rows and starting inside a geofence do not invent entry events.
+Command reads native LinxUp entries and positive live GPS facility reports as
+soon as the existing refresh publishes them. Entry alerts are provisional until
+five minutes onsite is supported. Confirmation updates the existing Slack
+message; a proven stay under five minutes removes the operational card and
+retracts its bot-owned Slack message. See the canonical
+[five-minute lifecycle](visit-tracking-agents.md#five-minute-geofence-minimum)
+for qualification, midnight context, retry behavior and raw evidence retention.
+
+Entries use `Truck N at Location` plus a pending-visit label; confirmation removes
+that label. Qualified native exits use `Truck N departed Location`. Only qualified
+visits can affect loads or assumed costs; warehouse visits never empty a truck.
+Command combines arrival and departure into one visit card with the same review
+identity. Raw transition copies in the Slack digest are suppressed so a discarded
+crossing cannot return through the digest. A positive report at another known
+facility can bound departure but cannot invent exact exit time or onsite dwell.
+
+Messages route to the truck channel. First enablement silently baselines existing
+events; retained delivery identities prevent repeat posts. Missing data does not
+trigger deletion. Only stored delivery receipts identify messages for deletion,
+and failures remain pending for the existing runner to retry. No source GPS
+history is edited and no new collector, polling service or paid API is added.
 
 ## Routing policy
 

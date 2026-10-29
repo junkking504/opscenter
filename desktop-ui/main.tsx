@@ -1,3 +1,4 @@
+import '../components/astryx/layers.css';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
 import { createRoot } from 'react-dom/client';
@@ -23,7 +24,7 @@ try {
 const root = document.getElementById('root');
 if (!root) throw new Error('OpsCenter mount point is missing.');
 if (bootstrap.mode === 'reference') {
-  createRoot(root).render(<Home />);
+  void import('./reference-workspace-styles').then(() => createRoot(root).render(<Home />)).catch(() => { root.textContent = 'Reference styles could not load. Reload to retry.'; });
 } else if (bootstrap.mode === 'command-live') {
   installMaintenanceTelemetry();
   // Start the selected Convoy read alongside shell rendering and code loading.
@@ -50,3 +51,5 @@ import './driving-scores.css';
 import './opscenter-brand.css';
 
 import './approved-workbench.css';
+
+import './theme.css';

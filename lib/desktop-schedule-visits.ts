@@ -35,12 +35,13 @@ export function scheduleVisitState(
     && row.match_confidence === 'confirmed' && !row.pass_by_only && hasVisitIntervalEvidence(row)
     && (Number(row.visit_count) > 0 || Number.isFinite(Date.parse(row.first_arrival || row.arrival_at || ''))));
   const activeVisit = fresh(observedAt) ? confirmed.find(row => {
-    if (bounded(row) || ambiguousVisitPin(job,appointments)) return false;
+    if (bounded(row)) return false;
     // GPS is the evidence of where a crew is working. JunkWare's assignment
     // can lag (or remain Unassigned), so do not hide a current, confirmed
     // visit merely because it does not yet agree with the schedule field.
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
     const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
+    if (ambiguousVisitPin(job,appointments,truck)) return false;
     const position = truck && gpsPositionAtAppointment(visitEvidenceLocation(job, row.visit_pin), truck, now);
     if (!position?.inside || !position.current) return false;
     const intervals = (Array.isArray(row.visit_intervals) ? row.visit_intervals : [])
@@ -52,10 +53,11 @@ export function scheduleVisitState(
     return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure;
   }) : undefined;
   const openVisit = confirmed.find(row => {
-    if (bounded(row) || ambiguousVisitPin(job,appointments)) return false;
+    if (bounded(row)) return false;
     const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
     const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
+    if (ambiguousVisitPin(job,appointments,truck)) return false;
     const position = truck && gpsPositionAtAppointment(visitEvidenceLocation(job, row.visit_pin), truck, now);
     const lastInside = Math.max(...[...(row.source_timestamps || []), ...(latest?.source_timestamps || []), latest?.arrival || row.first_arrival || row.arrival_at]
       .map(stamp => Date.parse(stamp || '')).filter(stamp => Number.isFinite(stamp) && stamp <= now));

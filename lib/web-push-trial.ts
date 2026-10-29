@@ -3,7 +3,7 @@ import { getKernelPool } from './platform/persistence/pool';
 import { pushHash } from './web-push-policy';
 import type { PushSubscriptionRecord } from './web-push-store';
 export const trialFingerprint = (subscription:PushSubscriptionRecord) => pushHash([subscription.endpoint,subscription.keys.p256dh,subscription.keys.auth]);
-export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;now:Date};
+export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;ongoing_started_at?:Date|null;ongoing_expires_at?:Date|null;reenabled_at?:Date|null;now:Date};
 export async function lockPushTrial(client:PoolClient):Promise<TrialRow> {
   // Global order everywhere: trial, device, delivery. clock_timestamp is read
   // AFTER waiting for the lock, never transaction-start now().
@@ -11,22 +11,27 @@ export async function lockPushTrial(client:PoolClient):Promise<TrialRow> {
   if(!row)throw new Error('trial_missing');
   return {...row,now:(await client.query('SELECT clock_timestamp() AS now')).rows[0].now};
 }
-export function trialReason(trial:TrialRow,device:{id:string;owner_id:string;subscription_json:PushSubscriptionRecord}|undefined,requireActive=true):string|null {
+export function trialReason(trial:TrialRow,device:{id:string;owner_id:string;subscription_json:PushSubscriptionRecord;consented_at?:Date|null;consent_fingerprint?:string|null}|undefined,requireActive=true):string|null {
   if(!trial.owner_id)return 'trial_unprepared';
   if(trial.stopped_at)return 'trial_stopped';
-  if(trial.deadline && trial.deadline.getTime()<=trial.now.getTime())return 'trial_expired';
-  if(trial.attempts_used>=3)return 'trial_exhausted';
+  if(device?.consented_at)return device.owner_id===trial.owner_id&&trialFingerprint(device.subscription_json)===device.consent_fingerprint?null:'device_unapproved';
+  if(trial.ongoing_started_at){
+    if(!trial.ongoing_expires_at||trial.ongoing_expires_at<=trial.now)return 'ongoing_expired';
+  }else{
+    if(trial.deadline && trial.deadline.getTime()<=trial.now.getTime())return 'trial_expired';
+    if(trial.attempts_used>=3)return 'trial_exhausted';
+  }
   if(!device||device.owner_id!==trial.owner_id||device.id!==trial.device_id||trialFingerprint(device.subscription_json)!==trial.subscription_hash)return 'device_unapproved';
-  if(requireActive&&!trial.started_at)return 'trial_not_started';
+  if(requireActive&&!trial.ongoing_started_at&&!trial.started_at)return 'trial_not_started';
   return null;
 }
 export async function readPushTrial(owner:string,pool:Pool=getKernelPool()) {
   const trial=(await pool.query('SELECT *,clock_timestamp() AS now FROM opscenter_kernel.push_trial WHERE singleton=true')).rows[0] as TrialRow|undefined;
   const ownerEligible=!!trial?.owner_id&&trial.owner_id===owner;
-  const status=!trial?.owner_id?'unprepared':!ownerEligible?'not_allowed':trial.stopped_at?'stopped':trial.deadline&&trial.deadline<=trial.now?'expired':trial.attempts_used>=3?'exhausted':!trial.device_id?'awaiting_device':!trial.started_at?'awaiting_start':'active';
-  return {status,ownerEligible,canRequest:ownerEligible&&['awaiting_device','awaiting_start','active'].includes(status),deadline:ownerEligible?trial?.deadline:null,attemptsUsed:ownerEligible?trial?.attempts_used:0,maxAttempts:3,durationMinutes:30};
+  const status=!trial?.owner_id?'unprepared':!ownerEligible?'not_allowed':trial.stopped_at?'stopped':trial.ongoing_started_at?(!trial.device_id?'ongoing_revoked':trial.ongoing_expires_at&&trial.ongoing_expires_at>trial.now?'ongoing':'ongoing_expired'):trial.deadline&&trial.deadline<=trial.now?'expired':trial.attempts_used>=3?'exhausted':!trial.device_id?'awaiting_device':!trial.started_at?'awaiting_start':'active';
+  return {status,ownerEligible,canRequest:ownerEligible&&['awaiting_device','awaiting_start','active','ongoing'].includes(status),deadline:ownerEligible?(trial?.ongoing_started_at?trial.ongoing_expires_at:trial?.deadline):null,attemptsUsed:ownerEligible?trial?.attempts_used:0,maxAttempts:trial?.ongoing_started_at?null:3,durationMinutes:trial?.ongoing_started_at?null:30};
 }
-export type TrialAction = {action:'prepare';owner:string} | {action:'approve';owner:string;deviceId:string;fingerprint:string;expiresInMinutes:number} | {action:'revoke';owner:string;deviceId:string} | {action:'start'} | {action:'stop'};
+export type TrialAction = {action:'prepare';owner:string} | {action:'approve';owner:string;deviceId:string;fingerprint:string;expiresInMinutes:number} | {action:'revoke';owner:string;deviceId:string} | {action:'promote';owner:string;deviceId:string;fingerprint:string;verifiedEnrollmentExpiresAt:Date;handsetConfirmed:true} | {action:'start'} | {action:'stop'};
 /** LOCAL OPERATOR CONTROL ONLY. No HTTP route, auto-approval or reset operation.
  * Call only after separate explicit human authorization of this exact action. */
 export async function controlPushTrial(input:TrialAction,reference:string,pool:Pool=getKernelPool()) {
@@ -36,7 +41,23 @@ export async function controlPushTrial(input:TrialAction,reference:string,pool:P
     if(input.action==='prepare') {
       if(!input.owner||input.owner.length>200||trial.started_at||trial.device_id||trial.owner_id&&trial.owner_id!==input.owner||trial.stopped_at)throw new Error('trial_already_prepared');
       await client.query('UPDATE opscenter_kernel.push_trial SET owner_id=$1,approval_reference=$2 WHERE singleton=true',[input.owner,reference]);
+    } else if(input.action==='promote') {
+      const device=(await client.query('SELECT * FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[input.deviceId])).rows[0];
+      trial.now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
+      if(input.handsetConfirmed!==true||trial.stopped_at||trial.ongoing_started_at||!trial.started_at||trial.owner_id!==input.owner||trial.device_id!==input.deviceId||!device||device.revoked_at||device.owner_id!==input.owner||trial.subscription_hash!==input.fingerprint||trialFingerprint(device.subscription_json)!==input.fingerprint)throw new Error('verified_handset_required');
+      const accepted=await client.query("SELECT 1 FROM opscenter_kernel.push_deliveries q JOIN opscenter_kernel.push_trial_attempts a ON a.claim_token=q.claim_token WHERE q.device_id=$1 AND q.status='accepted' LIMIT 1",[device.id]);
+      if(!accepted.rows.length)throw new Error('accepted_trial_required');
+      // Legacy trial shortened expires_at. The operator supplies its previously
+      // verified enrollment ceiling, bounded by original creation + 30 days and
+      // Apple's own subscription expiry. New enrollments persist this ceiling.
+      const ceiling=device.enrollment_expires_at||input.verifiedEnrollmentExpiresAt;
+      const expires=new Date(Math.min(ceiling.getTime(),device.created_at.getTime()+30*86400000,trial.now.getTime()+30*86400000,device.subscription_json.expirationTime||Infinity));
+      if(!Number.isFinite(expires.getTime())||expires<=trial.now)throw new Error('invalid_ongoing_expiry');
+      await client.query("UPDATE opscenter_kernel.push_deliveries SET status='skipped',reason='before_ongoing' WHERE status='pending'");
+      await client.query('UPDATE opscenter_kernel.push_devices SET expires_at=$2,enrollment_expires_at=$2 WHERE id=$1',[device.id,expires]);
+      await client.query('UPDATE opscenter_kernel.push_trial SET ongoing_started_at=$1,ongoing_expires_at=$2,approval_reference=$3 WHERE singleton=true',[trial.now,expires,reference]);
     } else if(input.action==='approve') {
+      if(trial.ongoing_started_at)throw new Error('ongoing_device_requires_promotion');
       if(trial.owner_id!==input.owner||trial.stopped_at||trial.deadline&&trial.deadline<=trial.now||trial.attempts_used>=3)throw new Error('trial_closed');
       if(!Number.isInteger(input.expiresInMinutes)||input.expiresInMinutes<1||input.expiresInMinutes>30)throw new Error('invalid_device_expiry');
       const device=(await client.query('SELECT * FROM opscenter_kernel.push_devices WHERE id=$1 FOR UPDATE',[input.deviceId])).rows[0];
@@ -71,14 +92,17 @@ export async function controlPushTrial(input:TrialAction,reference:string,pool:P
 /** Rechecked immediately before transport and again after DNS. A reservation
  * is never refunded, including a crash or cancellation before network I/O. */
 export async function authorizePushAttempt(pool:Pool,token:string,endpoint:string):Promise<boolean> {
-  const result=await pool.query(`SELECT d.subscription_json,t.subscription_hash FROM opscenter_kernel.push_trial_attempts a
+  const result=await pool.query(`SELECT d.subscription_json,COALESCE(d.consent_fingerprint,t.subscription_hash) AS subscription_hash FROM (SELECT claim_token,event_id,device_id,false AS ongoing FROM opscenter_kernel.push_trial_attempts UNION ALL SELECT claim_token,event_id,device_id,true AS ongoing FROM opscenter_kernel.push_ongoing_attempts) a
     JOIN opscenter_kernel.push_trial t ON t.singleton=true
     JOIN opscenter_kernel.push_devices d ON d.id=a.device_id
     JOIN opscenter_kernel.push_deliveries q ON q.device_id=a.device_id AND q.event_id=a.event_id
     JOIN opscenter_kernel.push_events e ON e.id=a.event_id
     WHERE a.claim_token=$1 AND q.claim_token=$1 AND q.status='sending'
-      AND t.device_id=d.id AND t.owner_id=d.owner_id AND t.started_at IS NOT NULL AND t.stopped_at IS NULL
-      AND t.deadline>clock_timestamp() AND d.expires_at>clock_timestamp() AND d.revoked_at IS NULL
-      AND e.category=ANY(d.categories) AND COALESCE(e.source_recorded_at,e.occurred_at)>=t.started_at`,[token]);
+      AND t.owner_id=d.owner_id AND t.stopped_at IS NULL
+      AND (d.expires_at IS NULL OR d.expires_at>clock_timestamp()) AND d.revoked_at IS NULL AND e.category=ANY(d.categories)
+      AND ((d.consented_at IS NOT NULL AND a.ongoing AND e.occurred_at>=d.consented_at AND COALESCE(e.source_recorded_at,e.occurred_at)>=d.consented_at)
+        OR (d.consented_at IS NULL AND t.device_id=d.id AND t.started_at IS NOT NULL
+          AND ((a.ongoing AND t.ongoing_started_at IS NOT NULL AND t.ongoing_expires_at>clock_timestamp()) OR (NOT a.ongoing AND t.ongoing_started_at IS NULL AND t.deadline>clock_timestamp()))
+          AND (t.reenabled_at IS NULL OR e.occurred_at>=t.reenabled_at) AND COALESCE(e.source_recorded_at,e.occurred_at)>=GREATEST(COALESCE(t.ongoing_started_at,t.started_at),t.reenabled_at)))`,[token]);
   const row=result.rows[0];return !!row&&row.subscription_json.endpoint===endpoint&&trialFingerprint(row.subscription_json)===row.subscription_hash;
 }

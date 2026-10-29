@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
@@ -6,7 +7,9 @@ try {
   const page = await browser.newPage();
   await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort());
   await page.goto(`${process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3168'}/tests/schedule-destinations.html?scenario=same-time&details=long`);
+  await openScheduleControls(page);
   await page.getByRole('button', { name: /^2026-09-07/ }).click();
+  await closeScheduleControls(page);
   await page.locator('[data-schedule-appointment^="2026-09-07:"]').first().waitFor();
   await page.evaluate(() => {
     const original = window.fetch;
@@ -33,7 +36,9 @@ try {
   await page.locator('[data-schedule-appointment$=":appointment:1001"]').click();
   const summary = page.getByRole('region', { name: 'Selected job JK1001001', exact: true });
   await page.waitForFunction(() => window.closestReads.length === 1);
+  await openScheduleControls(page);
   await page.getByRole('button', { name: 'Refresh day', exact: true }).click();
+  await closeScheduleControls(page);
   await page.waitForFunction(() => window.scheduleRefreshes >= 2);
   assert.equal(await page.evaluate(() => window.closestReads.length), 1);
   assert.equal(await page.evaluate(() => window.closestReads[0].signal.aborted), false, 'Other appointment changes do not cancel proximity');
@@ -42,7 +47,8 @@ try {
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.waitForFunction(() => window.closestReads.length === 2);
   assert.match(await summary.innerText(), /12 min · 7.5 mi/);
-  assert.match(await summary.innerText(), /Last estimate/);
+  assert.match(await summary.innerText(), /Updating…/);
+  assert.doesNotMatch(await summary.innerText(), /Last estimate|Checked|Truck GPS/);
   await page.evaluate(() => window.finishClosest(1, 'Truck 8', 503));
   await summary.getByText('Refresh failed. Showing the last estimate.').waitFor();
   assert.match((await page.locator('.register-status').allTextContents()).join(' '), /Refresh failed/);
@@ -57,6 +63,26 @@ try {
   await page.evaluate(() => window.finishClosest(3, 'Truck 4', 503));
   await second.getByText('Lookup failed', { exact: true }).waitFor();
   assert.doesNotMatch(await second.innerText(), /Checking distance/);
+  await second.getByRole('button', { name: 'Retry closest truck' }).click();
+  await page.waitForFunction(() => window.closestReads.length === 5);
+  await page.evaluate(() => window.finishClosest(4, 'Truck 6'));
+  await second.getByText(/Truck# 6 · 12 min/).waitFor();
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForFunction(() => window.closestReads.length === 6);
+  await page.evaluate(() => {
+    const read = window.closestReads[5];
+    read.resolve(Response.json({date:read.url.searchParams.get('date'),appointmentId:read.url.searchParams.get('appointment'),calculatedAt:new Date().toISOString(),legs:[],closest:[
+      {truck:'Truck 6',status:'at_warehouse',minutes:null,miles:null,gpsUpdatedAt:new Date().toISOString()},
+      {truck:'Truck 4',status:'day_activity_unconfirmed',minutes:null,miles:null,gpsUpdatedAt:null},
+    ]}));
+  });
+  await second.locator('.selected-job-closest').getByText('Unavailable', {exact:true}).waitFor();
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    assert.doesNotMatch(await second.locator('.selected-job-closest').innerText(), /Truck# 6|12 min|last estimate/i,
+      'A warehouse return clears the previous closest-truck suggestion on desktop and phone');
+    assert.doesNotMatch((await page.locator('.register-status').allTextContents()).join(' '), /Closest truck.*Truck 6/);
+  }
   assert.match(await page.locator('#fixture-writes').innerText(), /Writes: 0/);
-  console.log('Closest-truck browser passed: independent lookup, retained result, failure, retry, selection isolation, zero writes.');
+  console.log('Closest-truck browser passed: independent lookup, retained result, failure, retry, selection isolation, warehouse-return removal on desktop/phone, zero writes.');
 } finally { await browser.close(); }

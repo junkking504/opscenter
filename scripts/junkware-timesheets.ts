@@ -75,7 +75,7 @@ async function findEmployee(page:Page,name:string):Promise<string|null> {
   if(await page.locator('[id$=CurrentPageLbl]').innerText()!==hit.page){const first=page.locator('[id$=FirstPageBtn]');await postback(page,'',{name:(await first.getAttribute('name'))+'.x',value:'1'});for(let n=1;n<Number(hit.page);n++){const next=page.locator('[id$=NextPageBtn]');await postback(page,'',{name:(await next.getAttribute('name'))+'.x',value:'1'});}if(await page.locator('[id$=CurrentPageLbl]').innerText()!==hit.page)throw new Error('JunkWare employee page could not be restored.');}
   return hit.id;
 }
-export async function openEmployee(page:Page,correction:PayrollCorrection,known?:{employeeId:string;marketId:string}) {
+export async function openEmployee(page:Page,correction:Pick<PayrollCorrection,'employeeName'|'workDate'>,known?:{employeeId:string;marketId:string},requireSingleMarket=false) {
   const markets=known?[known.marketId]:await page.locator('#ctl00_FranchiseDD option').evaluateAll(options=>options.map(o=>(o as HTMLOptionElement).value));
   const matches:Array<{employeeId:string;marketId:string}>=[];
   for(const marketId of markets) {
@@ -86,6 +86,7 @@ export async function openEmployee(page:Page,correction:PayrollCorrection,known?
     matches.push({employeeId,marketId});
   }
   if(new Set(matches.map(m=>m.employeeId)).size!==1)throw new Error(matches.length?'Multiple JunkWare employees match this name.':'Employee not found in JunkWare.');
+  if(requireSingleMarket&&matches.length!==1)throw new Error('The employee is listed in multiple franchises. Review the source entry in JunkWare.');
   const identity=matches[0];
   if(matches.length>1||await page.locator('[id$=_UserIDHF]').count()!==1||await page.locator('#ctl00_FranchiseDD').inputValue()!==identity.marketId){await selectDay(page,correction.workDate,identity.marketId);const row=await findEmployee(page,correction.employeeName);if(!row)throw new Error('JunkWare employee disappeared.');await linkPostback(page,`#${row.replace(/_ItemRow$/,'_EditButton')}`);}
   return identity;
@@ -113,4 +114,27 @@ export async function prepareShift(page:Page,correction:PayrollCorrection,rowId:
   await page.locator('#time-entries [id$=_DateOutTB]').fill(correction.clockOut?date:'');
   await page.locator('#time-entries [id$=_HourlyRateTB]').fill(correction.hourlyRate.toFixed(2));
   return rowId?'#time-entries [id$=_UpdateButton]':'#time-entries [id$=_InsertButton]';
+}
+
+/** The source exposes positional WebForms controls, not a persisted entry ID.
+ * Resolve only from this freshly read single-entry day, then verify the native
+ * editor before using its own Delete link. Never reuse the control after reload.
+ */
+export async function prepareTimecardDelete(page:Page,rowId:string,before:JunkwareShift,identity:{employeeId:string;marketId:string}) {
+  const minutes=(clock:string)=>{const value=sourceClock(clock).match(/^(\d{2}):(\d{2}) (AM|PM)$/);if(!value||Number(value[1])<1||Number(value[1])>12||Number(value[2])>59)return null;return Number(value[1])%12*60+Number(value[2])+(value[3]==='PM'?720:0);};
+  const start=minutes(before.clockIn),end=minutes(before.clockOut);
+  if(start===null||(before.clockOut&&(end===null||end<=start)))throw new Error('Review blank or overnight entries in JunkWare.');
+  await linkPostback(page,`#${rowId.replace(/_ItemRow$/,'_EditButton')}`);
+  const day=junkwareDate(before.workDate);
+  if(await page.locator('[id$=_UserIDHF]').inputValue()!==identity.employeeId||await page.locator('#ctl00_FranchiseDD').inputValue()!==identity.marketId)throw new Error('The source employee changed.');
+  if(clean(await page.locator('#time-entries [id$=_WorkDateLbl]').innerText())!==day||
+    sourceClock(await page.locator('#time-entries [id$=_TimeInTB]').inputValue())!==before.clockIn||
+    sourceClock(await page.locator('#time-entries [id$=_TimeOutTB]').inputValue())!==before.clockOut||
+    money(await page.locator('#time-entries [id$=_HourlyRateTB]').inputValue())!==before.hourlyRate||
+    !(before.clockOut?[day]:['',day]).includes((await page.locator('#time-entries [id$=_DateOutTB]').inputValue()).trim()))throw new Error('The native entry changed. Nothing was deleted.');
+  const selector=`#${rowId.replace(/_ItemRow$/,'_DeleteButton')}`;
+  if(await page.locator('#time-entries [id$=_DeleteButton]').count()!==1||await page.locator(selector).count()!==1)throw new Error('The native Delete control could not be verified.');
+  const href=await page.locator(selector).getAttribute('href');
+  if(href!==`javascript:__doPostBack('${selector.slice(1).replaceAll('_','$')}','')`)throw new Error('The native Delete control changed.');
+  return selector;
 }

@@ -1,0 +1,103 @@
+/* Appointment-specific rhythm; shared tokens keep this aligned with the workspace. */
+.ops-live .job-record-drawer {
+  font-size: var(--oc-type-14);
+  line-height: 1.5;
+}
+.ops-live .job-record-drawer [hidden] { display: none !important; }
+.ops-live .job-record-drawer .record-drawer-header { padding: 20px; min-height: 0; }
+.ops-live .job-record-drawer .record-drawer-header h2 { font-size: var(--oc-type-24); line-height: 1.25; }
+.ops-live .job-record-drawer .record-drawer-header p { font-size: var(--oc-type-14); line-height: 1.5; margin-top: 8px; }
+.ops-live .job-record-drawer .record-drawer-header > div > span { font-size: var(--oc-type-12); letter-spacing: .03em; }
+.ops-live .job-record-drawer .record-drawer-body { padding: 20px; scroll-padding-block: 20px; }
+.ops-live .job-record-drawer .record-drawer-body > * + *,
+.ops-live .job-record-drawer .drawer-detail-sections > * + * { margin-top: 20px; }
+.ops-live .job-record-drawer .drawer-workflow-navigation { display: flex; gap: 12px; flex-wrap: wrap; }
+.ops-live .job-record-drawer .drawer-workflow-navigation:empty { display: none; }
+.ops-live .job-record-drawer .drawer-cancel-entry { color: var(--ops-brand-red); }
+.ops-live .job-record-drawer .record-drawer-actions { padding: 16px 20px; gap: 12px; grid-template-columns: auto minmax(0, 1fr); }
+/* An expanded closeout may own the footer, but never while another workflow is visible. */
+.ops-live .job-record-drawer[data-action-view] .record-drawer-actions > :not(.closeout-footer-slot) { display: inline-flex; }
+.ops-live .job-record-drawer [data-slot="button"] { min-height: 40px; height: auto; padding-block: 8px; font-size: var(--oc-type-14); line-height: 1.4; white-space: normal; }
+.ops-live .job-record-drawer .record-drawer-header > button { width: 40px; flex-shrink: 0; }
+.ops-live .job-record-drawer :is(h3, .drawer-control-heading > strong, .customer-history-heading > strong) {
+  font-size: var(--oc-type-16); font-weight: 600; line-height: 1.4;
+}
+.ops-live .job-record-drawer :is(.drawer-control-heading > small, .customer-history small, .customer-history p, .customer-history details, .drawer-secondary-controls > small) {
+  font-size: var(--oc-type-12); line-height: 1.5;
+}
+.ops-live .job-record-drawer :is(.drawer-facts, .customer-history, .estimate-booking, .customer-editor, .drawer-dispatch-controls, .appointment-type-control) {
+  border-color: var(--border); border-radius: 8px; background: var(--oc-surface-raised);
+}
+.ops-live .job-record-drawer :is(.customer-history, .customer-editor, .drawer-dispatch-controls, .appointment-type-control) { padding: 16px; margin-top: 0; }
+.ops-live .job-record-drawer .appointment-info-title { padding: 16px; margin: 0; }
+.ops-live .job-record-drawer .drawer-facts > div { grid-template-columns: 124px minmax(0, 1fr); gap: 16px; padding: 12px 16px; }
+.ops-live .job-record-drawer .drawer-facts > div > span:first-child {
+  font-size: var(--oc-type-12); line-height: 1.5; font-weight: 500; text-transform: none; letter-spacing: normal;
+}
+.ops-live .job-record-drawer .drawer-facts :is(strong, a) { font-size: var(--oc-type-14); font-weight: 500; line-height: 1.5; }
+.ops-live .job-record-drawer .drawer-facts .appointment-info-notes { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.ops-live .job-record-drawer .drawer-facts .appointment-source-notes p { font-size: var(--oc-type-14); text-transform: none; letter-spacing: normal; line-height: 1.5; }
+.ops-live .job-record-drawer .customer-history-current { margin-top: 16px; padding: 12px; background: var(--oc-surface-canvas); }
+.ops-live .job-record-drawer :is(.customer-history-heading > span, .customer-history-current > span, .customer-history-row-heading, .customer-history .customer-history-coverage) { font-size: var(--oc-type-12); }
+.ops-live .job-record-drawer .customer-history-current > strong { font-size: var(--oc-type-14); }
+.ops-live .job-record-drawer :is(.drawer-control-fields, .drawer-note-row, .estimate-booking-body) { gap: 16px; margin-top: 16px; }
+.ops-live .job-record-drawer .estimate-booking-body { margin-top: 0; padding: 16px; }
+.ops-live .job-record-drawer .estimate-booking > h3 { padding: 16px; }
+.ops-live .job-record-drawer :is(.drawer-control-fields label, .drawer-cancel-field, .appointment-create-grid label) { gap: 8px; min-width: 0; }
+.ops-live .job-record-drawer :is(.drawer-control-fields label > span, .drawer-cancel-field > span, .appointment-create-grid label > span) {
+  font-size: var(--oc-type-12); font-weight: 500; text-transform: none; letter-spacing: normal; line-height: 1.5;
+}
+.ops-live .job-record-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  min-width: 0; max-width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: inherit; font-size: var(--oc-type-14); line-height: 1.5; font-weight: 400; background: var(--oc-surface-raised); color: var(--foreground);
+}
+.ops-live .job-record-drawer select { height: 40px; }
+.ops-live .job-record-drawer textarea { width: 100%; min-height: 96px; resize: vertical; }
+.ops-live .job-record-drawer .drawer-secondary-controls { margin-top: 20px; }
+.ops-live .job-record-drawer .drawer-secondary-controls > summary { font-size: var(--oc-type-14); font-weight: 600; padding: 16px 0; }
+.ops-live .job-record-drawer .drawer-quick-actions { gap: 12px; margin-top: 16px; }
+.ops-live .job-record-drawer :is(.drawer-reschedule, .drawer-cancel-row) {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 0; padding: 0; border: 0; background: transparent;
+}
+.ops-live .job-record-drawer :is(.drawer-reschedule, .drawer-cancel-row) > :is(h3,p) { margin: 0; }
+.ops-live .job-record-drawer :is(.drawer-reschedule p, .drawer-cancel-row p) { font-size: var(--oc-type-14); line-height: 1.5; }
+.ops-live .job-record-drawer :is(.drawer-reschedule .drawer-control-fields, .drawer-cancel-field, .drawer-cancel-action) { margin-top: 0; }
+.ops-live .job-record-drawer[data-action-view="cancel"] .drawer-dispatch-controls { padding: 0; border: 0; }
+.ops-live .job-record-drawer :is(.drawer-reschedule-review, .drawer-cancel-confirmation) {
+  display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--oc-surface-canvas); scroll-margin-block: 20px; overflow-wrap: anywhere;
+}
+.ops-live .job-record-drawer :is(.drawer-reschedule-review, .drawer-cancel-confirmation) p { margin: 0; }
+.ops-live .job-record-drawer .drawer-cancel-reason-summary { white-space: pre-wrap; }
+.ops-live .job-record-drawer :is(.drawer-reschedule-review, .drawer-cancel-confirmation):focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 3px; }
+.ops-live .job-record-drawer .appointment-closeout-panel > summary { padding: 16px; font-size: var(--oc-type-16); line-height: 1.4; }
+.ops-live .job-record-drawer .appointment-closeout-body { font-size: var(--oc-type-14); line-height: 1.5; }
+.ops-live .job-record-drawer .appointment-closeout-body label { padding: 12px 16px; gap: 16px; }
+.ops-live .job-record-drawer .appointment-closeout-body label > span { font-size: var(--oc-type-12); text-transform: none; letter-spacing: normal; font-weight: 500; }
+@media (max-width: 760px) {
+  .ops-live .job-record-drawer :is(.record-drawer-header, .record-drawer-body, .record-drawer-actions) { padding: 16px; }
+  .ops-live .job-record-drawer [data-slot="button"] { min-height: 44px; }
+  .ops-live .job-record-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) { min-height: 44px; font-size: var(--oc-type-16); }
+  .ops-live .job-record-drawer select { height: 44px; }
+}
+@media (max-width: 480px) {
+  .ops-live .job-record-drawer .drawer-facts > div { grid-template-columns: 1fr; gap: 4px; }
+  .ops-live .job-record-drawer .drawer-control-fields { grid-template-columns: 1fr; }
+  .ops-live .job-record-drawer .drawer-quick-actions { grid-template-columns: 1fr; }
+  .ops-live .job-record-drawer .drawer-workflow-navigation > button { flex: 1; }
+}
+
+.ops-live .job-record-drawer .appointment-source-notes header span { font-size: var(--oc-type-12); text-transform: none; letter-spacing: normal; font-weight: 400; }
+.ops-live .job-record-drawer .appointment-cost-details > summary { padding: 16px; font-size: var(--oc-type-14); }
+.ops-live .job-record-drawer .appointment-closeout-body :is(h4,h5) { padding: 12px 16px; font-size: var(--oc-type-14); font-weight: 600; }
+@media (max-width: 480px) {
+  .ops-live .job-record-drawer .appointment-closeout-body label { grid-template-columns: 1fr; gap: 8px; }
+}
+.ops-live .job-record-drawer .drawer-facts .phone-contact,
+.ops-live .job-record-drawer .drawer-facts .phone-contact .phone-link { font-size: var(--oc-type-14); font-weight: 500; text-transform: none; letter-spacing: normal; }
+.ops-live .job-record-drawer .appointment-source-notes .appointment-notes-empty { font-weight: 400; }
+.ops-live .job-record-drawer[data-action-view="cancel"] .drawer-dispatch-controls { background: transparent; }
+.ops-live .job-record-drawer .drawer-cancel-confirmation p { color: var(--foreground); }
+@media (max-width: 760px) {
+  .ops-live .job-record-drawer { width: 100vw; max-width: 100vw; }
+}

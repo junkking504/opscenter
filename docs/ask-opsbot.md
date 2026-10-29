@@ -20,8 +20,15 @@ recorded-day average including explicit zeros, and positive-job-day average.
 Absent territory counts and missing dates are excluded and disclosed separately;
 they never become zero. This is an observed average, not a verified complete
 calendar-period average when coverage is missing. These answers consume no AI question.
-Enter submits to the assistant regardless of wording, except exact workspace or record matches; records also retain click navigation.
+Enter submits questions to the assistant. Exact workspace or record matches retain navigation, while address and other supported identifiers stay in appointment history search; records also retain click navigation.
 Local answers remain available when the paid pilot is paused or exhausted.
+The panel distinguishes an empty saved-record search from an unavailable request.
+HTML, sign-in redirects, malformed, timed-out, or disconnected responses show a
+plain-language recovery message, never the underlying JSON parser exception.
+An uncertain paid response is not automatically retried, and the panel warns
+that a submitted pilot question may still count. Empty search results do not
+establish that a customer or address is absent from JunkWare.
+Session-renewal redirects that return valid JSON continue normally.
 
 Saved-source lookup also answers simple clocked/worked crew, booked schedule,
 named employee day/week/pay-period gross, saved daily revenue/sales/expense/profit,
@@ -141,3 +148,29 @@ then provide the best supported partial answer. Do not fabricate missing values.
 User corrections should become reviewed, versioned behavior and regression cases
 that generalize across phrasing and domains. This release records that rule in
 the shared prompt; it does not implement autonomous memory or chat history.
+
+## Appointment history lookup
+
+Global search still returns saved records quickly. Street-number/address, JK number,
+full phone number, email and explicit `surname: Lastname` or `address: Street` queries
+also use JunkWare's read-only Search form across all four accessible franchises.
+They do so even when saved records already match. No saved schedule date is
+required, and completed appointments are included. `All` leaves appointment dates
+blank; `Past` ends yesterday and `Upcoming` starts today in Chicago. Free-form names
+continue searching the saved index; `surname:` explicitly checks source history.
+
+Identifier Enter stays in record search; the Ask OpsBot button remains a deliberate
+separate action. The source check starts after 900 ms without typing, with no
+background polling or automatic retry. The server coalesces identical requests,
+caches at most 32 responses in memory for 60 seconds, allows two active source
+processes, kills their process groups after 70 seconds, and reads at most five
+pages/100 records. Truncation is disclosed. No new paid service or AI request is
+used. Source outages leave saved matches visible and explicitly warn that older
+appointments may be missing; they are never represented as no matches.
+
+The existing operations-read authorization protects both paths. Credentials and
+browser state stay in existing protected runtime locations, with no new saved
+session or source snapshot. A selected source result preserves the appointment
+ID and date in the desktop route and requests that day's normal collector once,
+including when a partial saved day already exists. Deep-link selection waits for
+that request so an initially absent record does not consume the navigation intent.

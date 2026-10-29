@@ -1,5 +1,6 @@
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
+import { contestedLikelyStops, likelyGpsStop } from './likely-stop-match';
 import { scheduleTruckVisitGaps, scheduleTruckVisits, type ScheduleTruckVisit, type ScheduleTruckVisitGap } from './schedule-visit-intervals';
 import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -11,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readJobRows, separateCancellationContact, junkwareScheduleUpdatedAt, type JobRow } from '@/lib/desktop-schedule-source';
-import { buildFleetMapPayload } from '@/lib/fleet-map';
+import { buildFleetMapPayload, operationalLocationCodeAt } from '@/lib/fleet-map';
+import { chicagoDateKey } from './report-dates';
 import { planningLocation } from '@/lib/planning-geocodes';
 import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
@@ -27,7 +29,7 @@ import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalS
 import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
 import { readTruckGpsRoute } from './desktop-gps-route';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { likelyStop?: import('./likely-stop-match').LikelyStop; truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   approximate?: boolean;
   geometry?: Coordinates[];
@@ -94,6 +96,29 @@ export function readDesktopSchedule(date: string) {
   for (const job of appointments) {
     job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
     job.truckVisitGaps = scheduleTruckVisitGaps(job.truckVisits, tracked.visits);
+  }
+  // Near misses (typo'd house number, unresolved pin): a stop with dwell and
+  // departure (or a closed-out job) is inferred as the visit; weaker ones stay suggestions.
+  const routes = new Map<string, ReturnType<typeof readTruckGpsRoute> | null>();
+  const claims: {job: DesktopAppointment; truck: string; likely: NonNullable<ReturnType<typeof likelyGpsStop>>}[] = [];
+  for (const job of appointments) {
+    if (job.truckVisits?.length) continue;
+    const truck = job.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
+    if (!routes.has(truck)) { try { routes.set(truck, readTruckGpsRoute(date, truck)); } catch { routes.set(truck, null); } }
+    const likely = likelyGpsStop({...job, truck}, routes.get(truck)?.trips, date, routes.get(truck)?.points?.map(point => ({...point, coveredUntil: routes.get(truck)?.coverage?.find(row => row.timestamp === point.timestamp && row.latitude === point.latitude && row.longitude === point.longitude)?.coveredUntil})));
+    if (likely) claims.push({job, truck, likely});
+  }
+  // One physical stop is one visit: a stop claimed by several appointments, or
+  // overlapping a visit another appointment already has, stays a suggestion.
+  const confirmed = appointments.flatMap(job => (job.truckVisits || []).map(visit => ({truck: visit.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1'), start: Date.parse(visit.arrival), end: Date.parse(visit.departure || visit.observedThrough || visit.arrival)})));
+  const contestedJobs = contestedLikelyStops(claims, confirmed);
+  for (const {job, truck, likely} of claims) {
+    const contested = contestedJobs.has(job);
+    if (likely.confident && likely.departure && !contested) {
+      // Approximate: counts as the visit everywhere, but never auto-assigns a truck.
+      job.truckVisits = [{approximate: true, truck, arrival: likely.arrival, departure: likely.departure, observedThrough: likely.departure}];
+      job.hasVisit = true;
+    } else job.likelyStop = {...likely, confident: false, reason: contested ? `${likely.reason} · competes with another visit` : likely.reason};
   }
   const geofenceStops = scheduleOperationalStops(date, tracked.visits);
   const gpsHqStops = scheduleGpsHqStops(date, fleet.trucks.flatMap(truck => {
@@ -197,7 +222,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
   return legs;
 }
 
-export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix): Promise<ClosestTruck[]> {
+export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix, now = Date.now()): Promise<ClosestTruck[]> {
   if (/cancel/i.test(appointment.status)) return [];
   const destination = scheduleMapLocation(appointment);
   const rows: ClosestTruck[] = trucks.map(truck => {
@@ -205,11 +230,15 @@ export async function calculateClosestTrucks(appointment: DesktopAppointment, tr
       && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude)
       && Math.abs(truck.latitude) <= 90 && Math.abs(truck.longitude) <= 180
       && !(truck.latitude === 0 && truck.longitude === 0);
-    // A powered-down LinxUp tracker stops reporting. Its last valid coordinate
-    // therefore remains the truck's location for proximity ranking even when
-    // the fallback feed cannot provide an explicit ignition-off field. Keep the
-    // real observation time for confidence; age alone must not discard it.
-    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : 'routing_unavailable' };
+    const facility = located ? operationalLocationCodeAt({latitude: truck.latitude!, longitude: truck.longitude!}) : null;
+    const atWarehouse = facility === 'NOHQ' || facility === 'BRHQ';
+    const observedAt = Date.parse(truck.lastGpsUpdate || '');
+    // Today's offsite observation proves daily activity without requiring a
+    // captured warehouse-exit event. A prior-day location does not. Retain
+    // same-day parked locations, but exclude a return to either warehouse.
+    const activeToday = Number.isFinite(observedAt) && observedAt <= now
+      && chicagoDateKey(new Date(observedAt)) === chicagoDateKey(new Date(now));
+    return { truck: truck.truck, gpsUpdatedAt: truck.lastGpsUpdate, approximate: Boolean(!appointment.location && appointment.mapFallback), minutes: null, miles: null, status: !isToday ? 'not_live_day' : !destination ? 'address_unverified' : !located ? 'gps_unavailable' : !activeToday ? 'day_activity_unconfirmed' : atWarehouse ? 'at_warehouse' : 'routing_unavailable' };
   });
   const eligible = rows.filter(row => row.status === 'routing_unavailable');
   for (let offset = 0; offset < eligible.length; offset += 25) {
@@ -265,8 +294,8 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
   const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.visitOrder, job.routeOrder, job.truckVisits, job.onsiteTime?.arrival, job.location, job.mapFallback])], () => calculateDesktopRouteLegs(snapshot.appointments));
-  // Last-known coordinates remain eligible until a newer valid report replaces
-  // them. The timestamp stays in the cache identity and response for confidence.
+  // Same-day offsite coordinates remain eligible until a newer report replaces
+  // them. The date and GPS timestamp also invalidate cached eligibility.
   const now = Date.now();
   const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, target.mapFallback, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
   const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.visitOrder,j.junkwareSyncStatus,j.location,j.mapFallback,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));

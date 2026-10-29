@@ -27,6 +27,15 @@ sharing, and historical context.
   `/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh`.
 - Never pipe or execute a task branch's `deploy-release.sh` directly. Never
   bypass the installed controller or its deployment lock.
+- Releases are zero-touch. When a production PR is finished (its own checks and
+  your validation pass, CI is green, it contains the active release) add the
+  `ready-to-ship` label; the Mission Control `auto-ship` job then merges it with
+  a merge commit and deploys it through the installed controller within a few
+  minutes, with a health check and automatic rollback. Do not label work that
+  is unfinished, unvalidated, or that changes deploy, auth or database
+  migrations without T'Jean's explicit approval in the task. `ship-failed`
+  means auto-ship stopped; read its PR comment and fix the cause. Details:
+  [deploy/macmini/README.md](deploy/macmini/README.md).
 - Manual rollback is a separate, explicitly authorized operation. Do not move
   `origin/production` backward or deploy a non-forward commit as a workaround.
 
@@ -108,3 +117,20 @@ new usage charges. Obtain explicit approval of provider, feature and maximum
 spend before enabling a new metered path. Never raise limits, restore Google
 Maps billing, remove spending gates, or update the externally installed spending
 allowlist as part of a routine deployment. Tests must mock paid providers.
+
+## Shared task ownership
+
+- Start from the active production commit or an explicitly chosen task base.
+  A historical checkout is not evidence of current production behavior.
+- Use one owner per task worktree. Before editing, inspect the task packet and
+  working-tree status; preserve unfinished work belonging to another task.
+- Keep brief.md, handoff.md and review.md current. The handoff names the exact
+  committed head, checks, unresolved findings and next owner. Reviewers do not
+  modify source or invent test evidence.
+- Read relay.md for an opted-in task before manually taking it over; stop that
+  relay step and verify its processes have ended before editing its worktree.
+- Claude uses the subscription only, with extra usage off. On a usage limit,
+  continue Codex builds/tests and defer Claude review until reset. Never switch
+  to an API key or claim same-family review satisfies the cross-family gate.
+- Preserve OpsCenter's shared typography, palette, spacing, cards, tables and
+  controls. Compare changed screens with adjacent pages on desktop and phone.

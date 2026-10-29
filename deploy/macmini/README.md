@@ -118,6 +118,15 @@ This prevents compilation from exhausting memory while traversing live records.
 
 For production deployments:
 
+On Mission Control, `./deploy/macmini/ship.sh <PR number> [--dry-run]` is an
+optional wrapper for an explicitly authorized release. Before merging it checks
+the exact PR head against the installed review gate and requires that it contain
+both the active release and current production. A real merge pins that head;
+deployment then uses `deploy-from-macbook.sh` over localhost SSH and its fixed
+installed controller. There is no controller-path override. Dry run performs
+the read-only Git fetches and checks but neither merges nor deploys. The
+installed controller repeats review and lineage checks before activation.
+
 Run the launcher from the reviewed source checkout or task worktree. Its Git
 check supports both ordinary checkouts and linked worktrees.
 
@@ -453,3 +462,18 @@ release. `scripts/test-detector-restart-race.ts` covers both cases.
 See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,
 first proxy bootstrap, graceful rollback, routine activation and retained-slot
 protections. Source deployment alone does not enable slot mode.
+
+## Zero-touch releases (auto-ship)
+
+`deploy/macmini/auto-ship.sh` ships the oldest open production PR labeled
+`ready-to-ship`. It refreshes the dedicated `worktrees/ship` checkout and runs
+`ship.sh` (CI, conflicts, `claude-stop` label, review gate), so the installed
+controller still builds, health-checks and restores the previous release on
+failure. It ships at most one release per hour, skips while the controller's
+deploy lock exists, keeps the label while CI is still running, and on any other
+failure removes the label, adds `ship-failed` and comments on the PR.
+
+It is not installed by merging. Install deliberately from
+`launchd/com.opscenter.auto-ship.plist.example`. Off switch:
+`touch "$HOME/Library/Application Support/OpsCenter/auto-ship.off"`.
+Check offline with `python3 scripts/test-auto-ship.py`.

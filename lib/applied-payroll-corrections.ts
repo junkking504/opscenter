@@ -1,3 +1,4 @@
+import {correctionWasDeleted} from './timecard-deletions';
 import { payrollCorrectionsForDate, normalizePayrollEmployeeKey, type PayrollCorrection } from './payroll-corrections';
 import { payrollSyncForCorrection } from './junkware-payroll-sync';
 
@@ -7,6 +8,7 @@ import { payrollSyncForCorrection } from './junkware-payroll-sync';
  */
 export function appliedPayrollCorrectionsForDate(date: string): Record<string, PayrollCorrection> {
   return Object.fromEntries(Object.entries(payrollCorrectionsForDate(date)).filter(([, correction]) => {
+    if (correctionWasDeleted(correction)) return false;
     const sync = payrollSyncForCorrection(correction);
     return !(sync?.status === 'failed' && !sync.submittedAt && ['queued', 'reading'].includes(sync.phase));
   }));

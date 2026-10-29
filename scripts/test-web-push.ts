@@ -51,14 +51,14 @@ assert.ok(verify('sha256',Buffer.from(parts.slice(0,2).join('.')),{key:publicKey
 // Exercise the actual HTTP handler with verified-session and persistence doubles.
 const actor={email:'owner',role:'manager' as const,expiresAt:new Date(Date.now()+86400000)};
 let saves=0;let activation=false;
-const api={trial:async()=>({status:'awaiting_device',ownerEligible:true,canRequest:true,deadline:null,attemptsUsed:0,maxAttempts:3,durationMinutes:30}),enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
+const api={trial:async()=>({status:'awaiting_device',ownerEligible:true,canRequest:true,deadline:null,attemptsUsed:0,maxAttempts:3,durationMinutes:30}),enabled:()=>activation,publicKey:()=>undefined,origin:()=> 'https://ops.example.test',list:async()=>[],enableDevice:async(owner:string)=>{assert.equal(owner,'owner');saves++;return {deviceId:'fixture-device',expiresAt:null};},manage:async(owner:string)=>{assert.equal(owner,'owner');saves++;return 'fixture-device';}};
 const request=(body:unknown,origin='https://ops.example.test')=>new Request('https://ops.example.test/api/push/devices',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
 assert.equal((await pushDevicesGET(null,api)).status,401);
 assert.equal((await pushDevicesGET({...actor,role:'operator'},api)).status,403);
 assert.equal((await pushDevicesPOST(request({}),null,api)).status,401);
 assert.equal((await pushDevicesPOST(request({},'https://evil.test'),actor,api)).status,403);
 assert.equal((await pushDevicesPOST(request({},''),actor,api)).status,403);
-const enroll={action:'subscribe',subscription,categories:['fleet'],owner:'attacker'};
+const enroll={action:'enable',confirm:true,subscription,categories:['fleet'],owner:'attacker'};
 assert.equal((await pushDevicesPOST(request(enroll),actor,api)).status,503);assert.equal(saves,0);
 activation=true;assert.equal((await pushDevicesPOST(request(enroll),actor,api)).status,200);assert.equal(saves,1);
 assert.equal((await pushDevicesPOST(request({...enroll,subscription:{endpoint:'http://127.0.0.1'}}),actor,api)).status,400);assert.equal(saves,1);
@@ -93,8 +93,44 @@ vm.runInNewContext(sw,{URL,self:{location:{origin:'https://ops.example.test'},ad
 let pending=Promise.resolve();handlers.push({data:{url:'https://evil.test',customer:'Private'},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
 assert.doesNotMatch(JSON.stringify(shown),/Private|evil/);assert.match(JSON.stringify(shown),/Operational updates are available/);
 handlers.notificationclick({notification:{close:()=>{},data:{path:'https://evil.test'}},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.equal(opened,'https://ops.example.test/desktop?workspace=Command');
+handlers.push({data:{json:()=>({title:'Truck 2 departed',body:'Truck 2 left BRHQ at 10:47 AM',eventId:'a'.repeat(64),url:'https://evil.test'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;assert.match(JSON.stringify(shown),/Truck 2 left BRHQ/);assert.doesNotMatch(JSON.stringify(shown),/evil/);
+// The web payload owns title/body only; iOS owns app attribution. No browser or
+// OS notification is created: showNotification is the VM double above.
+handlers.push({data:{json:()=>({title:'Truck #9',body:'Departed Warehouse: 5:21 PM',eventId:'b'.repeat(64),subtitle:'from OpsCenter'})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.deepEqual(JSON.parse(JSON.stringify(shown)),{title:'Truck #9',options:{
+  body:'Departed Warehouse: 5:21 PM',icon:'/opscenter-app-192.png',badge:'/opscenter-app-192.png',
+  tag:'opscenter-'+'b'.repeat(64),renotify:true,data:{path:'/desktop?workspace=Command',eventId:'b'.repeat(64)}
+}});
+assert.doesNotMatch(JSON.stringify(shown),/from OpsCenter/);
+const expandedBody='Date: 2026-10-22\nTime: 12 PM – 1 PM (Central)\nJob: JK123\n'+('Detail: verified fixture\n'.repeat(40));
+handlers.push({data:{json:()=>({title:'Rescheduled',body:expandedBody,eventId:'c'.repeat(64)})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.equal((shown as {options:{body:string}}).options.body,expandedBody,'multiline details beyond old 700-character cutoff reach showNotification unchanged');
+// Actual worker code in a VM: no browser, OS notification or navigation occurs.
+const jobPath='/jobs?date=2026-10-22#job-jk123';
+handlers.push({data:{json:()=>({title:'Truck #9',body:'Estimate Completed\nPhotos: 5 available in OpsCenter',path:jobPath})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.equal((shown as {options:{data:{path:string}}}).options.data.path,jobPath);
+handlers.notificationclick({notification:{close:()=>{},data:{path:jobPath}},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+assert.equal(opened,'https://ops.example.test'+jobPath);
+for(const path of ['https://evil.test','//evil.test','/jobs?date=2026-02-30#job-jk123','/jobs?date=2026-10-22#job-jk123%0a','/api/private']){
+ handlers.push({data:{json:()=>({title:'Fixture',body:'Details',path})},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+ assert.equal((shown as {options:{data:{path:string}}}).options.data.path,'/desktop?workspace=Command');
+ handlers.notificationclick({notification:{close:()=>{},data:{path}},waitUntil:(p:Promise<void>)=>{pending=p;}});await pending;
+ assert.equal(opened,'https://ops.example.test/desktop?workspace=Command');
+}
 assert.equal(handlers.fetch,undefined,'service worker cannot intercept authenticated content');
 console.log('Push endpoint, DNS, validation, owner isolation, baseline, transition deduplication, uncertainty, expiry and service-worker mock assertions passed.');
+
+// Explicit consent is mandatory; the superseded request ceremony cannot grant.
+activation=true;
+const beforeConsent=saves;
+assert.equal((await pushDevicesPOST(request({...enroll,confirm:false}),actor,api)).status,400);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'request-reenable'}),actor,api)).status,400);
+assert.equal((await pushDevicesPOST(request({...enroll,action:'subscribe'}),actor,api)).status,400);
+assert.equal(saves,beforeConsent);
+assert.equal((await pushDevicesPOST(request(enroll),actor,{...api,enableDevice:async()=>{throw Error('subscription_invalid');}})).status,409);
+assert.equal((await pushDevicesPOST(request(enroll),{...actor,role:'operator'},api)).status,403);
+const crossSite=request(enroll);crossSite.headers.set('sec-fetch-site','cross-site');
+assert.equal((await pushDevicesPOST(crossSite,actor,api)).status,403);
 
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

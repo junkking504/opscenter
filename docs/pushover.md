@@ -1,0 +1,85 @@
+# Optional Pushover delivery for one manager
+
+User approved the single-phone integration on October 22, 2026, including
+existing alert details, replacement of native delivery, up to 10,000 attempts over
+30 days, $0 API spend and one setup test. Deployment and physical handset
+acceptance remain separate evidence. No SDK or new polling is added.
+
+The existing manager dispatcher can substitute Pushover for Apple delivery for
+one separately approved subscription fingerprint. Existing role, category, device,
+ongoing/trial expiry, canonical event ordering and durable no-retry claims remain
+authoritative. Waypoint is unchanged. The Home Screen subscription must remain
+enabled in OpsCenter: revoking it still stops this route. Unconfigured installations
+use Apple exactly as before. With a valid configuration, other approved subscriptions
+still use Apple. An invalid, disabled or expired configured approval blocks every
+manager delivery until an operator repairs/removes it; the current manager
+authorization is a singleton. This fail-closed behavior does not affect Waypoint.
+
+Pushover receives existing alert titles and bodies (including customer/job details
+and any crew/pay details present), plus an authenticated OpsCenter link. This is a
+new data processor; unlike Apple Web Push these payloads are not end-to-end
+encrypted by this integration. Explicit content/recipient approval is required.
+Pushover limits the body to 1024 characters; clipping is marked with an ellipsis.
+Sound is omitted to honor the phone's Pushover default. Priority is normal; no
+quiet-hours bypass or repeating emergency messages. Tapping the notification
+opens Pushover; its link opens OpsCenter. Provider acceptance is not proof of
+handset delivery. Existing DB accepted/rejected/uncertain vocabulary is reused.
+Local configuration or preflight exceptions also produce an uncertain receipt;
+that status alone does not establish that Pushover received a request.
+
+## Activation boundary
+
+Before enabling: obtain explicit approval for `api.pushover.net`, existing alert
+content, recipient account/device, replacement rather than duplicate Apple delivery,
+up to 10,000 attempts over at most 30 days, and $0 additional API spend. Verify the
+account's free sending quota. No upgrades, license purchase, subscriptions or
+overages are performed. The iPhone app itself requires a separate one-time
+platform license after its 30-day trial (currently $4.99); $0 API spend excludes
+that user-controlled purchase. A maximum of 10,000 attempts makes at most 20,000
+HTTP calls, but at most 10,000 message calls; validation is not a message. Other
+applications on the same account share the free message quota, so the provider
+may reject earlier. Confirm current pricing/quota at activation. Each attempt makes at most one recipient-validation call
+and one message call. Validation/failure/uncertain outcomes consume allowance.
+No retries or automatic renewals exist. Events recorded before approval are rejected.
+
+Prepare a reviewed host inventory addition and install it only under the separately
+approved spending-control procedure. The installed gate deliberately rejects the
+new host until then; do not modify or bypass its checker. Complete independent
+review, integrate the approved exact commit and use the installed release controller.
+
+Only after approval create a private mode-0600 JSON file outside Git, logs and
+evidence. Set `OPSCENTER_PUSHOVER_CONFIG` to that absolute path in the dispatcher
+environment. It contains schema=1, enabled=true, provider=pushover,
+purpose=opscenter-notifications, approvedAt, expiresAt (at most 30 days later),
+approvalReference, maxAdditionalSpendMicros=0, maxAttempts (1–10000),
+content=existing-alert-details, subscriptionFingerprint (existing verified native
+subscription), token, user and device (exact Pushover device name). Do not put
+credentials in browser responses, Git, shell arguments or evidence packets.
+
+Initialize `<config>.ledger.json` mode 0600 with schema=1, the same approvalReference,
+and attempts=0 once. Missing/corrupt state blocks calls; never recreate/reset a used
+ledger as a repair. Atomic replacement and a directory lock serialize reservation;
+a crash leaving the lock requires operator inspection. Approval expiry, disable,
+changed file or supervisor loss blocks subsequent sends. No Apple fallback occurs
+after a Pushover error; removing configuration to resume Apple requires an explicit
+operator change, not an automatic retry. No old events are replayed after repair.
+
+Validate the user has only the intended active Pushover device. Each attempt checks
+the provider's device list and rejects groups, additional devices or renames.
+Pushover may fall back to other devices when the requested device is missing;
+there remains a provider-side race if account devices change between validation
+and sending. This is account delivery, not a cryptographic phone guarantee.
+
+Mock verification: `node --import tsx scripts/test-pushover.ts` and the existing
+Web Push regressions. A separately approved synthetic live test and user confirmation
+of sound, phone receipt and link behavior are required before claiming success.
+
+The supervisor passes only the configuration path to its send-mode child and
+clears it in observe mode. The local operator command
+`scripts/send-pushover-setup-test.ts --apply --approval-reference <reference>`
+requires Mission Control runtime and the protected configuration path. It sends
+only a fixed synthetic message, reserves quota, and creates an exclusive durable
+receipt before I/O. It never runs on startup and cannot automatically repeat an
+uncertain test. Run it only for the separately approved one-message setup test.
+
+Sources: https://pushover.net/api and https://pushover.net/pricing.

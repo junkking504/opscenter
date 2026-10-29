@@ -1,3 +1,4 @@
+import {timecardDeletes} from './timecard-deletions';
 import { crewRph } from '../desktop-ui/lib/crew-rph';
 import { readDesktopDrivingScores, memberDrivingScores } from './desktop-driving-scores';
 import fs from 'node:fs';
@@ -169,7 +170,8 @@ export function readDesktopKreweDay(date: string, name: string, periodDate: stri
   if(!opsRoleCan(role,'finance.read')) throw new Error('Manager access is required for payroll.');
   const member=employeeForDay(date,name,periodDate);
   const canWrite=opsRoleCan(role,'sensitive.write');
-  return {date,canWrite,member:{...member,actionVersions:canWrite?kreweActionVersions(date,member.name):undefined},manualBonuses:manualBonusEntriesForEmployee(date,member.name).map(({entryId,amount,note})=>({entryId,amount,note}))};
+  const deletion=timecardDeletes(date,member.name)[0];
+  return {date,canWrite,timecardDeletion:deletion&&['submitted','uncertain','verified'].includes(deletion.status)?{status:deletion.status,message:deletion.message}:null,member:{...member,actionVersions:canWrite?kreweActionVersions(date,member.name):undefined},manualBonuses:manualBonusEntriesForEmployee(date,member.name).map(({entryId,amount,note})=>({entryId,amount,note}))};
 }
 export function runDesktopKreweAction(body: Record<string, unknown>, actor: string, role: InteractiveOpsRole) {
   const date=String(body.date||''); const name=String(body.name||''); const action=String(body.action||''); const values=(body.values||{}) as Record<string,unknown>;

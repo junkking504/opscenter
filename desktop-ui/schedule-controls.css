@@ -11,5 +11,21 @@
 .ops-live .drawer-reschedule h3 { margin: 0 0 8px; font-size: var(--oc-type-16); }
 .ops-live .drawer-reschedule p { margin: 8px 0; font-size: var(--oc-type-14); }
 .ops-live .drawer-reschedule input { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--oc-border-neutral-05); border-radius: 6px; font: inherit; background: white; }
-.ops-live .drawer-reschedule-review { padding-top: 12px; border-top: 1px solid var(--oc-border-blue-09); }
+.ops-live .drawer-reschedule-review { scroll-margin-block: 12px; padding-top: 12px; border-top: 1px solid var(--oc-border-blue-09); }
 .ops-live .record-drawer-actions .drawer-reschedule-shortcut { grid-column: 1 / -1; }
+.customer-edit-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.customer-edit-fields label{display:flex;flex-direction:column;gap:5px;font-size:var(--oc-type-13)}.customer-edit-fields label:nth-last-child(2){grid-column:1/-1}.customer-edit-fields input{width:100%;min-height:40px;padding:8px;border:1px solid var(--oc-schedule-control-border);border-radius:6px;background:var(--oc-surface-raised);color:var(--oc-schedule-control-ink)}.customer-edit-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.customer-edit-review{padding:12px;background:var(--oc-surface-canvas);border-radius:6px;margin-top:12px;overflow-wrap:anywhere}.customer-editor p{font-size:var(--oc-type-13);line-height:1.5}.customer-editor .drawer-control-heading{display:flex;justify-content:space-between;align-items:center}@media(max-width:480px){.customer-edit-fields{grid-template-columns:1fr}}
+.customer-edit-fields select,.customer-edit-fields textarea{width:100%;min-height:40px;padding:8px;border:1px solid var(--oc-schedule-control-border);border-radius:6px;background:var(--oc-surface-raised);color:var(--oc-schedule-control-ink)}.customer-edit-fields textarea{min-height:80px;resize:vertical}
+
+/* Adopted controls must not inherit the legacy drawer's 9–10px button rules. */
+.ops-live .drawer-dispatch-controls .astryx-button {
+  min-height: 36px;
+  height: auto;
+  font-size: var(--oc-type-14);
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .ops-live .drawer-dispatch-controls .astryx-button { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .ops-live .drawer-dispatch-controls .drawer-quick-actions { grid-template-columns: 1fr; }
+}

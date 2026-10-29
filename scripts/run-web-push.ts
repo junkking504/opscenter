@@ -3,6 +3,7 @@ import { pushDependencies } from '../lib/web-push-worker';
 import { startPushDispatcher } from '../lib/web-push-dispatcher';
 import { startPushJournal } from '../lib/web-push-journal';
 import { pushEnabled } from '../lib/web-push-policy';
+import { watchSupervisorPipe } from '../lib/web-push-runtime';
 async function main(){
   const observing=process.env.OPSCENTER_RUNTIME==='MISSION_CONTROL'&&process.env.OPSCENTER_PROCESS_ROLE==='push-observer'&&process.env.OPSCENTER_WEB_PUSH_ENABLED==='0'&&process.env.OPSCENTER_WEB_PUSH_CAPTURE==='1';
   if(!pushEnabled()&&!observing){console.log('Web Push disabled; no source, database or network access.');return;}
@@ -28,16 +29,25 @@ async function main(){
   let deadlineTimer:ReturnType<typeof setTimeout>|undefined,stopping=false;
   const readyFile=process.env.OPSCENTER_WEB_PUSH_READY_FILE,nonce=process.env.OPSCENTER_WEB_PUSH_RUN_NONCE;
   if(!readyFile||path.dirname(readyFile)!==path.dirname(root)||!nonce||! /^[a-f0-9]{32}$/.test(nonce)||path.basename(readyFile)!==`ready-${nonce}.json`)throw new Error('supervisor_required');
-  const stop=async()=>{if(stopping)return;stopping=true;clearTimeout(deadlineTimer);try{fs.unlinkSync(readyFile);}catch{}await closeJournal?.();await closeDispatcher?.();};
+  let closeParentWatch:(()=>void)|undefined;
+  const stop=async()=>{if(stopping)return;stopping=true;clearTimeout(deadlineTimer);closeParentWatch?.();try{fs.unlinkSync(readyFile);}catch{}await closeJournal?.();await closeDispatcher?.();};
+  // A crashed or SIGKILLed supervisor must not leave this process holding
+  // leadership or signing material: stop and exit as soon as the pipe closes.
+  closeParentWatch=watchSupervisorPipe(process.env.OPSCENTER_WEB_PUSH_PARENT_FD,()=>{
+    console.error('Web Push supervisor exited; stopping this process.');
+    process.exitCode=1;void stop().finally(()=>process.exit(1));
+  });
   const failed=()=>{process.exitCode=1;void stop();};
   const checkTrial=async()=>{
     if(stopping)return;
-    const trial=(await deps.pool.query('SELECT started_at,deadline,stopped_at,attempts_used,clock_timestamp() AS now FROM opscenter_kernel.push_trial WHERE singleton=true')).rows[0];
+    const trial=(await deps.pool.query('SELECT started_at,deadline,stopped_at,attempts_used,ongoing_started_at,ongoing_expires_at,clock_timestamp() AS now FROM opscenter_kernel.push_trial WHERE singleton=true')).rows[0];
     if(stopping)return;
     if(!trial)throw new Error('trial_missing');
     clearTimeout(deadlineTimer);
-    if(trial.stopped_at||trial.attempts_used>=3||trial.deadline&&trial.deadline<=trial.now||observing&&trial.started_at){void stop();return;}
-    if(trial.deadline)deadlineTimer=setTimeout(()=>{void stop();},Math.max(0,trial.deadline.getTime()-trial.now.getTime()));
+    const expires=trial.ongoing_started_at?trial.ongoing_expires_at:trial.deadline;
+    if(process.env.OPSCENTER_WEB_PUSH_PERSISTENT==='1'&&!observing){if(trial.stopped_at)void stop();return;}
+    if(trial.stopped_at||(!trial.ongoing_started_at&&trial.attempts_used>=3)||expires&&expires<=trial.now||observing&&trial.started_at){void stop();return;}
+    if(expires)deadlineTimer=setTimeout(()=>{trialChanged();},Math.min(2147483647,Math.max(0,expires.getTime()-trial.now.getTime())));
   };
   const trialChanged=()=>{void checkTrial().catch(failed);};
   const maintenance=createPushMaintenance(async()=>{await archivePushScopes(deps,async(cutoff,acks)=>{
@@ -63,7 +73,7 @@ async function main(){
     journalWake=journal.wake;
     await maintenance.maintain(); // close the startup delivery-completion race
     await checkTrial();
-    if(!stopping)fs.writeFileSync(readyFile,JSON.stringify({nonce,pid:process.pid,ready:true}),{mode:0o600,flag:'wx'});
+    if(!stopping)fs.writeFileSync(readyFile,JSON.stringify({nonce,pid:process.pid,ready:true,reenableVersion:1}),{mode:0o600,flag:'wx'});
     process.once('SIGTERM',()=>{void stop();});process.once('SIGINT',()=>{void stop();});
     // No polling health timer: watcher/DB failures close resources and exit.
     if('active' in journal&&!journal.active){await stop();throw new Error('push_journal_failed');}

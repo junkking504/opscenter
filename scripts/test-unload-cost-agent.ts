@@ -11,7 +11,7 @@ import {deriveTruckLoadStatus,type TruckLoadEvent} from '../lib/truck-load-statu
 import {canonicalDumpLocation} from '../lib/dump-expense-identity';
 const date='2026-09-15',at=(clock:string)=>`${date}T${clock}:00-05:00`,now=Date.parse(at('23:59'));
 const position=(clock:string,name:string)=>({truck_number:'4',occurred_at:at(clock),geofence_name:name});
-const visits=trackedGeofenceVisits(date,[position('13:49','Gentilly'),position('14:03','Gentilly'),position('14:15','Warehouse')],[],now);
+const visits=trackedGeofenceVisits(date,[position('13:49','Gentilly'),position('13:54','Gentilly'),position('14:03','Gentilly'),position('14:15','Warehouse')],[],now);
 const actual:TruckExpense={id:'a'.repeat(32),date,market:'352',truck:'Truck# 4',kind:'dump',transactionAt:at('14:00'),location:'Gentillt',receipt:'',amount:44,notify:false};
 const before=runUnloadCostAgent(date,visits,[],defaultDumpFeePolicy,now);
 assert.equal(before.records.length,1);assert.equal(before.unloads.length,1);assert.equal(before.total,44);
@@ -62,7 +62,7 @@ process.env.OPSCENTER_DATA_DIR=root;
 const write=(relative:string,value:unknown)=>{const file=path.join(root,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value));};
 const snapshot=(market:string,amount:string,entries:TruckExpense[])=>write(`history/junkware/expenses/${date}/${market}/4.json`,{date,market,truck:'Truck# 4',verified:true,observedAt:at('14:23'),signature:[amount,'--'],entries:entries.map(entry=>({...entry,market}))});
 try {
-  write(`history/linxup/geofence_positions/${date}.json`,{date,observations:[position('13:49','Gentilly'),position('14:03','Gentilly'),position('14:15','Warehouse')]});
+  write(`history/linxup/geofence_positions/${date}.json`,{date,observations:[position('13:49','Gentilly'),position('13:54','Gentilly'),position('14:03','Gentilly'),position('14:15','Warehouse')]});
   snapshot('352','$34.34',[actual]);snapshot('484','$9.66',[{...actual,id:'b'.repeat(32)}]);
   assert.equal(readTruckExpenses(date).length,2,'Raw source/notification identities stay intact');
   const canonical=readOperationalTruckExpenses(date);assert.equal(canonical.length,1);assert.equal(canonical[0].amount,44);assert.equal(canonical[0].location,'Gentilly');assert.equal(canonical[0].sourceExpenseIds?.length,2);

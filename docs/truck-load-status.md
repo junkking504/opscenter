@@ -1,5 +1,7 @@
 # Truck load status
 
+All named geofences follow the [five-minute minimum](visit-tracking-agents.md#five-minute-geofence-minimum). Raw crossings do not trigger automatic business effects.
+
 Truck load status is an OpsCenter operational ledger shown directly on the
 Schedule. It is separate from Linxup GPS location and from JunkWare's stored
 job closeout: those sources provide evidence for events, while this ledger
@@ -75,15 +77,15 @@ the default `gpt-5.4-mini` model.
 
 A normalized facility arrival at a transfer station, landfill, or metal recycling
 yard resets the projected load to empty under the operating rule. Native LinxUp
-entries and positive live GPS facility reports both qualify. Later completed jobs
+entry/exit intervals and continuous live GPS facility reports qualify only after
+at least five minutes of supported onsite time. Later completed jobs
 add to that new load. Warehouse entries, ordinary GPS points, stop/ignition
 records, exits, and unknown geofences do not reset it. Each visit has one stable
 unload identity, so refreshes and delivery retries do not repeat a reset.
 The source visit remains visible in Command's chronological timeline. This
 read projection does not assert a paid receipt or create a JunkWare payment.
 
-The [dump expense rule](dump-expenses.md) assumes the configured minimum fee on
-arrival and replaces it with an actual whenever the actual uniquely matches the
+The [dump expense rule](dump-expenses.md) assumes the configured minimum fee after the visit qualifies and replaces it with an actual whenever the actual uniquely matches the
 visit. The unload stays at original arrival; cost replacement never creates a
 second reset. A verified OpsBot expense transaction that explicitly links an
 existing saved expense reset to that same matched visit is collapsed in the read

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { submitScheduleOperation } from '../desktop-ui/lib/schedule-operation-transport';
+import { submitScheduleOperation, waitForScheduleReceipt } from '../desktop-ui/lib/schedule-operation-transport';
 import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 
 async function main() {
@@ -50,6 +50,27 @@ async function main() {
     assert.equal(result.status, scenario === 'rejected' ? 'failed' : ['uncertain', 'never-finishes'].includes(scenario) ? 'uncertain' : 'verified');
     if (scenario === 'rejected') assert.equal(reads, 0);
     assert.ok(time <= 600_000);
+  }
+  for (const outcome of ['verified','failed','uncertain','missing','wrong-request','denied','offline','malformed','http-error']) {
+    let reads=0,time=0;
+    const result=await waitForScheduleReceipt('saved-request',{
+      endpoint:'/api/crew-jobs/closeout?assignmentId=sample',now:()=>time,pause:async ms=>{time+=ms;},
+      fetch:(async(url,options)=>{
+        assert.notEqual(options?.method,'POST','Waiting can never replay a closeout');
+        assert.match(String(url),/assignmentId=sample&requestId=saved-request$/);
+        assert.doesNotMatch(String(url),/reconcile/,'No missing-submission recovery action');
+        reads++;
+        if(outcome==='denied')return Response.json({}, {status:403});
+        if(outcome==='offline')throw new Error('Offline');
+        if(outcome==='missing')return Response.json({}, {status:404});
+        if(outcome==='malformed')return Response.json({receipt:{requestId:'saved-request',message:'Incomplete response'}});
+        if(outcome==='http-error')return Response.json({receipt:{requestId:'saved-request',status:'verified'}},{status:503});
+        return Response.json({receipt:{requestId:outcome==='wrong-request'?'different-request':'saved-request',status:reads===1?'pending':outcome,message:'Synthetic result'}});
+      }) as typeof fetch,
+    });
+    assert.equal(result.status,['verified','failed','uncertain'].includes(outcome)?outcome:'uncertain');
+    assert.equal(result.requestId,'saved-request');assert.ok(time<=600_000);
+    if(outcome==='denied')assert.equal(reads,1,'Stop reading when authorization is unavailable');
   }
   console.log('Closeout recovery passed: reopen after save and transport failure, partial-save protection, source unavailability, one POST through proxy failure/pending/404, bounded receipt polling. Synthetic only.');
 }

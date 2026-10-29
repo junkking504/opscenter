@@ -1,18 +1,24 @@
 'use client';
-import { PushSettings } from '../components/push-settings';
+
+import { MetricDetail } from '../metric-detail';
+
+import { SettingsWorkspace, AgentHierarchy, MaintenanceMonitor, LivePhotoReview, TruckAgents } from '../deferred-secondary-workspaces';
+import { readOpeningWorkspace } from '../lib/workspace-preferences';
 import { ReleaseUpdateToast } from '../release-update-toast';
 import { ShopTv } from '../shop-tv';
-import { PageRail } from '../page-rail';
+import { PageRail, WorkspaceRailLink, workspacePages, pageHref } from '../page-rail';
 import { MetricValue } from '../metric-value';
 import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
+import { MobileInteractions } from '../components/mobile-interactions';
+import { useWorkspaceMotion } from '../use-workspace-motion';
+import ThemeControl from '../../components/ThemeControl';
+import { useDisplayedRefresh } from '../displayed-refresh';
 import { metricNumber } from '../command-revenue-hero';
 import { CommandRevenueHero } from '../command-revenue-hero';
 import '../css-phase-two.css';
 import { cssPhaseTwoWorkspaces } from '../lib/css-phase-two';
 import { truckDisplayText } from '../../lib/junkware-trucks';
-import TruckAgents from '../truck-agents';
-import AgentHierarchy from '../agent-hierarchy';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
 import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
@@ -40,21 +46,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
+import { AlertDetailDialog } from '../components/alert-detail-dialog';
+import type { DesktopAlert, DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
 import { LiveAnalytics } from '../deferred-live-analytics';
 import { commandKpiDestination } from '../lib/command-kpi-navigation';
 import { ActionHints } from '../action-hints';
-import MaintenanceMonitor from '../maintenance-monitor';
-import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
+const { Component: Customers } = preloadableWorkspace(() => import('../customers'));
 const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
 const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch from '../live-search';
 import OpsWiki from '../second-brain';
-import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
+import { desktopAlertHref, desktopAppointmentHref, desktopSourceHref } from '../lib/desktop-links';
 import LiveSchedule, { preloadLiveSchedule } from '../deferred-live-schedule';
 import { dateForDay } from '../lib/schedule-day';
 import CommandMap from '../command-map';
@@ -101,7 +107,7 @@ type RecordNavigationEntry = {
     operatingDate: string;
     calendarDateDraft: string;
     scheduleDay: ScheduleDay;
-    scheduleView: 'board' | 'calendar' | 'followup' | 'history' | 'estimates';
+    scheduleView: 'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers';
     scheduleScope: string;
     scheduleStatusFilter: ScheduleStatusFilter;
     followupFilter: 'all' | 'estimates' | 'closed' | 'unclosed' | 'photos';
@@ -309,6 +315,7 @@ const nav = [
   { label: 'Fleet', icon: Truck, count: 7 },
   { label: 'Finance', icon: CircleDollarSign, count: 3 },
   { label: 'Marketing', icon: Megaphone, count: 16 },
+  { label: 'Settings', icon: Wrench, count: 0 },
 ];
 
 const launcherCommands: LauncherCommand[] = [
@@ -420,7 +427,7 @@ const healthSources = [
 ];
 
 const referenceConnectedSources = [
-  { ...healthSources[0], workspace: 'Schedule', action: 'Open Schedule' },
+  { ...healthSources[0], workspace: 'Schedule', action: 'Open Command' },
   { ...healthSources[1], workspace: 'Fleet', action: 'Open Fleet' },
   { ...healthSources[2], workspace: 'Finance', action: 'Open Finance' },
   { ...healthSources[3], workspace: 'Marketing', action: 'Open Lead Recovery' },
@@ -974,6 +981,8 @@ const initialAuditEvents: AuditEvent[] = [
 const preloadWorkspace: Record<string, () => Promise<unknown>> = { Schedule: preloadLiveSchedule, Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
 
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
+  const gestureContentRef = useRef<HTMLElement>(null);
+  const workspaceMotionRef = useRef<HTMLDivElement>(null);
   const prototypeReceiptScope = useId();
   const prototypeReceiptSequence = useRef(0);
   const nextPrototypeReceiptId = (prefix: string) => `${prefix}-${prototypeReceiptScope}-${++prototypeReceiptSequence.current}`;
@@ -989,8 +998,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
-    const workspace = new URLSearchParams(window.location.search).get('workspace') || 'Command';
-    return ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', ...(canFinance ? ['Finance'] : [])].includes(workspace) ? workspace : 'Command';
+    const params = new URLSearchParams(window.location.search);
+    const hasDestination = [...params].some(([key, value]) => !(key === 'scheduleDay' && value === 'today') && !(key === 'data' && value === 'live'));
+    const workspace = params.get('workspace') || (!hasDestination ? readOpeningWorkspace(canFinance) : 'Command');
+    return ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', 'Settings', ...(canFinance ? ['Finance'] : [])].includes(workspace) ? workspace : 'Command';
   });
   const setActiveNav = (value: string) => {
     if (mutationBusyRef.current) { setActionFeedback('Wait for the current action result before changing workspaces.'); return; }
@@ -1001,13 +1012,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       // Returning through workspace navigation opens the default board. Direct
       // appointment links still apply when the page is first opened.
       const url = new URL(window.location.href);
-      for (const key of ['appointment', 'q', 'truck']) url.searchParams.delete(key);
+      for (const key of ['appointment', 'customer', 'q', 'truck']) url.searchParams.delete(key);
       window.history.replaceState(window.history.state, '', url);
     }
     if (value !== activeNav) startWorkspaceNavigation(value);
     void preloadWorkspace[value]?.().catch(() => {});
     setActiveNavValue(value);
   };
+  const refreshDisplayed = useDisplayedRefresh(activeNav);
   const previousWorkspace = useRef(activeNav);
   useLayoutEffect(() => {
     if (activeNav === 'Schedule' && previousWorkspace.current !== activeNav) {
@@ -1042,6 +1054,43 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setSearchOpenValue(value);
   };
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [alertDetails, setAlertDetails] = useState<{alert:DesktopAlert;href?:string}|null>(null);
+  const alertIntentApplied = useRef(false);
+  const notificationAbort=useRef<AbortController|null>(null);
+  useEffect(()=>{
+    if (!live || alertIntentApplied.current) return;
+    const params=new URLSearchParams(window.location.search), id=params.get('alert');
+    if (!id || live.snapshot.loading) return;
+    alertIntentApplied.current=true;
+    const alert=live.snapshot.alerts.find(item=>item.id===id);
+    if(alert) { const href=desktopAlertHref(alert,live.snapshot,window.location.origin);setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href}); }
+    else setAlertDetails({alert:{id,label:'Alert unavailable',title:'This alert is no longer available',detail:'The source may have changed or the alert is outside the loaded history. Review current operational updates.',detected:live.snapshot.date,source:'OpsCenter',owner:'Operations',domain:'Command',priority:'watch',action:'',context:'',facts:[],href:'',needsAction:false,workflowState:'active',version:0}});
+  },[live?.snapshot]);
+  useEffect(()=>{
+    if(!live)return;
+    const id=new URLSearchParams(window.location.search).get('notification');
+    if(!id)return;
+    const abort=new AbortController(); notificationAbort.current=abort;
+    const base:DesktopAlert={id,label:'Notification',title:'Loading alert details…',detail:'',detected:'',source:'OpsCenter',owner:'Operations',domain:'Command',priority:'watch',action:'',context:'',facts:[],href:'',needsAction:false,workflowState:'active',version:0};
+    setAlertDetails({alert:base});
+    void fetch(`/api/push/notification?id=${encodeURIComponent(id)}`,{credentials:'same-origin',cache:'no-store',signal:abort.signal}).then(async response=>{
+      if(response.status===401){window.location.assign('/login?next='+encodeURIComponent(window.location.pathname+window.location.search));return;}
+      if(!response.ok)throw new Error('Unavailable');
+      const result=await response.json();
+      if(abort.signal.aborted)return;
+      const destination=result.path ? new URL(desktopSourceHref(result.path,window.location.origin),window.location.origin) : null;
+      if(destination && !destination.searchParams.has('focus'))destination.searchParams.set('focus','record');
+      setAlertDetails({alert:{...base,title:result.title,detail:result.body,detected:result.occurredAt},href:destination ? destination.pathname+destination.search+destination.hash : undefined});
+    }).catch(()=>{if(!abort.signal.aborted)setAlertDetails({alert:{...base,title:'Alert details unavailable',detail:'This notification is unavailable for your account or its saved history has expired. Review current operational updates.'}});});
+    return()=>abort.abort();
+  },[Boolean(live)]);
+  const closeAlertDetails=()=>{
+    notificationAbort.current?.abort();
+    setAlertDetails(null);
+    const url=new URL(window.location.href);url.searchParams.delete('notification');url.searchParams.delete('alert');
+    if(url.searchParams.get('focus')==='alert')url.searchParams.delete('focus');
+    window.history.replaceState(window.history.state,'',url);
+  };
   const [operatingDayOpen, setOperatingDayOpenValue] = useState(false);
   const setOperatingDayOpen = (value: boolean | ((open: boolean) => boolean)) => {
     if (live) { setActionFeedback('The operating-day planner is still being connected.'); return; }
@@ -1082,11 +1131,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
   const operatingDateHeading = live ? new Date(live.snapshot.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Sunday, August 31';
-  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates'], 'board') : 'board');
-  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates') => {
+  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates', 'customers'], 'board') : 'board');
+  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates' | 'customers') => {
 
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
+    { const url = new URL(window.location.href); url.searchParams.delete('customer'); window.history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }
   };
   const warmDate = live?.snapshot.date;
   const warmLoading = live?.snapshot.loading;
@@ -1200,15 +1250,15 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       || record.followupId || record.kreweId || `${record.kicker}:${record.title}`
     : 'page';
   const currentPageLabel = activeNav === 'Command'
-    ? `Command · ${view === 'now' ? 'Alerts' : view === 'today' ? 'Control' : view === 'forecast' ? 'Forecast' : 'Monitor'}`
+    ? `Dashboard · ${view === 'now' ? 'Updates' : view === 'today' ? 'Operating Control' : view === 'forecast' ? 'Forecast' : 'Monitor'}`
     : activeNav === 'Schedule'
-      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : 'History'}`
+      ? `Command · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : scheduleView === 'customers' ? 'Customers' : 'History'}`
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
-          ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
+          ? `Fleet · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
-            ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
+            ? `Marketing · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
             : `Finance · ${financeView === 'overview' || financeView === 'trends' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
@@ -3319,7 +3369,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       const alert = liveAlert(item);
       if (alert) {
         const href = desktopAlertHref(alert, live.snapshot, window.location.origin);
-        window.location.assign(href);
+        notificationAbort.current?.abort();
+        setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href});
       }
       return;
     }
@@ -3958,17 +4009,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     openRecordDrawer({ actionQueueId: item.id, kicker: `${item.workspace} · ${item.status}`, title: item.title, summary: item.detail, action: item.action, source: item.source, updated: item.due, facts: [] });
   };
   const linkedActionForAlert = (item: WorkItem) => actionQueue.find((actionItem) => actionItem.alertId === item.id);
-  const alertWorkflowStatus = (item: WorkItem) => live ? ({ active: 'Active', acknowledged: 'Acknowledged', 'in-control': 'In Control', resolved: 'Resolved' } as const)[liveAlert(item)?.workflowState || 'active'] : alertOutcomes[item.id]
+  const alertWorkflowStatus = (item: WorkItem) => live ? ({ active: 'Active', acknowledged: 'Acknowledged', 'in-control': 'In Operating Control', resolved: 'Resolved' } as const)[liveAlert(item)?.workflowState || 'active'] : alertOutcomes[item.id]
     ? 'Resolved'
     : linkedActionForAlert(item)
-      ? 'In Control'
+      ? 'In Operating Control'
       : completed.includes(item.id)
         ? 'Acknowledged'
         : 'Active';
   const alertViewCounts: Record<AlertViewFilter, number> = {
     open: workItems.filter((item) => alertWorkflowStatus(item) !== 'Resolved').length,
     action: workItems.filter((item) => alertWorkflowStatus(item) === 'Active' && (!live || liveAlert(item)?.needsAction)).length,
-    control: workItems.filter((item) => alertWorkflowStatus(item) === 'In Control').length,
+    control: workItems.filter((item) => alertWorkflowStatus(item) === 'In Operating Control').length,
     acknowledged: workItems.filter((item) => alertWorkflowStatus(item) === 'Acknowledged').length,
     resolved: workItems.filter((item) => alertWorkflowStatus(item) === 'Resolved').length,
     all: workItems.length,
@@ -3978,7 +4029,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (alertViewFilter === 'all') return true;
     if (alertViewFilter === 'open') return status !== 'Resolved';
     if (alertViewFilter === 'action') return status === 'Active' && (!live || liveAlert(item)?.needsAction);
-    if (alertViewFilter === 'control') return status === 'In Control';
+    if (alertViewFilter === 'control') return status === 'In Operating Control';
     if (alertViewFilter === 'acknowledged') return status === 'Acknowledged';
     return status === 'Resolved';
   });
@@ -4213,41 +4264,60 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setDrawer(null);
   };
 
+  const preloadMainWorkspace = (workspace: string) => { void preloadWorkspace[workspace]?.().catch(() => {}); };
+  const navigateMainWorkspace = (workspace: string, requestedPage?: string) => {
+    if (mutationBusyRef.current || (live && workspace === 'Finance' && !canFinance)) return false;
+    const group = workspacePages.find(item => item.workspace === workspace);
+    if (!group) return false;
+    const page = requestedPage || group.pages[0][0];
+    if (!group.pages.some(([value]) => value === page)) return false;
+    if (workspace === 'Command' && page === 'tv') {
+      if (live && !canFinance) return false;
+      window.location.assign(pageHref(workspace, group.key, page));
+      return true;
+    }
+    const url = new URL(window.location.href);
+    for (const key of ['focus','alert','notification','appointment','customer','q','truck','member','inspectionReports','knowledge','report','tv','action']) url.searchParams.delete(key);
+    window.history.replaceState(window.history.state, '', url);
+    setActiveNav(workspace);
+    if (workspace === 'Command') setView(page as typeof view);
+    if (workspace === 'Schedule') { setScheduleView(page as typeof scheduleView); setScheduleDay('today'); }
+    if (workspace === 'Krewe') setKreweView(page as KreweView);
+    if (workspace === 'Fleet') setFleetView(page as FleetView);
+    if (workspace === 'Finance') setFinanceView(page as FinanceView);
+    if (workspace === 'Marketing') setMarketingView(page as MarketingView);
+    setNotificationOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    return true;
+  };
+
+  const activePage = activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? financeView : activeNav === 'Marketing' ? marketingView : 'overview';
+  useWorkspaceMotion(workspaceMotionRef, activeNav, activePage, workspacePages);
+
   if (live && canFinance && new URLSearchParams(window.location.search).get('tv') === '1') return <><ShopTv snapshot={live.snapshot} error={live.error} /><ReleaseUpdateToast /></>;
 
   return (
-    <main className={live ? 'ops-app ops-live' : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
+    <main className={live ? `ops-app ops-live${activeNav === 'Settings' ? ' ops-settings' : ''}` : 'ops-app'} data-css-phase-two={live && cssPhaseTwoWorkspaces.has(activeNav) ? activeNav : undefined}>
+      {alertDetails && <AlertDetailDialog alert={alertDetails.alert} href={alertDetails.href} live={live} close={closeAlertDetails} openControl={()=>{closeAlertDetails();setActiveNav('Command');setView('today');}}/>}
       {live && <ActionHints />}
       {live && <ReleaseUpdateToast busy={mutationBusy} />}
       <aside className="ops-sidebar">
-        <div className="brand-lockup" style={{ display: 'block' }}>
-          <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />
-          <small style={{ marginTop: 8 }}>Junk King Louisiana</small>
+        <div className="brand-lockup">
+          <img src="/opscenter-icon.svg" alt="" width={36} height={36} className="workspace-rail-brand" />
+          <strong className="workspace-brand-name">OpsCenter</strong>
         </div>
 
         <NavigationDiagnostics />
-        <PageRail workspace={activeNav} selected={{Command:view,Schedule:scheduleView,Krewe:kreweView,Fleet:fleetView,Finance:financeView,Marketing:marketingView}} canFinance={!live || canFinance} disabled={mutationBusy} preload={workspace => { void preloadWorkspace[workspace]?.().catch(() => {}); }} navigate={(workspace, page) => {
-          if (mutationBusyRef.current) return;
-          if (workspace === 'Command' && page === 'tv') { const url = new URL(window.location.href); url.searchParams.set('tv','1'); url.searchParams.delete('date'); window.location.assign(url.href); return; }
-          const pageUrl = new URL(window.location.href);
-          for (const key of ['appointment','q','truck','member','inspectionReports','report']) pageUrl.searchParams.delete(key);
-          window.history.replaceState(window.history.state, '', pageUrl);
-          setActiveNav(workspace);
-          if (workspace === 'Command') setView(page as typeof view);
-          if (workspace === 'Schedule') setScheduleView(page as typeof scheduleView);
-          if (workspace === 'Krewe') setKreweView(page as KreweView);
-          if (workspace === 'Fleet') setFleetView(page as FleetView);
-          if (workspace === 'Finance') setFinanceView(page as FinanceView);
-          if (workspace === 'Marketing') setMarketingView(page as MarketingView);
-        }} />
+        <PageRail currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
 
         <div className="sidebar-footer">
-          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Source checks current' : 'All sources healthy'}</button>
+          <WorkspaceRailLink group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
+          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth} aria-label={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'} title={sourceAttentionCount ? `${sourceAttentionCount} sources need attention` : 'Source checks current'}><span aria-hidden="true" /><small>Sources</small>{sourceAttentionCount > 0 && <em>{sourceAttentionCount}</em>}</button>
         </div>
       </aside>
 
-      <section className="ops-content">
-        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
+      <section className="ops-content" ref={gestureContentRef}>
+        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select data-workspace-picker aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => navigateMainWorkspace(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
         <div className={live ? 'live-header-shell' : undefined}>
         {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
         <header className="topbar">
@@ -4270,19 +4340,19 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </div>
           }
           <div className="topbar-actions">
+            {live && <ThemeControl compact />}
             {live && <OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
-                {canFinance && <PushSettings />}
-                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
-                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
-                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Command.</p></>}</div>}
+                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Dashboard <ArrowRight size={14} /></button></header>
+                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Operating Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Operating Control'}</button></div></article>; })}</div>
+                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Dashboard.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Command loading…' : 'Command checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
+            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Dashboard loading…' : 'Dashboard checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
             {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
@@ -4314,14 +4384,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /></div>}
         </div>
 
-        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
+        <div ref={workspaceMotionRef} className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{activeNav==='Fleet'&&live?(fleetView==='overview'?'Fleet overview':fleetView==='service'?'Maintenance planner':fleetView==='maintenance'?'Repairs & inspections':fleetView==='scores'?'Driving':'Records & invoices'):workspaceLabel(activeNav)}</h1>
-              <p>{activeNav === 'Schedule'
+              <h1>{workspaceLabel(activeNav)}</h1>
+              <p>{activeNav === 'Settings' ? 'Your preferences, notifications, and connected services.' : activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
                 : activeNav === 'Krewe' ? kreweView === 'today'
@@ -4349,17 +4419,18 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       : view === 'forecast' ? 'Plan the coming week with source-backed jobs, revenue and expense baselines.' : 'Watch operational trends and emerging risks; system health remains supporting context.'}</p>
             </div>
             {activeNav === 'Command' ? (
-              <WorkspaceTabs label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
-                <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
+              <WorkspaceTabs label="Dashboard views">
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Updates <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
+                <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Operating Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
                 {live && canFinance && <button onClick={() => setView('forecast')} className={view === 'forecast' ? 'active' : ''}>Forecast</button>}
               </WorkspaceTabs>
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
-                <WorkspaceTabs label="Control views">
+                <WorkspaceTabs label="Command views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
+                  {live && <button className={scheduleView === 'customers' ? 'active' : ''} onClick={() => setScheduleView('customers')}>Customers</button>}
                   {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
                   <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
@@ -4367,7 +4438,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
-                <WorkspaceTabs label="Crew views">
+                <WorkspaceTabs label="Krewe views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
                   ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
@@ -4375,19 +4446,19 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
-                <WorkspaceTabs label="Convoy views">
+                <WorkspaceTabs label="Fleet views">
                   {(convoyTabs).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
-                <WorkspaceTabs label="Campaign views">
+                <WorkspaceTabs label="Marketing views">
                   {(live ? [['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
-                <WorkspaceTabs label="Capital views">
+                <WorkspaceTabs label="Finance views">
                   {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling']] as const).map(([key, label]) => <button className={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation' ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation'} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
@@ -4397,28 +4468,29 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
 
           {live && showingDrilldown && drilldown && <section aria-label={`${drilldownLabel} details and trends`}>
-            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Command</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
+            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Dashboard</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
             {drilldownLabel === 'AJS' && <p>AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.</p>}
-            <LiveAnalytics key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
+            <LiveAnalytics refreshWorkspace={activeNav} key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
           </section>}
+          {activeNav === 'Settings' && <SettingsWorkspace canFinance={canFinance} live={Boolean(live)} sources={connectedSources} loading={Boolean(live?.snapshot.loading)} error={live?.error} onSourceHealth={openSourceHealth} onBusyChange={onBusyChange} />}
           {activeNav === 'Command' && view !== 'forecast' && <CommandRevenueHero kpi={commandKpiRows.find(kpi => kpi.label === 'Revenue')} date={live?.snapshot.date || operatingDate} onOpen={() => openCommandKpi('Revenue')} disabled={mutationBusy} />}
           {activeNav === 'Command' && view !== 'forecast' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
             {commandKpiRows.filter(kpi => kpi.label !== 'Revenue').map((kpi) => (
-              <button type="button" data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
-                <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span><DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /></div>
-                <strong><MetricValue value={kpi.value} reason={kpi.detail} /></strong>
+              <button type="button" data-gesture-preview={kpi.label} data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
+                <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span><DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /></div>
+                <strong className={String(kpi.value).length > 10 ? "long-value" : undefined}><MetricValue value={kpi.value} reason={kpi.detail} /></strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>
                   {kpi.segments ? kpi.segments.map((segment) => (
                     <i key={segment.label} className={segment.tone} style={{ width: `${segment.value}%` }} title={`${segment.label}: ${segment.value}%`} />
                   )) : <i className={kpi.tone} style={{ width: `${kpi.progress}%` }} />}
                 </div>
-                <small>{kpi.detail}</small>
+                <MetricDetail detail={kpi.detail} />
               </button>
             ))}
           </section>}
 
-          {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Command records…'}</div>}
+          {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Dashboard records…'}</div>}
           {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <div className="command-overview">
             <div className="command-feed">
               <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />
@@ -4441,7 +4513,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="alert-triage-bar" role="toolbar" aria-label="Filter alerts by workflow state">
                   <span>Workflow State</span>
                   <div>
-                    {([['open', 'Open'], ['action', 'Needs Action'], ['control', 'In Control'], ['acknowledged', 'Acknowledged'], ['resolved', 'Resolved'], ['all', 'All']] as Array<[AlertViewFilter, string]>).map(([filter, label]) => (
+                    {([['open', 'Open'], ['action', 'Needs Action'], ['control', 'In Operating Control'], ['acknowledged', 'Acknowledged'], ['resolved', 'Resolved'], ['all', 'All']] as Array<[AlertViewFilter, string]>).map(([filter, label]) => (
                       <button className={alertViewFilter === filter ? 'active' : ''} aria-pressed={alertViewFilter === filter} onClick={() => setAlertViewFilter(filter)} key={filter}>{label}<b>{live && !live.snapshot.sources.alerts ? '—' : alertViewCounts[filter]}</b></button>
                     ))}
                   </div>
@@ -4458,7 +4530,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           </div>
                           <div className="alert-card-actions">
                             {!completed.includes(item.id) && !outcome && (!live || liveAlert(item)?.workflowState === 'active' || liveAlert(item)?.workflowState === 'in-control') && <Button variant="outline" size="sm" disabled={Boolean(live && (!live.snapshot.sources.workflow || live.pendingAlertId))} onClick={() => acknowledgeAlert(item)}>Acknowledge</Button>}
-                            <Button variant={live || outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
+                            <Button variant={live || outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Operating Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
                             {!live && <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>}
                           </div>
                         </div>
@@ -4594,7 +4666,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer className="action-queue-note"><ShieldCheck size={13} /><span>Opening source context never approves or resolves an action. Resolution requires a recorded source check.</span></footer>
               </section>
               <section className="routes-panel control-route-panel">
-                <div className="section-title"><div><span className="section-kicker">4 active routes · 12 stops</span><h2>Live Operations</h2><p>Current route context supporting today’s decisions.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); setScheduleDay('today'); setScheduleView('board'); }}>Open Schedule <ArrowRight /></Button></div>
+                <div className="section-title"><div><span className="section-kicker">4 active routes · 12 stops</span><h2>Live Operations</h2><p>Current route context supporting today’s decisions.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); setScheduleDay('today'); setScheduleView('board'); }}>Open Command <ArrowRight /></Button></div>
                 <div className="control-route-list">
                   {schedule.map((route) => (
                     <article className={route.tone} key={route.truck}>
@@ -4746,7 +4818,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Command' && (view === 'now' || view === 'today') && <TruckAgents date={live.snapshot.date} compact />}
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
           {live && activeNav === 'Command' && view === 'monitor' && <>{canFinance && <AgentHierarchy />}<MaintenanceMonitor /></>}
-          {live && activeNav === 'Command' && view === 'forecast' && (canFinance ? <LiveAnalytics date={live.snapshot.date} scope="forecast" /> : <p>Manager access is required for financial forecasts.</p>)}
+          {live && activeNav === 'Command' && view === 'forecast' && (canFinance ? <LiveAnalytics refreshWorkspace="Command" date={live.snapshot.date} scope="forecast" /> : <p>Manager access is required for financial forecasts.</p>)}
           {live && activeNav === 'Command' && (view === 'today' || view === 'monitor') && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
           <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {workspaceLabel(activeNav)}…</div>}>
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
@@ -4755,7 +4827,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} hideCharts={showingDrilldown} />}
           </Suspense></WorkspaceBoundary>
           {activeNav === 'Schedule' && live && scheduleView === 'estimates' && <Estimates onBusyChange={onBusyChange} />}
-          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
+          {activeNav === 'Schedule' && live && scheduleView === 'customers' && <Customers />}
+          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && scheduleView !== 'customers' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
 
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">
@@ -5549,6 +5622,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
+          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Finance' || canFinance)} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
           <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${workspaceLabel(activeNav)} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>

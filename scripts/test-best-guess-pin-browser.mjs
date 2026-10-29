@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 
@@ -10,7 +11,9 @@ try {
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',route=>['127.0.0.1','tile.openstreetmap.org'].includes(new URL(route.request().url()).hostname)?route.continue():route.abort());
   await page.goto(`${process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3186'}/tests/schedule-destinations.html?scenario=map-fallback&details=long${streetPin?'&pin=street':''}`);
+  await openScheduleControls(page);
   await page.getByRole('button',{name:/^2026-09-07/}).click();
+  await closeScheduleControls(page);
   const pin=page.getByRole('button',{name:/Open appointment JK1001, approximate location/});
   await pin.click();
   const summary=page.getByRole('region',{name:'Selected job JK1001',exact:true});

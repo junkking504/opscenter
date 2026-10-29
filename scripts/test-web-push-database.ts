@@ -1,3 +1,4 @@
+import {truckMoveOwner} from '../lib/web-push-truck-move';
 import { controlPushTrial, trialFingerprint } from '../lib/web-push-trial';
 import { archivePushScopes,pushRetirementCutoff,createPushMaintenance } from '../lib/web-push-archive';
 import { createHash } from 'node:crypto';
@@ -16,7 +17,7 @@ import type { PushBatch } from '../lib/web-push-events';
 
 // Installed local PostgreSQL only. Private Unix socket; TCP listening disabled.
 // No environment database URL, production config, Keychain or network sender.
-const bin='/opt/homebrew/opt/postgresql@18/bin';
+const bin=process.env.OPSCENTER_TEST_POSTGRES_BIN||'/opt/homebrew/opt/postgresql@18/bin';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'ops-push-test-'));
 const socket=path.join(root,'socket'),data=path.join(root,'db');fs.mkdirSync(socket);
 let started=false,pool:Pool|undefined,stop:(()=>Promise<void>)|undefined;
@@ -26,7 +27,7 @@ async function until(check:()=>Promise<boolean>){const end=Date.now()+4000;while
 async function main(){
  pg('initdb',['-D',data,'--no-locale','-A','trust','-U','push_test']);
  pg('pg_ctl',['-D',data,'-l',path.join(root,'server.log'),'-o',`-h '' -k ${socket} -p 5432`,'-w','start']);started=true;
- pg('createdb',['-h',socket,'-U','push_test','opscenter_push_preview_test']);
+ const bootstrap=new Pool({host:socket,user:'push_test',database:'postgres'});try{await bootstrap.query('CREATE DATABASE opscenter_push_preview_test');}finally{await bootstrap.end();}
  const config={host:socket,user:'push_test',database:'opscenter_push_preview_test'};
  pool=new Pool(config);const p=pool;
  await p.query('CREATE SCHEMA opscenter_kernel');
@@ -337,6 +338,89 @@ publish(370,371,status='Arrived')
  gate.invalidate();await gate.maintain();assert.equal(scans,2,'changed eligibility invalidates scan');
  maintenanceNow=new Date(maintenanceNow.getTime()+86400000);await gate.maintain();assert.equal(scans,3,'cutoff rollover scans on next event');
  await gate.maintain(true);assert.equal(scans,4,'consumed old backlog triggers scan');
+ // Presentation correlation uses only committed source observations. All new
+ // cases prohibit delivery creation; the existing sender above is also mocked.
+ {
+ const formatDeps={...d,ownerAllowed:()=>false};
+ const sequence=new Map<string,number>();let formatTime=Date.now()-60000;
+ const formatDay=(offset:number)=>new Date(Date.now()+offset*86400000).toISOString().slice(0,10);
+ const oldDate=formatDay(30),newDate=formatDay(31);
+ const oldScope=`schedule:${oldDate}:market-352`,newScope=`schedule:${newDate}:market-352`;
+ const info=(date:string,time='12:00 PM - 01:00 PM',status='Confirmed')=>({date,time,status,label:'JK123 — Synthetic Customer',truck:'Truck #4',type:'Estimate'});
+ const item=(identity:string,date:string,time='12:00 PM - 01:00 PM',status='Confirmed')=>({identity,revision:`${date}|${time}|${status}`,notification:{title:'Schedule updated',body:`Date: ${date}\nTime: ${time||'Not verified'} (Central)\nJob: JK123\nCustomer: Synthetic Customer\nTruck: #4\nStatus: ${status}`,schedule:info(date,time,status)}});
+ const publish=async(scope:string,observations:PushBatch['observations'],complete=true)=>{const number=(sequence.get(scope)||0)+1;sequence.set(scope,number);await recordPushBatch({scope,category:'schedule',complete,sequence:number,observedAt:new Date(formatTime+=100).toISOString(),observations},formatDeps);};
+ const latest=async(scope:string)=>(await p.query('SELECT notification_json FROM opscenter_kernel.push_events WHERE source_scope=$1 ORDER BY source_recorded_at DESC LIMIT 1',[scope])).rows[0].notification_json;
+ const beforeFormats=sends;
+ await publish(oldScope,[item('move-removal-first',oldDate,'04:00 PM - 05:00 PM')]);await publish(newScope,[]);
+ await publish(oldScope,[],false);assert.equal((await latest(oldScope)).title,'Schedule updated','partial absence is silent');
+ await publish(oldScope,[]);assert.equal((await latest(oldScope)).title,'Schedule changed');assert.match((await latest(oldScope)).body,/not verified/);
+ await publish(newScope,[item('move-removal-first',newDate)]);
+ assert.equal((await latest(newScope)).title,'Rescheduled');assert.match((await latest(newScope)).body,new RegExp(`^To: ${newDate}, 12:00 PM - 01:00 PM`));assert.ok((await latest(newScope)).body.includes(`From: ${oldDate}, 04:00 PM - 05:00 PM`));
+ // Destination first: retained destination detail is used after verified removal.
+ const a=`schedule:${oldDate}:market-477`,b=`schedule:${newDate}:market-477`;
+ await publish(a,[item('move-destination-first',oldDate)]);await publish(b,[]);
+ await publish(b,[item('move-destination-first',newDate)]);assert.equal((await latest(b)).title,'Schedule updated');
+ await publish(a,[]);assert.equal((await latest(a)).title,'Rescheduled');assert.ok((await latest(a)).body.includes('Customer: Synthetic Customer'));
+ // Explicit cancellation/removal, unknown time, fresh same-day time change.
+ const c=`schedule:${oldDate}:market-399`,e=`schedule:${newDate}:market-399`;
+ await publish(c,[item('cancelled',oldDate),item('removed',oldDate),item('unknown',oldDate),item('same-day',oldDate)]);await publish(e,[]);
+ await publish(c,[item('cancelled',oldDate,undefined,'Cancelled'),item('removed',oldDate,undefined,'Removed'),item('same-day',oldDate,'02:00 PM - 03:00 PM')]);
+ const messages=(await p.query('SELECT notification_json FROM opscenter_kernel.push_events WHERE source_scope=$1',[c])).rows.map(r=>r.notification_json);
+ for(const title of ['Cancelled','Removed from schedule','Schedule changed','Rescheduled'])assert.ok(messages.some(m=>m.title===title),title);
+ await publish(e,[item('unknown',newDate,'')]);assert.notEqual((await latest(e)).title,'Rescheduled');assert.match((await latest(e)).body,/Not verified/);
+ // A later partial read must not refresh stale destination evidence.
+ const staleDate=formatDay(32),staleA=`schedule:${oldDate}:market-484`,staleB=`schedule:${staleDate}:market-484`;
+ await publish(staleA,[item('stale-destination',oldDate)]);await publish(staleB,[item('stale-destination',staleDate)]);
+ await p.query("UPDATE opscenter_kernel.push_observations SET observed_at=now()-interval '30 minutes' WHERE scope=$1",[staleB]);
+ await publish(staleB,[],false);await publish(staleA,[]);
+ assert.equal((await latest(staleA)).title,'Schedule changed','partial source read does not refresh old destination');
+ // Time display correction has no reschedule meaning even if upstream revision changes.
+ await publish(e,[item('unknown',newDate,''),item('format-only',newDate,'12:00 PM - 01:00 PM')]);
+ await publish(e,[item('unknown',newDate,''),item('format-only',newDate,'12:00PM – 1:00PM')]);
+ assert.equal((await latest(e)).title,'Schedule updated');
+ assert.equal((await p.query("SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=ANY($1::text[])",[[oldScope,newScope,a,b,c,e]])).rows[0].count,0);
+ assert.equal((await latest(newScope)).path,`/jobs?date=${newDate}#job-jk123`);
+ assert.equal((await latest(a)).path,`/jobs?date=${newDate}#job-jk123`,'removal-side reschedule opens verified destination');
+ const completionDate=formatDay(33),completionScope=`schedule:${completionDate}:market-352`;
+ const active=item('completed-fixture',completionDate);
+ await publish(completionScope,[active]);
+ const completed={...active,revision:'completed',notification:{title:'Truck #3',body:'Job Completed\nJK123 — Synthetic Customer\n1/12 load\n$200.00\nBilled',schedule:{...active.notification.schedule,status:'Completed Duration: 60 min(s)',time:'02:00 PM - 03:00 PM',type:'Job'}}};
+ await publish(completionScope,[completed]);
+ assert.deepEqual(await latest(completionScope),{title:'Truck #3',body:completed.notification.body,path:`/jobs?date=${completionDate}#job-jk123`},'semantic completion survives worker correlation and receives authenticated job link');
+ const eventCount=(await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_events WHERE source_scope=$1',[completionScope])).rows[0].count;
+ await publish(completionScope,[{...completed,notification:{...completed.notification,body:completed.notification.body.replace('1/12','1/6')}}]);
+ assert.equal((await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_events WHERE source_scope=$1',[completionScope])).rows[0].count,eventCount,'late display-only closeout details do not replay completion');
+ assert.equal((await p.query('SELECT count(*)::int AS count FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=$1',[completionScope])).rows[0].count,0);
+ assert.equal(sends,beforeFormats,'formatting tests never invoke transport');
+ console.log('PASS: isolated DB verified cross-date moves in both publication orders, same-day change, partial absence, cancellation/removal, unknown destination, retained details and no recipients/deliveries.');
+ }
+ // Recipient-specific truck-move suppression is independent of actor.
+ // Existing device fixtures and private test database only; never call transport.
+ {
+ await managePushDevice('owner',{action:'subscribe',subscription,categories:['schedule','fleet'],expiresAt:new Date(Date.now()+60000)},p);
+ await p.query("UPDATE opscenter_kernel.push_devices SET created_at=now()-interval '20 minutes'");
+ const date=new Date(Date.now()+34*86400000).toISOString().slice(0,10),scope=`schedule:${date}:market-352`;
+ const identity=createHash('sha256').update('"123"\n').digest('hex');let sequence=0;
+ const at=new Date(Date.now()-1000).toISOString();
+ const deps={...d,truckMoveOwner:(input:import('../lib/web-push-truck-move').TruckMove)=>truckMoveOwner(input,'owner')};
+ const publish=async(truck:string,time='12:00 PM - 01:00 PM',changedFields=['truck'])=>recordPushBatch({scope,category:'schedule',sequence:++sequence,complete:true,observedAt:at,observations:[{identity,revision:sequence,notification:{title:'Schedule updated',body:'Synthetic truck move',schedule:{date,time,truck,label:'JK123 — Synthetic',status:'Confirmed',type:'Job',changedFields}}}]},deps);
+ const deliveries=async()=>Number((await p.query('SELECT count(*)::int AS n FROM opscenter_kernel.push_deliveries d JOIN opscenter_kernel.push_events e ON e.id=d.event_id WHERE e.source_scope=$1',[scope])).rows[0].n);
+ const sendsBefore=sends;
+ await publish('Truck #4');await publish('Truck #9');assert.equal(await deliveries(),0,'selected owner is not notified for a truck-only move');
+ await publish('Truck #3');assert.equal(await deliveries(),0,'actor-independent preference omits any truck-only move for selected owner');
+ // A different authorized recipient retains an opted-in author's own move.
+ await p.query("UPDATE opscenter_kernel.push_devices SET owner_id='other-recipient' WHERE id=$1",[device]);
+ await p.query("UPDATE opscenter_kernel.push_trial SET owner_id='other-recipient'");
+ deps.ownerAllowed=()=>true;await publish('Truck #4');assert.equal(await deliveries(),1,'another recipient still receives the owner-authored move');
+ await p.query("UPDATE opscenter_kernel.push_devices SET owner_id='owner' WHERE id=$1",[device]);
+ await p.query("UPDATE opscenter_kernel.push_trial SET owner_id='owner'");
+ deps.ownerAllowed=d.ownerAllowed;
+ await publish('Truck #6','01:00 PM - 02:00 PM',['truck','time']);assert.equal(await deliveries(),2,'own true time reschedule still delivers');
+ await publish('Truck #4','01:00 PM - 02:00 PM',['truck','driver']);assert.equal(await deliveries(),3,'mixed crew change is not broadly suppressed');
+ assert.equal((await p.query('SELECT count(*)::int AS n FROM opscenter_kernel.push_events WHERE source_scope=$1',[scope])).rows[0].n,6,'all events remain recorded');
+ assert.equal(sends,sendsBefore,'suppression tests never invoke even mocked transport');
+ console.log('PASS: recipient-specific actor-independent truck-move reservation, other recipients and mixed/time changes preserved, events retained and no transport.');
+ }
  console.log('PASS: retirement scan gate: 100 unchanged wakes, eligibility changes, old backlog and cutoff rollover.');
  console.log('PASS: fourteen-day Chicago boundary, pending-delivery and retained-file guards, orphan-gap retirement, compact replay floor, and file-complete/DB-rollback restart recovery.');
  console.log('PASS: independent malformed/expired-scope probes, same-file isolation, restart quarantine, eight-day retained catch-up, fleet removal restraint and explicit generation reset.');

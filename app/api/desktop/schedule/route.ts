@@ -24,20 +24,21 @@ export async function GET(request: Request) {
     // Render source truth immediately; the separate routing request verifies addresses.
     const snapshot=readDesktopSchedule(date);
     const params=new URL(request.url).searchParams;
-    const sourceRequest=params.get('load')==='1' ? requestScheduleDay(date,snapshot.observedAt,snapshot.appointments.length>0,params.get('refresh')==='1') : undefined;
+    const displayOnly=params.get('displayOnly')==='1';
+    const sourceRequest=!displayOnly && params.get('load')==='1' ? requestScheduleDay(date,snapshot.observedAt,snapshot.appointments.length>0,params.get('refresh')==='1') : undefined;
     const recovery = authorizeOpsRequest(session.role, '/api/job-route-assignments', 'POST').allowed ? await scheduleMoveRecovery(date, session.email) : {candidate: null, notices: []};
-    if (recovery.candidate) {
+    if (!displayOnly && recovery.candidate) {
       const id = recovery.candidate;
       after(async () => {
         try { await automaticallyCheckMove(id, session.email, appointmentId => withJunkwareAppointmentSyncLock(appointmentId, () => readJunkwareTruckAssignment(appointmentId))); }
         catch { /* Keep the durable receipt and drag lock if recovery is unavailable. */ }
       });
     }
-    if (authorizeOpsRequest(session.role, '/api/job-route-assignments', 'POST').allowed) after(async()=>{
+    if (!displayOnly && authorizeOpsRequest(session.role, '/api/job-route-assignments', 'POST').allowed) after(async()=>{
       try { await recordNextPickupSourceNote(date,session.email); }
       catch { /* Source-note receipts preserve uncertain writes across refreshes. */ }
     });
-    return Response.json({...snapshot,sourceRequest,assignmentRecoveryNotices:[...recovery.notices,...pickupSourceNoteNotices(date,snapshot.appointments)]}, { headers });
+    return Response.json({...snapshot,sourceRequest,assignmentRecoveryNotices:[...recovery.notices,...pickupSourceNoteNotices(date,snapshot.appointments,{readOnly:displayOnly})]}, { headers });
   } catch {
     return Response.json({ error: 'Schedule source unavailable.' }, { status: 503, headers });
   }

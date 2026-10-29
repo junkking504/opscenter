@@ -113,6 +113,9 @@ async function main() {
     assert.deepEqual(await (await crewPhoneSession(request(payload))).json(), json, 'Lost response can be recovered by the same phone');
     const cookieHeader = { Cookie: `${CREW_PHONE_COOKIE}=${apiKey}` };
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 200);
+    const connected=await crewPhoneSession(request({action:'enroll',code:'unused-fictional-code',connectionKey:key()},cookieHeader));
+    assert.equal(connected.status,409);assert.equal((await connected.json()).code,'already_connected');
+    assert.equal((await (await crewPhoneSession(request(undefined,cookieHeader))).json()).phone.deviceId,json.phone.deviceId,'409 preserves current identity for read-only recovery');
     assert.equal((await crewPhoneSession(request(undefined, { Cookie: `${cookieHeader.Cookie}; ${cookieHeader.Cookie}` }))).status, 401);
     assert.equal((await crewPhoneSession(request({ action: 'disconnect' }, cookieHeader))).status, 200);
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 401);
@@ -180,7 +183,25 @@ async function main() {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
       }
-      for(const route of ['/desktop','/crew-phones','/login','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
+      // Every shipped icon must pass the real hostname boundary, not only
+      // the synthetic browser fixture's static file server.
+      for (const file of fs.readdirSync(path.join(process.cwd(), 'public/crew-jobs/icons')).filter(file => file.endsWith('.svg'))) {
+        for (const suffix of ['', '?v=2']) {
+          const route = `/crew-jobs/icons/${file}${suffix}`;
+          const allowed = await middleware(new NextRequest(`${jobsOrigin}${route}`));
+          assert.equal(allowed.headers.get('x-middleware-next'), '1', `${jobsOrigin}${route}`);
+        }
+      }
+      for (const route of ['/crew-jobs/icons/unknown.svg', '/crew-jobs/icons/private.json']) {
+        assert.equal((await middleware(new NextRequest(`${jobsOrigin}${route}`))).status, 404, `Unlisted icon path stays denied: ${route}`);
+      }
+      // Named managers now sign into Waypoint; crew cookies still cannot grant
+      // manager access (the unauthorized API assertion above remains required).
+      for (const route of ['/login', '/api/auth/login', '/api/auth/logout', '/api/crew-jobs/manager-session']) {
+        const allowed = await middleware(new NextRequest(`${jobsOrigin}${route}`));
+        assert.equal(allowed.headers.get('x-middleware-next'), '1', `Manager sign-in route ${route}`);
+      }
+      for(const route of ['/desktop','/crew-phones','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
         const denied=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(denied.status,404,`Jobs origin denies ${route}`);
       }

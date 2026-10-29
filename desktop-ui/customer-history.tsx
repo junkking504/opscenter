@@ -36,6 +36,8 @@ export function AppointmentCustomerHistory({ job, date, busy = false }: { job: S
         <div className="customer-history-row-heading"><span>{row.relationship === 'estimate' ? 'Linked estimate' : row.relationship === 'job' ? 'Linked job' : 'Contact match'}</span><time dateTime={row.date}>{dateLabel(row.date)}</time></div>
         {busy ? <strong>{row.jk || row.id} · {row.type || 'Appointment'}</strong> : <a href={desktopAppointmentHref(row.jk, row.date, row.id)}>{row.jk || row.id} · {row.type || 'Appointment'} <span aria-hidden="true">→</span></a>}
         <small>{row.status || 'Status unavailable'}</small>
+        <small>{row.volumes?.join(' · ') || 'Volume not recorded'}</small>
+        {row.prices?.map((price, index) => <small key={index}>{price}</small>)}
         <small>{row.amounts.join(' · ') || 'Payment / quote details unavailable'}</small>
         <details><summary>Details</summary><p>{row.customer}{row.address ? ` · ${row.address}` : ''}</p>{row.notes.map((note, index) => <p key={index}>{note}</p>)}<small>{row.observedAt ? `Details saved ${new Date(row.observedAt).toLocaleString('en-US')}` : 'Observation time unavailable'}</small></details>
       </li>)}</ul>

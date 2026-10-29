@@ -18,6 +18,27 @@ Build with `node scripts/build-mobile-closeout-preview.mjs <output-directory>`.
 Open the generated `index.html` locally. Test with
 `node --import tsx scripts/test-mobile-closeout.ts <index.html>`.
 
+## Code recovery and truck switching — October 26, 2026
+
+The new-code control sits beside code entry, before the setup steps and help.
+Code expiry and the resend cooldown are distinct ten-minute rules. Cancellation
+does not waive the server cooldown or daily/monthly limits. The client explains
+the remaining local wait without suggesting a cancelled code can still be used;
+the server remains authoritative. Pending/uncertain sends retain their request
+ID for status recovery and never automatically send again.
+
+Truck switching keeps prior-day dispatch pointers in the confirmation fingerprint
+and append-only history but no longer treats them as today's phone assignment.
+Only an explicitly confirmed, verified switch replaces those older pointers.
+Each old assignment must resolve unambiguously to a completed or cancelled source
+row in a saved snapshot observed after its release. Missing, unfinished, ambiguous
+or unverified history remains blocked for dispatch review. Historical versions
+join the confirmation fingerprint and are checked again before final retirement.
+Current/future dispatch, today's other phone binding, unfinished destination jobs,
+pending switches and source-version checks still block conflicting switches.
+Preview errors do not claim a saved switch exists; uncertain confirmations recover
+through the saved-switch lookup without re-running the replacement-truck preview.
+
 ## Company-phone access — September 18, 2026
 
 Crew job access uses **company phones only**. Managers may use their personal
@@ -1052,3 +1073,154 @@ The entry screen shows Connect phone, Truck setup and Inspection beneath the
 form; the existing header steps resume once a phone is connected. Operations
 WhatsApp delivery, approved recipients, enrollment verification and subsequent
 crew workflows are unchanged by this presentation update.
+
+## Crew customer corrections — October 21, 2026
+
+Open appointment details expose **Edit customer information** for ordinary live
+crew phones. Crews review before/after values before saving first and last name,
+phone, alternate phone, email, service street/unit and ZIP, and on-site contact
+name/phone. Customer account identity, billing, financial fields, status, booked
+window and truck/crew assignments are not editable through this action.
+
+`/api/crew-jobs/customer` requires the existing secure phone session, saved daily
+crew, inspection and fresh assignment scope. Corrections are limited to open
+appointments on that phone's current truck, including when a manager browses all
+trucks; shared cross-truck visibility does not grant correction permission. Test
+phones and dry runs cannot reach live customer writes. Same-origin JSON, strict
+field validation, source version and crew revision checks remain server enforced.
+
+The `customer_correction` action shares durable appointment operation receipts and
+locks with dispatch/closeout. The office's generic action parser cannot invoke it.
+A queued request writes once; repeated request IDs return the receipt. Before
+submission the worker reopens the source, revalidates scope and the reviewed
+version, and stores the before/expected customer fields plus server-owned crew
+attribution in the private receipt. It changes only allowlisted controls; ZIP uses
+JunkWare's existing unsaved postback and address-change flag. Customer details
+travel over child-process stdin rather than process arguments. The worker does
+not select address suggestions, send messages or complete an appointment.
+
+Success requires a fresh source read with every intended field retained and
+protected appointment/account/financial fields unchanged. Unknown results remain
+blocked; **Check saved result** only reads the source. Exact expected values verify
+the change; after ten minutes an exact unchanged baseline proves a failed save
+and permits a new review. After ten minutes, other fresh source mismatches are marked reconciled: the
+original outcome remains unconfirmed and the crew must reload the current
+source details before another correction. A stale queued receipt without a
+durable submission intent is marked failed without reading or writing JunkWare;
+a delayed worker cannot replay it. Unavailable sources remain blocked. Actor-bound receipt checks are read-only
+and do not require the appointment to remain on the original truck or date.
+If the phone expires or is revoked, an OpsCenter manager/admin opens the
+appointment closeout and selects **Check Saved Result** on the pending customer
+correction. The office receives a status-only receipt and uses the same read-only
+reconciler, even after source completion or reassignment. This never submits a
+correction, closeout or payment. No source
+write is replayed by recovery. The active appointment card adopts the verified name, phone and address read-back
+immediately; a changed address clears the old map pin. The normal verified
+schedule refresh supplies the route projection and new cached location. The
+editor's verified result remains separate from schedule ingestion.
+The browser retains only the request ID for recovery, not customer details.
+
+Checks: `npm run verify:crew-customer`, `verify:waypoint-visibility`,
+`verify:waypoint-manager`, `verify:crew-dispatch`, `verify:crew-closeout`, and
+`verify:crew-phones`. Synthetic UI checks exercise review, conflict, lost response
+and receipt recovery. No real customer correction is a deployment test.
+
+## Waypoint crew navigation
+
+After daily setup and inspection, the crew screen has persistent bottom entries for
+Route, Completed, Performance, Notifications and Messages. Completed records and
+today’s performance open directly rather than through accordions below the route.
+Truck filtering is preserved across these views and appointment-detail return.
+The bottom navigation stays hidden during appointment details/edits so the existing
+draft and in-flight-work guards remain authoritative. Test phones expose the
+three assignment/performance views without live notification controls.
+
+Notifications and office messages share one mounted connection/inbox component;
+switching views does not resubscribe or re-prompt for permission. The route’s
+notification status opens the notification screen. Initial permission remains a
+one-time phone action, with no in-app Disable Notifications control. See
+[Waypoint push](waypoint-push.md) for daily-session restoration and authorization.
+
+## Manager appointment navigation and source presentation
+
+The manager account/phone view at `/crew-jobs` is a separate all-truck management
+surface. Crew visibility still comes from the existing crew APIs; selecting a
+manager view does not grant a phone any additional permissions.
+
+Manager appointments have explicit **Active / Scheduled**, **Completed**, and
+**Cancelled** sections with counts for the selected truck. Each section sorts by
+booked start/end time (unknown times last), then stable job/record identity. Cards
+show the booked Central-time window, assigned truck and territory. Source status
+strings such as `Completed Duration: 60 min(s)` display as `Completed`; that source
+duration is not GPS/on-site duration.
+
+A sticky Back control returns from details to the dated, filtered list and its
+scroll position. Switching between Manager and Crew workflow remembers the two
+views' contexts for that mounted Waypoint session. Back, view switching and
+sign-out respect manager drafts, in-flight work and unresolved receipts. Existing
+crew setup, inspection, customer-editor and checkout guards remain in force.
+Booking and detail-editor close controls use the same guard. Check an uncertain
+saved result before leaving; a failed or reconciled result permits a reviewed
+return. Reload is guarded while a manager form is dirty or unresolved; browser
+reload does not persist the manager form itself.
+
+The manager display adapter recognizes cancellation contact cells that contain
+name, phone, numbered street and reason, including reasons without the word
+“cancel”. It presents a clean heading and a separate reason without modifying
+source values, ingestion/merge logic or raw notes. When the displayed reason is
+normalized, **Original cancellation text** keeps the complete source text
+inspectable. Normal customer names and non-cancelled rows are not split by this
+contact rule. All regression fixtures are fictional.
+
+Regression checks: `npm run verify:waypoint-manager:presentation`,
+`npm run verify:waypoint-manager`, `npm run verify:waypoint-navigation:browser`,
+and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
+local API mocks; they are not physical iPhone acceptance or live-data write tests.
+
+Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`; files in `public/` alone do not make them available on the Waypoint hostname. Route icon URLs use `?v=2` to bypass cached 404 responses from the initial navigation release. `verify:crew-phones` checks every shipped SVG through the hostname middleware, and the navigation browser check requires all five icons to decode.
+
+## Pending closeout presentation — October 28, 2026
+Waypoint and OpsCenter use the same bounded, read-only receipt waiter after a durable closeout submission. A queued response is not completion: the form stays open until verified, failed or uncertain. Waiting reads only the original receipt and never replays a POST or invokes missing-submission recovery. Background status reads remain available after leaving/reopening the form. Missing office-owned referral information is reported before a Waypoint submission; that field remains office-controlled. Existing roles, photo rules, estimate outcome/discount requirements, payments and source verification remain unchanged.
+
+## Optional appointment signatures
+
+Waypoint appointment details offer an optional signature section for each
+currently authorized appointment, including estimates and completed jobs. Other
+trucks' view-only appointments remain view-only; test phones do not write live
+signature artifacts. Existing phone enrollment, daily crew, inspection and fresh
+assignment checks still apply. The new `/api/crew-jobs/signatures` route requires
+those checks itself, plus the normal JSON/origin checks on saves.
+
+The signer enters their name and deliberately starts the drawing area; vertical
+scroll remains available outside it and across the inactive pad. Clear and
+cancel discard the unsaved drawing. Pointer cancellation removes the unfinished
+stroke. Saved records include bounded vector strokes, a server timestamp,
+appointment identity and a private device/day/truck audit binding. The app does
+not add acknowledgment wording or infer legal consent from the drawing.
+
+Artifacts are immutable JSON files under the existing private application data
+root's `appointment-signatures/<appointmentId>/` directory (0700 directories,
+0600 files). A request UUID identifies one exact payload; repeated saves return
+the same durable receipt. Explicit re-signing adds a record without overwriting
+history. No external storage service, provider upload or new credential is used.
+The UI retains a submitted request in phone session storage before sending and
+uses a read-only receipt lookup after an interrupted response or reload. An
+explicit retry after a confirmed missing receipt reuses that request UUID.
+
+This optional record is saved in OpsCenter, not JunkWare's native signature
+field. It does not complete a job, stage charges/payments, send notices, satisfy
+or remove the existing Amazon native closeout-signature requirement, or change
+estimate photo exemptions. Existing closeout controls remain authoritative.
+
+Tests: `npm run verify:appointment-signatures` uses isolated temporary artifacts;
+`npm run verify:appointment-signatures:browser` uses synthetic drawings and mocked
+transport, never customer records or live signatures.
+
+### Program labels in service addresses
+
+Waypoint address links and OpsCenter appointment details separate the exact
+`Amazon Mattress Removal` prefix into a Program label when the remaining text
+is a single complete street address. Display and directions retain street/unit
+information; ambiguous addresses and other building/business names stay intact.
+This is presentation only: original source fields, partner identity, inventory,
+address verification and GPS matching are unchanged.

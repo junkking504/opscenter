@@ -1,11 +1,11 @@
 // Display names are separate from persisted workspace keys and deep links.
 const workspaceLabels: Record<string, string> = {
-  Command: 'Command',
-  Schedule: 'Control',
-  Krewe: 'Crew',
-  Fleet: 'Convoy',
-  Finance: 'Capital',
-  Marketing: 'Campaign',
+  Command: 'Dashboard',
+  Schedule: 'Command',
+  Krewe: 'Krewe',
+  Fleet: 'Fleet',
+  Finance: 'Finance',
+  Marketing: 'Marketing',
 };
 
 export function workspaceLabel(workspace: string): string {

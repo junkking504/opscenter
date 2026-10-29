@@ -1,7 +1,8 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import './schedule-controls.css';
-import { Button } from "./components/ui/button";
+import { Button } from "@astryxdesign/core/Button";
+import { BrandTheme } from "../components/astryx/BrandTheme";
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
 import {
   assignmentNeedsVerification,
@@ -22,7 +23,9 @@ export default function ScheduleControls({
   onMove,
   saved,
   onBusyChange,
+  mode = "all",
 }: {
+  mode?: "all" | "details" | "cancel";
   job: ScheduleAppointment;
   date: string;
   trucks: string[];
@@ -37,6 +40,14 @@ export default function ScheduleControls({
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const cancelReviewRef = useRef<HTMLDivElement>(null);
+  const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (mode === 'details') { setConfirmCancel(false); return; }
+    if (!confirmCancel) return;
+    cancelReviewRef.current?.scrollIntoView({ block: 'end', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    cancelReviewRef.current?.focus({ preventScroll: true });
+  }, [confirmCancel, mode]);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState("");
@@ -76,7 +87,8 @@ export default function ScheduleControls({
     (start === "" || Number(start) === job.appointmentStartMinutes);
   const assignmentWindow = scheduleMoveWindow(job, start === "" ? null : Number(start));
   return (
-    <section className="drawer-dispatch-controls">
+    <BrandTheme><section className="drawer-dispatch-controls">
+      <div hidden={mode === "cancel"}>
       <div className="drawer-control-heading">
         <strong>Add Appointment Note</strong>
         <small>Notes are saved to this appointment in JunkWare.</small>
@@ -86,7 +98,7 @@ export default function ScheduleControls({
           <span>Add Appointment Note</span>
           <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} disabled={blocked} />
         </label>
-        <Button className="drawer-cancel-action" variant="outline" disabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }}>Save Note in JunkWare</Button>
+        <Button label="Save Note in JunkWare" className="drawer-cancel-action" variant="secondary" isDisabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }} />
       </div>
       <details className="drawer-secondary-controls">
       <summary>Assignment &amp; call-ahead</summary>
@@ -139,35 +151,34 @@ export default function ScheduleControls({
             </label>
           </div>
           <div className="drawer-quick-actions">
-            <Button
-              variant="outline"
-              disabled={blocked || unchangedAssignment || assignmentNeedsVerification(job) || !assignmentWindow.supported}
+            <Button label="Move Appointment"
+              variant="secondary"
+              isDisabled={blocked || unchangedAssignment || assignmentNeedsVerification(job) || !assignmentWindow.supported}
               onClick={() =>
                 onMove({ job, truck, start: start === "" ? null : Number(start), conflicts: [] })
               }
-            >
-              Move Appointment
-            </Button>
-            {!isClosed(job) && <Button
-              variant="outline"
-              disabled={blocked}
+             />
+            {!isClosed(job) && <Button label={job.callAhead === "called" ? "Clear Call Ahead" : "Mark Call Ahead"}
+              variant="secondary"
+              isDisabled={blocked}
               onClick={() => {
                 void run("call_ahead", { called: job.callAhead !== "called" });
               }}
-            >
-              {job.callAhead === "called" ? "Clear Call Ahead" : "Mark Call Ahead"}
-            </Button>}
+            />}
           </div>
         </>
       )}
       </details>
+      </div>
       {!isClosed(job) && (
-        <section className="drawer-cancel-row" id="appointment-cancellation" aria-label="Cancel Appointment">
+        <section hidden={mode === "details"} className="drawer-cancel-row" id="appointment-cancellation" aria-label="Cancel Appointment">
           <h3>Cancel Appointment</h3>
           <p>Record the reason, then confirm cancellation in JunkWare.</p>
           <label className="drawer-cancel-field">
             <span>Cancellation Reason</span>
-            <input
+            <textarea
+              ref={cancelReasonRef}
+              rows={3}
               id="appointment-cancellation-reason"
               value={reason}
               onChange={(event) => {
@@ -179,36 +190,33 @@ export default function ScheduleControls({
               disabled={blocked}
             />
           </label>
-          <Button
+          {!confirmCancel && <Button label="Review Cancellation"
             className="drawer-cancel-action"
-            variant="outline"
-            disabled={blocked || !reason.trim()}
+            variant="secondary"
+            isDisabled={blocked || !reason.trim()}
             onClick={() => setConfirmCancel(true)}
-          >
-            Review Cancellation
-          </Button>
+           />}
           {confirmCancel && (
-            <div className="drawer-cancel-confirmation" role="alert">
+            <div ref={cancelReviewRef} tabIndex={-1} className="drawer-cancel-confirmation" role="group" aria-label="Review cancellation">
+              <strong>{job.jkNumber} · {job.customerName}</strong>
+              <p className="drawer-cancel-reason-summary">{reason}</p>
               <p>
                 Cancel {job.jkNumber} in JunkWare? This removes the appointment from the active
                 plan.
               </p>
               <div className="drawer-quick-actions">
-                <Button
-                  variant="outline"
-                  disabled={blocked}
-                  onClick={() => setConfirmCancel(false)}
-                >
-                  Keep Appointment
-                </Button>
-                <Button
-                  disabled={blocked || !reason.trim()}
+                <Button label="Keep Appointment"
+                  variant="secondary"
+                  isDisabled={blocked}
+                  onClick={() => { setConfirmCancel(false); cancelReasonRef.current?.focus(); }}
+                 />
+                <Button label={busy ? "Verifying…" : "Confirm Cancellation"}
+                  variant="destructive"
+                  isDisabled={blocked || !reason.trim()}
                   onClick={() => {
                     void run("cancel", { reason });
                   }}
-                >
-                  {busy ? "Verifying…" : "Confirm Cancellation"}
-                </Button>
+                />
               </div>
             </div>
           )}
@@ -228,6 +236,6 @@ export default function ScheduleControls({
         />
       )}
       {error && <p role="alert">{error}</p>}
-    </section>
+    </section></BrandTheme>
   );
 }

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "leaflet/dist/leaflet.css";
 import "./ops-styles.css";
+import "../styles/ops-theme.css";
+import { OPS_THEME_BOOTSTRAP } from "../lib/ops-theme";
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: OPS_THEME_BOOTSTRAP }} /></head>
       <body>{children}</body>
     </html>
   );

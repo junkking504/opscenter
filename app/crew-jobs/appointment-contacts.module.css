@@ -1,0 +1,3 @@
+.contacts { display:grid; gap:4px; min-width:0; padding:4px 0 12px; overflow-wrap:anywhere; }
+.contacts a { min-height:44px; box-sizing:border-box; }
+.contacts a:focus-visible { outline:2px solid currentColor; outline-offset:3px; border-radius:3px; }

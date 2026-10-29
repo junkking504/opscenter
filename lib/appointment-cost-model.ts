@@ -16,7 +16,7 @@ export function validCostInputs(value:unknown):value is CostInputs {
 const nonnegative=(v:number|null):v is number=>v!==null&&Number.isFinite(v)&&v>=0;
 export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fuelPrice:number|null,crewHourly:number|null){
  const missing:string[]=[];
- if(!validCostInputs(inputs))return {fuel:null,travelLabor:null,onsiteLabor:null,attendance:null,total:null,breakEven:null,breakEvenBeforeDisposal:null,minimumCharge:null,targetCharge:null,missing:['Valid cost assumptions']};
+ if(!validCostInputs(inputs))return {fuel:null,travelLabor:null,onsiteLabor:null,attendance:null,total:null,breakEven:null,breakEvenBeforeDisposal:null,minimumCharge:null,targetCharge:null,attendanceKnownSubtotal:null,breakEvenKnownSubtotal:null,attendanceMissing:['Valid cost assumptions'],missing:['Valid cost assumptions']};
  const fuel=nonnegative(travel.miles)&&fuelPrice!==null&&fuelPrice>0&&Number.isFinite(fuelPrice)?travel.miles/inputs.mpg*fuelPrice:null;
  const rate=crewHourly!==null&&crewHourly>0&&Number.isFinite(crewHourly)?crewHourly:null;
  const travelLabor=nonnegative(travel.minutes)&&rate!==null?travel.minutes/60*rate:null;
@@ -25,8 +25,13 @@ export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fue
  if(fuelPrice===null||!Number.isFinite(fuelPrice)||fuelPrice<=0)missing.push('Current fuel price');
  if(!nonnegative(travel.minutes))missing.push('Travel time');
  if(rate===null)missing.push('Crew hourly cost');
+ const attendanceMissing=[...missing];
  if(onsiteLabor===null)missing.push('On-site labor minutes');
  if(inputs.disposal===null)missing.push('Disposal cost (enter 0 if none)');
+ // Known modeled components remain useful, but never substitute for complete totals.
+ // Missing components stay null and are listed separately, not assumed to cost zero.
+ const attendanceKnownSubtotal=inputs.overhead+(fuel??0)+(travelLabor??0);
+ const breakEvenKnownSubtotal=(attendanceKnownSubtotal+(onsiteLabor??0)+(inputs.disposal??0)+inputs.extraCosts)/(1-inputs.revenueFeePercent/100);
  const attendance=fuel!==null&&travelLabor!==null?fuel+travelLabor+inputs.overhead:null;
  const total=attendance!==null&&onsiteLabor!==null&&inputs.disposal!==null?attendance+onsiteLabor+inputs.disposal+inputs.extraCosts:null;
  const breakEvenBeforeDisposal=attendance!==null&&onsiteLabor!==null?(attendance+onsiteLabor+inputs.extraCosts)/(1-inputs.revenueFeePercent/100):null;
@@ -34,7 +39,7 @@ export function calculateAppointmentCost(inputs:CostInputs,travel:CostTravel,fue
  // Small tolerance prevents floating-point noise from adding an extra dollar.
  const minimumCharge=breakEven!==null?Math.floor(breakEven+1e-8)+1:null;
  const targetCharge=total!==null&&minimumCharge!==null?Math.max(minimumCharge,Math.ceil(total/(1-(inputs.revenueFeePercent+inputs.marginPercent)/100)-1e-8)):null;
- return {fuel,travelLabor,onsiteLabor,attendance,total,breakEven,breakEvenBeforeDisposal,minimumCharge,targetCharge,missing};
+ return {fuel,travelLabor,onsiteLabor,attendance,total,breakEven,breakEvenBeforeDisposal,minimumCharge,targetCharge,attendanceKnownSubtotal,breakEvenKnownSubtotal,attendanceMissing,missing};
 }
 
 export function allocateAppointmentTravel(incoming:{miles:number;minutes:number},outgoing:{miles:number;minutes:number},hasPrevious:boolean,hasNext:boolean){
@@ -44,7 +49,7 @@ export function allocateAppointmentTravel(incoming:{miles:number;minutes:number}
 
 export const defaultCostWarehouse=(territory:string):CostInputs['warehouse']=>/^(BR|Baton Rouge)$/i.test(territory)?'BRHQ':'NOHQ';
 
-export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[];unavailableReason?:string;attendanceAssumptions?:string[];breakEvenAssumptions?:string[]};
+export type AppointmentCostSummary={attendance:number|null;breakEven:number|null;breakEvenBeforeDisposal:number|null;missing:string[];attendanceKnownSubtotal?:number|null;breakEvenKnownSubtotal?:number|null;attendanceMissing?:string[];unavailableReason?:string;attendanceAssumptions?:string[];breakEvenAssumptions?:string[]};
 
 // Provisional planning defaults, replaced automatically by source values or saved overrides.
 export const planningCrewHourly=40;
@@ -55,4 +60,11 @@ export function appointmentCostLabor(inputs:CostInputs,sourceCrew:number|null,so
  const attendanceAssumptions=inputs.crewHourly===null&&sourceCrew===null&&!canceled?['Provisional two-person crew: $40/hour combined ($20 each).']:[];
  const breakEvenAssumptions=[...attendanceAssumptions,...(inputs.onsiteMinutes===null&&sourceMinutes===null&&!canceled?['Provisional on-site work: 30 minutes.']:[])];
  return {crewHourly,onsiteMinutes,attendanceAssumptions,breakEvenAssumptions};
+}
+
+// Saving an unrelated input does not verify the recalled overhead inclusions.
+export function appointmentCostOverheadAssumptions(inputs:CostInputs) {
+ return inputs.overhead===defaultCostInputs.overhead
+  ? [`Provisional overhead: $${inputs.overhead} per appointment; original inclusions unverified.`]
+  : [];
 }

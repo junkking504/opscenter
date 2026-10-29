@@ -35,3 +35,15 @@
 .managerViews { display:flex; flex-wrap:wrap; gap:12px; padding:16px; background:#f7f8f3; }
 .managerViews button { min-height:44px; padding:10px 16px; border:1px solid #bdc7bc; border-radius:10px; background:white; color:#25312c; font:600 16px system-ui,sans-serif; cursor:pointer; }
 .managerViews button[aria-pressed="true"] { background:#25312c; color:white; }
+
+.routeHeader { padding:max(8px,env(safe-area-inset-top)) 16px 8px; }
+.routeHeader .brand { max-width:480px; margin-bottom:0; gap:10px; }
+.routeHeader .brand img { width:30px; height:30px; }
+.routeHeader .brand strong { font-size:20px; line-height:1.15; }
+.routeHeader .brand span { margin-top:4px; font-size:8px; }
+.managerViews { box-sizing:border-box; width:100%; max-width:512px; margin:0 auto; padding:14px 16px 0; gap:0; flex-wrap:nowrap; }
+.managerViews button { flex:1; min-width:0; border-radius:0 8px 8px 0; font-size:14px; }
+.managerViews button:first-child { border-radius:8px 0 0 8px; }
+
+.sessionNotice { margin:24px; padding:20px; line-height:1.5; }
+.sessionNotice button { min-height:44px; padding:10px 16px; }

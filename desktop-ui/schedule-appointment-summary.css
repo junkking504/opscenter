@@ -62,8 +62,8 @@
 .ops-live .selected-job-map-evidence summary { cursor:pointer; font-size:var(--oc-type-11); }
 .ops-live .selected-job-map-evidence details[open] { display:grid; gap:4px; overflow-wrap:anywhere; }
 .ops-live .selected-job-map-evidence small { line-height:1.4; }
-.selected-job-estimate { display:grid; gap:4px; padding:8px 10px; border:1px solid var(--oc-border-violet-03); border-radius:6px; background:var(--oc-surface-neutral-15); color:var(--oc-text-violet-01); font-size:12px; }
-.selected-job-estimate strong { font-size:12px; }
+.selected-job-estimate { display:grid; gap:4px; padding:8px 10px; border:1px solid var(--oc-border-violet-03); border-radius:6px; background:var(--oc-surface-neutral-15); color:var(--oc-text-violet-01); font-size:var(--oc-type-12); }
+.selected-job-estimate strong { font-size:var(--oc-type-12); }
 .selected-job-estimate a { display:flex; align-items:center; gap:5px; width:fit-content; color:inherit; text-decoration:underline; text-underline-offset:3px; font-weight:600; }
-.selected-job-estimate small { font-size:11px; line-height:1.4; }
+.selected-job-estimate small { font-size:var(--oc-type-11); line-height:1.4; }
 .selected-job-estimate a:focus-visible { outline:2px solid currentColor; outline-offset:3px; }

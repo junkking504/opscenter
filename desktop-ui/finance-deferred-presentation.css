@@ -1,0 +1,38 @@
+/* Isolated chart/detail controls retain their declarations when loaded with Finance. */
+
+
+.ops-live .capital-workspace .revenue-pace-chart { height: 260px; font-size: var(--oc-type-12); }
+.ops-live .capital-workspace .pace-legend { padding: 8px 10px; gap: 6px 16px; }
+.ops-live .capital-workspace .revenue-pace summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--oc-text-primary); }
+.ops-live .capital-workspace .pace-dates { padding: 0 10px; flex-wrap: wrap; }
+.ops-live .capital-workspace .pace-dates label { flex: 1 1 150px; flex-wrap: wrap; }
+.ops-live .capital-workspace .pace-dates input { min-height: 44px; width: 100%; font-size: var(--oc-type-16); }
+.ops-live .capital-workspace .pace-data { max-width: 100%; }
+.ops-live .capital-workspace .pace-data table { min-width: 520px; }
+
+@media (max-width:760px) {
+  .ops-app.ops-live .capital-workspace .capital-accounting-controls { display: flex; flex-direction: column; align-items: stretch; }
+  .ops-app.ops-live .capital-workspace .capital-accounting-controls > label { width: 100%; }
+  .ops-app.ops-live .capital-workspace .capital-accounting-controls select { width: 100%; }
+  .ops-app.ops-live .capital-workspace .recycling-month-controls { display: grid; width: 100%; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; }
+  .ops-app.ops-live .capital-workspace .recycling-month-controls > label { grid-column: 1 / -1; grid-row: 1; width: 100%; }
+  .ops-app.ops-live .capital-workspace .recycling-month-controls input { width: 100%; }
+  .ops-app.ops-live .capital-workspace .recycling-month-controls > button:last-child { grid-column: 1 / -1; }
+}
+.ops-live .capital-workspace :is(.capital-chart-scale,.capital-chart-value,.capital-chart-label,.capital-chart-label small) { font-size: var(--oc-type-12); }
+.ops-live .capital-workspace .capital-chart-label { height: auto; min-height: 36px; }
+.ops-live .capital-workspace .capital-chart-legend span:last-child { display: inline-flex; }
+.ops-live .capital-workspace :is(.capital-table-scroll,.capital-table-wrap,.accounting-table-wrap) { max-width: 100%; overflow-x: auto; }
+.ops-live .capital-workspace :is(.pace-legend,.pace-coverage,.revenue-pace details) { font-size: var(--oc-type-12); line-height: 1.5; }
+.ops-live .capital-workspace :is(.pace-coverage,.revenue-pace details) { margin: 8px 10px 12px; }
+.ops-live .capital-workspace :is(.capital-period h2,.capital-panel > header h3,.capital-page-header h2) { font-size: var(--oc-type-16); font-weight: 600; line-height: 1.3; }
+.ops-live .capital-workspace :is(.capital-panel > header,.capital-toolbar) { gap: 8px; flex-wrap: wrap; }
+.ops-live .capital-workspace .capital-filter-group { flex-wrap: wrap; overflow: visible; }
+.ops-live .capital-workspace .capital-filter-group > button[aria-pressed=true] { color: var(--ops-brand-red); border-color: var(--ops-brand-red); background: var(--oc-status-critical-tint); }
+.ops-live .capital-workspace .capital-status { white-space: normal; }
+.ops-live .capital-workspace .capital-button:focus-visible,
+.ops-live .capital-workspace .capital-filter-group > button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .ops-live .capital-workspace .capital-chart-legend { gap: 6px 12px; } }
+
+

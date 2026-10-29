@@ -116,3 +116,69 @@ No open design blockers. Physical iPhone keyboard/safe-area testing remains a de
 - [x] Resolve actionable visual issues.
 
 final result: passed
+
+# Waypoint route and manager polish — 2026-10-21
+
+Source: selected option 1, generated image `exec-1b594d76-1939-4d13-9e79-022a719e1be5.png` in the current task's generated-images directory. Source and rendered crew screen normalized to 390 × 844, deviceScaleFactor 1, app content only, same three fictional appointments/date. Existing application runtime retained.
+
+Evidence outside Git: `Documents/Codex/2026-10-21/we/work/waypoint-cleanup/final-comparison.png`, and `outputs/waypoint-route-preview.png`, `outputs/waypoint-manager-preview.png` in that task. All UI screenshots use synthetic records; no customer screenshots committed.
+
+## Findings and comparison history
+
+1. Initial comparison blocked: P1 map initially fitted too closely, leaving pins outside the viewport. Disabled animated fitting; the same three markers now fit within bounds on initial load and resize.
+2. Initial comparison blocked: P2 local preview icon requests were redirected by the generic localhost authentication path. The production Waypoint public-path list includes only the ten specific SVG assets; preview now uses the Waypoint host. Actual library icons render sharply.
+3. Initial comparison blocked: P2 excess header/row spacing pushed too much content down. Compacted connected header, map, and row rhythm; final comparison shows all three stops plus primary action in the 390 × 844 frame.
+4. Expanded-map check blocked: P1 React's changing map element class removed Leaflet's injected clipping classes. Expansion now changes the wrapper class only. Rechecked expanded width: scrollWidth equals 390; Leaflet classes remain and the map scrolls into view.
+
+## Required fidelity surfaces
+
+- Typography: existing inspection/system font, strong heading and names, 13px time and 12px address text. Readable real text, no cropped names. Actual full source address replaces invented mock neighborhood labels.
+- Spacing/layout: 16px balanced mobile margins, map above numbered grouped rows, light separators, highlighted next stop. Compact manager toolbar and 44 × 44 reorder controls. At 320px, schedule/reschedule date and time inputs remain inside the viewport; scrollWidth 320.
+- Colors/tokens: original charcoal header, gold rule, warm offwhite background, crimson primary/number badges and subtle next-stop tint retained. Approximate pins are dashed and explicitly labeled in text.
+- Images/icons: original crown asset; Lucide line icons exported from the already-installed library with license. Live existing OSM tiles replace the generated illustrative map; real map geography and attribution are intentional. Number circles are data labels, not replacement artwork.
+- Copy/content: title, Route Order explanation, Messages and next-appointment action follow selected concept. Missing pins are disclosed without renumbering. Completed and shared Amazon work remains separately accessible. No invented ETA, route geometry or unread-message counts.
+
+## Interaction and resilience checks
+
+CUA in-app browser, fixture intercepting every API: pin 2 opens matching details; back returns to list; Full map expands, scrolls into view and retains map classes; Messages opens/focuses office disclosure; manager selection and reschedule fields; reorder earlier submits the intended permutation and keeps windows; missing and approximate pins keep numbers; a combined 1,2,3 marker exposes all three choices and choice 3 opens the matching appointment; all-unmapped view retains the full list. Manager and crew examined at 390px and 320px. Production-mode preview console had no warnings/errors. No real writes, enrollment, notifications or payments tested.
+
+## Accepted differences / limits
+
+The real OSM basemap differs from the generated mock's illustrated tiles. Full map sits just below the initial viewport because primary actions maintain accessible touch height and source addresses remain complete. Physical iPhone Safari/native date-picker testing requires the user's handset; browser viewport checks do not claim physical-device verification.
+
+final result: passed
+
+---
+
+# Waypoint option 1 design QA — 2026-10-23
+
+Source visual truth: `/Users/missioncontrol/.codex/generated_images/01a16a68-cb54-7753-ba9d-a8c365852aef/exec-afc695c6-f826-4232-bec5-f7e61b060b76.png`.
+Implementation captures: `/Users/missioncontrol/Documents/Codex/2026-10-23/le/outputs/waypoint-review/` (`02-route-map.png`, `03-completed.png`, `04-performance.png`, `05-notifications.png`, `06-messages.png`).
+Full comparison: `comparison.png` in that folder. Captured in Codex in-app browser using the real application with synthetic API data.
+
+## Comparison
+- Source: 853 × 1844 pixels, displayed in a 390 × 844 CSS-pixel region with contain scaling. Implementation: 390 × 844 pixels, 390 × 844 CSS viewport, density 1. Both app-content-only, same route state with two remaining stops and notifications on. The comparison renders both regions side by side at matching scale. All type, controls and icons are legible in this view; no further focused crop was needed.
+- Fonts: existing product/system sans family and weights retained. 30px screen title, 23px section heading, 16px stop name, 12–14px details, 10–11px navigation labels. Single-line labels fit 320px; buttons are 62px tall. No clipping or overlapping labels observed.
+- Layout: compact brand header, date/title/truck context, map, route rows, one primary action, notification status, fixed five-item navigation. Top button grid removed. Bottom safe-area padding and content padding keep final settings controls reachable. Wider viewports retain the existing centered content width.
+- Colors: existing ivory, charcoal, crimson, muted text and gold brand rule; light rose first-stop emphasis, neutral subsequent stop numbers, crimson active destination. No decorative shadows or added gradients.
+- Assets: existing Waypoint logo and real Leaflet/OpenStreetMap retained. New bell/check/chart icons come from the existing Lucide icon family under the existing license. No fabricated map imagery is used in application code.
+- Copy: direct Completed appointments, Today’s performance, Notifications and Office messages titles; persistent notification status. No Disable setting or daily enable task.
+
+## Findings and fixes
+- [P2, fixed] Initial route density pushed the primary action/status below the navigation. Reduced compact map height, removed redundant route subtitle, and placed Full map next to Route Order. Final capture shows the primary action and notification status above the bar at 390 × 844.
+- [P2, fixed] Original flat notification markup inherited large paragraph margins and joined headings to controls. Separate scoped status/inbox groups now have explicit gaps and independent views.
+- No actionable P0/P1/P2 findings remain.
+
+## Intentional production constraints
+The generated reference shows a stylized map and connecting route line; the implementation preserves the existing authorized location map, attribution, approximate-location treatment and stop order, with no new routing service or invented road geometry. The generated truck dropdown is not copied as a shortcut around daily setup/inspection: current truck is shown under the title; authorized all-truck filtering remains available, and changing the working truck stays in Truck & phone. Existing logo is retained instead of the generated crown variation. Large text/long lists can scroll while navigation stays fixed. Navigation is hidden inside an appointment/edit workflow to preserve its existing draft guard.
+
+## Interaction checks
+Five destinations, completed record opening/back, truck filter retention across views and detail return, performance unavailable state, empty route/completed states, notification component retained across navigation, no repeat permission prompt, no Disable control, refresh/error recovery, and final settings controls reachable above navigation. Automated fixture coverage at 320/390/430/1440px. Browser review covered all five populated screens and real map rendering with synthetic locations. Browser console errors: none. Actual iPhone delivery and physical safe-area/keyboard presentation are not proven by desktop emulation.
+
+## Implementation checklist
+- [x] Selected navigation and hierarchy implemented in existing app.
+- [x] Source and implementation compared together at normalized scale.
+- [x] All five screens inspected; responsive/lifecycle tests passed.
+- [x] No actionable P0/P1/P2 issues remain.
+
+final result: passed

@@ -1,5 +1,69 @@
 # Address verification completion
 
+## October 26, 2026: recurring pending-address recovery
+
+Policy 22 separates a letter-number unit following a complete numbered highway
+(e.g. `45678 Highway 17 C42`) from the road query. The original unit remains in
+crew instructions. Route suffixes, single-letter directions, incomplete postal
+tails and additional numbered streets are not treated as units. Legacy provider
+keys remain readable and prior negative checks retry under the existing cadence.
+Older successful shared geocodes retain their coordinates only after their stored
+matched address passes current full-field verification for the requested address.
+This preserves pins across harmless case, punctuation, state and business-prefix
+variants without new requests or promoting unverified/stale-policy flags alone.
+
+A source road direction after its suffix may match the same direction before
+that road in cached Geocodio rooftop evidence for approximate display. Exact
+house, street, direction, locality, state and ZIP remain required. The recovery
+rejects unit-bearing provider candidates, opposite directions, interpolation,
+and distinct competing matching premises. It does not change source text or
+exact-property verification.
+
+Source Health now reports the free geocoder's account-review status, warns three
+days before expiry, and identifies expiration explicitly. This is a read-only
+configuration check, not a provider uptime or quota guarantee. Account review
+still requires checking no payment method and the provider free cutoff before
+renewing the existing protected configuration; no automatic renewal, paid usage,
+transport, quota or spending-gate change is included.
+
+Regression: `scripts/test-address-pending-recovery.ts`, included in the full
+address suite, uses synthetic cache evidence and no network requests.
+
+## October 23, 2026 Number units and compact highway navigation
+
+Policy 21 recognizes `Number` as a unit label after a complete road suffix,
+alongside Lot/Trailer/Space. Queries omit the unit; source text and crew-facing
+unit instructions remain intact. Number inside a road name is preserved. Map
+readers still check the original provider-cache key, so saved unit-bearing
+evidence can recover an approximate location immediately without a request.
+Unit-bearing Geocodio results remain ineligible for exact verification, and
+the map details explicitly say the unit entrance was not located.
+
+A compact expression such as `880N Hwy 191` may reuse existing Geocodio rooftop
+evidence for `880 N US-191` as a labeled approximate map point. It requires
+the same numeric house, cardinal direction, highway number, complete locality,
+state and ZIP, with no provider unit and no competing premises. Explicit source
+route jurisdictions, ranges, other house letters and multi-letter suffixes are
+not reinterpreted. The source and provider query are unchanged; generic Hwy is
+not globally equated with US routes. Details disclose the ambiguous direction
+interpretation. Nearest-rooftop, interpolated and street-center results cannot
+enable this recovery. Existing cache freshness/grace rules still apply.
+
+Neither recovery turns a territory center into a property, creates a verified
+planning location. GPS matching follows the label-independent policy below. Road estimates
+can use the recovered provider point, with their normal approximate label.
+The original source address remains the Directions destination.
+
+Old negative verification entries and worker attempt delays retry under policy
+21; older successful evidence must pass current identity validation. The
+existing four-address sweep, five-minute retry, provider backoff, parish/OSM
+reservations, time budgets and provider caches remain unchanged. A verification
+retry does not force a new provider request through a still-valid provider
+cache. No spending policy, transport or provider limit changes are included.
+
+Regression: `scripts/test-address-number-highway.ts` uses synthetic cached
+evidence and zero provider calls; actual appointment evidence stays outside Git.
+
 ## October 17, 2026 bare-letter unit update
 
 Policy 19 recognizes a trailing single-letter unit after a house and named
@@ -28,13 +92,24 @@ check legacy provider cache keys, so already saved evidence remains usable.
 Old negative verification entries are re-evaluated; positive entries must pass
 current identity checks. No provider, request limit or spending policy changes.
 
-**Approximate pins are navigation-only.** This supersedes the October 12 GPS
-policy described historically below. All ordinary and reviewed map fallbacks
-are excluded from live GPS presence and from the Python matcher. Previously
-recorded approximate pins cannot infer new presence/departure events or override
-verified premises. Existing recorded visit provenance remains readable; no
-history migration, activation-state reset or operational replay is included.
-Verified premises continue to qualify under the existing GPS rules.
+**Pin labels are informational (October 23, 2026).** This supersedes the former
+navigation-only exclusion. Operations use the same cached appointment coordinate
+shown on the map, whether its label is verified or approximate. The label remains
+visible in visit provenance and does not verify or edit the source address.
+Arrival, departure, on-site state and visit-based assignment use common coordinate,
+GPS timestamp, operating-day and ambiguity rules. Two appointment circles that
+overlap within 400 metres are ambiguous regardless of either label. Area-only
+markers without a usable appointment coordinate remain ineligible.
+
+Newly enabled map-coordinate sources start at the durable
+`config/operational-map-pin-policy.json` cutoff during normal collector operation;
+previously ignored observations are not replayed as new historical alerts. This
+rollout boundary is retained by source-address identity in
+`config/operational-map-pin-sources/`, so later verification cannot erase it and
+replay old arrivals. It is independent of the displayed confidence label. The read-only
+Schedule can use an existing current GPS report immediately. The existing 200-metre
+radius is unchanged: a large property's parking/loading area can still lie outside
+that radius. Recorded departure reconciliation uses the original visit coordinate.
 
 Road comparisons have a 30-second total budget across their sequential tables,
 below the client's 45-second timeout. They return completed road estimates when
@@ -63,7 +138,7 @@ As requested on October 12, 2026, Control and Job Order select the best availabl
 
 The board shows the selected point as Approximate and provides an Open pin link; ambiguity no longer asks the dispatcher to confirm or correct an address. If no usable provider point exists, every appointment still has an Area locator at its dispatch-territory map center, or the operating-area overview for unknown territory. This marker explicitly says the property is not located; it is never used for travel, nearest-truck or visit detection. Coverage shows locators and area-only counts separately, and background lookup continues. Street suffix corrections, duplicated localities, a locality word omitted from the road name and differing ZIPs may supply display evidence. Explicit conflicting states, directions, house numbers, unrelated streets and invalid coordinates cannot. Out-of-state display points are supported within the continental US. The source address remains unchanged, and the candidate address and source remain inspectable.
 
-This fallback reads the existing bounded provider caches; it creates no additional provider calls or spending. Recent expired cache evidence remains available for up to seven days with an explicit last-result label. Verified coordinates always win. Approximate points never enter `planningLocation` or the shared verified geocode cache. The October 15 policy above excludes approximate visit evidence. The board counts map coverage separately from verified-property coverage and continues exact verification in the existing worker.
+This fallback reads the existing bounded provider caches; it creates no additional provider calls or spending. Recent expired cache evidence remains available for up to seven days with an explicit last-result label. Verified coordinates always win. Approximate points never enter `planningLocation` or the shared verified geocode cache. The October 23 policy above makes operational eligibility independent of this label. The board counts map coverage separately from verified-property coverage and continues exact verification in the existing worker.
 
 When OpenStreetMap returns only a road, its point may supply an approximate pin if the complete road name, direction, locality, state and ZIP match. The result must be an identified road way with valid bounds containing its coordinate and spanning no more than 0.03 degrees on either axis. Long highways and locality centroids do not qualify. Matching house-level candidates always rank ahead of street-only results. Pin details identify the street-level estimate without claiming that the house was located; the original house number stays on the appointment. This reads the existing search response and adds no lookup or spending.
 

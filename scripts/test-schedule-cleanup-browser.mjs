@@ -1,3 +1,4 @@
+import {openScheduleControls,closeScheduleControls} from './schedule-controls-browser.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
@@ -8,7 +9,9 @@ try {
   for (const [width, height] of [[1440, 900], [390, 844]]) {
     await page.setViewportSize({ width, height });
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long`);
+    await openScheduleControls(page);
     await page.locator('.day-switcher button').first().click();
+    await closeScheduleControls(page);
     await page.locator('[data-schedule-appointment]').first().click();
     const summary = page.getByRole('region', { name: 'Selected job JK1001001', exact: true });
     await summary.waitFor();

@@ -421,7 +421,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
     if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
-    if (completing && !crewMode && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
+    if (completing && live.howHeard && !live.howHeard.value) { setError(crewMode ? 'The office must complete the customer referral information in JunkWare before checkout. Checkout has not been submitted.' : 'Choose how the customer heard about us.'); return; }
     if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
       const payment = { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() };
@@ -571,7 +571,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
   }
   const nextMobileStep = mobile && mobileStep < stepLabels.length-2 && !reviewing && !pendingReceipt && !verified && targetStatus !== '9';
   const actions = expanded && live ? <div className="closeout-primary-actions">
-    <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : receipt?.dryRun ? 'Dry run complete' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
+    <div className="closeout-action-context"><strong>{saving ? 'Verifying closeout' : pendingReceipt ? 'Check the previous save' : receipt?.dryRun ? 'Dry run complete' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
     {error && <p role="alert">{error}</p>}
     {saving && submissionStatus && <p className="closeout-transfer-progress" role="status" aria-live="polite">{submissionStatus}</p>}
     <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (nextMobileStep ? advanceMobileStep(mobileStep + 1) : pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && (!canWrite || photoBlocked))}>{nextMobileStep ? currentPhotoCategory && photoSteps?.submitStep && (currentPhotoCategory==='before' || afterPhotoRequired) ? `Submit ${currentPhotoCategory} photos & continue` : `Continue to ${stepLabels[mobileStep+1].toLowerCase()}` : saving ? crewMode ? "Sending checkout…" : "Saving and verifying…" : pendingReceipt ? 'Check Saved Result' : verified ? receipt?.dryRun ? 'Start another dry run' : 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? crewMode ? "Submit checkout" : `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
@@ -635,7 +635,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
               <div><span>Saved total</span><strong>{live.total || "Unavailable"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
             </div>}
-            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{crewMode ? submissionStatus || 'Sending checkout to the server…' : 'Saving changes and checking them in JunkWare…'}</div> : null}
+            {saving && !(crewMode && mobile && submissionStatus) ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{crewMode ? submissionStatus || 'Sending checkout to the server…' : 'Saving changes and checking them in JunkWare…'}</div> : null}
 
             {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section estimate-outcome-fields">
               <h4>Estimate outcome required by JunkWare</h4>
@@ -777,7 +777,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
                 {crewMode && category==='Estimate' && <p>Billed is available for completed jobs. Estimates remain quotes; choose Job only when work was completed.</p>}
                 <label><span>{billing?"Billed amount":"Payment amount"}</span><input aria-label={billing?"Billed amount":"Payment amount"} value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => {setPaymentAmountAuto(false);setPaymentAmount(event.target.value);}} /></label>
                 {crewMode && <button type="button" className="ops-button subtle ops-use-payment-amount" onClick={()=>{setPaymentAmountAuto(true);setPaymentAmount(amountToMarkPaid.toFixed(2));}}>Use {money(amountToMarkPaid)}</button>}
-                {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
+                {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} inputMode={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) === "Card last four" ? "numeric" : "text"} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
                 <p>{crewMode?"Billed records money still owed, not money collected. Completed billed jobs count as revenue. Cash, card and check record money already collected; this does not charge a card. Do not re-enter existing entries.":"Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed."}</p>
               </div> : null}
             </section>

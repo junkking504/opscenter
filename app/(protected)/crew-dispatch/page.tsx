@@ -1,4 +1,5 @@
 'use client';
+import '@/app/secondary-pages.css';
 import CrewMessageComposer from '@/components/CrewMessageComposer';
 import { truckDisplayText } from '../../../lib/junkware-trucks';
 import { useEffect, useRef, useState } from 'react';
@@ -44,7 +45,7 @@ export default function CrewDispatchPage(){
   }
   const label=(id:string)=>snapshot?.jobs.find(job=>job.appointmentId===id)?.customerName || `Appointment ${id}`;
   const jobs=snapshot?.jobs.filter(job=>/^confirmed$/i.test(job.status) && job.appointmentId!==snapshot.dispatch.current?.appointmentId && job.appointmentId!==snapshot.dispatch.queued?.appointmentId) || [];
-  return <main className={styles.page}><div className={styles.content}><h1>Crew dispatch</h1><p>Waypoint shows the selected truck’s daily Schedule. The current assignment is ready for closeout.</p>
+  return <main className={`${styles.page} ops-secondary-page ops-office-tools`}><div className={styles.content}><h1>Crew dispatch</h1><p>Waypoint shows the selected truck’s daily Schedule. The current assignment is ready for closeout.</p>
     <div className={styles.form}><label>Truck<select value={truck} disabled={busy || loading} onChange={event=>{setTruck(event.target.value);void load(event.target.value,date);}}>{(snapshot?.trucks || [truck]).map(value=><option key={value} value={value}>{truckDisplayText(value)}</option>)}</select></label><label>Appointment date<input type="date" value={date} disabled={busy || loading} onChange={event=>{setDate(event.target.value);if(event.target.value)void load(truck,event.target.value);}}/></label></div>
     <button className={styles.secondary} disabled={busy || loading} onClick={()=>void load()}>{loading?'Loading…':'Refresh dispatch'}</button>
     {error && <p className={styles.error} role="alert">{error}</p>}

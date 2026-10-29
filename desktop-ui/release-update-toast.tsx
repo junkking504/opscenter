@@ -28,6 +28,6 @@ export function ReleaseUpdateToast({ busy = false }: { busy?: boolean }) {
     window.addEventListener('online',poll);
     return()=>{disposed=true;flight?.abort();window.clearInterval(timer);document.removeEventListener('visibilitychange',poll);window.removeEventListener('online',poll);};
   },[]);
-  if (!ready) return null;
-  return <aside className="release-update-toast" role="status" aria-live="polite" aria-label="Update ready"><p>OpsCenter was updated. Refresh when convenient.</p><div><button type="button" onClick={()=>{dismissed.current=ready;setReady(null);}}>Later</button><button type="button" disabled={busy} title={busy?'Finish the current action before refreshing':undefined} onClick={()=>{if(!busy) window.location.reload();}}>Refresh now</button></div>{busy&&<small>Finish the current action before refreshing.</small>}</aside>;
+  if (!ready || busy) return null;
+  return <aside className="release-update-toast" role="status" aria-live="polite" aria-label="Update ready"><p>OpsCenter was updated. Refresh when convenient.</p><div><button type="button" onClick={()=>{dismissed.current=ready;setReady(null);}}>Later</button><button type="button" onClick={()=>window.location.reload()}>Refresh now</button></div></aside>;
 }

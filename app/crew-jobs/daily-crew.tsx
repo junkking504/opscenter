@@ -25,7 +25,7 @@ export default function DailyCrew({date,roster,trucks,day,onSaved,onCancel,onBus
    <label>Person responsible for this phone<select required disabled={busy} value={responsible} onChange={e=>setResponsible(e.target.value)}><option value="">Choose person</option>{roster.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Driver<select required disabled={busy} value={driver} onChange={e=>setDriver(e.target.value)}><option value="">Choose driver</option>{roster.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Navigator<select disabled={busy} value={navigator} onChange={e=>setNavigator(e.target.value)}><option value="">No navigator — driver only</option>{roster.filter(name=>name!==driver).map(name=><option key={name}>{name}</option>)}</select></label>
-   <button className={styles.primary} disabled={busy || !truck || !responsible || !driver || driver===navigator}>{busy?'Saving setup…':day?'Save crew':'Continue'}</button>
+   <button className={styles.primary} disabled={busy || !truck || !responsible || !driver || driver===navigator}>{busy?'Saving setup…':day?'Save crew':'Start Inspection'}</button>
   </form>
   {!roster.length && <p role="alert">The crew list is unavailable. Contact your manager.</p>}
   {error && <p className={styles.error} role="alert">{error}</p>}

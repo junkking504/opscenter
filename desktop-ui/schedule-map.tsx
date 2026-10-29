@@ -27,7 +27,7 @@ export type ScheduleMapProps = {
   onSelect: (id: string) => void; onSelectTruck: (truck: string, view?: 'location' | 'overview') => void;
 };
 export default function ScheduleMap(props: ScheduleMapProps) {
-  const [configuredEngine, setConfiguredEngine] = useState<MapEngine>(leafletEngine);
+  const [configuredEngine, setConfiguredEngine] = useState<MapEngine | null>(null);
   const [appleFailed, setAppleFailed] = useState(false);
   const engine = props.mapEngine || configuredEngine;
   useEffect(() => {
@@ -39,10 +39,14 @@ export default function ScheduleMap(props: ScheduleMapProps) {
     fetch('/api/desktop/maps', { signal: controller.signal, cache: 'no-store' })
       .then(response => response.ok ? response.json() : null)
       .then(async config => {
-        if (config?.provider !== 'apple' || typeof config.token !== 'string') return;
+        if (!active) return;
+        if (config?.provider !== 'apple' || typeof config.token !== 'string' || !config.token) {
+          setConfiguredEngine(leafletEngine);
+          return;
+        }
         try { const kit = await loadAppleMapKit(config.token); if (active) setConfiguredEngine(appleMapEngine(kit, fallback)); }
         catch { fallback(); }
-      }).catch(() => {}).finally(() => clearTimeout(timer));
+      }).catch(() => { if (active) setConfiguredEngine(leafletEngine); }).finally(() => clearTimeout(timer));
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [props.mapEngine]);
   const host = useRef<HTMLDivElement>(null);
@@ -62,7 +66,7 @@ export default function ScheduleMap(props: ScheduleMapProps) {
     setFollowing(Boolean(props.selectedTruck) && props.truckMapView !== 'route');
   }, [props.selectedTruck, props.resetKey, props.date, props.truckMapView]);
   useEffect(() => {
-    if (!host.current) return;
+    if (!host.current || !engine) return;
     let view: MapView | undefined;
     try { view = engine.map(host.current, { zoomControl: true, scrollWheelZoom: true }); view.setView([30.14, -90.5], 8); }
     catch (error) { view?.remove(); if (engine.name !== 'apple') throw error; setAppleFailed(true); setConfiguredEngine(leafletEngine); return; }
@@ -98,7 +102,7 @@ export default function ScheduleMap(props: ScheduleMapProps) {
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
-    if (!view || !layer) return;
+    if (!view || !layer || !engine) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
     type Pin = { id: string; coordinate: Coordinate; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; area?: boolean; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
@@ -268,7 +272,7 @@ export default function ScheduleMap(props: ScheduleMapProps) {
   }, [signature, following, engine]);
   useEffect(()=>{
     const view=map.current,layer=gpsLayer.current,route=props.gpsRoute;
-    if(!view || !layer) return;
+    if(!view || !layer || !engine) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
     const {paths,isolated,bounds}=gpsTripDisplay(route,props.selectedTripId);
@@ -316,7 +320,8 @@ export default function ScheduleMap(props: ScheduleMapProps) {
   const canFollow = props.selectedTruck && !props.selected
     && props.trucks.some(truck => truckLabel(truck.truck) === props.selectedTruck && truck.latitude != null && truck.longitude != null);
   const viewingRoutes = props.truckMapView === 'route';
-  return <div ref={host} data-gesture-ignore data-map-provider={engine.name} className="live-schedule-map" aria-label="Appointment map locations and truck GPS">
+  return <div ref={host} data-gesture-ignore data-map-provider={engine?.name || 'loading'} aria-busy={!engine} className="live-schedule-map" aria-label="Appointment map locations and truck GPS">
+    {!engine && <span className="map-provider-status" role="status">Loading map…</span>}
     {appleFailed && <span className="map-provider-status" role="status">Apple Maps unavailable · OpenStreetMap</span>}
     {props.selectedTruck && !props.selected && <div className="truck-map-view-controls" role="group" aria-label={`${truckDisplayText(props.selectedTruck)} map view`}>
       {canFollow && <button type="button" className="truck-follow-control" aria-pressed={!viewingRoutes && following}

@@ -26,7 +26,7 @@ export default function SwitchTruck({day,trucks,pending,onDone,onCancel,onBusy}:
   finally{flight.current=false;setBusy(false);onBusy(false);}
  }
  useEffect(()=>{if(pending?.status==='moving')void run('continue');},[]);
- return <section className={styles.card}><h1>Switch truck</h1>
+ return <section className={styles.card}><h1>Switch Truck</h1>
   <p>{day.driver} · Driver{day.navigators.length?` · ${day.navigators.join(', ')} · Navigator`:''}</p>
   {saved?<><h2>{saved.from} → {saved.to}</h2><p role="status">{saved.message}</p><p>{saved.moved} of {saved.total} unfinished jobs moved.</p>{!busy && <button className={styles.primary} onClick={()=>void run('continue')}>Check saved switch</button>}<p>Your crew and saved job progress stay with this phone.</p></>:<>
    <p>Current truck: <strong>{truckDisplayText(day.truck)}</strong></p><label className={styles.form}>Replacement truck<select required disabled={busy} value={truck} onChange={e=>{setTruck(e.target.value);setPreview(null);setError('');request.current=null;}}><option value="">Choose a truck</option>{trucks.filter(t=>t!==day.truck).map(t=><option key={t} value={t}>{truckDisplayText(t)}</option>)}</select></label>

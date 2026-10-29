@@ -1,7 +1,7 @@
 # Convoy workspace
 
 The desktop Convoy uses truck cards and direct record controls. Its tabs are
-Overview, Repairs & inspections, Maintenance, Records & invoices, and Driving. Existing
+Overview, Inspections, Repairs, Maintenance, Records, and Driving. Existing
 `fleetView` route values remain unchanged. A truck selected in the filter or
 chosen explicitly stays selected when switching tabs; All trucks clears the
 filter. The filter never silently falls back to a different truck.
@@ -13,26 +13,17 @@ Ready describes inspection/repair evidence; it does not establish current GPS.
 Load notes are expandable and do not repeat above unrelated tabs. Missing repair
 or GPS sources remain explicitly visible.
 
-Repairs & inspections uses the same persistent truck navigation and expandable
-journal as Records & invoices. Sidebar counts show active repairs; condition
-filters show matching trucks. Out-of-service trucks sort first. Search covers
-truck, finding, repair, shop and resolution text. Selecting a truck expands its
-inspection without losing the fleet navigation. Inspection & photos opens the
-original report separately; checklist and repair actions retain their existing
-editors. Repair rows expose owner, planned date, status, cost and resolution.
-Resolved repairs remain collapsed until requested. On phones, trucks scroll
-horizontally and a condition selector replaces the sidebar condition filters.
-Truck rows preview the actual inspection notes; the expanded
-truck shows all findings from the same report used for its inspection status, plus
-general notes and the original report link. A later clear report cannot hide an
-earlier stop/problem report. When no phone report exists, daily checklist attention
-items and notes supply the findings. Photo payloads remain outside the desktop read.
+Inspections and Repairs use the persistent truck navigation and expandable
+journal from Records. Inspections shows daily Five Point Inspection results,
+all five point outcomes, findings, the original report link and a lazy-loaded
+Past Inspection Reports archive. Repairs keeps active work, progress and resolved
+repair history across dates. Inspection details are no longer repeated there.
+On phones, truck navigation scrolls horizontally within its bounded control and
+a condition selector replaces the sidebar condition filters.
 
-Trucks, Inspections & Repairs, and Service share one daily snapshot and pending read.
-Switching these tabs preserves the screen and original retrieval timestamp. Date,
-Driving and History & Costs retain separate keys. Fresh authenticated polling,
+Overview, Inspections, Repairs and Maintenance share one daily snapshot and pending
+read. Date, Driving and Records retain separate keys. Fresh authenticated polling,
 write invalidation, error retention and authorization checks remain unchanged.
-A direct Convoy visit starts its read alongside shell rendering and code loading.
 
 Inspections links to original phone reports and photos. Repairs offers direct
 updates without requiring an owner or decision workflow. Existing shop/contact
@@ -278,3 +269,20 @@ requests are added.
 
 Validation: `npm run verify:monthly-mileage`; the existing Convoy synthetic
 fixture includes partial, explicit-zero and unavailable monthly travel.
+
+## Six Fleet pages (October 29, 2026)
+
+`maintenance` remains Repairs; `service`, `reports` and `scores` keep their
+persisted meanings. The new `inspections` view owns daily Five Point Inspection
+results and the Past Inspection Reports disclosure. Legacy `inspectionReports=1`
+links select Inspections and expand that archive. Each page has a visible purpose
+and date-scope strip. Report a Problem and Record Service live inside the selected
+truck drawer; no global action defaults to the first truck.
+
+In Use, No Inspection is red when inspection storage is available, no submitted
+Five Point Inspection report exists, and operating-day GPS points lie outside both
+existing NOHQ/BRHQ geofences or an assignment has started. Current-day GPS must
+pass the existing truck freshness rules. Unavailable inspection storage or missing,
+stale or wrong-day GPS yields Unknown instead. Historical days use only that day's
+GPS points. Offsite overnight parking can look like departure; GPS gaps can delay
+detection. No new provider calls or submission/write paths are introduced.

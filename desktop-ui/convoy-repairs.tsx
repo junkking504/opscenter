@@ -25,9 +25,10 @@ type Props = {
   trucks: DesktopFleetTruck[];
   truckId: string;
   onTruck: (id: string) => void;
+  inspections?: boolean;
   open: (record: FleetRecord) => void;
 };
-type Filter = "all" | "attention" | "stop" | "missing";
+type Filter = "all" | "attention" | "stop" | "missing" | "inuse";
 const label = (value: string) => value.replace(/Truck\s*#\s*/, "Truck ");
 const severityLabel = (value: string) =>
   ({ out_of_service: "Out of service", repair_soon: "Repair soon", monitor: "Monitor" })[value] ||
@@ -40,7 +41,7 @@ const updated = (value: string) =>
       )
     : "Not recorded";
 
-export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Props) {
+export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open, inspections = false }: Props) {
   const [filter, setFilter] = useState<Filter>("all"),
     [query, setQuery] = useState("");
   const activeFor = (truck: DesktopFleetTruck) =>
@@ -48,10 +49,10 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
       (issue) => sameTruck(issue.truck, truck.id) && issue.status !== "resolved",
     );
   const attention = (truck: DesktopFleetTruck) =>
-    truck.readiness !== "Ready" || activeFor(truck).length > 0;
+    (inspections && truck.readiness !== "Ready") || activeFor(truck).length > 0;
   const matches = (truck: DesktopFleetTruck, choice: Filter) =>
     choice === "all" ||
-    (choice === "attention"
+    (choice === "inuse" ? truck.inspectionStatus === "In Use, No Inspection" : choice === "attention"
       ? attention(truck)
       : choice === "stop"
         ? truck.readiness === "Out of service"
@@ -60,7 +61,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
     ["all", "All conditions"],
     ["attention", "Needs attention"],
     ["stop", "Out of service"],
-    ["missing", "Missing inspection"],
+    ...(inspections ? [["missing", "Missing Inspection"], ["inuse", "In Use, No Inspection"]] as Array<[Filter, string]> : []),
   ];
   const searchMatches = (truck: DesktopFleetTruck) =>
     [
@@ -164,11 +165,11 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
   return (
     <section
       className="convoy-record-browser convoy-inspection-library"
-      aria-label="Inspections and repairs by truck"
+      aria-label={inspections ? "Inspections by Truck" : "Repairs by Truck"}
     >
       <aside className="convoy-record-navigation">
         <h2>Trucks</h2>
-        <nav className="convoy-record-trucks" aria-label="Filter inspections by truck">
+        <nav className="convoy-record-trucks" aria-label="Filter Trucks">
           {[{ id: "", label: "All trucks" }, ...trucks].map((t) => (
             <button
               key={t.id}
@@ -190,7 +191,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           ))}
         </nav>
         <p className="convoy-library-hint">
-          Counts show active repairs. Choose a truck to review its inspection and work.
+          {inspections ? "Review Inspection Status for the Selected Day." : "Counts show active repairs. Choose a truck to review its work."}
         </p>
         <div className="convoy-record-categories">
           <h2>Condition</h2>
@@ -207,24 +208,24 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
       <div className="convoy-journal">
         <header className="convoy-journal-header">
           <div>
-            <h2>{truckId ? label(truckId) : "Fleet inspections"}</h2>
+            <h2>{truckId ? label(truckId) : (inspections ? "Five Point Inspections" : "Repairs")}</h2>
             <span>{updated(snapshot.date)}</span>
           </div>
-          <a
+          {inspections && <a
             className="convoy-library-link"
             href={`/fleet-inspections?date=${encodeURIComponent(snapshot.date)}`}
             target="_blank"
             rel="noreferrer"
           >
-            Phone reports
+            Phone Reports
             <ExternalLink size={14} />
-          </a>
+          </a>}
         </header>
         <div className="convoy-journal-tools">
           <label className="convoy-journal-search">
             <Search size={18} />
             <input
-              aria-label="Search inspections and repairs"
+              aria-label="Search Trucks and Work"
               placeholder="Search truck, finding, repair or shop"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -248,12 +249,11 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
         </div>
         <div className="convoy-library-results">
           <span role="status">
-            {shown.length} {shown.length === 1 ? "truck" : "trucks"} · Inspections for this day ·
-            Active repairs across dates
+            {shown.length} {shown.length === 1 ? "truck" : "trucks"} · {inspections ? "Inspections for This Day" : "Active Repairs Across Dates"}
           </span>
           {(query || filter !== "all") && <button onClick={reset}>Clear filters</button>}
         </div>
-        <nav className="convoy-status-totals" aria-label="Inspection status totals">{filters.map(([key, text]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}><strong>{scoped.filter(t => matches(t, key) && searchMatches(t)).length}</strong><span>{text}</span></button>)}</nav>
+        <nav className="convoy-status-totals" aria-label="Inspection status totals">{filters.map(([key, text]) => <button key={key} type="button" className={key === "inuse" ? "convoy-critical-count" : undefined} aria-pressed={filter === key} onClick={() => setFilter(key)}><strong>{scoped.filter(t => matches(t, key) && searchMatches(t)).length}</strong><span>{text}</span></button>)}</nav>
         <div className="convoy-inspection-cards">{shown.map((t) => {
           const active = activeFor(t),
             resolved = snapshot.issues.filter(
@@ -269,25 +269,28 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
                 <span className="convoy-visit-icon" aria-hidden="true"><Truck size={40} /></span>
                 <span className="convoy-visit-label">
                   <strong><MetricValue value={label(t.label)} /></strong>
-                  <span className={`convoy-status ${t.readiness === "Out of service" ? "stop" : t.readiness === "Ready" && t.checklist !== "Missing" ? "ready" : "attention"}`}>{truckCondition(t)}</span>
+                  <span className={`convoy-status ${["Out of service", "In Use, No Inspection"].includes(t.readiness) ? "stop" : t.readiness === "Ready" && t.checklist !== "Missing" ? "ready" : "attention"}`}>{truckCondition(t)}</span>
                 </span>
                 <span className="convoy-card-badges">
                   <span>Service: {t.serviceStatus || 'Not recorded'}</span>
-                  <span className={t.checklist === 'Missing' ? 'is-missing' : ''}>Inspection: {t.checklist || 'Not recorded'}</span>
+                  {inspections && <span className={t.checklist === 'Missing' ? 'is-missing' : ''}>Inspection: {t.checklist || 'Not recorded'}</span>}
                   <span>{active.length} active {active.length === 1 ? 'repair' : 'repairs'}</span>
                 </span>
-                <span className="convoy-visit-metadata">{t.inspectionFindings?.[0]?.notes || active[0]?.title || (t.checklist === "Missing" ? "Inspection needed for this day" : "Open inspection details")}</span>
+                <span className="convoy-visit-metadata">{inspections ? t.inspectionFindings?.[0]?.notes || "Open Inspection Details" : active[0]?.title || "No Active Repairs"}</span>
                 <span className="convoy-card-action"><span className="convoy-card-open-label">View details</span><span className="convoy-card-close-label">Hide details</span><ChevronRight size={18} className="convoy-disclosure" /></span>
               </summary>
-              <div className="convoy-inspection-body"><section className="convoy-inspection-levels"><div className="convoy-level-group"><h3>Daily inspection readings</h3><TruckLevelGauges truck={t} inspection/></div><div className="convoy-level-group"><h3>Latest truck levels</h3><TruckLevelGauges truck={t}/></div><small>Latest levels include subsequent pickups, verified unloads and fuel purchases.</small></section>
+              <div className="convoy-inspection-body">{inspections && <><section className="convoy-inspection-levels"><div className="convoy-level-group"><h3>Daily inspection readings</h3><TruckLevelGauges truck={t} inspection/></div><div className="convoy-level-group"><h3>Latest truck levels</h3><TruckLevelGauges truck={t}/></div><small>Latest levels include subsequent pickups, verified unloads and fuel purchases.</small></section>
                 <section
                   className="convoy-inspection-review"
                   aria-label={`${label(t.label)} inspection`}
                 >
                   <h3>
                     <ClipboardCheck size={17} />
-                    Inspection · {updated(snapshot.date)}
+                    Five Point Inspection · {updated(snapshot.date)}
                   </h3>
+                  <p className={`convoy-status ${t.inspectionStatus === "In Use, No Inspection" ? "stop" : ""}`}>{t.inspectionStatus}</p>
+                  <p>{t.inspectionStatus === 'Submitted' ? 'Submitted' : t.inspectionStatus === 'Unknown' ? 'Unknown' : 'Missing'}</p>
+                  {t.inspectionPoints?.map(point => <p key={point.label}><strong>{point.label}</strong> · {point.status}</p>)}
                   {t.checklist === "Missing" ? (
                     <p>No completed inspection recorded for this day.</p>
                   ) : t.inspectionFindings?.length ? (
@@ -319,16 +322,11 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
                         <ExternalLink size={14} />
                       </a>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => open({ kind: "checklist", truck: t })}
-                    >
-                      {t.checklist === "Missing" ? "Complete checklist" : "Open checklist"}
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => open({kind:'truck',truck:t})}>Open Truck</Button>
                   </div>
                 </section>
-                <div className="convoy-heading">
+                </>}
+                {!inspections && <><div className="convoy-heading">
                   <h3>
                     Active repairs <span className="convoy-count">{active.length}</span>
                   </h3>
@@ -366,7 +364,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
                   ) : (
                     <p>No resolved repairs recorded.</p>
                   )}
-                </details>
+                </details></>}
               </div>
             </details>
           );

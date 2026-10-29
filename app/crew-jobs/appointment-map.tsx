@@ -5,7 +5,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {BrandTheme} from '@/components/astryx/BrandTheme';
 import {hasMapLocation,type WaypointMapAppointment} from '@/lib/waypoint-map';
 import styles from './route.module.css';
-const Map=dynamic(()=>import('./route-map'),{ssr:false,loading:()=> <div className={styles.mapEmpty} role="status">Loading appointment map…</div>});
+const Map=dynamic(()=>import('./route-map-provider'),{ssr:false,loading:()=> <div className={styles.mapEmpty} role="status">Loading appointment map…</div>});
 
 export default function AppointmentMap({appointments,onSelect,disabled=false}:{appointments:WaypointMapAppointment[];onSelect:(id:string)=>void;disabled?:boolean}) {
  const [expanded,setExpanded]=useState(false);

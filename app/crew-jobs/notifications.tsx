@@ -60,10 +60,10 @@ export default function WaypointNotifications({view='all',onConnectionChange,onV
   localStorage.setItem('waypoint-push-device',body.deviceId);setEnabled(true);setStatus('Notifications enabled.');
  }catch(e){setError(e instanceof Error?e.message:'Notification setup failed.');}finally{working.current=false;setBusy(false);setChecked(true);}}
  return <section id="waypoint-office-messages" className={`${styles.card} ${layout.panel}`}>
- <h1>{view==='messages'?'Office messages':view==='notifications'?'Notifications':'Notifications & office messages'}</h1>
+ <h1>{view==='messages'?'Office Messages':view==='notifications'?'Notifications':'Notifications & office messages'}</h1>
  <div className={layout.body}>
-  {view!=='messages' && <section className={layout.messages} aria-label="Recent truck updates">
-   <h2>Recent truck updates</h2>
+  {view!=='messages' && <section className={layout.messages} aria-label="Recent Truck Updates">
+   <h2>Recent Truck Updates</h2>
    <p className={styles.muted}>Changes for this company phone’s selected truck. Routine refreshes and completed jobs do not send alerts.</p>
    {selectedUpdate && checked && !updates.some(update=>update.id===selectedUpdate) && <p role="status">That notification is no longer available for today’s connected phone and truck. Check the current route or office messages below.</p>}
    {updates.length?updates.map(update=><article id={`truck-update-${update.id}`} className={`${layout.message} ${update.id===selectedUpdate?layout.selected:''}`} key={update.id}>
@@ -82,15 +82,15 @@ export default function WaypointNotifications({view='all',onConnectionChange,onV
    <p className={styles.muted}>New or removed jobs, time and route changes, and office messages for your current truck.</p>
    {!standalone && <p className={styles.muted}>On iPhone: Share → Add to Home Screen, then open Waypoint from that icon.</p>}
    {!supported && <p className={styles.muted}>Push notifications require a supported iPhone with Waypoint on the Home Screen.</p>}
-   {!available && <p className={styles.muted}>Notification service is currently unavailable. Office messages can still be refreshed here.</p>}
+   {!available && <p className={styles.muted}>Notification service is currently unavailable. office messages can still be refreshed here.</p>}
    {!enabled && <><p className={styles.muted}>Enable once. Notifications stay on after daily setup.</p>
     <button className={`${styles.secondary} ${layout.action}`} disabled={busy || !supported || !standalone || !available} onClick={()=>void enable()}>Enable notifications</button></>}
    {status && <p role="status" className={styles.muted}>{status}</p>}
 
   </section>
-  <section hidden={view==='notifications'} className={view==='all'?layout.inbox:layout.messages} aria-label="Office messages">
-   <div className={layout.inboxHeader}>{view==='all' && <h2>Office messages</h2>}
-    <button className={`${styles.secondary} ${layout.action}`} aria-label="Refresh messages" disabled={busy} onClick={()=>void load().catch(()=>setError('Messages could not be refreshed.'))}>Refresh</button>
+  <section hidden={view==='notifications'} className={view==='all'?layout.inbox:layout.messages} aria-label="Office Messages">
+   <div className={layout.inboxHeader}>{view==='all' && <h2>Office Messages</h2>}
+    <button className={`${styles.secondary} ${layout.action}`} aria-label="Refresh Messages" disabled={busy} onClick={()=>void load().catch(()=>setError('Messages could not be refreshed.'))}>Refresh</button>
    </div>
    {messages.length?<div className={layout.messages}>{messages.map(message=><article key={message.id} className={layout.message}>
     <p style={{whiteSpace:'pre-wrap'}}>{message.body}</p><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time>

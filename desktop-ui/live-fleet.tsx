@@ -11,7 +11,7 @@ import { LiveAnalytics } from './deferred-live-analytics';
 import {TruckAgents} from './deferred-secondary-workspaces';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';
-import { convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
+import { fleetPagePurpose, convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
@@ -66,13 +66,14 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
   const activeChecklist=active?.truck.checklists[(draft.cadence||'daily') as 'daily'|'weekly'|'monthly'];
   const field=(key:string,label:string,type='text')=><label key={key}><span>{label}</span><Input type={type} value={draft[key]||''} onChange={event=>setDraft({...draft,[key]:event.target.value})}/></label>;
   return <section className={`fleet-workspace live-fleet convoy-workspace fleet-view-${view}`}>
+    <p className="convoy-page-purpose">{fleetPagePurpose[view]}</p>
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}
     {lastRequest&&<Button variant="outline" size="sm" disabled={pending} onClick={()=>void checkSavedResult()}>Check Saved Result</Button>}
     {!snapshot.sourceAvailable&&view!=='service'&&view!=='overview'&&<p className="convoy-source-alert">GPS unavailable for this day.</p>}
     {snapshot.warnings.filter(warning=>warning.startsWith('Repair source')).map(warning=><p className="convoy-source-alert" key={warning}>{warning}</p>)}
 
     {!['overview','reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
-    <div className="convoy-top-actions"><span>{serviceTruck?truckDisplayText(serviceTruck):'All trucks'}{view==='reports'?' · All dates':''}</span><div className="convoy-actions"><Button variant="outline" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'issue',truck});}}>Report a problem</Button><Button className="convoy-primary" disabled={pending||!snapshot.canWrite||!trucks.length} onClick={()=>{const truck=trucks.find(t=>t.id===serviceTruck)||trucks[0];if(truck)open({kind:'maintenance',truck,initialStatus:'completed'});}}>Record service</Button></div></div>
+    {!serviceTruck&&<p className="convoy-muted">Select a truck to report a problem or record service.</p>}
     <ConvoyViews now={freshness.now} onView={onViewChange} snapshot={snapshot} trucks={trucks} view={view} truckId={serviceTruck} onTruck={setServiceTruck} open={open}/>
     {['overview','reports','maintenance','service'].includes(view)&&<ConvoyGuide view={view} date={selectedDate} onView={onViewChange}/>}
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.mileageRetrievedAt||snapshot.sourceUpdatedAt} sourceLabel={snapshot.mileageRetrievedAt?'Tracking feed retrieved':'GPS observed'} budgetMinutes={snapshot.mileageRetrievedAt?1440:3}/>
@@ -88,8 +89,8 @@ export default function LiveFleet({date,view,report,onBusyChange,onViewChange}:D
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'load'})}>Record current load</Button>
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'checklist'})}>View checklist</Button>
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'maintenance',initialStatus:'scheduled'})}>Schedule service</Button>
-          <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'maintenance',initialStatus:'completed'})}>Record completed service</Button>
-          <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'issue'})}>Add repair</Button>
+          <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'maintenance',initialStatus:'completed'})}>Record Service</Button>
+          <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'issue'})}>Report a Problem</Button>
         </div>
         <section className="convoy-drawer-load"><h3>Load · {truckDisplayText(truckLoadLabel(active.truck))}</h3><details><summary>Load evidence</summary><p>{truckDisplayText(active.truck.loadNote)}</p></details></section>
         <ConvoyHistory snapshot={snapshot} truck={active.truck} open={open}/>

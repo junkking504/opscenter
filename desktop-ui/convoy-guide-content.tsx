@@ -1,15 +1,17 @@
 import { ArrowRight } from 'lucide-react';
 import type { FleetView } from './lib/people-fleet-contract';
 const steps: Array<{view:FleetView;title:string;description:string}> = [
-  {view:'overview',title:'1. Check the fleet',description:'Start with out-of-service trucks and items needing attention. Open a truck for its details.'},
-  {view:'maintenance',title:'2. Handle problems',description:'Review today’s inspections. Report a problem, update repair progress, then record the resolution.'},
-  {view:'service',title:'3. Plan maintenance',description:'Check what is due, set recurring intervals, and schedule a shop visit. Record service only when work is done.'},
-  {view:'reports',title:'4. Find past work',description:'Search all repairs, service records, and invoices. Open a record to see the work and original photos.'},
-  {view:'scores',title:'5. Review driving',description:'Choose a truck to see the selected day’s score and the events behind it.'},
+  {view:'overview',title:'1. Overview',description:'Start with out-of-service trucks and items needing attention. Open a truck for its details.'},
+  {view:'inspections',title:'2. Inspections',description:'Review Five Point Inspections for the selected day and open past reports.'},
+  {view:'maintenance',title:'3. Repairs',description:'Select a truck to report a problem and follow repairs through resolution.'},
+  {view:'service',title:'4. Maintenance',description:'Check what is due, set recurring intervals, and schedule a shop visit. Record service only when work is done.'},
+  {view:'reports',title:'5. Records',description:'Search all repairs, service records, and invoices. Open a record to see the work and original photos.'},
+  {view:'scores',title:'6. Driving',description:'Choose a truck to see the selected day’s score and the events behind it.'},
 ];
 const guidance: Record<FleetView,string> = {
   overview:'Start here each day: check truck availability, open repairs, and maintenance priorities.',
-  maintenance:'Review inspections for the viewing day and manage repairs until they are resolved.',
+  inspections:'Review inspections for the viewing day and expand Past Inspection Reports for the archive.',
+  maintenance:'Manage repairs across all dates until they are resolved.',
   service:'Plan upcoming work. A scheduled visit stays pending until its completion is recorded.',
   reports:'Find work already recorded. The list starts with all dates, regardless of the viewing day above.',
   scores:'Review driving for the viewing day. Open a truck to see its score, events, and available coverage.',

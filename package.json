@@ -234,7 +234,7 @@
     "verify:search-destinations:browser": "node --import tsx scripts/test-search-destinations-browser.ts",
     "verify:appointment-signatures": "node --import tsx scripts/test-appointment-signatures.ts",
     "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs",
-    "verify:apple-maps": "node --import tsx scripts/test-apple-maps-config.ts && node --import tsx scripts/test-apple-maps-failures.ts && node --import tsx scripts/test-apple-maps-csp.ts && node --import tsx scripts/test-schedule-map-layout.ts"
+    "verify:apple-maps": "node --import tsx scripts/test-apple-maps-config.ts && node --import tsx scripts/test-apple-maps-failures.ts && node --import tsx scripts/test-apple-maps-gestures.ts && node --import tsx scripts/test-apple-maps-csp.ts && node --import tsx scripts/test-schedule-map-layout.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.4",

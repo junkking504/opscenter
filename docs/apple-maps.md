@@ -78,3 +78,6 @@ manual pan/zoom, theme, attribution and fallback before reporting activation.
 Sources: [Token setup](https://developer.apple.com/documentation/mapkitjs/creating-a-maps-token),
 [MapKit JS loading](https://developer.apple.com/documentation/mapkitjs/loading-the-latest-version-of-mapkit-js),
 [Included allowance](https://developer.apple.com/maps/web/).
+## Map navigation
+
+Vertical two-finger scrolling and mouse-wheel input zoom the embedded map around the pointer, including the control-wheel events browsers use for trackpad pinch. Native touch pinch and dragging remain enabled. Manual gestures pause truck following. The adapter removes its wheel listener when the map is destroyed.

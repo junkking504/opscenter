@@ -79,6 +79,7 @@ without mixing live runtime data or secrets into Git.
 - [Operational readiness](operational-readiness.md)
 - [PostgreSQL and session log operations](log-hygiene.md)
 - [Background maintenance pilot](background-maintenance.md)
+- [Embedded Apple Maps](apple-maps.md)
 - [Geocodio free address fallback](geocodio-free-fallback.md)
 - [Server continuity recovery](server-continuity.md)
 - [Zero-downtime release slots](zero-downtime-deploys.md)

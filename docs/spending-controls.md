@@ -336,3 +336,16 @@ to the approved theme-switch inventory. The checker, hosts, other dependencies,
 protected-file hashes, private approvals, quotas and budgets remain unchanged.
 Preserve the current installed pair, apply only the reviewed additions, record
 SHA256 checksums and retain read-only permissions.
+
+## Apple Maps display preparation — October 29, 2026
+
+The owner requested the embedded Apple Maps integration after Developer Program
+activation. The prepared display adapter loads only MapKit JS 6 `full-map` from
+`cdn.apple-mapkit.com` and uses the membership's included map-view allowance.
+No new paid capacity, subscription, geocoding, search, directions, or traffic
+service is enabled. Browser token configuration and the activation flag are
+required; otherwise the current OpenStreetMap renderer remains active.
+See [Apple Maps](apple-maps.md). The repository inventory addition is proposed
+for independent review; it does not update the installed policy. Keep all
+existing endpoint entries, dependencies, protected hashes and checker unchanged
+when installing an approved inventory delta.

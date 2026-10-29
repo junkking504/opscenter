@@ -1,0 +1,7 @@
+.apple-map-canvas { position: absolute; inset: 0; }
+.live-schedule-map[data-map-provider="apple"] { overflow: hidden; isolation: isolate; }
+.live-schedule-map[data-map-provider="apple"] .truck-map-view-controls { z-index: 10; }
+.apple-map-tooltip { position: absolute; transform: translate(-50%, -100%); z-index: 20; pointer-events: none; padding: 6px 8px; background: var(--oc-surface, white); color: var(--oc-text, #172033); border: 1px solid var(--oc-border, #d7dde5); border-radius: 5px; box-shadow: 0 2px 6px #0002; font: inherit; font-size: 11px; }
+.apple-map-tooltip[hidden] { display: none; }
+.apple-map-tooltip strong, .apple-map-tooltip small { display: block; }
+.map-provider-status { position: absolute; left: 8px; bottom: 26px; z-index: 10; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--oc-surface, white); color: var(--oc-text, #172033); pointer-events: none; }

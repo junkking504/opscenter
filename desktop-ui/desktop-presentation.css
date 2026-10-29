@@ -355,3 +355,23 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .workspace-rail-link,.workspace-group-toggle,.workspace-page-link { min-height:44px; }
   .workspace-group-toggle { flex-basis:44px; }
 }
+
+/* Neutral, readable secondary ink for navigation and absent observations. */
+.ops-app { --oc-safe-secondary-ink: #595959; }
+html[data-ops-theme="dark"] .ops-app { --oc-safe-secondary-ink: #b8b8b8; }
+html[data-ops-theme] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link:not(.active),.workspace-rail-link:not(.active) span,.workspace-page-link:not([aria-current="page"]),.workspace-group-toggle,.page-rail-group h2,.health-pulse,.health-pulse small) {
+  color: var(--oc-safe-secondary-ink);
+  opacity: 1;
+}
+.ops-app.ops-live .workspace .missing-value,
+.ops-app .command-revenue-hero .missing-value {
+  color: var(--oc-safe-secondary-ink) !important;
+  opacity: 1;
+}
+.ops-app .missing-value-label {
+  margin-left: .35em;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+}

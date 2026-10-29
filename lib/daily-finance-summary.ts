@@ -1,3 +1,4 @@
+import type { OperatingFuel } from '../desktop-ui/lib/wex-alert-expenses-contract';
 import type { AnyRecord } from '@/lib/opsData';
 import type { WexFuelFinanceData } from '@/lib/wex-fuel';
 
@@ -8,7 +9,8 @@ export type DailyFinanceSummary = {
   fuel: number | null;
   totalCosts: number | null;
   net: number | null;
-  fuelSource: 'published' | 'wex' | 'unavailable';
+  fuelSource: 'published' | 'wex' | 'wex-email' | 'unavailable';
+  operatingFuel?: OperatingFuel;
   wexIncludedSeparately: boolean;
 };
 
@@ -23,7 +25,7 @@ const record = (value: unknown): AnyRecord => value && typeof value === 'object'
  * Assumed dump costs are included until a matching manual expense replaces
  * them; callers pass only the still-assumed total, so actuals never stack.
  */
-export function buildDailyFinanceSummary(metrics: AnyRecord | null, wex?: WexFuelFinanceData, assumedDumpExpense = 0): DailyFinanceSummary {
+export function buildDailyFinanceSummary(metrics: AnyRecord | null, wex?: WexFuelFinanceData, assumedDumpExpense = 0, operatingFuel?: OperatingFuel): DailyFinanceSummary {
   const published = record(metrics?.truck_record_financial_summary);
   const publishedFuel = finite(metrics?.fuel_expense ?? published.fuel_expense);
   const publishedDumps = finite(metrics?.dump_expense ?? published.dump_expense);
@@ -32,7 +34,7 @@ export function buildDailyFinanceSummary(metrics: AnyRecord | null, wex?: WexFue
   const hasWexFuel = Boolean(wex?.available && wex.selectedDate.count > 0);
   const wexIncludedSeparately = hasWexFuel && (publishedFuel == null || Math.abs(publishedFuel) < 0.005);
   const wexCost = wexIncludedSeparately ? wex!.selectedDate.netCost : 0;
-  const supplementalCosts = wexCost + includedAssumedDumps;
+  const supplementalCosts = (operatingFuel ? operatingFuel.adjustment : wexCost) + includedAssumedDumps;
   const totalCosts = finite(metrics?.total_expenses ?? published.total_expenses);
   const net = finite(metrics?.net_profit ?? published.net_profit);
 
@@ -40,10 +42,11 @@ export function buildDailyFinanceSummary(metrics: AnyRecord | null, wex?: WexFue
     revenue: finite(metrics?.sales ?? published.sales ?? metrics?.total_revenue ?? metrics?.gross_revenue),
     labor: finite(metrics?.total_payroll ?? metrics?.payroll ?? published.payroll),
     dumps: publishedDumps == null && includedAssumedDumps === 0 ? null : round((publishedDumps ?? 0) + includedAssumedDumps),
-    fuel: wexIncludedSeparately ? wex!.selectedDate.netCost : publishedFuel,
+    fuel: operatingFuel ? operatingFuel.amount : wexIncludedSeparately ? wex!.selectedDate.netCost : publishedFuel,
     totalCosts: totalCosts == null ? null : round(totalCosts + supplementalCosts),
     net: net == null ? null : round(net - supplementalCosts),
-    fuelSource: wexIncludedSeparately ? 'wex' : publishedFuel == null ? 'unavailable' : 'published',
-    wexIncludedSeparately,
+    fuelSource: operatingFuel?.purchases ? 'wex-email' : wexIncludedSeparately ? 'wex' : publishedFuel == null ? 'unavailable' : 'published',
+    wexIncludedSeparately: operatingFuel ? operatingFuel.adjustment !== 0 : wexIncludedSeparately,
+    ...(operatingFuel ? {operatingFuel} : {}),
   };
 }

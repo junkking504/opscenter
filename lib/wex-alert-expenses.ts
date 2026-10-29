@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {attributeWexAlert} from './wex-alert-attribution';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {wexFuelDirectory,type WexFuelTransaction} from './wex-fuel';
@@ -52,12 +53,12 @@ export function importWexAlertExpenses(messages:WexPriceMessage[],expectedHash:s
 }
 const clockSeconds=(s:string)=>s.split(':').reduce((sum,n)=>sum*60+Number(n),0);
 const possibleRepeat=(a:WexExpenseAlert,b:WexExpenseAlert)=>a.date===b.date&&a.address.length>3&&a.driver.length>2&&normalized(a.address)===normalized(b.address)&&normalized(a.driver)===normalized(b.driver)&&Math.abs(clockSeconds(a.time)-clockSeconds(b.time))<=1800;
-function matches(a:WexExpenseAlert,p:WexFuelTransaction){
+function matches(a:WexExpenseAlert,p:WexFuelTransaction,allowUnknownGallons=false){
  // Tracking Number is not assumed to be a posted Trans ID or receipt number.
  const time=p.transactionTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);if(!time)return false;
  const hour=time[4]?Number(time[1])%12+(time[4].toUpperCase()==='PM'?12:0):Number(time[1]);
  const clock=`${String(hour).padStart(2,'0')}:${time[2]}:${time[3]||'00'}`;
- return p.status==='posted'&&p.transactionDate===a.date&&clock===a.time&&a.address.length>3&&normalized(p.merchantAddress)===normalized(a.address)&&!!a.city&&normalized(p.city)===normalized(a.city)&&!!a.stateCode&&normalized(p.state)===normalized(a.stateCode)&&a.driver.length>2&&normalized(p.driver)===normalized(a.driver)&&a.gallons!==null&&p.gallons===a.gallons;
+ return p.status==='posted'&&p.transactionDate===a.date&&clock===a.time&&a.address.length>3&&normalized(p.merchantAddress)===normalized(a.address)&&!!a.city&&normalized(p.city)===normalized(a.city)&&!!a.stateCode&&normalized(p.state)===normalized(a.stateCode)&&a.driver.length>2&&normalized(p.driver)===normalized(a.driver)&&(allowUnknownGallons||a.gallons!==null&&p.gallons===a.gallons);
 }
 export function reconcileWexAlertExpenses(date:string,alerts:WexExpenseAlert[],posted:WexFuelTransaction[],importedAt:string|null=null):WexAlertDailyExpenses{
  const groups=new Map<string,WexExpenseAlert[]>();for(const a of alerts)groups.set(a.trackingNumber,[...(groups.get(a.trackingNumber)||[]),a]);
@@ -69,12 +70,13 @@ export function reconcileWexAlertExpenses(date:string,alerts:WexExpenseAlert[],p
   const simultaneous=versions.some(v=>v!==a&&Date.parse(v.receivedAt)===Date.parse(a.receivedAt)&&(v.amount!==a.amount||v.state!==a.state));
   const repeatedIdentity=all.some(g=>g.latest.trackingNumber!==a.trackingNumber&&possibleRepeat(g.latest,a));
   const unique=options.length===1&&candidates.filter(c=>c.some(p=>p.transactionId===options[0].transactionId)).length===1;
-  const conflict=changedIdentity||simultaneous||repeatedIdentity||options.length>0&&(!unique||a.state!=='authorized')||a.state==='unknown'||a.state==='authorized'&&versions.some(v=>v.state==='reversed');
+  const possibleSettlement=options.length===0&&posted.some(p=>matches(a,p,true));
+  const conflict=possibleSettlement||changedIdentity||simultaneous||repeatedIdentity||options.length>0&&(!unique||a.state!=='authorized')||a.state==='unknown'||a.state==='authorized'&&versions.some(v=>v.state==='reversed');
   const p=!conflict&&unique?options[0]:null;
   const postedAmount=p?(p.totalFuelCost??(p.totalNonFuelCost===0?p.netCost:null)):null;
   const status:WexAlertExpenseRow['status']=conflict||p&&postedAmount===null?'review':p?'posted':a.state==='reversed'?'reversed':a.state==='declined'?'declined':a.amount===null?'review':'provisional';
-  return {id:`wex-alert:${a.trackingNumber}`,trackingNumber:a.trackingNumber,date:a.date,truck:null,merchant:a.merchant,authorizationLocal:a.authorizationLocal,timeZone:null,receivedAt:a.receivedAt,sourceUrl:a.sourceUrl,sourceIds:versions.map(v=>v.messageId),revisionCount:versions.length,status,authorizedAmount:a.amount,postedAmount,postedId:p?.transactionId||null,difference:p&&postedAmount!==null&&a.amount!==null?(cents(postedAmount)-cents(a.amount))/100:null,
-   reason:conflict?'Conflicting identity, sequence or multiple matching purchases; review required.':p&&postedAmount===null?'Posted purchase matched, but its fuel amount is unknown; review required.':p?'One posted purchase matches local date/time, merchant address, driver and gallons; posted amount replaces the authorization.':status==='reversed'?'Authorization reversed; excluded from pending amount.':status==='declined'?'Authorization declined; excluded from pending amount.':'Authorization only; settlement and inclusion in published expenses are unverified.'};
+  return {id:`wex-alert:${a.trackingNumber}`,trackingNumber:a.trackingNumber,date:a.date,truck:null,merchant:a.merchant,address:a.address,gallons:a.gallons,authorizationLocal:a.authorizationLocal,timeZone:null,receivedAt:a.receivedAt,sourceUrl:a.sourceUrl,sourceIds:versions.map(v=>v.messageId),revisionCount:versions.length,status,authorizedAmount:a.amount,postedAmount,postedId:p?.transactionId||null,difference:p&&postedAmount!==null&&a.amount!==null?(cents(postedAmount)-cents(a.amount))/100:null,
+   reason:possibleSettlement?'Possible posted purchase with incomplete or changed quantities; email excluded to prevent a duplicate expense.':conflict?'Conflicting identity, sequence or multiple matching purchases; review required.':p&&postedAmount===null?'Posted purchase matched, but its fuel amount is unknown; review required.':p?'One posted purchase matches local date/time, merchant address, driver and gallons; posted amount replaces the authorization.':status==='reversed'?'Authorization reversed; excluded from pending amount.':status==='declined'?'Authorization declined; excluded from pending amount.':'Purchase alert counted on this day; settlement is pending.'};
  });
  const pending=rows.filter(r=>r.status==='provisional');
  return {date,status:'available',importedAt,rows,provisionalTotal:rows.some(r=>r.status==='review')||!pending.length?null:pending.reduce((sum,r)=>sum+cents(r.authorizedAmount!),0)/100,reviewCount:rows.filter(r=>r.status==='review').length,postedCount:rows.filter(r=>r.status==='posted').length};
@@ -82,11 +84,18 @@ export function reconcileWexAlertExpenses(date:string,alerts:WexExpenseAlert[],p
 export function readWexAlertExpenses(date:string,posted:WexFuelTransaction[]):WexAlertDailyExpenses{
  try{const {store,hash}=readStore();if(hash==='missing')return {date,status:'missing',importedAt:null,rows:[],provisionalTotal:null,reviewCount:0,postedCount:0};
   const result=reconcileWexAlertExpenses(date,store.alerts,posted,store.importedAt);
-  // Reuse the existing dated crew/GPS attribution only for the exact price evidence.
-  // Card numbers and posted asset labels never establish truck identity.
-  try{const prices=JSON.parse(fs.readFileSync(path.join(wexFuelDirectory(),'realtime-prices.json'),'utf8')).rows as Array<{trackingNumber:string;sourceUrl:string;amount:number;truck:string|null}>;
-   for(const row of result.rows){const matches=prices.filter(p=>p.trackingNumber===row.trackingNumber&&p.sourceUrl===row.sourceUrl&&p.amount===row.authorizedAmount);if(matches.length===1)row.truck=matches[0].truck;}
-  }catch{/* Missing attribution remains unknown; the expense evidence is still visible. */}
+  for(const row of result.rows){
+   if(!['provisional','posted'].includes(row.status))continue;
+   const original=store.alerts.filter(a=>row.sourceIds.includes(a.messageId)&&a.state==='authorized').sort((a,b)=>Date.parse(a.receivedAt)-Date.parse(b.receivedAt))[0];
+   if(original){row.attribution=attributeWexAlert(original);row.truck=row.attribution.truck;}
+  }
+  const purchases=result.rows.filter(row=>['provisional','posted'].includes(row.status));
+  result.operatingTotal=purchases.length?purchases.reduce((sum,row)=>sum+cents(row.postedAmount??row.authorizedAmount??0),0)/100:null;
+  result.unassignedTotal=purchases.filter(row=>!row.truck).reduce((sum,row)=>sum+cents(row.postedAmount??row.authorizedAmount??0),0)/100;
   return result;
  }catch{return {date,status:'invalid',importedAt:null,rows:[],provisionalTotal:null,reviewCount:0,postedCount:0};}
+}
+
+export function readWexAlertDates():string[]{
+ try{return [...new Set(readStore().store.alerts.map(row=>row.date))].sort();}catch{return [];}
 }

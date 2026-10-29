@@ -1,3 +1,4 @@
+import {readWexAlertExpenses} from './wex-alert-expenses';
 import type { TruckInspectionReport } from './truck-inspection';
 import { normalizeTruckLoadLabel } from './truck-load-status';
 import { chicagoDateKey } from './chicago-date';
@@ -32,6 +33,11 @@ export function readFleetFuelPurchases(date: string): FuelEvent[] {
     const saved = readWexExpenseAutomation(purchase.transactionId);
     if (saved?.attribution.status !== 'attributed' || !saved.attribution.truck) continue;
     events.push({ truck: saved.attribution.truck, at: saved.attribution.transactionAt, percent: 100, source: 'purchase', detail: `Assumed full after fuel purchase · ${purchase.merchant || 'WEX'}` });
+  }
+  const alerts=readWexAlertExpenses(date,readWexFuelFinance(date).transactions);
+  for(const row of alerts.rows){
+    if(!['provisional','posted'].includes(row.status)||!row.truck||!row.attribution?.at)continue;
+    events.push({truck:row.truck,at:row.attribution.at,percent:100,source:'purchase',detail:`Assumed full after WEX purchase · ${row.merchant}`});
   }
   return events;
 }

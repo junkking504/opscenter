@@ -4,23 +4,54 @@ OpsCenter reads posted WEX fuel-card transactions from the CSV export in the
 authenticated WEXOnline portal. The portal feed is an interim source while WEX
 reviews the request for Fleet Management API credentials.
 
-## Source boundary
+## Purchase-day operating expenses
 
-- Only the **POSTED** transaction export is imported. Pending and declined
-  authorizations are excluded because a single purchase can have more than one
-  authorization stage.
-- WEX `Trans ID` is the stable identity. Reimporting the same export is
-  idempotent, and conflicting rows with the same ID fail closed.
-- Published daily fuel expense remains authoritative when present. The selected
-  day's posted WEX net cost fills a missing or zero published fuel field once;
-  it is not added again when published expenses already contain fuel.
-- Capital and Command show the same selected-day Revenue, Labor, combined Dump
-  + Fuel card with individual dump and fuel totals, and Net. WEX transaction
-  detail remains visible in Capital so the fuel total is auditable.
-- Month-to-date published costs retain their existing source boundary until the
-  daily WEX coverage is complete for that reporting period.
-- The UI shows the import time and the latest transaction date covered by the
-  export. A saved snapshot is not represented as a fresh portal read.
+WEX email **Fuel purchase** alerts are operating fuel expenses on their stated
+purchase day. They do not wait for the posted CSV. The original email time,
+received time, authorization state and source IDs remain intact; an email
+purchase is not presented as settled bank evidence. Revisions update the same
+purchase, reversals/declines are excluded, and conflicting identities stay for
+review. Valid unrelated purchases remain counted when another row needs review.
+
+Command and Finance use the same daily reconciliation for fuel, total costs and
+net. A unique manual fuel record with the same truck, station and time is replaced
+by the WEX amount, rather than added again. When complete verified detail explains
+the published aggregate, unrelated purchases are added. Incomplete aggregate
+coverage uses the larger supported amount and explicitly reports unresolved
+overlap; it never assumes that equal totals identify a purchase. This may leave
+an incomplete total until detail is available. Matching posted purchases replace
+email amounts; possible settlements with missing quantities hold the email row
+for review rather than double counting it. No external accounting write occurs.
+
+Email purchase attribution reads dated LinxUp stops on every projection so a
+later GPS backfill can resolve a previously unassigned purchase. A unique
+stationary stop of at least one minute must overlap the inferred purchase instant.
+The same street/city/state/postal code is required; an immediately adjoining
+same-side street number (difference at most two) is allowed and explicitly labeled
+as station-vicinity evidence. Crew assignments and card labels are not truck
+identity. Multiple trucks or unavailable evidence remain unassigned, while the
+purchase remains an expense.
+
+WEX email clocks have no explicit timezone. A candidate UTC instant is inferred
+only when a North American whole-hour offset gives delivery within fifteen
+minutes after the stated purchase, and the GPS stop corroborates it. This is an
+operational inference, not verified timezone evidence; delayed mail and ambiguous
+matches need review. Preserve the original stated purchase date and time.
+
+The internal OpsCenter timeline shows **Truck# X just refueled**, amount, station,
+and time/evidence. Its stable tracking-based ID survives replay, amount revision,
+and settlement, preserving acknowledgement state. A unique matched JunkWare
+expense is merged into the same timeline item. Unassigned purchases show an
+assignment-needed alert. There are no Slack, email, push or crew messages from
+this projection. Fleet fuel-level display follows the existing assumed-full
+after purchase policy. Completed-day Finance/analytics charts include retained
+email expense evidence; export gallons and prices remain separately sourced.
+
+Posted CSV imports retain their stable transaction IDs and idempotent merging.
+The portal export time and coverage are never represented as a fresh read.
+Monthly source-authority statements and forecasting datasets keep their existing
+published/source boundaries; this change affects operating daily totals and
+completed-day expense charts, not external financial statements.
 
 ## Import
 
@@ -105,7 +136,7 @@ the provider, purpose, request cap, and maximum spend under
 [spending controls](spending-controls.md). The API collector should write the
 same snapshot schema so Finance does not need a second source model.
 
-## Provisional daily records from email alerts
+## Email purchase journal
 
 The internal `integrations/wex-fuel/alert-expenses.json` journal accepts the same
 minimized Outlook message batch as price ingestion. It retains exact message IDs,
@@ -124,12 +155,10 @@ metadata. Changed amounts under one tracking number remain revisions of one
 record. Reversals/declines do not contribute a provisional amount. Conflicting
 identity/timing or a new authorization following reversal stays for review.
 
-Capital's daily expense view reads these records through the existing Finance
-read endpoint. Provisional authorizations are explicit separate amounts, never
-added to `DailyFinanceSummary.fuel`, published total costs/net or posted WEX
-amounts. Published aggregate fuel cannot prove whether an individual alert is
-already included. No automatic JunkWare, QBO, payment or notification write is
-part of this importer. Existing posted-CSV expense automation is unchanged.
+Finance reads this journal through the existing read endpoint and applies the
+purchase-day operating reconciliation above. Published source files remain
+unchanged. The native importer adds no external accounting or notification write;
+existing posted-CSV expense automation remains separate.
 
 A unique one-to-one posted purchase with exactly corroborating local date/time,
 merchant street/city/state, driver and gallons links to the same alert record.
@@ -138,7 +167,7 @@ Posted fuel amount replaces the provisional amount and the difference remains
 visible, even when settlement changes the amount. Multiple matches, reversals
 versus settlement and distinct tracking numbers at the same driver/station within
 30 minutes require review; a repeated alert does not prove another expense.
-Incomplete match evidence stays provisional and separate from settled totals.
+Incomplete match evidence remains explicitly unsettled; possible duplicates require review.
 Existing dated crew/GPS truck attribution is reused only for the exact linked
 price evidence; otherwise truck remains unconfirmed. Asset/card labels are not
 truck identity. A later source message does not inherit attribution from another
@@ -149,13 +178,10 @@ Tracking number is a grouping hint, not proof of global uniqueness: changed
 identity across dates or purchases requires review. Nearby declines/reversals
 also trigger conservative review rather than assuming a retry is independent.
 
-This is a prepared local ingestion/read model, not a deployed collector. No
-recurring agent job is installed. The owner excludes extra Codex/compute jobs,
-new charges and new access; the earlier hourly Codex proposal was withdrawn.
-An authorized mailbox-to-runtime bridge and release approval remain prerequisites
-for ongoing daily ingestion. Synthetic importer and reconciliation tests run in
-`npm run verify:wex-fuel` (also in CI); the synthetic browser check is
-`node scripts/test-wex-alert-expenses-browser.mjs`.
+The existing native mail watcher supplies daily ingestion without a new recurring
+agent job. A fresh scan is not proof of Exchange synchronization. Synthetic
+importer and reconciliation checks run in `npm run verify:wex-fuel`; the browser
+check is `node scripts/test-wex-alert-expenses-browser.mjs`.
 
 ## Native mail collection adapter
 

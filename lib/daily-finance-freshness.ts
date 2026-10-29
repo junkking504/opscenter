@@ -1,9 +1,10 @@
+import type { OperatingFuel } from '../desktop-ui/lib/wex-alert-expenses-contract';
 import { chicagoDateKey } from './chicago-date';
 import { money } from './money';
 
-export type FinanceEvidence = { status: 'current' | 'stale' | 'missing'; asOf: string | null; reason?: string };
+export type FinanceEvidence = { status: 'current' | 'stale' | 'missing'; asOf: string | null; reason?: string; recordedEvent?: boolean };
 export type FinanceField = 'revenue' | 'labor' | 'dumps' | 'fuel' | 'totalCosts' | 'net';
-type FinanceAmounts = Record<FinanceField, number | null> & { wexIncludedSeparately: boolean };
+type FinanceAmounts = Record<FinanceField, number | null> & { wexIncludedSeparately: boolean; operatingFuel?: OperatingFuel };
 type WexEvidence = { coverageThrough: string | null; sourceFileModifiedAt: string | null; importedAt: string | null };
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 export type DailyFinanceEvidence = Record<FinanceField, FinanceEvidence>;
@@ -15,7 +16,7 @@ export function combineFinanceEvidence(...inputs: FinanceEvidence[]): FinanceEvi
   const unavailable = inputs.find(input => input.status === 'missing' || !validTime(input.asOf));
   const stale = inputs.find(input => input.status === 'stale');
   return { status: unavailable ? 'missing' : stale ? 'stale' : 'current',
-    asOf: inputs.every(input => validTime(input.asOf)) ? inputs.map(input => input.asOf!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] : null,
+    asOf: inputs.every(input => validTime(input.asOf)) ? (inputs.some(input=>!input.recordedEvent)?inputs.filter(input=>!input.recordedEvent):inputs).map(input => input.asOf!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] : null,
     reason: unavailable?.reason || stale?.reason };
 }
 
@@ -35,7 +36,10 @@ export function dailyFinanceEvidence(metrics: Record<string, unknown> | null, su
   const revenue = known(summary.revenue, read('metrics', 'revenue'));
   const labor = known(summary.labor, read('metrics', 'payroll'));
   const dumps = known(summary.dumps, read('sources', 'junkware_truck_records'));
-  const fuel = summary.wexIncludedSeparately
+  const purchaseEvidence:FinanceEvidence = {status:'current',asOf:summary.operatingFuel?.sourceAt || null,recordedEvent:true,reason:summary.operatingFuel?.overlapUnresolved?'Recorded WEX purchases; overlap with published detail needs review':'Recorded WEX purchases · settlement pending where shown'};
+  const fuel = summary.operatingFuel?.purchases && summary.operatingFuel.sourceAt
+    ? summary.operatingFuel.publishedIncluded ? combineFinanceEvidence(read('sources','junkware_truck_records'),purchaseEvidence) : purchaseEvidence
+    : summary.wexIncludedSeparately
     ? { status: wex?.coverageThrough && wex.coverageThrough >= date ? 'current' as const : 'missing' as const,
         asOf: wex?.sourceFileModifiedAt || wex?.importedAt || null, reason: 'Posted WEX coverage' }
     : known(summary.fuel, read('sources', 'junkware_truck_records'));
@@ -53,14 +57,14 @@ export function financeReading(recorded: number | null, evidence: FinanceEvidenc
   // immediately after midnight. Future timestamps do not establish freshness.
   const wrongDay = Number.isFinite(stamp) && chicagoDateKey(new Date(stamp)) < selectedDay;
   const state = recorded == null || source.status === 'missing' || !Number.isFinite(stamp) || age < -60_000 ? 'missing'
-    : source.status === 'stale' || wrongDay || (!historical && age > DAILY_FINANCE_MAX_AGE_MS) ? 'stale' : 'current';
+    : source.status === 'stale' || wrongDay || (!historical && !source.recordedEvent && age > DAILY_FINANCE_MAX_AGE_MS) ? 'stale' : 'current';
   const minutes = Math.max(0, Math.floor(age / 60_000));
   const ageLabel = minutes < 60 ? `${minutes}m old` : `${Math.floor(minutes / 60)}h ${minutes % 60}m old`;
   const time = Number.isFinite(stamp) ? new Date(stamp).toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
   const sourceLabel = time ? `${historical ? 'Snapshot' : 'Source'} ${time}${historical ? '' : ` · ${ageLabel}`}` : 'Source time unavailable';
   const last = recorded == null ? '' : ` · Last recorded ${money(recorded)}`;
   return { value: state === 'current' ? recorded : null, state,
-    detail: state === 'current' ? sourceLabel : `${state === 'stale' ? 'Stale source' : 'Input unavailable'}${last} · ${sourceLabel}` };
+    detail: state === 'current' ? source.recordedEvent ? `${source.reason} · Latest email ${time}` : sourceLabel : `${state === 'stale' ? 'Stale source' : 'Input unavailable'}${last} · ${sourceLabel}` };
 }
 
 export function presentDailyFinance(summary: FinanceAmounts, evidence: DailyFinanceEvidence | undefined, date: string, now = Date.now()) {

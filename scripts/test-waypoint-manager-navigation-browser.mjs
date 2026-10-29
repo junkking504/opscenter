@@ -94,7 +94,7 @@ try{
   await page.getByRole('textbox',{name:'Appointment note',exact:true}).fill('Keep this fictional draft');await page.getByRole('button',{name:'View 2 photos for Customer done-0',exact:true}).click();await page.getByRole('button',{name:'Close photos',exact:true}).click();await expect(page.getByRole('textbox',{name:'Appointment note',exact:true})).toHaveValue('Keep this fictional draft');
   page.once('dialog',d=>d.accept());await nav.getByRole('button').click();
   const photoControl=page.getByRole('button',{name:'View 2 photos for Customer done-0',exact:true});await photoControl.scrollIntoViewIfNeeded();const photoScroll=await page.evaluate(()=>scrollY);
-  await photoControl.click();const gallery=page.getByRole('dialog',{name:'Appointment photos'});await expect(gallery).toBeVisible();await expect(gallery.getByRole('img')).toHaveJSProperty('naturalWidth',300);
+  await photoControl.click();const gallery=page.getByRole('dialog',{name:'Appointment Photos'});await expect(gallery).toBeVisible();await expect(gallery.getByRole('img')).toHaveJSProperty('naturalWidth',300);
   await expect(gallery.getByRole('button',{name:'Close photos'})).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(gallery.getByRole('button',{name:'Next photo'})).toBeFocused();await page.keyboard.press('Tab');await expect(gallery.getByRole('button',{name:'Close photos'})).toBeFocused();await expect(gallery.getByRole('button',{name:'Previous photo'})).toBeDisabled();
   await gallery.getByRole('button',{name:'Next photo'}).click();await expect(gallery.getByText('Photo unavailable. Close photos and refresh the appointment to check again.',{exact:true})).toBeVisible();
   await expect(gallery.getByRole('button',{name:'Next photo'})).toBeDisabled();await gallery.getByRole('button',{name:'Previous photo'}).click();await expect(gallery.getByRole('img')).toHaveJSProperty('naturalWidth',300);
@@ -118,11 +118,11 @@ try{
   page.once('dialog',d=>d.dismiss());await views.getByRole('button',{name:'Crew workflow',exact:true}).click();await expect(page.getByRole('textbox',{name:'Appointment note',exact:true})).toHaveValue('Unsent synthetic note');
   page.once('dialog',d=>d.accept());await back.click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');await expect(page.getByLabel('Schedule date')).toHaveValue('2026-10-22');
   await page.waitForFunction(y=>Math.abs(scrollY-y)<2,listScroll);
-  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
   await page.getByRole('navigation',{name:'Your day'}).getByRole('button',{name:'Completed',exact:true}).click();await page.getByLabel('View truck').selectOption('Truck# 2');
   await views.getByRole('button',{name:'Manager',exact:true}).click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');await expect(page.getByLabel('Schedule date')).toHaveValue('2026-10-22');
   await page.waitForFunction(y=>Math.abs(scrollY-y)<2,listScroll);
-  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed appointments'})).toBeVisible();await expect(page.getByLabel('View truck')).toHaveValue('Truck# 2');
+  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed Appointments'})).toBeVisible();await expect(page.getByLabel('View truck')).toHaveValue('Truck# 2');
   await views.getByRole('button',{name:'Manager',exact:true}).click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');
   await page.getByRole('button',{name:'New appointment',exact:true}).click();await page.getByLabel('First name').fill('Unsaved');
   page.once('dialog',d=>d.dismiss());await nav.getByRole('button').click();await expect(page.getByLabel('First name')).toHaveValue('Unsaved');

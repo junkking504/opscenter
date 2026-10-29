@@ -49,25 +49,25 @@ async function main(){
       for(const job of expected.jobs!)await expect(page.getByText(new RegExp(job.jkNumber))).toBeVisible();
       await page.getByRole('button',{name:'View assignment',exact:true}).last().click();
       await expect(page.getByRole('heading',{name:expected.jobs!.at(-1)!.customerName,exact:true})).toBeVisible();
-      await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
+      await page.getByRole('button',{name:'All Assignments',exact:true}).click();
       for(const width of [320,390,430]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
       await page.screenshot({path:'/tmp/waypoint-truck1-live-assignments.png',fullPage:true});
       const closedIndex=payload.jobs.findIndex((job:{status:string})=>job.status==='Completed');
       if(closedIndex>=0){
         await time('Open saved closed appointment',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(closedIndex).click();await expect(page.getByText('Closed out · Confirmed in JunkWare',{exact:true})).toBeVisible();});
-        await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);
+        await expect(page.getByRole('button',{name:'START',exact:true})).toHaveCount(0);
         await page.screenshot({path:'/tmp/waypoint-live-closed-details.png',fullPage:true});
-        await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
+        await page.getByRole('button',{name:'All Assignments',exact:true}).click();
       }
-      await time('Refresh live assignments',async()=>{const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/crew-jobs/current');await page.getByRole('button',{name:'Refresh assignments',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});
+      await time('Refresh live assignments',async()=>{const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/crew-jobs/current');await page.getByRole('button',{name:'Refresh Assignments',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});
       const activeIndex=payload.jobs.findIndex((job:{assignmentId?:string;status:string})=>job.assignmentId===payload.job?.assignmentId && /^confirmed$/i.test(job.status));
       if(process.argv.includes('--closeout') && activeIndex>=0){
-        await time('Live assignment details',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(activeIndex).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+        await time('Live assignment details',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(activeIndex).click();await expect(page.getByRole('button',{name:'START',exact:true})).toBeVisible();});
         for(let i=0;i<2;i++){
-          await time(i?'Reopen saved closeout':'First closeout open (including any preparation)',async()=>{await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled({timeout:210_000});});
-          await time('Closeout to appointment',async()=>{await page.getByRole('button',{name:'Back to appointment',exact:true}).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+          await time(i?'Reopen saved closeout':'First closeout open (including any preparation)',async()=>{await page.getByRole('button',{name:'START',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled({timeout:210_000});});
+          await time('Closeout to appointment',async()=>{await page.getByRole('button',{name:'Back to appointment',exact:true}).click();await expect(page.getByRole('button',{name:'START',exact:true})).toBeVisible();});
         }
-        await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
+        await page.getByRole('button',{name:'START',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
         await time('Explicit Reload from JunkWare',async()=>{
           const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/crew-jobs/closeout' && new URL(r.url()).searchParams.get('refresh')==='1',{timeout:210_000});
           await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();

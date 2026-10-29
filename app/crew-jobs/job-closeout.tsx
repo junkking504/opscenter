@@ -157,7 +157,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   },[endpoint,key,photoKey,aliasesJson,deviceId,job.assignmentId,job.appointmentId,job.date,draftScope,onAccepted,onHandoffFailed]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.sharedAmazon?amazonAssignedTruck(job.truck) || truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>{dryRun?"Test mode · nothing will be sent.":"Keep Waypoint open until closeout is confirmed."}</p>
+    <h2>Job Closeout</h2><p>{dryRun?"Test mode · nothing will be sent.":"Keep Waypoint open until closeout is confirmed."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
     {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'Photos need attention. Continue here, then check Photos.':photos.transferring?'Photos uploading · you can continue.':'Photos received · verifying in JunkWare.'}</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}

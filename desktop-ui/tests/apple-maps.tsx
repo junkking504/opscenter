@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import ScheduleMap from '../schedule-map';
+import L from 'leaflet';
 import { appleMapEngine, type MapKit } from '../lib/apple-mapkit';
 import type { TruckGpsRoute } from '../lib/gps-route-contract';
 import type { ScheduleAppointment, ScheduleTruck } from '../lib/schedule-contract';
@@ -46,6 +47,33 @@ class FakeMap extends EventTarget {
 }
 const kit = Object.assign(new EventTarget(), { Coordinate, CoordinateSpan: Span, CoordinateRegion: Region, Map: FakeMap, Annotation, PolylineOverlay: Overlay, Style: class { constructor(public options: unknown) {} } }) as unknown as MapKit;
 const engine = appleMapEngine(kit, () => {});
+// Startup mode exercises ScheduleMap's real config/SDK path with controlled
+// delays and no external traffic. Leaflet still uses its real lifecycle/DOM.
+const startup = new URLSearchParams(location.search).has('startup');
+let configResponse: ((provider: string) => void) | undefined;
+let sdkScript: HTMLScriptElement | undefined;
+let osmTiles = 0;
+if (startup) {
+  window.fetch = async (_input, options) => new Promise<Response>((resolve, reject) => {
+    options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    configResponse = provider => provider === 'error' ? reject(new Error('fixture config failure')) : resolve(new Response(JSON.stringify({ provider, token: 'synthetic-token' })));
+  });
+  const append = document.head.append.bind(document.head);
+  document.head.append = (...nodes) => {
+    for (const node of nodes) {
+      if (node instanceof HTMLScriptElement && node.src.includes('apple-mapkit')) sdkScript = node;
+      else append(node);
+    }
+  };
+  L.TileLayer.prototype.createTile = function () {
+    osmTiles++;
+    const tile = document.createElement('div');
+    tile.textContent = 'Synthetic OpenStreetMap tile';
+    tile.style.background = '#ece5d8';
+    return tile;
+  };
+}
+
 const exact = { recordId: 'exact', jkNumber: 'JKTEST1', customerName: 'Exact Example', address: 'Synthetic address', appointmentTime: '9 AM–10 AM', status: 'Confirmed', truck: 'Truck 3', location: { latitude: 30, longitude: -90 } } as ScheduleAppointment;
 const approximate = { ...exact, recordId: 'approx', jkNumber: 'JKTEST2', customerName: 'Approximate Example', location: null, mapFallback: { location: { latitude: 30.005, longitude: -90.005 }, matchedAddress: 'Synthetic approximate pin', source: 'fixture', precision: 'approximate' } } as unknown as ScheduleAppointment;
 const truck = { truck: 'Truck 3', latitude: 30.01, longitude: -90.01, lastGpsUpdate: new Date().toISOString(), ignition: 'ON', speedMph: 20, operationalStatus: 'Driving' } as ScheduleTruck;
@@ -59,10 +87,17 @@ function Fixture() {
     const exactAnnotation = [...(lastMap?.annotations || [])].find(a => a.element.querySelector('[data-map-pin="appointment:exact"]'));
     const preserved = !exactAnnotation || (exactAnnotation.coordinate.latitude === 30 && exactAnnotation.coordinate.longitude === -90);
     const fullRoute = mode !== 'route' || routePoints.every(point => { const p = lastMap.convertCoordinateToPointOnPage(point); const r = lastMap.host.getBoundingClientRect(); return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom; });
-    setChecks(`${fullRoute ? 'PASS' : 'FAIL'} route bounds · ${lastMap?.overlays.size || 0} route overlays · ${lastMap?.colorScheme} · ${preserved ? 'PASS' : 'FAIL'} source coordinates · ${!label || /approximate|area locator/.test(label) ? 'PASS' : 'FAIL'} provenance · ${metrics.active === (mounted ? 1 : 0) ? 'PASS' : 'FAIL'} lifecycle · created ${metrics.created}, destroyed ${metrics.destroyed} · selected ${selected || selectedTruck || 'none'} · span ${lastMap?.region.span.longitudeDelta.toFixed(6)}`);
+    setChecks(`${fullRoute ? 'PASS' : 'FAIL'} route bounds · ${lastMap?.overlays.size || 0} route overlays · ${lastMap?.colorScheme} · ${preserved ? 'PASS' : 'FAIL'} source coordinates · ${!label || /approximate|area locator/.test(label) ? 'PASS' : 'FAIL'} provenance · ${metrics.active === (mounted && (!startup || document.querySelector('[data-map-provider=apple]')) ? 1 : 0) ? 'PASS' : 'FAIL'} lifecycle · created ${metrics.created}, destroyed ${metrics.destroyed} · selected ${selected || selectedTruck || 'none'} · OSM tiles ${osmTiles} · span ${lastMap?.region.span.longitudeDelta.toFixed(6)}`);
   }, 100); return () => clearInterval(timer); }, [mounted, selected, selectedTruck, mode]);
-  return <main className="ops-app ops-live" style={{ padding: 16, display: 'block' }}><h1>Apple Maps adapter · synthetic SDK</h1><p>No live Apple map or operational data in this fixture.</p><button onClick={() => setNarrow(!narrow)}>Toggle phone width</button> <button onClick={() => mount(!mounted)}>Toggle map</button> <button onClick={() => { select(null); selectTruck(null); }}>Reset selection</button> <button onClick={() => { document.documentElement.dataset.opsTheme = document.documentElement.dataset.opsTheme === 'dark' ? 'light' : 'dark'; }}>Toggle theme</button>
-  <div style={{ width: narrow ? 350 : 700, maxWidth: '100%', height: 420, position: 'relative', marginTop: 12 }}>{mounted && <ScheduleMap mapEngine={engine} appointments={[exact, approximate]} trucks={[truck]} selected={selected} selectedTruck={selectedTruck} gpsRoute={route} truckMapView={mode} onSelectTrip={()=>setMode('route')} scope="ALL" resetKey={selected === null && selectedTruck === null ? metrics.created : 0} date="2026-10-29" onSelect={id => { select(id); selectTruck(null); }} onSelectTruck={name => { selectTruck(name); select(null); setMode('overview'); }} />}</div>
+  return <main className="ops-app ops-live" style={{ padding: 16, display: 'block' }}><h1>Apple Maps adapter · synthetic SDK</h1><p>No live Apple map or operational data in this fixture.</p>{startup && <div>
+    <button onClick={() => configResponse?.('apple')}>Resolve Apple config</button>
+    <button onClick={() => configResponse?.('openstreetmap')}>Disable Apple</button>
+    <button onClick={() => configResponse?.('error')}>Fail config</button>
+    <button onClick={() => { window.mapkit = kit; window.opscenterMapKitReady?.(); }}>Resolve Apple SDK</button>
+    <button onClick={() => sdkScript?.dispatchEvent(new Event('error'))}>Fail Apple SDK</button>
+    <button onClick={() => kit.dispatchEvent(new Event('error'))}>Fail running Apple map</button>
+  </div>}<button onClick={() => setNarrow(!narrow)}>Toggle phone width</button> <button onClick={() => mount(!mounted)}>Toggle map</button> <button onClick={() => { select(null); selectTruck(null); }}>Reset selection</button> <button onClick={() => { document.documentElement.dataset.opsTheme = document.documentElement.dataset.opsTheme === 'dark' ? 'light' : 'dark'; }}>Toggle theme</button>
+  <div style={{ width: narrow ? 350 : 700, maxWidth: '100%', height: 420, position: 'relative', marginTop: 12 }}>{mounted && <ScheduleMap mapEngine={startup ? undefined : engine} appointments={[exact, approximate]} trucks={[truck]} selected={selected} selectedTruck={selectedTruck} gpsRoute={route} truckMapView={mode} onSelectTrip={()=>setMode('route')} scope="ALL" resetKey={selected === null && selectedTruck === null ? metrics.created : 0} date="2026-10-29" onSelect={id => { select(id); selectTruck(null); }} onSelectTruck={name => { selectTruck(name); select(null); setMode('overview'); }} />}</div>
   <p role="status">{checks}</p><output aria-label="Map longitude span">{lastMap?.region.span.longitudeDelta.toFixed(6)}</output></main>;
 }
 const root = createRoot(document.getElementById('root')!);

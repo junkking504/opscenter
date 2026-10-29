@@ -24,8 +24,7 @@ horizontal scroll areas, maps/charts/canvas, audio/video players, embedded conte
 slider/scrollbar/resize controls, draggable elements and explicit
 `data-gesture-ignore` regions are excluded. Vertical intent, multiple touches,
 cancellation, active dialogs/drawers, busy edits and repeated navigation cancel
-or block a shortcut. The page has no global touch-action override or scroll
-prevention. App-wide dirty state must be supplied through `busy`.
+or block a shortcut. The page has no global touch-action override. Only a recognized downward pull at the page top suppresses overscroll while that gesture is active. App-wide dirty state must be supplied through `busy`.
 
 Vertical-only scrolling lists no longer disable horizontal navigation for the
 whole list. A vertical movement or any native scroll still cancels a swipe;
@@ -47,7 +46,7 @@ is cancelled before a new interaction. Reduced Motion disables animation and
 also cancels one already running. Existing URL replacement and swipe focus
 return are unchanged. Superseding a pending swipe clears its hint and lock.
 
-Refresh still requires a 96px downward pull within 900ms. Sheet dismissal uses
+The labeled refresh control requires a 96px downward pull within 900ms; the page-top pull permits an unhurried downward release. Sheet dismissal uses
 a full-width grab control at widths up to 900 CSS pixels (including tablets only
 when within that breakpoint): 64px down within 1500ms, with horizontal/vertical
 intent, cancellation and multitouch guards. Content scrolling outside that control
@@ -67,10 +66,7 @@ never performs the metric's click action. The explicit Preview metrics button is
 the accessible alternative. The preview and alert detail sheet can close with a
 downward gesture on their labeled close control; their scrollable body is excluded.
 
-Pull-to-refresh begins on the labeled Refresh data control. Restricting the pull
-to this control preserves normal page/nested scrolling and browser pull behavior.
-Its `touch-action: pan-x pinch-zoom` permits zoom; no page-level gesture override
-is installed. `onRefresh` must only read current display snapshots, never source
+Pull-to-refresh can begin on page content at the top of the document, with a 96px downward release and 1.8:1 vertical intent. A spinner remains visible until the existing snapshot refresh settles; failures retain saved data and show a brief warning. Repeated pulls join the existing pending state. Inputs, editing, dialogs, selection, maps, charts, signatures, photos and nested scroll containers retain their gestures. A non-cancelable native gesture is relinquished. Only a recognized pull prevents overscroll; ordinary scrolling, horizontal page navigation, screen-edge navigation and zoom remain available. Reduced Motion keeps a static progress indicator. The labeled Refresh data control remains the keyboard/tap alternative. `onRefresh` must only read current display snapshots, never source
 collection, receipt verification, payments or operational recovery. The callback
 is single-flight. This layer adds no timers for polling or provider calls.
 
@@ -133,3 +129,7 @@ actual originating appointment control is retained for focus return, including
 Safari touch activation that does not focus a button automatically. Closing a
 linked summary clears its record-opening URL parameters. A record removed from
 the current snapshot closes its summary and does not reopen if it later returns.
+
+Page-top pull regression: `node --import tsx scripts/test-page-pull-refresh-browser.ts` uses an isolated fixture and synthetic data. Chromium has native CDP touch coverage; desktop WebKit uses dispatched TouchEvents. Neither establishes physical iPhone acceptance.
+
+The page-pull module and its styles load only at mobile widths; the desktop shell does not download this optional interaction. The shared content root exposes data-page-pull-ready only while its listener is installed, so synthetic QA waits for hydration rather than relying on a delay.

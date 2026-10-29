@@ -1,3 +1,4 @@
+import {readWexAlertExpenses} from './wex-alert-expenses';
 import type { TruckInspectionReport } from './truck-inspection';
 import { normalizeTruckLoadLabel } from './truck-load-status';
 import { chicagoDateKey } from './chicago-date';
@@ -28,10 +29,17 @@ export function readFleetFuelPurchases(date: string): FuelEvent[] {
   const events: FuelEvent[] = readOperationalTruckExpenses(date)
     .filter(row => row.kind === 'fuel' && row.amount > 0 && row.fuelAllocation?.unique !== false && !row.reconciliationNote)
     .map(row => ({ truck: row.truck, at: row.transactionAt, percent: 100, source: 'purchase', detail: `Assumed full after fuel purchase${row.location ? ` · ${row.location}` : ''}` }));
-  for (const purchase of readWexFuelFinance(date).transactions.filter(row => row.transactionDate === date && (row.gallons ?? 0) > 0 && row.netCost > 0)) {
+  const wex=readWexFuelFinance(date);
+  const alerts=readWexAlertExpenses(date,wex.transactions);
+  const emailPosted=new Set(alerts.rows.filter(r=>r.status==='posted'&&r.truck&&r.attribution?.at).map(r=>r.postedId));
+  for (const purchase of wex.transactions.filter(row => !emailPosted.has(row.transactionId) && row.transactionDate === date && (row.gallons ?? 0) > 0 && row.netCost > 0)) {
     const saved = readWexExpenseAutomation(purchase.transactionId);
     if (saved?.attribution.status !== 'attributed' || !saved.attribution.truck) continue;
     events.push({ truck: saved.attribution.truck, at: saved.attribution.transactionAt, percent: 100, source: 'purchase', detail: `Assumed full after fuel purchase · ${purchase.merchant || 'WEX'}` });
+  }
+  for(const row of alerts.rows){
+    if(!['provisional','posted'].includes(row.status)||!row.truck||!row.attribution?.at)continue;
+    events.push({truck:row.truck,at:row.attribution.at,percent:100,source:'purchase',detail:`Assumed full after WEX purchase · ${row.merchant}`});
   }
   return events;
 }

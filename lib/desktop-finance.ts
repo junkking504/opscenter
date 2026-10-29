@@ -1,3 +1,5 @@
+import {withWexEmailExpenses} from '@/lib/wex-operating-trends';
+import {readOperatingFuel} from './wex-operating-fuel';
 import { shiftOperatingDay } from '../desktop-ui/lib/operating-day';
 import { changeResaleLifecycle } from './resale-lifecycle';
 import { readFuelReconciliation } from './fuel-reconciliation';
@@ -33,7 +35,7 @@ function readRecycling(): RecyclingRecord[] { return readRecyclingStore().record
 function readOperatingTrends(date: string) {
   // Optional analytics must not take the financial workspace offline if a
   // collector snapshot is incomplete or damaged.
-  try { return operatingTrendsSnapshot(readPredictionDataset(), date); }
+  try { return withWexEmailExpenses(operatingTrendsSnapshot(readPredictionDataset(), date)); }
   catch { return null; }
 }
 export function readDesktopFinance(date: string): FinanceData & { wexAlertExpenses: ReturnType<typeof readWexAlertExpenses>; fuelReconciliation: ReturnType<typeof readFuelReconciliation>; dailyBreakdown: DailyFinanceSummary; dailyFreshness: DailyFinanceEvidence; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
@@ -76,7 +78,7 @@ export function readDesktopFinance(date: string): FinanceData & { wexAlertExpens
   const wexAlertExpenses = readWexAlertExpenses(date, wexFuel.transactions);
   wexAlertExpenses.feed=readWexMailFeedStatus();
   const dumpExpenses = readDumpExpenses(date);
-  const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel, dumpExpenses.assumedTotal);
+  const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel, dumpExpenses.assumedTotal, readOperatingFuel(date, finite(metrics?.fuel_expense ?? metrics?.truck_record_financial_summary?.fuel_expense), wexFuel, wexAlertExpenses));
   const fuelReconciliation = readFuelReconciliation(date, wexFuel);
   const dailyFreshness = dailyFinanceEvidence(metrics, dailyBreakdown, date, wexFuel);
   const display = presentDailyFinance(dailyBreakdown, dailyFreshness, date);
@@ -90,7 +92,7 @@ export function readDesktopFinance(date: string): FinanceData & { wexAlertExpens
   const priorDate = shiftOperatingDay(date, -7);
   const priorMetrics = readDaily(priorDate);
   const priorFuel = readWexFuelFinance(priorDate);
-  const priorSummary = buildDailyFinanceSummary(priorMetrics, priorFuel);
+  const priorSummary = buildDailyFinanceSummary(priorMetrics, priorFuel, 0, readOperatingFuel(priorDate, finite(priorMetrics?.fuel_expense ?? priorMetrics?.truck_record_financial_summary?.fuel_expense), priorFuel));
   const priorDisplay = presentDailyFinance(priorSummary, dailyFinanceEvidence(priorMetrics, priorSummary, priorDate, priorFuel), priorDate);
   const dailyComparison = {label:`same weekday last week · ${priorDate} (completed day; recorded costs)`, revenue:priorDisplay.revenue.value, labor:priorDisplay.labor.value, dumps:priorDisplay.dumps.value, fuel:priorDisplay.fuel.value, totalCosts:priorDisplay.totalCosts.value, net:priorDisplay.net.value};
   return { dailyComparison, wexAlertExpenses, fuelReconciliation, dumpExpenses, dailyBreakdown, dailyFreshness, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,

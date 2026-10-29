@@ -29,7 +29,7 @@
     "verify:truck-inspections:browser": "node --import tsx scripts/test-truck-inspections-browser.ts",
     "build:desktop": "node scripts/build-desktop-ui.mjs && node --import tsx scripts/test-appointment-navigation-ui.ts",
     "dev": "next dev",
-    "build": "npm run verify:service-addresses && npm run verify:spending && node scripts/test-no-google-map-billing.mjs && npm run verify:service-territory && npm run verify:duplicate-bookings && npm run verify:global-search && npm run verify:requested-schedule && npm run verify:continuity && npm run build:desktop && node --max-old-space-size=6144 node_modules/next/dist/bin/next build --webpack",
+    "build": "npm run verify:service-addresses && npm run verify:spending && npm run verify:apple-maps && node scripts/test-no-google-map-billing.mjs && npm run verify:service-territory && npm run verify:duplicate-bookings && npm run verify:global-search && npm run verify:requested-schedule && npm run verify:continuity && npm run build:desktop && node --max-old-space-size=6144 node_modules/next/dist/bin/next build --webpack",
     "verify:requested-schedule": "node --import tsx scripts/test-requested-schedule-day.ts && python3 scripts/test-requested-schedule-lifecycle.py",
     "verify:duplicate-bookings": "node --import tsx scripts/test-duplicate-bookings.ts && node --import tsx scripts/test-prebooking-duplicates.ts",
     "verify:service-territory": "node --import tsx scripts/test-service-territory.ts",
@@ -41,7 +41,7 @@
     "preview": "npm run cf-build && wrangler dev",
     "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts",
     "import:wex-fuel": "node --import tsx scripts/import-wex-transactions.ts",
-    "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts && node --import tsx scripts/test-fuel-reconciliation.ts && node --import tsx scripts/test-wex-expense-automation.ts && node --import tsx scripts/test-wex-realtime-import.ts && node --import tsx scripts/test-wex-alert-expenses.ts && node --import tsx scripts/test-wex-native-mail.ts && python3 -B scripts/test-wex-local-mail.py",
+    "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts && node --import tsx scripts/test-wex-operating-fuel.ts && node --import tsx scripts/test-fuel-reconciliation.ts && node --import tsx scripts/test-wex-expense-automation.ts && node --import tsx scripts/test-wex-realtime-import.ts && node --import tsx scripts/test-wex-alert-expenses.ts && node --import tsx scripts/test-wex-native-mail.ts && python3 -B scripts/test-wex-local-mail.py",
     "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts",
     "build:prediction-data": "node --import tsx scripts/build-prediction-data.ts",
     "verify:prediction-data": "node --import tsx scripts/test-prediction-data.ts && node --import tsx scripts/test-operating-planning.ts && node --import tsx scripts/test-disposal-cost-marker.ts && node scripts/test-finance-trends-order.mjs && node --import tsx scripts/test-finance-monthly-chart.ts && node --import tsx scripts/test-finance-trend-comparison.ts",
@@ -233,7 +233,8 @@
     "verify:search-destinations": "node --import tsx scripts/test-search-destinations.ts",
     "verify:search-destinations:browser": "node --import tsx scripts/test-search-destinations-browser.ts",
     "verify:appointment-signatures": "node --import tsx scripts/test-appointment-signatures.ts",
-    "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs"
+    "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs",
+    "verify:apple-maps": "node --import tsx scripts/test-apple-maps-config.ts && node --import tsx scripts/test-apple-maps-failures.ts && node --import tsx scripts/test-apple-maps-gestures.ts && node --import tsx scripts/test-apple-maps-csp.ts && node --import tsx scripts/test-schedule-map-layout.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.4",

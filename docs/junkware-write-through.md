@@ -160,8 +160,11 @@ operator's explicit prices and discount are restored.
 
 Closeout postbacks wait for the matching WebForms POST and completion of the
 ASP.NET partial update. An idle spinner or enabled button is not completion
-evidence. A blank navigator placeholder is retained when no navigator is
-assigned, and completed status is staged after dependent postbacks. Closeout reads an open appointment's saved **Assigned** truck label before its
+evidence. JunkWare’s **Add N navigators** control appends rows, so closeout requests only
+the missing rows. Reducing the crew clears surplus navigator selections without
+adding rows. A blank placeholder is retained when no navigator is assigned, and
+completed status is staged after dependent postbacks. Saved read-back still
+requires exactly the reviewed navigator identities and order. Closeout reads an open appointment's saved **Assigned** truck label before its
 completion dropdown; Completed records use the selected dropdown when the label
 is absent. A blank completion dropdown does not mean that dispatch is unassigned.
 

@@ -584,7 +584,7 @@ const moneyValue = (value: number | null | undefined) => value == null
 const parseMoneyValue = (value: string) => Number(value.replace(/[^0-9.-]/g, ''));
 const isFinalAppointmentState = (state: string) => ['Completed', 'Estimate Closed', 'Canceled'].includes(state);
 const metricValue = (value: number | null | undefined, suffix = '') => value == null ? '—' : `${value.toFixed(value % 1 === 0 ? 0 : 1)}${suffix}`;
-const googleMapsHref = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+const appleMapsHref = (address: string) => `https://maps.apple.com/search?query=${encodeURIComponent(address)}`;
 const unavailableAddresses = new Set(['Address unavailable', 'No service address', '']);
 
 function GoogleMapsAddress({ address }: { address: string }) {
@@ -593,11 +593,11 @@ function GoogleMapsAddress({ address }: { address: string }) {
     <strong className="google-maps-address-shell">
       <a
         className="google-maps-address"
-        href={googleMapsHref(address)}
+        href={appleMapsHref(address)}
         target="_blank"
         rel="noreferrer noopener"
-        aria-label={`Open ${address} in Google Maps`}
-        title="Open in Google Maps"
+        aria-label={`Open ${address} in Apple Maps`}
+        title="Open in Apple Maps"
       >
         {address}
       </a>

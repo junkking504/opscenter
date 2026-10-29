@@ -1,3 +1,6 @@
+import {readOperatingFuel,wexRefuelingAlerts,type OperatingFuel} from './wex-operating-fuel';
+import {readWexAlertExpenses} from './wex-alert-expenses';
+import {readOperationalTruckExpenses} from './truck-expense-notifications';
 import { fromDailyFinanceMetrics } from './finance-trend-comparison';
 import { operationalUpdateGaps } from './operational-update-health';
 import { readInspectionTimeline, mergeInspectionTimeline } from './truck-inspection-updates';
@@ -43,8 +46,8 @@ const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0, krewe: DesktopKreweSnapshot | null = null): DesktopKpi[] {
-  const finance = buildDailyFinanceSummary(metrics, wex, assumedDumpExpense);
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now(), assumedDumpExpense = 0, krewe: DesktopKreweSnapshot | null = null, operatingFuel?: OperatingFuel): DesktopKpi[] {
+  const finance = buildDailyFinanceSummary(metrics, wex, assumedDumpExpense, operatingFuel);
   const evidence = dailyFinanceEvidence(metrics, finance, date, wex);
   const plan = dailyRevenueTarget();
   const payrollPercent = finance.labor != null && finance.revenue != null && finance.revenue > 0 ? finance.labor / finance.revenue * 100 : null;
@@ -57,7 +60,7 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     ] : undefined },
     { label: 'Revenue', goal: plan, value: amount(finance.revenue), detail: finance.revenue == null ? 'Revenue source unavailable' : `${Math.round(finance.revenue / plan * 100)}% of ${money(plan)}`, progress: progress(finance.revenue, plan), tone: tone(finance.revenue, plan) },
     { label: 'Labor', value: amount(finance.labor), secondaryValue: payrollPercent == null ? undefined : `${payrollPercent.toFixed(1)}% of revenue`, detail: payrollPercent == null ? 'Labor source unavailable' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
-    { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? `Fuel from posted WEX transactions${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : assumedDumpExpense > 0 ? `Includes ${money(assumedDumpExpense)} assumed dump cost` : 'Recorded daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
+    { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex-email' ? `Includes WEX purchase alerts${operatingFuel?.overlapUnresolved?' · Fuel overlap needs review':''}${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.fuelSource === 'wex' ? `Fuel from posted WEX transactions${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}` : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : assumedDumpExpense > 0 ? `Includes ${money(assumedDumpExpense)} assumed dump cost` : 'Recorded daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
     { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : assumedDumpExpense > 0 ? 'After recorded and assumed daily costs' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
   const agedCards = cards.map((card, index) => {
@@ -96,6 +99,9 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   try { krewe = readDesktopKrewe(date, 'today', 'operator', false); } catch { /* RPH remains unavailable. */ }
   const wexFuel = readWexFuelFinance(date);
   const dumpExpenses = readDumpExpenses(date);
+  const wexAlerts = readWexAlertExpenses(date,wexFuel.transactions);
+  const publishedFuel = metrics?.fuel_expense ?? metrics?.truck_record_financial_summary?.fuel_expense;
+  const operatingFuel = readOperatingFuel(date,publishedFuel == null ? null : Number(publishedFuel),wexFuel,wexAlerts);
   const map = metrics ? buildCommandMapData(date) : null;
   const [digest, workflow] = await Promise.all([
     readSlackDailyDigest(date),
@@ -109,7 +115,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const tracked = readVisitTrackingAgent(date);
   const digestMessages = withoutNativeGeofenceDuplicates(digest.messages, geofences.rawEntries, geofences.rawNativeVisits, geofences.rawTrackedVisits);
   const inspections = readInspectionTimeline(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = mergeInspectionTimeline(mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,[...geofences.visits,...geofences.reviewVisits]),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)), inspections.alerts).map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = mergeInspectionTimeline(mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digestMessages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,[...geofences.visits,...geofences.reviewVisits]),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],mergeTruckExpenseAlerts(truckExpenseTimelineAlerts(date),wexRefuelingAlerts(wexAlerts,readOperationalTruckExpenses(date)))), inspections.alerts).map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });
@@ -161,12 +167,12 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
     if (latest) latest.needsAction = true;
   }
-  const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe);
+  const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe, operatingFuel);
   const priorDate = shiftOperatingDay(date, -7);
   const priorMetrics = readMetrics(priorDate);
   let priorKrewe: DesktopKreweSnapshot | null = null;
   try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
-  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe);
+  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe, readOperatingFuel(priorDate,priorMetrics?.fuel_expense ?? priorMetrics?.truck_record_financial_summary?.fuel_expense ?? null));
   for (const kpi of kpis) {
     const old = priorKpis.find(row => row.label === kpi.label);
     const value = old?.value.replace(/[$,]/g, '');

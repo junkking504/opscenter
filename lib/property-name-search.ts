@@ -11,6 +11,6 @@ export function propertyNameSearch(address:string) {
   if(tail.trim() && ![`${city} LA ${zip}`,`${city} ${zip}`].some(value=>normalize(value)===normalize(tail)))return null;
   const query=`${name.trim()}, ${city.trim()}, LA ${zip}`;
   return {name:name.trim(),unresolvedIdentifier:identifier,query,
-    href:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+    href:`https://maps.apple.com/search?query=${encodeURIComponent(query)}`,
     approximate:true as const,visitEligible:false as const};
 }

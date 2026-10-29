@@ -12,9 +12,10 @@ async function main(){
   // Finish mocked reads before the deliberate document reload. WebKit reports
   // a navigation-canceled fetch as a page error even when its rejection is caught.
   const reload=async()=>{await expect.poll(()=>photoReads.size).toBe(0);await page.waitForLoadState('networkidle');await page.reload();};
-  let posts=0,receipt:any=null,sourceVersion='a'.repeat(64),photos=true,receiptReads=0,completed=false,managerChanged=false,closeoutResponded=false,closeoutIntakeFailures=width===320?2:0;
+  let releaseOutcome=false;let posts=0,receipt:any=null,sourceVersion='a'.repeat(64),photos=true,receiptReads=0,completed=false,managerChanged=false,closeoutResponded=false,closeoutIntakeFailures=width===320?2:0;
   const photoReceipts=new Map<string,unknown>();let photoPosts=0;
   const closeout=()=>({...fixture,...(process.env.CLOSEOUT_RESULT==='missing-referral'?{howHeard:field('','',[{value:'',label:''}])}:{}),actualStartMinute:managerChanged?field('05','05',minutes):fixture.actualStartMinute,photoEvidence:closeoutPhotoEvidence('900001',photos?['https://junkware.junk-king.com/system/aspnet/local/media/sample-900001-before.jpg']:[])});
+  await context.route('**/*',route=>new URL(route.request().url()).origin===new URL(process.argv[2] || 'http://127.0.0.1:3189').origin?route.continue():route.abort());
   await context.route('**/api/**',async route=>{
    const r=route.request(),u=new URL(r.url());const send=(body:unknown,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
    if(u.pathname==='/api/crew-jobs/manager-session')return send({manager:false});
@@ -38,9 +39,10 @@ async function main(){
        :route.abort();}
      assert.equal(b.photoRequestIds.length,width===390?2:0);receipt={requestId:b.requestId,action:'closeout',status:'pending',message:'Source verification in progress.'};
      await new Promise(resolve=>setTimeout(resolve,600));closeoutResponded=true;
+     if(process.env.CLOSEOUT_RESULT==='lost')return route.abort();
      return send({receipt});
     }
-    if(u.searchParams.has('requestId')){if(!receipt)return send({error:'Closeout receipt not found'},404);receiptReads++;if(receiptReads>=2){completed=!['failed','uncertain'].includes(process.env.CLOSEOUT_RESULT || '');receipt={requestId:receipt.requestId,action:'closeout',status:completed?'verified':process.env.CLOSEOUT_RESULT,message:completed?'Saved and verified in JunkWare.':'Synthetic source rejection; no completion verified.',sourceResult:{appointmentId:'900001',closeout:{...closeout(),status:{value:'8',label:'Completed'}}}};}return send({receipt});}
+    if(u.searchParams.has('requestId')){if(!receipt)return send({error:'Closeout receipt not found'},404);receiptReads++;if(width===430 && receiptReads===1)return send({receipt:{...receipt,requestId:'wrong-checkout',status:'verified',sourceResult:{closeout:{status:{value:'8'}}}}});if(releaseOutcome && receiptReads>=2){completed=!['failed','uncertain','source-open'].includes(process.env.CLOSEOUT_RESULT || '');receipt={requestId:receipt.requestId,action:'closeout',status:completed||process.env.CLOSEOUT_RESULT==='source-open'?'verified':process.env.CLOSEOUT_RESULT,message:completed?'Saved and verified in JunkWare.':'Synthetic source rejection; no completion verified.',sourceResult:{appointmentId:'900001',closeout:{...closeout(),status:{value:process.env.CLOSEOUT_RESULT==='source-open'?'1':'8',label:process.env.CLOSEOUT_RESULT==='source-open'?'Confirmed':'Completed'}}}};}return send({receipt});}
     return send({crewVersion:1,crewDefaults:{version:1,driver:fixture.driver,navigators:fixture.navigators},closeout:closeout(),sourceVersion,jobVersion:'sample-version',canWrite:true});
    }
    throw new Error(`Unexpected API ${r.method()} ${u.pathname}`);
@@ -72,10 +74,28 @@ async function main(){
   await page.screenshot({path:`/tmp/crew-closeout-${width}.png`,fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No overflow ${width}`);
   if(width===390)await page.screenshot({path:'/tmp/crew-closeout-review.png',fullPage:true});
-  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();
+  const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
   if(width===320){const check=page.getByRole('button',{name:'Check Saved Result',exact:true}).last();await expect(check).toBeVisible();await check.click();}
-  if(['failed','uncertain'].includes(process.env.CLOSEOUT_RESULT || '')){await expect(page.locator('.schedule-change-receipt')).toContainText('Synthetic source rejection');await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toHaveCount(0);assert.equal(completed,false);assert.equal(posts,1);assert.ok(receiptReads>=2);await expect(page.getByLabel('Card last four',{exact:false})).toHaveValue('1234');await page.screenshot({path:`/tmp/waypoint-status-${process.env.CLOSEOUT_BROWSER || 'chromium'}-${process.env.CLOSEOUT_RESULT}.png`,fullPage:true});assert.deepEqual(errors,[]);await context.close();console.log(`PASS ${process.env.CLOSEOUT_RESULT}: form and draft retained, no success/dismissal/replay`);continue;}
-  await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();assert.equal(closeoutResponded,true,'The server must accept the checkout');assert.equal(completed,true,'Assignments appears only after verified completion, never pending acceptance');assert.ok(receiptReads>=2,'Pending receipt is read until terminal result');assert.ok(Date.now()-started>=500,'The closeout stays visible until its durable server receipt returns');assert.equal(posts,width===320?3:1);
+  await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
+  assert.equal(closeoutResponded,true,'Wait for durable server acceptance');assert.equal(completed,false,'Return while source verification is still held pending');assert.ok(Date.now()-started>=500,'Do not navigate before the server receipt');assert.equal(posts,width===320?3:1,'Double tap cannot duplicate checkout');
+  await expect(page.getByText('Checkout verification pending',{exact:true})).toBeVisible();
+  if(width===390)await page.screenshot({path:`/tmp/waypoint-pending-${process.env.CLOSEOUT_BROWSER || 'chromium'}-${process.env.CLOSEOUT_RESULT || 'success'}.png`,fullPage:true});
+  const held=await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.endsWith(':handoff')).map(k=>JSON.parse(localStorage.getItem(k)!)));
+  assert.equal(held.length,1);assert.equal(held[0].receipt.requestId,receipt.requestId);assert.equal(held[0].phase,'accepted');assert.equal(held[0].payload.requestId,receipt.requestId);
+  await reload();await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();await expect(page.getByText('Checkout verification pending',{exact:true})).toBeVisible();assert.equal(completed,false);assert.equal(posts,width===320?3:1,'Reload only checks the saved receipt');
+  // A late result must not close a different appointment the user has opened.
+  await page.getByRole('button',{name:'Stop 2: Later Sample Customer, view appointment',exact:true}).click();
+  releaseOutcome=true;
+  if(['failed','uncertain','source-open'].includes(process.env.CLOSEOUT_RESULT || '')){
+    const failure=process.env.CLOSEOUT_RESULT==='source-open'?'Completion is not verified':'Synthetic source rejection';
+    await expect(page.getByText(failure,{exact:false}).first()).toBeVisible({timeout:12000});
+    await expect(page.getByRole('heading',{name:'Later Sample Customer',exact:true})).toBeVisible();assert.equal(completed,false);assert.equal(posts,1);
+    await page.getByRole('button',{name:'All Assignments',exact:true}).click();await open();
+    await expect(page.locator('.schedule-change-receipt')).toContainText(failure);await expect(page.getByLabel('Card last four',{exact:false})).toHaveValue('1234');assert.equal(posts,1);
+    await page.screenshot({path:`/tmp/waypoint-status-${process.env.CLOSEOUT_BROWSER || 'chromium'}-${process.env.CLOSEOUT_RESULT}.png`,fullPage:true});assert.deepEqual(errors,[]);await context.close();console.log(`PASS ${process.env.CLOSEOUT_RESULT}: returned pending, failure recovery/draft retained, no completion/replay or stale-view dismissal`);continue;
+  }
+  await expect.poll(()=>completed,{timeout:12000}).toBe(true);await expect(page.getByRole('heading',{name:'Later Sample Customer',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'All Assignments',exact:true}).click();
   await expect(page.getByText('keep Waypoint open',{exact:false})).toHaveCount(0);await expect(page.getByRole('button',{name:'Resume transfer',exact:true})).toHaveCount(0);
   if(width===390)assert.equal(photoPosts,2,'A lost photo acknowledgment is recovered from its receipt without repeating the accepted upload');
   await expect(page.getByRole('button',{name:'Stop 1: Next Sample Customer, view appointment',exact:true})).toBeVisible({timeout:10_000});assert.equal(posts,width===320?3:1);assert.deepEqual(errors,[]);

@@ -1,4 +1,5 @@
 'use client';
+import {checkedCrewReceipt} from './closeout-receipt';
 import CustomerEdit from './customer-edit';
 import WaypointNotifications from './notifications';
 import RouteOverview,{RouteIcon} from './route-overview';
@@ -149,6 +150,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
         if(backgroundNoticeAssignment.current===value.assignmentId)showBackgroundNotice('');
         return;
       }
+      if(value.receipt){try{const receipt=checkedCrewReceipt(value.receipt,value.requestId);value={...value,receipt,...(receipt!==value.receipt?{phase:'attention' as const,message:receipt.message}:{})};}catch{showBackgroundNotice('Saved checkout identity needs review. Do not submit again.',value.assignmentId);return;}}
       setHandoff(value);showBackgroundNotice(value.message,value.assignmentId);
       if(value.phase==='transferring' || value.phase==='submitting')setPendingCloseout({assignmentId:value.assignmentId});
       else if(value.receipt?.status==='pending')setPendingCloseout({assignmentId:value.assignmentId,requestId:value.requestId});
@@ -197,8 +199,8 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
     return()=>clearTimeout(timer);
   },[assignment,busy,details]);
   useEffect(()=>{
-    // The open form uses the same receipt waiter as OpsCenter. Background reads
-    // resume when the user leaves it; neither path repeats the submission.
+    // Accepted receipts return to Assignments immediately. Reconcile with GET
+    // only; reopening recovery pauses this reader and never creates a new POST.
     if(!pendingCloseout?.requestId || details && closeout)return;
     const pending=pendingCloseout as {assignmentId:string;requestId:string};
     let canceled=false,timer:ReturnType<typeof setTimeout>|undefined;
@@ -207,8 +209,8 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
         const response=await fetch(`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(pending.assignmentId)}&requestId=${encodeURIComponent(pending.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(15_000)});
         const body=await response.json();
         if(canceled)return;
-        const receipt=body.receipt as Receipt|undefined;
-        if(!response.ok || !receipt)throw new Error(body.error || 'Background checkout status is unavailable.');
+        if(!response.ok || !body.receipt)throw new Error(body.error || 'Background checkout status is unavailable.');
+        const receipt=checkedCrewReceipt(body.receipt as Receipt,pending.requestId);
         if(receipt.status!=='pending' && phone){
           writeCloseoutLocal(`${crewCloseoutKey(phone.deviceId,pending.assignmentId)}:receipt`,receipt);
           const saved=readHandoffs(phone.deviceId).find(value=>value.requestId===pending.requestId);
@@ -320,7 +322,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange, onTestChang
             }}}/> : closeout && !viewedJob.readOnly && viewedJob.assignmentId ? <JobCloseout key={viewedJob.assignmentId} job={{...viewedJob,assignmentId:viewedJob.assignmentId}} truck={phone.truck} deviceId={phone.deviceId} test={phone.test} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>{setDetails(false);setCloseout(false);void loadJob();}} onAccepted={(receipt,receiptAssignmentId)=>{
             setPendingCloseout(receipt.status==='pending'?{assignmentId:receiptAssignmentId,requestId:receipt.requestId}:null);
             showBackgroundNotice(receipt.status==='verified'?'Checkout finished and was verified in JunkWare.':'Checkout accepted by the server. JunkWare verification is still pending.',viewedJob.assignmentId!);
-            if(viewGuard.selected()===viewedJob.appointmentId){setDetails(false);setCloseout(false);}
+            if(viewGuard.selected()===viewedJob.appointmentId){setView('route');setDetails(false);setCloseout(false);}
             void loadJob();
           }} onHandoffFailed={message=>{setPendingCloseout(null);showBackgroundNotice(message,viewedJob.assignmentId!);}}/> : <><h2>Items To Remove</h2><p>{viewedJob.junkItems.join(', ') || 'See job notes.'}</p><h2>Job Notes</h2>{viewedJob.appointmentNotes.length?viewedJob.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned Crew</h2><p>{viewedJob.driver || (viewedJob.readOnly?'Not listed':day?.driver)} · Driver</p><p>{viewedJob.navigator || (!viewedJob.readOnly && day?.navigators.join(', ')) || 'No navigator'} · Navigator</p>
           <AppointmentSignatureSection key={`signature:${viewedJob.appointmentId}`} appointmentId={viewedJob.appointmentId} assignmentId={viewedJob.assignmentId} deviceId={phone.deviceId} readOnly={viewedJob.readOnly} test={phone.test} onBusyChange={setBusy}/>

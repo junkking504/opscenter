@@ -65,7 +65,7 @@ try{
   before=(await qa()).reads.filter(url=>url.includes('displayOnly=1')).length;
   await pull(refresh);await page.waitForFunction(count=>window.gestureQa.reads.filter(url=>url.includes('displayOnly=1')).length>count,before);
   assert.equal((await qa()).reads.filter(url=>url.includes('displayOnly=1')).every(url=>!url.includes('load=1')&&!url.includes('refresh=1')),true);
-  await refresh.waitFor();assert.equal(await page.getByRole('button',{name:'Refresh day',exact:true}).isDisabled(),true,'pending source-request state retained');
+  await refresh.waitFor();assert.equal(await page.getByRole('button',{name:'Refresh Day',exact:true}).isDisabled(),true,'pending source-request state retained');
   const details=page.getByRole('button',{name:/View details/}).first();
   await details.click();await page.locator('.job-record-drawer').waitFor();
   await syntheticSwipe();assert.equal(await current(),'Schedule','record drawer blocks main navigation');

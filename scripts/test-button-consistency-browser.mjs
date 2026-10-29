@@ -36,11 +36,11 @@ try {
 
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long&source=1`);
     await openScheduleControls(page);
-    const add = page.getByRole('button', { name: 'Add Appointment', exact: true });
+    const add = page.getByRole('button', { name: 'New', exact: true });
     await add.waitFor();
-    assert.deepEqual(await visualStyle(add), reviewStyle, `Add Appointment matches the shared action style at ${width}px`);
+    assert.deepEqual(await visualStyle(add), reviewStyle, `New matches the shared action style at ${width}px`);
     const addBox = await add.boundingBox();
-    assert.ok(addBox.x >= 0 && addBox.x + addBox.width <= width + 1, `Add Appointment fits at ${width}px`);
+    assert.ok(addBox.x >= 0 && addBox.x + addBox.width <= width + 1, `New fits at ${width}px`);
 
     await closeScheduleControls(page);
     await page.locator('[data-schedule-appointment]').first().click();
@@ -55,7 +55,7 @@ try {
     const drawerBox = await drawer.boundingBox();
     assert.ok(openBox.x >= drawerBox.x && openBox.x + openBox.width <= drawerBox.x + drawerBox.width + 1, `Open in JunkWare fits its drawer at ${width}px: ${JSON.stringify({ openBox, drawerBox })}`);
   }
-  console.log('Button consistency PASS: WhatsApp review, Add Appointment, and Open in JunkWare share brand color, 36px action height, 7px radius, and 600 weight at 320–1440px.');
+  console.log('Button consistency PASS: WhatsApp review, New, and Open in JunkWare share brand color, 36px action height, 7px radius, and 600 weight at 320–1440px.');
 } finally {
   await browser.close();
 }

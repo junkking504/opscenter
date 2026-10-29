@@ -12,7 +12,7 @@ try {
     await page.locator('.day-switcher button').first().click();
     await closeScheduleControls(page);
     await openScheduleControls(page);
-    const add=page.getByRole('button',{name:'Add Appointment',exact:true});
+    const add=page.getByRole('button',{name:'New',exact:true});
     await add.waitFor();
     assert.equal(await page.locator('.schedule-duplicates').count(),0,'No standalone duplicate booking panel');
     assert.equal(await page.getByRole('heading',{name:'Route Planner',exact:true}).count(),0,'Truck board replaces the separate route planner');
@@ -88,7 +88,7 @@ try {
     assert.ok(sections.closeout<sections.note && sections.note<sections.secondary,'Closeout, essential note, then secondary dispatch controls');
     assert.equal(await drawer.locator('.drawer-secondary-controls').getAttribute('open'),null);
     assert.equal(await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).count(),0,'Assignment controls start collapsed');
-    await drawer.getByRole('textbox',{name:'Add Appointment Note',exact:true}).fill('Synthetic note only');
+    await drawer.getByRole('textbox',{name:'New Note',exact:true}).fill('Synthetic note only');
     assert.equal(await drawer.getByRole('button',{name:'Save Note in JunkWare',exact:true}).isEnabled(),true,'Note entry remains immediately accessible');
     assert.equal(await drawer.getByRole('region',{name:'Cancel Appointment',exact:true}).locator('xpath=ancestor::details').count(),0,'Cancellation is not buried in a disclosure');
     await drawer.getByRole('button',{name:'Cancel Appointment',exact:true}).click();
@@ -128,5 +128,5 @@ try {
   await page.goto(`${base}/tests/schedule-destinations.html?details=long`);
   await page.locator('[data-schedule-appointment]').first().click();
   assert.match(await page.locator('.selected-job-closest').innerText(),/Available for today only/);
-  console.log('Schedule hierarchy and dispatch glance PASS: Add Appointment drawer, map switch, filter state, summary beside dispatch on desktop without pushing either panel down, one closest truck, stale/failed/address/future states, contact and source work/notes, 320–1440px, full drawer, Escape, zero writes.');
+  console.log('Schedule hierarchy and dispatch glance PASS: New drawer, map switch, filter state, summary beside dispatch on desktop without pushing either panel down, one closest truck, stale/failed/address/future states, contact and source work/notes, 320–1440px, full drawer, Escape, zero writes.');
 } finally {await browser.close();}

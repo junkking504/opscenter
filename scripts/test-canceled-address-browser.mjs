@@ -21,7 +21,7 @@ try {
     };
   });
   await openScheduleControls(page);
-  await page.getByRole('button',{name:'Refresh day',exact:true}).click();
+  await page.getByRole('button',{name:'Refresh Day',exact:true}).click();
   await closeScheduleControls(page);
   const block=page.locator('[data-schedule-appointment$=":appointment:1001"]');
   await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment$=":appointment:1001"]')?.getAttribute('aria-label')?.includes('Canceled'));

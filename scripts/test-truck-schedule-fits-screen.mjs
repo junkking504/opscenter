@@ -25,9 +25,9 @@ for (const engine of [chromium, webkit]) {
         await page.addStyleTag({ content: css });
         for (const map of [true, false]) {
           if (!map) {
-            if (width >= 1000) await page.getByRole('button', {name:'Board controls',exact:true}).click();
+            if (width >= 1000) await page.getByRole('button', {name:'Board Controls',exact:true}).click();
             await page.getByRole('switch', { name: 'Show map', exact: true }).click();
-            if (width >= 1000) await page.getByRole('button', {name:'Hide controls',exact:true}).click();
+            if (width >= 1000) await page.getByRole('button', {name:'Hide Controls',exact:true}).click();
           }
           // ResizeObserver and the next animation frame settle the fitted rows.
           await page.waitForTimeout(150);
@@ -47,8 +47,8 @@ for (const engine of [chromium, webkit]) {
               await page.getByRole('tab',{name:'Board',exact:true}).click();
               await page.locator('[data-schedule-appointment]').first().waitFor();
             }
-            await page.getByRole('button',{name:'Board controls',exact:true}).click();
-            await page.getByRole('button',{name:'Add Appointment',exact:true}).click();
+            await page.getByRole('button',{name:'Board Controls',exact:true}).click();
+            await page.getByRole('button',{name:'New',exact:true}).click();
             const booking=page.getByRole('dialog',{name:'New Appointment',exact:true});
             await booking.waitFor();
             await booking.getByRole('button',{name:'Close',exact:true}).first().click();
@@ -56,11 +56,11 @@ for (const engine of [chromium, webkit]) {
             await page.getByRole('button',{name:'Krewe roster',exact:true}).click();
             await page.getByRole('dialog',{name:'Krewe roster',exact:true}).waitFor();
             await page.getByRole('button',{name:'Close krewe roster',exact:true}).click();
-            await page.getByRole('button',{name:'Refresh day',exact:true}).click();
+            await page.getByRole('button',{name:'Refresh Day',exact:true}).click();
             await page.locator('[data-schedule-appointment]').first().waitFor();
             await page.getByRole('textbox',{name:'Filter source appointments'}).fill('Example');
             await page.keyboard.press('Escape');
-            const filteredToggle=page.getByRole('button',{name:'Board controls · Filters active',exact:true});
+            const filteredToggle=page.getByRole('button',{name:'Board Controls · Filters active',exact:true});
             assert.ok(await filteredToggle.evaluate(e=>document.activeElement===e),'Escape restores focus and keeps the active-filter indicator');
             await filteredToggle.click();
             await page.getByRole('textbox',{name:'Filter source appointments'}).fill('');
@@ -108,9 +108,9 @@ for (const engine of [chromium, webkit]) {
           if(width === 1920 && scenario === 'crowded') assert.equal(fit.scale,1,'The reclaimed space keeps normal lane sizes at the owner viewport');
           if(width === 1920 && scenario === 'crowded' && map && engine.name() === 'chromium' && process.env.BOARD_SCREENSHOT) {
             await page.screenshot({path:process.env.BOARD_SCREENSHOT});
-            await page.getByRole('button',{name:'Board controls',exact:true}).click();
+            await page.getByRole('button',{name:'Board Controls',exact:true}).click();
             assert.ok(await page.getByRole('textbox',{name:'Filter source appointments'}).isVisible());
-            await page.getByRole('button',{name:'Hide controls',exact:true}).click();
+            await page.getByRole('button',{name:'Hide Controls',exact:true}).click();
           }
           assert.equal(fit.count, 10, context);
           assert.deepEqual(fit.outside, [], context);

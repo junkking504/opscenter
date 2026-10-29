@@ -7,6 +7,7 @@ import type { ScheduleAppointment, ScheduleTruck } from '../lib/schedule-contrac
 import '../app/globals.css';
 import '../live-schedule.css';
 import '../schedule-selection.css';
+import '../theme.css';
 
 // SDK stand-in for deterministic integration tests. No provider requests, no
 // customer data. It models the public SDK surface, not Leaflet internals.
@@ -56,7 +57,7 @@ function Fixture() {
     const fullRoute = mode !== 'route' || routePoints.every(point => { const p = lastMap.convertCoordinateToPointOnPage(point); const r = lastMap.host.getBoundingClientRect(); return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom; });
     setChecks(`${fullRoute ? 'PASS' : 'FAIL'} route bounds · ${lastMap?.overlays.size || 0} route overlays · ${lastMap?.colorScheme} · ${preserved ? 'PASS' : 'FAIL'} source coordinates · ${!label || /approximate|area locator/.test(label) ? 'PASS' : 'FAIL'} provenance · ${metrics.active === (mounted ? 1 : 0) ? 'PASS' : 'FAIL'} lifecycle · created ${metrics.created}, destroyed ${metrics.destroyed} · selected ${selected || selectedTruck || 'none'}`);
   }, 100); return () => clearInterval(timer); }, [mounted, selected, selectedTruck, mode]);
-  return <main className="ops-live" style={{ padding: 16 }}><h1>Apple Maps adapter · synthetic SDK</h1><p>No live Apple map or operational data in this fixture.</p><button onClick={() => setNarrow(!narrow)}>Toggle phone width</button> <button onClick={() => mount(!mounted)}>Toggle map</button> <button onClick={() => { select(null); selectTruck(null); }}>Reset selection</button> <button onClick={() => { document.documentElement.dataset.opsTheme = document.documentElement.dataset.opsTheme === 'dark' ? 'light' : 'dark'; }}>Toggle theme</button>
+  return <main className="ops-app ops-live" style={{ padding: 16, display: 'block' }}><h1>Apple Maps adapter · synthetic SDK</h1><p>No live Apple map or operational data in this fixture.</p><button onClick={() => setNarrow(!narrow)}>Toggle phone width</button> <button onClick={() => mount(!mounted)}>Toggle map</button> <button onClick={() => { select(null); selectTruck(null); }}>Reset selection</button> <button onClick={() => { document.documentElement.dataset.opsTheme = document.documentElement.dataset.opsTheme === 'dark' ? 'light' : 'dark'; }}>Toggle theme</button>
   <div style={{ width: narrow ? 350 : 700, maxWidth: '100%', height: 420, position: 'relative', marginTop: 12 }}>{mounted && <ScheduleMap mapEngine={engine} appointments={[exact, approximate]} trucks={[truck]} selected={selected} selectedTruck={selectedTruck} gpsRoute={route} truckMapView={mode} onSelectTrip={()=>setMode('route')} scope="ALL" resetKey={selected === null && selectedTruck === null ? metrics.created : 0} date="2026-10-29" onSelect={id => { select(id); selectTruck(null); }} onSelectTruck={name => { selectTruck(name); select(null); setMode('overview'); }} />}</div>
   <p role="status">{checks}</p></main>;
 }

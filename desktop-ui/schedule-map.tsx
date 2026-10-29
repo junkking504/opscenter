@@ -65,7 +65,7 @@ export default function ScheduleMap(props: ScheduleMapProps) {
     if (!host.current) return;
     let view: MapView | undefined;
     try { view = engine.map(host.current, { zoomControl: true, scrollWheelZoom: true }); view.setView([30.14, -90.5], 8); }
-    catch { view?.remove(); if (engine.name === 'apple') { setAppleFailed(true); setConfiguredEngine(leafletEngine); } return; }
+    catch (error) { view?.remove(); if (engine.name !== 'apple') throw error; setAppleFailed(true); setConfiguredEngine(leafletEngine); return; }
     view.attributionControl.setPrefix(false);
     map.current = view;
     gpsLayer.current=engine.layerGroup().addTo(view);

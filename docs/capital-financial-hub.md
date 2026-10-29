@@ -39,7 +39,7 @@ grow a card when needed, so smaller spacing never clips freshness evidence.
 
 ## Reconciliation
 
-Capital's Reconciliation tab and overview shortcut open the previous
+Payments’ Reconcile Yesterday switch and the overview shortcut open the previous
 calendar day in America/Chicago, including weekends. The review has its own
 clearly labeled date picker, with a Yesterday reset and access to older days;
 it does not change the global operating date. Payment sources and the native
@@ -53,7 +53,7 @@ This reuses the existing cross-check, source evidence and durable accounting act
 a day reconciled. No automatic payment writes or new collectors are added.
 
 Capital navigation uses the same separated, rounded buttons as Convoy: pale
-backgrounds for available views, a solid green selected view, and wrapping on
+backgrounds for available views, a brand-red selected view, and wrapping on
 narrow screens so every label remains visible.
 
 
@@ -64,8 +64,24 @@ starts with the reporting month, compact Reconcile yesterday and Accounting
 buttons, then the financial cards. Reconciliation keeps its previous-calendar-day
 default and existing payment review flow.
 
-The source/payment status appears directly beneath the cards. Source details
+The number-source strip appears directly beneath the cards, followed by source/payment status. Source details
 expands the existing publication/retrieval timestamps and Refresh data control;
 refresh failures remain visible even while details are collapsed. Card-level
-freshness, incomplete-cost labels and unavailable values are preserved. Phone
-tabs and the overview action buttons retain 44 px touch targets.
+freshness, incomplete-cost labels and unavailable values are preserved. Finance tabs use the shared 32 px control size; overview actions retain their existing touch sizing.
+
+## Finance Navigation And Number Sources
+
+Finance has seven visible tabs and sidebar destinations: Overview, Trends,
+Payments, Expenses, Accounting, Resale and Recycling. Trends keeps its own
+selected tab, including when opened from a metric tile. Reconciliation remains
+a Payments subview with Recorded Payments and Reconcile Yesterday switches;
+existing URL keys and role permissions are unchanged. Overview no longer
+repeats the destination cards.
+
+The strip beneath Overview’s four tiles explains operating revenue for the
+month, recorded payments for the selected day, and QuickBooks income for the
+selected month with its reporting cutoff and basis. It uses only loaded Finance
+values. QuickBooks statements are selected per company using the existing
+preference rule; totals combine only when their cutoff and basis agree. Missing
+values or incompatible reporting periods read Unavailable in neutral gray.
+Accountant workbooks and other months never substitute for QuickBooks income.

@@ -20,7 +20,7 @@ export function RecyclingMonthly({ records, date, onAdd, onReview, receiptInbox 
   const summary = recyclingMonth(records, month);
   const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
   return <section className="recycling-monthly capital-page" aria-label="Monthly recycling breakdown">
-    <CapitalPageHeader eyebrow="RECOVERED INCOME" title="Recycling income" description="Follow deliveries, yard tickets and cash received through the monthly reconciliation."/>
+    <CapitalPageHeader eyebrow="RECOVERED INCOME" title="Recycling" description="Follow deliveries, yard tickets and cash received through the monthly reconciliation."/>
     <div className="capital-recycling-controls"><div><span className="capital-eyebrow">DELIVERY MONTH</span><h3>{label}</h3></div><div className="recycling-month-controls">
       <Button variant="outline" size="sm" aria-label="Previous recycling month" onClick={() => setMonth(adjacentRecyclingMonth(month, -1))}>Previous</Button>
       <label>Month<input type="month" aria-label="Recycling month" value={month} onChange={event => { if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setMonth(event.target.value); }} /></label>
@@ -61,6 +61,6 @@ export function RecyclingMonthly({ records, date, onAdd, onReview, receiptInbox 
       <div className="recycling-payments">{summary.received.map(run => <article key={run.id}><span>{commercialDate(run.paymentDate!)}<small>Run / ticket date {commercialDate(run.date)}</small></span><span>{run.yard}<small>{run.paymentReference}</small></span><strong>{money(run.realizedValue)}</strong></article>)}</div>
     </section>}
     {summary.missingPaymentDates > 0 && <p role="status">{summary.missingPaymentDates} paid records have no payment date and are excluded from monthly payments received. Review those records to add the date.</p>}
-    <p className="finance-payment-note">Run value and payments received are two views of the same income; do not add them together. Recorded receipts do not imply a QBO posting or bank deposit.</p>
+    <p className="finance-payment-note">Run value and payments received are two views of the same income; do not add them together. Recorded receipts do not imply an entry in QuickBooks or bank deposit.</p>
   </section>;
 }

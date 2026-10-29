@@ -49,8 +49,8 @@ export function LiveFinance(props: LiveFinanceProps) {
   const onBusy = useCallback((value: boolean) => { setBusy(value); onBusyChange?.(value); }, [onBusyChange]);
   const payments = props.view === 'payments' || props.view === 'reconciliation';
   return <>{payments && <nav className="capital-payment-tabs" aria-label="Payments views">
-    <button type="button" aria-pressed={props.view === 'payments'} disabled={busy} onClick={() => props.onViewChange?.('payments')}>Recorded payments</button>
-    <button type="button" aria-pressed={props.view === 'reconciliation'} disabled={busy} onClick={() => props.onViewChange?.('reconciliation')}>Reconciliation</button>
+    <button type="button" aria-pressed={props.view === 'payments'} disabled={busy} onClick={() => props.onViewChange?.('payments')}>Recorded Payments</button>
+    <button type="button" aria-pressed={props.view === 'reconciliation'} disabled={busy} onClick={() => props.onViewChange?.('reconciliation')}>Reconcile Yesterday</button>
   </nav>}{props.view === 'reconciliation' ? <DailyReconciliation {...props} onBusyChange={onBusy} /> : <FinanceWorkspace {...props} onBusyChange={onBusy} />}</>;
 }
 function DailyReconciliation(props: LiveFinanceProps) {
@@ -136,7 +136,7 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
   const sourceFreshness = <WorkspaceFreshness state={freshness} sourceAt={data.generatedAt} sourceLabel="Metrics published" statusLabel="Publication time; financial input ages below"/>;
   const sourceDetails = <div className="capital-source-details">
     {sourceFreshness}
-    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Financial source details</span></summary><dl>{Object.entries(dailyDisplay).map(([field,reading]) => <div key={field}><dt>{{revenue:'Revenue',labor:'Labor',dumps:'Disposal',fuel:'Fuel',totalCosts:'Total costs',net:'Net'}[field]}</dt><dd>{reading.detail}</dd></div>)}</dl><p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
+    <details><summary><ShieldCheck size={14} /><span>{sourceStatus}</span><span className="capital-source-toggle">Financial Record Details</span></summary><dl>{Object.entries(dailyDisplay).map(([field,reading]) => <div key={field}><dt>{{revenue:'Revenue',labor:'Labor',dumps:'Disposal',fuel:'Fuel',totalCosts:'Total costs',net:'Net'}[field]}</dt><dd>{reading.detail}</dd></div>)}</dl><p>Payment verification observed {commercialDate(recon.generatedAt || '')}</p></details>
   </div>;
   return <section className={`finance-workspace capital-workspace finance-view-${overview ? 'overview' : financeView}`}>
     {!overview && sourceDetails}
@@ -144,7 +144,7 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
     {overview && <CapitalOverview data={data} date={date} dailySummary={dailySummary} sourceDetails={sourceDetails} onViewChange={setFinanceView} />}
     {financeView === 'accounting' && <FinancialStatements data={data.statements} date={date} onRefresh={() => setRevision(value => value + 1)} />}
     {financeView === 'expenses' && <div className="capital-page capital-expenses">
-      <CapitalPageHeader eyebrow={`OPERATING EXPENSES · ${commercialDate(date)}`} title="Operating expenses" />
+      <CapitalPageHeader eyebrow={`OPERATING EXPENSES · ${commercialDate(date)}`} title="Expenses" />
       <section className="capital-stat-grid" aria-label="Selected day operating expenses">
         <CapitalStat primary icon={ReceiptText} label="Daily expenses" value={displayAmount(dailyDisplay.totalCosts)} comparison={data.dailyComparison && {prior:data.dailyComparison.totalCosts,label:data.dailyComparison.label}} lowerIsBetter detail={`${dailyDisplay.totalCosts.detail}${assumedDumpExpense > 0 ? ` · Includes ${money(assumedDumpExpense)} assumed dump cost` : ''}`}/>
         <CapitalStat icon={Users} label="Labor" value={displayAmount(dailyDisplay.labor)} comparison={data.dailyComparison && {prior:data.dailyComparison.labor,label:data.dailyComparison.label}} lowerIsBetter detail={dailyDisplay.labor.detail}/>
@@ -159,7 +159,7 @@ function FinanceWorkspace({ date, view, report, onViewChange, onBusyChange, hide
       <DumpExpenses data={data.dumpExpenses} />
       <FuelReconciliation data={data.fuelReconciliation} />
       </div>
-      <section className="finance-wex-shell" id="capital-fuel-purchases"><div className="section-title"><div><span className="section-kicker">WEX Fleet Fuel · posted transactions only</span><h2>Fuel Card Purchases</h2><p>{wex.available ? `Portal export imported ${commercialDate(wex.importedAt || '')} · source coverage through ${commercialDate(wex.coverageThrough || '')}` : wex.status === 'invalid' ? 'The saved WEX snapshot needs recovery.' : 'No WEX portal export has been imported.'}</p></div><Badge variant="outline">{wex.available ? `${wex.transactionCount} posted` : 'Sign-in / export required'}</Badge></div>
+      <section className="finance-wex-shell" id="capital-fuel-purchases"><div className="section-title"><div><span className="section-kicker">WEX Fleet Fuel · posted transactions only</span><h2>Fuel Card Purchases</h2><p>{wex.available ? `Portal export imported ${commercialDate(wex.importedAt || '')} · records through ${commercialDate(wex.coverageThrough || '')}` : wex.status === 'invalid' ? 'The saved WEX snapshot needs recovery.' : 'No WEX portal export has been imported.'}</p></div><Badge variant="outline">{wex.available ? `${wex.transactionCount} posted` : 'Sign-in / export required'}</Badge></div>
         <div className="finance-wex-summary"><article><span>Selected day</span><strong><MetricValue value={wex.available ? money(wex.selectedDate.netCost) : 'Unavailable'} /></strong><small>{wex.selectedDate.count} posted purchases · {wex.selectedDate.gallons.toFixed(2)} gal</small></article><article><span>Month to source date</span><strong><MetricValue value={wex.available ? money(wex.month.netCost) : 'Unavailable'} /></strong><small>{wex.month.count} posted purchases · {wex.month.gallons.toFixed(2)} gal</small></article><article><span>Source coverage</span><strong><MetricValue value={wex.coverageThrough ? commercialDate(wex.coverageThrough) : 'Unavailable'} /></strong></article></div>
         {!!wex.transactions.length && <><div className="finance-wex-head"><span>Time</span><span>Truck / driver</span><span>Fuel</span><span>Merchant</span><span>Odometer</span><span>Net cost</span></div><div className="finance-wex-list">{wex.transactions.map(transaction => <article key={transaction.transactionId}><span>{transaction.transactionTime}</span><div><strong><MetricValue value={truckDisplayText(transaction.truck)} /></strong><small>{transaction.driver}</small></div><div><strong><MetricValue value={transaction.gallons == null ? `${transaction.units ?? '—'} ${transaction.unitOfMeasure}` : `${transaction.gallons.toFixed(2)} gal`} /></strong><small>{transaction.productDescription || transaction.product}</small></div><div><strong><MetricValue value={transaction.merchant} /></strong><small>{[transaction.city, transaction.state].filter(Boolean).join(', ')}</small></div><span>{transaction.odometer?.toLocaleString() || '—'}</span><strong><MetricValue value={money(transaction.netCost)} /></strong></article>)}</div></>}
         <footer className="finance-payment-note"><ShieldCheck size={14}/><span>Posted exports provide settlement evidence. Email purchases count on the purchase day; matching posted transactions replace them without a second charge.</span></footer>

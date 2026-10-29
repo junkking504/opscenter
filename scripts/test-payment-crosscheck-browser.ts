@@ -22,7 +22,7 @@ async function main() {
       await page.goto(`http://127.0.0.1:${(server.address() as {port:number}).port}`);
       const panel=page.getByRole('region',{name:'Cross-check payments',exact:true});
       await expect(panel).toContainText('3 records to review');
-      await page.getByRole('button',{name:/Unverified cards.*Review/}).click();
+      await page.getByRole('button',{name:/Card Payments To Check.*Review/}).click();
       const list=panel.getByRole('navigation',{name:'Inconsistent transactions'});
       await expect(list.getByRole('button')).toHaveCount(1);
       await expect(panel).toContainText('Not a confirmed match.');await expect(panel).toContainText('Amount difference: $25.00');

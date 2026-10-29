@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
 import {reopenAttentionHandoff,transferCheckout,type CheckoutHandoff} from '../app/crew-jobs/checkout-handoff';
+import {checkedCrewReceipt} from '../app/crew-jobs/closeout-receipt';
 import type {Receipt} from '../desktop-ui/schedule-receipt';
 
 async function main(){
+  const verified:Receipt={requestId:'expected',action:'closeout',status:'verified',message:'Reported verified'};
+  assert.throws(()=>checkedCrewReceipt(verified,'different'),/does not match/);
+  assert.throws(()=>checkedCrewReceipt({...verified,action:'note'},'expected'),/does not match/);
+  assert.equal(checkedCrewReceipt(verified,'expected').status,'uncertain','Receipt label without source 8 is not completion');
+  assert.equal(checkedCrewReceipt({...verified,sourceResult:{closeout:{status:{value:'1'}}}},'expected').status,'uncertain');
+  assert.equal(checkedCrewReceipt({...verified,sourceResult:{closeout:{status:{value:'8'}}}},'expected').status,'verified');
+
   const initial:CheckoutHandoff={deviceId:'phone',assignmentId:'assignment',requestId:'checkout-original',createdAt:1,phase:'transferring',
     payload:{requestId:'checkout-original',values:{addPayment:{amount:120}}},photoIds:['photo-one','photo-two'],acceptedPhotos:{},message:''};
   let saved=structuredClone(initial),closeout:Receipt|null=null,closeoutPosts=0,photoPosts=0,losePhotoResponse=true,loseCheckoutResponse=false,failBeforeAccept=false;
@@ -41,7 +49,7 @@ async function main(){
   await transferCheckout(structuredClone(saved),deps);
   assert.equal(saved.phase,'accepted');assert.match(saved.message,/Received.*completion pending.*Do not submit again/);assert.match(saved.message,/pending/);
   assert.equal(closeoutPosts,1,'Lost checkout acknowledgement is read back, never duplicated');
-  closeout={requestId:'checkout-original',action:'closeout',status:'verified',message:'Verified'};
+  closeout={requestId:'checkout-original',action:'closeout',status:'verified',message:'Verified',sourceResult:{closeout:{status:{value:'8'}}}};
   await transferCheckout(saved,deps);assert.match(saved.message,/verified in JunkWare/);
   saved=structuredClone(initial);closeout=null;photos.clear();failBeforeAccept=true;
   await transferCheckout(saved,deps);const frozen=structuredClone(saved);

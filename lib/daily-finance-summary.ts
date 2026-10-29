@@ -45,7 +45,7 @@ export function buildDailyFinanceSummary(metrics: AnyRecord | null, wex?: WexFue
     fuel: operatingFuel ? operatingFuel.amount : wexIncludedSeparately ? wex!.selectedDate.netCost : publishedFuel,
     totalCosts: totalCosts == null ? null : round(totalCosts + supplementalCosts),
     net: net == null ? null : round(net - supplementalCosts),
-    fuelSource: operatingFuel?.purchases ? 'wex-email' : wexIncludedSeparately ? 'wex' : publishedFuel == null ? 'unavailable' : 'published',
+    fuelSource: operatingFuel?.sourceAt ? 'wex-email' : wexIncludedSeparately ? 'wex' : publishedFuel == null ? 'unavailable' : 'published',
     wexIncludedSeparately: operatingFuel ? operatingFuel.adjustment !== 0 : wexIncludedSeparately,
     ...(operatingFuel ? {operatingFuel} : {}),
   };

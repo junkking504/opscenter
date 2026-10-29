@@ -1,7 +1,7 @@
 import {readWexAlertDates,readWexAlertExpenses} from './wex-alert-expenses';
 import {readWexFuelFinance} from './wex-fuel';
 import {readOperationalTruckExpenses} from './truck-expense-notifications';
-import {reconcileOperatingFuel,readOperatingFuel} from './wex-operating-fuel';
+import {reconcileOperatingFuel} from './wex-operating-fuel';
 import type {OperatingTrendsData,OperatingDay} from './operating-trends';
 
 /** Overlay retained email purchase evidence on completed-day charts on read.
@@ -14,14 +14,15 @@ export function withWexEmailExpenses(data:OperatingTrendsData|null):OperatingTre
  for(const date of dates){
   const row=daily.find(row=>row.date===date);if(!row)continue;
   const wex=readWexFuelFinance(date),alerts=readWexAlertExpenses(date,wex.transactions);
-  const fuel=readOperatingFuel(date,row.recordedFuel,wex,alerts);
+  const reports=readOperationalTruckExpenses(date);
+  const fuel=reconcileOperatingFuel(row.recordedFuel,wex,alerts,reports);
   if(!fuel.purchases)continue;
   const oldSupplement=row.wexCost!==null&&(row.recordedFuel===null||Math.abs(row.recordedFuel)<.005)?row.wexCost:0;
   row.wexCost=fuel.amount;row.dumpAndFuel=row.dumpCost===null||fuel.amount===null?null:row.dumpCost+fuel.amount;
   if(row.operatingProfit!=null)row.operatingProfit=Math.round((row.operatingProfit+oldSupplement-fuel.adjustment)*100)/100;
   // Gallons and unit price stay export-only: mixing denominators would invent a price.
   row.netPerGallon=null;
-  for(const purchase of alerts.rows.filter(p=>p.status==='provisional'&&p.truck)){
+  for(const purchase of alerts.rows.filter(p=>['provisional','posted'].includes(p.status)&&p.truck)){
    const name=purchase.truck!.replace('#','').replace(/\s+/g,' ').trim();
    let truck=trucks.find(t=>t.truck.replace('#','').replace(/\s+/g,' ').trim()===name);
    if(!truck){truck={truck:name,daily:[]};trucks.push(truck);}
@@ -33,8 +34,8 @@ export function withWexEmailExpenses(data:OperatingTrendsData|null):OperatingTre
    const key=truck.truck.match(/\d+/)?.[0];const day=truck.daily.find(d=>d.date===date);if(!day)continue;
    const subset={...alerts,rows:alerts.rows.filter(p=>p.truck?.match(/\d+/)?.[0]===key)};
    if(!subset.rows.length)continue;
-   const posted={...wex,transactions:wex.transactions.filter(p=>subset.rows.some(a=>a.postedId===p.transactionId))};
-   const result=reconcileOperatingFuel(day.recordedFuel,posted,subset,readOperationalTruckExpenses(date).filter(r=>r.truck.match(/\d+/)?.[0]===key));
+   const posted={...wex,transactions:wex.transactions.filter(p=>p.truck?.match(/\d+/)?.[0]===key||subset.rows.some(a=>a.postedId===p.transactionId))};
+   const result=reconcileOperatingFuel(day.recordedFuel,posted,subset,reports.filter(r=>r.truck.match(/\d+/)?.[0]===key));
    day.wexCost=result.amount;day.netPerGallon=null;
   }
  }

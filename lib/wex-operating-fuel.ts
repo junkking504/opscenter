@@ -10,21 +10,29 @@ const cents=(n:number)=>Math.round(n*100);
 const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
 const truck=(s:string|null)=>s?.match(/\d+/)?.[0] || null;
 const usable=(row:WexAlertExpenseRow)=>row.status==='provisional'||row.status==='posted';
-export function alertMatchesReport(row:WexAlertExpenseRow,report:TruckExpense){
-  if(!row.truck || truck(row.truck)!==truck(report.truck) || row.date!==report.date || report.kind!=='fuel' || !row.attribution?.at)return false;
+function possibleReportOverlap(row:WexAlertExpenseRow,report:TruckExpense){
+  if(row.date!==report.date || report.kind!=='fuel')return false;
   const a=normal(row.merchant), b=normal(report.sourceLocation || report.location);
-  return a.length>=4 && b.length>=4 && (a.startsWith(b)||b.startsWith(a)) && Math.abs(Date.parse(row.attribution.at)-Date.parse(report.transactionAt))<=30*60000;
+  if(a.length<4 || b.length<4 || !(a.startsWith(b)||b.startsWith(a)))return false;
+  // Unknown time/truck cannot prove a distinct purchase. Keep a same-station
+  // report as a possible overlap, without guessing which truck made it.
+  return !row.attribution?.at || Math.abs(Date.parse(row.attribution.at)-Date.parse(report.transactionAt))<=30*60000;
+}
+export function alertMatchesReport(row:WexAlertExpenseRow,report:TruckExpense){
+  return !!row.truck && truck(row.truck)===truck(report.truck) && !!row.attribution?.at && possibleReportOverlap(row,report);
 }
 
 /** Reconcile identities before adding costs. When published fuel cannot be
  * explained by verified detail, expose overlap and use a floor rather than
  * silently adding a second copy of an unknown aggregate. */
 export function reconcileOperatingFuel(published:number|null,wex:WexFuelFinanceData,alerts:WexAlertDailyExpenses,reports:TruckExpense[]):OperatingFuel{
+  published=published==null||!Number.isFinite(Number(published))?null:Number(published);
   const rows=alerts.status==='available'?alerts.rows.filter(usable):[];
   const entries=reports.filter(row=>row.date===alerts.date&&row.kind==='fuel');
   const options=rows.map(row=>entries.filter(report=>alertMatchesReport(row,report)));
+  const potential=rows.map(row=>entries.filter(report=>possibleReportOverlap(row,report)));
   const matched=new Set<string>();
-  rows.forEach((_,index)=>{if(options[index].length===1 && options.filter(list=>list.some(r=>r.id===options[index][0].id)).length===1)matched.add(options[index][0].id);});
+  rows.forEach((_,index)=>{if(options[index].length===1 && potential.filter(list=>list.some(r=>r.id===options[index][0].id)).length===1)matched.add(options[index][0].id);});
   const linked=new Set(rows.flatMap(row=>row.postedId?[row.postedId]:[]));
   const posted=wex.available?wex.transactions.filter(p=>p.transactionDate===alerts.date&&!linked.has(p.transactionId)):[];
   const unknownPosted=posted.some(p=>p.totalFuelCost===null&&p.totalNonFuelCost!==0);
@@ -34,7 +42,7 @@ export function reconcileOperatingFuel(published:number|null,wex:WexFuelFinanceD
   // Complete individual detail is needed to add an unrelated purchase to a
   // nonzero published aggregate. An unmatched posted purchase may also overlap.
   const detailComplete=published!==null && Math.abs(reported-published)<.005 && entries.every(r=>r.fuelAllocation?.unique!==false&&!r.reconciliationNote) && new Set(entries.map(r=>r.id)).size===entries.length;
-  const overlapUnresolved=unknownPosted || rows.some((_,i)=>options[i].length>0&&!options[i].every(r=>matched.has(r.id))) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
+  const overlapUnresolved=unknownPosted || rows.some((_,i)=>potential[i].length>0&&!(options[i].length===1&&matched.has(options[i][0].id))) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
   let amount=published;
   if(rows.length || posted.length){
     const matchedAmount=entries.filter(r=>matched.has(r.id)).reduce((sum,r)=>sum+cents(r.amount),0)/100;

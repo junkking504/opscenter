@@ -33,10 +33,11 @@ identity. Multiple trucks or unavailable evidence remain unassigned, while the
 purchase remains an expense.
 
 WEX email clocks have no explicit timezone. A candidate UTC instant is inferred
-only when a North American whole-hour offset gives delivery within fifteen
-minutes after the stated purchase, and the GPS stop corroborates it. This is an
-operational inference, not verified timezone evidence; delayed mail and ambiguous
-matches need review. Preserve the original stated purchase date and time.
+only when exactly one stationary GPS truck/time match exists across plausible
+North American whole-hour clock offsets within a one-day delivery window. A
+delayed email does not automatically select the next timezone offset. This is an
+operational inference, not verified timezone evidence; multiple truck/time candidates and delivery outside the supported window
+need review. Preserve the original stated purchase date and time.
 
 The internal OpsCenter timeline shows **Truck# X just refueled**, amount, station,
 and time/evidence. Its stable tracking-based ID survives replay, amount revision,

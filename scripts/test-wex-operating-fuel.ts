@@ -18,6 +18,7 @@ try{
  const save=(stops:unknown[])=>fs.writeFileSync(path.join(history,`linxup_location_${date}.json`),JSON.stringify({date,stops}));
  save([stop]);const attribution=attributeWexAlert(a,root);assert.equal(attribution.truck,'Truck# 4');assert.equal(attribution.at,`${date}T13:11:07.000Z`);assert.match(attribution.evidence,/inferred/);
  save([stop,{...stop,driverName:'Truck #9'}]);assert.equal(attributeWexAlert(a,root).status,'ambiguous');
+ save([stop,{...stop,driverName:'Truck #9',beginDate:stop.beginDate+3600000,endDate:stop.endDate+3600000}]);assert.equal(attributeWexAlert({...a,receivedAt:`${date}T14:11:51Z`},root).status,'ambiguous','one-hour delayed mail must not select the later truck');
  save([{...stop,street:'2838 Example Ave'}]);assert.equal(attributeWexAlert(a,root).truck,null,'warehouse is not station');
  save([{...stop,endDate:stop.beginDate+30000}]);assert.equal(attributeWexAlert(a,root).truck,null,'drive-by is not refueling');
  save([{...stop,beginDate:stop.beginDate+3600000,endDate:stop.endDate+3600000}]);assert.equal(attributeWexAlert(a,root).truck,null,'do not assume Chicago clock');
@@ -29,6 +30,10 @@ try{
  const display=presentDailyFinance(summary,dailyFinanceEvidence(metrics,summary,date,wex),date,Date.parse(`${date}T19:01:00Z`));assert.equal(display.fuel.value,68.22,'recorded purchase does not expire after 10 minutes');assert.equal(display.totalCosts.value,168.22);
  const manual={id:'report',kind:'fuel',truck:'Truck# 4',date,transactionAt:attribution.at!,amount:68.22,location:'Example Station',receipt:'',market:'352',notify:false} as TruckExpense;
  assert.equal(reconcileOperatingFuel(68.22,wex,data,[manual]).amount,68.22,'manual record is not counted twice');
+ const unassigned={...data,rows:data.rows.map(r=>({...r,truck:null,attribution:{truck:null,at:null,status:'unavailable' as const,evidence:'no GPS'}}))};
+ const uncertain=reconcileOperatingFuel(68.22,wex,unassigned,[manual]);assert.equal(uncertain.amount,68.22,'unassigned email cannot duplicate a same-station manual expense');assert.equal(uncertain.overlapUnresolved,true);
+ const uncertainSummary=buildDailyFinanceSummary({...metrics,fuel_expense:68.22},wex,0,uncertain);const uncertainDisplay=presentDailyFinance(uncertainSummary,dailyFinanceEvidence(metrics,uncertainSummary,date,wex),date,Date.parse(`${date}T19:01:00Z`));
+ for(const field of ['fuel','totalCosts','net'] as const)assert.match(uncertainDisplay[field].detail,/overlap unresolved/,'uncertainty must remain visible on all affected totals');
  const other={...manual,id:'other',truck:'Truck# 9',location:'Other Station',amount:50};assert.equal(reconcileOperatingFuel(50,wex,data,[other]).amount,118.22,'unrelated manual fuel remains included');
  assert.equal(reconcileOperatingFuel(68.22,wex,data,[]).amount,68.22,'unexplained aggregate must not double count');assert.equal(reconcileOperatingFuel(68.22,wex,data,[]).overlapUnresolved,true);
  const posted={transactionId:'settled',transactionDate:date,transactionTime:a.time,merchantAddress:a.address,city:a.city,state:a.stateCode,merchant:a.merchant,driver:a.driver,gallons:a.gallons,totalFuelCost:65,totalNonFuelCost:0,netCost:65,status:'posted'} as WexFuelTransaction;
@@ -53,6 +58,14 @@ try{
   assert.equal(adjusted.trucks?.[0].truck,'Truck 4');assert.equal(adjusted.trucks?.[0].daily[0].wexCost,68.22);
   assert.ok(scopeOperatingTrends(adjusted,'expenses')?.sourceCoverage?.wexEmail);
   assert.equal(historyData.daily[0].dumpAndFuel,44,'do not mutate saved prediction inputs');
+  const separate={...posted,transactionId:'earlier-posted',transactionTime:'06:00:00',merchant:'Other Station',merchantAddress:'10 Other Street',truck:'Truck 4',netCost:40,totalFuelCost:40};
+  const writePosted=(transactions:WexFuelTransaction[])=>fs.writeFileSync(path.join(process.env.WEX_FUEL_DATA_DIR!,'posted-transactions.json'),JSON.stringify({schemaVersion:2,source:'WEXOnline posted transaction CSV',importedAt:message.receivedAt,coverageFrom:date,coverageThrough:date,transactionCount:transactions.length,transactions}));
+  writePosted([separate]);
+  const withExisting={...historyData,trucks:[{truck:'Truck 4',daily:[{...historyData.daily[0],wexCost:40}]}]};
+  const preserved=withWexEmailExpenses(withExisting)!;assert.equal(preserved.trucks?.[0].daily[0].wexCost,108.22,'email must retain unrelated posted truck cost');assert.equal(preserved.daily[0].wexCost,108.22);
+  writePosted([{...posted,truck:'Card label'}]);
+  const settledHistory=withWexEmailExpenses(historyData)!;assert.equal(settledHistory.trucks?.[0].truck,'Truck 4','settled email still creates its GPS-attributed truck row');assert.equal(settledHistory.trucks?.[0].daily[0].wexCost,65);
+
  }finally{if(beforeRoot===undefined)delete process.env.OPSCENTER_DATA_DIR;else process.env.OPSCENTER_DATA_DIR=beforeRoot;if(beforeWex===undefined)delete process.env.WEX_FUEL_DATA_DIR;else process.env.WEX_FUEL_DATA_DIR=beforeWex;}
  console.log('WEX purchase-day expense, GPS assignment, timezone inference, reversals, manual/posted deduplication, freshness and stable internal refueling alerts passed.');
 }finally{fs.rmSync(root,{recursive:true,force:true});}

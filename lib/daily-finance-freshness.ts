@@ -2,7 +2,7 @@ import type { OperatingFuel } from '../desktop-ui/lib/wex-alert-expenses-contrac
 import { chicagoDateKey } from './chicago-date';
 import { money } from './money';
 
-export type FinanceEvidence = { status: 'current' | 'stale' | 'missing'; asOf: string | null; reason?: string; recordedEvent?: boolean };
+export type FinanceEvidence = { status: 'current' | 'stale' | 'missing'; asOf: string | null; reason?: string; recordedEvent?: boolean; caveat?: string };
 export type FinanceField = 'revenue' | 'labor' | 'dumps' | 'fuel' | 'totalCosts' | 'net';
 type FinanceAmounts = Record<FinanceField, number | null> & { wexIncludedSeparately: boolean; operatingFuel?: OperatingFuel };
 type WexEvidence = { coverageThrough: string | null; sourceFileModifiedAt: string | null; importedAt: string | null };
@@ -17,7 +17,7 @@ export function combineFinanceEvidence(...inputs: FinanceEvidence[]): FinanceEvi
   const stale = inputs.find(input => input.status === 'stale');
   return { status: unavailable ? 'missing' : stale ? 'stale' : 'current',
     asOf: inputs.every(input => validTime(input.asOf)) ? (inputs.some(input=>!input.recordedEvent)?inputs.filter(input=>!input.recordedEvent):inputs).map(input => input.asOf!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] : null,
-    reason: unavailable?.reason || stale?.reason };
+    reason: unavailable?.reason || stale?.reason, caveat:[...new Set(inputs.flatMap(input=>input.caveat?[input.caveat]:[]))].join(' · ') || undefined };
 }
 
 /** Publication time never overrides a supplied source contract. Legacy snapshots
@@ -37,6 +37,10 @@ export function dailyFinanceEvidence(metrics: Record<string, unknown> | null, su
   const labor = known(summary.labor, read('metrics', 'payroll'));
   const dumps = known(summary.dumps, read('sources', 'junkware_truck_records'));
   const purchaseEvidence:FinanceEvidence = {status:'current',asOf:summary.operatingFuel?.sourceAt || null,recordedEvent:true,reason:summary.operatingFuel?.overlapUnresolved?'Recorded WEX purchases; overlap with published detail needs review':'Recorded WEX purchases · settlement pending where shown'};
+  if(summary.operatingFuel?.sourceAt){
+    const at=new Date(summary.operatingFuel.sourceAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    purchaseEvidence.caveat=`WEX email evidence through ${at}; mailbox coverage may be incomplete${summary.operatingFuel.overlapUnresolved?' · Fuel overlap unresolved: costs may be understated and net overstated':''}`;
+  }
   const fuel = summary.operatingFuel?.purchases && summary.operatingFuel.sourceAt
     ? summary.operatingFuel.publishedIncluded ? combineFinanceEvidence(read('sources','junkware_truck_records'),purchaseEvidence) : purchaseEvidence
     : summary.wexIncludedSeparately
@@ -64,7 +68,7 @@ export function financeReading(recorded: number | null, evidence: FinanceEvidenc
   const sourceLabel = time ? `${historical ? 'Snapshot' : 'Source'} ${time}${historical ? '' : ` · ${ageLabel}`}` : 'Source time unavailable';
   const last = recorded == null ? '' : ` · Last recorded ${money(recorded)}`;
   return { value: state === 'current' ? recorded : null, state,
-    detail: state === 'current' ? source.recordedEvent ? `${source.reason} · Latest email ${time}` : sourceLabel : `${state === 'stale' ? 'Stale source' : 'Input unavailable'}${last} · ${sourceLabel}` };
+    detail: state === 'current' ? `${source.recordedEvent ? source.reason : sourceLabel}${source.caveat?` · ${source.caveat}`:''}` : `${state === 'stale' ? 'Stale source' : 'Input unavailable'}${last} · ${sourceLabel}` };
 }
 
 export function presentDailyFinance(summary: FinanceAmounts, evidence: DailyFinanceEvidence | undefined, date: string, now = Date.now()) {

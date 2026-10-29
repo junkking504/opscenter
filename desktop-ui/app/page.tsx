@@ -1258,7 +1258,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         : activeNav === 'Fleet'
           ? `Fleet · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
-            ? `Marketing · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
+            ? `Marketing · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow-Up'}`
             : `Finance · ${financeView === 'overview' || financeView === 'trends' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
@@ -4457,7 +4457,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
                 <WorkspaceTabs label="Marketing views">
-                  {(live ? [['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
+                  {(live ? [['overview', 'Follow-Up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : activeNav === 'Finance' ? (

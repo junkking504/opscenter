@@ -1,8 +1,10 @@
 import ClockEntry from './clock-entry';
 import {parseClockEntry,validClockEntry} from './lib/clock-entry';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopKreweDay } from './lib/people-fleet-contract';
 import './krewe-day-editor.css';
+
+const TimecardDelete=lazy(()=>import('./timecard-delete'));
 
 type Action = 'correction' | 'bonus';
 type SavedRequest = { id: string; action: Action };
@@ -12,8 +14,10 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   date: string; periodDate: string; name: string; action: Action; onClose: () => void; onSaved: (message: string) => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const deleteOpener=useRef<HTMLButtonElement>(null);
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
+  const [deleting,setDeleting]=useState(false);
   const [record, setRecord] = useState<DesktopKreweDay | null>(null);
   const [message, setMessage] = useState('');
   const [request, setRequest] = useState<SavedRequest | null>(null);
@@ -94,8 +98,9 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
     {message && <div className="krewe-day-feedback" data-attention={attention || undefined}><p role={attention ? "alert" : "status"}>{feedback}</p>{feedback !== message && <details><summary>Details</summary><p>{message}</p></details>}</div>}
     {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check saved result</button>}
     {!record && <>{!message && <p>Loading day…</p>}<button type="button" disabled={pending} onClick={() => void reload()}>Reload day</button></>}
-    {record && <>
-      <p>{record.member.status} · {record.member.clockIn || 'No clock-in'} – {record.member.clockOut || 'No clock-out'}</p>
+    {record && deleting && <Suspense fallback={<p>Loading deletion controls…</p>}><TimecardDelete date={date} periodDate={periodDate} name={record.member.name} onCancel={()=>{setDeleting(false);requestAnimationFrame(()=>deleteOpener.current?.focus());}} onBusy={value=>{busy.current=value;setPending(value);}} onDeleted={async text=>{onClose();await onSaved(text);}}/></Suspense>}
+    {record && !deleting && <>
+      {record.timecardDeletion&&<p role="status">{record.timecardDeletion.message}</p>}<p>{record.member.status} · {record.member.clockIn || 'No clock-in'} – {record.member.clockOut || 'No clock-out'}</p>
       {record.member.hourlyRate === null && <p>Hourly rate missing for this date.</p>}
       {!record.canWrite && <p>Read-only · manager access required.</p>}
       <form onSubmit={event => {event.preventDefault(); void save('correction');}}>
@@ -111,6 +116,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
           <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save bonus</button>
         </fieldset>
       </form>
+      <button type="button" ref={deleteOpener} style={{minHeight:44}} disabled={disabled} onClick={()=>setDeleting(true)}>Delete time entry…</button>
       <details><summary>How saving works</summary><p>Changes apply only to {date}. Times and shift rate are verified in JunkWare; pay uses available weekly hours. Manual bonuses stay in OpsCenter.</p></details>
       {record.member.junkwareSync && <p role="status">{record.member.junkwareSync.message}</p>}
       {record.member.correction && <p>Last correction: {record.member.correction.note} · {record.member.correction.updatedBy} · {record.member.correction.updatedAt}</p>}

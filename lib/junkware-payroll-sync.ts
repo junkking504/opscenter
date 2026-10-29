@@ -1,3 +1,4 @@
+import {assertNoTimecardDeletion,correctionWasDeleted} from './timecard-deletions';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -15,7 +16,7 @@ const root=()=>path.join(process.env.OPSBOT_DATA_DIR||path.join(process.cwd(),'d
 export const payrollSyncId=(correction:PayrollCorrection)=>createHash('sha256').update(JSON.stringify(correction)).digest('hex');
 const syncPath=(id:string)=>{if(!/^[a-f0-9]{64}$/.test(id))throw new Error('Invalid payroll synchronization ID.');return path.join(root(),`${id}.json`);};
 export function readPayrollSync(id:string):PayrollSync|null {
-  try{const row:PayrollSync=JSON.parse(fs.readFileSync(syncPath(id),'utf8'));return row.status==='pending'&&Date.now()-Date.parse(row.updatedAt)>180_000?{...row,status:'uncertain',message:'JunkWare verification was interrupted. Check saved result before another change.'}:row;}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}
+  try{const row:PayrollSync=JSON.parse(fs.readFileSync(syncPath(id),'utf8'));if(correctionWasDeleted(row.correction))return {...row,status:'failed',message:'This source entry was deleted. Its old correction cannot be replayed.'};return row.status==='pending'&&Date.now()-Date.parse(row.updatedAt)>180_000?{...row,status:'uncertain',message:'JunkWare verification was interrupted. Check saved result before another change.'}:row;}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}
 }
 export function writePayrollSync(row:PayrollSync) {
   fs.mkdirSync(root(),{recursive:true,mode:0o700});const file=syncPath(row.id),temp=`${file}.${process.pid}.tmp`;
@@ -23,6 +24,7 @@ export function writePayrollSync(row:PayrollSync) {
 }
 export function payrollSyncForCorrection(correction:PayrollCorrection|null) {return correction?readPayrollSync(payrollSyncId(correction)):null;}
 export function assertPayrollSyncEditable(date:string,name:string) {
+  assertNoTimecardDeletion(date,name);
   if(!fs.existsSync(root()))return;
   for(const file of fs.readdirSync(root()).filter(file=>/^[a-f0-9]{64}\.json$/.test(file))) {
     const row=readPayrollSync(file.slice(0,-5));
@@ -50,6 +52,7 @@ export function payrollSyncMessage(row:PayrollSync|null):string {
  * subsequent checks only read the source when a submission has already started. */
 export async function runPayrollSync(id:string,verifyOnly=false):Promise<PayrollSync> {
   const row=readPayrollSync(id);if(!row)throw new Error('Correction synchronization was not staged.');
+  if(correctionWasDeleted(row.correction))return row;
   if(row.status==='verified'&&!verifyOnly)return row;
   try {
     await promisify(execFile)(process.execPath,['--import','tsx',path.join(process.cwd(),'scripts','sync-junkware-timesheet.ts'),'--sync-id',id,...(verifyOnly?['--verify-only']:[])],{cwd:process.cwd(),env:{...process.env},timeout:150_000,maxBuffer:256_000});
@@ -61,7 +64,7 @@ export async function runPayrollSync(id:string,verifyOnly=false):Promise<Payroll
 }
 export function payrollSyncIsCurrent(row:PayrollSync) {
   const current=payrollCorrectionForEmployee(row.correction.workDate,row.correction.employeeName);
-  return current!==null&&payrollSyncId(current)===row.id;
+  return current!==null&&!correctionWasDeleted(current)&&payrollSyncId(current)===row.id;
 }
 export function sameShift(actual:JunkwareShift|undefined|null,correction:Pick<PayrollCorrection,'workDate'|'clockIn'|'clockOut'|'hourlyRate'>) {
   return Boolean(actual&&actual.workDate===correction.workDate&&actual.clockIn===correction.clockIn&&actual.clockOut===correction.clockOut&&Math.abs(actual.hourlyRate-correction.hourlyRate)<0.005);

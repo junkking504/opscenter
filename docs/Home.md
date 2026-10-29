@@ -56,6 +56,7 @@ without mixing live runtime data or secrets into Git.
 - [Direct Web Push preparation and activation boundary](web-push.md)
 - [Optional Pushover manager alert delivery](pushover.md)
 - [Dated crew roster](schedule-crew-roster.md)
+- [Manager time-entry deletion](timecard-deletion.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [Appointment customer history](customer-history.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)

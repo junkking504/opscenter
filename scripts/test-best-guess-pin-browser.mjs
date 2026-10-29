@@ -22,7 +22,7 @@ try {
   await summary.getByText('Pin details',{exact:true}).click();
   assert.match(await summary.innerText(),streetPin?/Approximate street location; house number not located/:/Unit 26107/,'Show the chosen candidate and precision on demand');
   await summary.getByText('Pin details',{exact:true}).click();
-  assert.equal(await summary.getByRole('link',{name:'Open pin',exact:true}).getAttribute('href'),`https://www.google.com/maps/search/?api=1&query=${streetPin?'30.3178,-89.9477':'30.45,-90.05'}`);
+  assert.equal(await summary.getByRole('link',{name:'Open pin',exact:true}).getAttribute('href'),`https://maps.apple.com/place?coordinate=${streetPin?'30.3178,-89.9477':'30.45,-90.05'}`);
   assert.doesNotMatch(await page.locator('body').innerText(),/Address needs confirmation|Address needs correction|Confirm the complete service address|Location pending/);
   assert.match(await page.getByRole('button',{name:/No pin/}).innerText(),/0/,'Approximate pins count as mapped');
   assert.equal(await page.locator('.selected-job-closest.needs-review').count(),0);

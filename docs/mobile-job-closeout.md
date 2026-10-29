@@ -1225,6 +1225,10 @@ information; ambiguous addresses and other building/business names stay intact.
 This is presentation only: original source fields, partner identity, inventory,
 address verification and GPS matching are unchanged.
 
+## Apple Maps navigation links
+
+Outgoing address, directions and route links open Apple Maps using its HTTPS unified Maps URLs. GPS and approximate-pin actions preserve their coordinates; approximate pins remain separately labeled. Multi-stop route links preserve stop order using repeated waypoint parameters. These links require no developer membership, key or billable API calls. Embedded maps, geocoding and ETA calculation are unchanged. Unified links require iOS 18.4 / macOS 15.4 or later for native support; other platforms use Apple Maps on the web. See https://developer.apple.com/documentation/mapkit/unified-map-urls.
+
 ## Accepted checkout navigation — October 29, 2026
 
 Waypoint returns to Assignments after a matching server receipt and immutable

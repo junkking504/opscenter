@@ -1,4 +1,5 @@
 "use client";
+import { appleMapsRouteHref } from "@/lib/appointment-navigation";
 
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useMemo, useState } from "react";
@@ -48,21 +49,7 @@ function compareStops(a: RouteStop, b: RouteStop): number {
 }
 
 function directionsUrl(stops: RouteStop[]): string {
-  const addresses = stops
-    .map((stop) => String(stop.job.address || "").trim())
-    .filter((address) => address && address !== "—");
-  if (!addresses.length) return "";
-  if (addresses.length === 1) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addresses[0])}`;
-  }
-  const params = new URLSearchParams({
-    api: "1",
-    origin: addresses[0],
-    destination: addresses[addresses.length - 1],
-    travelmode: "driving",
-  });
-  if (addresses.length > 2) params.set("waypoints", addresses.slice(1, -1).join("|"));
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
+  return appleMapsRouteHref(stops.map((stop) => String(stop.job.address || "")));
 }
 
 function jobAnchor(job: RouteJob): string {

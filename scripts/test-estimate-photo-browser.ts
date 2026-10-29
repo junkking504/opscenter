@@ -31,7 +31,7 @@ async function main(){
    }
    throw Error('Unexpected API '+u.pathname);
   });
-  await page.goto(origin);await page.getByRole('button',{name:'View assignment',exact:true}).click();await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
+  await page.goto(origin);await page.getByRole('button',{name:'View assignment',exact:true}).click();await page.getByRole('button',{name:'START',exact:true}).click();
   await page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
   if(outcome!=='Job')await page.getByLabel(/Final appointment category/).selectOption('Estimate');
   if(outcome==='Estimate'){

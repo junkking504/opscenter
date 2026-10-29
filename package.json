@@ -17,6 +17,7 @@
     "verify:crew-sync": "node --import tsx scripts/test-crew-sync-credential.ts && node --import tsx scripts/test-existing-setup-reliability.ts && node --import tsx scripts/test-crew-publication-months.ts",
     "verify:command-arrivals": "node --import tsx scripts/test-command-arrival-updates.ts",
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
+    "verify:waypoint-eta": "node --import tsx scripts/test-waypoint-eta.ts",
     "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts && node --import tsx scripts/test-crew-assigned-day.ts && node --import tsx scripts/test-crew-schedule-dispatch.ts && node --import tsx scripts/test-waypoint-route-order.ts && node --import tsx scripts/test-waypoint-route-map.ts",
     "verify:closeout-application": "node --import tsx scripts/test-closeout-application-boundary.ts && npm run verify:mobile-closeout-rules && npm run verify:crew-closeout && node --import tsx scripts/test-closeout-payments.ts && node --import tsx scripts/test-closeout-payment-ui.ts",
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",

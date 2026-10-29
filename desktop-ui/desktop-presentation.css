@@ -369,6 +369,8 @@ html[data-ops-theme] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link:not
   opacity: 1;
 }
 .ops-app .missing-value-label {
+  text-transform: none !important;
+  letter-spacing: normal;
   color: var(--oc-safe-secondary-ink) !important;
   margin-left: .35em;
   font-size: 11px;

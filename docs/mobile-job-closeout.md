@@ -1224,3 +1224,12 @@ is a single complete street address. Display and directions retain street/unit
 information; ambiguous addresses and other building/business names stay intact.
 This is presentation only: original source fields, partner identity, inventory,
 address verification and GPS matching are unchanged.
+
+## Accepted checkout navigation — October 29, 2026
+
+Waypoint returns to Assignments after a matching server receipt and immutable
+phone handoff are saved. A pending closeout stays marked Verifying; background
+GET reads check that same request without re-submitting. Completed requires both
+a verified receipt and JunkWare status 8. Failed or uncertain results retain
+the saved submission and recovery controls. Reloading resumes receipt checks;
+a late callback cannot close a different appointment's detail view.

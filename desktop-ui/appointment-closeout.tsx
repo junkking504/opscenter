@@ -257,7 +257,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
       setOtherChargeType('');setOtherChargeQuantity('1');setOtherChargePrice('');
       setMessage(payload.message || '');
       const lockedDraft=payload.pendingReceipt && ['pending','uncertain'].includes(payload.pendingReceipt.status);
-      if(draftKey && ((!payload.pendingReceipt && payload.canWrite) || lockedDraft)){
+      if(draftKey && (((!payload.pendingReceipt || crewMode && payload.pendingReceipt.status==='failed') && payload.canWrite) || lockedDraft)){
         // A stored draft is evidence even when it is too old or incompatible.
         // Archive first; quota/storage failure must stop replacement, not erase it.
         preserveCloseoutDraft(draftKey);

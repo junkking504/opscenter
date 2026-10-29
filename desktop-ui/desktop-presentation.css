@@ -433,3 +433,11 @@ html[data-ops-theme="dark"] .ops-app.ops-live .workspace-rail-link:not(.active) 
 @media (pointer:coarse), (max-width:768px) {
   .ops-app.ops-live [data-slot="button"] { min-width:44px; }
 }
+.ops-app.ops-live .live-schedule .schedule-summary-button strong { font-size:13px !important; line-height:1.4; }
+.ops-app.ops-live .missing-value-label { text-transform:none !important; }
+@media (min-width:769px) and (pointer:fine) {
+  .ops-app.ops-live .live-schedule .schedule-summary-button { min-height:32px !important; height:32px !important; }
+}
+@media (pointer:coarse), (max-width:768px) {
+  .ops-app.ops-live .live-schedule .schedule-summary-button { min-height:44px !important; height:44px !important; }
+}

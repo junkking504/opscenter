@@ -4440,7 +4440,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <div className="krewe-heading-actions">
                 <WorkspaceTabs label="Krewe views">
                   {([
-                    ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
+                    ['today', 'Today'], ['callin', 'Call-In Plan'], ['payperiod', 'Pay Period'], ['monthly', 'Monthly'],
                   ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
@@ -4477,7 +4477,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {activeNav === 'Command' && view !== 'forecast' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
             {commandKpiRows.filter(kpi => kpi.label !== 'Revenue').map((kpi) => (
               <button type="button" data-gesture-preview={kpi.label} data-action-hint={kpi.label === 'RPH' ? 'Open crew RPH for this day' : 'Open graph & see data'} className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
-                <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span><DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /></div>
+                <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + Fuel' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span><DeltaChip current={metricNumber(kpi.value)} comparison={'comparison' in kpi ? kpi.comparison : undefined} lowerIsBetter={['Labor', 'Dump + Fuel'].includes(kpi.label)} /></div>
                 <strong className={String(kpi.value).length > 10 ? "long-value" : undefined}><MetricValue value={kpi.value} reason={kpi.detail} /></strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>
@@ -4839,7 +4839,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 </div>
                 <div className="schedule-control-actions">
                   {scheduleView === 'board' && <Button variant="outline" size="sm" onClick={() => setShowScheduleMap((visible) => !visible)}>{showScheduleMap ? 'Hide Map' : 'Show Map'}</Button>}
-                  <Button size="sm" onClick={openNewAppointment}>New Appointment</Button>
+                  <Button size="sm" onClick={openNewAppointment}>New</Button>
                 </div>
               </div>
 
@@ -5622,7 +5622,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Finance' || canFinance)} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
+          {live && <MobileInteractions contentRef={gestureContentRef} activeWorkspace={activeNav} workspaces={workspacePages.filter(item => item.workspace !== 'Finance' || canFinance)} onNavigate={navigateMainWorkspace} onPrepareNavigation={preloadMainWorkspace} busy={mutationBusy || Boolean(drawer)} onRefresh={(activeNav === 'Schedule' && scheduleView !== 'board') ? undefined : refreshDisplayed} previews={activeNav === 'Command' ? commandKpiRows.map(kpi => ({id:kpi.label,label:kpi.label === 'Today’s jobs' && live.snapshot.date !== currentOperatingDay() ? 'Day’s jobs' : kpi.label === 'Dump + Fuel' ? 'Dump + Fuel' : kpi.label,value:kpi.value,detail:[live.snapshot.date,kpi.secondaryValue,kpi.detail].filter(Boolean).join(' · ')})) : undefined} />}
           <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${workspaceLabel(activeNav)} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>

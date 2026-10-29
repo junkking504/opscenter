@@ -355,3 +355,16 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .workspace-rail-link,.workspace-group-toggle,.workspace-page-link { min-height:44px; }
   .workspace-group-toggle { flex-basis:44px; }
 }
+
+/* Quiet, neutral missing observations; preserve real zeroes. */
+.ops-app .missing-value-label { display: block; font-size: 11px; line-height: 1.4; font-weight: 400; letter-spacing: normal; }
+.ops-app.ops-live .missing-value { color: #595959; }
+html[data-ops-theme="dark"] .ops-app.ops-live .missing-value { color: #b8b8b8; }
+.ops-app.ops-live .page-rail-link:not(.active) { color: #595959; }
+html[data-ops-theme="dark"] .ops-app.ops-live .page-rail-link:not(.active) { color: #b8b8b8; }
+@media (min-width: 769px) and (pointer: fine) {
+  .ops-app.ops-live [data-slot="button"] { min-height: 32px; height: 32px; padding-block: 4px; }
+}
+@media (pointer: coarse), (max-width: 768px) {
+  .ops-app.ops-live [data-slot="button"] { min-height: 44px; }
+}

@@ -20,7 +20,7 @@ import '../css-phase-two.css';
 import { cssPhaseTwoWorkspaces } from '../lib/css-phase-two';
 import { truckDisplayText } from '../../lib/junkware-trucks';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
-import { convoyTabs } from '../lib/convoy-presentation';
+import { initialFleetView, convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
 import { WorkspaceBoundary } from '../workspace-boundary';
 import { cachedWorkspace, fetchWorkspace } from '../lib/workspace-cache';
@@ -228,7 +228,7 @@ type CallInCandidate = {
   memberId: string; rank: number; suggestedRole: string; reason: string; projectedHours: number;
   recentRph: number; recentJobs: number; overtimeRisk?: boolean; status: CallInStatus;
 };
-type FleetView = 'scores' | 'overview' | 'maintenance' | 'service' | 'reports';
+type FleetView = 'scores' | 'overview' | 'inspections' | 'maintenance' | 'service' | 'reports';
 type FleetReadiness = 'Ready' | 'Attention' | 'Out of service';
 type FleetTruck = {
   id: string; label: string; vehicle: string; readiness: FleetReadiness; operatingStatus: string; driver: string; navigator: string;
@@ -1189,7 +1189,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [kreweMonth, setKreweMonth] = useState<'august' | 'july'>('august');
   const [timeCorrection, setTimeCorrection] = useState({ clockIn: '', clockOut: '', reason: '' });
   const [bonusEntry, setBonusEntry] = useState({ amount: '', reason: '' });
-  const [fleetView, setFleetViewValue] = useState<FleetView>(() => live ? navigationValue(window.location.search, 'fleetView', ['overview', 'scores', 'maintenance', 'service', 'reports'], 'overview') : 'overview');
+  const [fleetView, setFleetViewValue] = useState<FleetView>(() => live ? initialFleetView(window.location.search) : 'overview');
   const setFleetView = (value: FleetView) => { if (!mutationBusyRef.current) setFleetViewValue(value); };
   const [fleetTruckRows, setFleetTruckRows] = useState<FleetTruck[]>(live ? [] : fleetTrucks);
   const [fleetIssues, setFleetIssues] = useState<FleetIssue[]>(live ? [] : initialFleetIssues);

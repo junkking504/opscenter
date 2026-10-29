@@ -1,8 +1,9 @@
+import { workspacePages } from '../desktop-ui/page-rail';
 import assert from 'node:assert/strict';
-import { convoyTabs, convoyWarnings, duplicateRepair, recordedValue, sameTruck, truckCondition, truckLoadLabel } from '../desktop-ui/lib/convoy-presentation';
+import { initialFleetView, convoyTabs, convoyWarnings, duplicateRepair, recordedValue, sameTruck, truckCondition, truckLoadLabel } from '../desktop-ui/lib/convoy-presentation';
 import type { DesktopFleetTruck, FleetIssueRow } from '../desktop-ui/lib/people-fleet-contract';
 
-assert.deepEqual(convoyTabs.map(([key])=>key),['overview','maintenance','service']);
+assert.deepEqual(convoyTabs.map(([key])=>key),['overview','inspections','maintenance','service','reports','scores']);
 assert.equal(sameTruck('Truck# 4','Truck 4'),true);
 assert.equal(sameTruck('Truck 4','Truck 14'),false);
 assert.equal(sameTruck('Virtual Truck','Virtual Truck'),false);
@@ -21,3 +22,11 @@ assert.equal(duplicateRepair(issue,[issue,{...issue,issueId:'two',status:'resolv
 assert.equal(recordedValue('— · —'),'Not recorded');
 assert.equal(recordedValue('0 mi'),'0 mi');
 console.log('Convoy presentation passed: stable routes, truck identity, scoped warnings, load uncertainty, repair status, duplicate hints and missing values.');
+
+assert.equal(initialFleetView('?fleetView=maintenance'),'maintenance');
+assert.equal(initialFleetView('?fleetView=maintenance&inspectionReports=1'),'inspections');
+assert.equal(initialFleetView('?fleetView=inspections'),'inspections');
+assert.equal(initialFleetView('?fleetView=reports'),'reports');
+assert.equal(initialFleetView('?fleetView=invalid'),'overview');
+
+assert.deepEqual(workspacePages.find(group=>group.workspace==='Fleet')?.pages,convoyTabs);

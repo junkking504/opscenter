@@ -71,8 +71,8 @@ async function setup({pendingA=false,width=390}:{pendingA?:boolean;width?:number
   throw new Error(`Unexpected fixture request ${req.method()} ${url.pathname}`);
  });
  await page.goto(origin);
- await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
- const open=async()=>{await page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await page.getByRole('button',{name:/^(Start closeout · Before photos|Check saved checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
+ await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
+ const open=async()=>{await page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await page.getByRole('button',{name:/^(START|Check Saved Checkout)$/}).click();await expect(page.getByLabel('Load price',{exact:true})).toBeAttached();await expect(page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');};
  const charges=async()=>{const next=page.getByRole('button',{name:'Submit before photos & continue',exact:true});if(await next.isVisible())await next.click();await expect(page.getByLabel('Load price',{exact:true})).toBeVisible();};
  const payment=async()=>{await charges();await page.getByLabel('Load price',{exact:true}).fill('321');await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();await page.getByRole('button',{name:'Submit after photos & continue',exact:true}).click();await page.getByLabel('Record payment or Billed',{exact:true}).check();await page.getByRole('radio',{name:'Cash',exact:true}).check();};
  const review=async()=>{await payment();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();};
@@ -93,7 +93,7 @@ try{
   assert.equal(t.state.reads,reads,'Background completion cannot refresh an active editor');
   if(artifacts && step==='review')await t.page.screenshot({path:path.join(artifacts,'mobile-active-review.png'),fullPage:true});
   assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');assert.equal(t.state.posts.length,0);
-  await t.page.getByRole('button',{name:'Back to appointment',exact:true}).click();await t.page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
+  await t.page.getByRole('button',{name:'Back to appointment',exact:true}).click();await t.page.getByRole('button',{name:'All Assignments',exact:true}).click();
   await expect.poll(()=>t.state.reads).toBeGreaterThan(reads);await t.open();
   assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321','Promotion keeps stable draft');
   await t.done();console.log(`PASS completion while B step ${step}; safe deferred refresh and promotion`);
@@ -104,7 +104,7 @@ try{
   await expect.poll(()=>t.state.updateRequested).toBe(true);
   await t.open();await t.charges();await t.page.getByLabel('Load price',{exact:true}).fill('321');const reads=t.state.reads;
   t.state.updateToken='late-update';t.state.releaseUpdates();
-  await expect(t.page.getByRole('button',{name:'Refresh assignments',exact:true})).toBeHidden();
+  await expect(t.page.getByRole('button',{name:'Refresh Assignments',exact:true})).toBeHidden();
   await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');assert.equal(t.state.reads,reads);
   await t.done();console.log('PASS late poll and manual refresh preserve dirty editor');
  }
@@ -112,12 +112,12 @@ try{
   const t=await setup({width:mode==='failed'?1280:390});t.state.mode=mode;await t.open();await t.review();
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
   if(['pending','verified','lost'].includes(mode)){
-   await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+   await expect(t.page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
    await expect(t.page.locator('.appointment-closeout-panel')).toHaveCount(0);
    if(mode!=='verified')await expect(t.page.getByText('Checkout accepted by the server. JunkWare verification is still pending.',{exact:true})).toBeVisible();
   }else{
    await expect(t.page.locator('.appointment-closeout-panel')).toHaveAttribute('aria-busy','false');
-   await expect(t.page.getByRole('heading',{name:'Appointment details',exact:true})).toBeVisible();
+   await expect(t.page.getByRole('heading',{name:'Appointment Details',exact:true})).toBeVisible();
    assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');
    if(mode==='failed')await expect(t.page.getByLabel('Payment amount',{exact:true})).toBeEnabled();
    else{
@@ -173,7 +173,7 @@ try{
   await expect.poll(()=>t.state.photoReceipts.size).toBe(2);
   // Pending provider receipts do not prevent final server intake, either.
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
-  await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+  await expect(t.page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
   assert.equal(t.state.posts.length,1);assert.equal(t.state.photoPosts,2,'Final checkout does not resend step uploads');assert.deepEqual(t.state.posts[0].photoRequestIds.sort(),[...t.state.photoReceipts.values()].map(row=>row.requestId).sort(),'Final checkout uses canonical server receipts');
   await t.done();console.log(`PASS required photos; Charges, Payment and Review before upload acknowledgment; pending verification at ${width}px`);
  }
@@ -265,13 +265,13 @@ try{
   await expect(t.page.getByText('Checkout finished and was verified in JunkWare.',{exact:true})).toBeVisible();t.state.sourceChanged=changed;
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();
   if(changed){await expect(t.page.getByText('The appointment or crew changed. Your draft is preserved. Reload from JunkWare and review before submitting.',{exact:true})).toBeVisible();assert.equal(t.state.posts.length,0);assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');}
-  else{await expect(t.page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();assert.equal(t.state.posts.length,1);assert.equal(t.state.posts[0].assignmentId,newId);assert.equal(t.state.posts[0].values.loadPrice,'321');}
+  else{await expect(t.page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();assert.equal(t.state.posts.length,1);assert.equal(t.state.posts[0].assignmentId,newId);assert.equal(t.state.posts[0].values.loadPrice,'321');}
   await t.done();console.log(`PASS submit after promotion, concurrent source change=${changed}`);
  }
  // Offline source reload preserves bytes, then restores after a read-only retry.
  {
   const t=await setup();await t.open();await t.charges();await t.page.getByLabel('Load price',{exact:true}).fill('321');await expect.poll(async()=>(await storedDraft(t.page))?.value.fields.loadPrice).toBe('321');
-  t.state.offlineLoads=true;await t.page.reload();await t.page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await t.page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
+  t.state.offlineLoads=true;await t.page.reload();await t.page.getByRole('button',{name:'Stop 2: Fixture B, view appointment',exact:true}).click();await t.page.getByRole('button',{name:'START',exact:true}).click();
   await expect(t.page.getByRole('button',{name:'Retry loading closeout',exact:true})).toBeVisible();assert.equal((await storedDraft(t.page)).value.fields.loadPrice,'321');
   t.state.offlineLoads=false;await t.page.getByRole('button',{name:'Retry loading closeout',exact:true}).click();await expect(t.page.getByLabel('Load price',{exact:true})).toHaveValue('321');assert.equal(t.state.posts.length,0);
   await t.done();console.log('PASS offline reload retains draft until source can be checked');
@@ -280,7 +280,7 @@ try{
  {
   const t=await setup();t.state.completeA=true;
   await t.page.evaluate(async({deviceId,oldId,image})=>(window as any).fixtureStorage.storedPhotos(`${deviceId}:${oldId}`,[{requestId:'old-upload',category:'before',status:'pending',image}]),{deviceId:phone.deviceId,oldId,image});
-  await t.page.getByRole('button',{name:'Refresh assignments',exact:true}).click();await t.open();await t.review();
+  await t.page.getByRole('button',{name:'Refresh Assignments',exact:true}).click();await t.open();await t.review();
   await t.page.getByRole('button',{name:'Submit checkout',exact:true}).click();await expect(t.page.getByText('A photo from the earlier assignment needs verification. Use Check saved photo before submitting.',{exact:true})).toBeVisible();assert.equal(t.state.posts.length,0);
   await t.page.getByRole('button',{name:'Before photos',exact:true}).click();t.state.photoReceipt={requestId:'old-upload',category:'before',status:'verified'};
   await t.page.getByRole('button',{name:'Check saved photo',exact:true}).click();await expect(t.page.getByText('Saved in JunkWare',{exact:true})).toBeVisible();assert.deepEqual(t.state.photoChecks,[oldId]);assert.equal(t.state.photoPosts,0);

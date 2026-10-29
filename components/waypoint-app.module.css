@@ -3,7 +3,7 @@
 .app > div:not([hidden]) { display: flex; flex-direction: column; flex: 1; }
 .app > div > main { min-height: 0; flex: 1; }
 .app > [hidden] { display: none !important; }
-.header { background: #171717; color: #fff; padding: max(16px, env(safe-area-inset-top)) 20px 16px; border-bottom: 2px solid #e2c675; font: 16px/1.4 system-ui, sans-serif; }
+.header { position: sticky; top: 0; z-index: 100; background: #171717; color: #fff; padding: max(16px, env(safe-area-inset-top)) 20px 16px; border-bottom: 2px solid #e2c675; font: 16px/1.4 system-ui, sans-serif; }
 .brand { display: flex; align-items: center; gap: 12px; max-width: 584px; margin: 0 auto 16px; }
 .brand img { border-radius: 12px; flex-shrink: 0; }
 .brand strong { display: block; font-size: 26px; letter-spacing: -.6px; }

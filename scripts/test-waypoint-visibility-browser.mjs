@@ -34,15 +34,15 @@ try {
   await card.getByRole('button',{name:'View assignment',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Assignment details',exact:true})).toBeVisible();
   await expect(page.getByText('View only · Closeout stays with the assigned truck.',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:/Start closeout/})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/^START$/})).toHaveCount(0);
   await expect(page.getByText('Not listed · Driver',{exact:true})).toBeVisible();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   if(width===390 && onlyOther)await page.screenshot({path:'/tmp/waypoint-visibility-read-only-390.png',fullPage:true});
-  await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
+  await page.getByRole('button',{name:'All Assignments',exact:true}).click();
   if(!onlyOther){
    const own=page.locator('section').filter({has:page.getByRole('heading',{name:'Sample Customer',exact:true})});
    await own.getByRole('button',{name:'View assignment',exact:true}).click();
-   await expect(page.getByRole('button',{name:/Start closeout/})).toBeVisible();
+   await expect(page.getByRole('button',{name:/^START$/})).toBeVisible();
   }
   assert.equal(writes,0);assert.deepEqual(errors,[]);await context.close();
  }

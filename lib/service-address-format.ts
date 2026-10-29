@@ -42,8 +42,9 @@ const routeEnd = /\b(?:LA|HWY|HIGHWAY|US|SR|CR|FM|RT|RTE|ROUTE|STATE ROAD|COUNTY
 function recognizedUnit(address:string,unit:string,index:number) {
   // These labels also occur in road names (Space Walk, Trailer Park Rd).
   // Admit them only after a complete street, optionally following other units.
-  return !/^(?:lot|trailer|trlr|space|number)\b/i.test(unit)
-    || roadEnd.test(address.slice(0,index).replace(new RegExp(units),' ').trim());
+  if(!/^(?:lot|trailer|trlr|space|number)\b/i.test(unit))return true;
+  const prefix=address.slice(0,index).replace(new RegExp(units),' ').trim();
+  return roadEnd.test(prefix) || roadDirection.test(prefix) || routeEnd.test(prefix);
 }
 function replaceServiceUnits(address:string,replacement:(unit:string)=>string) {
   const value=explicitServiceUnits(address);

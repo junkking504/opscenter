@@ -24,8 +24,21 @@ export type MapKit = EventTarget & {
 
 declare global { interface Window { mapkit?: MapKit; opscenterMapKitReady?: (error?: unknown) => void } }
 let sdkPromise: Promise<MapKit> | undefined;
+// Authorization can fail before React constructs its first map. Remember that
+// failure for the entire page, including future component remounts.
+const monitoredKits = new WeakSet<MapKit>();
+const failedKits = new WeakSet<MapKit>();
+function monitorKit(kit: MapKit) {
+  if (monitoredKits.has(kit)) return;
+  monitoredKits.add(kit);
+  kit.addEventListener('error', () => failedKits.add(kit));
+}
+function requireHealthyKit(kit: MapKit) {
+  monitorKit(kit);
+  if (failedKits.has(kit)) throw new Error('Apple Maps is unavailable for this page.');
+}
 export function loadAppleMapKit(token: string): Promise<MapKit> {
-  if (sdkPromise) return sdkPromise;
+  if (sdkPromise) return sdkPromise.then(kit => { requireHealthyKit(kit); return kit; });
   sdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     let settled = false;
@@ -36,7 +49,10 @@ export function loadAppleMapKit(token: string): Promise<MapKit> {
       if (error || !window.mapkit?.Map || !window.mapkit.Annotation) {
         script.remove();
         reject(new Error('Apple Maps could not load.'));
-      } else resolve(window.mapkit);
+      } else {
+        try { requireHealthyKit(window.mapkit); resolve(window.mapkit); }
+        catch (error) { reject(error); }
+      }
     };
     const timeout = window.setTimeout(() => finish(new Error('timeout')), 12000);
     window.opscenterMapKitReady = finish;
@@ -44,6 +60,7 @@ export function loadAppleMapKit(token: string): Promise<MapKit> {
     script.crossOrigin = 'anonymous'; script.async = true;
     script.dataset.callback = 'opscenterMapKitReady';
     script.dataset.libraries = 'full-map'; script.dataset.token = token;
+    script.onload = () => { if (window.mapkit) monitorKit(window.mapkit); };
     script.onerror = () => finish(new Error('script'));
     document.head.append(script);
   });
@@ -52,6 +69,7 @@ export function loadAppleMapKit(token: string): Promise<MapKit> {
 }
 
 export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
+  monitorKit(kit);
   const coord = (point: Coordinate) => new kit.Coordinate(point[0], point[1]);
   class View implements MapView {
     readonly native: AppleMap;
@@ -64,12 +82,13 @@ export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
     private error: EventListener;
     attributionControl = { setPrefix: () => {} }; // Apple's attribution stays intact.
     constructor(readonly host: HTMLElement) {
+      requireHealthyKit(kit);
       this.canvas = document.createElement('div');
       this.canvas.className = 'apple-map-canvas';
       host.prepend(this.canvas);
       try {
         this.native = new kit.Map(this.canvas, { showsZoomControl: true, showsMapTypeControl: false, showsUserLocationControl: false, isRotationEnabled: false, isPitchEnabled: false });
-      } catch (error) { this.canvas.remove(); throw error; }
+      } catch (error) { failedKits.add(kit); this.canvas.remove(); throw error; }
       this.error = () => onFailure();
       kit.addEventListener('error', this.error);
       const theme = () => { this.native.colorScheme = document.documentElement.dataset.opsTheme === 'dark' ? 'dark' : 'light'; };

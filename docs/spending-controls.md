@@ -349,6 +349,7 @@ See [Apple Maps](apple-maps.md). The repository inventory addition is proposed
 for independent review; it does not update the installed policy. Keep all
 existing endpoint entries, dependencies, protected hashes and checker unchanged
 when installing an approved inventory delta.
+
 ## Apple Maps links — October 29, 2026
 
 The owner requested Apple Maps links in OpsCenter and Waypoint while Developer membership is pending. Add only `maps.apple.com` for user-initiated HTTPS navigation, with $0 new spending. No embedded MapKit, API keys, SDKs, server requests or background calls are enabled. Preserve the checker, all other inventory entries, protected-file hashes and spending limits. After independent review, back up the installed inventory/checker pair, add this single host, retain read-only permissions, and record the hashes in the external installation record.

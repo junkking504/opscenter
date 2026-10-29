@@ -1,3 +1,4 @@
+import { appleMapsCsp } from './lib/apple-maps-csp';
 import { createAuthRejectionLogger } from './lib/auth-rejection-log';
 import { currentWorkspaceUrl } from './lib/legacy-workspace-redirect';
 import { NextRequest, NextResponse } from "next/server";
@@ -393,6 +394,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
  * OPS_CSP_ENFORCE=1 once the report shows no legitimate violations.
  */
 function contentSecurityPolicy(): string {
+  const apple = appleMapsCsp(process.env.OPSCENTER_APPLE_MAPS_ENABLED === '1' && Boolean(process.env.OPSCENTER_APPLE_MAPS_TOKEN?.trim()));
   const tileHost = String(process.env.NEXT_PUBLIC_MAP_TILE_URL || "")
     .replace(/^(https:\/\/[^/]+).*$/, "$1")
     || "https://tile.openstreetmap.org";
@@ -404,13 +406,14 @@ function contentSecurityPolicy(): string {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `img-src 'self' data: blob: ${tileHost} https://*.tile.openstreetmap.org`,
+    `img-src 'self' data: blob: ${tileHost} https://*.tile.openstreetmap.org ${apple.image}`.trim(),
     // Next.js ships inline bootstrap scripts and styles without nonce plumbing.
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${apple.script}`.trim(),
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
-    `connect-src 'self' blob: ${extraConnect}`.trim(),
+    `connect-src 'self' blob: ${extraConnect} ${apple.connect}`.trim(),
     `media-src 'self' blob: data: ${extraMedia}`.trim(),
+    ...apple.directives,
   ].join("; ");
 }
 

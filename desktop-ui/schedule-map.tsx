@@ -78,9 +78,9 @@ export default function ScheduleMap(props: ScheduleMapProps) {
       setFollowing(false);
     };
     const element = host.current;
-    element.addEventListener('wheel', stopAutoFit, { passive: true });
-    element.addEventListener('keydown', stopAutoFit);
-    element.addEventListener('pointerdown', stopAutoFit);
+    element.addEventListener('wheel', stopAutoFit, { passive: true, capture: true });
+    element.addEventListener('keydown', stopAutoFit, true);
+    element.addEventListener('pointerdown', stopAutoFit, true);
     view.on('dragstart', stopAutoFit);
     let frame = 0;
     const observer = new ResizeObserver(() => {
@@ -91,7 +91,7 @@ export default function ScheduleMap(props: ScheduleMapProps) {
       });
     });
     observer.observe(host.current);
-    return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
+    return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit, true); element.removeEventListener('keydown', stopAutoFit, true); element.removeEventListener('pointerdown', stopAutoFit, true); autoFit.current = null; view.remove(); for (const name of [...element.classList]) if (name.startsWith('leaflet-')) element.classList.remove(name); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, [engine]);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.trucks.map(truck => [truckGpsStatus(truck).label, truckTelemetry(truck).recent]), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);

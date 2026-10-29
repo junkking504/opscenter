@@ -17,6 +17,5 @@ assert.match(map, /onSelectTrip\?\.\(null\)/, 'View Routes selects the complete 
 assert.match(map, /aria-pressed=\{viewingRoutes\}/, 'The route control exposes its active state');
 const telemetryCss = fs.readFileSync('desktop-ui/truck-telemetry.css', 'utf8');
 assert.match(telemetryCss, /\.truck-map-view-controls \{[^}]*display: flex/, 'Following and View Routes stay beside each other when space allows');
-console.log('Schedule map passed: exact centered locators and a selected-truck View Routes control for the complete day route.');
-
 assert.match(map, /const peers=pin\.area \?/, 'Only explicitly area-only locators may fan out');
+console.log('Schedule map passed: exact centered locators and a selected-truck View Routes control for the complete day route.');

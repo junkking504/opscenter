@@ -24,9 +24,18 @@ and rotate before expiry. This change neither creates nor renews credentials.
 Disabled/missing configuration keeps OpenStreetMap. The original map renders
 while configuration/SDK loading is pending. A failed or timed-out SDK load or
 Apple configuration error returns to OpenStreetMap and labels that fallback.
-Only one SDK load is attempted per page. The page can be reloaded to retry.
+Only one SDK load is attempted per page. Authorization and runtime errors remain
+failed across component remounts, avoiding repeated counted map creation. The
+page can be reloaded to retry. Manual gestures are observed at host capture phase
+so SDK event handling cannot prevent pausing Follow.
 Apple's logo and attribution are retained. Dark mode follows `data-ops-theme`.
 Map listeners, tooltips, annotation layers and observers are removed on teardown.
+
+When enabled with a token, middleware adds the MapKit CDN to the existing CSP:
+scripts from `cdn.apple-mapkit.com`, images/connections/frames/workers from
+`*.apple-mapkit.com`, and blob workers. When disabled these additions are absent.
+The existing enforcement setting is retained. Check the effective policy and
+browser violations during activation, including tiles and worker loading.
 
 ## Scope and evidence
 
@@ -57,7 +66,9 @@ is changed by this implementation.
 
 ## Verification
 
-`node --import tsx scripts/test-apple-maps-config.ts` checks fail-closed activation.
+`npm run verify:apple-maps` checks fail-closed activation, scoped CSP, early and
+runtime authorization failures, no retries after failure, and map layout. It is
+also included in the build checks.
 The fixture `desktop-ui/tests/apple-maps.html` exercises the real ScheduleMap
 against a synthetic SDK with known exact/approximate coordinates, selection,
 responsive width, theme and teardown. Existing GPS trip, heading and map-layout

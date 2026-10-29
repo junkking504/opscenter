@@ -1228,3 +1228,12 @@ address verification and GPS matching are unchanged.
 ## Apple Maps navigation links
 
 Outgoing address, directions and route links open Apple Maps using its HTTPS unified Maps URLs. GPS and approximate-pin actions preserve their coordinates; approximate pins remain separately labeled. Multi-stop route links preserve stop order using repeated waypoint parameters. These links require no developer membership, key or billable API calls. Embedded maps, geocoding and ETA calculation are unchanged. Unified links require iOS 18.4 / macOS 15.4 or later for native support; other platforms use Apple Maps on the web. See https://developer.apple.com/documentation/mapkit/unified-map-urls.
+
+## Accepted checkout navigation — October 29, 2026
+
+Waypoint returns to Assignments after a matching server receipt and immutable
+phone handoff are saved. A pending closeout stays marked Verifying; background
+GET reads check that same request without re-submitting. Completed requires both
+a verified receipt and JunkWare status 8. Failed or uncertain results retain
+the saved submission and recovery controls. Reloading resumes receipt checks;
+a late callback cannot close a different appointment's detail view.

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { buildGlobalSearchResponse,type AppointmentSearchScope } from "@/lib/global-search";
+import { buildGlobalSearchResponse,customerSearchResult,type AppointmentSearchScope } from "@/lib/global-search";
 import { validOperatingDate } from "@/lib/platform/request-actor";
 import {cookies} from 'next/headers';
 import {AUTH_SESSION_COOKIE,verifyAuthSessionCookie} from '@/lib/auth';
-import {authorizeOpsRequest} from '@/lib/ops-roles';
+import {readCustomers} from '@/lib/customer-accounts';
+import {authorizeOpsRequest,opsRoleCan} from '@/lib/ops-roles';
 import {historyQuery} from '@/lib/junkware-history-contract';
 import {lookupJunkwareHistory,HISTORY_UNAVAILABLE} from '@/lib/junkware-history-search';
 
@@ -26,8 +27,13 @@ export async function GET(request: Request) {
   }
   try {
   const response = query.length >= 2 ? buildGlobalSearchResponse(query,date,scope,limit) : {results:[]};
+  let customers:ReturnType<typeof customerSearchResult>[]=[];let customerError='';let customerTotal=0;
+  if(query.length>=2 && opsRoleCan(actor.role,'operations.read')){
+    try{const directory=await readCustomers(query,0,undefined,undefined,date);if(directory&&'customers' in directory){customers=directory.customers.slice(0,5).map(customerSearchResult);customerTotal=directory.total;}}
+    catch{customerError='Customer accounts could not be searched. Appointment results remain available.';}
+  }
   return NextResponse.json(
-    { query, date, scope,...response },
+    { query, date, scope,...response,results:[...customers,...response.results],customerError,customerTotal },
     { headers: { "Cache-Control": "private, no-store" } },
   );
   }catch{return NextResponse.json({error:'Source search is unavailable. Try again.'},{status:503,headers:{'Cache-Control':'private, no-store'}});}

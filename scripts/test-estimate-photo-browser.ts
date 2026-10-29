@@ -40,7 +40,7 @@ async function main(){
   }
   await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();
   if(outcome==='Estimate'){
-   await expect(page.getByText('After photos are optional for this estimate outcome. Continue to Payment when ready.',{exact:true})).toBeVisible();
+   await expect(page.getByText('Optional for this estimate. Continue to Payment.',{exact:true})).toBeVisible();
    await page.getByRole('button',{name:'Continue to payment',exact:true}).click();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
    await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
    if(width===390)await page.screenshot({path:'/tmp/waypoint-estimate-before-only.png',fullPage:true});

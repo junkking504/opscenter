@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {exactSearchDestination} from '../desktop-ui/lib/search-destination';
+import {customerSearchResult} from '../lib/global-search';
+import {desktopSourceHref} from '../desktop-ui/lib/desktop-links';
+const job=(id:string,date:string)=>({type:'job',title:'Sample Customer · JK1000123',href:`/jobs?date=${date}&appointment=${id}&q=JK1000123`});
+const customer=customerSearchResult({id:'500',name:'Sample Customer',phone:'5045550100',email:'test@example.invalid',address:'100 Example St',appointments:2,latestDate:'2026-09-09'});
+assert.equal(new URL(customer.href,'https://ops.invalid').searchParams.get('customer'),'500');
+assert.equal(new URL(customer.href,'https://ops.invalid').searchParams.get('scheduleView'),'customers');
+assert.equal(exactSearchDestination('JK1000123',[customer,job('123','2026-09-09')])?.href,job('123','2026-09-09').href);
+assert.equal(exactSearchDestination('jk 1000123',[job('123','2026-09-09')])?.type,'job');
+assert.equal(exactSearchDestination('JK1000123',[job('123','2026-09-09'),job('124','2026-09-10')]),null);
+assert.equal(exactSearchDestination('Sample Customer',[job('123','2026-09-09'),customer])?.type,'customer');
+assert.equal(exactSearchDestination('Sample Customer',[customer,{...customer,href:customer.href.replace('500','501')}]),null);
+assert.equal(exactSearchDestination('Sample',[customer]),null);
+assert.equal(exactSearchDestination('100 Example St',[customer,job('123','2026-09-09')]),null);
+const url=new URL(desktopSourceHref(job('123','2026-09-09').href,'https://ops.invalid'),'https://ops.invalid');
+assert.equal(url.searchParams.get('appointment'),'123');assert.equal(url.searchParams.get('date'),'2026-09-09');
+console.log('PASS exact JK/customer destinations, ambiguous identities remain choices, dated appointment links preserved.');

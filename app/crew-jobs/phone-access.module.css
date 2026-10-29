@@ -35,8 +35,8 @@
 .photoSection { margin: 24px 0; }
 .photoSection label { display: block; }
 .photoSection input { display: block; width: 100%; margin-top: 12px; }
-.photoSection .photoPicker { position: relative; display: grid; place-items: center; gap: 4px; min-height: 88px; padding: 16px; border: 1px dashed #a9b3a1; border-radius: 12px; background: #fff; color: #465343; text-align: center; cursor: pointer; overflow: hidden; }
-.photoPicker span { color: #647069; font-size: 12px; font-weight: 500; }
+.photoSection .photoPicker { position: relative; display: grid; place-items: center; gap: 4px; min-height: 88px; padding: 16px; border: 2px solid #b51935; border-radius: 12px; background: #fff1f4; color: #8c1730; text-align: center; cursor: pointer; overflow: hidden; }
+.photoPicker span { color: #753043; font-size: 12px; font-weight: 500; }
 .photoSection .photoPicker input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .photoPicker:focus-within { outline: 3px solid #a57410; outline-offset: 2px; }
 .photo { margin-top: 16px; padding: 12px; border: 1px solid #dfe3da; border-radius: 10px; }
@@ -131,3 +131,15 @@
 .connectedPage details[open]>summary { margin-bottom:12px; }
 .performance { padding:12px 0; border-top:1px solid #dfe3da; margin:8px 0 16px; }
 .performance>.card { margin-top:8px; }
+
+/* Photo feedback stays visible while the thumbnail list scrolls. */
+.photoCard .photoHint { font-size: 14px; line-height: 1.45; margin: 8px 0 12px; }
+.photoCard .photoLimit { font-size: 12px; color: #58665e; margin: 8px 0; }
+.photoProgress { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 2; display: grid; gap: 6px; padding: 14px; border: 1px solid #879c8d; border-radius: 10px; background: #edf6ef; color: #203d2c; }
+.photoProgress strong { font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.photoProgress span { font-size: 14px; line-height: 1.4; }
+.photoProgress progress { display: block; width: 100%; height: 8px; accent-color: #256442; }
+.photoProgress[data-attention="true"] { background: #fff3da; border-color: #a17415; color: #664d03; }
+.photoSection .photoPicker:has(input:disabled) { opacity: .6; cursor: default; }
+.photoSection .photoPicker input:disabled { cursor: default; }
+.photoCard .photoSection { margin: 12px 0; }

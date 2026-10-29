@@ -51,7 +51,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       const saved=keep(receipt);
       const intent=readHandoffs(deviceId).find(value=>value.requestId===saved.requestId);
       if(intent)saveHandoff({...intent,receipt:saved,phase:['pending','verified'].includes(saved.status)?'accepted':'attention',message:saved.message});
-      if(dismiss && saved.status==='verified')onAccepted?.(saved,receiptAssignment(saved.requestId));
+      if(dismiss && verified.current)onAccepted?.(saved,receiptAssignment(saved.requestId));
       else if(saved.status==='failed')onHandoffFailed?.(`Checkout was not saved. ${saved.message}`);
       return saved;
     };
@@ -157,9 +157,9 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   },[endpoint,key,photoKey,aliasesJson,deviceId,job.assignmentId,job.appointmentId,job.date,draftScope,onAccepted,onHandoffFailed]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.sharedAmazon?amazonAssignedTruck(job.truck) || truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Before photos → Charges → After photos (optional for estimates) → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Keep this checkout open while JunkWare verifies the result. Waypoint returns to Assignments only after completion is confirmed."}</p>
+    <h2>Job closeout</h2><p>{dryRun?"Test mode · nothing will be sent.":"Keep Waypoint open until closeout is confirmed."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
-    {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'A photo transfer needs attention. You can continue filling out the job; return to Photos to check or resume it.':photos.transferring?'Photos are uploading in the background. Continue filling out the job.':'Photos are saved on the server and verification continues in the background.'}</p>}
+    {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'Photos need attention. Continue here, then check Photos.':photos.transferring?'Photos uploading · you can continue.':'Photos received · verifying in JunkWare.'}</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
     <AppointmentCloseout submissionStatus={submissionMessage} dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{submitStep:async (category,required)=>{if(!photoSubmit.current)throw new Error('Photo selection is unavailable.');await photoSubmit.current.submitStep(category,required);},render:(category,required)=><JobPhotos optional={!required} ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>

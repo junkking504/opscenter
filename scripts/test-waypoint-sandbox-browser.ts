@@ -109,7 +109,7 @@ async function main(){
    await page.getByLabel('Add after photos',{exact:true}).setInputFiles(Array.from({length:i===1?13:1},(_,n)=>({name:`test-after-${n}.jpg`,mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')})));
    await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(i===1?13:1);
    if(i===1){
-    await expect(page.getByText('25 of 25 selected · Before and After combined',{exact:true})).toBeVisible();
+    await expect(page.getByText('13 ready to submit',{exact:true})).toBeVisible();
     await page.getByLabel('Add after photos',{exact:true}).setInputFiles({name:'one-too-many.jpg',mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')});
     await expect(page.getByText('You can add 0 more photos.',{exact:false})).toBeVisible();
     await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(13);

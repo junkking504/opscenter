@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { useState } from 'react';
 import ThemeControl from '../components/ThemeControl';
 import { PushSettings } from './components/push-settings';
@@ -13,8 +14,8 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
 }) {
   const [opening, setOpening] = useState(() => readOpeningWorkspace(canFinance));
   const [message, setMessage] = useState('');
-  return <div className="settings-workspace">
-    <section className="settings-card" aria-labelledby="preferences-title">
+  return <SectionLayout as="div" group="settings-workspace-1" className="settings-workspace">
+    <section data-layout-id="settings-card" className="settings-card" aria-labelledby="preferences-title">
       <div className="section-title"><h2 id="preferences-title">My Preferences</h2></div>
 
       <label className="settings-field" htmlFor="opening-workspace"><span>Default opening page</span>
@@ -28,11 +29,11 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
       <p role="status">{message}</p>
       <ThemeControl />
     </section>
-    <section className="settings-card" aria-labelledby="notifications-title">
+    <section data-layout-id="settings-card-2" className="settings-card" aria-labelledby="notifications-title">
       <div className="section-title"><h2 id="notifications-title">Notifications</h2></div>
       {live && canFinance ? <PushSettings showUnavailable onBusyChange={onBusyChange} /> : <p>{live ? 'Manager access is required to manage phone notifications.' : 'Open the live application to manage phone notifications.'}</p>}
     </section>
-    <section className="settings-card settings-connections" aria-labelledby="connections-title">
+    <section data-layout-id="settings-card-3" className="settings-card settings-connections" aria-labelledby="connections-title">
       <div className="section-title"><h2 id="connections-title">Connections</h2><button type="button" onClick={onSourceHealth}>View source details</button></div>
 
       {error && <p role="status">Connection status could not refresh. Any retained observations are shown below.</p>}
@@ -42,5 +43,5 @@ export function SettingsWorkspace({ canFinance, live, sources, loading, error, o
         <p>{source.freshness}</p>{source.detail && <p>{source.detail}</p>}
       </article>)}</div> : <p>Connection status is unavailable. No verified source observations were returned.</p>}
     </section>
-  </div>;
+  </SectionLayout>;
 }

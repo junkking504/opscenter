@@ -1,3 +1,4 @@
+import { currentOperatingDay, isOperatingDay, shiftOperatingDay } from './lib/operating-day';
 import { paymentJobHref } from './lib/payment-job-link';
 import { MetricValue } from './metric-value';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,7 +21,9 @@ async function call<T>(body: unknown): Promise<T> {
   if (!response.ok || !result) throw new Error(result?.error || 'Source response unavailable. Use Check saved result if you submitted an action.');
   return result.data;
 }
-export function CapitalAccounting({ date, onVerifications, lockDate = false, onBusyChange }: { date: string; onVerifications: (value: Record<string, Verification>) => void; lockDate?: boolean; onBusyChange?: (busy: boolean) => void }) {
+export function CapitalAccounting({ date, onVerifications, lockDate = false, onReconciliationDate, onBusyChange }: { date: string; onVerifications: (value: Record<string, Verification>) => void; lockDate?: boolean; onReconciliationDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void }) {
+  const [reconciliationDraft, setReconciliationDraft] = useState(date);
+  const latestReconciliationDay = shiftOperatingDay(currentOperatingDay(), -1);
   const [filters, setFilters] = useState(() => defaults(date));
   const [options, setOptions] = useState<Snapshot['options'] | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -40,7 +43,7 @@ export function CapitalAccounting({ date, onVerifications, lockDate = false, onB
     catch (e) { if (current === generation.current) setError(e instanceof Error ? e.message : 'Source unavailable.'); }
     finally { if (current === generation.current) setBusy(false); }
   }, []);
-  useEffect(() => { const next = defaults(date); setFilters(next); setReceipt(null); void load(next); }, [date, load]);
+  useEffect(() => { const next = defaults(date); setReconciliationDraft(date); setFilters(next); setReceipt(null); void load(next); }, [date, load]);
   function change(key: keyof Filters, value: string) { setFilters(valueBefore => ({ ...valueBefore, [key]: value })); setSnapshot(null); setSelected([]); setReview(null); }
   const visible = snapshot?.rows.filter(row => [row.jkNumber,row.customer,row.method,row.billingEmail,row.email,row.crew].join(' ').toLowerCase().includes(query.trim().toLowerCase())) || [];
   const chosen = snapshot?.rows.filter(row => selected.includes(row.key)) || [];
@@ -71,13 +74,13 @@ export function CapitalAccounting({ date, onVerifications, lockDate = false, onB
   const canSelect = !busy && !pendingId;
   return <section className="capital-panel capital-accounting" aria-label="JunkWare QuickBooks register">
     <header><div><span className="capital-eyebrow">JUNKWARE ACCOUNTING</span><h3>Review payments & accounting</h3><p>Select payments and choose Verify Payment to record receipt in OpsCenter. Your accountant records verification in QuickBooks separately. Count mailbox cash and checks, or review card payment evidence, before confirming.</p></div><a className="capital-button" href="https://junkware.junk-king.com/franchise/accounting/update-quickbooks.aspx" target="_blank" rel="noreferrer">Open JunkWare</a></header>
-    <form className="accounting-filters" onSubmit={event => { event.preventDefault(); void load(filters); }}>
-      <label>From<input type="date" required value={filters.from} disabled={busy || lockDate} onChange={e => change('from', e.target.value)}/></label>
-      <label>To<input type="date" required value={filters.to} disabled={busy || lockDate} onChange={e => change('to', e.target.value)}/></label>
+    <form className="accounting-filters" onSubmit={event => { event.preventDefault(); if (lockDate && reconciliationDraft !== date) { if (isOperatingDay(reconciliationDraft) && reconciliationDraft <= latestReconciliationDay) onReconciliationDate?.(reconciliationDraft); } else void load(filters); }}>
+      <>{lockDate ? <label>Reconciliation date<input aria-label="Register reconciliation date" type="date" required max={latestReconciliationDay} value={reconciliationDraft} disabled={busy || Boolean(review)} onChange={e => setReconciliationDraft(e.target.value)}/></label> : <><label>From<input type="date" required value={filters.from} disabled={busy || lockDate} onChange={e => change('from', e.target.value)}/></label>
+      <label>To<input type="date" required value={filters.to} disabled={busy || lockDate} onChange={e => change('to', e.target.value)}/></label></>}</>
       <label>Franchise<select value={filters.group} disabled={busy} onChange={e => change('group',e.target.value)}>{(options?.groups || [{ value: filters.group, label: filters.group === 'A' ? 'All' : 'Selected franchise' }]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
       <label>Payment method<select value={filters.method} disabled={busy} onChange={e => change('method',e.target.value)}>{[{value:'',label:'All'}, {value:'1',label:'Billed'}, {value:'2',label:'Cash'}, {value:'4',label:'Check'}, {value:'3',label:'Credit Card'}].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
       <label>JunkWare sync status<select value={filters.status} disabled={busy} onChange={e => change('status',e.target.value)}><option value="U">Unsynced</option><option value="S">Synced</option><option value="E">Excluded</option></select></label>
-      <button className="capital-button" disabled={busy} type="submit">{busy ? 'Checking JunkWare…' : 'Refresh register'}</button>
+      <button className="capital-button" disabled={busy} type="submit">{busy ? 'Checking JunkWare…' : lockDate && reconciliationDraft !== date ? 'Review day' : 'Refresh register'}</button>
     </form>
     {error && <p className="accounting-notice" role="alert">{error}</p>}
     {(pendingId || pending.length > 0) && <div className="accounting-notice" role="status"><strong>Accounting result needs checking</strong><p>Read the saved result before another submission. This will not send the update again.</p>{Array.from(new Set([pendingId,...pending.map(r => r.id)].filter(Boolean))).map(id => <button key={id} className="capital-button" disabled={busy} onClick={() => void recover(id)}>Check saved result</button>)}</div>}

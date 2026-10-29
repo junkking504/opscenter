@@ -203,3 +203,14 @@ The former receipt-only action is no longer offered in the UI. Historical
 remain readable/recoverable; they are not retroactively synced. No card charge
 or bank deposit is performed by Verify Payment. **Update QuickBooks** remains
 available separately for billed work and other accounting-only updates.
+
+### Date selection at the register
+
+In Reconciliation, the accounting register shows an editable **Reconciliation
+date** and **Review day** action in place of disabled From/To fields. Applying it
+changes the whole reconciliation view, including the top date, finance evidence,
+and the register's same-day range. It keeps the separate reconciliation day
+contract and permits completed calendar days through yesterday Central time.
+Recorded Payments retains its independent From/To range filters. Loading or an
+active accounting review still prevents changing the review's date. Neither date
+control verifies a payment or posts an accounting action.

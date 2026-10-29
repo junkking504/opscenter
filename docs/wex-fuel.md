@@ -11,7 +11,10 @@ purchase day. They do not wait for the posted CSV. The original email time,
 received time, authorization state and source IDs remain intact; an email
 purchase is not presented as settled bank evidence. Revisions update the same
 purchase, reversals/declines are excluded, and conflicting identities stay for
-review. Valid unrelated purchases remain counted when another row needs review.
+review. Valid unrelated purchases remain counted when another row needs review;
+excluded review purchases flag fuel, costs and net as incomplete, including days
+with no other usable purchases. Unresolved reconciliations are gaps in history
+charts rather than unqualified cost or profit points.
 
 Command and Finance use the same daily reconciliation for fuel, total costs and
 net. A unique manual fuel record with the same truck, station and time is replaced

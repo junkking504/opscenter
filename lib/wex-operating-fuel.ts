@@ -42,13 +42,13 @@ export function reconcileOperatingFuel(published:number|null,wex:WexFuelFinanceD
   // Complete individual detail is needed to add an unrelated purchase to a
   // nonzero published aggregate. An unmatched posted purchase may also overlap.
   const detailComplete=published!==null && Math.abs(reported-published)<.005 && entries.every(r=>r.fuelAllocation?.unique!==false&&!r.reconciliationNote) && new Set(entries.map(r=>r.id)).size===entries.length;
-  const overlapUnresolved=unknownPosted || rows.some((_,i)=>potential[i].length>0&&!(options[i].length===1&&matched.has(options[i][0].id))) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
+  const overlapUnresolved=alerts.status==='invalid' || alerts.rows.some(row=>row.status==='review') || unknownPosted || rows.some((_,i)=>potential[i].length>0&&!(options[i].length===1&&matched.has(options[i][0].id))) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
   let amount=published;
   if(rows.length || posted.length){
     const matchedAmount=entries.filter(r=>matched.has(r.id)).reduce((sum,r)=>sum+cents(r.amount),0)/100;
     amount=detailComplete && !overlapUnresolved ? (published??0)-matchedAmount+purchaseAmount : Math.max(published??0,purchaseAmount);
   }
-  return {amount:amount===null?null:cents(amount)/100,adjustment:amount===null?0:cents(amount-(published??0))/100,purchases:rows.length+posted.length,emailAmount,overlapUnresolved,publishedIncluded:amount!==null&&amount>purchaseAmount+.005,sourceAt:rows.map(r=>r.receivedAt).sort().at(-1)||null,matchedReportIds:[...matched]};
+  return {amount:amount===null?null:cents(amount)/100,adjustment:amount===null?0:cents(amount-(published??0))/100,purchases:rows.length+posted.length,emailAmount,overlapUnresolved,publishedIncluded:amount!==null&&amount>purchaseAmount+.005,sourceAt:alerts.rows.filter(r=>usable(r)||r.status==='review').map(r=>r.receivedAt).sort().at(-1)||null,matchedReportIds:[...matched]};
 }
 export function readOperatingFuel(date:string,published:number|null,wex=readWexFuelFinance(date),alerts=readWexAlertExpenses(date,wex.transactions)){
   return reconcileOperatingFuel(published,wex,alerts,readOperationalTruckExpenses(date));

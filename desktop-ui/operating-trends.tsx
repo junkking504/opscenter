@@ -24,7 +24,7 @@ const metrics: Array<{ key: OperatingMetric; title: string; unit: 'usd' | 'count
   { key: 'miles', title: 'Distance traveled', unit: 'miles', source: 'LinxUp daily miles', note: 'Recorded distance from daily fleet metrics. No MPG is inferred from purchases; fill-to-fill consumption evidence is unavailable.' },
   { key: 'scheduledAppointments', title: 'Scheduled jobs & estimates', unit: 'count', source: 'JunkWare active schedule', note: 'Matches the Today’s jobs card: all scheduled appointments including estimates, excluding cancellations. Completed jobs remain a separate measure.' },
   { key: 'labor', title: 'Daily labor cost', unit: 'usd', source: 'JunkWare published payroll', note: 'The published daily payroll total used by the Dashboard Labor card, not hours alone. Open crew records below to inspect individual pay.' },
-  { key: 'dumpAndFuel', title: 'Dump + fuel expenses', unit: 'usd', source: 'Recorded dumps + selected fuel', note: 'Same daily fuel reconciliation as Dashboard, including WEX email purchases on the purchase day. Historical assumed dump costs are not reconstructed; today’s card can include them.' },
+  { key: 'dumpAndFuel', title: 'Dump + fuel expenses', unit: 'usd', source: 'Recorded dumps + selected fuel', note: 'Same daily fuel reconciliation as Dashboard, including WEX email purchases on the purchase day. Unresolved fuel amounts appear as gaps. Historical assumed dump costs are not reconstructed; today’s card can include them.' },
 ];
 const dateFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
 const day = (value: string) => dateFormat.format(new Date(`${value}T12:00:00Z`));

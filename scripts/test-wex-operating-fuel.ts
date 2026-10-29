@@ -42,6 +42,13 @@ try{
  assert.equal(reconcileOperatingFuel(0,postedWex,settled,[]).amount,65,'settlement replaces email purchase');
  assert.equal(reconcileOperatingFuel(68.22,postedWex,settled,[manual]).amount,65,'settlement adjusts matched manual cost');
  const revised={...a,messageId:'revision',amount:70,receivedAt:`${date}T13:12:00Z`};assert.equal(reconcileOperatingFuel(0,wex,reconcileWexAlertExpenses(date,[a,revised],[]),[]).amount,70);
+ const duplicate={...a,messageId:'possible-repeat',trackingNumber:'67890',time:'09:15:00'};
+ const held=reconcileWexAlertExpenses(date,[a,duplicate],[]);assert.equal(held.reviewCount,2);
+ const heldFuel=reconcileOperatingFuel(0,wex,held,[]);assert.equal(heldFuel.purchases,0);assert.equal(heldFuel.overlapUnresolved,true,'excluded review purchases flag incomplete costs even with no counted rows');
+ const heldSummary=buildDailyFinanceSummary(metrics,wex,0,heldFuel),heldDisplay=presentDailyFinance(heldSummary,dailyFinanceEvidence(metrics,heldSummary,date,wex),date,Date.parse(`${date}T19:01:00Z`));
+ for(const field of ['fuel','totalCosts','net'] as const)assert.match(heldDisplay[field].detail,/purchase evidence excluded/);
+ const invalidFuel=reconcileOperatingFuel(0,wex,{...data,status:'invalid',rows:[]},[]);assert.equal(invalidFuel.overlapUnresolved,true);
+ const invalidSummary=buildDailyFinanceSummary(metrics,wex,0,invalidFuel);assert.match(presentDailyFinance(invalidSummary,dailyFinanceEvidence(metrics,invalidSummary,date,wex),date,Date.parse(`${date}T19:01:00Z`)).net.detail,/WEX fuel evidence needs review/);
  const reverse={...revised,state:'reversed' as const};assert.equal(reconcileOperatingFuel(0,wex,reconcileWexAlertExpenses(date,[a,reverse],[]),[]).amount,0);
  const alerts=wexRefuelingAlerts(data,[manual]);assert.equal(alerts.length,1);assert.equal(alerts[0].title,'Truck #4 just refueled');assert.ok(alerts[0].sourceMessageIds?.includes(`truck_expense:${date}:report`));
  assert.equal(wexRefuelingAlerts(settled)[0].eventFingerprint,alerts[0].eventFingerprint,'settlement retains alert identity');
@@ -63,6 +70,9 @@ try{
   writePosted([separate]);
   const withExisting={...historyData,trucks:[{truck:'Truck 4',daily:[{...historyData.daily[0],wexCost:40}]}]};
   const preserved=withWexEmailExpenses(withExisting)!;assert.equal(preserved.trucks?.[0].daily[0].wexCost,108.22,'email must retain unrelated posted truck cost');assert.equal(preserved.daily[0].wexCost,108.22);
+  fs.writeFileSync(path.join(process.env.WEX_FUEL_DATA_DIR!,'alert-expenses.json'),JSON.stringify({version:1,importedAt:message.receivedAt,alerts:[a,duplicate]}));
+  const heldHistory=withWexEmailExpenses(historyData)!;assert.equal(heldHistory.daily[0].wexCost,null);assert.equal(heldHistory.daily[0].operatingProfit,null,'unresolved costs cannot make a definitive profit chart');
+  fs.writeFileSync(path.join(process.env.WEX_FUEL_DATA_DIR!,'alert-expenses.json'),JSON.stringify({version:1,importedAt:message.receivedAt,alerts:[a]}));
   writePosted([{...posted,truck:'Card label'}]);
   const settledHistory=withWexEmailExpenses(historyData)!;assert.equal(settledHistory.trucks?.[0].truck,'Truck 4','settled email still creates its GPS-attributed truck row');assert.equal(settledHistory.trucks?.[0].daily[0].wexCost,65);
 

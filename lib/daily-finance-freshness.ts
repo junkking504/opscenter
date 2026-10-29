@@ -39,14 +39,15 @@ export function dailyFinanceEvidence(metrics: Record<string, unknown> | null, su
   const purchaseEvidence:FinanceEvidence = {status:'current',asOf:summary.operatingFuel?.sourceAt || null,recordedEvent:true,reason:summary.operatingFuel?.overlapUnresolved?'Recorded WEX purchases; overlap with published detail needs review':'Recorded WEX purchases · settlement pending where shown'};
   if(summary.operatingFuel?.sourceAt){
     const at=new Date(summary.operatingFuel.sourceAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    purchaseEvidence.caveat=`WEX email evidence through ${at}; mailbox coverage may be incomplete${summary.operatingFuel.overlapUnresolved?' · Fuel overlap unresolved: costs may be understated and net overstated':''}`;
+    purchaseEvidence.caveat=`WEX email evidence through ${at}; mailbox coverage may be incomplete${summary.operatingFuel.overlapUnresolved?' · Fuel overlap unresolved or purchase evidence excluded: costs may be understated and net overstated':''}`;
   }
-  const fuel = summary.operatingFuel?.purchases && summary.operatingFuel.sourceAt
+  const fuel:FinanceEvidence = summary.operatingFuel?.sourceAt && (summary.operatingFuel.purchases || summary.operatingFuel.overlapUnresolved)
     ? summary.operatingFuel.publishedIncluded ? combineFinanceEvidence(read('sources','junkware_truck_records'),purchaseEvidence) : purchaseEvidence
     : summary.wexIncludedSeparately
     ? { status: wex?.coverageThrough && wex.coverageThrough >= date ? 'current' as const : 'missing' as const,
         asOf: wex?.sourceFileModifiedAt || wex?.importedAt || null, reason: 'Posted WEX coverage' }
     : known(summary.fuel, read('sources', 'junkware_truck_records'));
+  if(summary.operatingFuel?.overlapUnresolved&&!fuel.caveat)fuel.caveat='WEX fuel evidence needs review: costs may be understated and net overstated';
   const totalCosts = combineFinanceEvidence(read('metrics', 'costs'), revenue, labor, dumps, fuel);
   return { revenue, labor, dumps, fuel, totalCosts, net: combineFinanceEvidence(read('metrics', 'net'), revenue, totalCosts) };
 }

@@ -47,11 +47,11 @@ export function PagePullRefresh({root,available,pending,status,onRefresh}:{root:
     const suppress=(event:MouseEvent)=>{if(Date.now()<suppressUntil&&event.detail!==0){event.preventDefault();event.stopImmediatePropagation();suppressUntil=0;}};
     const fresh=()=>{suppressUntil=0;};
     const scroll=()=>{if(!top())cancel();};
-    node.dataset.pagePullReady='true';
+    node.setAttribute('data-page-pull-ready','true');
     node.addEventListener('touchstart',begin,{passive:true});node.addEventListener('touchmove',move,{passive:false});
     node.addEventListener('touchend',finish,{passive:true});node.addEventListener('touchcancel',cancel,{passive:true});
     document.addEventListener('click',suppress,true);document.addEventListener('pointerdown',fresh,true);window.addEventListener('scroll',scroll,true);
-    return()=>{delete node.dataset.pagePullReady;node.removeEventListener('touchstart',begin);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',finish);node.removeEventListener('touchcancel',cancel);document.removeEventListener('click',suppress,true);document.removeEventListener('pointerdown',fresh,true);window.removeEventListener('scroll',scroll,true);};
+    return()=>{node.removeAttribute('data-page-pull-ready');node.removeEventListener('touchstart',begin);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',finish);node.removeEventListener('touchcancel',cancel);document.removeEventListener('click',suppress,true);document.removeEventListener('pointerdown',fresh,true);window.removeEventListener('scroll',scroll,true);};
   },[root]);
   const failed=status.startsWith('Refresh unavailable');
   if(!distance&&!pending&&!failed)return null;

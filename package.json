@@ -41,7 +41,7 @@
     "preview": "npm run cf-build && wrangler dev",
     "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts",
     "import:wex-fuel": "node --import tsx scripts/import-wex-transactions.ts",
-    "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts && node --import tsx scripts/test-fuel-reconciliation.ts && node --import tsx scripts/test-wex-expense-automation.ts && node --import tsx scripts/test-wex-realtime-import.ts && node --import tsx scripts/test-wex-alert-expenses.ts && node --import tsx scripts/test-wex-native-mail.ts && python3 -B scripts/test-wex-local-mail.py",
+    "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts && node --import tsx scripts/test-wex-operating-fuel.ts && node --import tsx scripts/test-fuel-reconciliation.ts && node --import tsx scripts/test-wex-expense-automation.ts && node --import tsx scripts/test-wex-realtime-import.ts && node --import tsx scripts/test-wex-alert-expenses.ts && node --import tsx scripts/test-wex-native-mail.ts && python3 -B scripts/test-wex-local-mail.py",
     "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts",
     "build:prediction-data": "node --import tsx scripts/build-prediction-data.ts",
     "verify:prediction-data": "node --import tsx scripts/test-prediction-data.ts && node --import tsx scripts/test-operating-planning.ts && node --import tsx scripts/test-disposal-cost-marker.ts && node scripts/test-finance-trends-order.mjs && node --import tsx scripts/test-finance-monthly-chart.ts && node --import tsx scripts/test-finance-trend-comparison.ts",

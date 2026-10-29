@@ -1,3 +1,4 @@
+import {withWexEmailExpenses} from '@/lib/wex-operating-trends';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
@@ -18,6 +19,6 @@ export async function GET(request: Request) {
   if (!opsRoleCan(actor.role, capability)) return Response.json({ error: 'This role cannot access these charts.' }, { status: 403, headers });
   const date = params.get('date') || chicagoDateKey();
   if (!validCommercialDate(date)) return Response.json({ error: 'A valid operating date is required.' }, { status: 400, headers });
-  try { return Response.json({ data: scopeOperatingTrends(operatingTrendsSnapshot(readPredictionDataset(), date), scope) }, { headers }); }
+  try { return Response.json({ data: scopeOperatingTrends(withWexEmailExpenses(operatingTrendsSnapshot(readPredictionDataset(), date)), scope) }, { headers }); }
   catch { return Response.json({ error: 'Historical chart data is unavailable.' }, { status: 503, headers }); }
 }

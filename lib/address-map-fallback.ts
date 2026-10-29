@@ -285,7 +285,7 @@ export function zipAreaFallback(address:string):AddressMapFallback|null {
   const zip=address.match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
   const center=zip&&Object.hasOwn(ZIP_CENTERS,zip)?ZIP_CENTERS[zip]:null;
   if(!zip||!center)return null;
-  return {location:{latitude:center[0],longitude:center[1]},matchedAddress:`ZIP ${zip} area`,source:'ZIP area center',sourceUrl:'https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html',stale:false,
+  return {location:{latitude:center[0],longitude:center[1]},matchedAddress:`ZIP ${zip} area`,source:'ZIP area center',sourceUrl:'https://geocoding.geo.census.gov/',stale:false,
     visitEligible:false,zipArea:true,
     detail:`ZIP-area estimate. The street address could not be matched yet, so this is the center of ZIP ${zip}; travel times are rough. Address lookup continues automatically. Not used for arrival or departure detection.`};
 }

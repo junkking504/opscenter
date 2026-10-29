@@ -15,6 +15,8 @@ let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[
 let lockedSchedule = false;
 let outcomeSaves = 0;
 let hasPhotos = true;
+let navigatorAdds: number[] = [];
+let rejectNavigatorAdd = false;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
@@ -22,13 +24,16 @@ function html(fields:URLSearchParams) {
   const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}" ${['StatusDD','AppointmentTypeDD','TruckDD','PaymentMethodDD'].includes(key)?`onchange="this.form.elements.namedItem('__EVENTTARGET').value=this.name;this.form.submit()"`:""}>${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
   const status = value('StatusDD');
+  const navigatorRows = Number(value('NavigatorRows') || '1');
   return `<!doctype html><html><body>JKTEST1234${hasPhotos ? '<a href="https://junkware.junk-king.com/system/aspnet/local/media/before-1234-test.jpg">Uploaded job photo</a>' : ''}<form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
   ${select('StatusDD',[{value:'1',label:'Confirmed'},{value:'8',label:'Completed'}])}
   ${select('AppointmentTypeDD',[{value:'2',label:'Job'},{value:'1',label:'Estimate'}])}
   <div>${select('TruckDD',[{value:'',label:''},{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}])}${status==='1' ? 'Assigned: '+(persisted.get('ctl00$Content$TruckDD')==='u'?'Truck# 6':'Truck# 1') : ''}</div>
   <div hidden>${control('AppointmentDateTB')}${control('StartTimeTB')}${select('DurationDD',[{value:'1',label:'1 hour'}])}</div>
   ${select('DriverDD',[{value:'d',label:'Synthetic Driver'}])}
-  ${select('AppointmentTechniciansLV_ctrl0_NavigatorDD',[{value:'',label:''}])}
+  ${control('NavigatorRows')}
+  ${Array.from({length:navigatorRows},(_,i)=>select(`AppointmentTechniciansLV_ctrl${i}_NavigatorDD`,[{value:'',label:''},{value:'n1',label:'Navigator One'},{value:'n2',label:'Navigator Two'},{value:'n3',label:'Navigator Three'}])).join('')}
+  ${control('AdditionalNavigatorsTB')}${submit('AdditionalNavigatorsBtn')}
   ${['LoadSizeTruckQtyTB','BillingAmountTB','BedloadTruckQtyTB','BedLoadPriceTB','DiscountsTB','TipsTB'].map(control).join('')}
   ${['LoadSizeDD','BedloadDD',...(value('AppointmentTypeDD')==='1'?[]:['JobCategoryDD']),'OtherChargeDD'].map(k=>select(k,[{value:'',label:''}])).join('')}
   ${['ActualStartHourDD','ActualEndHourDD'].map(k=>select(k,[{value:'',label:''},{value:'12',label:'12 PM'},{value:'13',label:'01 PM'}])).join('')}
@@ -46,6 +51,12 @@ async function main() {
     // Truck postbacks can refresh scheduling defaults. A closeout must restore the saved window.
     if (req.method==='POST' && fields.get('__EVENTTARGET')==='ctl00$Content$TruckDD') { truckPosts++; fields.set('ctl00$Content$StartTimeTB','11:00 AM'); fields.set('ctl00$Content$AppointmentDateTB','09/13/2026'); }
     if(req.method==='GET') pending=payments.map(p=>({...p}));
+    if(req.method==='POST' && fields.has('ctl00$Content$AdditionalNavigatorsBtn')) {
+      const count=Number(fields.get('ctl00$Content$AdditionalNavigatorsTB'));
+      navigatorAdds.push(count);
+      // Native control is additive. Sending the desired total must fail this fixture.
+      if(!rejectNavigatorAdd) fields.set('ctl00$Content$NavigatorRows',String(Number(fields.get('ctl00$Content$NavigatorRows') || '1')+count));
+    }
     if(req.method==='POST' && fields.has('ctl00$Content$AddPaymentBtn')) {
       adds++;
       const id=fields.get('ctl00$Content$PaymentMethodDD')!, reference=fields.get('ctl00$Content$PaymentDescrTB') || '';
@@ -65,6 +76,36 @@ async function main() {
   try {
     const page=await browser.newPage();
     page.setDefaultTimeout(5000);
+    for (const category of ['Job','Estimate']) for (const scenario of [
+      {rows:1, ids:['n1','n2'], added:[1]},
+      {rows:1, ids:['n1','n2','n3'], added:[2]},
+      {rows:2, ids:['n1','n2'], added:[]},
+      {rows:3, ids:['n1'], added:[]},
+      {rows:3, ids:[], added:[]},
+      {rows:1, ids:[], added:[]},
+    ]) {
+      persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$NavigatorRows':String(scenario.rows)});
+      for(let i=0;i<scenario.rows;i++) persisted.set(`ctl00$Content$AppointmentTechniciansLV_ctrl${i}_NavigatorDD`,`n${i+1}`);
+      payments=[];saves=0;adds=0;outcomeSaves=0;navigatorAdds=[];
+      await page.goto(url);
+      const before=await captureCloseoutSource(page,capture);
+      const request={...input,appointmentType:category,navigatorIds:scenario.ids,...(category==='Estimate'?{estimateOutcome:{reason:'Date/Time' as const,explanation:'Fixture outcome',noDiscountReason:'Fixture reason'}}:{})};
+      const result=await saveAndVerifyCloseout(before,()=>applyCloseout(page,request,before,'opscenter'),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,before));
+      assert.deepEqual(navigatorAdds,scenario.added,'Only missing navigator rows should be added');
+      assert.deepEqual((result.navigators as {value:string}[]).map(row=>row.value).filter(Boolean),scenario.ids,'Saved crew must match, including clearing surplus assignments');
+      assert.equal((result.driver as {value:string}).value,'d');
+      assert.equal(result.status.value,'8');assert.equal(saves,1);assert.equal(adds,0);
+      assert.equal(outcomeSaves,category==='Estimate'?1:0);
+      assert.deepEqual(result.appointmentWindow,before.appointmentWindow);
+    }
+    persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2'});
+    payments=[];saves=0;adds=0;navigatorAdds=[];rejectNavigatorAdd=true;
+    await page.goto(url);
+    const navigatorBaseline=await captureCloseoutSource(page,capture);
+    await assert.rejects(applyCloseout(page,{...input,navigatorIds:['n1','n2']},navigatorBaseline,'opscenter'),/did not apply the requested navigator count/);
+    assert.deepEqual(navigatorAdds,[1]);assert.equal(saves,0);assert.equal(adds,0,'A failed row update cannot reach a payment or final save');
+    rejectNavigatorAdd=false;
+
     for(const method of methods) {
       persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$LoadSizeTruckQtyTB':'1','ctl00$Content$BillingAmountTB':'1200.00'});
       payments=[{description:'Cash',amount:'100.00'}];adds=0;saves=0;truckPosts=0;

@@ -357,13 +357,14 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   // time out. Preserve it in the final save; only reload for an actual truck change.
   if (truckOption && truck !== String(before.truck || '')) await selectWithPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
-  // JunkWare keeps one blank placeholder when no navigator is assigned.
+  // JunkWare's "Add N navigators" appends rows; it does not set the total.
+  // Keep existing rows (including its blank placeholder) and clear unused
+  // selections below when the reviewed crew has fewer navigators.
   const requestedNavigatorRows = Math.max(1, input.navigatorIds.length);
-  if (currentNavigatorCount !== requestedNavigatorRows) {
-    await fill(page, "#ctl00_Content_AdditionalNavigatorsTB", String(requestedNavigatorRows));
+  if (currentNavigatorCount < requestedNavigatorRows) {
+    await fill(page, "#ctl00_Content_AdditionalNavigatorsTB", String(requestedNavigatorRows - currentNavigatorCount));
     // JunkWare can apply this as an ASP.NET partial postback. Waiting only for
-    // a full navigation leaves a closeout blocked for 90 seconds when removing
-    // its default empty navigator row.
+    // a full navigation can leave an otherwise completed row update blocked.
     await clickWithWebFormsCompletion(page, "#ctl00_Content_AdditionalNavigatorsBtn", "the navigator count update");
     const updatedNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
     if (updatedNavigatorCount !== requestedNavigatorRows) throw new Error("JunkWare did not apply the requested navigator count.");
@@ -373,7 +374,7 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   if (!(await driver.count())) throw new Error("The JunkWare driver control is unavailable.");
   await selectWithoutPostback(page, "#ctl00_Content_DriverDD", input.driverId);
 
-  for (let index = 0; index < requestedNavigatorRows; index += 1) {
+  for (let index = 0; index < Math.max(currentNavigatorCount, requestedNavigatorRows); index += 1) {
     const selector = `#ctl00_Content_AppointmentTechniciansLV_ctrl${index}_NavigatorDD`;
     await selectWithoutPostback(page, selector, input.navigatorIds[index] || '');
   }

@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {serviceUnitIdentifiers, cleanServiceQuery, legacyServiceQuery, withoutServiceUnit, normalizeServiceAddress, appointmentServiceAddress} from '../lib/service-address-format';
-import {mapCandidateMatches,readAddressMapFallback} from '../lib/address-map-fallback';
+import {mapCandidateMatches,readAddressEvidenceFallback as readAddressMapFallback,readAddressMapFallback as readAddressOrZipFallback} from '../lib/address-map-fallback';
 import {parishAddressQuery,verifyParishAddress} from '../lib/parish-service-address';
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
 import {verifyOsmServiceAddress} from '../lib/osm-service-address';
@@ -36,10 +36,10 @@ try {
   assert.equal(withoutServiceUnit('123 Space Walk, Hammond, LA 70403'),'123 Space Walk, Hammond, LA 70403');
   // With no provider evidence at all, the ZIP-area estimate keeps map/ETA usable
   // but is flagged, labeled, and can never become visit evidence.
-  const zipFallback=readAddressMapFallback('17091 Swamp Rd E Lot 918, Prairieville, LA 70769',now)!;
+  const zipFallback=readAddressOrZipFallback('17091 Swamp Rd E Lot 918, Prairieville, LA 70769',now)!;
   assert.equal(zipFallback.zipArea,true);assert.equal(zipFallback.visitEligible,false);
   assert.equal(appointmentVisitPin({location:null,mapFallback:zipFallback}),null);
-  assert.equal(readAddressMapFallback('17091 Swamp Rd E Prairieville, LA 99999',now),null,'Unknown ZIP gets no estimate');
+  assert.equal(readAddressOrZipFallback('17091 Swamp Rd E Prairieville, LA 99999',now),null,'Unknown ZIP gets no estimate');
   for(const alias of ['Lot','Trlr','Trailer','Space','Unit','Apt','Suite']) {
     const address=lot.replace('Lot',alias);
     assert.equal(cleanServiceQuery(address),'123 Example Rd Hammond, LA 70403');

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {planningLocation} from '../lib/planning-geocodes';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback} from '../lib/address-map-fallback';
 import {appointmentVisitPin} from '../lib/appointment-visit-pin';
 const addresses: string[]=JSON.parse(fs.readFileSync(0,'utf8'));
 if(!Array.isArray(addresses)||!addresses.every(value=>typeof value==='string'))throw new Error('Invalid visit address input');
@@ -11,6 +11,6 @@ let geocodes:Record<string,Record<string,unknown>>={};
 try {geocodes=JSON.parse(fs.readFileSync(path.join(root,'cache/appointment_geocodes.json'),'utf8')).addresses||{};} catch(error) {if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
 process.stdout.write(JSON.stringify(Object.fromEntries([...new Set(addresses)].map(address=>{
   const location=planningLocation(address,geocodes);
-  const pin=appointmentVisitPin({location,mapFallback:location?null:readAddressMapFallback(address)});
+  const pin=appointmentVisitPin({location,mapFallback:location?null:readAddressEvidenceFallback(address)});
   return [address,pin?{...pin,sourceAddress:address,sourceKind:location?'verified_location':'map_fallback'}:null];
 }))));

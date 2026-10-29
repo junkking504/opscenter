@@ -164,6 +164,15 @@ def same_sha(a: str, b: str) -> bool:
     return bool(a and b) and (a.startswith(b) or b.startswith(a))
 
 
+def full_head(p: "Paths", task: str, head: str) -> str:
+    """Expand a short handoff commit id to the task worktree's full commit; receipts must name all 40 characters."""
+    if len(head) == 40 or not head:
+        return head
+    worktree = p.worktrees / task
+    full = git(p, worktree, "rev-parse", "--verify", head + "^{commit}") if worktree.exists() else ""
+    return full if len(full) == 40 and same_sha(full, head) else head
+
+
 def load(path: Path, default):
     try:
         return json.loads(path.read_text())
@@ -276,7 +285,7 @@ def command(p: Paths, task: str, action: str) -> tuple[list[str], Path, dict]:
         what = ("Build vault task {t}. Read {v}/brief.md first; it is the spec." if action == "build" else
                 "Fix the [blocking] findings in {v}/review.md for vault task {t}, then add an update section to handoff.md naming the new head.")
         prompt = (what.format(t=task, v=vault) + f" Work only in this worktree on branch codex/{task}. Commit and push only that branch. "
-                  f"Write {vault}/handoff.md when ready. Do not merge, deploy, edit review.md, or send any message.")
+                  f"Write {vault}/handoff.md when ready, naming the full 40-character commit id after the @ in its Branch line. Do not merge, deploy, edit review.md, or send any message.")
         cmd = [codex, "exec", "-C", str(worktree), "--approve-for-me", "--ignore-user-config",
                "-c", "sandbox_workspace_write.network_access=true",
                "--add-dir", str(p.repo / ".git"), "--add-dir", str(vault), "-o", str(out), prompt]
@@ -364,6 +373,9 @@ def prepare_review(p: Paths, task: str, context: Path) -> None:
             target.write_bytes(files.extractfile(member).read())
     for name in ("brief.md", "handoff.md"):
         shutil.copyfile(p.tasks / task / name, context / name)
+    if info["head"] != head:  # the reviewer copies the opening line from this snapshot, so it must carry the full commit
+        snapshot = context / "handoff.md"
+        snapshot.write_text(snapshot.read_text().replace(f"@ {info['head']}", f"@ {head}"))
     if not base:
         raise RuntimeError("review base cannot be resolved")
     diff = required_git(worktree, "diff", "--no-ext-diff", "--no-textconv", base, head)
@@ -642,7 +654,7 @@ def step(p: Paths, task: str, action: str, token: str) -> int:
         log(p, f"{task}: {action} cancelled before it started", False)
         release(p, token)
         return 0
-    head = parse_task(p.tasks / task)["head"]
+    head = full_head(p, task, parse_task(p.tasks / task)["head"])
     key = "build" if action == "build" else f"{'fix' if action == 'fix' else 'review'}@{head}"
     runs = load(p.runs, {})
     today = datetime.date.today().isoformat()

@@ -274,6 +274,17 @@ with tempfile.TemporaryDirectory() as tmp:
     # The lock: a second contender never touches the first one's lock.
     relay = load_relay_module()
     paths = relay.Paths(root)
+
+    # A builder that writes a short commit id still gets a valid review: the relay expands it from the worktree.
+    short_tree = paths.worktrees / "short-sha"
+    short_tree.mkdir(parents=True)
+    sh("git", "init", "-q", cwd=short_tree)
+    sh("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x", cwd=short_tree)
+    full_sha = subprocess.run(["git", "-C", str(short_tree), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert relay.full_head(paths, "short-sha", full_sha[:8]) == full_sha
+    assert relay.full_head(paths, "short-sha", full_sha) == full_sha
+    assert relay.full_head(paths, "short-sha", "deadbeef") == "deadbeef", "an id the worktree does not know stays as written"
+    assert relay.full_head(paths, "no-such-task", full_sha[:8]) == full_sha[:8]
     assert relay.acquire(paths, "winner", "build", "token-a") is True
     before = (lock / "step.json").read_text()
     assert relay.acquire(paths, "loser", "build", "token-b") is False

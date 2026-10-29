@@ -1,3 +1,4 @@
+import {timecardDeletes} from './timecard-deletions';
 import {payrollSyncIsCurrent,sameShift,writePayrollSync,type PayrollSync,type JunkwareShift} from './junkware-payroll-sync';
 export type TimesheetAdapter={
   resolve:()=>Promise<{employeeId:string;marketId:string}>;
@@ -18,6 +19,7 @@ export async function executePayrollSourceSync(initial:PayrollSync,adapter:Times
     update({status:'pending',phase:row.submittedAt?'submitted':'reading',message:readOnly?'Checking the saved JunkWare result.':'Checking the JunkWare employee and shift.'});
     update(await adapter.resolve());
     const before=await adapter.read();
+    if(!before&&!readOnly&&timecardDeletes(row.correction.workDate,row.correction.employeeName).some(deletion=>deletion.status==='verified'))throw new Error('This day has a verified deletion. Add a replacement entry in JunkWare before editing it here.');
     if(!sameShift(before,row.correction)) {
       if(readOnly)throw new Error('JunkWare does not match the saved correction. No change was resubmitted.');
       await adapter.prepare(before);

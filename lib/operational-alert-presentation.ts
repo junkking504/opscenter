@@ -128,7 +128,7 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
       ...(timeIndex >= 0 ? [{ label: /depart/i.test(lines[0]) ? "Departure" : "Arrival", value: lines[timeIndex] }] : []),
       ...(customer && customer !== phone && customer !== address ? [{ label: "Customer", value: customer }] : []),
       ...(phone ? [{ label: "Phone", value: phone, href: `tel:${phone.replace(/[^\d+]/g, "")}` }] : []),
-      ...(address ? [{ label: "Service Address", value: address, href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` }] : []),
+      ...(address ? [{ label: "Service Address", value: address, href: `https://maps.apple.com/search?query=${encodeURIComponent(address)}` }] : []),
       ...labeledFacts,
     ];
   }
@@ -136,7 +136,7 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
     return [
       { label: "Customer", value: message.appointment.customerName || "Not provided" },
       { label: "Phone", value: message.appointment.phone || "Not provided", href: message.appointment.phone ? `tel:${message.appointment.phone.replace(/[^\d+]/g, "")}` : undefined },
-      { label: "Service Address", value: message.appointment.address || "Not provided", href: message.appointment.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(message.appointment.address)}` : undefined },
+      { label: "Service Address", value: message.appointment.address || "Not provided", href: message.appointment.address ? `https://maps.apple.com/search?query=${encodeURIComponent(message.appointment.address)}` : undefined },
       { label: "Items", value: message.appointment.items?.join(", ") || labeledFacts.find(fact => /^items$/i.test(fact.label))?.value || "Not listed" },
       ...labeledFacts.filter(fact => !/^items$/i.test(fact.label)),
     ];
@@ -170,7 +170,7 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
   return [
     ...(time ? [{ label: "Window", value: time }] : []),
     ...(phone ? [{ label: "Phone", value: phone, href: `tel:${phone.replace(/[^\d+]/g, "")}` }] : []),
-    ...(address ? [{ label: "Service Address", value: address, href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` }] : []),
+    ...(address ? [{ label: "Service Address", value: address, href: `https://maps.apple.com/search?query=${encodeURIComponent(address)}` }] : []),
     ...labeledFacts,
     ...(context && (appointmentNotice || !reason) ? [{ label: appointmentNotice ? "Customer" : "Context", value: context }] : []),
   ];

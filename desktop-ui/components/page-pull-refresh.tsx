@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {createPortal} from 'react-dom';
 import {GESTURE} from '../lib/mobile-gestures';
+import '../page-pull-refresh.css';
 
 /** Page-top pull only; nested scrollers and interactive surfaces keep ownership. */
 export function PagePullRefresh({root,available,pending,status,onRefresh}:{root:RefObject<HTMLElement|null>;available:()=>boolean;pending:boolean;status:string;onRefresh:()=>void}) {
@@ -46,12 +47,13 @@ export function PagePullRefresh({root,available,pending,status,onRefresh}:{root:
     const suppress=(event:MouseEvent)=>{if(Date.now()<suppressUntil&&event.detail!==0){event.preventDefault();event.stopImmediatePropagation();suppressUntil=0;}};
     const fresh=()=>{suppressUntil=0;};
     const scroll=()=>{if(!top())cancel();};
+    node.dataset.pagePullReady='true';
     node.addEventListener('touchstart',begin,{passive:true});node.addEventListener('touchmove',move,{passive:false});
     node.addEventListener('touchend',finish,{passive:true});node.addEventListener('touchcancel',cancel,{passive:true});
     document.addEventListener('click',suppress,true);document.addEventListener('pointerdown',fresh,true);window.addEventListener('scroll',scroll,true);
-    return()=>{node.removeEventListener('touchstart',begin);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',finish);node.removeEventListener('touchcancel',cancel);document.removeEventListener('click',suppress,true);document.removeEventListener('pointerdown',fresh,true);window.removeEventListener('scroll',scroll,true);};
+    return()=>{delete node.dataset.pagePullReady;node.removeEventListener('touchstart',begin);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',finish);node.removeEventListener('touchcancel',cancel);document.removeEventListener('click',suppress,true);document.removeEventListener('pointerdown',fresh,true);window.removeEventListener('scroll',scroll,true);};
   },[root]);
   const failed=status.startsWith('Refresh unavailable');
   if(!distance&&!pending&&!failed)return null;
-  return createPortal(<div className="page-pull-refresh" role="status" data-gesture-ignore aria-live="polite"><span className={pending?'page-refresh-spinner spinning':'page-refresh-spinner'} aria-hidden="true">{pending?'':failed?'!':'↓'}</span><span>{pending?'Refreshing…':failed?'Refresh failed · showing saved data':distance>=GESTURE.distance?'Release to refresh':'Pull to refresh'}</span></div>,document.body);
+  return createPortal(<div className="mobile-navigation-hint page-pull-refresh" role="status" data-gesture-ignore aria-live="polite"><span className={pending?'page-refresh-spinner spinning':'page-refresh-spinner'} aria-hidden="true">{pending?'':failed?'!':'↓'}</span><span>{pending?'Refreshing…':failed?'Refresh failed · showing saved data':distance>=GESTURE.distance?'Release to refresh':'Pull to refresh'}</span></div>,document.body);
 }

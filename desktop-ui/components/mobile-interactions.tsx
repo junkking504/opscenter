@@ -1,8 +1,8 @@
-import { startTransition, useEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, startTransition, useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { adjacentWorkspace, downwardIntent, GESTURE, horizontalIntent, type GesturePoint } from '../lib/mobile-gestures';
 import '../mobile-interactions.css';
-import {PagePullRefresh} from './page-pull-refresh';
+const PagePullRefresh=lazy(()=>import('./page-pull-refresh').then(module=>({default:module.PagePullRefresh})));
 
 export type MetricPreview = { id: string; label: string; value: string; detail?: string };
 type Props = {
@@ -43,6 +43,8 @@ function editingOrDialog() {
 export function MobileInteractions(props: Props) {
   const latest=useRef(props); latest.current=props;
   const [status,setStatus]=useState('');
+  const [mobile,setMobile]=useState(false);
+  useEffect(()=>{const media=matchMedia('(max-width:900px)');const update=()=>setMobile(media.matches);update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [navigationHint,setNavigationHint]=useState<{label:string;direction:-1|1}|null>(null);
   const [pending,setPending]=useState(false);
   const pendingRef=useRef(false);
@@ -178,7 +180,7 @@ export function MobileInteractions(props: Props) {
     finally{pendingRef.current=false;setPending(false);}
   };
   return <>
-    <PagePullRefresh root={props.contentRef} pending={pending} status={status} onRefresh={()=>void refresh()} available={()=>Boolean(latest.current.onRefresh)&&!latest.current.busy&&!pendingRef.current&&!pendingNavigation.current&&!editingOrDialog()&&!selectionActive()&&window.innerWidth<=900&&(window.visualViewport?.scale ?? 1)<=1.01}/>
+    {mobile && <Suspense fallback={null}><PagePullRefresh root={props.contentRef} pending={pending} status={status} onRefresh={()=>void refresh()} available={()=>Boolean(latest.current.onRefresh)&&!latest.current.busy&&!pendingRef.current&&!pendingNavigation.current&&!editingOrDialog()&&!selectionActive()&&window.innerWidth<=900&&(window.visualViewport?.scale ?? 1)<=1.01}/></Suspense>}
     {navigationHint && createPortal(<div className={`mobile-navigation-hint ${navigationHint.direction===1?'next':'previous'}`} aria-hidden="true" data-gesture-ignore>{navigationHint.direction===-1 && <span>← </span>}{navigationHint.label}{navigationHint.direction===1 && <span> →</span>}</div>, document.body)}
     <div className="mobile-interactions" data-gesture-ignore>
       <details><summary>Touch shortcuts</summary><p>Swipe left or right across page content to change workspace. Maps, horizontal lists and editing keep their own gestures. The workspace menu also works.{!!props.previews?.length && ' Hold a metric for a preview.'}{props.onRefresh && ' Pull down at the top of the page to refresh displayed data.'}</p></details>

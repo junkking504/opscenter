@@ -46,7 +46,7 @@ is cancelled before a new interaction. Reduced Motion disables animation and
 also cancels one already running. Existing URL replacement and swipe focus
 return are unchanged. Superseding a pending swipe clears its hint and lock.
 
-Refresh still requires a 96px downward pull within 900ms. Sheet dismissal uses
+The labeled refresh control requires a 96px downward pull within 900ms; the page-top pull permits an unhurried downward release. Sheet dismissal uses
 a full-width grab control at widths up to 900 CSS pixels (including tablets only
 when within that breakpoint): 64px down within 1500ms, with horizontal/vertical
 intent, cancellation and multitouch guards. Content scrolling outside that control
@@ -131,3 +131,5 @@ linked summary clears its record-opening URL parameters. A record removed from
 the current snapshot closes its summary and does not reopen if it later returns.
 
 Page-top pull regression: `node --import tsx scripts/test-page-pull-refresh-browser.ts` uses an isolated fixture and synthetic data. Chromium has native CDP touch coverage; desktop WebKit uses dispatched TouchEvents. Neither establishes physical iPhone acceptance.
+
+The page-pull module and its styles load only at mobile widths; the desktop shell does not download this optional interaction. The shared content root exposes data-page-pull-ready only while its listener is installed, so synthetic QA waits for hydration rather than relying on a delay.

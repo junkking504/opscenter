@@ -21,8 +21,10 @@ website restriction is its scope boundary. No `NEXT_PUBLIC` or build-time token
 is used. Tokens may expire; record the chosen expiry in the private task packet
 and rotate before expiry. This change neither creates nor renews credentials.
 
-Disabled/missing configuration keeps OpenStreetMap. The original map renders
-while configuration/SDK loading is pending. A failed or timed-out SDK load or
+Disabled/missing configuration keeps OpenStreetMap. A neutral loading state is shown
+while configuration/SDK loading is pending; OpenStreetMap is not constructed or
+loaded underneath Apple Maps during refresh. Configuration request failures or
+timeouts also resolve to OpenStreetMap. A failed or timed-out SDK load or
 Apple configuration error returns to OpenStreetMap and labels that fallback.
 Only one SDK load is attempted per page. Authorization and runtime errors remain
 failed across component remounts, avoiding repeated counted map creation. The
@@ -71,7 +73,9 @@ runtime authorization failures, no retries after failure, and map layout. It is
 also included in the build checks.
 The fixture `desktop-ui/tests/apple-maps.html` exercises the real ScheduleMap
 against a synthetic SDK with known exact/approximate coordinates, selection,
-responsive width, theme and teardown. Existing GPS trip, heading and map-layout
+responsive width, theme and teardown. Add `?startup` for controlled configuration
+and SDK delays/failures, real Leaflet fallback teardown, and old-map tile counts
+without external provider requests. Existing GPS trip, heading and map-layout
 checks still apply. Check a live map, pin selection, truck follow, View Routes,
 manual pan/zoom, theme, attribution and fallback before reporting activation.
 

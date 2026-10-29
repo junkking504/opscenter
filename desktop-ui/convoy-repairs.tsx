@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { MetricValue } from './metric-value';
 import { TruckLevelGauges } from './convoy-gauges';
 import { useState } from "react";
@@ -204,7 +205,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           </nav>
         </div>
       </aside>
-      <div className="convoy-journal">
+      <SectionLayout as="div" group="convoy-repairs-convoy-journal" className="convoy-journal">
         <header className="convoy-journal-header">
           <div>
             <h2>{truckId ? label(truckId) : "Fleet inspections"}</h2>
@@ -246,7 +247,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
             </select>
           </label>
         </div>
-        <div className="convoy-library-results">
+        <div data-layout-id="convoy-journal-panel-1" className="convoy-library-results">
           <span role="status">
             {shown.length} {shown.length === 1 ? "truck" : "trucks"} · Inspections for this day ·
             Active repairs across dates
@@ -254,7 +255,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           {(query || filter !== "all") && <button onClick={reset}>Clear filters</button>}
         </div>
         <nav className="convoy-status-totals" aria-label="Inspection status totals">{filters.map(([key, text]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}><strong>{scoped.filter(t => matches(t, key) && searchMatches(t)).length}</strong><span>{text}</span></button>)}</nav>
-        <div className="convoy-inspection-cards">{shown.map((t) => {
+        <div data-layout-id="convoy-journal-panel-2" className="convoy-inspection-cards">{shown.map((t) => {
           const active = activeFor(t),
             resolved = snapshot.issues.filter(
               (i) => sameTruck(i.truck, t.id) && i.status === "resolved",
@@ -372,7 +373,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           );
         })}</div>
         {!shown.length && (
-          <div className="convoy-repair-empty">
+          <div data-layout-id="convoy-journal-panel-3" className="convoy-repair-empty">
             <ClipboardCheck size={24} />
             <strong>No matching trucks</strong>
             <p>Choose another truck or clear the filters.</p>
@@ -396,7 +397,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
           Review findings before changing repair status. A completed inspection does not close an
           active repair.
         </footer>
-      </div>
+      </SectionLayout>
     </section>
   );
 }

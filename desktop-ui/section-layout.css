@@ -1,0 +1,13 @@
+.section-layout-toolbar { position: fixed; right: 18px; bottom: 14px; z-index: 45; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: calc(100vw - 260px); padding: 6px; border: 1px solid var(--oc-border-default); border-radius: 8px; background: var(--oc-surface-raised); box-shadow: 0 2px 8px rgb(0 0 0 / 12%); color: var(--oc-text-primary); font-size: var(--oc-type-12); }
+.section-layout-toolbar button, .section-layout-tools button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 4px 8px; border: 1px solid var(--oc-border-default); border-radius: 5px; background: var(--oc-surface-raised); color: inherit; font: inherit; }
+.section-layout-toolbar [role="status"]:empty { display: none; }
+[data-layout-editing] > .section-layout-item { position: relative; padding-top: 56px !important; outline: 1px dashed var(--oc-brand); outline-offset: -1px; min-width: 0; }
+.section-layout-tools { position: absolute; left: 6px; top: 5px; right: 6px; display: flex; align-items: center; gap: 3px; z-index: 3; color: var(--oc-text-primary); font-size: var(--oc-type-12); }
+.section-layout-tools button[draggable] { cursor: grab; max-width: calc(100% - 72px); }
+.section-layout-tools button[draggable]:active { cursor: grabbing; }
+.section-layout-tools button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.section-layout-tools button:focus-visible, .section-layout-toolbar button:focus-visible { outline: 2px solid var(--oc-brand); outline-offset: 2px; }
+.section-layout-tools button:disabled { opacity: .4; }
+[data-layout-editing] > .section-layout-target { outline: 3px solid var(--oc-brand); }
+.section-layout-component { min-width: 0; }
+@media (max-width: 900px) { .section-layout-toolbar, .section-layout-tools { display: none; } }

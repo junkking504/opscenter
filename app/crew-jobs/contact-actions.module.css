@@ -1,7 +1,8 @@
 .actions { display:grid; gap:8px; min-width:0; margin:4px 0 8px; }
 .row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-.row a,.row button,.chips button,.send { display:flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:40px; padding:8px 10px; border:1px solid #bdc7bc; border-radius:8px; background:white; color:#25312c; font:650 15px/1.2 system-ui,sans-serif; text-align:center; text-decoration:none; cursor:pointer; }
+.navigate,.row a,.row button,.chips button,.send { display:flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:40px; padding:8px 10px; border:1px solid #bdc7bc; border-radius:8px; background:white; color:#25312c; font:650 15px/1.2 system-ui,sans-serif; text-align:center; text-decoration:none; cursor:pointer; }
 .row a:first-child { border-color:#b51935; color:#8c1730; }
+.navigate { background:#b51935; border-color:#b51935; color:white; }
 .panel { display:grid; gap:10px; padding:12px; border:1px solid #dfe3da; border-radius:10px; background:#f7f8f3; }
 .panel p { margin:0; padding:10px 12px; border-radius:10px; background:#e9eee5; font-size:15px; line-height:1.4; }
 .chips { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }

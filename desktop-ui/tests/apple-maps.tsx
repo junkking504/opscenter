@@ -33,6 +33,10 @@ class FakeMap extends EventTarget {
     const r = this.host.getBoundingClientRect();
     return { x: r.left + window.scrollX + r.width * (.5 + (coordinate.longitude - this.region.center.longitude) / this.region.span.longitudeDelta), y: r.top + window.scrollY + r.height * (.5 - (coordinate.latitude - this.region.center.latitude) / this.region.span.latitudeDelta) };
   }
+  convertPointOnPageToCoordinate(point: DOMPoint) {
+    const r = this.host.getBoundingClientRect();
+    return new Coordinate(this.region.center.latitude + (.5 - (point.y - r.top - window.scrollY) / r.height) * this.region.span.latitudeDelta, this.region.center.longitude + ((point.x - r.left - window.scrollX) / r.width - .5) * this.region.span.longitudeDelta);
+  }
   render() { const r = this.host.getBoundingClientRect(); this.annotations.forEach(a => { const p = this.convertCoordinateToPointOnPage(a.coordinate); const offset = a.options.anchorOffset as DOMPoint; Object.assign(a.element.style, { position: 'absolute', left: `${p.x - r.left - window.scrollX + offset.x}px`, top: `${p.y - r.top - window.scrollY + offset.y}px`, transform: 'translate(-50%, -100%)' }); }); }
   addAnnotation(item: Annotation) { this.annotations.add(item); this.host.append(item.element); this.render(); metrics.annotations = this.annotations.size; }
   removeAnnotation(item: Annotation) { this.annotations.delete(item); item.element.remove(); metrics.annotations = this.annotations.size; }
@@ -55,11 +59,11 @@ function Fixture() {
     const exactAnnotation = [...(lastMap?.annotations || [])].find(a => a.element.querySelector('[data-map-pin="appointment:exact"]'));
     const preserved = !exactAnnotation || (exactAnnotation.coordinate.latitude === 30 && exactAnnotation.coordinate.longitude === -90);
     const fullRoute = mode !== 'route' || routePoints.every(point => { const p = lastMap.convertCoordinateToPointOnPage(point); const r = lastMap.host.getBoundingClientRect(); return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom; });
-    setChecks(`${fullRoute ? 'PASS' : 'FAIL'} route bounds · ${lastMap?.overlays.size || 0} route overlays · ${lastMap?.colorScheme} · ${preserved ? 'PASS' : 'FAIL'} source coordinates · ${!label || /approximate|area locator/.test(label) ? 'PASS' : 'FAIL'} provenance · ${metrics.active === (mounted ? 1 : 0) ? 'PASS' : 'FAIL'} lifecycle · created ${metrics.created}, destroyed ${metrics.destroyed} · selected ${selected || selectedTruck || 'none'}`);
+    setChecks(`${fullRoute ? 'PASS' : 'FAIL'} route bounds · ${lastMap?.overlays.size || 0} route overlays · ${lastMap?.colorScheme} · ${preserved ? 'PASS' : 'FAIL'} source coordinates · ${!label || /approximate|area locator/.test(label) ? 'PASS' : 'FAIL'} provenance · ${metrics.active === (mounted ? 1 : 0) ? 'PASS' : 'FAIL'} lifecycle · created ${metrics.created}, destroyed ${metrics.destroyed} · selected ${selected || selectedTruck || 'none'} · span ${lastMap?.region.span.longitudeDelta.toFixed(6)}`);
   }, 100); return () => clearInterval(timer); }, [mounted, selected, selectedTruck, mode]);
   return <main className="ops-app ops-live" style={{ padding: 16, display: 'block' }}><h1>Apple Maps adapter · synthetic SDK</h1><p>No live Apple map or operational data in this fixture.</p><button onClick={() => setNarrow(!narrow)}>Toggle phone width</button> <button onClick={() => mount(!mounted)}>Toggle map</button> <button onClick={() => { select(null); selectTruck(null); }}>Reset selection</button> <button onClick={() => { document.documentElement.dataset.opsTheme = document.documentElement.dataset.opsTheme === 'dark' ? 'light' : 'dark'; }}>Toggle theme</button>
   <div style={{ width: narrow ? 350 : 700, maxWidth: '100%', height: 420, position: 'relative', marginTop: 12 }}>{mounted && <ScheduleMap mapEngine={engine} appointments={[exact, approximate]} trucks={[truck]} selected={selected} selectedTruck={selectedTruck} gpsRoute={route} truckMapView={mode} onSelectTrip={()=>setMode('route')} scope="ALL" resetKey={selected === null && selectedTruck === null ? metrics.created : 0} date="2026-10-29" onSelect={id => { select(id); selectTruck(null); }} onSelectTruck={name => { selectTruck(name); select(null); setMode('overview'); }} />}</div>
-  <p role="status">{checks}</p></main>;
+  <p role="status">{checks}</p><output aria-label="Map longitude span">{lastMap?.region.span.longitudeDelta.toFixed(6)}</output></main>;
 }
 const root = createRoot(document.getElementById('root')!);
 root.render(<Fixture />);

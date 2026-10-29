@@ -10,6 +10,7 @@ type AppleMap = EventTarget & {
   addAnnotation(item: AppleItem): void; removeAnnotation(item: AppleItem): void;
   addOverlay(item: AppleItem): void; removeOverlay(item: AppleItem): void;
   convertCoordinateToPointOnPage(point: AppleCoordinate): Point;
+  convertPointOnPageToCoordinate(point: DOMPoint): AppleCoordinate;
   destroy(): void;
 };
 export type MapKit = EventTarget & {
@@ -80,6 +81,7 @@ export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
     private darkObserver: MutationObserver;
     private regionEnd: EventListener;
     private error: EventListener;
+    private wheel: (event: WheelEvent) => void;
     attributionControl = { setPrefix: () => {} }; // Apple's attribution stays intact.
     constructor(readonly host: HTMLElement) {
       requireHealthyKit(kit);
@@ -87,7 +89,7 @@ export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
       this.canvas.className = 'apple-map-canvas';
       host.prepend(this.canvas);
       try {
-        this.native = new kit.Map(this.canvas, { showsZoomControl: true, showsMapTypeControl: false, showsUserLocationControl: false, isRotationEnabled: false, isPitchEnabled: false });
+        this.native = new kit.Map(this.canvas, { showsZoomControl: true, showsMapTypeControl: false, showsUserLocationControl: false, isRotationEnabled: false, isZoomEnabled: true, isScrollEnabled: true });
       } catch (error) { failedKits.add(kit); this.canvas.remove(); throw error; }
       this.error = () => onFailure();
       kit.addEventListener('error', this.error);
@@ -97,6 +99,23 @@ export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
       this.darkObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ops-theme'] });
       this.regionEnd = () => this.tips.forEach(tip => { tip.hidden = true; });
       this.native.addEventListener('region-change-start', this.regionEnd);
+      // Retain the previous map's wheel/trackpad scroll-to-zoom behavior. Capture
+      // before the SDK can pan, but let ScheduleMap's same-host listener pause
+      // Follow. Native touch pinch and pointer drag remain enabled.
+      this.wheel = event => {
+        if (!event.deltaY || !Number.isFinite(event.deltaY) || (event.target instanceof Element && event.target.closest('.truck-map-view-controls'))) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? Math.max(host.clientHeight, 1) : 1);
+        const currentZoom = this.getZoom();
+        const nextZoom = Math.max(2, Math.min(20, currentZoom - Math.max(-1, Math.min(1, pixels / (event.ctrlKey ? 80 : 240)))));
+        const scale = 2 ** (currentZoom - nextZoom);
+        const region = this.native.region;
+        const anchor = this.native.convertPointOnPageToCoordinate(new DOMPoint(event.pageX, event.pageY));
+        const center = new kit.Coordinate(anchor.latitude + (region.center.latitude - anchor.latitude) * scale, anchor.longitude + (region.center.longitude - anchor.longitude) * scale);
+        this.native.region = new kit.CoordinateRegion(center, new kit.CoordinateSpan(region.span.latitudeDelta * scale, region.span.longitudeDelta * scale));
+      };
+      host.addEventListener('wheel', this.wheel, { capture: true, passive: false });
     }
     setView(point: Coordinate, zoom: number) {
       const width = Math.max(this.host.clientWidth, 1), height = Math.max(this.host.clientHeight, 1);
@@ -140,6 +159,7 @@ export function appleMapEngine(kit: MapKit, onFailure: () => void): MapEngine {
     closePopup() { this.tips.forEach(tip => { tip.hidden = true; }); return this; }
     invalidateSize() { this.callbacks.forEach(callback => callback(new Event('resize'))); return this; }
     remove() {
+      this.host.removeEventListener('wheel', this.wheel, true);
       this.darkObserver.disconnect();
       this.groups.forEach(group => group.clearLayers());
       this.callbacks.forEach(callback => this.native.removeEventListener('region-change-end', callback));

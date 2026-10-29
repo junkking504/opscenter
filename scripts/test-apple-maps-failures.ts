@@ -29,7 +29,7 @@ const loaded = await loadAppleMapKit('synthetic-token');
 assert.equal(loaded, earlyKit);
 // Error arrives after SDK readiness, before React creates a View.
 earlyKit.dispatchEvent(new Event('error'));
-const host = { prepend() {} } as unknown as HTMLElement;
+const host = Object.assign(new EventTarget(), { prepend() {} }) as unknown as HTMLElement;
 assert.throws(() => appleMapEngine(earlyKit, () => {}).map(host, { zoomControl: true, scrollWheelZoom: true }), /unavailable/);
 await assert.rejects(loadAppleMapKit('synthetic-token'), /unavailable/);
 assert.equal(constructions, 0, 'Early authorization failure must not create a map');

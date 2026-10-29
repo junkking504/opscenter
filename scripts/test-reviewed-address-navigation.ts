@@ -11,7 +11,7 @@ import {appointmentVisitPin} from '../lib/appointment-visit-pin';
 import {planningLocation} from '../lib/planning-geocodes';
 import {scheduleMapLocation,needsScheduleAddressVerification} from '../desktop-ui/lib/schedule-contract';
 import {osmMapAddressQuery} from '../lib/osm-service-address';
-import {appointmentDirectionsHref} from '../lib/appointment-navigation';
+import {appointmentDirectionsHref, appleMapsRouteHref} from '../lib/appointment-navigation';
 
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'reviewed-navigation-'));
 const old={...process.env},oldFetch=globalThis.fetch;
@@ -67,9 +67,18 @@ try {
  assert.equal(readReviewedAddressNavigation(address),null);
  assert.deepEqual(readAddressMapFallback(address)?.location,{latitude:30.06,longitude:-89.946},'Malformed navigation record falls back to ordinary evidence');
  const link=new URL(appointmentDirectionsHref(address)!);
- assert.equal(link.pathname,'/maps/dir/');assert.equal(link.searchParams.get('api'),'1');
+ assert.equal(link.hostname,'maps.apple.com');assert.equal(link.pathname,'/directions');assert.equal(link.searchParams.get('mode'),'driving');
  assert.equal(link.searchParams.get('destination'),address,'Directions uses the source address, not a generic map pin or corrected ZIP');
  for(const empty of ['','—','unknown'])assert.equal(appointmentDirectionsHref(empty),null);
  assert.equal(record.originalAddress,address);
  console.log('Reviewed navigation PASS: scoped evidence, precedence, atomic publication, source preservation, GPS coordinate parity and address directions.');
 } finally {globalThis.fetch=oldFetch;process.env=old;fs.rmSync(root,{recursive:true,force:true});}
+
+const route = new URL(appleMapsRouteHref(['10 First & Main #2', '20 Second St', '30 Third St', '40 Last St']));
+assert.equal(route.hostname, 'maps.apple.com');
+assert.equal(route.searchParams.get('source'), '10 First & Main #2');
+assert.deepEqual(route.searchParams.getAll('waypoint'), ['20 Second St', '30 Third St']);
+assert.equal(route.searchParams.get('destination'), '40 Last St');
+assert.equal(route.searchParams.get('mode'), 'driving');
+assert.equal(appleMapsRouteHref(['', '—']), '');
+assert.equal(new URL(appleMapsRouteHref(['10 First & Main #2'])).searchParams.get('query'), '10 First & Main #2');

@@ -336,3 +336,7 @@ to the approved theme-switch inventory. The checker, hosts, other dependencies,
 protected-file hashes, private approvals, quotas and budgets remain unchanged.
 Preserve the current installed pair, apply only the reviewed additions, record
 SHA256 checksums and retain read-only permissions.
+
+## Apple Maps links — October 29, 2026
+
+The owner requested Apple Maps links in OpsCenter and Waypoint while Developer membership is pending. Add only `maps.apple.com` for user-initiated HTTPS navigation, with $0 new spending. No embedded MapKit, API keys, SDKs, server requests or background calls are enabled. Preserve the checker, all other inventory entries, protected-file hashes and spending limits. After independent review, back up the installed inventory/checker pair, add this single host, retain read-only permissions, and record the hashes in the external installation record.

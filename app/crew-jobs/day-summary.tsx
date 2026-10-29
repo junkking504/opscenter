@@ -6,7 +6,7 @@ import styles from './phone-access.module.css';
 const money=(value:number|null)=>value===null?'Pending':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
 export function AddressLink({address:source}:{address:string}){
  const {address,programLabel}=appointmentAddressDisplay(source),href=mapsDirections(address);
- return <>{programLabel&&<small className={styles.muted} style={{display:'block'}}>Program: {programLabel}</small>}{href?<a className={styles.mapLink} href={href} target="_blank" rel="noopener noreferrer">{address}<small>Open Google Maps ↗</small></a>:<span>{address || 'Address unavailable'}</span>}</>;
+ return <>{programLabel&&<small className={styles.muted} style={{display:'block'}}>Program: {programLabel}</small>}{href?<a className={styles.mapLink} href={href} target="_blank" rel="noopener noreferrer">{address}<small>Open Apple Maps ↗</small></a>:<span>{address || 'Address unavailable'}</span>}</>;
 }
 export default function DaySummary({summary:s}:{summary:WaypointDaySummary}){
  const bonus=s.crew.length && s.crew.every(person=>person.bonus!==null)?s.crew.reduce((sum,person)=>sum+person.bonus!,0):null;

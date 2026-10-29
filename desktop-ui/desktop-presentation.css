@@ -368,3 +368,68 @@ html[data-ops-theme="dark"] .ops-app.ops-live .page-rail-link:not(.active) { col
 @media (pointer: coarse), (max-width: 768px) {
   .ops-app.ops-live [data-slot="button"] { min-height: 44px; }
 }
+
+/* One source disclosure and one account disclosure beside search and alerts. */
+.ops-app.ops-live .topbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.ops-app.ops-live .topbar > .global-search-shell { flex:1; min-width:160px; }
+.ops-app.ops-live .topbar-actions { flex-wrap:wrap; }
+.live-status-menu { position:relative; color:var(--oc-text-primary); }
+.live-status-menu > summary { display:flex; align-items:center; min-height:32px; padding:4px 10px; border:1px solid var(--oc-border-default); border-radius:6px; cursor:pointer; font-size:12px; list-style:none; }
+.live-status-menu > summary::-webkit-details-marker { display:none; }
+.live-status-panel { position:absolute; right:0; top:100%; z-index:70; width:280px; max-width:calc(100vw - 32px); padding:16px; border:1px solid var(--oc-border-default); border-radius:8px; background:var(--oc-surface-raised); box-shadow:0 6px 20px #0002; overflow-wrap:anywhere; }
+.live-status-panel p { margin:8px 0; font-size:12px; }
+.live-status-panel :is(.theme-control,.brain-launch) { margin-top:8px; }
+.ops-app.ops-live .schedule-summary-strip { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.ops-app.ops-live .schedule-summary-button { flex:0 0 auto; display:inline-flex; flex-direction:row; align-items:center; gap:6px; min-height:32px; padding:4px 10px; border-radius:16px; }
+.ops-app.ops-live .schedule-summary-button strong { font-size:13px; }
+.schedule-filter-menu { display:flex; align-items:center; gap:6px; color:var(--oc-text-primary); font-size:12px; }
+.schedule-filter-menu select { min-height:32px; max-width:170px; padding:4px; color:inherit; background:var(--oc-surface-raised); border:1px solid var(--oc-border-default); border-radius:6px; }
+.ops-app.ops-live :is(.workspace-page-link:not([aria-current="page"]),.workspace-rail-link:not(.active),.workspace-group-toggle) { color:#595959; }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.workspace-page-link:not([aria-current="page"]),.workspace-rail-link:not(.active),.workspace-group-toggle) { color:#b8b8b8; }
+@media (pointer:coarse), (max-width:768px) {
+  .live-status-menu > summary,.ops-app.ops-live .schedule-summary-button,.schedule-filter-menu select { min-height:44px; }
+  .ops-app.ops-live .topbar > .global-search-shell { flex-basis:100%; }
+  .ops-app.ops-live .account-menu > summary { max-width:140px; overflow-wrap:anywhere; }
+}
+.ops-app.ops-live .live-header-shell,
+.ops-app.ops-live[data-css-phase-two] .live-header-shell { display:flex; flex-direction:column; padding:8px 16px; gap:6px; }
+.ops-app.ops-live .live-header-shell .viewing-day-bar { display:flex; position:static; flex-wrap:wrap; justify-content:space-between; gap:8px; padding:0; border:0; }
+.ops-app.ops-live .live-header-shell :is(.viewing-day-context,.viewing-day-controls) { padding:0; grid-area:auto; }
+.ops-app.ops-live .live-header-shell .topbar { display:flex; height:auto; min-height:32px; padding:0; border:0; background:transparent; }
+.ops-app.ops-live .live-header-shell .topbar-actions { display:flex; align-items:center; gap:8px; }
+.ops-app.ops-live .live-header-shell :is(.live-chip,.notification-center,.brain-launch) { grid-area:auto; margin:0; }
+.ops-app.ops-live .live-header-shell .live-chip { min-height:32px; font-size:12px; }
+@media (pointer:coarse), (max-width:768px) {
+  .ops-app.ops-live .live-header-shell { padding:8px; }
+  .ops-app.ops-live .live-header-shell .live-chip { min-height:44px; }
+  .ops-app.ops-live .live-header-shell .viewing-day-controls { flex-wrap:wrap; justify-content:flex-start; }
+}
+@media (min-width:769px) and (pointer:fine) {
+  .ops-app.ops-live .live-schedule [data-slot="button"] { min-height:32px; height:32px; }
+}
+@media (pointer:coarse), (max-width:768px) {
+  .ops-app.ops-live .live-schedule [data-slot="button"] { min-height:44px; height:44px; }
+}
+.ops-app.ops-live .live-header-shell,
+.ops-app.ops-live[data-css-phase-two] .live-header-shell { align-items:stretch; }
+/* Later workspace bundles may load after this shared sheet. Keep hit sizes stable. */
+@media (min-width:769px) and (pointer:fine) {
+  .ops-app.ops-live [data-slot="button"] { min-height:32px !important; height:32px !important; }
+}
+@media (pointer:coarse), (max-width:768px) {
+  .ops-app.ops-live [data-slot="button"] { min-height:44px !important; height:44px !important; }
+}
+.ops-app.ops-live .live-header-shell .live-status-menu > .live-chip { display:flex; }
+.ops-app.ops-live .live-schedule .schedule-summary-strip .schedule-summary-button { gap:6px; }
+.ops-app.ops-live .live-schedule .schedule-summary-strip .schedule-summary-button strong { font-size:13px; line-height:1.4; }
+/* Theme sheets load last; missing evidence and navigation ink stay neutral. */
+html[data-ops-theme="light"] .ops-app.ops-live :is(.missing-value,.workspace-page-link:not([aria-current="page"]),.workspace-rail-link:not(.active),.workspace-group-toggle) { color:#595959 !important; }
+html[data-ops-theme="dark"] .ops-app.ops-live :is(.missing-value,.workspace-page-link:not([aria-current="page"]),.workspace-rail-link:not(.active),.workspace-group-toggle) { color:#b8b8b8 !important; }
+html[data-ops-theme="light"] .ops-app.ops-live .workspace-rail-link:not(.active) svg { color:#595959 !important; }
+html[data-ops-theme="dark"] .ops-app.ops-live .workspace-rail-link:not(.active) svg { color:#b8b8b8 !important; }
+@media (min-width:769px) and (pointer:fine) {
+  .ops-app.ops-live [data-slot="button"] { min-width:32px; }
+}
+@media (pointer:coarse), (max-width:768px) {
+  .ops-app.ops-live [data-slot="button"] { min-width:44px; }
+}

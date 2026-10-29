@@ -4339,9 +4339,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>}
           </div>
           }
+          {live && <LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} />}
           <div className="topbar-actions">
-            {live && <ThemeControl compact />}
-            {live && <OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
+
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
@@ -4352,7 +4352,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Dashboard loading…' : 'Dashboard checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
+            <details name="ops-header-menu" className="live-status-menu" onKeyDown={event => { if (event.key === 'Escape') event.currentTarget.open = false; }}>
+              <summary className="live-chip"><span />{live?.snapshot.loading ? 'Loading…' : live?.error ? 'Source Attention' : 'Live'}</summary>
+              <div className="live-status-panel"><strong>Source Status</strong><p>Last Dashboard Check: {live ? new Date(live.snapshot.generatedAt).toLocaleString('en-US', {timeZone:'America/Chicago'}) : 'Reference Preview'}</p><p>Host: {window.location.host}</p>{live?.error && <p role="status">{live.error}</p>}{live && <Button variant="outline" disabled={mutationBusy || !refreshDisplayed} onClick={() => { void refreshDisplayed?.().catch(error => setActionFeedback(error instanceof Error ? error.message : 'Refresh unavailable')); }}>Refresh Displayed Data</Button>}</div>
+            </details>
+            {live && <details name="ops-header-menu" className="live-status-menu account-menu" onKeyDown={event => { if (event.key === 'Escape') event.currentTarget.open = false; }}><summary aria-label="User menu">{live.snapshot.actor?.displayName || 'Account'}</summary><div className="live-status-panel"><strong>{live.snapshot.actor?.role || 'Account'}</strong><ThemeControl compact /><OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} /></div></details>}
             {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
@@ -4381,7 +4385,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           }
           </div>
         </header>
-        {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /></div>}
+
         </div>
 
         <div ref={workspaceMotionRef} className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
@@ -4468,7 +4472,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
 
           {live && showingDrilldown && drilldown && <section aria-label={`${drilldownLabel} details and trends`}>
-            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Dashboard</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value || 'Unavailable'}</strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
+            <div className="command-metric-detail"><Button variant="outline" size="sm" onClick={() => { setDrilldownLabel(''); setActiveNav('Command'); setView('now'); }}>Back to Dashboard</Button><h2>{drilldownLabel} · {live.snapshot.date}</h2><strong><MetricValue value={commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.value} /></strong><p>{commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.secondaryValue} · {commandKpiRows.find(kpi => kpi.label === drilldownLabel)?.detail}</p><p>{drilldown.scope === 'jobs' ? 'This card includes active jobs and estimates, excluding cancellations. The selected-day appointment records are below.' : drilldown.scope === 'labor' ? 'Selected-day crew and payroll records are below.' : 'Current card value is shown above; completed-day history and selected-day financial records are below. Current assumed dump costs are not reconstructed in historical totals.'}</p></div>
             {drilldownLabel === 'AJS' && <p>AJS uses published gross job revenue per completed job. The chart uses operating (Truck Records) values and may differ.</p>}
             <LiveAnalytics refreshWorkspace={activeNav} key={`${drilldownLabel}:${live.snapshot.date}`} date={live.snapshot.date} scope={drilldown.scope} focusMetric={drilldown.metric} />
           </section>}
@@ -4931,7 +4935,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   </section>
                 )}
                 <div className="schedule-board-shell">
-                  <div className="section-title"><div><span className="section-kicker">{scheduleDay === 'today' ? 'Today · Live board' : 'Tomorrow · Planning board'}</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><span className="schedule-drag-help"><GripVertical size={13} />Drag appointment → truck + time</span><Button variant="ghost" size="sm" disabled title="Available when this local prototype is connected to JunkWare">JunkWare Link Unavailable</Button></div></div>
+                  <div className="section-title"><div><span className="section-kicker">{scheduleDay === 'today' ? 'Today · Live board' : 'Tomorrow · Planning board'}</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><span className="schedule-drag-help"><GripVertical size={13} />Drag appointment → truck + time</span><Button variant="ghost" size="sm" disabled title="Available When This Local Prototype Is Connected to JunkWare">JunkWare Link Unavailable</Button></div></div>
                   <div className="schedule-board-scroll">
                     <div className={`schedule-board ${scheduleDensity}${draggedAppointmentId ? ' drag-active' : ''}`} style={{ gridTemplateRows: `22px repeat(${scheduleRows.length}, minmax(0, 1fr))` }}>
                       <div className="schedule-time-row"><span>Route</span>{scheduleTimes.map((time) => <span key={time}>{time}</span>)}</div>
@@ -5100,10 +5104,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     {appointmentsByTerritory.map((group) => (
                       <button className={territoryPriority === group.designator ? 'active' : ''} onClick={() => { setScheduleScope('ALL'); setTerritoryPriority(group.designator); }} key={group.designator} title={`Move ${group.territory} to the top`}><i className={group.territory.toLowerCase().replaceAll(' ', '-')} />{group.designator}<small>{group.appointments.length}</small></button>
                     ))}
-                    <button className="reset-order" onClick={resetScheduleSelection} disabled={!territoryPriority && scheduleScope === 'ALL'}>Reset order</button>
+                    <button className="reset-order" onClick={resetScheduleSelection} disabled={!territoryPriority && scheduleScope === 'ALL'}>Reset Order</button>
                   </nav>
                   <div className="appointment-register-table" role="table" aria-label="All scheduled appointments">
-                    {orderedVisibleAppointmentGroups.length === 0 && <div className="appointment-empty-state"><strong>No appointments match this view</strong><span>Clear the schedule filters to return to the full operating day.</span><Button variant="outline" size="sm" onClick={resetScheduleSelection}>Clear filters</Button></div>}
+                    {orderedVisibleAppointmentGroups.length === 0 && <div className="appointment-empty-state"><strong>No appointments match this view</strong><span>Clear the schedule filters to return to the full operating day.</span><Button variant="outline" size="sm" onClick={resetScheduleSelection}>Clear Filters</Button></div>}
                     {orderedVisibleAppointmentGroups.map((group) => (
                       <section className={`appointment-territory-group ${group.territory.toLowerCase().replaceAll(' ', '-')}`} role="rowgroup" key={group.territory}>
                         <div className="appointment-territory-heading"><div><i /><button className={scheduleScope === `T:${group.designator}` ? 'active' : ''} onClick={() => setScheduleScope(`T:${group.designator}`)} aria-label={`Focus ${group.territory}`}>{group.designator}</button><button className="territory-record-link" onClick={() => openTerritoryRecord(group.territory)}>{group.territory}<ArrowRight size={11} /></button></div><span>{group.appointments.length} appointment{group.appointments.length === 1 ? '' : 's'}</span></div>
@@ -5162,7 +5166,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       {selectedCalendarTerritories.map((territory) => <span className={`territory-${territory.code.toLowerCase()}${territory.count ? '' : ' empty'}`} key={territory.code}><b>{territory.code}</b>{territory.count}</span>)}
                     </div>
                     {selectedCalendarDay === 31
-                      ? <Button onClick={() => { changeScheduleDay('today'); setScheduleView('board'); }}>Open live board <ArrowRight /></Button>
+                      ? <Button onClick={() => { changeScheduleDay('today'); setScheduleView('board'); }}>Open Live Board <ArrowRight /></Button>
                       : <Button variant="outline" onClick={() => openRecordDrawer({
                         kicker: 'Calendar day', title: selectedCalendarLabel, summary: `${selectedCalendarCount} scheduled appointments`,
                         action: 'Close summary', source: 'JunkWare schedule', updated: 'Calendar archive',
@@ -5171,14 +5175,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           { label: 'Routes', value: String(selectedCalendarCount ? Math.max(1, Math.ceil(selectedCalendarCount / 3)) : 0) },
                           { label: 'Territories', value: selectedCalendarTerritories.filter((territory) => territory.count > 0).map((territory) => `${territory.code} ${territory.count}`).join(' · ') || 'None' },
                         ],
-                      })}>Review day summary <ArrowRight /></Button>}
+                      })}>Review Day Summary <ArrowRight /></Button>}
                   </section>
                 </section>
               )}
 
               {scheduleView === 'followup' && (
                 <section className="schedule-followup-shell">
-                  <div className="section-title"><div><span className="section-kicker">{activeFollowups.length} active · Sorted by urgency</span><h2>Follow-Up Queue</h2></div>{handledFollowups.length > 0 && <Button variant="outline" size="sm" onClick={() => setHandledFollowups([])}>Restore handled</Button>}</div>
+                  <div className="section-title"><div><span className="section-kicker">{activeFollowups.length} active · Sorted by urgency</span><h2>Follow-Up Queue</h2></div>{handledFollowups.length > 0 && <Button variant="outline" size="sm" onClick={() => setHandledFollowups([])}>Restore Handled</Button>}</div>
                   <div className="followup-overview" aria-label="Follow-up summary">
                     <button className={followupFilter === 'all' ? 'active' : ''} onClick={() => setFollowupFilter('all')}><span>Due now</span><strong>{activeFollowups.filter((item) => item.priority === 'critical').length}</strong><small>Oldest · 2h 16m</small></button>
                     <button className={followupFilter === 'estimates' ? 'active' : ''} onClick={() => setFollowupFilter('estimates')}><span>Open estimates</span><strong>{followupCounts.estimates}</strong><small>Pricing and contact</small></button>
@@ -5217,7 +5221,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               {scheduleView === 'history' && (
                 <div className="schedule-history-grid">
                   <section className="schedule-history-shell">
-                    <div className="section-title"><div><span className="section-kicker">{scheduleDay === 'today' ? 'Today' : 'Tomorrow'} · {scheduleDayHistory.length} recorded changes</span><h2>Activity History</h2></div>{historyFilter !== 'all' && <Button variant="ghost" size="sm" onClick={() => setHistoryFilter('all')}>Clear filter</Button>}</div>
+                    <div className="section-title"><div><span className="section-kicker">{scheduleDay === 'today' ? 'Today' : 'Tomorrow'} · {scheduleDayHistory.length} recorded changes</span><h2>Activity History</h2></div>{historyFilter !== 'all' && <Button variant="ghost" size="sm" onClick={() => setHistoryFilter('all')}>Clear Filter</Button>}</div>
                     <div className="history-overview" role="tablist" aria-label="History filters">
                       {[
                         { key: 'all', label: 'All activity', detail: 'Full audit trail' },
@@ -5247,7 +5251,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     <p>Every operational change keeps its actor, source, time, and affected appointment together.</p>
                     <dl>{historySourceCounts.map((item) => <div key={item.source}><dt>{item.source}</dt><dd>{item.count}</dd></div>)}</dl>
                     <div className="history-audit-note"><span>Latest activity</span><strong>{scheduleDayHistory[0]?.time || 'No changes recorded'}</strong><small>{scheduleDayHistory[0] ? <>{scheduleDayHistory[0].type} · {renderJkLink(scheduleDayHistory[0].jk, scheduleDayHistory[0].source, scheduleDayHistory[0].time)}</> : 'The audit trail is clear.'}</small></div>
-                    <Button variant="outline" size="sm" onClick={() => setScheduleView('board')}>Review current board <ArrowRight /></Button>
+                    <Button variant="outline" size="sm" onClick={() => setScheduleView('board')}>Review Current Board <ArrowRight /></Button>
                   </section>
                 </div>
               )}
@@ -5284,7 +5288,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
                 <div className="krewe-layout">
                   <section className="krewe-roster-shell">
-                    <div className="section-title"><div><span className="section-kicker">{visibleKrewe.length} shown · Live source refresh</span><h2>Today’s Krewe Performance</h2></div>{kreweFilter !== 'all' && <Button variant="ghost" size="sm" onClick={() => setKreweFilter('all')}>Show full roster</Button>}</div>
+                    <div className="section-title"><div><span className="section-kicker">{visibleKrewe.length} shown · Live source refresh</span><h2>Today’s Krewe Performance</h2></div>{kreweFilter !== 'all' && <Button variant="ghost" size="sm" onClick={() => setKreweFilter('all')}>Show Full Roster</Button>}</div>
                     <div className="krewe-performance-head"><span>Krewe member</span><span>Time</span><span>Assignment</span><span>Production</span><span>Hourly labor</span><span>Tips</span><span>Bonuses</span><span>Total pay</span><span /></div>
                     <div className="krewe-roster-list">
                       {visibleKrewe.map((member) => (
@@ -5319,7 +5323,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </>}
 
               {kreweView === 'callin' && <section className="krewe-callin-shell">
-                <div className="section-title"><div><span className="section-kicker">Tomorrow · Monday, Sep 1</span><h2>Tomorrow’s Call-In Plan</h2><p>Suggested staffing based on tomorrow’s appointments, current-week hours, recent activity, and driver coverage.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); changeScheduleDay('tomorrow'); setScheduleView('board'); }}>Review tomorrow’s jobs <ArrowRight /></Button></div>
+                <div className="section-title"><div><span className="section-kicker">Tomorrow · Monday, Sep 1</span><h2>Tomorrow’s Call-In Plan</h2><p>Suggested staffing based on tomorrow’s appointments, current-week hours, recent activity, and driver coverage.</p></div><Button variant="outline" size="sm" onClick={() => { setActiveNav('Schedule'); changeScheduleDay('tomorrow'); setScheduleView('board'); }}>Review Tomorrow’s Jobs <ArrowRight /></Button></div>
                 <div className="krewe-callin-summary"><div><span>Appointments</span><strong>12</strong><small>Across 5 territories</small></div><div><span>Coverage target</span><strong>6 Krewes</strong><small>12 people</small></div><div><span>Already assigned</span><strong>10</strong><small>Confirmed on routes</small></div><div><span>Call in</span><strong>{callInCandidates.filter((candidate) => candidate.status === 'Confirmed').length} / 2</strong><small>8-hour planning estimate</small></div></div>
                 <div className="krewe-callin-territories"><span><b>NS</b>3 appointments · 2 Krewes</span><span><b>JP</b>3 appointments · 1 Krewe</span><span><b>NO</b>2 appointments · 1 Krewe</span><span><b>BR</b>3 appointments · 1 Krewe</span><span><b>LF</b>1 appointment · 1 Krewe</span></div>
                 <div className="krewe-callin-list">
@@ -5328,7 +5332,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <span className="krewe-callin-rank">{candidate.rank}</span>
                       <div className="krewe-callin-person"><div><strong>{member.name}</strong><Badge variant="outline">{candidate.suggestedRole}</Badge>{candidate.overtimeRisk && <Badge variant="outline" className="overtime-risk">Overtime risk</Badge>}</div><p>{candidate.reason}</p></div>
                       <div className="krewe-callin-metrics"><span><small>This week</small><strong>{metricValue(member.weeklyHours, ' hrs')}</strong></span><span><small>After call-in</small><strong>{metricValue(candidate.projectedHours, ' hrs')}</strong></span><span><small>Recent RPH</small><strong>{moneyValue(candidate.recentRph)}</strong></span><span><small>Jobs</small><strong>{candidate.recentJobs}</strong></span></div>
-                      <div className="krewe-callin-actions"><span className={`callin-state ${candidate.status.toLowerCase()}`}>{candidate.status}</span><div>{candidate.status === 'Recommended' && <Button variant="outline" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Called')}>Mark called</Button>}{candidate.status === 'Called' && <><Button size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Confirmed')}>Confirm</Button><Button variant="outline" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Unavailable')}>Unavailable</Button></>}{['Confirmed', 'Unavailable'].includes(candidate.status) && <Button variant="ghost" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Recommended')}>Reset</Button>}</div></div>
+                      <div className="krewe-callin-actions"><span className={`callin-state ${candidate.status.toLowerCase()}`}>{candidate.status}</span><div>{candidate.status === 'Recommended' && <Button variant="outline" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Called')}>Mark Called</Button>}{candidate.status === 'Called' && <><Button size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Confirmed')}>Confirm</Button><Button variant="outline" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Unavailable')}>Unavailable</Button></>}{['Confirmed', 'Unavailable'].includes(candidate.status) && <Button variant="ghost" size="sm" onClick={() => updateCallInStatus(candidate.memberId, 'Recommended')}>Reset</Button>}</div></div>
                     </article>
                   ); })}
                 </div>
@@ -5395,8 +5399,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     </div>
                   </section>
                   <aside className="fleet-exceptions-shell">
-                    <div className="section-title"><div><span className="section-kicker">{activeFleetIssues.length} active</span><h2>Fleet Exceptions</h2></div><Button variant="ghost" size="sm" onClick={() => setFleetView('maintenance')}>All repairs <ArrowRight /></Button></div>
-                    {activeFleetIssues.map((issue) => { const truck = fleetTruckRows.find((item) => item.id === issue.truckId); return <article className={`fleet-exception ${issue.severity.toLowerCase().replaceAll(' ', '-')}`} key={issue.id}><div><Badge variant="outline">{issue.severity}</Badge><span>{issue.status}</span></div><strong>{truck?.label} · {issue.title}</strong><p>{issue.description}</p><small>{issue.owner || 'Unassigned'} · Due {issue.due || 'not set'}</small><Button variant="outline" size="sm" onClick={() => openFleetIssue(issue)}>Open work order <ArrowRight /></Button></article>; })}
+                    <div className="section-title"><div><span className="section-kicker">{activeFleetIssues.length} active</span><h2>Fleet Exceptions</h2></div><Button variant="ghost" size="sm" onClick={() => setFleetView('maintenance')}>All Repairs <ArrowRight /></Button></div>
+                    {activeFleetIssues.map((issue) => { const truck = fleetTruckRows.find((item) => item.id === issue.truckId); return <article className={`fleet-exception ${issue.severity.toLowerCase().replaceAll(' ', '-')}`} key={issue.id}><div><Badge variant="outline">{issue.severity}</Badge><span>{issue.status}</span></div><strong>{truck?.label} · {issue.title}</strong><p>{issue.description}</p><small>{issue.owner || 'Unassigned'} · Due {issue.due || 'not set'}</small><Button variant="outline" size="sm" onClick={() => openFleetIssue(issue)}>Open Work Order <ArrowRight /></Button></article>; })}
                     <div className="fleet-source-note"><span>Telemetry</span><strong>{fleetTruckRows.length - fleetCounts.stale} of {fleetTruckRows.length} reporting fresh</strong><small>Fleet-wide collection health does not override a stale individual tracker.</small></div>
                   </aside>
                 </div>
@@ -5407,10 +5411,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="fleet-maintenance-summary"><article><span>Ready</span><strong>{fleetCounts.ready}</strong><small>Inspection complete, no blocker</small></article><article><span>Missing inspection</span><strong>{fleetTruckRows.filter((truck) => truck.checklist === 'Missing').length}</strong><small>Complete before dispatch</small></article><article><span>Active repairs</span><strong>{activeFleetIssues.length}</strong><small>{activeFleetIssues.filter((issue) => issue.status === 'In progress').length} in progress</small></article><article><span>Out of service</span><strong>{fleetCounts.out}</strong><small>Dispatch blocked</small></article></div>
                 <section className="fleet-inspection-shell">
                   <div className="section-title"><div><span className="section-kicker">Today · Daily readiness</span><h2>Inspection Status</h2><p>Missing inspections remain actionable beside open repair counts.</p></div></div>
-                  <div className="fleet-inspection-grid">{fleetTruckRows.map((truck) => { const issues = activeFleetIssues.filter((issue) => issue.truckId === truck.id); return <article className={truck.checklist === 'Missing' ? 'missing' : ''} key={truck.id}><div><strong>{truck.label}</strong><span className={`fleet-readiness ${truck.readiness.toLowerCase().replaceAll(' ', '-')}`}>{truck.readiness}</span></div><p>{truck.checklist === 'Complete' ? 'Daily checklist complete' : 'Daily checklist missing'}</p><small>{issues.length ? `${issues.length} active repair${issues.length === 1 ? '' : 's'}` : 'No open repairs'}</small>{truck.checklist === 'Missing' ? <Button size="sm" onClick={() => completeFleetChecklist(truck.id)}>Mark inspected</Button> : <Button variant="outline" size="sm" onClick={() => openFleetTruck(truck)}>Review truck</Button>}</article>; })}</div>
+                  <div className="fleet-inspection-grid">{fleetTruckRows.map((truck) => { const issues = activeFleetIssues.filter((issue) => issue.truckId === truck.id); return <article className={truck.checklist === 'Missing' ? 'missing' : ''} key={truck.id}><div><strong>{truck.label}</strong><span className={`fleet-readiness ${truck.readiness.toLowerCase().replaceAll(' ', '-')}`}>{truck.readiness}</span></div><p>{truck.checklist === 'Complete' ? 'Daily checklist complete' : 'Daily checklist missing'}</p><small>{issues.length ? `${issues.length} active repair${issues.length === 1 ? '' : 's'}` : 'No open repairs'}</small>{truck.checklist === 'Missing' ? <Button size="sm" onClick={() => completeFleetChecklist(truck.id)}>Mark Inspected</Button> : <Button variant="outline" size="sm" onClick={() => openFleetTruck(truck)}>Review Truck</Button>}</article>; })}</div>
                 </section>
                 <section className="fleet-repair-shell">
-                  <div className="section-title"><div><span className="section-kicker">Repair work orders</span><h2>Repair Queue</h2><p>Status, owner, due date, resolution, cost, and downtime remain together.</p></div><div className="fleet-repair-filters"><button className={fleetIssueFilter === 'active' ? 'active' : ''} onClick={() => setFleetIssueFilter('active')}>Active</button><button className={fleetIssueFilter === 'all' ? 'active' : ''} onClick={() => setFleetIssueFilter('all')}>All history</button></div></div>
+                  <div className="section-title"><div><span className="section-kicker">Repair work orders</span><h2>Repair Queue</h2><p>Status, owner, due date, resolution, cost, and downtime remain together.</p></div><div className="fleet-repair-filters"><button className={fleetIssueFilter === 'active' ? 'active' : ''} onClick={() => setFleetIssueFilter('active')}>Active</button><button className={fleetIssueFilter === 'all' ? 'active' : ''} onClick={() => setFleetIssueFilter('all')}>All History</button></div></div>
                   <div className="fleet-repair-head"><span>Truck</span><span>Issue</span><span>Severity</span><span>Status</span><span>Owner</span><span>Due</span><span>Cost</span><span>Downtime</span><span /></div>
                   <div className="fleet-repair-list">{visibleFleetIssues.map((issue) => { const truck = fleetTruckRows.find((item) => item.id === issue.truckId); return <article className={issue.status === 'Resolved' ? 'resolved' : ''} key={issue.id}><strong>{truck?.label}</strong><div><strong>{issue.title}</strong><small>{issue.description}</small></div><span className={`repair-severity ${issue.severity.toLowerCase().replaceAll(' ', '-')}`}>{issue.severity}</span><strong>{issue.status}</strong><span>{issue.owner || 'Unassigned'}</span><span>{issue.due || '—'}</span><strong>{moneyValue(issue.cost)}</strong><span>{metricValue(issue.downtime, ' hrs')}</span><Button variant="outline" size="sm" onClick={() => openFleetIssue(issue)}>Update</Button></article>; })}</div>
                 </section>
@@ -5698,7 +5702,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 </div>
                 {newAppointmentAddressVerification ? newAppointmentAddressVerification.status === 'verified' && newAppointmentAddressVerification.mapSrc ? (
                   <div className="appointment-location-verified">
-                    <div className="appointment-location-map"><iframe title="Verified service location" src={newAppointmentAddressVerification.mapSrc} /></div>
+                    <div className="appointment-location-map"><iframe title="Verified Service Location" src={newAppointmentAddressVerification.mapSrc} /></div>
                     <div className="appointment-location-summary">
                       <header><span><Check size={12} /> {newAppointmentAddressVerification.manual ? 'Area Confirmed Manually' : 'Service Location Verified'}</span><GoogleMapsAddress address={newAppointmentAddressVerification.input} /></header>
                       <div><span><b>Territory</b>{territoryDesignators[newAppointmentAddressVerification.territory!]} · {newAppointmentAddressVerification.territory}</span><span><b>Area</b>{newAppointmentAddressVerification.areaCode} · {newAppointmentAddressVerification.matchedArea}</span><span><b>Map Pin</b>{newAppointmentAddressVerification.latitude?.toFixed(4)}, {newAppointmentAddressVerification.longitude?.toFixed(4)}</span></div>
@@ -6382,7 +6386,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           {!activeTruckKrewe.length && <div className="job-record-empty-row">No active Krewe assignment is linked to this truck.</div>}
                         </div>
                       </section>
-                      <section className="fleet-drawer-controls"><div className="drawer-control-heading"><span>Truck load ledger</span><strong>Update verified load status</strong><small>GPS presence at a dump or recycler never resets this value automatically.</small></div><div className="fleet-load-form"><label><span>Load percent</span><Input type="number" min="0" max="100" value={fleetLoadDraft.percent} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, percent: event.target.value }))} /></label><label className="wide"><span>Load or reset note</span><Input value={fleetLoadDraft.note} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, note: event.target.value }))} placeholder="Load contents or verified reset source" /></label><label className="wide"><span>Metal status</span><Input value={fleetLoadDraft.metal} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, metal: event.target.value }))} placeholder="Metal fraction or yard status" /></label></div><div className="fleet-load-actions"><Button variant="outline" size="sm" onClick={resetFleetLoad}>Record dump / yard reset</Button><Button size="sm" onClick={saveFleetLoad}>Save load status</Button></div>{actionFeedback && <p className="drawer-action-feedback" role="status">{actionFeedback}</p>}</section>
+                      <section className="fleet-drawer-controls"><div className="drawer-control-heading"><span>Truck load ledger</span><strong>Update verified load status</strong><small>GPS presence at a dump or recycler never resets this value automatically.</small></div><div className="fleet-load-form"><label><span>Load percent</span><Input type="number" min="0" max="100" value={fleetLoadDraft.percent} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, percent: event.target.value }))} /></label><label className="wide"><span>Load or reset note</span><Input value={fleetLoadDraft.note} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, note: event.target.value }))} placeholder="Load contents or verified reset source" /></label><label className="wide"><span>Metal status</span><Input value={fleetLoadDraft.metal} onChange={(event) => setFleetLoadDraft((draft) => ({ ...draft, metal: event.target.value }))} placeholder="Metal fraction or yard status" /></label></div><div className="fleet-load-actions"><Button variant="outline" size="sm" onClick={resetFleetLoad}>Record Dump / Yard Reset</Button><Button size="sm" onClick={saveFleetLoad}>Save Load Status</Button></div>{actionFeedback && <p className="drawer-action-feedback" role="status">{actionFeedback}</p>}</section>
                       <section className="job-record-section truck-record-section" aria-label="Maintenance and repairs">
                         <header><div><span>Maintenance</span><strong>Service and repair history</strong></div><Badge variant="outline">{activeTruckIssues.filter((issue) => issue.status !== 'Resolved').length} active</Badge></header>
                         <div className="truck-record-maintenance-summary"><div><span>Next Service</span><strong>{activeFleetTruck.nextService}</strong><small className={`service-${activeFleetTruck.serviceTone}`}>{activeFleetTruck.serviceTone === 'due' ? 'Due now' : activeFleetTruck.serviceTone === 'soon' ? 'Due soon' : 'Current'}</small></div><div><span>Open Repairs</span><strong>{activeTruckIssues.filter((issue) => issue.status !== 'Resolved').length}</strong><small>{activeTruckIssues.filter((issue) => issue.status === 'In progress').length} in progress</small></div><div><span>Recorded Downtime</span><strong>{metricValue(activeTruckIssues.reduce((sum, issue) => sum + issue.downtime, 0), ' hrs')}</strong><small>{moneyValue(activeTruckIssues.reduce((sum, issue) => sum + (issue.cost || 0), 0))} repair cost</small></div></div>
@@ -6441,7 +6445,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <div className="krewe-bonus-control">
                         <div><span>Manual bonus</span><strong>Add an attributable adjustment</strong></div>
                         <div><label><span>Amount</span><Input type="number" min="0" step="1" value={bonusEntry.amount} onChange={(event) => setBonusEntry((entry) => ({ ...entry, amount: event.target.value }))} placeholder="$0" /></label><label><span>Reason</span><Input value={bonusEntry.reason} onChange={(event) => setBonusEntry((entry) => ({ ...entry, reason: event.target.value }))} placeholder="Required manager reason" /></label></div>
-                        <Button variant="outline" size="sm" onClick={addKreweBonus}>Add bonus</Button>
+                        <Button variant="outline" size="sm" onClick={addKreweBonus}>Add Bonus</Button>
                       </div>
                       {actionFeedback && <p className="drawer-action-feedback" role="status">{actionFeedback}</p>}
                     </section>
@@ -6474,13 +6478,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 : activeJobReference
                 ? <Button onClick={() => setActionFeedback('JunkWare handoff is ready. The production record link will open here when this prototype is connected.')}>Open in JunkWare <ArrowRight /></Button>
                 : activeFleetIssue
-                  ? <Button onClick={saveFleetIssue}>Save work order <Check /></Button>
+                  ? <Button onClick={saveFleetIssue}>Save Work Order <Check /></Button>
                   : activeFleetTruck
-                    ? <Button onClick={saveFleetLoad}>Save truck status <Check /></Button>
+                    ? <Button onClick={saveFleetLoad}>Save Truck Status <Check /></Button>
                 : activeKrewe
-                  ? <Button onClick={saveKreweCorrection}>Save correction <Check /></Button>
+                  ? <Button onClick={saveKreweCorrection}>Save Correction <Check /></Button>
                   : activeFollowup
-                  ? <Button onClick={() => markFollowupHandled(activeFollowup.jk)}>Mark handled <Check /></Button>
+                  ? <Button onClick={() => markFollowupHandled(activeFollowup.jk)}>Mark Handled <Check /></Button>
                 : <Button onClick={closeRecordDrawer}>{drawer.action} <ArrowRight /></Button>}
             </footer>
           </aside>

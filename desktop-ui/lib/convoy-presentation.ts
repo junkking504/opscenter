@@ -1,7 +1,7 @@
 import { normalizedTruckQuery, type DesktopFleetTruck, type FleetIssueRow, type FleetView } from './people-fleet-contract';
 
 export const convoyTabs = [
-  ['overview', 'Overview'], ['maintenance', 'Repairs & inspections'], ['service', 'Maintenance'],
+  ['overview', 'Overview'], ['maintenance', 'Repairs & Inspections'], ['service', 'Maintenance'],
 ] as const satisfies ReadonlyArray<readonly [FleetView, string]>;
 
 export function sameTruck(left: string, right: string) {

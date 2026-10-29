@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Fuel, Truck } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -9,7 +10,7 @@ import { sameTruck } from './lib/convoy-presentation';
 import type { DashboardProps } from './convoy-dashboard';
 import './convoy-live-board.css';
 
-const groupLabel: Record<LiveGroup, string> = { moving: 'Driving', idle: 'Idling', parked: 'Parked', offline: 'No GPS', out: 'Out of service' };
+const groupLabel: Record<LiveGroup, string> = { moving: 'Driving', idle: 'Idling', parked: 'Parked', offline: 'No GPS', out: 'Out of Service' };
 const money = (v: number | null) => v == null ? '—' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const num = (v: number | null) => v == null ? '—' : Math.round(v).toLocaleString('en-US');
 const mapKey = 'opscenter.convoyMap.expanded';
@@ -55,22 +56,22 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
   const soon = dueItems.filter(d => d.status === 'soon');
   const toggle = () => { const next = !mapOpen; setMapOpen(next); try { localStorage.setItem(mapKey, String(next)); } catch { /* optional preference */ } };
   const tiles: Array<[string, React.ReactNode, string, (() => void) | undefined]> = [
-    ['Driving now', isToday ? counts.moving : '—', isToday ? `${counts.idle} idling · ${counts.parked} parked` : 'Live status shows for today', undefined],
+    ['Driving Now', isToday ? counts.moving : '—', isToday ? `${counts.idle} idling · ${counts.parked} parked` : 'Live status shows for today', undefined],
     ['No GPS', isToday ? counts.offline : '—', 'Stale, offline or unavailable', undefined],
-    ['Out of service', repairsKnown ? counts.out : '—', 'Active repairs', () => onFilter('stop')],
-    ['Needs attention', attention.length, `${attention.filter(a => a.kind === 'out_of_service').length} critical`, undefined],
-    stops ? ['Stops done', `${stops.done} / ${stops.total}`, `${money(totals.revenue)} revenue`, undefined] : ['Jobs', num(totals.jobs), `${money(totals.revenue)} revenue`, undefined],
-    ['Miles driven', num(totals.miles), totals.idleMinutes == null ? 'Idle time not recorded' : `${num(totals.idleMinutes)} idle min`, undefined],
+    ['Out of Service', repairsKnown ? counts.out : '—', 'Active repairs', () => onFilter('stop')],
+    ['Needs Attention', attention.length, `${attention.filter(a => a.kind === 'out_of_service').length} critical`, undefined],
+    stops ? ['Stops Done', `${stops.done} / ${stops.total}`, `${money(totals.revenue)} revenue`, undefined] : ['Jobs', num(totals.jobs), `${money(totals.revenue)} revenue`, undefined],
+    ['Miles Driven', num(totals.miles), totals.idleMinutes == null ? 'Idle time not recorded' : `${num(totals.idleMinutes)} idle min`, undefined],
   ];
   return <div className="clb">
     <div className="clb-tiles">{tiles.map(([title, value, detail, click]) => {
-      const body = <><strong>{value}</strong><span>{title}</span><small>{detail}</small></>;
+      const body = <><strong><MetricValue value={value} /></strong><span>{title}</span><small>{detail}</small></>;
       return click ? <button key={title} className="clb-tile" onClick={click}>{body}</button> : <div key={title} className="clb-tile">{body}</div>;
     })}</div>
     {scheduleStale && appointments && <p className="clb-stale" role="status">Stop progress may be out of date: the schedule could not be refreshed.</p>}
     <div className="clb-main">
       <section className="convoy-dash-panel clb-live" aria-labelledby="clb-live-title">
-        <header><h2 id="clb-live-title">Live trucks</h2><small>{isToday ? 'Updates about every 30 seconds' : 'Historical day'}</small></header>
+        <header><h2 id="clb-live-title">Live Trucks</h2><small>{isToday ? 'Updates about every 30 seconds' : 'Historical day'}</small></header>
         <div className="clb-cards">{trucks.map(t => {
           const live = liveGroup(t, outIds.has(t.id));
           // Past days never claim a live motion state; only out-of-service is a recorded fact there.
@@ -88,22 +89,22 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
         })}</div>
       </section>
       <aside className="convoy-dash-panel clb-attention" aria-labelledby="clb-att-title">
-        <header><h2 id="clb-att-title">Needs attention</h2><small>{attention.length ? `${attention.length} open` : 'All clear'}</small></header>
+        <header><h2 id="clb-att-title">Needs Attention</h2><small>{attention.length ? `${attention.length} open` : 'All clear'}</small></header>
         {attention.length ? <ul>{attention.slice(0, 8).map(a => <li key={a.key}><button onClick={() => { onTruck(a.truckId); if (a.kind === 'scheduled' || a.kind === 'service') onView?.('service'); else if (a.kind === 'out_of_service' || a.kind === 'inspection') onView?.('maintenance'); }}>
           <span className={`clb-dot ${a.kind}`}>{a.kind === 'fuel' ? <Fuel size={13} /> : <AlertTriangle size={13} />}</span>
           <span><strong>{a.truck} · {a.title}</strong><small>{a.detail}</small></span><ArrowRight size={12} /></button></li>)}</ul>
           : <p className="convoy-empty">Nothing is flagged from recorded repairs, GPS, fuel or inspections.</p>}
         {attention.length > 8 && <small className="clb-more">{attention.length - 8} more in the truck table below</small>}
-        <Button variant="outline" size="sm" onClick={() => onView?.('service')}>Open service planner <ArrowRight size={13} /></Button>
+        <Button variant="outline" size="sm" onClick={() => onView?.('service')}>Open Service Planner <ArrowRight size={13} /></Button>
       </aside>
     </div>
     {soon.length > 0 && <section className="convoy-dash-panel clb-soon" aria-labelledby="clb-soon-title">
-      <header><h2 id="clb-soon-title">Service due soon</h2><small>Within 30 days or 1,000 miles</small></header>
+      <header><h2 id="clb-soon-title">Service Due Soon</h2><small>Within 30 days or 1,000 miles</small></header>
       <ul>{soon.map(d => <li key={d.key}><button onClick={() => { onTruck(d.truckId); onView?.('service'); }}><strong>{d.truck}</strong><span>{d.serviceType}</span><small>{dueDetail(d)}</small><ArrowRight size={12} /></button></li>)}</ul>
     </section>}
     <section className="convoy-dash-panel clb-map" aria-labelledby="clb-map-title">
-      <header><h2 id="clb-map-title">Trucks and appointments map</h2>
-        <Button variant="outline" size="sm" aria-expanded={mapOpen} onClick={toggle}>{mapOpen ? 'Hide map' : 'Show map'}{mapOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button></header>
+      <header><h2 id="clb-map-title">Trucks and Appointments Map</h2>
+        <Button variant="outline" size="sm" aria-expanded={mapOpen} onClick={toggle}>{mapOpen ? 'Hide Map' : 'Show Map'}{mapOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button></header>
       {mapOpen && <LiveSchedule mapOnly baseDate={date} day="today" onDayChange={() => {}} report={() => {}} onBusyChange={() => {}} />}
     </section>
   </div>;

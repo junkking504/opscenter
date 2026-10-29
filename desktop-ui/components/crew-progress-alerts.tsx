@@ -75,10 +75,10 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
       </div> : <dl>{facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div className={factClass(fact.label)} key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
       {appointmentContext.length > 0 && <dl className="crew-appointment-context" aria-label="Current appointment details">{appointmentContext.map(fact => <div className={factClass(fact.label)} key={fact.label}><dt>{fact.label}</dt><dd>{'href' in fact && fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
       {followUpDetail && <p className="crew-update-follow-up"><TriangleAlert size={13}/><strong>Follow up:</strong> {followUpDetail}</p>}
-      <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>
+      <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open Record <ChevronRight size={13}/></button>
         <span>{alert.workflowState === 'in-control' ? 'Follow-up in Control' : alert.workflowState === 'acknowledged' ? 'Reviewed' : alert.workflowState === 'resolved' ? 'Follow-up resolved' : ''}</span>
-        {alert.workflowState === 'active' && requiresAlertAttention(alert) && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'acknowledge')}>Mark reviewed</button>}
-        {alert.workflowState === 'in-control' ? <button type="button" onClick={openControl}>Open Control</button> : alert.workflowState !== 'resolved' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'add_to_control')}>Follow up in Control</button>}
+        {alert.workflowState === 'active' && requiresAlertAttention(alert) && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'acknowledge')}>Mark Reviewed</button>}
+        {alert.workflowState === 'in-control' ? <button type="button" onClick={openControl}>Open Control</button> : alert.workflowState !== 'resolved' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'add_to_control')}>Follow Up in Control</button>}
       </footer>
     </div>
   </article></details>;
@@ -86,15 +86,15 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
 
   return <section className="crew-alerts" aria-labelledby="crew-alert-title" id="live-alert-list">
     <div className="crew-alert-controls">
-    <header className="crew-alert-heading"><h2 id="crew-alert-title">Operational updates</h2><div className="crew-alert-counts"><strong>{snapshot.sources.alerts ? snapshot.alerts.length : '—'}</strong> updates<span>· Newest first</span></div></header>
+    <header className="crew-alert-heading"><h2 id="crew-alert-title">Operational Updates</h2><div className="crew-alert-counts"><strong>{snapshot.sources.alerts ? snapshot.alerts.length : '—'}</strong> updates<span>· Newest first</span></div></header>
     <div className="crew-alert-toolbar">
       <label className="crew-truck-filter">Truck<select aria-label="Filter by truck" value={truck} onChange={event => setTruck(event.target.value)}><option value="all">All trucks</option>{trucks.map(label => <option key={label} value={label}>{truckDisplayText(label)}</option>)}</select></label>
       <label className="crew-alert-search"><Search size={15}/><input type="search" aria-label="Search operational updates" placeholder="Search job, crew, or update" value={query} onChange={event => setQuery(event.target.value)}/></label>
-      <button type="button" className="crew-follow-filter" aria-pressed={followUp} onClick={() => setFollowUp(!followUp)}>Follow-up only</button>
-      {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}
+      <button type="button" className="crew-follow-filter" aria-pressed={followUp} onClick={() => setFollowUp(!followUp)}>Follow-up Only</button>
+      {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear Filters</button>}
     </div>
     </div>
-    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><div><span>{!progress ? 'Progress data unavailable.' : [!progress.scheduleCurrent && 'Schedule unavailable or stale.', !progress.visitsCurrent && 'Visit data unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')}</span>{!!progress?.updateHistoryReasons?.length && <details><summary>Source details</summary>{progress.updateHistoryReasons.map((reason,index) => <p key={index}>{reason}</p>)}</details>}</div></div>}
+    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><div><span>{!progress ? 'Progress data unavailable.' : [!progress.scheduleCurrent && 'Schedule unavailable or stale.', !progress.visitsCurrent && 'Visit data unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')}</span>{!!progress?.updateHistoryReasons?.length && <details><summary>Source Details</summary>{progress.updateHistoryReasons.map((reason,index) => <p key={index}>{reason}</p>)}</details>}</div></div>}
     <section className="crew-all-updates" aria-label="All operational updates, newest first">{visibleUpdates.length ? visibleUpdates.map(renderUpdate) : <p className="crew-empty">{snapshot.sources.alerts ? 'No updates match these filters.' : 'Update history is unavailable.'}</p>}</section>
     {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up unavailable: Control is disconnected.</p>}
   </section>;

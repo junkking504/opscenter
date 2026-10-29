@@ -53,3 +53,7 @@ window.EventSource=NoEvents as unknown as typeof EventSource;
 createRoot(document.getElementById('root')!).render(<><Home live={{snapshot:command,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async()=>{}}}/>{new URLSearchParams(location.search).has('consistency')&&<section aria-label="Synthetic test controls"><button onClick={()=>{failReads=true;window.dispatchEvent(new Event('online'));}}>Fail workspace reads</button><button onClick={()=>{failReads=false;window.dispatchEvent(new Event('online'));}}>Recover workspace reads</button></section>}</>);
 
 import '../approved-workbench.css';
+
+// Match the production entry's theme layers for light/dark acceptance.
+import '../opscenter-brand.css';
+import '../theme.css';

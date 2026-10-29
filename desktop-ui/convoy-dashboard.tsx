@@ -94,7 +94,7 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
       <ConvoyGauge label="Next service" percent={plan ? serviceGauge(plan) : null} value={status} detail={detail} tone={plan?.status === 'due' ? 'danger' : plan?.status === 'current' ? 'good' : 'warning'} ends={['Serviced','Due']}/>
       <TruckLevelGauges truck={truck}/>
     </div>
-    <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('maintenance');}}>Daily inspection</button><button onClick={()=>open({kind:'load',truck})}>Update load</button></footer>
+    <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service Plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('maintenance');}}>Daily Inspection</button><button onClick={()=>open({kind:'load',truck})}>Update Load</button></footer>
   </article>;
 }
 function baselineNeeded(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
@@ -165,7 +165,7 @@ export function Mileage({
             : m?.inspectionBaseline ? `Estimated · inspection + GPS travel${m.gpsIncomplete ? " · GPS gaps" : ""}` : m?.source === "inspection" ? `Last inspection · ${stamp(m.reportedAt)}` : `${m?.source} odometer${q === "stale" ? " · stale reading" : q === "estimated" ? " · verify reading" : ""}`}
       </small>
       {showReportedAt && q !== "unavailable" && (m?.source !== "inspection" || q === "conflict") && <small>{m?.reportedAt ? `As of ${stamp(m.reportedAt)}` : "Reading time unavailable"}</small>}
-      {m?.inspectionHref && <a href={m.inspectionHref} target="_blank" rel="noreferrer">View inspection</a>}{detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading source</summary><small>{m?.note || (review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer.")}</small>{m?.tracking && <small>Original tracking feed: {miles(m.tracking.value)} · {m.tracking.source} · {stamp(m.tracking.reportedAt)}</small>}</details></>}
+      {m?.inspectionHref && <a href={m.inspectionHref} target="_blank" rel="noreferrer">View inspection</a>}{detail && <><small>Reported {stamp(m?.reportedAt)}</small><details><summary>Reading Source</summary><small>{m?.note || (review.belowService ? "This reading is lower than a completed service record. Check the physical odometer." : "Virtual mileage is a tracking-system counter; it may differ from the truck’s odometer.")}</small>{m?.tracking && <small>Original tracking feed: {miles(m.tracking.value)} · {m.tracking.source} · {stamp(m.tracking.reportedAt)}</small>}</details></>}
     </div>
   );
 }
@@ -183,7 +183,7 @@ export function ServiceIntervals({
     <section className="convoy-dash-panel">
       <header>
         <div>
-          <h2>Preventive maintenance</h2>
+          <h2>Preventive Maintenance</h2>
           <p>Set miles and/or months. Service is due at whichever limit comes first.</p>
         </div>
         <Button
@@ -199,7 +199,7 @@ export function ServiceIntervals({
             })
           }
         >
-          Add interval
+          Add Interval
         </Button>
       </header>
       <p className="convoy-plan-hint">Showing tracked maintenance. Other service categories are optional.</p>
@@ -325,7 +325,7 @@ function Coverage({ snapshot, trucks, now }: Pick<DashboardProps, "snapshot" | "
   const count = (q: string) => trucks.filter((t) => truckMileageReview(t,snapshot.maintenance,now).quality === q).length;
   return (
     <details className="convoy-coverage">
-      <summary>About fleet mileage</summary>
+      <summary>About Fleet Mileage</summary>
       <p>
         {count("current")} usable mileage readings
         <br />
@@ -394,10 +394,10 @@ export function ConvoyDashboard(props: DashboardProps) {
           <div className="convoy-table-tools">
             <div>
               <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
-                All trucks <b>{trucks.length}</b>
+                All Trucks <b>{trucks.length}</b>
               </button>
               <button aria-pressed={filter === "mileage"} onClick={() => setFilter("mileage")}>
-                Mileage review <b>{review.length}</b>
+                Mileage Review <b>{review.length}</b>
               </button>
             </div>
             <label className="convoy-search">
@@ -421,7 +421,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                 const loadKnown = !t.loadNeedsVerification && t.loadPercent !== null && Number.isFinite(t.loadPercent);
                 return <tr key={t.id}>
                   <td data-label="Truck / VIN"><button className="convoy-truck-link" onClick={()=>onTruck(t.id)}><Truck size={15}/>{label(t)}<ArrowRight size={12}/></button>
-                    <small className="convoy-row-vin" title="VIN · LinxUp vehicle record">{t.vinNeedsVerification ? 'VIN needs verification' : t.vin || 'VIN not recorded'}</small></td>
+                    <small className="convoy-row-vin" title="VIN · LinxUp Vehicle Record">{t.vinNeedsVerification ? 'VIN needs verification' : t.vin || 'VIN not recorded'}</small></td>
                   <td data-label="Status"><Badge tone={t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
                     <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
                     <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('maintenance');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
@@ -447,7 +447,7 @@ export function ConvoyDashboard(props: DashboardProps) {
                     setQuery("");
                   }}
                 >
-                  Clear filters
+                  Clear Filters
                 </button>
               </p>
             )}
@@ -470,7 +470,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
       <div className="convoy-detail-title">
         <Button variant="ghost" onClick={() => onTruck("")}>
           <ChevronLeft size={16} />
-          All trucks
+          All Trucks
         </Button>
         <div>
           <h2>{label(truck)}</h2>
@@ -480,7 +480,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
           {truck.readiness}
         </Badge>
         <Button variant="outline" onClick={() => open({ kind: "truck", truck })}>
-          Operations & inspections
+          Operations & Inspections
         </Button>
       </div>
       <TruckDashboardCard {...props} truck={truck}/>
@@ -491,19 +491,19 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
         </div>
         <Metric
           value={truck.mileage?.reportedAt ? fleetDate(truck.mileage.reportedAt) : "—"}
-          title="Last mileage report"
+          title="Last Mileage Report"
           detail={stamp(truck.mileage?.reportedAt)}
         />
         <Metric
           value={visits.length}
-          title="Completed visits"
+          title="Completed Visits"
           detail={records.length ? "Recorded service history" : "Last service not recorded"}
         />
         <Metric
           value={
             costs.total===null?'—':costs.total.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})
           }
-          title="Recorded service costs"
+          title="Recorded Service Costs"
           detail={costs.missing ? `${costs.missing} visits missing a total` : "Completed work · all dates"}
         />
       </div>
@@ -516,7 +516,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
         </div>
         <aside className="convoy-side-stack">
           <section className="convoy-dash-panel convoy-attention">
-            <h2>Truck operations</h2>
+            <h2>Truck Operations</h2>
             <p>Viewing day: {fleetDate(snapshot.date)}</p>
             <dl>
               <dt>Inspection</dt>
@@ -534,16 +534,16 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
               }}
             >
               <Wrench size={15} />
-              Inspections & repairs
+              Inspections & Repairs
             </Button>
             <Button variant="outline" onClick={() => open({ kind: "load", truck })}>
-              Record current load
+              Record Current Load
             </Button>
             <Button
               className="convoy-primary"
               onClick={() => open({ kind: "maintenance", truck, initialStatus: "completed" })}
             >
-              Record service
+              Record Service
             </Button>
           </section>
           <Coverage snapshot={snapshot} trucks={[truck]} now={now} />

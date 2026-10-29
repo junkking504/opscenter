@@ -24,8 +24,25 @@ Home/End. Page titles use the 24px role; the Dashboard revenue headline uses 30p
 accent; semantic success and failure colors remain reserved for status.
 
 `MetricValue` presents missing, unknown or stale KPI values as a muted normal-size
-dash. Its tooltip and accessible label retain the reason; source notes and
+dash with a visible “Not Yet Available” label, including revenue pace and goal inputs. Its tooltip and accessible label retain the reason; source notes and
 refresh errors remain visible. Normal views omit redundant introductions and repeated provenance; disclosures retain useful diagnostic detail. Financial reading, source aging and calculation rules are unchanged. Real zeroes keep their numeric presentation.
+
+## Header and Command controls
+
+Search, alerts, a single Live disclosure and the account menu share the header.
+The selected operating date remains separate from source freshness. Live shows
+last Dashboard check and host, and invokes only the existing displayed-workspace
+refresh registry; it does not request a new provider collection. Appearance and
+OpsWiki are available from the account disclosure.
+
+Command Board combines summary counts and All, Open, Done and Attention filters
+in compact chips. Done includes closed jobs and estimates; Attention includes
+unassigned appointments and appointments needing map-location evidence.
+Territory and Payment menus combine with those filters and search. Payment
+uses the existing recorded-payment classification; billed revenue and unknown
+payment evidence remain distinct from paid jobs. Clear resets every filter.
+The timeline keeps muted appointments outside the filter, preserving its
+existing truck assignments, booked times and selection behavior.
 
 ## Navigation
 

@@ -194,7 +194,7 @@ export function scheduleDisplayLocator(job: ScheduleAppointment) {
   if (point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
       && Math.abs(point.latitude)<=90 && Math.abs(point.longitude)<=180 && (point.latitude!==0 || point.longitude!==0))
     return {location:point, kind:job.location ? 'verified' as const : 'approximate' as const,
-      label:job.location ? 'Verified location' : 'Approximate location', detail:job.mapFallback?.detail || ''};
+      label:job.location ? 'Verified location' : job.mapFallback?.zipArea ? 'ZIP-area estimate' : 'Approximate location', detail:job.mapFallback?.detail || ''};
   const region=appointmentRegion({...job,address:job.address || '',territory:job.territory || ''}), center=territoryMapCenters[region.code];
   const nextStep=propertyNameSearch(job.address || '') ? 'Search the property name to review possible matches; the source identifier and entrance remain unverified.' : 'Address lookup continues automatically.';
   return {location:{latitude:center?.[0] ?? 30.14,longitude:center?.[1] ?? -90.5},kind:'area' as const,

@@ -6,7 +6,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {publishReviewedNavigation,readReviewedAddressNavigation,reviewedNavigationFile,validateReviewedNavigation,type ReviewedAddressNavigation} from '../lib/reviewed-address-navigation';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {appointmentVisitPin} from '../lib/appointment-visit-pin';
 import {planningLocation} from '../lib/planning-geocodes';
 import {scheduleMapLocation,needsScheduleAddressVerification} from '../desktop-ui/lib/schedule-contract';

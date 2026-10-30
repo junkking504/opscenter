@@ -22,7 +22,8 @@ export function verifiedCloseoutPrice(value:unknown,now=Date.now()):VerifiedClos
     ||!/^\d{1,12}$/.test(appointmentId)||!/^\d{4}-\d{2}-\d{2}$/.test(date)||receipt.recordId!==`${date}:appointment:${appointmentId}`
     ||!Number.isFinite(at)||at>now||!Array.isArray(closeout.otherCharges)||!Array.isArray(closeout.payments))return null;
   const appointmentType=selected(closeout.appointmentType), status=selected(closeout.status);
-  if(!['Job','Estimate'].includes(appointmentType)||!['Completed','Confirmed'].includes(status))return null;
+  // This repair projects estimate quotes only. Job payment/revenue semantics stay unchanged.
+  if(appointmentType!=='Estimate'||!['Completed','Confirmed'].includes(status))return null;
   try {
     const loadSize=selected(closeout.loadSize),bedloadSize=selected(closeout.bedloadSize);
     return {appointmentId,date,verifiedAt,appointmentType,status,closeout:{

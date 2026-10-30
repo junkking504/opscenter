@@ -427,10 +427,11 @@ source's 500-character limit.
 
 ### Saved closeout price visibility
 
-Schedule reads successful closeout receipts when their exact native appointment
+Schedule reads successful estimate closeout receipts when their exact native appointment
 ID and operating day match an existing row. A verified source read-back newer
 than that appointment’s collected closeout detail supplies charges, quote total,
-tip and recorded payments immediately, including historical-day corrections.
+tip and existing estimate detail immediately, including historical-day corrections.
+Job revenue and collected-payment projections are unchanged.
 Zero prices and removed charges replace old values. Newer or equal appointment
 detail wins; canceled or differently classified rows are not changed. Failed,
 uncertain, dry-run, malformed and future-dated receipts are excluded. Receipts

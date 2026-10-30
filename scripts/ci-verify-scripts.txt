@@ -119,5 +119,4 @@ verify:inspection-updates
 verify:appointment-loiter
 
 verify:parked-job-location
-
 verify:closeout-prices

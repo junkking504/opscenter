@@ -10,7 +10,7 @@ const params=new URLSearchParams(location.search);
 window.fetch=async(url,options)=>{
  if(String(url)!=='/api/desktop/schedule/creation/check')throw new Error('Only synthetic review requests allowed');
  const input=JSON.parse(String(options?.body));calls++;document.querySelector('#requests')!.textContent=String(calls);
- if(calls<3)return Response.json({pending:true},{status:202});
+ if(calls<3)return Response.json({pending:true,collectionStarted:true},{status:202});
  if(params.has('fail'))return Response.json({error:'JunkWare could not check this date. Your booking details are saved. Try Review Booking again shortly.'},{status:503});
  return Response.json({check:{fingerprint:'a'.repeat(64),observedAt:new Date().toISOString(),matches:params.has('duplicate')?[{jkNumber:'SYNTHETIC-OTHER',appointmentTime:'9:00 AM–10:00 AM'}]:[],date:input.date}});
 };

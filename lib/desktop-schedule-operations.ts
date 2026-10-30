@@ -1,3 +1,4 @@
+import {truckSwitchStatus} from './crew-truck-switch-status';
 import {verifyCustomerCorrection,type CustomerSource,type CustomerFields} from './crew-customer-contract';
 
 import {parseCustomerChange,customerMatches,customerNotesMatch} from './customer-edit-contract';
@@ -344,7 +345,7 @@ export async function reconcileTruckSwitchMove(id:string,actor:string,readSource
   const receipt=await readScheduleReceipt(id);
   if(!receipt || receipt.actor!==actor || receipt.action!=='move' || receipt.recordId!==`${handoff.date}:appointment:${intent.appointmentId}`)return null;
   const source=await readSource(intent.appointmentId);
-  if(source.truck!==handoff.to || source.date!==handoff.date || !/^confirmed$/i.test(source.status || '') || source.appointmentStartMinutes!==intent.start || source.appointmentEndMinutes!==intent.end)return null;
+  if(source.truck!==handoff.to || source.date!==handoff.date || truckSwitchStatus(source.status)!=='confirmed' || source.appointmentStartMinutes!==intent.start || source.appointmentEndMinutes!==intent.end)return null;
   const current=readJobRouteAssignmentOverrides(handoff.date).get(`appt:${intent.appointmentId}`);
   if(current && current.truck!==handoff.to && current.truck!==handoff.from)return null;
   const assignment=saveJobRouteAssignment({date:handoff.date,jobKey:`appt:${intent.appointmentId}`,appointmentId:intent.appointmentId,truck:handoff.to,appointmentStartMinutes:intent.start,appointmentEndMinutes:intent.end,junkwareSyncStatus:'verified',junkwareVerifiedAt:source.verifiedAt,...(current?{expectedUpdatedAt:current.updatedAt}:{})});

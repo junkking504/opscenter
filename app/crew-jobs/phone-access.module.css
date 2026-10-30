@@ -148,3 +148,5 @@
 .stopBar { position: sticky; bottom: 0; z-index: 20; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; gap: 8px; margin: 16px -4px 0; padding: 8px 4px max(8px, env(safe-area-inset-bottom)); background: #f7f8f3; border-top: 1px solid #dfe3da; }
 .stopBar .secondary { font-size: 20px; padding: 0 8px; }
 .stopBar .secondary:nth-child(2) { font-size: 15px; }
+
+.replacementCode { min-height: 44px; }

@@ -7,9 +7,7 @@ export PATH="${AUTO_SHIP_EXTRA_PATH:+$AUTO_SHIP_EXTRA_PATH:}/opt/homebrew/bin:/u
 CONFIG_DIR="${AUTO_SHIP_CONFIG_DIR:-/Users/missioncontrol/Library/Application Support/OpsCenter}"
 SHIP_WORKTREE="${AUTO_SHIP_WORKTREE:-/Users/missioncontrol/opscenter-v2/worktrees/ship}"
 DEPLOY_LOCK="${AUTO_SHIP_DEPLOY_LOCK:-/Users/missioncontrol/opscenter-v2/.deploy-lock}"
-MIN_INTERVAL="${AUTO_SHIP_MIN_INTERVAL_SECONDS:-3600}"
 LABEL="ready-to-ship"
-STAMP="$CONFIG_DIR/auto-ship.last"
 LOG="$CONFIG_DIR/auto-ship.log"
 LOCK="$CONFIG_DIR/auto-ship.lock"
 INFLIGHT="$CONFIG_DIR/auto-ship.inflight"
@@ -28,7 +26,6 @@ main() {
     done
     return 1
   }
-  [[ "$MIN_INTERVAL" == <-> ]] || { log "invalid cooldown seconds"; exit 1; }
   mkdir "$LOCK" 2>/dev/null || { log "scheduler lock exists or cannot be acquired; if persistent, reconcile $LOCK"; exit 0; }
   trap 'rmdir "$LOCK"' EXIT
   trap 'exit 130' INT
@@ -41,14 +38,6 @@ main() {
   if [[ -e "$INFLIGHT" ]]; then
     log "release outcome needs reconciliation: $INFLIGHT"
     exit 1
-  fi
-  if [[ -f "$STAMP" ]]; then
-    remaining=$(python3 - "$STAMP" "$MIN_INTERVAL" <<'PY'
-import os, sys, time
-print(max(0, float(sys.argv[2]) - (time.time() - os.stat(sys.argv[1]).st_mtime)))
-PY
-)
-    (( remaining > 0 )) && exit 0
   fi
 
   # launchd need not start in a repository. All gh commands use this checkout.
@@ -105,9 +94,9 @@ PY
       fi
     fi
 
-    # One terminal attempt per tick, including failures. Persist the cooldown
-    # before remote bookkeeping; a failed label removal must not replay a PR.
-    touch "$STAMP"
+    # One terminal attempt per tick, including failures. There is no pause
+    # between releases: the in-flight marker, not a timer, prevents a replay if
+    # label bookkeeping fails.
     gh_retry pr edit "$candidate" --remove-label "$LABEL" >/dev/null || { log "PR #$candidate label removal failed; reconcile $INFLIGHT"; exit 1; }
     if (( rc == 0 )); then
       log "PR #$candidate shipped"

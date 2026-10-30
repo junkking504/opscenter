@@ -21,7 +21,7 @@ export function FinancialStatements({ data, date, onRefresh }: { data?: Statemen
   const [selectedSource, setSelectedSource] = useState('');
   const [sourceKind, setSourceKind] = useState<"workbook" | "qbo" | "">("");
   const [company, setCompany] = useState('');
-  if (!data?.available) return <section className="statement-shell capital-page"><CapitalPageHeader eyebrow="ACCOUNTING" title="Accounting & reports"/><div className="capital-panel"><CapitalEmpty icon={BookOpen} title="Statements are not available" description={data?.error || 'No financial statements have been imported.'}/></div></section>;
+  if (!data?.available) return <section className="statement-shell capital-page"><CapitalPageHeader eyebrow="ACCOUNTING" title="Accounting"/><div className="capital-panel"><CapitalEmpty icon={BookOpen} title="Statements are not available" description={data?.error || 'No financial statements have been imported.'}/></div></section>;
   const activeKind = sourceKind || (data.records.some(r => r.sourceKind === "qbo") ? "qbo" : "workbook");
   const sourceRecords = data.records.filter(r => r.sourceKind === activeKind);
   const companies = [...new Set(sourceRecords.map(r => r.company))].sort();
@@ -30,7 +30,7 @@ export function FinancialStatements({ data, date, onRefresh }: { data?: Statemen
   const preferred = preferredStatements(records);
   const defaultMonth = preferred.filter(r => r.month <= date.slice(0, 7)).at(-1)?.month;
   const activeMonth = preferred.some(r => r.month === selectedMonth) ? selectedMonth : defaultMonth;
-  if (!activeMonth) return <section className="statement-shell capital-page"><CapitalPageHeader eyebrow="ACCOUNTING" title="Accounting & reports"/><div className="capital-panel"><CapitalEmpty icon={BookOpen} title="No statement for this period" description="No statement covers this operating date or an earlier month."/></div></section>;
+  if (!activeMonth) return <section className="statement-shell capital-page"><CapitalPageHeader eyebrow="ACCOUNTING" title="Accounting"/><div className="capital-panel"><CapitalEmpty icon={BookOpen} title="No statement for this period" description="No statement covers this operating date or an earlier month."/></div></section>;
   const candidates = records.filter(r => r.month === activeMonth).sort((a, b) => b.reportThrough.localeCompare(a.reportThrough));
   const statement = candidates.find(r => r.id === selectedSource) || preferred.find(r => r.month === activeMonth)!;
   const total = statement.totals;
@@ -47,7 +47,7 @@ export function FinancialStatements({ data, date, onRefresh }: { data?: Statemen
   const change = previous ? total.netIncome - previous.totals.netIncome : null;
   const basisComparable = previous?.basis === statement.basis && statement.basis !== 'Unspecified' && (!statement.periodEnd || statement.periodEnd === lastDay(activeMonth)) && (!previous?.periodEnd || previous.periodEnd === lastDay(previous.month));
   return <section className="statement-shell capital-page" aria-label="Accounting financial statements">
-    <CapitalPageHeader eyebrow={`${activeKind === 'qbo' ? 'QUICKBOOKS ONLINE' : 'ACCOUNTANT STATEMENTS'} · ${activeCompany}`} title="Accounting & reports" description={`${statement.status} · ${statement.basis === 'Unspecified' ? 'Accounting basis not stated' : `${statement.basis} basis`}`} />
+    <CapitalPageHeader eyebrow={`${activeKind === 'qbo' ? 'QUICKBOOKS ONLINE' : 'ACCOUNTANT STATEMENTS'} · ${activeCompany}`} title="Accounting" description={`${statement.status} · ${statement.basis === 'Unspecified' ? 'Accounting basis not stated' : `${statement.basis} basis`}`} />
     <div className="capital-accounting-controls">
       <label>Financial source<select aria-label="Financial source" value={activeKind} onChange={e => {setSourceKind(e.target.value as "workbook" | "qbo");setSelectedSource("");}}>{data.records.some(r => r.sourceKind === "qbo") && <option value="qbo">QuickBooks current books</option>}{data.records.some(r => r.sourceKind === "workbook") && <option value="workbook">Accountant draft statements</option>}</select></label>
       <label>Statement month<select aria-label="Statement month" value={activeMonth} onChange={e => {setSelectedMonth(e.target.value); setSelectedSource('');}}>{preferred.map(r => <option key={r.month} value={r.month}>{label(r.month)}</option>)}</select></label>

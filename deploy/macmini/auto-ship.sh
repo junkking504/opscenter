@@ -31,11 +31,12 @@ main() {
   mkdir "$LOCK" 2>/dev/null || exit 0
   trap 'rmdir "$LOCK"' EXIT
 
+  # launchd starts in /, and gh needs a repository, so enter the ship checkout first.
+  cd "$SHIP_WORKTREE" || { log "cannot enter $SHIP_WORKTREE"; exit 1; }
   prs=$(gh pr list --base production --state open --label "$LABEL" --json number,createdAt \
-    --jq 'sort_by(.createdAt) | .[].number')
+    --jq 'sort_by(.createdAt) | .[].number') || { log "queue lookup failed"; exit 1; }
   [[ -n "$prs" ]] || exit 0
 
-  cd "$SHIP_WORKTREE"
   git fetch origin production
   git checkout --detach origin/production
 

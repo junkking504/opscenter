@@ -26,6 +26,7 @@ for (const seconds of [0,60,299,300,301,600]) {
  if(!qualifies)assert.equal(appointmentStatus({...job,...state}),'Confirmed');
  assert.equal(JSON.stringify(rows),before,'No rewriting operational records');
 }
+assert.equal(timelineWindow({...job,appointmentStartMinutes:540,appointmentEndMinutes:600,likelyStop:{truck:'Truck 8',arrival:at(0),departure:at(60),stopAddress:'100 Example St',reason:'Unconfirmed proximity',confident:false}},'Truck 8',now)?.actual,false,'A short suggested GPS stop cannot bypass the loiter rule');
 const short=row(60), completed={...job,status:'Completed'};
 assert.equal(appointmentOnsiteTime(completed,[short],now).minutes,1,'Source-completed timing is preserved');
 const completedVisits=scheduleTruckVisits(completed,[short],[],[completed],now);

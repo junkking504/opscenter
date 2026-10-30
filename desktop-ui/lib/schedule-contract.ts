@@ -315,7 +315,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
     return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,gaps,
       label:`${minutes===0?'GPS visit · duration unavailable':`${minutes<1?'<1':Math.round(minutes)} min on site`}${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
   }
-  if (job.likelyStop && truckLabel(job.likelyStop.truck) === truckLabel(truck)) {
+  if (job.likelyStop && truckLabel(job.likelyStop.truck) === truckLabel(truck) && (/complete|closed/i.test(job.status) || job.likelyStop.departure && Date.parse(job.likelyStop.departure)-Date.parse(job.likelyStop.arrival)>=5*60_000)) {
     // Suggested, unconfirmed GPS stop: sized by the recorded stop, flagged for review.
     const day = job.recordId.slice(0,10), stamp = (value: string) => {
       const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(Date.parse(value)).map(p=>[p.type,p.value]));

@@ -35,6 +35,11 @@ assert.equal(likelyGpsStop({...job, location: {latitude: 30.9, longitude: -91.5}
 assert.ok(likelyGpsStop({...job, location: {latitude: 30.4603, longitude: -90.9582}}, trips, day, fixes)?.reason.includes('400 m'));
 assert.equal(likelyGpsStop(job, [...trips, trip('c', '16:20', '16:30', '8430 Cresson Dr, Denham Springs, LA 70726')], day, fixes), null, 'two different candidate stops are ambiguous');
 
+// A ZIP-area estimate is a travel estimate only: it never counts as a pin for a likely stop.
+const zipArea = {location: {latitude: 30.4603, longitude: -90.9582}, zipArea: true as const};
+assert.equal(likelyGpsStop({...job, mapFallback: zipArea, location: null, address: '8330 Cresson Dr, Denham Springs, LA 70726'}, trips, day, fixes)!.reason.includes('m of'), false, 'ZIP-area center is not used as the booked pin');
+assert.equal(likelyGpsStop({...job, mapFallback: {location: {latitude: 30.9, longitude: -91.5}, zipArea: true as const}}, trips, day, fixes)!.stopAddress.length > 0, true, 'a far ZIP-area center does not veto a street match');
+
 // Continuity: a following trip that starts elsewhere cannot supply the departure.
 const gap = [trips[0], trip('b', '17:03', '17:25', 'Yard, Baton Rouge, LA', yard, {latitude: 31, longitude: -91})];
 const disconnected = likelyGpsStop(job, gap, day, fixes)!;

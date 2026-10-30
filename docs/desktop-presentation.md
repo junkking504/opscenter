@@ -257,7 +257,7 @@ Primary-action audit (one foreground action per active workflow):
 | Screen / active workflow | Filled red action | Other actions |
 | --- | --- | --- |
 | Dashboard updates | Review WhatsApp photos | Alert and record actions neutral |
-| Command board | New | Board controls, Map and source links neutral |
+| Command board / calendar / follow-up / history | New | Board controls, Map and source links neutral |
 | Command appointment workflow | New remains behind the modal; booking confirmation is the active workflow | Secondary editor entry points neutral |
 | Krewe overview / pay / monthly | None: record review is the task | Roster and review controls neutral; saves are local to their editor |
 | Fleet overview | None: select a truck | Overview navigation neutral |
@@ -266,7 +266,7 @@ Primary-action audit (one foreground action per active workflow):
 | Finance overview / trends / payments | None: source review | Filters and source links neutral |
 | Finance resale | Add item | Empty-state Add first item neutral |
 | Finance accounting confirmation | Confirm the selected accounting action | Other actions neutral |
-| Marketing lead detail | Call customer | Source and queue controls neutral |
+| Marketing lead detail | Call customer | Review & save outcome, source and queue controls neutral |
 | Marketing review matching | Review job match | Suggestions and undo neutral |
 
 The six-workspace browser matrix uses synthetic fixtures, not the live app.

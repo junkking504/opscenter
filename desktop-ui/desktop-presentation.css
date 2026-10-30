@@ -331,8 +331,6 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 }
 
 /* Neutral, readable secondary ink for navigation and absent observations. */
-.ops-app { --oc-safe-secondary-ink: #595959; }
-html[data-ops-theme="dark"] .ops-app { --oc-safe-secondary-ink: #b8b8b8; }
 html[data-ops-theme] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link:not(.active),.workspace-rail-link:not(.active) span,.workspace-page-link:not([aria-current="page"]),.workspace-group-toggle,.health-pulse,.health-pulse small) {
   color: var(--oc-safe-secondary-ink);
   opacity: 1;
@@ -347,7 +345,7 @@ html[data-ops-theme] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link:not
   letter-spacing: normal;
   color: var(--oc-safe-secondary-ink) !important;
   margin-left: .35em;
-  font-size: 11px;
+  font-size: var(--oc-type-11);
   font-weight: 400;
   line-height: 1.4;
   white-space: normal;

@@ -6,6 +6,10 @@ import {serviceAddressForGeocoding} from './appointment-partner';
 
 export type PrebookingCheck = {fingerprint:string; observedAt:string; matches:Array<Pick<ScheduleAppointment,'recordId'|'jkNumber'|'appointmentUrl'|'customerName'|'phone'|'address'|'appointmentTime'|'appointmentType'|'status'|'truck'|'territory'|'sourceTerritory'>>};
 export class PrebookingReviewRequired extends Error {}
+export function prebookingSnapshotFresh(date:string,snapshot:Pick<ScheduleSnapshot,'date'|'observedAt'>,now=Date.now()) {
+  const at=Date.parse(snapshot.observedAt || '');
+  return snapshot.date===date && Number.isFinite(at) && now-at<=300_000 && at<=now+60_000;
+}
 // Compare a street-only entry with a full source address only when ZIPs agree.
 // Extra numbers or unit designators remain significant; never collapse units.
 function sameAddress(draft:string, zip:string, source:string) {
@@ -21,7 +25,7 @@ function sameAddress(draft:string, zip:string, source:string) {
   return /^[a-z ]+$/.test(locality)&&! /\b(?:unit|bldg|suite|floor|lot)\b/.test(locality);
 }
 export function prebookingCheck(input:JunkwareAppointmentCreationInput,snapshot:Pick<ScheduleSnapshot,'date'|'observedAt'|'appointments'>,now=Date.now()):PrebookingCheck {
-  if(snapshot.date!==input.date||!snapshot.observedAt||!Number.isFinite(Date.parse(snapshot.observedAt))||now-Date.parse(snapshot.observedAt)>300_000||Date.parse(snapshot.observedAt)>now+60_000)throw new PrebookingReviewRequired('The selected day needs a fresh JunkWare snapshot. Refresh that date in Schedule, then review again.');
+  if(!prebookingSnapshotFresh(input.date,snapshot,now))throw new PrebookingReviewRequired('JunkWare’s schedule needs to be checked again. Select Review Booking to retry; your details are saved.');
   const [hours,minutes]=input.startTime.split(':').map(Number), start=hours*60+minutes;
   const draft={recordId:input.date+':draft',appointmentId:'draft',jkNumber:'',customerName:input.firstName+' '+input.lastName,phone:input.phone,address:input.serviceAddress,hasScheduledTime:true,appointmentStartMinutes:start,appointmentEndMinutes:start+input.durationHours*60,status:'Confirmed',appointmentType:input.appointmentType,truck:input.truck,territory:input.franchise} as ScheduleAppointment;
   const candidates=snapshot.appointments.filter(job=>sameAddress(input.serviceAddress,input.serviceZip,job.address));
@@ -29,7 +33,7 @@ export function prebookingCheck(input:JunkwareAppointmentCreationInput,snapshot:
   const matches=pairs.map(pair=>snapshot.appointments.find(job=>job.recordId===pair.jobs.find(job=>job.recordId!==draft.recordId)!.recordId)!).sort((a,b)=>a.recordId.localeCompare(b.recordId)).map(job=>({recordId:job.recordId,jkNumber:job.jkNumber,appointmentUrl:job.appointmentUrl,customerName:job.customerName,phone:job.phone,address:job.address,appointmentTime:job.appointmentTime,appointmentType:job.appointmentType,status:job.status,truck:job.truck,territory:job.territory,sourceTerritory:job.sourceTerritory}));
   const {requestId:_,duplicateOverrideReason:__,...facts}=input;
   const fingerprint=createHash('sha256').update(JSON.stringify([facts,matches,pairs.map(pair=>pair.signature)])).digest('hex');
-  return {fingerprint,observedAt:snapshot.observedAt,matches};
+  return {fingerprint,observedAt:snapshot.observedAt!,matches};
 }
 export function requirePrebookingReview(input:JunkwareAppointmentCreationInput,check:PrebookingCheck,ack:unknown) {
   if(!ack||typeof ack!=='object'||(ack as {fingerprint?:unknown}).fingerprint!==check.fingerprint)throw new PrebookingReviewRequired('Booking details or matching appointments changed. Review the appointment again before creating it.');

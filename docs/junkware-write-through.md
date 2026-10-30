@@ -424,3 +424,16 @@ captures notes and photos in the same detail read, so its per-appointment
 and failed detail reads cannot retire a receipt. Collected matching
 note text replaces the temporary entry without duplication. Note entry uses the
 source's 500-character limit.
+
+### Saved closeout price visibility
+
+Schedule reads successful closeout receipts when their exact native appointment
+ID and operating day match an existing row. A verified source read-back newer
+than that appointment’s collected closeout detail supplies charges, quote total,
+tip and recorded payments immediately, including historical-day corrections.
+Zero prices and removed charges replace old values. Newer or equal appointment
+detail wins; canceled or differently classified rows are not changed. Failed,
+uncertain, dry-run, malformed and future-dated receipts are excluded. Receipts
+do not expire back to an older historical price; no collector archive is edited
+and no save/payment is replayed. Estimates retain quote-only presentation.
+Validation: `npm run verify:closeout-prices`.

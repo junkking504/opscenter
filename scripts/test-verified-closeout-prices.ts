@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {applyVerifiedCloseoutPrices} from '../lib/verified-closeout-prices';
+import {schedulePayment} from '../desktop-ui/lib/schedule-payment';
+import type {ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
+const date='2026-10-26',at='2026-10-30T23:34:49.000Z',now=Date.parse(at)+1000;
+const source={appointmentType:{label:'Estimate'},status:{label:'Completed'},loadSize:{value:'',label:''},loadQuantity:'',loadPrice:'',bedloadSize:{value:'1/4',label:'1/4'},bedloadQuantity:'',bedloadPrice:'$198.00',total:'$198.00',balance:'198',discount:'',tip:'',otherCharges:[],payments:[]};
+const receipt={action:'closeout',status:'verified',recordId:`${date}:appointment:1001`,date,sourceResult:{ok:true,mode:'write',appointmentId:'1001',verifiedAt:at,closeout:source}};
+const job:Pick<import('../lib/desktop-schedule-source').JobRow,'appointmentId'|'appointmentType'|'status'|'closeout'|'paymentAmount'|'tipAmount'|'closeoutObservedAt'|'chargeDetailsPending'>={appointmentId:'1001',appointmentType:'Estimate',status:'Completed',closeout:null,paymentAmount:326,tipAmount:0,closeoutObservedAt:'2026-10-29T12:00:00Z',chargeDetailsPending:true};
+const apply=(r:unknown[]= [receipt],j=job)=>applyVerifiedCloseoutPrices(date,[j],r,now)[0];
+assert.equal(apply([receipt],{...job,status:'Completed Duration: 15 min(s)'}).paymentAmount,198,'Native duration suffix is still Completed');
+const updated=apply();assert.equal(updated.closeout?.total,198);assert.equal(updated.paymentAmount,198);assert.equal(updated.closeout?.loadPrice,0);assert.equal(updated.closeout?.bedloadSize,'1/4');assert.deepEqual(updated.closeout?.payments,[]);assert.equal(updated.chargeDetailsPending,false);assert.equal(job.paymentAmount,326);
+assert.equal(schedulePayment(updated as unknown as ScheduleAppointment).amount,'$198.00');assert.equal(schedulePayment(updated as unknown as ScheduleAppointment).label,'Estimate quoted');
+for(const bad of [{...receipt,status:'failed'},{...receipt,status:'uncertain'},{...receipt,dryRun:true},{...receipt,recordId:`${date}:appointment:1002`},{...receipt,date:'2026-10-27'},{...receipt,sourceResult:{...receipt.sourceResult,ok:false}},{...receipt,sourceResult:{...receipt.sourceResult,mode:'read'}},{...receipt,sourceResult:{...receipt.sourceResult,verifiedAt:'invalid'}},{...receipt,sourceResult:{...receipt.sourceResult,verifiedAt:new Date(now+1).toISOString()}},{...receipt,sourceResult:{...receipt.sourceResult,closeout:{...source,total:'unknown'}}}])assert.equal(apply([bad]),job);
+assert.equal(apply([receipt],{...job,closeoutObservedAt:at}).paymentAmount,326,'Equal/newer detail wins');
+assert.equal(apply([receipt],{...job,status:'Cancelled'}).paymentAmount,326,'Do not revive cancelled source');
+assert.equal(apply([receipt],{...job,appointmentType:'Job'}).paymentAmount,326,'Do not misapply quote to converted job');
+const zero={...receipt,sourceResult:{...receipt.sourceResult,verifiedAt:new Date(now).toISOString(),closeout:{...source,total:'$0.00',bedloadPrice:'0',balance:'0'}}};
+assert.equal(apply([zero,receipt]).closeout?.total,0,'Latest verified zero survives');
+assert.equal(applyVerifiedCloseoutPrices(date,[job],[receipt],now+60*86400000)[0].paymentAmount,198,'Historical correction must not expire back to stale price');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'closeout-price-'));
+try{
+ const history=path.join(root,'history','junkware'),operations=path.join(root,'operations');fs.mkdirSync(history,{recursive:true});fs.mkdirSync(operations);
+ fs.writeFileSync(path.join(operations,'11111111-1111-4111-8111-111111111111.json'),JSON.stringify(receipt));
+ const row={appt_id:'1001',job_id:'SYNTHETIC',truck:'Truck# 8',appointment_type:'Estimate',job_status:'Completed',market:'Junk King New Orleans',revenue:'$326',collection_timestamp:'2026-10-29T12:00:00Z',closeout:{loadSize:'Minimum',loadPrice:128,bedloadSize:'1/4',bedloadPrice:198,total:326}};
+ fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify({date,scraped_at:'2026-10-29T12:00:00Z',markets_scraped:['Junk King New Orleans','Junk King Northshore','Junk King Baton Rouge','Junk King Jefferson Parish'],appointments:[row],cancelled:[]}));
+ const result=JSON.parse(execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`import {readJobRows} from './lib/desktop-schedule-source.ts';console.log(JSON.stringify(readJobRows('${date}')))`],{env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,OPSCENTER_DESKTOP_OPERATIONS_DIR:operations},encoding:'utf8'}));
+ assert.equal(result[0].closeout.total,198,'Real schedule reader overlays receipt');assert.equal(result[0].paymentAmount,198);
+}finally{fs.rmSync(root,{recursive:true,force:true});}
+console.log('Verified closeout price regression passed: historical read path, quote labels, identity/status, newer source, zero, invalid receipts, and no writes.');

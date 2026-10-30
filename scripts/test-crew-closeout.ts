@@ -108,6 +108,37 @@ async function main(){
   const queued=await queueCrewCloseout(request,body(),deps);assert.equal(queued.receipt.status,'pending');assert.equal(writes,0,'Queue response precedes the provider write');assert.ok(queued.run);
   const backgroundReceipt=await queued.run!();assert.equal(backgroundReceipt.status,'verified');assert.equal(writes,1,'Background worker owns the one closeout write');source=structuredClone(baseline);writes=0;
   const tampered=await submitCrewCloseout(request,{...body(),values:{...values,jobCategoryId:'changed'}},deps);assert.equal(tampered.status,'failed');assert.equal(writes,0);
+  // Blank-only administrative referral fallback uses fresh native options,
+  // preserves the reviewed source, and retains the same durable request identity.
+  const sawTruck={value:'synthetic-saw-truck',label:'Saw Trucks/Company Vehicle'};
+  source={...baseline,howHeard:{value:'',label:'',options:[{value:'',label:''},sawTruck]}};
+  let referralWrites=0;
+  const referralDeps={...deps,write:async(_id:string,input?:Record<string,unknown>)=>{
+    referralWrites++;assert.equal(input!.howHeardId,sawTruck.value);
+    assert.deepEqual(input!.addPayment,values.addPayment);
+    assert.equal(input!.expectedSourceVersion,closeoutSourceVersion(source));
+    return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'},howHeard:sawTruck},verifiedAt:new Date().toISOString()};
+  }};
+  const defaultBody={...body(),values:{...body().values,howHeardId:sawTruck.value}};
+  const defaultReceipt=await submitCrewCloseout(request,defaultBody,referralDeps);
+  assert.equal(defaultReceipt.status,'verified');
+  assert.deepEqual(defaultReceipt.sourceResult?.administrativeReferralDefault,{...sawTruck,policy:'owner-directed-blank-referral'});
+  assert.equal((await submitCrewCloseout(request,defaultBody,referralDeps)).status,'verified');assert.equal(referralWrites,1);
+  for(const options of [[],[sawTruck,{...sawTruck,value:'ambiguous'}],[{value:'fake',label:'Saw truck'}]]){
+    source={...baseline,howHeard:{value:'',label:'',options}};
+    assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,howHeardId:sawTruck.value}},referralDeps)).status,'failed');
+  }
+  source={...baseline,howHeard:{value:'',label:'',options:[sawTruck]}};
+  assert.equal((await submitCrewCloseout(request,body(),referralDeps)).status,'failed','Caller cannot substitute another referral');
+  const beforeOfficeChange={...body(),values:{...body().values,howHeardId:sawTruck.value}};
+  source={...baseline,howHeard:{value:'ref',label:'Referral',options:[sawTruck]}};
+  assert.equal((await submitCrewCloseout(request,beforeOfficeChange,referralDeps)).status,'failed','Concurrent referral answer remains protected by the source fingerprint');
+  assert.equal((await submitCrewCloseout(request,{...body(),values:{...body().values,howHeardId:sawTruck.value}},referralDeps)).status,'failed','Even a fresh caller cannot overwrite a nonblank answer');
+  let preservedReferralWrites=0;
+  const preservedReferral=await submitCrewCloseout(request,body(),{...deps,write:async(_id,input)=>{preservedReferralWrites++;assert.equal(input!.howHeardId,'ref');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(preservedReferral.status,'verified');assert.equal(preservedReferral.sourceResult?.administrativeReferralDefault,undefined);
+  assert.equal(preservedReferralWrites,1);assert.equal(referralWrites,1,'Invalid and stale fallback requests never write');
+  source=structuredClone(baseline);
   const originalTruck=job.truck;
   Object.assign(job,{truck:'Truck 2',address:'Amazon Mattress Removal 100 Example St'});
   source={...baseline,truck:'Truck 2',companyName:'Amazon Mattress Removal',signatureEvidence:null,driver:{value:'amz',label:'Gerard, Lance'},drivers:[...baseline.drivers,{value:'amz',label:'Gerard, Lance'}],navigators:[]};

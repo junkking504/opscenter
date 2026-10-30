@@ -35,11 +35,16 @@ const explicitServiceUnits = (input: string, bareLetters = true) => {
   });
 };
 const roadEnd = /\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|pky|terrace|ter|circle|cir|trail|trl|trace|trce|square|sq|way|loop)\.?[,\s]*$/i;
+// A road may end in a post-direction ("Swamp Rd E") or be a numbered route
+// ("LA 42", "Hwy 61", "County Road 12", "CR 12"); both still precede a lot.
+const roadDirection = /\b(?:street|st|str|road|rd|avenue|ave|av|drive|dr|lane|ln|court|ct|boulevard|blvd|place|pl|parkway|pkwy|pky|terrace|ter|circle|cir|trail|trl|trace|trce|square|sq|way|loop)\.?[,\s]+(?:N|S|E|W|NE|NW|SE|SW|North|South|East|West)\.?[,\s]*$/i;
+const routeEnd = /\b(?:LA|HWY|HIGHWAY|US|SR|CR|FM|RT|RTE|ROUTE|STATE ROAD|COUNTY ROAD|I)\.?[\s-]*\d{1,4}[A-Z]?[,\s]*$/i;
 function recognizedUnit(address:string,unit:string,index:number) {
   // These labels also occur in road names (Space Walk, Trailer Park Rd).
   // Admit them only after a complete street, optionally following other units.
-  return !/^(?:lot|trailer|trlr|space|number)\b/i.test(unit)
-    || roadEnd.test(address.slice(0,index).replace(new RegExp(units),' ').trim());
+  if(!/^(?:lot|trailer|trlr|space|number)\b/i.test(unit))return true;
+  const prefix=address.slice(0,index).replace(new RegExp(units),' ').trim();
+  return roadEnd.test(prefix) || roadDirection.test(prefix) || routeEnd.test(prefix);
 }
 function replaceServiceUnits(address:string,replacement:(unit:string)=>string) {
   const value=explicitServiceUnits(address);

@@ -4,7 +4,7 @@ import {visitEvidenceLocation, ambiguousVisitPin, type VisitPinJob} from './appo
 import { hasVisitIntervalEvidence } from './schedule-visit-evidence';
 import type {TrackedVisit} from './visit-tracking-agent';
 import { parkedTruckObservation } from './truck-gps-status';
-import { appointmentOnsiteTime } from './appointment-onsite-time';
+import { appointmentOnsiteTime, recordedAppointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
 import path from 'node:path';
 import { withAppointmentVisitConfirmations } from '@/lib/appointment-visit-confirmations';
@@ -96,6 +96,6 @@ export function scheduleVisitState(
   // Keep the assignment-scoped value above for closeout suggestions. This
   // second value is display-only evidence and may identify the physical truck
   // even when JunkWare's current assignment differs.
-  const recordedOnsiteTime = boundedDeparture || hasSuperseded ? onsiteTime : appointmentOnsiteTime(job, visits, now, true);
+  const recordedOnsiteTime = boundedDeparture || hasSuperseded ? onsiteTime : recordedAppointmentOnsiteTime(job, visits, now);
   return { visitEvidencePending, onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime, recordedOnsiteTime };
 }

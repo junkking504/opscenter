@@ -174,7 +174,7 @@ export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentTyp
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   if (job.truckOnSite) return 'On Site';
-  if (job.truckAtJob) return 'GPS near appointment';
+  if (job.truckAtJob) return 'At job · parked GPS';
   if (job.lastSeenOnsiteTruck) return 'Last reported on site';
   if (job.hasDepartedVisit) return 'Visited · Closeout Pending';
   if (job.hasVisit) return 'Departure unconfirmed';

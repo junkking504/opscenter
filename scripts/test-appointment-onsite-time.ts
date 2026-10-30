@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { appointmentOnsiteTime, onsiteTimeFacts } from '../lib/appointment-onsite-time';
+import { appointmentOnsiteTime, recordedAppointmentOnsiteTime, onsiteTimeFacts } from '../lib/appointment-onsite-time';
 const now=Date.parse('2026-09-06T20:00:00Z');
 const job={appointmentId:'123',jkNumber:'JK4000001',truck:'Truck# 4'};
-const interval={arrival:'2026-09-06T13:26:24Z',departure:'2026-09-06T13:47:54Z'};
+const interval={arrival:'2026-09-06T13:26:24Z',departure:'2026-09-06T13:47:54Z',source_timestamps:[26,30,34,38,42,47].map(m=>`2026-09-06T13:${m}:24Z`)};
 const row={appointment_id:'123',jk_number:job.jkNumber,truck_number:'Truck 4',match_confidence:'confirmed',visit_intervals:[interval]};
 const time=appointmentOnsiteTime(job,[row],now);
 assert.equal(time.minutes,21.5);assert.equal(time.label,'21.5 min');
@@ -39,6 +39,18 @@ try {
   const message=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,appointment_type,closeout:{}});
   assert.ok(message); assert.match(message,/On-site time:\* 21.5 min/);assert.match(message,/Arrival:\* 8:26 AM/);assert.match(message,/Departure:\* 8:47 AM/);
  }
+ fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[{...row,visit_intervals:[{...interval,departure:null}]}]}));
+ const short={...row,visit_intervals:[{arrival:'2026-09-06T13:00:00Z',departure:'2026-09-06T13:01:00Z'}]};
+ const physical={...row,truck_number:'Truck 6'};
+ const completed={...job,status:'Completed'};
+ assert.equal(recordedAppointmentOnsiteTime(completed,[short,physical],now).truck,'Truck 6');
+ assert.equal(recordedAppointmentOnsiteTime(completed,[short,physical],now).minutes,21.5);
+ assert.equal(recordedAppointmentOnsiteTime(completed,[short],now).minutes,1,'Preserve legitimate short completed timing without competing qualified evidence');
+ assert.equal(recordedAppointmentOnsiteTime(completed,[physical,{...physical,truck_number:'Truck 7'}],now).minutes,null,'Multiple qualified trucks remain unresolved');
+ assert.equal(recordedAppointmentOnsiteTime(completed,[physical,{...physical,visit_intervals:[{...interval,departure:null}]}],now).departure,null,'Open qualified evidence does not fall back to obsolete finished timing');
+ fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[short,physical]}));
+ const reassignedMessage=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '';
+ assert.match(reassignedMessage,/GPS visit truck:\* Truck 6/); assert.match(reassignedMessage,/On-site time:\* 21.5 min/);assert.doesNotMatch(reassignedMessage,/Arrival:\* 8:00 AM/);
  fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[{...row,visit_intervals:[{...interval,departure:null}]}]}));
  const pendingMessage=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '';
  assert.match(pendingMessage,/Arrival:\* 8:26 AM/);

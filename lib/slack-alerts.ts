@@ -3,7 +3,7 @@ import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import { truckDisplayText } from './junkware-trucks';
 import { truckInspectionSlackNotifications } from "./truck-inspection-notifications";
 import { truckExpenseSlackNotifications } from './truck-expense-notifications';
-import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
+import { appointmentOnsiteTime, recordedAppointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { isIgnoredIncidentFingerprint } from "@/lib/ignored-operational-alerts";
 import fs from "fs";
 import { createHash } from "node:crypto";
@@ -833,6 +833,7 @@ export function formatTruckCloseoutSlackNotification(
   const truckNumber = normalizeSlackTruckNumber(rawTruck);
   const truck = truckNumber ? `Truck ${truckNumber}` : rawTruck;
   const title = closeoutAlertTitle(kind);
+  const onsite = recordedAppointmentOnsiteTime({appointmentId:firstText(row,["appt_id","appointment_id"]),jkNumber:jobNumber,truck,status:'Completed'},readTruckArrivalVisitRows(date));
   const chargeLine = [
     summary.load ? `*Load:* ${slackEscape(summary.load)}` : "",
     summary.labor ? `*Labor:* ${slackEscape(summary.labor)}` : "",
@@ -846,7 +847,8 @@ export function formatTruckCloseoutSlackNotification(
     kind === "estimate_closed"
       ? `*Total:* ${slackEscape(summary.total || "Not recorded")}`
       : `*Payment:* ${slackEscape(summary.payment || "Not recorded")}`,
-    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,["appt_id","appointment_id"]),jkNumber:jobNumber,truck,status:'Completed'},readTruckArrivalVisitRows(date))).filter(fact=>!/^Unavailable|^Awaiting/.test(fact.value)).map(fact => `*${fact.label}:* ${slackEscape(fact.value)}`),
+    ...(onsite.truck && normalizeSlackTruckNumber(onsite.truck)!==truckNumber ? [`*GPS visit truck:* ${slackEscape(onsite.truck)} (JunkWare: ${slackEscape(truck || 'Unassigned')})`] : []),
+    ...onsiteTimeFacts(onsite).filter(fact=>!/^Unavailable|^Awaiting/.test(fact.value)).map(fact => `*${fact.label}:* ${slackEscape(fact.value)}`),
     ...junkwareJobPhotos(row).map((photo,index) => `*Photo ${index + 1}:* <${photo.url}|${slackEscape(photo.category || photo.fileName || "Verified photo")}>`),
   ].filter(Boolean).join("\n");
 }

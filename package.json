@@ -241,7 +241,8 @@
     "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs",
     "verify:apple-maps": "node --import tsx scripts/test-apple-maps-config.ts && node --import tsx scripts/test-apple-maps-failures.ts && node --import tsx scripts/test-apple-maps-gestures.ts && node --import tsx scripts/test-apple-maps-csp.ts && node --import tsx scripts/test-schedule-map-layout.ts && node --import tsx scripts/test-waypoint-apple-maps-config.ts && node --import tsx scripts/test-waypoint-apple-map-session.ts",
     "verify:appointment-loiter": "node --import tsx scripts/test-appointment-loiter.ts",
-    "verify:appointment-loiter:browser": "node --import tsx scripts/test-appointment-loiter-browser.mjs"
+    "verify:appointment-loiter:browser": "node --import tsx scripts/test-appointment-loiter-browser.mjs",
+    "verify:parked-job-location": "node --import tsx scripts/test-schedule-gps-presence.ts && node --import tsx scripts/test-appointment-onsite-time.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.4",

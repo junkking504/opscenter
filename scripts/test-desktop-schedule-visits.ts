@@ -15,7 +15,7 @@ const visit = { appointment_id: '1234', jk_number: 'JK4000001', truck_number: 'T
 const active = scheduleVisitState(job, [visit], recent, trucks, now);
 assert.deepEqual(active, { hasVisit: true, truckOnSite: true });
 assert.equal(scheduleStatusTone({ status: 'Confirmed', ...active }), 'on-site');
-assert.equal(appointmentStatus({ status: 'Confirmed', appointmentType: 'Job', truckAtJob: true }), 'GPS near appointment');
+assert.equal(appointmentStatus({ status: 'Confirmed', appointmentType: 'Job', truckAtJob: true }), 'At job · parked GPS');
 assert.equal(scheduleStatusTone({ status: 'Confirmed', truckAtJob: true }), 'at-job');
 assert.equal(appointmentStatus({ status: 'Completed', appointmentType: 'Job', truckAtJob: true }), 'Completed','Source completion remains distinct from the current truck-location note');
 assert.equal(scheduleStatusTone({ status: 'Completed', ...active }), 'completed');

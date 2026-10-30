@@ -60,3 +60,15 @@ export function completedOnsiteClockRange(time: AppointmentOnsiteTime | undefine
   const format = new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'});
   return `Started ${format.format(start)} · Finished ${format.format(end)}`;
 }
+
+/** Display/completion evidence must not prefer an assigned short pass over a
+ * qualified visit by another truck. Operational assignment stays unchanged. */
+export function recordedAppointmentOnsiteTime(job: Parameters<typeof appointmentOnsiteTime>[0], visits: VisitRecord[], now=Date.now()): AppointmentOnsiteTime {
+  if (/complete|closed/i.test(job.status || '')) {
+    const qualified = qualifiedAppointmentVisits(visits,'',now).filter(row=>row.match_confidence==='confirmed' && !row.pass_by_only
+      && (job.appointmentId ? String(row.appointment_id || row.appt_id || '')===job.appointmentId
+        : job.jkNumber && String(row.jk_number || row.job_id || '').toUpperCase()===job.jkNumber.toUpperCase()));
+    if (qualified.length) return appointmentOnsiteTime({...job,truck:''},qualified,now,true);
+  }
+  return appointmentOnsiteTime(job,visits,now,true);
+}

@@ -115,6 +115,12 @@ try {
  const history=path.join(fixtureRoot,'history','linxup');fs.mkdirSync(history,{recursive:true});
  fs.writeFileSync(path.join(history,`linxup_location_${date}.json`),JSON.stringify({points:bridgePoints}));
  const original=fs.readFileSync(path.join(history,`linxup_location_${date}.json`),'utf8');
+ const unresolvedReturns={...sparseRow,visit_count:2,visit_intervals:undefined,first_arrival:at(0),final_departure:at(2400)};
+ const unchanged=withSavedAppointmentContinuity([unresolvedReturns],date,fixtureRoot,now);
+ assert.equal(unchanged[0],unresolvedReturns,'Enrichment must not synthesize a single interval for legacy separate passes');
+ assert.equal(qualifiedAppointmentVisits(unchanged,'',now).length,0);
+ assert.equal(buildTruckArrivalSlackNotifications(date,unchanged).length,0);
+ assert.equal(scheduleTruckVisits(job,unchanged,[],[job],now).length,0);
  const saved=withSavedAppointmentContinuity([sparseRow],date,fixtureRoot,now);
  assert.equal(qualifiedAppointmentVisits(saved,'',now).length,1);
  assert.equal(buildTruckArrivalSlackNotifications(date,saved).length,1);

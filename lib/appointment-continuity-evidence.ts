@@ -10,7 +10,9 @@ const truckKey=(value:unknown)=>String(value || '').match(/\d+/)?.[0]?.replace(/
 export function withAppointmentContinuity(rows:AnyRecord[], points:AnyRecord[], now=Date.now()):AnyRecord[] {
   return rows.map(row=>{
     const location=row.visit_pin?.location;
-    if (!validGpsCoordinates(location || {}) || !truckKey(row.truck_number || row.truck)) return row;
+    // Preserve unresolved legacy multi-visit rows: synthesizing one interval
+    // would erase the evidence that first-to-last spans separate passes.
+    if (!row.visit_intervals?.length || !validGpsCoordinates(location || {}) || !truckKey(row.truck_number || row.truck)) return row;
     const grouped=new Map<number,AnyRecord[]>();
     for(const point of points) {
       const time=Date.parse(point.timestamp || '');
@@ -23,7 +25,7 @@ export function withAppointmentContinuity(rows:AnyRecord[], points:AnyRecord[], 
       const valid=selected.every(p=>validGpsCoordinates(p)) && new Set(selected.map(p=>`${p.latitude}:${p.longitude}`)).size===1;
       return {time,point:valid?selected[0] as AnyRecord:undefined};
     });
-    const intervals=row.visit_intervals?.length?row.visit_intervals:[{arrival:row.first_arrival || row.arrival_at,departure:row.final_departure || row.departure_at,source_timestamps:row.source_timestamps}];
+    const intervals=row.visit_intervals;
     return {...row,visit_intervals:intervals.map((interval:AnyRecord)=>{
       const start=Date.parse(interval.arrival || ''),end=interval.departure_confirmed!==false && interval.departure?Date.parse(interval.departure):now;
       const attributed=new Set((interval.source_timestamps?.length?interval.source_timestamps:intervals.length===1?row.source_timestamps || []:[]).map(Date.parse));

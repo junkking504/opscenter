@@ -1,3 +1,4 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import {visitEvidenceLocation, ambiguousVisitPin, type VisitPinJob} from './appointment-visit-pin';
 import { hasVisitIntervalEvidence } from './schedule-visit-evidence';
 import type {TrackedVisit} from './visit-tracking-agent';
@@ -25,10 +26,12 @@ export function readScheduleVisits(date: string): { visits: AnyRecord[]; observe
 }
 
 export function scheduleVisitState(
-  job: VisitPinJob & { truck: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
+  job: VisitPinJob & { truck: string; status?: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
   trucks: PresenceTruck[], now = Date.now(), tracked?: TrackedVisit[], appointments: VisitPinJob[] = [job],
 ) {
-  const trackedForJob = tracked?.filter(visit=>visit.kind === 'appointment' && visit.appointmentId === job.appointmentId);
+  visits = qualifiedAppointmentVisits(visits, job.status, now);
+  const arrivals = new Set(visits.flatMap(row=>(row.visit_intervals || []).map((i: AnyRecord)=>JSON.stringify([truckLabel(String(row.truck_number || row.truck || '')),Date.parse(i.arrival || '')]))));
+  const trackedForJob = tracked?.filter(visit=>visit.kind === 'appointment' && visit.appointmentId === job.appointmentId && arrivals.has(JSON.stringify([truckLabel(visit.truck),Date.parse(visit.enteredAt || '')])));
   const bounded = (row: AnyRecord) => trackedForJob?.find(visit=>(visit.departureBounds || visit.supersededAt) && truckLabel(visit.truck) === truckLabel(String(row.truck_number || row.truck || '')) && Date.parse([...(row.visit_intervals || [])].sort((a:AnyRecord,b:AnyRecord)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0]?.arrival || row.first_arrival || '') === Date.parse(visit.enteredAt || ''));
   const fresh = (stamp: string | null) => { const age = now - Date.parse(stamp || ''); return age >= -60_000 && age <= LIVE_GPS_MAX_AGE_MS; };
   const confirmed = visits.filter(row => job.appointmentId && String(row.appointment_id || row.appt_id || '') === job.appointmentId

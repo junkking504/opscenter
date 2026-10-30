@@ -32,7 +32,7 @@ export function gpsObservedPresence(location: Position, observation: Position & 
   }
   return { arrival, stamp };
 }
-export function gpsDwellAtPosition(location: Position, observation: Position & { lastGpsUpdate: string | null }, points: DwellPoint[], since = -Infinity) {
+export function gpsDwellAtPosition(location: Position, observation: Position & { lastGpsUpdate: string | null }, points: DwellPoint[], since = -Infinity, minimumDwellMs = GPS_MINIMUM_DWELL_MS) {
   const observed = gpsObservedPresence(location, observation, points, since);
-  return observed && observed.stamp - observed.arrival >= GPS_MINIMUM_DWELL_MS ? observed : undefined;
+  return observed && observed.stamp - observed.arrival >= minimumDwellMs ? observed : undefined;
 }

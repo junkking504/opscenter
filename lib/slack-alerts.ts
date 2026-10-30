@@ -1,3 +1,4 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import { truckDisplayText } from './junkware-trucks';
 import { truckInspectionSlackNotifications } from "./truck-inspection-notifications";
 import { truckExpenseSlackNotifications } from './truck-expense-notifications';
@@ -844,7 +845,7 @@ export function formatTruckCloseoutSlackNotification(
     kind === "estimate_closed"
       ? `*Total:* ${slackEscape(summary.total || "Not recorded")}`
       : `*Payment:* ${slackEscape(summary.payment || "Not recorded")}`,
-    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,["appt_id","appointment_id"]),jkNumber:jobNumber,truck},readTruckArrivalVisitRows(date))).filter(fact=>!/^Unavailable|^Awaiting/.test(fact.value)).map(fact => `*${fact.label}:* ${slackEscape(fact.value)}`),
+    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,["appt_id","appointment_id"]),jkNumber:jobNumber,truck,status:'Completed'},readTruckArrivalVisitRows(date))).filter(fact=>!/^Unavailable|^Awaiting/.test(fact.value)).map(fact => `*${fact.label}:* ${slackEscape(fact.value)}`),
     ...junkwareJobPhotos(row).map((photo,index) => `*Photo ${index + 1}:* <${photo.url}|${slackEscape(photo.category || photo.fileName || "Verified photo")}>`),
   ].filter(Boolean).join("\n");
 }
@@ -1066,6 +1067,7 @@ export function slackPhoneLink(value: string): string {
 }
 
 function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind: "truck_arrival" | "truck_departure", deliveredFingerprints: readonly string[] = []): SlackOpsAlert[] {
+  rows = qualifiedAppointmentVisits(rows);
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
   const appointmentDetails = readTruckArrivalAppointmentDetails(date);

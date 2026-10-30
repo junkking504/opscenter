@@ -1,3 +1,4 @@
+import {APPOINTMENT_LOITER_MS} from './appointment-visit-qualification';
 import {appointmentVisitPin, ambiguousVisitPin, type VisitPinJob} from './appointment-visit-pin';
 import { onsiteGpsDwell, onsiteGpsMaxAge, type ParkedPoint } from './parked-onsite-presence';
 import type { Coordinates } from './job-route-proximity';
@@ -40,7 +41,7 @@ export function currentGpsJobLocation(job: PresenceJob, trucks: PresenceTruck[],
 }
 
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
-// A single fresh coordinate at one eligible appointment establishes presence.
+// Five minutes of supported, unambiguous GPS presence establishes a visit.
 // Visit-duration accounting remains in the separately confirmed visit ledger.
 export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
   const eligible = (row: PresenceJob) => appointmentVisitPin(row) && !/cancel|completed|closed/i.test(row.status || '');
@@ -56,8 +57,8 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
       .filter(point => Date.parse(point.timestamp) < stamp && ambiguousVisitPin(job,appointments,point))
       .map(point => Date.parse(point.timestamp) + 1));
     const since = Math.max(Number.isFinite(departedAt) ? departedAt : -Infinity, ambiguousAt);
-    const dwell = onsiteGpsDwell(location, truck, truck.routePoints || [], since)
-      || gpsObservedPresence(location, truck, truck.routePoints || [], since);
+    const dwell = onsiteGpsDwell(location, truck, truck.routePoints || [], since, APPOINTMENT_LOITER_MS) || gpsObservedPresence(location, truck, truck.routePoints || [], since);
+    if (!dwell || dwell.stamp - dwell.arrival < APPOINTMENT_LOITER_MS) return [];
     if (Date.parse(job.onsiteTime?.departure || '') >= stamp) return [];
     const position = { latitude: truck.latitude!, longitude: truck.longitude! };
     if (!eligible(job)) return [];

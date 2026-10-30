@@ -17,8 +17,8 @@ function shutdownArrival(location: { latitude?: number | null; longitude?: numbe
 export const onsiteGpsMaxAge = (observation: { speed?: number | null; ignition?: string | null }) =>
   parkedTruckObservation(observation) ? PARKED_GPS_MAX_AGE_MS : GPS_PRESENCE_MAX_AGE_MS;
 
-export function onsiteGpsDwell(location: { latitude?: number | null; longitude?: number | null }, observation: Observation, points: ParkedPoint[], since = -Infinity) {
-  const direct = gpsDwellAtPosition(location, observation, points, since);
+export function onsiteGpsDwell(location: { latitude?: number | null; longitude?: number | null }, observation: Observation, points: ParkedPoint[], since = -Infinity, minimumDwellMs = 2 * 60_000) {
+  const direct = gpsDwellAtPosition(location, observation, points, since, minimumDwellMs);
   if (direct || observation.speed !== 0) return direct;
   const stamp = Date.parse(observation.lastGpsUpdate || '');
   if (!Number.isFinite(stamp) || gpsDistanceMeters(location, observation) > GPS_SITE_RADIUS_METERS) return;
@@ -31,7 +31,7 @@ export function onsiteGpsDwell(location: { latitude?: number | null; longitude?:
   // the normal two-minute dwell. Waiting for another fix after engine shutdown
   // can otherwise hide arrival until the hourly parked heartbeat.
   let later: ParkedPoint = { ...observation, timestamp: observation.lastGpsUpdate! };
-  const shutdown = shutdownArrival(location, later, prior[0]);
+  const shutdown = minimumDwellMs <= 2 * 60_000 ? shutdownArrival(location, later, prior[0]) : undefined;
   if (shutdown) return shutdown;
   for (const [index, point] of prior.entries()) {
     const elapsed = Date.parse(later.timestamp) - Date.parse(point.timestamp);
@@ -40,8 +40,8 @@ export function onsiteGpsDwell(location: { latitude?: number | null; longitude?:
       || elapsed > PARKED_GPS_MAX_AGE_MS || gpsDistanceMeters(point, later) > 30
       || gpsDistanceMeters(location, point) > GPS_SITE_RADIUS_METERS) return;
     // Hourly fixes may retain a visit, but cannot establish its initial dwell.
-    const established = gpsDwellAtPosition(location, { ...point, lastGpsUpdate: point.timestamp }, points, since)
-      || shutdownArrival(location, point, prior[index + 1]);
+    const established = gpsDwellAtPosition(location, { ...point, lastGpsUpdate: point.timestamp }, points, since, minimumDwellMs)
+      || (minimumDwellMs <= 2 * 60_000 ? shutdownArrival(location, point, prior[index + 1]) : undefined);
     if (established) return { arrival: established.arrival, stamp };
     later = point;
   }

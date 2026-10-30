@@ -1263,7 +1263,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           ? `Fleet · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
             ? `Marketing · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
-            : `Finance · ${financeView === 'overview' || financeView === 'trends' ? 'Overview' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
+            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'trends' ? 'Trends' : financeView === 'reconciliation' ? 'Reconciliation' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
       : drawer.fleetIssueId ? `Maintenance · ${drawer.title}`
@@ -4312,7 +4312,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </div>
 
         <NavigationDiagnostics />
-        <PageRail currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'trends' ? 'overview' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
+        <PageRail currentPage={activeNav === 'Command' ? view : activeNav === 'Schedule' ? scheduleView : activeNav === 'Krewe' ? kreweView : activeNav === 'Fleet' ? fleetView : activeNav === 'Finance' ? (financeView === 'reconciliation' ? 'payments' : financeView) : activeNav === 'Settings' ? 'overview' : marketingView} workspace={activeNav} canFinance={!live || canFinance} disabled={mutationBusy} preload={preloadMainWorkspace} navigate={navigateMainWorkspace} />
 
         <div className="sidebar-footer">
           <WorkspaceRailLink group={workspacePages[6]} workspace={activeNav} disabled={mutationBusy} navigate={navigateMainWorkspace} preload={preloadMainWorkspace} />
@@ -4393,7 +4393,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{workspaceLabel(activeNav)}</h1>
+              <h1>{activeNav === 'Finance' ? (financeView === 'reconciliation' ? 'Payments' : financeView[0].toUpperCase() + financeView.slice(1)) : workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Settings' ? 'Your preferences, notifications, and connected services.' : activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
@@ -4409,13 +4409,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       : 'Choose a truck. Find a visit. Open its work and photos.'
                 : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'
-                  ? 'Performance, payments and financial decisions. All in one place.'
-                  : financeView === 'accounting' ? 'QuickBooks books, accountant statements and source-backed financial reports.'
-                  : financeView === 'expenses' ? 'Review disposal costs, fuel purchases and their source evidence.'
+                  ? 'Review operating results, recorded payments and accounting income.'
+                  : financeView === 'accounting' ? 'Review QuickBooks income and accountant statements for each reporting period.'
+                  : financeView === 'expenses' ? 'Review disposal costs, fuel purchases and the records behind them.'
                   : financeView === 'reconciliation' ? 'Reconcile the previous calendar day’s payments, cash, checks and accounting differences.'
-                  : financeView === 'payments' ? 'Review every job payment and reconcile differences without losing source detail.'
-                    : financeView === 'resale' ? 'Manage resale custody, listing status, disposition, and realized value.'
-                      : financeView === 'recycling' ? 'Track recycling loads, yard tickets, payments, and realized value.'
+                  : financeView === 'payments' ? 'Review recorded job payments, or choose Reconcile Yesterday to check differences.'
+                    : financeView === 'resale' ? 'Track resale items, listings, sales and money received.'
+                      : financeView === 'recycling' ? 'Track recycling deliveries, yard tickets and money received.'
                         : 'Explore fuel, disposal, revenue and job trends, planning forecasts, and monthly performance.'
                   : view === 'now' ? 'All operational updates in one timeline, newest first.'
                     : view === 'today' ? 'Resolve today’s operating gaps with ownership, approval, source context, and verified outcomes.'
@@ -4462,7 +4462,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
                 <WorkspaceTabs label="Finance views">
-                  {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling']] as const).map(([key, label]) => <button className={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation' ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key || key === 'overview' && financeView === 'trends' || key === 'payments' && financeView === 'reconciliation'} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
+                  {([['overview', 'Overview'], ['trends', 'Trends'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling']] as const).map(([key, label]) => <button className={financeView === key || key === 'payments' && financeView === 'reconciliation' ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key || key === 'payments' && financeView === 'reconciliation'} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </WorkspaceTabs>
               </div>
             ) : null}

@@ -18,6 +18,7 @@ try {
       console.log(`PASS ${width} ${view}: New opens appointment creation`);
     }
     await page.goto(campaign);
+    await page.locator('.campaign-lead-card').first().click();
     const save = page.getByRole('button', { name: 'Review & save outcome', exact: true });
     await save.waitFor();
     // Inspect enabled appearance, since disabled opacity can obscure duplicate emphasis.
@@ -32,6 +33,7 @@ try {
     await page.getByRole('dialog').getByRole('button', { name: 'Back to edit', exact: true }).click();
     await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
     await page.getByRole('tab', { name: 'Reviews', exact: true }).click();
+    if (width === 390) await page.locator('.campaign-queue-row').first().click();
     const match = page.getByRole('button', { name: 'Review job match', exact: true });
     await match.waitFor();
     assert.equal(await background(match), red, 'Review detail keeps its single primary action');

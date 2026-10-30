@@ -11,7 +11,7 @@ export function crewPhoneResponse(body: unknown, status = 200, extra: Record<str
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store, max-age=0', ...extra } });
 }
 export function crewPhoneFailure(error: unknown) {
-  return crewPhoneResponse({ error: error instanceof CrewPhoneError ? error.message : 'Phone access could not be verified. Try again or contact your manager.' }, error instanceof CrewPhoneError ? error.status : 503);
+  return crewPhoneResponse({ error: error instanceof CrewPhoneError ? error.message : 'Phone access could not be verified. Try again or contact your manager.', ...(error instanceof CrewPhoneError && error.canRequestNewCode !== undefined ? {canRequestNewCode:error.canRequestNewCode} : {}) }, error instanceof CrewPhoneError ? error.status : 503);
 }
 export async function crewPhoneBody(request: Request, limit = 4096) {
   if (request.headers.get('origin') !== resolveRequestOrigin(request) || request.headers.get('sec-fetch-site') === 'cross-site') throw new CrewPhoneError('Open the company phone app to continue.', 403);

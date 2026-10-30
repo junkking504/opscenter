@@ -41,10 +41,10 @@ try{
  const page=await context.newPage(),errors=[],external=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
- const address=()=>page.getByRole('link',{name:'100 Example Street, New Orleans, LA 70118 Open Google Maps ↗',exact:true});
+ const address=()=>page.getByRole('link',{name:'100 Example Street, New Orleans, LA 70118 Open Apple Maps ↗',exact:true});
  const phone=()=>page.getByRole('link',{name:/^Call \(504\) 555-0100/});
  async function contacts(){
-  await expect(address()).toHaveAttribute('href','https://www.google.com/maps/dir/?api=1&destination=100%20Example%20Street%2C%20New%20Orleans%2C%20LA%2070118');
+  await expect(address()).toHaveAttribute('href','https://maps.apple.com/directions?mode=driving&destination=100%20Example%20Street%2C%20New%20Orleans%2C%20LA%2070118');
   await expect(phone()).toHaveAttribute('href','tel:+15045550100');
   assert.equal(await page.locator('button a,a button').count(),0,'No nested interactive controls');
   for(const link of [address(),phone()]){await link.scrollIntoViewIfNeeded();assert.ok((await link.boundingBox()).height>=44);await link.tap();}

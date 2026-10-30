@@ -160,8 +160,11 @@ operator's explicit prices and discount are restored.
 
 Closeout postbacks wait for the matching WebForms POST and completion of the
 ASP.NET partial update. An idle spinner or enabled button is not completion
-evidence. A blank navigator placeholder is retained when no navigator is
-assigned, and completed status is staged after dependent postbacks. Closeout reads an open appointment's saved **Assigned** truck label before its
+evidence. JunkWare’s **Add N navigators** control appends rows, so closeout requests only
+the missing rows. Reducing the crew clears surplus navigator selections without
+adding rows. A blank placeholder is retained when no navigator is assigned, and
+completed status is staged after dependent postbacks. Saved read-back still
+requires exactly the reviewed navigator identities and order. Closeout reads an open appointment's saved **Assigned** truck label before its
 completion dropdown; Completed records use the selected dropdown when the label
 is absent. A blank completion dropdown does not mean that dispatch is unassigned.
 
@@ -405,3 +408,19 @@ checked independently of the one allowed confirmation note. Outcome changes
 are rejected when an existing source outcome is recognized. Regression coverage
 includes closed jobs, closed estimates, discounted estimates, both save phases,
 lost final responses, stale notes, changed financial values and deleted notes.
+
+### Appointment note visibility
+
+Control shows the full appointment notes above closeout, retaining source date
+and author and keeping routine schedule moves in expandable history. A verified
+note save keeps the drawer and any closeout draft mounted. The schedule reads
+verified note receipts for the exact native appointment ID while collected note
+detail is older; it never replays writes or mutates the archive. These temporary
+entries label their verification time explicitly and expire after 24 hours. A
+newer appointment-detail notes observation takes precedence (including deletion);
+fast schedule timestamps alone cannot retire the receipt. The current collector
+captures notes and photos in the same detail read, so its per-appointment
+`photo_observed_at` supplies that observation time; batch `collection_timestamp`
+and failed detail reads cannot retire a receipt. Collected matching
+note text replaces the temporary entry without duplication. Note entry uses the
+source's 500-character limit.

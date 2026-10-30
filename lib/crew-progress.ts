@@ -1,3 +1,4 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import type { readJobRows } from './desktop-schedule-source';
 import type { DesktopAlert } from '../desktop-ui/lib/live-contract';
 import type { CrewProgressSnapshot, CrewStep } from '../desktop-ui/lib/crew-progress-contract';
@@ -42,7 +43,7 @@ export function buildCrewProgress(input: {
       const canceled = /cancel/i.test(job.status);
       const closed = !canceled && isClosedAppointment(job.status);
       const estimate = isEstimateAppointment(job.appointmentType);
-      const intervals = input.visits.filter(visit => job.appointmentId && String(visit.appointment_id || visit.appt_id || '') === job.appointmentId
+      const intervals = qualifiedAppointmentVisits(input.visits, job.status, now).filter(visit => job.appointmentId && String(visit.appointment_id || visit.appt_id || '') === job.appointmentId
         && visit.match_confidence === 'confirmed' && !visit.pass_by_only && truckKey(job.truck)
         && truckKey(visit.truck_number || visit.truck) === truckKey(job.truck))
         .flatMap(visit => visit.visit_intervals?.length ? visit.visit_intervals : [{arrival:visit.first_arrival || visit.arrival_at, departure:visit.final_departure || visit.departure_at}])

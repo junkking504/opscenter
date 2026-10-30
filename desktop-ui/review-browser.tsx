@@ -35,7 +35,7 @@ export function ReviewBrowser({ reviews, canAssign, busy, selections, onSelect, 
     <Button variant="outline" size="sm" disabled={result.page >= result.pageCount} onClick={() => changePage(result.page + 1)} aria-label="Next review page">Next<ChevronRight size={15} /></Button>
   </nav>;
   return <section className="review-browser" aria-label="Customer reviews">
-    <header className="review-browser-heading"><div><span className="section-kicker">Google reviews via Podium</span><h2>Customer reviews</h2></div><span>{locations.length} locations · Latest 100 per location</span></header>
+    <header className="review-browser-heading"><div><span className="section-kicker">Google reviews via Podium</span><h2>Customer Reviews</h2></div><span>{locations.length} locations · Latest 100 per location</span></header>
     <div className="review-queues" aria-label="Review quick filters">{queues.map(queue => <button key={queue.key} type="button" aria-pressed={filters.queue === queue.key} className={queue.key === 'low' ? 'review-queue-low' : ''} onClick={() => updateFilters({ queue: queue.key, rating: '' })}><span>{queue.label}</span><strong>{queue.count}</strong></button>)}</div>
     <div className="review-browser-filters">
       <label className="review-search"><span>Search reviews</span><div><Search size={16} aria-hidden="true" /><input type="search" value={filters.query} placeholder="Reviewer, feedback, JK number or crew" onChange={event => updateFilters({ query: event.target.value })} /></div></label>

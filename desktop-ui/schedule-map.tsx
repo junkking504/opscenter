@@ -5,7 +5,9 @@ import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef, useState } from 'react';
 import { truckTelemetry } from './lib/truck-telemetry';
 import './truck-telemetry.css';
-import L from 'leaflet';
+import { leafletEngine, type MapEngine, type MapGroup, type MapView, type Coordinate } from './lib/map-engine';
+import { appleMapEngine, loadAppleMapKit } from './lib/apple-mapkit';
+import './apple-maps.css';
 import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
@@ -14,7 +16,8 @@ import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedu
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 import {continuousGpsDisplayPaths,gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
 
-type Props = {
+export type ScheduleMapProps = {
+  mapEngine?: MapEngine; // Synthetic fixtures can inject an SDK without external requests.
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
   selected: string | null; selectedTruck: string | null;
   gpsRoute?:TruckGpsRoute|null;
@@ -23,11 +26,33 @@ type Props = {
   scope: string; resetKey: number; date: string;
   onSelect: (id: string) => void; onSelectTruck: (truck: string, view?: 'location' | 'overview') => void;
 };
-export default function ScheduleMap(props: Props) {
+export default function ScheduleMap(props: ScheduleMapProps) {
+  const [configuredEngine, setConfiguredEngine] = useState<MapEngine | null>(null);
+  const [appleFailed, setAppleFailed] = useState(false);
+  const engine = props.mapEngine || configuredEngine;
+  useEffect(() => {
+    if (props.mapEngine) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 15000);
+    let active = true;
+    const fallback = () => { if (active) { setAppleFailed(true); setConfiguredEngine(leafletEngine); } };
+    fetch('/api/desktop/maps', { signal: controller.signal, cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(async config => {
+        if (!active) return;
+        if (config?.provider !== 'apple' || typeof config.token !== 'string' || !config.token) {
+          setConfiguredEngine(leafletEngine);
+          return;
+        }
+        try { const kit = await loadAppleMapKit(config.token); if (active) setConfiguredEngine(appleMapEngine(kit, fallback)); }
+        catch { fallback(); }
+      }).catch(() => { if (active) setConfiguredEngine(leafletEngine); }).finally(() => clearTimeout(timer));
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [props.mapEngine]);
   const host = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const markers = useRef<L.LayerGroup | null>(null);
-  const gpsLayer=useRef<L.LayerGroup|null>(null);
+  const map = useRef<MapView | null>(null);
+  const markers = useRef<MapGroup | null>(null);
+  const gpsLayer=useRef<MapGroup|null>(null);
   const gpsFit=useRef('');
   const truckClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const current = useRef(props);
@@ -41,16 +66,14 @@ export default function ScheduleMap(props: Props) {
     setFollowing(Boolean(props.selectedTruck) && props.truckMapView !== 'route');
   }, [props.selectedTruck, props.resetKey, props.date, props.truckMapView]);
   useEffect(() => {
-    if (!host.current) return;
-    const view = L.map(host.current, { zoomControl: true, scrollWheelZoom: true }).setView([30.14, -90.5], 8);
+    if (!host.current || !engine) return;
+    let view: MapView | undefined;
+    try { view = engine.map(host.current, { zoomControl: true, scrollWheelZoom: true }); view.setView([30.14, -90.5], 8); }
+    catch (error) { view?.remove(); if (engine.name !== 'apple') throw error; setAppleFailed(true); setConfiguredEngine(leafletEngine); return; }
     view.attributionControl.setPrefix(false);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 20, maxNativeZoom: 19, updateWhenIdle: true, keepBuffer: 1,
-    }).addTo(view);
     map.current = view;
-    gpsLayer.current=L.layerGroup().addTo(view);
-    markers.current = L.layerGroup().addTo(view);
+    gpsLayer.current=engine.layerGroup().addTo(view);
+    markers.current = engine.layerGroup().addTo(view);
     // The Schedule panel changes height after its first layout. Fit against
     // the final container size, but never undo a dispatcher's own pan/zoom.
     const stopAutoFit = (event?: { target?: unknown }) => {
@@ -59,9 +82,9 @@ export default function ScheduleMap(props: Props) {
       setFollowing(false);
     };
     const element = host.current;
-    element.addEventListener('wheel', stopAutoFit, { passive: true });
-    element.addEventListener('keydown', stopAutoFit);
-    element.addEventListener('pointerdown', stopAutoFit);
+    element.addEventListener('wheel', stopAutoFit, { passive: true, capture: true });
+    element.addEventListener('keydown', stopAutoFit, true);
+    element.addEventListener('pointerdown', stopAutoFit, true);
     view.on('dragstart', stopAutoFit);
     let frame = 0;
     const observer = new ResizeObserver(() => {
@@ -72,23 +95,23 @@ export default function ScheduleMap(props: Props) {
       });
     });
     observer.observe(host.current);
-    return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
-  }, []);
+    return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit, true); element.removeEventListener('keydown', stopAutoFit, true); element.removeEventListener('pointerdown', stopAutoFit, true); autoFit.current = null; view.remove(); for (const name of [...element.classList]) if (name.startsWith('leaflet-')) element.classList.remove(name); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
+  }, [engine]);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.trucks.map(truck => [truckGpsStatus(truck).label, truckTelemetry(truck).recent]), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
-    if (!view || !layer) return;
+    if (!view || !layer || !engine) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; area?: boolean; selected: boolean; select: () => void; zoom?: () => void };
+    type Pin = { id: string; coordinate: Coordinate; label: string; text: string; speed?: string; orientation?: ReturnType<typeof truckMapOrientation>; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; area?: boolean; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
-    const appointmentBounds: L.LatLngTuple[] = [];
+    const appointmentBounds: Coordinate[] = [];
     appointments.forEach((job, index) => {
       const locator = scheduleDisplayLocator(job);
       const location = locator.location;
       const approximate = !job.location;
-      const coordinate: L.LatLngTuple = [location.latitude, location.longitude];
+      const coordinate: Coordinate = [location.latitude, location.longitude];
       const assignmentClass = scheduleDisplayTruck(job) === 'Unassigned' ? 'assignment-unassigned' : 'assignment-assigned';
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate, area:locator.kind==='area',
@@ -161,7 +184,7 @@ export default function ScheduleMap(props: Props) {
       for (const { pin } of visiblePins) {
         const isTruck = pin.id.startsWith('truck:');
         const size = isTruck ? truckLocatorSize(view.getZoom()) : locatorSize(view.getZoom());
-        const iconSize: L.PointTuple = [isTruck ? size * 1.5 + 8 : size + 12, size + 12];
+        const iconSize: Coordinate = [isTruck ? size * 1.5 + 8 : size + 12, size + 12];
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
@@ -197,7 +220,7 @@ export default function ScheduleMap(props: Props) {
         button.dataset.mapPin = pin.id;
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
-        L.DomEvent.disableClickPropagation(button);
+        engine.DomEvent.disableClickPropagation(button);
         button.onclick = event => {
           event.stopPropagation(); view.closePopup();
           if (truckClickTimer.current) clearTimeout(truckClickTimer.current);
@@ -216,12 +239,12 @@ export default function ScheduleMap(props: Props) {
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
         // Property/GPS icons stay on source coordinates; area-only badges may fan out on screen.
-        const tooltipOffset = L.point(0, -size / 2 - 6);
+        const tooltipOffset = engine.point(0, -size / 2 - 6);
         const peers=pin.area ? pins.filter(other=>other.area && other.coordinate[0]===pin.coordinate[0] && other.coordinate[1]===pin.coordinate[1]).sort((a,b)=>a.id.localeCompare(b.id)) : [];
         const slot=peers.findIndex(other=>other.id===pin.id);
         const dx=peers.length>1 ? ((slot%5)-(Math.min(peers.length,5)-1)/2)*48 : 0;
         const dy=peers.length>1 ? Math.floor(slot/5)*48 : 0;
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2-dx, iconSize[1] / 2-dy] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
+        const marker = engine.marker(pin.coordinate, { keyboard: false, icon: engine.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2-dx, iconSize[1] / 2-dy] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => marker.closeTooltip();
         marker.on('tooltipopen', () => {
@@ -236,7 +259,7 @@ export default function ScheduleMap(props: Props) {
           const rect = element.getBoundingClientRect();
           const dx = Math.max(bounds.left + 6 - rect.left, Math.min(0, bounds.right - 6 - rect.right));
           const dy = Math.max(bounds.top + 6 - rect.top, Math.min(0, bounds.bottom - 6 - rect.bottom));
-          bubble.options.offset = L.point(tooltipOffset.x + dx, tooltipOffset.y + dy);
+          bubble.options.offset = engine.point(tooltipOffset.x + dx, tooltipOffset.y + dy);
           bubble.update();
         });
         if (activeId === pin.id) button.focus({ preventScroll: true });
@@ -246,10 +269,10 @@ export default function ScheduleMap(props: Props) {
     render();
     view.on('zoomend moveend resize', render);
     return () => { view.off('zoomend moveend resize', render); };
-  }, [signature, following]);
+  }, [signature, following, engine]);
   useEffect(()=>{
     const view=map.current,layer=gpsLayer.current,route=props.gpsRoute;
-    if(!view || !layer) return;
+    if(!view || !layer || !engine) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
     const {paths,isolated,bounds}=gpsTripDisplay(route,props.selectedTripId);
@@ -257,7 +280,7 @@ export default function ScheduleMap(props: Props) {
     // remain explicitly estimated in the tooltip and summary.
     const continuous=continuousGpsDisplayPaths(paths);
     for(const casing of [true,false])for(const path of continuous) {
-      const line=L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
+      const line=engine.polyline(path.points.map(point=>[point.latitude,point.longitude] as Coordinate),{
         color:casing?'#fff':path.color,weight:casing?9:5,opacity:1,
         lineCap:'round',lineJoin:'round',interactive:!casing,
         className:casing?'schedule-gps-route-casing':'schedule-gps-trail'
@@ -271,7 +294,7 @@ export default function ScheduleMap(props: Props) {
       }
     }
     // Keep isolated fixes visible without white dots breaking up solid lines.
-    for(const point of isolated) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:unassignedGpsColor,fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    for(const point of isolated) engine.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:unassignedGpsColor,fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
       if(props.truckMapView==='overview') {
@@ -282,7 +305,7 @@ export default function ScheduleMap(props: Props) {
         if(latest && !manualViewport.current) view.setView([latest.latitude,latest.longitude],15,{animate:false});
       }
       else if(props.truckMapView==='route') {
-        if(bounds.length) view.fitBounds(bounds.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
+        if(bounds.length) view.fitBounds(bounds.map(point=>[point.latitude,point.longitude] as Coordinate),{padding:[45,45],maxZoom:15,animate:false});
       }
       else if(!props.trucks.some(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null)) {
         // Historical days have no current truck marker. Focus the last recorded
@@ -293,11 +316,13 @@ export default function ScheduleMap(props: Props) {
       gpsFit.current=fitKey;
     }
     return()=>{layer.clearLayers();};
-  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks,props.selectedTripId]);
+  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks,props.selectedTripId,engine]);
   const canFollow = props.selectedTruck && !props.selected
     && props.trucks.some(truck => truckLabel(truck.truck) === props.selectedTruck && truck.latitude != null && truck.longitude != null);
   const viewingRoutes = props.truckMapView === 'route';
-  return <div ref={host} className="live-schedule-map" aria-label="Appointment map locations and truck GPS">
+  return <div ref={host} data-gesture-ignore data-map-provider={engine?.name || 'loading'} aria-busy={!engine} className="live-schedule-map" aria-label="Appointment map locations and truck GPS">
+    {!engine && <span className="map-provider-status" role="status">Loading map…</span>}
+    {appleFailed && <span className="map-provider-status" role="status">Apple Maps unavailable · OpenStreetMap</span>}
     {props.selectedTruck && !props.selected && <div className="truck-map-view-controls" role="group" aria-label={`${truckDisplayText(props.selectedTruck)} map view`}>
       {canFollow && <button type="button" className="truck-follow-control" aria-pressed={!viewingRoutes && following}
         onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}

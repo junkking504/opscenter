@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { CrewPhoneError, type CrewPhoneDelivery, type CrewPhoneSetupChoice } from './crew-phone';
 import { readCrewPhoneDirectory } from './crew-phone-directory';
-import { createCrewPhoneEnrollment, revokeCrewPhone } from './crew-phone-store';
+import { createCrewPhoneEnrollment, revokeCrewPhone, supersedeUnusedCrewPhoneCodes, crewPhoneCodeSuperseded } from './crew-phone-store';
 import { chicagoDateKey } from './chicago-date';
 
 // Separate, explicit approval: routine deployment must never create this file.
@@ -89,11 +89,11 @@ export async function requestCrewPhoneSetup(rawNumber:unknown,rawRequestId:unkno
   // The test binding uses the existing test default; daily setup still requires
   // choosing the actual truck before any inspection or job access.
   const receipt=await sendCrewPhoneSetup(test?'Truck 6':contacts[0].truck,rawRequestId,actor,test);
-  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503);
-  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
-  if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
-  if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
-  return {message};
+  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503,true);
+  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. A replacement is available once this code expires.',canRequestNewCode:Date.parse(receipt.expiresAt)<=Date.now()};
+  if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409,true);
+  if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409,true);
+  return {message,canRequestNewCode:true};
 }
 export async function requestCrewPhoneSetupChoice(rawChoiceId:unknown,rawRequestId:unknown) {
   if(typeof rawChoiceId!=='string' || !/^phone-[a-f0-9]{24}$/.test(rawChoiceId) || typeof rawRequestId!=='string' || !uuid.test(rawRequestId))throw new CrewPhoneError('Choose which phone you are using.');
@@ -101,11 +101,11 @@ export async function requestCrewPhoneSetupChoice(rawChoiceId:unknown,rawRequest
   if(contacts.length!==1)throw new CrewPhoneError('This phone is not enabled for Waypoint setup. Contact your manager.',403);
   const contact=contacts[0],actor=selfSetupActor(contact.number.replace(/-/g,''));
   const receipt=await sendCrewPhoneSetup(contact.truck,rawRequestId,actor,false,{label:contact.label,number:contact.number});
-  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503);
-  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
-  if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409);
-  if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409);
-  return {message:'WhatsApp accepted the setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.'};
+  if(receipt.status==='failed')throw new CrewPhoneError('WhatsApp could not send the setup code. Contact your manager.',503,true);
+  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. A replacement is available once this code expires.',canRequestNewCode:Date.parse(receipt.expiresAt)<=Date.now()};
+  if(receipt.cancelled)throw new CrewPhoneError('This setup code was cancelled. Request a new code or contact your manager.',409,true);
+  if(Date.parse(receipt.expiresAt)<=Date.now())throw new CrewPhoneError('This setup code expired. Request a new code.',409,true);
+  return {message:'WhatsApp accepted the setup message. Check WhatsApp for your 6-digit code; it expires 10 minutes after the request. This does not yet confirm delivery to the phone.',canRequestNewCode:true};
 }
 function token() {
   const configured = process.env.WHATSAPP_ACCESS_TOKEN_BASE64 ? Buffer.from(process.env.WHATSAPP_ACCESS_TOKEN_BASE64, 'base64').toString('utf8').trim() : process.env.WHATSAPP_ACCESS_TOKEN?.trim();
@@ -118,7 +118,7 @@ function read(file: string): Saved {
   const value = JSON.parse(fs.readFileSync(file, 'utf8')) as Saved;
   if (value.schema !== 1 || !uuid.test(value.requestId) || !value.actor || !Number.isSafeInteger(value.reservedMicros) || value.reservedMicros < 10_000
     || !/^\d{4}-\d{2}$/.test(value.month) || !['pending', 'accepted', 'failed', 'uncertain'].includes(value.status)
-    || !uuid.test(value.deviceId) || !Number.isFinite(Date.parse(value.createdAt))) throw new Error('Invalid setup delivery receipt.');
+    || !uuid.test(value.deviceId) || !Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.expiresAt))) throw new Error('Invalid setup delivery receipt.');
   return value;
 }
 function save(value: Saved) {
@@ -130,7 +130,7 @@ function save(value: Saved) {
   try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
 }
 function project({ actor: _actor, schema: _schema, month: _month, reservedMicros: _reserved, ...value }: Saved): CrewPhoneDelivery {
-  return { ...value, cancelled: fs.existsSync(path.join(root(), '..', 'revoked', `${value.deviceId}.json`)) };
+  return { ...value, cancelled: fs.existsSync(path.join(root(), '..', 'revoked', `${value.deviceId}.json`)) || crewPhoneCodeSuperseded(value.deviceId) };
 }
 export function listCrewPhoneDeliveries(): CrewPhoneDelivery[] {
   if (!fs.existsSync(root())) return [];
@@ -193,10 +193,13 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
       throw new CrewPhoneError('The approved monthly setup-code sending limit has been reached.', 429);
     if(actor.startsWith('crew-self-setup:')) {
       const recent=history.filter(row=>row.number===contact.number);
-      if(recent.some(row=>Date.now()-Date.parse(row.createdAt)<10*60_000))throw new CrewPhoneError('A setup code was already requested for this phone. Check WhatsApp or wait 10 minutes before requesting a new one.',429);
+      if(recent.some(row=>['pending','uncertain'].includes(row.status) && Date.parse(row.expiresAt)>Date.now()))throw new CrewPhoneError('The previous send is not yet confirmed. Check send status before requesting another code.',409);
       if(recent.filter(row=>chicagoDateKey(new Date(row.createdAt))===chicagoDateKey()).length>=3)throw new CrewPhoneError('This phone has reached today’s setup-code limit. Contact your manager.',429);
     }
-    if (history.some(row => row.number === contact.number && Date.now() - Date.parse(row.createdAt) < 60_000)) throw new CrewPhoneError('Wait one minute before sending another setup code to this phone.', 429);
+    if (!actor.startsWith('crew-self-setup:') && history.some(row => row.number === contact.number && Date.now() - Date.parse(row.createdAt) < 60_000)) throw new CrewPhoneError('Wait one minute before sending another setup code to this phone.', 429);
+    // Daily/monthly caps and unresolved-send checks precede invalidation. Never
+    // revoke connected phones or reset the global code-guess budget on resend.
+    if(actor.startsWith('crew-self-setup:'))supersedeUnusedCrewPhoneCodes(history.filter(row=>row.number===contact.number).map(row=>row.deviceId),actor);
     const enrollment = createCrewPhoneEnrollment(truck, contact.label, actor, new Date(), test);
     code = enrollment.code;
     receipt = { schema: 1, requestId, actor, month, reservedMicros: config.reserveMicros, truck, label: contact.label, number: contact.number, ...(test ? {test:true}: {}),

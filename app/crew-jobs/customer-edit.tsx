@@ -43,7 +43,7 @@ export default function CustomerEdit({assignmentId,deviceId,onBusy,onClose}:{ass
   const changes=fields&&loaded?.fields?(Object.keys(CUSTOMER_FIELDS) as Array<keyof CustomerFields>).filter(name=>fields[name]!==loaded.fields![name]):[];
   function prepare(){try{const value=normalizeCustomerFields(fields);if(loaded?.fields&&customerFieldsMatch(value,loaded.fields))throw new Error('Make a correction before reviewing.');setFields(value);setReview(true);setError('');}catch(e){setError((e as Error).message);}}
   return <section className={editStyles.editor} aria-labelledby="customer-edit-title">
-    <h2 id="customer-edit-title">{receipt?.status==='verified'?'Customer information saved':review?'Review corrections':'Edit customer information'}</h2>
+    <h2 id="customer-edit-title">{receipt?.status==='verified'?'Customer information saved':review?'Review corrections':'Edit Customer Information'}</h2>
     {error&&<p role="alert" className={styles.error}>{error}</p>}
     {busy&&<p role="status">{requestId?'Checking saved correction…':'Loading customer information…'}</p>}
     {receipt?<><p role="status">{receipt.message}</p>{receipt.status==='verified'?<p>Your corrections are verified in JunkWare. The route will update when its schedule refreshes.</p>:null}

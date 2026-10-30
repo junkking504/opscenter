@@ -118,11 +118,11 @@ try{
   page.once('dialog',d=>d.dismiss());await views.getByRole('button',{name:'Crew workflow',exact:true}).click();await expect(page.getByRole('textbox',{name:'Appointment note',exact:true})).toHaveValue('Unsent synthetic note');
   page.once('dialog',d=>d.accept());await back.click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');await expect(page.getByLabel('Schedule date')).toHaveValue('2026-10-22');
   await page.waitForFunction(y=>Math.abs(scrollY-y)<2,listScroll);
-  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s route',exact:true})).toBeVisible();
+  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Today’s Route',exact:true})).toBeVisible();
   await page.getByRole('navigation',{name:'Your day'}).getByRole('button',{name:'Completed',exact:true}).click();await page.getByLabel('View truck').selectOption('Truck# 2');
   await views.getByRole('button',{name:'Manager',exact:true}).click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');await expect(page.getByLabel('Schedule date')).toHaveValue('2026-10-22');
   await page.waitForFunction(y=>Math.abs(scrollY-y)<2,listScroll);
-  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed appointments'})).toBeVisible();await expect(page.getByLabel('View truck')).toHaveValue('Truck# 2');
+  await nav.getByRole('button',{name:'Back to crew workflow',exact:true}).click();await expect(page.getByRole('heading',{name:'Completed Appointments'})).toBeVisible();await expect(page.getByLabel('View truck')).toHaveValue('Truck# 2');
   await views.getByRole('button',{name:'Manager',exact:true}).click();await expect(page.getByLabel('View truck')).toHaveValue('Truck 4');
   await page.getByRole('button',{name:'New appointment',exact:true}).click();await page.getByLabel('First name').fill('Unsaved');
   page.once('dialog',d=>d.dismiss());await nav.getByRole('button').click();await expect(page.getByLabel('First name')).toHaveValue('Unsaved');

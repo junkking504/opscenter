@@ -168,8 +168,8 @@ const pastPlan={...job('past-plan',720,750),truck:'Truck 8'};
 assert.equal(scheduleTravelLayout([pastPlan,middleVisit],[leg(middleVisit.recordId,pastPlan.recordId,0),leg(pastPlan.recordId,middleVisit.recordId,0)],returnRange,'Truck 8').connectors.length,0,'Planned order cannot route backward through history');
 console.log('Fragmented GPS observations retain chronology, unknown timing, accessible identities and forward-only recorded connectors.');
 
-const nearFirst=visited('near-first',[['2026-10-26T19:17:00Z','2026-10-26T19:17:00Z',null]]);
-const nearNext=visited('near-next',[['2026-10-26T19:17:30Z','2026-10-26T19:17:30Z',null]]);
+const nearFirst={...visited('near-first',[['2026-10-26T19:17:00Z','2026-10-26T19:17:00Z',null]]),status:'Completed'};
+const nearNext={...visited('near-next',[['2026-10-26T19:17:30Z','2026-10-26T19:17:30Z',null]]),status:'Completed'};
 for(const width of [190,320,720,1280]) {
  const result=scheduleTravelLayout([nearFirst,nearNext],[],returnRange,'Truck 8',0,width);
  assert.notEqual(result.placed[0].lane,result.placed[1].lane,'Sub-minute arrivals use separate clickable lanes');
@@ -178,6 +178,6 @@ for(const width of [190,320,720,1280]) {
 }
 const plannedBetween={...job('unvisited-plan',840,850),truck:'Truck 8'};
 assert.equal(scheduleTravelLayout([returnVisit,plannedBetween,middleVisit],[visitLeg],returnRange,'Truck 8').connectors.length,1,'An unvisited planned card is not evidence of an intervening physical visit');
-const likely={...job('2026-10-26:appointment:likely',780,840),truck:'Truck 8',likelyStop:{truck:'Truck 8',arrival:'2026-10-26T18:37:00Z',departure:'2026-10-26T18:39:00Z',stopAddress:'Synthetic location',reason:'Needs review',confident:false}} as ScheduleAppointment;
+const likely={...job('2026-10-26:appointment:likely',780,840),truck:'Truck 8',likelyStop:{truck:'Truck 8',arrival:'2026-10-26T18:37:00Z',departure:'2026-10-26T18:42:00Z',stopAddress:'Synthetic location',reason:'Needs review',confident:false}} as ScheduleAppointment;
 const likelyRoute=scheduleTravelLayout([likely,middleVisit],[leg(likely.recordId,middleVisit.recordId,0)],returnRange,'Truck 8');
 assert.equal(likelyRoute.connectors[0].recordedOrder,false,'A likely stop is never promoted to recorded visit order');

@@ -146,6 +146,6 @@ export function scopeOperatingTrends(data: OperatingTrendsData | null, scope: An
   };
   return { ...data, daily: data.daily.map(select), forecasts: scope === 'forecast' ? data.forecasts.filter(model => allowed.includes(model.target)) : [],
     wexCoverage: sources.includes('wex') ? data.wexCoverage : null,
-    sourceCoverage: Object.fromEntries(Object.entries(data.sourceCoverage || {}).filter(([key]) => sources.includes(key))),
+    sourceCoverage: Object.fromEntries(Object.entries(data.sourceCoverage || {}).filter(([key]) => sources.includes(key) || key==='wexEmail'&&sources.includes('wex'))),
     trucks: scope === 'fleet' ? data.trucks?.map(truck => ({ truck: truck.truck, daily: truck.daily.map(select) })) : undefined };
 }

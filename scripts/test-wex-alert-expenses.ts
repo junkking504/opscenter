@@ -13,7 +13,7 @@ assert.equal(run([]).provisionalTotal,null,'a manual batch with no alerts for a 
 assert.equal(reconcileWexAlertExpenses('2026-10-25',[alert],[]).provisionalTotal,null);
 const missingGallons=parseWexExpenseAlert({...message,body:message.body.replace('Units: 20','Units: N/A')})!;
 assert.equal(missingGallons.gallons,null);assert.equal(run([missingGallons]).provisionalTotal,80,'missing gallons prevents a price, not an authorization record');
-assert.equal(run([missingGallons],[posted]).rows[0].status,'provisional','incomplete evidence does not guess a posted link');
+assert.equal(run([missingGallons],[posted]).rows[0].status,'review','possible settlement is held without a guessed link or a duplicate expense');
 const revised={...alert,messageId:'revision-2',receivedAt:'2026-10-24T15:02:00Z',amount:90};
 assert.equal(run([revised,alert]).rows.length,1);assert.equal(run([revised,alert]).provisionalTotal,90);assert.equal(run([revised,alert]).rows[0].revisionCount,2);
 const reversed={...revised,messageId:'reversal',receivedAt:'2026-10-24T15:03:00Z',state:'reversed' as const};
@@ -45,7 +45,7 @@ try{
  fs.writeFileSync(wexAlertExpenseFile()+'.lock','another writer');assert.throws(()=>importWexAlertExpenses([message],repeat.sourceSha256),/EEXIST/);assert.equal(fs.readFileSync(wexAlertExpenseFile()+'.lock','utf8'),'another writer');fs.unlinkSync(wexAlertExpenseFile()+'.lock');
  assert.equal(readWexAlertExpenses(date,[posted]).rows[0].status,'posted');
  fs.writeFileSync(path.join(root,'realtime-prices.json'),JSON.stringify({rows:[{trackingNumber:alert.trackingNumber,sourceUrl:alert.sourceUrl,amount:alert.amount,truck:'Synthetic truck'}]}));
- assert.equal(readWexAlertExpenses(date,[]).rows[0].truck,'Synthetic truck');
+ assert.equal(readWexAlertExpenses(date,[]).rows[0].truck,null,'crew/price labels cannot prove a truck stopped at the station');
  fs.writeFileSync(path.join(root,'realtime-prices.json'),JSON.stringify({rows:[{trackingNumber:alert.trackingNumber,sourceUrl:'https://outlook.office365.com/owa/?different',amount:alert.amount,truck:'Synthetic truck'}]}));
  assert.equal(readWexAlertExpenses(date,[]).rows[0].truck,null,'a different revision cannot inherit truck attribution');
  const before=buildDailyFinanceSummary({fuel_expense:80,total_expenses:100,net_profit:200});readWexAlertExpenses(date,[posted]);assert.deepEqual(buildDailyFinanceSummary({fuel_expense:80,total_expenses:100,net_profit:200}),before,'provisional evidence never changes published daily totals');

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { readCrewDay } from './crew-phone-day';
 import path from 'node:path';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import { withCrewPhoneSetupLimit } from './login-rate-limit';
+import { withCrewPhoneEnrollmentLock, withCrewPhoneSetupLimit } from './login-rate-limit';
 import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 import { CrewPhoneError, type CrewPhone } from './crew-phone';
 import { chicagoDateKey } from './chicago-date';
@@ -75,6 +75,21 @@ export function createCrewPhoneEnrollment(truck: string, label: string, actor: s
   throw new CrewPhoneError('A setup code could not be created. Try again.', 503);
 }
 
+/** Replacing an unused code must never revoke an already-connected phone.
+ * The redemption lock makes the binding-versus-replacement decision atomic. */
+export function supersedeUnusedCrewPhoneCodes(deviceIds: string[], actor: string) {
+  return withCrewPhoneEnrollmentLock(() => {
+    for (const deviceId of deviceIds) {
+      if (!uuid.test(deviceId) || !actor.trim()) throw new CrewPhoneError('Invalid setup replacement.');
+      if (read<Binding>(path.join(directory('bindings'), `${deviceId}.json`))) continue;
+      writeOnce(path.join(directory('superseded'), `${deviceId}.json`), {actor, supersededAt:new Date().toISOString()});
+    }
+  });
+}
+export function crewPhoneCodeSuperseded(deviceId: string) {
+  return fs.existsSync(path.join(root(), 'superseded', `${deviceId}.json`));
+}
+
 /** The phone generates and retains its random key before the first request.
  * Atomic binding permits only that phone to recover a lost response. */
 export function enrollCrewPhone(rawCode: unknown, rawKey: unknown, now = new Date()): CrewPhone {
@@ -97,6 +112,7 @@ function completeEnrollment(enrollmentHash: string, rawKey: string, now: Date): 
   const bindingFile = path.join(directory('bindings'), `${enrollment.deviceId}.json`);
   const existing = read<Binding>(bindingFile);
   if (!existing) {
+    if (crewPhoneCodeSuperseded(enrollment.deviceId)) throw new CrewPhoneError('This setup code was replaced. Use the newest code.', 403);
     if (Date.parse(enrollment.expiresAt) <= now.getTime() || Date.parse(enrollment.createdAt) > now.getTime()) throw new CrewPhoneError('This setup code expired. Get a new code from your manager.', 403);
     // A connection key can never be repurposed for another phone or truck.
     const keyFile = path.join(directory('keys'), `${keyHash}.json`);

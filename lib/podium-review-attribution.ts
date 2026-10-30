@@ -117,16 +117,27 @@ function appointmentIdentifiers(row: AnyRecord): Set<string> {
 const appointmentMemo = sourceFileMemo<AppointmentCandidate[]>(10 * 60_000, 4);
 const DAILY_METRICS_FILE = /^daily_metrics_(\d{4}-\d{2}-\d{2})\.json$/;
 
-function readAppointments(dataDir: string): AppointmentCandidate[] {
+function appointmentSources(dataDir: string): { directory: string; names: string[]; files: string[] } | null {
   const directory = path.join(dataDir, "processed");
   let names: string[];
   try {
     names = fs.readdirSync(directory).filter((file) => DAILY_METRICS_FILE.test(file));
   } catch {
-    return [];
+    return null;
   }
   const rawFiles = names.map(file => path.join(dataDir, "history", "junkware", `junkware_${DAILY_METRICS_FILE.exec(file)![1]}_raw.json`));
-  return appointmentMemo(directory, [...names.map(file => path.join(directory, file)), ...rawFiles], () => parseAppointments(directory, names));
+  return { directory, names, files: [...names.map(file => path.join(directory, file)), ...rawFiles] };
+}
+
+/** Every file the appointment reading depends on; a memo keyed on these sees any collector write. */
+export function appointmentSourceFiles(dataDir: string): string[] {
+  return appointmentSources(dataDir)?.files ?? [];
+}
+
+function readAppointments(dataDir: string): AppointmentCandidate[] {
+  const sources = appointmentSources(dataDir);
+  if (!sources) return [];
+  return appointmentMemo(sources.directory, sources.files, () => parseAppointments(sources.directory, sources.names));
 }
 
 // Only explicit completion evidence is used; scheduled/GPS departure times are

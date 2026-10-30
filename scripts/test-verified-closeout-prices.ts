@@ -45,5 +45,10 @@ try{
  raw.appointments[0].photo_observed_at=new Date(now).toISOString();raw.appointments[0].closeout.total=220;
  fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify(raw));
  assert.equal(read()[0].closeout.total,220,'New successful appointment detail read wins');
+ raw.appointments[0].photo_observed_at='2026-10-29T12:00:00Z';raw.appointments[0].revenue='$50';
+ fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify(raw));
+ const classifications=path.join(root,'appointment-classifications');fs.mkdirSync(classifications);
+ fs.writeFileSync(path.join(classifications,`${date}-1001.json`),JSON.stringify({appointmentId:'1001',appointmentType:'Job',status:'Completed',verifiedAt:new Date(Date.now()+1000).toISOString()}));
+ const converted=read()[0];assert.equal(converted.appointmentType,'Job');assert.equal(converted.closeout.total,220,'Verified classification runs before estimate quote projection');assert.equal(converted.paymentAmount,50,'Converted Job retains source payment instead of estimate quote');
 }finally{fs.rmSync(root,{recursive:true,force:true});}
 console.log('Verified closeout price regression passed: historical read path, quote labels, identity/status, newer source, zero, invalid receipts, and no writes.');

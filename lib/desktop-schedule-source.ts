@@ -1071,10 +1071,10 @@ function readJobRows(date: string): JobRow[] {
     ? mergeFastScheduleRows(jobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
     : jobs;
 
-  const pricedJobs = applyVerifiedCloseoutPrices(date,currentJobs,readVerifiedCloseoutPriceReceipts());
-  const photoJobs = applyVerifiedPhotoReceipts(pricedJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
+  const photoJobs = applyVerifiedPhotoReceipts(currentJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
   const classifiedJobs = applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0));
-  return applyVerifiedJobCancellations(applyCustomerEdits(classifiedJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)), readVerifiedJobCancellations(date)).sort((a, b) => {
+  const finalJobs = applyVerifiedJobCancellations(applyCustomerEdits(classifiedJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)), readVerifiedJobCancellations(date));
+  return applyVerifiedCloseoutPrices(date,finalJobs,readVerifiedCloseoutPriceReceipts()).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);

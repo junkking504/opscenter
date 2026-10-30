@@ -30,6 +30,7 @@ try {
     await save.click();
     await page.getByRole('dialog').waitFor();
     await page.getByRole('dialog').getByRole('button', { name: 'Back to edit', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
     await page.getByRole('tab', { name: 'Reviews', exact: true }).click();
     const match = page.getByRole('button', { name: 'Review job match', exact: true });
     await match.waitFor();

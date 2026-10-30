@@ -738,7 +738,9 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     junkItems: junkItemKeywords(row),
     pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
-    appointmentNotesObservedAt: Array.isArray(row.appointment_notes) ? String(row.collection_timestamp || '') : undefined,
+    // The collector captures notes and photos in the same detail-page read.
+    // collection_timestamp is the end of the whole batch, not this detail read.
+    appointmentNotesObservedAt: Array.isArray(row.appointment_notes) && !row.detail_collection_error ? String(row.appointment_notes_observed_at || row.photo_observed_at || '') : undefined,
     cancellationReason: cancellationReasonText(
       firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
       customerName,
@@ -1054,7 +1056,7 @@ function readJobRows(date: string): JobRow[] {
         junkItems: junkItemKeywords(sourceRow),
         pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
-        appointmentNotesObservedAt: Array.isArray(sourceRow.appointment_notes) ? String(sourceRow.collection_timestamp || '') : undefined,
+        appointmentNotesObservedAt: Array.isArray(sourceRow.appointment_notes) && !sourceRow.detail_collection_error ? String(sourceRow.appointment_notes_observed_at || sourceRow.photo_observed_at || '') : undefined,
         cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }

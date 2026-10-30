@@ -27,9 +27,15 @@ const source = {...job,sourceDate:'2026-10-30',truck:'Truck 1',appointmentType:'
 const fast = mergeFastScheduleRows([source],[{appt_id:'1234',appointment_date:'2026-10-30',job_status:'Confirmed',truck:'Truck 9',collection_timestamp:'2026-10-30T16:30:00Z'}],[],'2026-10-30')[0];
 assert.equal(fast.appointmentNotesObservedAt,job.appointmentNotesObservedAt,'Fast schedule read cannot advance note-detail provenance');
 assert.equal(apply([receipt],fast).appointmentNotes.length,2);
-const fresh = mergeFastScheduleRows([source],[{appt_id:'1234',appointment_date:'2026-10-30',job_status:'Confirmed',appointment_notes:[],collection_timestamp:'2026-10-30T16:30:00Z'}],[],'2026-10-30')[0];
+const fresh = mergeFastScheduleRows([source],[{appt_id:'1234',appointment_date:'2026-10-30',job_status:'Confirmed',appointment_notes:[],photo_observed_at:'2026-10-30T16:30:00Z',collection_timestamp:'2026-10-30T16:30:00Z'}],[],'2026-10-30')[0];
 assert.equal(fresh.appointmentNotes.length,0,'Explicit newer empty notes replace old notes');
 assert.equal(apply([receipt],fresh).appointmentNotes.length,0);
+const failedDetail = mergeFastScheduleRows([source],[{appt_id:'1234',appointment_date:'2026-10-30',appointment_notes:[],photo_observed_at:'2026-10-30T16:30:00Z',collection_timestamp:'2026-10-30T16:30:00Z',detail_collection_error:'Synthetic detail timeout'}],[],'2026-10-30')[0];
+assert.deepEqual(failedDetail.appointmentNotes,job.appointmentNotes,'A failed detail read cannot erase collected notes');
+assert.equal(apply([receipt],failedDetail).appointmentNotes.length,2,'A failed detail read cannot retire the verified note');
+const slowBatch = mergeFastScheduleRows([source],[{appt_id:'1234',appointment_date:'2026-10-30',appointment_notes:job.appointmentNotes,photo_observed_at:'2026-10-30T15:30:00Z',collection_timestamp:'2026-10-30T16:30:00Z'}],[],'2026-10-30')[0];
+assert.equal(apply([receipt],slowBatch).appointmentNotes.length,2,'Batch completion time cannot retire a note saved after the appointment detail read');
+
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'verified-note-test-'));
 process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=dir;
 try {

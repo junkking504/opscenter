@@ -69,6 +69,8 @@ export function recordedAppointmentOnsiteTime(job: Parameters<typeof appointment
       && (job.appointmentId ? String(row.appointment_id || row.appt_id || '')===job.appointmentId
         : job.jkNumber && String(row.jk_number || row.job_id || '').toUpperCase()===job.jkNumber.toUpperCase()));
     if (qualified.length) return appointmentOnsiteTime({...job,truck:''},qualified,now,true);
+    // Source completion alone cannot assign a different truck's short pass.
+    return appointmentOnsiteTime(job,truckKey(job.truck)?visits:[],now);
   }
   return appointmentOnsiteTime(job,visits,now,true);
 }

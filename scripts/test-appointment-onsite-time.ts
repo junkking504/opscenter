@@ -20,6 +20,7 @@ for (const departure of [null,'invalid','2026-09-06T12:00:00Z','2026-09-06T21:00
 assert.match(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure:null}]}],now).label,/Awaiting/);
 assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[],first_arrival:interval.arrival,final_departure:interval.departure,onsite_minutes:0}],now).minutes,21.5,'Explicit timestamps take precedence over a placeholder zero');
 assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure:null}]}],now).arrival,new Date(interval.arrival).toISOString(),'Confirmed arrival remains available while departure is pending');
+assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[{arrival:interval.arrival,departure:interval.departure}]}],now).minutes,21.5,'Legacy closed intervals without per-fix timestamps remain supported');
 console.log('On-site duration passed: recorded intervals, multiple visits, duplicate/overlap handling, identity, truck, and missing timestamp guards.');
 
 // Exercise the formatter against a real source-file boundary without publishing.
@@ -42,12 +43,18 @@ try {
  fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[{...row,visit_intervals:[{...interval,departure:null}]}]}));
  const short={...row,visit_intervals:[{arrival:'2026-09-06T13:00:00Z',departure:'2026-09-06T13:01:00Z'}]};
  const physical={...row,truck_number:'Truck 6'};
+ assert.equal(recordedAppointmentOnsiteTime({...job,status:'Completed',truck:'Unassigned'},[short],now).minutes,null,'No assignment means a short pass cannot name a completion truck');
  const completed={...job,status:'Completed'};
  assert.equal(recordedAppointmentOnsiteTime(completed,[short,physical],now).truck,'Truck 6');
  assert.equal(recordedAppointmentOnsiteTime(completed,[short,physical],now).minutes,21.5);
+ assert.equal(recordedAppointmentOnsiteTime(completed,[{...short,truck_number:'Truck 7'}],now).minutes,null,'An unrelated short pass cannot establish the completed physical truck');
  assert.equal(recordedAppointmentOnsiteTime(completed,[short],now).minutes,1,'Preserve legitimate short completed timing without competing qualified evidence');
  assert.equal(recordedAppointmentOnsiteTime(completed,[physical,{...physical,truck_number:'Truck 7'}],now).minutes,null,'Multiple qualified trucks remain unresolved');
  assert.equal(recordedAppointmentOnsiteTime(completed,[physical,{...physical,visit_intervals:[{...interval,departure:null}]}],now).departure,null,'Open qualified evidence does not fall back to obsolete finished timing');
+ fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[short,physical]}));
+ fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[{...short,truck_number:'Truck 7'}]}));
+ const shortOtherMessage=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '';
+ assert.doesNotMatch(shortOtherMessage,/GPS visit truck:|On-site time:|Arrival:|Departure:/);
  fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[short,physical]}));
  const reassignedMessage=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '';
  assert.match(reassignedMessage,/GPS visit truck:\* Truck 6/); assert.match(reassignedMessage,/On-site time:\* 21.5 min/);assert.doesNotMatch(reassignedMessage,/Arrival:\* 8:00 AM/);

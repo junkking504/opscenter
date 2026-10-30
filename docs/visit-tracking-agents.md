@@ -275,3 +275,14 @@ physical visit over a different assigned truck's short proximity pass. The GPS
 truck is labeled separately from the unchanged JunkWare assignment. Multiple
 qualified trucks remain unresolved. When no qualifying visit exists, legitimate
 source-completed short timing remains available. Existing messages are not replayed.
+
+Each new stationary heartbeat renews only the timestamped location fact; a
+sequence may last for hours, but any missed75-minute gap breaks it. There is
+no total wall-clock dwell assertion. Future/invalid route timestamps cannot
+supply current evidence. All non-canceled pins compete, including completed
+jobs at the same address; assignment never resolves an ambiguous location.
+`atJobTruck` does not overwrite the saved assignment: next-stop and travel
+layout displays follow the physical truck while the booked block remains in
+its source lane. If no qualified completion visit exists, a short recorded
+interval is usable only for the assigned truck; another truck's short pass
+cannot be selected by completion alone.

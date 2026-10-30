@@ -44,6 +44,7 @@ try {
    assert.match(await summary.innerText(),/Arrival time and duration unconfirmed/);
   } else await page.getByText('GPS visit unconfirmed',{exact:true}).waitFor();
   assert.equal(await page.locator('#fixture-writes').textContent(),'Writes: 0');
+  assert.doesNotMatch(await page.locator('body').innerText(),/NaN|Invalid Date/);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   const output=process.env.LOITER_SCREENSHOTS;if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,`loiter-${scenario}-${width}.png`),fullPage:true});}
   await page.reload();await block.first().waitFor();assert.equal(await block.first().getAttribute('data-visit-start'),'900');

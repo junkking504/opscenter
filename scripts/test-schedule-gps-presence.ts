@@ -132,3 +132,11 @@ const departedJob={...mismatchJob,onsiteTime:{departure:new Date(now+30*60_000).
 assert.equal(currentGpsJobLocation(departedJob,[polled],[departedJob],now+80*60_000),undefined,'Departure prevents inheritance from an earlier parked report');
 assert.equal(currentGpsJobLocation(mismatchJob,[{...singlePointParked,lastGpsUpdate:new Date(now+1).toISOString()}],[mismatchJob],now),undefined);
 console.log('Parked location facts passed: assignment mismatch, bounded fallback heartbeat, no dwell promotion, conflicts, freshness, departure and ambiguity.');
+
+const chainedPoints=[offPoint,...[1,2,3].map(hour=>({...offPoint,timestamp:new Date(now+hour*60*60_000).toISOString(),ignition:null,deliverySource:'v2_poll'}))];
+const chained={...polled,lastGpsUpdate:chainedPoints.at(-1)!.timestamp,routePoints:chainedPoints};
+assert.equal(currentGpsJobLocation(mismatchJob,[chained],[mismatchJob],now+190*60_000)?.observedAt,chained.lastGpsUpdate,'Each positive stationary heartbeat renews only the location fact; total elapsed time is not dwell');
+assert.equal(currentGpsPresence(mismatchJob,[chained],[mismatchJob],now+190*60_000),undefined);
+assert.equal(currentGpsJobLocation(mismatchJob,[{...chained,routePoints:chainedPoints.filter((_,index)=>index!==2)}],[mismatchJob],now+190*60_000),undefined,'A missed hourly report breaks a long chain');
+const futureMovement={...offPoint,timestamp:new Date(now+81*60_000).toISOString(),speed:20,ignition:'ON'};
+assert.equal(currentGpsJobLocation(mismatchJob,[{...polled,routePoints:[...polled.routePoints,futureMovement]}],[mismatchJob],now+80*60_000)?.observedAt,polledStamp,'Future route telemetry is ignored until it becomes an observation; it cannot invent movement now');

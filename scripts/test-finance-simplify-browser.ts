@@ -29,6 +29,7 @@ async function main() {
       await expect(numbers).toContainText('Sep 16');
       await expect(numbers.locator('article')).toHaveCount(3);
       await expect(page.locator('.capital-destinations')).toHaveCount(0);
+      await expect(page.locator('#capital-trends')).toHaveCount(0);
       await expect(page.getByRole('tablist',{name:'Finance views'}).getByRole('tab')).toHaveText(labels);
       await page.screenshot({path:`tmp/finance-simplify/overview-${width}-${theme}.png`,fullPage:true,animations:'disabled',timeout:120_000});
       for (const label of labels) {
@@ -46,6 +47,15 @@ async function main() {
       await page.getByRole('tab',{name:'Overview',exact:true}).click();
       await page.locator('.capital-metric').first().click();
       await expect(page.getByRole('tab',{name:'Trends',exact:true})).toHaveAttribute('aria-selected','true');
+      await expect(page.locator('#capital-trends')).toBeVisible();
+      await expect(page.locator('.finance-view-trends')).toHaveCount(1);
+      await expect(page.locator('.capital-hub')).toHaveCount(0);
+      await expect(numbers).toHaveCount(0);
+      await expect(page.locator('.capital-day-context')).toHaveCount(0);
+      await expect(page.locator('.capital-source-details')).toBeVisible();
+      await page.getByRole('tab',{name:'Overview',exact:true}).click();
+      await expect(numbers).toBeVisible();
+      await expect(page.locator('#capital-trends')).toHaveCount(0);
       // Sidebar links remain present on phones; open the rail in the fixture to exercise them.
       await page.evaluate(()=>{const sidebar=document.querySelector<HTMLElement>('.ops-sidebar')!; sidebar.style.setProperty('display','block','important'); sidebar.style.position='relative';});
       for(const label of labels) {

@@ -85,3 +85,7 @@ values. QuickBooks statements are selected per company using the existing
 preference rule; totals combine only when their cutoff and basis agree. Missing
 values or incompatible reporting periods read Unavailable in neutral gray.
 Accountant workbooks and other months never substitute for QuickBooks income.
+
+Trends displays only its trend reports and shared financial record details. Overview
+keeps the monthly summary, source-number strip and operating panels; it no longer
+embeds a second copy of the trend reports. Summary tile links open Trends directly.

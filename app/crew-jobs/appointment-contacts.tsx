@@ -8,6 +8,6 @@ export default function AppointmentContacts({address,phone,customerName='',actio
  return <div className={styles.contacts}>
   <AddressLink address={address || ''}/>
   <CustomerPhoneLink phone={phone || ''}/>
-  {actions&&<ContactActions phone={phone || ''} customerName={customerName}/>}
+  {actions&&<ContactActions phone={phone || ''} customerName={customerName} address={address || ''}/>}
  </div>;
 }

@@ -136,7 +136,7 @@ export default function OpsWiki({ workspace, disabled, navigate }: { workspace: 
   const canWrite = snapshot?.canManage && snapshot.available;
   const act = (action: KnowledgeAction['action']) => { if (entry) void submit({ action, id: entry.id, expectedVersion: entry.version, requestId: crypto.randomUUID(), verificationNote: verification }); };
   return <>
-    <button className="brain-launch" disabled={disabled} onClick={() => { setOpen(true); link(selectedId || '1'); }}><BookOpen size={17} /><span>OpsWiki</span></button>
+    <button className="brain-launch" aria-label="Open OpsWiki" disabled={disabled} onClick={() => { setOpen(true); link(selectedId || '1'); }}><BookOpen size={17} /><span>OpsWiki</span></button>
     {open && <dialog ref={dialog} className="brain-dialog" aria-labelledby="brain-title" onKeyDown={event => event.stopPropagation()} onCancel={event => { event.preventDefault(); close(); }}>
       <header className="brain-header"><div><p className="brain-eyebrow">OPSCENTER KNOWLEDGE</p><h2 id="brain-title">OpsWiki</h2></div><button className="brain-icon" aria-label="Close OpsWiki" disabled={locked} onClick={() => close()}><X size={22} /></button></header>
       <div className="brain-body" ref={content}>

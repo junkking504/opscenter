@@ -12,14 +12,14 @@ export default function AgentHierarchy() {
   const [owner,setOwner]=useState(''),[showCleared,setShowCleared]=useState(false);
   const load=useCallback(async(signal:AbortSignal)=>{const value=await fetchWorkspace<HierarchySnapshot>(key,signal);if(value.version!==1||!Array.isArray(value.agents))throw new Error('Incomplete hierarchy response.');if(!signal.aborted)setSnapshot(value);},[setSnapshot]);
   const freshness=useWorkspaceRefresh(load,key,false,30_000,key);
-  if(!snapshot)return <section className="agent-hierarchy" aria-label="Agent hierarchy"><h2>Agent hierarchy</h2><p role="status">{freshness.error||'Reading agent ownership…'}</p></section>;
+  if(!snapshot)return <section className="agent-hierarchy" aria-label="Agent hierarchy"><h2>Agent Hierarchy</h2><p role="status">{freshness.error||'Reading agent ownership…'}</p></section>;
   const stale=freshness.now-Date.parse(snapshot.checkedAt)>180_000||Date.parse(snapshot.checkedAt)>freshness.now+60_000;
   const name=(id:string)=>snapshot.agents.find(a=>a.id===id)?.name||id;
   const children=(id:string):string[]=>[id,...snapshot.agents.filter(a=>a.parent===id).flatMap(a=>children(a.id))];
   const visible=owner?children(owner):snapshot.agents.map(a=>a.id);
   const issues=snapshot.issues.filter(i=>visible.includes(i.owner)&&(showCleared||i.status!=='source_cleared')).sort((a,b)=>Number(!!b.escalatedTo)-Number(!!a.escalatedTo)||a.dueAt.localeCompare(b.dueAt));
   const branch=(agent:HierarchyAssessment):ReactNode=> <li key={agent.id}><details open={['command','operations','engineering'].includes(agent.id)}><summary><strong>{agent.name}</strong><span>{stale?'Assessment stale':agent.status==='unavailable'?'Evidence incomplete':agent.status==='needs_review'?'Needs review':'Monitoring'} · {agent.openCount} findings{agent.overdueCount?` · ${agent.overdueCount} overdue`:''}</span></summary><p>{agent.responsibility}</p><p>{agent.detail}</p><Button variant="outline" size="sm" onClick={()=>setOwner(agent.id)}>Show {agent.name} findings</Button>{snapshot.agents.some(a=>a.parent===agent.id)&&<ul>{snapshot.agents.filter(a=>a.parent===agent.id).map(branch)}</ul>}</details></li>;
-  return <section className="agent-hierarchy" aria-label="Agent hierarchy"><header><div><h2>Agent hierarchy</h2><p>{snapshot.agents.length} assigned roles · {snapshot.tabs.length} tabs covered · checked {time(snapshot.checkedAt)}</p></div><Button variant="outline" size="sm" disabled={freshness.pending} onClick={()=>void freshness.refresh().catch(()=>{})}>Refresh hierarchy</Button></header>
+  return <section className="agent-hierarchy" aria-label="Agent hierarchy"><header><div><h2>Agent Hierarchy</h2><p>{snapshot.agents.length} assigned roles · {snapshot.tabs.length} tabs covered · checked {time(snapshot.checkedAt)}</p></div><Button variant="outline" size="sm" disabled={freshness.pending} onClick={()=>void freshness.refresh().catch(()=>{})}>Refresh hierarchy</Button></header>
     <p>Agents assess evidence and recommend actions.</p>
     {(stale||freshness.error)&&<p role="alert">Background evidence is stale or unavailable. Retained ownership remains in effect. {freshness.error}</p>}
     {snapshot.warnings.map(w=><p role="status" key={w}>{w}</p>)}

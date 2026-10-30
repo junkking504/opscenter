@@ -45,7 +45,7 @@ export function RecyclingMonthly({ records, date, onAdd, onReview, receiptInbox 
       </div>
     </section>
     {receiptInbox}</div>
-    <section className="finance-recycling-shell"><div className="section-title"><div><span className="section-kicker">DELIVERY REGISTER</span><h3>Daily run breakdown</h3></div></div>
+    <section className="finance-recycling-shell"><div className="section-title"><div><span className="section-kicker">DELIVERY REGISTER</span><h3>Daily Run Breakdown</h3></div></div>
       {summary.days.map(day => <section className="recycling-day" key={day.date} aria-label={`Recycling runs ${day.date}`}>
         <header><h4>{commercialDate(day.date)}, {day.date.slice(0, 4)}</h4><span>{day.entries.length} {day.entries.length === 1 ? 'entry' : 'entries'}</span><strong>{money(day.value)}</strong></header>
         {day.entries.map(run => <article className="recycling-run" key={run.id}>

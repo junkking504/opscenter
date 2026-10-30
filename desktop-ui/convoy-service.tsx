@@ -112,7 +112,7 @@ export function ConvoyService({
         </p>
         {tab === "plan" && (
           <div className="convoy-record-categories">
-            <h2>Service status</h2>
+            <h2>Service Status</h2>
             <nav aria-label="Filter service targets">
               {filters.map(([key, text]) => (
                 <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>

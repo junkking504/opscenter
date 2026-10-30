@@ -1,3 +1,8 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {withAppointmentContinuity, withSavedAppointmentContinuity} from '../lib/appointment-continuity-evidence';
+import {appointmentIntervalEvidence} from '../lib/appointment-visit-qualification';
 import assert from 'node:assert/strict';
 import {appointmentIntervalQualifies, qualifiedAppointmentVisits} from '../lib/appointment-visit-qualification';
 import {scheduleVisitState} from '../lib/desktop-schedule-visits';
@@ -61,3 +66,60 @@ assert.equal(buildTruckArrivalSlackNotifications(date,[ongoing]).length,1,'Arriv
 assert.equal(buildTruckArrivalSlackNotifications(date,[ongoing])[0].fingerprint,buildTruckArrivalSlackNotifications(date,[row(300)])[0].fingerprint);
 assert.equal(timelineWindow({...job,truckOnSite:true,truckVisits:scheduleTruckVisits(job,[ongoing],[],[job],now)},'Truck 8',now)?.actual,true,'An active qualified visit remains visible');
 console.log('Appointment loiter passed: threshold, returns, gaps, late evidence, status/timeline/alerts, ambiguity, completed timing, and source immutability.');
+
+// Review counterexamples: preserve positive source continuity, never infer it
+// from hourly engine-off fixes or a recorded long span alone.
+const sparseRow={...row(2400),visit_pin:{location:job.location},visit_intervals:[{...interval(2400),source_timestamps:[at(0),at(2400)],coverage_gaps:[{start:at(0),end:at(2400)}]}]};
+const sparsePoints=[0,2400].map(seconds=>({...job.location,timestamp:at(seconds),truck_number:'Truck 8',speed:0,ignition:'OFF'}));
+assert.equal(qualifiedAppointmentVisits(withAppointmentContinuity([sparseRow],sparsePoints,now),'',now).length,0);
+assert.equal(appointmentIntervalEvidence(sparseRow.visit_intervals[0],now),'insufficient_evidence');
+const pending=scheduleVisitState(job,[sparseRow],at(2400),[],now,[]);
+assert.equal(pending.visitEvidencePending,true);assert.equal(pending.hasVisit,false);
+assert.equal(timelineWindow({...job,...pending},'Truck 8',now)?.start,900);
+for(const seconds of [299,300,301,2400]) {
+ const points=[{...sparsePoints[0],continuous_until:at(seconds)},{...sparsePoints[1],timestamp:at(seconds)}];
+ const raw={...sparseRow,visit_intervals:[{...interval(seconds),source_timestamps:[at(0),at(seconds)],coverage_gaps:seconds>300?[{start:at(0),end:at(seconds)}]:[]}]};
+ const before=JSON.stringify([raw,points]);
+ const enriched=withAppointmentContinuity([raw],points,now);
+ const qualified=seconds>=300;
+ assert.equal(qualifiedAppointmentVisits(enriched,'',now).length,Number(qualified));
+ assert.equal(scheduleVisitState(job,enriched,at(seconds),[],now,trackAppointmentVisits(date,enriched,now)).hasDepartedVisit,qualified);
+ assert.equal(scheduleTruckVisits(job,enriched,[],[job],now).length,Number(qualified));
+ assert.equal(buildTruckArrivalSlackNotifications(date,enriched).length,Number(qualified));
+ const live={...truck,lastGpsUpdate:at(seconds),routePoints:points.map(p=>({...p,continuousUntil:'continuous_until' in p ? p.continuous_until as string : undefined}))};
+ assert.equal(Boolean(currentGpsPresence(job,[live],[job],start+seconds*1000)),qualified,'Live and ledger agree for the same explicit continuity evidence');
+ assert.equal(JSON.stringify([raw,points]),before);
+}
+const bridgePoints=[{...sparsePoints[0],continuous_until:at(2400)},sparsePoints[1]];
+for(const contradiction of [
+ {...sparsePoints[0],timestamp:at(1200),latitude:31},
+ {...sparsePoints[0],timestamp:at(1200)}, // not attributed to this interval
+ {...sparsePoints[0],latitude:31}, // conflicting same-time fix
+]) assert.equal(qualifiedAppointmentVisits(withAppointmentContinuity([sparseRow],[...bridgePoints,contradiction],now),'',now).length,0);
+assert.equal(qualifiedAppointmentVisits(withAppointmentContinuity([sparseRow],bridgePoints.map(p=>({...p,truck_number:'Truck 9'})),now),'',now).length,0);
+assert.equal(qualifiedAppointmentVisits(withAppointmentContinuity([sparseRow],[{...bridgePoints[0],continuous_until:at(50000)},bridgePoints[1]],now),'',now).length,0);
+assert.equal(appointmentIntervalQualifies({...interval(300),coverage_gaps:[{start:'bad',end:at(240)}]},now),false);
+assert.equal(appointmentIntervalQualifies({...interval(300),source_timestamps:[at(0)]},now),true,'A confirmed last-inside endpoint supports exactly five minutes');
+const legacy={...row(60),first_arrival:at(0),final_departure:at(60),visit_intervals:undefined};
+const completeState=scheduleVisitState(completed,[legacy],at(60),[],now,[]);
+assert.equal(completeState.hasDepartedVisit,true,'Missing tracked GPS qualification cannot erase source-completed departure');
+assert.equal(completeState.recordedOnsiteTime.minutes,1);
+const confirmedLegacy={...legacy,operational_confirmation:true};
+const legacyTracked=trackAppointmentVisits(date,[confirmedLegacy],now);
+assert.equal(legacyTracked.length,1);
+assert.equal(scheduleVisitState(job,[confirmedLegacy],at(60),[],now,legacyTracked).hasDepartedVisit,true);
+console.log('Review counterexamples passed: explicit stationary coverage, unknown gaps, parity, raw immutability and legacy tracked fallback.');
+
+const fixtureRoot=fs.mkdtempSync(path.join(os.tmpdir(),'appointment-continuity-'));
+try {
+ const history=path.join(fixtureRoot,'history','linxup');fs.mkdirSync(history,{recursive:true});
+ fs.writeFileSync(path.join(history,`linxup_location_${date}.json`),JSON.stringify({points:bridgePoints}));
+ const original=fs.readFileSync(path.join(history,`linxup_location_${date}.json`),'utf8');
+ const saved=withSavedAppointmentContinuity([sparseRow],date,fixtureRoot,now);
+ assert.equal(qualifiedAppointmentVisits(saved,'',now).length,1);
+ assert.equal(buildTruckArrivalSlackNotifications(date,saved).length,1);
+ assert.equal(fs.readFileSync(path.join(history,`linxup_location_${date}.json`),'utf8'),original);
+ assert.equal(withSavedAppointmentContinuity([sparseRow],date+'-missing',fixtureRoot,now)[0],sparseRow);
+}finally{fs.rmSync(fixtureRoot,{recursive:true,force:true});}
+assert.equal(scheduleVisitState({...job,status:'Canceled'},[sparseRow],at(2400),[],now,[]).visitEvidencePending,false);
+console.log('Saved continuity reader passed with synthetic local files, no writes to evidence and missing-file fallback.');

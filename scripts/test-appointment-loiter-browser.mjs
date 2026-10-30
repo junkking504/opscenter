@@ -30,6 +30,8 @@ try {
   assert.equal(await block.first().getAttribute('data-visit-end'),'960');
   assert.match(await block.first().getAttribute('aria-label'),/Confirmed/);
   assert.equal(await page.locator('[data-time-basis="actual"]').count(),0);
+  await block.first().click();
+  await page.getByText('GPS visit unconfirmed',{exact:true}).waitFor();
   assert.equal(await page.locator('#fixture-writes').textContent(),'Writes: 0');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   const output=process.env.LOITER_SCREENSHOTS;if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,`loiter-${width}.png`),fullPage:true});}

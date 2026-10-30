@@ -150,7 +150,17 @@ The shared `appointment-visit-qualification.ts` projection requires at least
 300 seconds of supported presence in one interval. Timestamped fixes must form
 a continuous run with no gap greater than five minutes or explicit coverage gap.
 Separate passes are never summed. Open wall-clock age, a parked shutdown, missing
-fixes and stale reports cannot establish initial dwell. Legacy confirmed closed
+fixes and stale reports cannot establish initial dwell. A saved source-confirmed
+stationary span (`continuous_until`) may bridge sparse samples. The shared local
+reader adds that evidence only between adjacent, same-truck fixes already
+attributed to the same interval and inside its recorded pin. Conflicting,
+unattributed, outside, future or other-truck points cannot bridge a gap. Schedule,
+tracking and notification preparation use this same read-only enrichment; the
+raw ledger is not rewritten. A long span with neither dense fixes nor explicit
+continuity stays **GPS visit unconfirmed**, not evidence that no visit occurred.
+The booked appointment remains visible and no GPS arrival/departure alert is
+prepared until positive evidence supports five minutes. The live route projection
+uses the same source continuity; late ledger attribution may still lag live GPS. Legacy confirmed closed
 intervals without individual fixes retain their source timing if no coverage gap
 contradicts it. Explicit operational confirmations remain independent evidence.
 

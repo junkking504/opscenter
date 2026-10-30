@@ -1,3 +1,4 @@
+import {withSavedAppointmentContinuity} from './appointment-continuity-evidence';
 import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import { truckDisplayText } from './junkware-trucks';
 import { truckInspectionSlackNotifications } from "./truck-inspection-notifications";
@@ -974,7 +975,7 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
   );
   try {
     const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-    return Array.isArray(payload?.visits) ? payload.visits : [];
+    return withSavedAppointmentContinuity(Array.isArray(payload?.visits) ? payload.visits : [], date, dataDirectory);
   } catch {
     return [];
   }

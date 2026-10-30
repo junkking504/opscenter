@@ -71,6 +71,7 @@ export type ScheduleAppointment = {
   appointmentType: string;
   status: string;
   hasVisit?: boolean;
+  visitEvidencePending?: boolean;
   hasDepartedVisit?: boolean;
   lastSeenOnsiteTruck?: string;
   lastSeenOnsiteAt?: string;

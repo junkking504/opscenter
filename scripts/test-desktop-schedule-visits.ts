@@ -4,7 +4,7 @@ import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-sch
 import { appointmentStatus, scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 import { dedupeLinkedAppointmentVisitState } from '../lib/linked-appointment-visit-dedup';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, recordedOnsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasVisit,truckOnSite} = fullScheduleVisitState(...args); return {hasVisit,truckOnSite}; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const location = { latitude: 29.97, longitude: -90.07 };
@@ -104,7 +104,7 @@ assert.equal(scheduleStatusTone({status:'Confirmed',hasVisit:true,hasDepartedVis
 const nearStop = { ...parked, routePoints:[{...location,timestamp:'2026-09-06T15:58:31Z',speed:1,ignition:'ON'}] };
 const shortVisit = {...visit,first_arrival:'2026-09-06T15:58:31Z',visit_intervals:[{arrival:'2026-09-06T15:58:31Z',departure:null}]};
 const retained = fullScheduleVisitState(job,[shortVisit],new Date(now+25*60_000).toISOString(),[nearStop],now+25*60_000);
-assert.equal(retained.truckOnSite,false,'A 1 mph arrival followed by nearby engine shutdown remains on site between hourly reports');
+assert.equal(retained.truckOnSite,false,'A 1 mph arrival followed by nearby engine shutdown does not establish five-minute dwell from hourly reports alone');
 assert.equal(retained.hasDepartedVisit,false);
 assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...retained}),'Confirmed');
 

@@ -64,6 +64,7 @@ type JobRow = {
   junkItems: string[];
   pickupItems?: string[];
   appointmentNotes: string[];
+  appointmentNotesObservedAt?: string;
   cancellationReason: string;
 };
 
@@ -737,6 +738,9 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     junkItems: junkItemKeywords(row),
     pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
+    // The collector captures notes and photos in the same detail-page read.
+    // collection_timestamp is the end of the whole batch, not this detail read.
+    appointmentNotesObservedAt: Array.isArray(row.appointment_notes) && !row.detail_collection_error ? String(row.appointment_notes_observed_at || row.photo_observed_at || '') : undefined,
     cancellationReason: cancellationReasonText(
       firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
       customerName,
@@ -1052,6 +1056,7 @@ function readJobRows(date: string): JobRow[] {
         junkItems: junkItemKeywords(sourceRow),
         pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
+        appointmentNotesObservedAt: Array.isArray(sourceRow.appointment_notes) && !sourceRow.detail_collection_error ? String(sourceRow.appointment_notes_observed_at || sourceRow.photo_observed_at || '') : undefined,
         cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }
@@ -1111,6 +1116,8 @@ function mergeFastScheduleRows(
     const freshPhotos = fresh.photoAuditAvailable && Number.isFinite(Date.parse(fresh.photoObservedAt || ''))
       && Date.parse(fresh.photoObservedAt || '') >= (Date.parse(existing.photoObservedAt || '') || 0);
 
+    const freshNotes = (Date.parse(fresh.appointmentNotesObservedAt || '') >= (Date.parse(existing.appointmentNotesObservedAt || '') || 0) || (!existing.appointmentNotesObservedAt && !fresh.appointmentNotesObservedAt && fresh.appointmentNotes.length > 0));
+
     return [{
       ...existing,
       photos: freshPhotos ? fresh.photos : existing.photos,
@@ -1148,7 +1155,8 @@ function mergeFastScheduleRows(
       paymentAmount: fresh.paymentAmount || existing.paymentAmount,
       tipAmount: fresh.tipAmount || existing.tipAmount,
       pickupItems: fresh.pickupItems?.length ? fresh.pickupItems : existing.pickupItems,
-      appointmentNotes: fresh.appointmentNotes.length ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotes: freshNotes ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotesObservedAt: freshNotes ? fresh.appointmentNotesObservedAt : existing.appointmentNotesObservedAt,
       cancellationReason: fresh.cancellationReason || existing.cancellationReason,
     }];
   });

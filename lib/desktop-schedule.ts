@@ -1,3 +1,4 @@
+import {applyVerifiedAppointmentNotes, readVerifiedAppointmentNoteReceipts} from './verified-appointment-notes';
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { contestedLikelyStops, likelyGpsStop } from './likely-stop-match';
@@ -60,7 +61,7 @@ export function readDesktopSchedule(date: string) {
   const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
   const visits = readScheduleVisits(date);
   const tracked = readVisitTrackingAgent(date);
-  const sourceAppointments = readJobRows(date);
+  const sourceAppointments = applyVerifiedAppointmentNotes(readJobRows(date), readVerifiedAppointmentNoteReceipts());
   const estimates = readSourceEstimates(sourceAppointments.map(job => job.sourceEstimateAppointmentId), date);
   const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
     const source = separateCancellationContact(rawSource);

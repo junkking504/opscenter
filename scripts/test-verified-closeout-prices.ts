@@ -35,12 +35,12 @@ try{
  fs.writeFileSync(path.join(operations,'11111111-1111-4111-8111-111111111111.json'),JSON.stringify(receipt));
  const row={appt_id:'1001',job_id:'SYNTHETIC',truck:'Truck# 8',appointment_type:'Estimate',job_status:'Completed',market:'Junk King New Orleans',revenue:'$326',collection_timestamp:'2026-10-29T12:00:00Z',closeout:{loadSize:'Minimum',loadPrice:128,bedloadSize:'1/4',bedloadPrice:198,total:326}};
  fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify({date,scraped_at:'2026-10-29T12:00:00Z',markets_scraped:['Junk King New Orleans','Junk King Northshore','Junk King Baton Rouge','Junk King Jefferson Parish'],appointments:[row],cancelled:[]}));
- const result=JSON.parse(execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`import {readJobRows} from './lib/desktop-schedule-source.ts';console.log(JSON.stringify(readJobRows('${date}')))`],{env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,OPSCENTER_DESKTOP_OPERATIONS_DIR:operations},encoding:'utf8'}));
+ const result=JSON.parse(execFileSync(process.execPath,['--require','tsx/cjs','-e',`const {readJobRows}=require('./lib/desktop-schedule-source.ts');console.log(JSON.stringify(readJobRows('${date}')))`],{env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,OPSCENTER_DESKTOP_OPERATIONS_DIR:operations},encoding:'utf8'}));
  assert.equal(result[0].closeout.total,198,'Real schedule reader overlays receipt');assert.equal(result[0].paymentAmount,198);
  const raw=JSON.parse(fs.readFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),'utf8'));
  raw.appointments[0].collection_timestamp=new Date(now).toISOString();
  fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify(raw));
- const read=()=>JSON.parse(execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`import {readJobRows} from './lib/desktop-schedule-source.ts';console.log(JSON.stringify(readJobRows('${date}')))`],{env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,OPSCENTER_DESKTOP_OPERATIONS_DIR:operations},encoding:'utf8'}));
+ const read=()=>JSON.parse(execFileSync(process.execPath,['--require','tsx/cjs','-e',`const {readJobRows}=require('./lib/desktop-schedule-source.ts');console.log(JSON.stringify(readJobRows('${date}')))`],{env:{...process.env,OPSBOT_DATA_DIR:root,OPSCENTER_DATA_DIR:root,OPSCENTER_DESKTOP_OPERATIONS_DIR:operations},encoding:'utf8'}));
  assert.equal(read()[0].closeout.total,198,'New collection with stale detail is ignored');
  raw.appointments[0].photo_observed_at=new Date(now).toISOString();raw.appointments[0].closeout.total=220;
  fs.writeFileSync(path.join(history,`junkware_schedule_requested_${date}.json`),JSON.stringify(raw));

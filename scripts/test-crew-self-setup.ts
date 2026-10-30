@@ -34,18 +34,16 @@ async function main(){
     await assert.rejects(requestCrewPhoneSetup('504-555-0199',randomUUID()),/No code was sent/);assert.equal(calls,0,'Unknown and unapproved manager numbers are not eligible');
     assert.equal((await crewPhoneSession(request({action:'request-code',number:'+1 (504) 555-0100',requestId}))).status,400,'Raw phone numbers are not accepted by the public route');
     const response=await crewPhoneSession(request({action:'request-code',choiceId,requestId}));
-    assert.equal(response.status,200);const reply=await response.json();assert.deepEqual(Object.keys(reply),['message']);assert.match(reply.message,/WhatsApp accepted/);assert(!reply.message.includes(code),'Public reply must not return a code');assert.equal(calls,1);
+    assert.equal(response.status,200);const reply=await response.json();assert.deepEqual(Object.keys(reply),['message','canRequestNewCode']);assert.equal(reply.canRequestNewCode,true);assert.match(reply.message,/WhatsApp accepted/);assert(!reply.message.includes(code),'Public reply must not return a code');assert.equal(calls,1);
     const recovered=await crewPhoneSession(request({action:'request-code',choiceId,requestId}));
     assert.equal(recovered.status,200);assert.equal(calls,1,'Same saved send is returned without replay');
     assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).truck,'Truck 6');
-    await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/already requested/);
     const receipts=path.join(dir,'deliveries');
     const cancelled=JSON.parse(fs.readFileSync(path.join(receipts,`${requestId}.json`),'utf8'));
     revokeCrewPhone(cancelled.deviceId,'synthetic-manager');
     const cancelledReply=await crewPhoneSession(request({action:'request-code',choiceId,requestId}));
     assert.equal(cancelledReply.status,409);assert.match((await cancelledReply.json()).error,/cancelled/);
-    await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/already requested/,'Cancellation does not waive server cooldown');
-    assert.equal(calls,1,'Cancelled status and a blocked resend never contact delivery');
+    assert.equal(calls,1,'Cancelled status never contacts delivery');
     const original=JSON.parse(fs.readFileSync(path.join(receipts,`${requestId}.json`),'utf8'));
     for(let i=0;i<3;i++) {const row={...original,requestId:i===0?requestId:randomUUID(),createdAt:new Date(Date.now()-(20+i)*60_000).toISOString()};fs.writeFileSync(path.join(receipts,`${row.requestId}.json`),JSON.stringify(row));}
     await assert.rejects(requestCrewPhoneSetup('5045550100',randomUUID()),/today/);assert.equal(calls,1);
@@ -64,7 +62,6 @@ async function main(){
     const test=await requestCrewPhoneSetup('5045550199',testId);assert.match(test.message,/WhatsApp accepted/);assert.equal(calls,2);
     assert.match((await requestCrewPhoneSetup('5045550199',testId)).message,/WhatsApp accepted/);assert.equal(calls,2,'Test send also recovers without replay');
     assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).truck,'Truck 6');
-    await assert.rejects(requestCrewPhoneSetup('5045550199',randomUUID()),/already requested/);assert.equal(calls,2);
     const testFile=path.join(receipts,`${testId}.json`),testReceipt=JSON.parse(fs.readFileSync(testFile,'utf8'));
     fs.writeFileSync(testFile,JSON.stringify({...testReceipt,expiresAt:new Date(Date.now()-1000).toISOString()}));
     await assert.rejects(requestCrewPhoneSetup('5045550199',testId),/expired/);assert.equal(calls,2,'Expired status must not pretend a new code was sent');
@@ -99,8 +96,7 @@ async function main(){
       assert.equal(calls,before+1,'Each approved phone receives only its own setup code');
       assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).truck,'Truck 6');
       assert.match((await requestCrewPhoneSetup(digits,id)).message,/WhatsApp accepted/);
-      await assert.rejects(requestCrewPhoneSetup(digits,randomUUID()),/already requested/);
-      assert.equal(calls,before+1,'Each phone independently recovers and throttles without replay');
+      assert.equal(calls,before+1,'Each phone independently recovers without replay');
     }
     assert.match((await requestCrewPhoneSetup('5045550199',testId)).message,/not yet confirmed/,'Legacy test recipient remains enabled');
     approve({...multiPolicy,selfSetupTestRecipientNames:['Third manager']});

@@ -408,3 +408,19 @@ checked independently of the one allowed confirmation note. Outcome changes
 are rejected when an existing source outcome is recognized. Regression coverage
 includes closed jobs, closed estimates, discounted estimates, both save phases,
 lost final responses, stale notes, changed financial values and deleted notes.
+
+### Appointment note visibility
+
+Control shows the full appointment notes above closeout, retaining source date
+and author and keeping routine schedule moves in expandable history. A verified
+note save keeps the drawer and any closeout draft mounted. The schedule reads
+verified note receipts for the exact native appointment ID while collected note
+detail is older; it never replays writes or mutates the archive. These temporary
+entries label their verification time explicitly and expire after 24 hours. A
+newer appointment-detail notes observation takes precedence (including deletion);
+fast schedule timestamps alone cannot retire the receipt. The current collector
+captures notes and photos in the same detail read, so its per-appointment
+`photo_observed_at` supplies that observation time; batch `collection_timestamp`
+and failed detail reads cannot retire a receipt. Collected matching
+note text replaces the temporary entry without duplication. Note entry uses the
+source's 500-character limit.

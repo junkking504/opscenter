@@ -46,7 +46,7 @@ try {
  assert.equal(needsScheduleAddressVerification(job),true);
  assert.equal(planningLocation(address,{}),null,'Navigation evidence never becomes verified property evidence');
  assert.deepEqual(appointmentVisitPin(job)?.location,record.location,'Navigation confidence does not veto GPS operations');
- const now=Date.now(),parked={truck:'Truck 8',...record.location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[]};
+ const now=Date.now(),parked={truck:'Truck 8',...record.location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[0,1,2,3,4,5].map(i=>({...record.location,timestamp:new Date(now-(5-i)*60000).toISOString()}))};
  const visitJob={...job,appointmentId:'synthetic',truck:'Truck 8'};
  assert.equal(currentGpsPresence(visitJob,[parked],[visitJob],now)?.current,true);
  assert.equal(currentGpsJobLocation(visitJob,[parked],[visitJob],now)?.truck,'Truck 8');

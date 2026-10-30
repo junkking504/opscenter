@@ -1,3 +1,4 @@
+import {applyVerifiedAppointmentNotes, readVerifiedAppointmentNoteReceipts} from './verified-appointment-notes';
 import {readAddressMapFallback, type AddressMapFallback} from './address-map-fallback';
 import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { contestedLikelyStops, likelyGpsStop } from './likely-stop-match';
@@ -29,7 +30,7 @@ import { mergeScheduleOperationalStops, scheduleGpsHqStops, scheduleOperationalS
 import { applyRouteOrderConfirmations } from './schedule-route-order-confirmations';
 import { readTruckGpsRoute } from './desktop-gps-route';
 
-export type DesktopAppointment = JobRow & { likelyStop?: import('./likely-stop-match').LikelyStop; truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { likelyStop?: import('./likely-stop-match').LikelyStop; truckVisits?: ScheduleTruckVisit[]; truckVisitGaps?: ScheduleTruckVisitGap[]; recordId: string; mapFallback?: AddressMapFallback | null; mapAddress?: string; addressCheckPending?: boolean; addressCheckReason?: string; version: string; stopOrder?: number; visitOrder?: number; routeOrder?: number; routeAfterAppointmentId?: string; routeAfterLabel?: string; routePlacementMinutes?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; visitEvidencePending?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   approximate?: boolean;
   geometry?: Coordinates[];
@@ -60,7 +61,7 @@ export function readDesktopSchedule(date: string) {
   const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
   const visits = readScheduleVisits(date);
   const tracked = readVisitTrackingAgent(date);
-  const sourceAppointments = readJobRows(date);
+  const sourceAppointments = applyVerifiedAppointmentNotes(readJobRows(date), readVerifiedAppointmentNoteReceipts());
   const estimates = readSourceEstimates(sourceAppointments.map(job => job.sourceEstimateAppointmentId), date);
   const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
     const source = separateCancellationContact(rawSource);
@@ -89,9 +90,9 @@ export function readDesktopSchedule(date: string) {
   if (fleet.isToday) for (const job of appointments) {
     const presence = currentGpsPresence(job, fleet.trucks, appointments);
     const location = presence?.current ? undefined : currentGpsJobLocation(job, fleet.trucks, appointments);
-    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    if (presence?.current) Object.assign(job, { hasVisit: true, visitEvidencePending: false, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
     else if (location) Object.assign(job, { truckOnSite: false, onsiteTruck: undefined, truckAtJob: true, atJobTruck: location.truck, atJobGpsAt: location.observedAt, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
-    else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
+    else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, visitEvidencePending: false, truckOnSite: false, onsiteTruck: undefined, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
   for (const job of appointments) {
     job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);

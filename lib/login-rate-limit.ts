@@ -217,6 +217,11 @@ export function clearLoginFailures(
 export const LOGIN_RATE_LIMIT_WINDOW_MS = WINDOW_MS;
 export const LOGIN_RATE_LIMIT_MAX_FAILURES = MAX_FAILURES;
 
+/** Serialize unused-code replacement with redemption without changing guess counters. */
+export function withCrewPhoneEnrollmentLock<T>(operation: () => T): T {
+  return withStateLock(operation);
+}
+
 /** Six-digit setup codes share one durable guess limit across IPs and processes.
  * Reserve before checking; only a successful new binding resets the failures. */
 export function withCrewPhoneSetupLimit<T>(attempt: () => T, now = Date.now()): T {

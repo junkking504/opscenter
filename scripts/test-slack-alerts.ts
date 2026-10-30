@@ -529,7 +529,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     match_confidence: "confirmed",
     visit_intervals: [
       { arrival: "2026-08-12T18:06:15Z", departure: "2026-08-12T18:24:00Z" },
-      { arrival: "2026-08-12T18:41:09Z", departure: null },
+      { arrival: "2026-08-12T18:41:09Z", departure: null, source_timestamps: ["2026-08-12T18:41:09Z", "2026-08-12T18:46:09Z"] },
     ],
   },
   {
@@ -543,7 +543,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     match_confidence: "confirmed",
     visit_intervals: [
       { arrival: "2026-08-12T18:06:15Z", departure: "2026-08-12T18:24:00Z" },
-      { arrival: "2026-08-12T18:41:09Z", departure: null },
+      { arrival: "2026-08-12T18:41:09Z", departure: null, source_timestamps: ["2026-08-12T18:41:09Z", "2026-08-12T18:46:09Z"] },
     ],
   },
   {
@@ -787,6 +787,7 @@ try {
       visit_count: 1,
       match_confidence: "confirmed",
       first_arrival: "2026-08-12T18:47:43Z",
+      source_timestamps: ["2026-08-12T18:47:43Z", "2026-08-12T18:52:43Z"],
     }],
   }));
   const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });

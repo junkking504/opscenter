@@ -63,7 +63,8 @@ elif name=='ship.sh':
  'conflict':f'PR #{args[0]} has conflicts or is not mergeable yet',
  'gate':'review approval is missing; production was not changed',
  'stop':"Claude's review says stop (label claude-stop). Fix it or remove the label.",
- 'stale':'merge current production into the PR and review it first'}
+ 'stale':'merge current production into the PR and review it first',
+ 'behind':'PR must contain the active release'}
  if mode in reasons:
   print('ship stopped: '+reasons[mode],file=sys.stderr);sys.exit(1)
  if mode=='deploy-fails':print('Deploying abc1234');sys.exit(1)
@@ -94,7 +95,8 @@ class Fixture:
                         AUTO_SHIP_CONFIG_DIR=str(self.config),
                         AUTO_SHIP_WORKTREE=str(self.work),
                         AUTO_SHIP_DEPLOY_LOCK=str(self.root/'deploy-lock'),
-                        AUTO_SHIP_MIN_INTERVAL_SECONDS='3600')
+                        AUTO_SHIP_MIN_INTERVAL_SECONDS='3600',
+                        AUTO_SHIP_RETRY_SLEEP_SECONDS='0')
         self.processes = []
 
     def save(self):
@@ -168,6 +170,22 @@ class AutoShipTests(unittest.TestCase):
         self.assertNotIn('pr edit 99', f.effects())
         self.assertIn('pr edit 102', f.effects())
 
+    def test_production_moving_is_a_wait_not_a_failure(self):
+        for mode in ('behind','stale'):
+            with self.subTest(mode=mode):
+                f=self.fixture(queue=[110,111],modes={'110':mode})
+                f.run()
+                self.assertEqual(f.ships(), ['110','111'])
+                self.assertNotIn('pr edit 110', f.effects())
+                self.assertIn('pr edit 111', f.effects())
+                self.assertTrue(f.exists('last'))  # 111 shipped
+
+        f=self.fixture(queue=[110],modes={'110':'behind'})
+        f.run()
+        self.assertFalse(f.exists('last'))
+        self.assertFalse(f.exists('inflight'))
+        self.assertEqual(f.effects(), '')
+
     def test_all_waiting_and_empty_queue(self):
         for queue in ([],[92,102]):
             with self.subTest(queue=queue):
@@ -179,7 +197,7 @@ class AutoShipTests(unittest.TestCase):
                 self.assertEqual(f.effects(), '')
 
     def test_terminal_failures_stop_tick(self):
-        for mode in ('gate','stop','stale'):
+        for mode in ('gate','stop'):
             with self.subTest(mode=mode):
                 f=self.fixture(queue=[42,43],modes={'42':mode},state='OPEN')
                 f.run()
@@ -226,6 +244,8 @@ class AutoShipTests(unittest.TestCase):
         source=SOURCE.with_name('ship.sh').read_text()
         self.assertIn('has conflicts or is not mergeable yet',source)
         self.assertIn('checks pending or failing)',source)
+        self.assertIn('PR must contain the active release',source)
+        self.assertIn('merge current production into the PR and review it first',source)
         # Both wait refusals must remain before the merge operation.
         merge=source.index('gh pr merge')
         self.assertLess(source.index('has conflicts or is not mergeable yet'),merge)

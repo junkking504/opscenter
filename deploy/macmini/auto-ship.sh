@@ -13,11 +13,21 @@ STAMP="$CONFIG_DIR/auto-ship.last"
 LOG="$CONFIG_DIR/auto-ship.log"
 LOCK="$CONFIG_DIR/auto-ship.lock"
 INFLIGHT="$CONFIG_DIR/auto-ship.inflight"
+RETRY_SLEEP="${AUTO_SHIP_RETRY_SLEEP_SECONDS:-3}"
 
 # Parse the entire function before refreshing the checkout containing this file.
 main() {
   mkdir -p "$CONFIG_DIR"
   log() { printf "%s\n" "$(date -u +%FT%TZ) $*" >> "$LOG"; }
+  # GitHub answers 5xx now and then. Retry bookkeeping calls before giving up.
+  gh_retry() {
+    local attempt
+    for attempt in 1 2 3; do
+      gh "$@" && return 0
+      (( attempt < 3 )) && sleep "$RETRY_SLEEP"
+    done
+    return 1
+  }
   [[ "$MIN_INTERVAL" == <-> ]] || { log "invalid cooldown seconds"; exit 1; }
   mkdir "$LOCK" 2>/dev/null || { log "scheduler lock exists or cannot be acquired; if persistent, reconcile $LOCK"; exit 0; }
   trap 'rmdir "$LOCK"' EXIT
@@ -63,8 +73,10 @@ PY
     output=$(deploy/macmini/ship.sh "$candidate" 2>&1) || rc=$?
     printf "%s\n" "$output" | tail -40 >> "$LOG"
     reason=$(printf "%s\n" "$output" | grep -E '^ship stopped:' | tail -1 || true)
-    # These are pre-merge refusals from ship.sh. No release was attempted.
-    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" ]]; then
+    # These are pre-merge refusals from ship.sh. No release was attempted, and
+    # each clears by itself: CI finishes, a conflict is resolved, or production
+    # moves and the branch is updated. Keep the label and the cooldown untouched.
+    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" || "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR and review it first" ]]; then
       log "PR #$candidate not ready yet: $reason"
       rm "$INFLIGHT"
       continue
@@ -73,7 +85,7 @@ PY
     # One terminal attempt per tick, including failures. Persist the cooldown
     # before remote bookkeeping; a failed label removal must not replay a PR.
     touch "$STAMP"
-    gh pr edit "$candidate" --remove-label "$LABEL" >/dev/null || { log "PR #$candidate label removal failed; reconcile $INFLIGHT"; exit 1; }
+    gh_retry pr edit "$candidate" --remove-label "$LABEL" >/dev/null || { log "PR #$candidate label removal failed; reconcile $INFLIGHT"; exit 1; }
     if (( rc == 0 )); then
       log "PR #$candidate shipped"
       gh pr comment "$candidate" --body "Auto-ship: merged and deployed. The controller's health check passed. $(git rev-parse --short origin/production)" >/dev/null \
@@ -81,7 +93,7 @@ PY
     else
       merged=$(gh pr view "$candidate" --json state --jq .state) || merged="UNKNOWN"
       log "PR #$candidate failed (status $rc, state $merged): ${reason:-see log}"
-      gh pr edit "$candidate" --add-label "ship-failed" >/dev/null || { log "PR #$candidate failure label failed; reconcile $INFLIGHT"; exit 1; }
+      gh_retry pr edit "$candidate" --add-label "ship-failed" >/dev/null || { log "PR #$candidate failure label failed; reconcile $INFLIGHT"; exit 1; }
       gh pr comment "$candidate" --body "Auto-ship stopped and removed the ready-to-ship label. ${reason:-Deployment did not finish.} PR state: $merged. Confirm the active release and controller log before retrying; a merged PR alone does not prove deployment or rollback. Log: auto-ship.log on Mission Control." >/dev/null \
         || log "PR #$candidate failure comment failed"
       # A failed release is safe to clear only when ship.sh explicitly refused

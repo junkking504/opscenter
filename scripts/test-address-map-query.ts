@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {approximateMapAddressQuery} from '../lib/address-map-query';
 import {osmMapAddressQuery,osmServiceAddressQuery,verifyOsmAddressFallback,verifyOsmServiceAddress} from '../lib/osm-service-address';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 
 const source='110A Northshore Cr, Slidell, 70458';
 assert.equal(approximateMapAddressQuery(source),'110A Northshore Cir, Slidell, 70458');

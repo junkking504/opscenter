@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {cleanServiceQuery,legacyServiceQuery,normalizeServiceAddress,serviceUnitIdentifiers,appointmentServiceAddress} from '../lib/service-address-format';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {ADDRESS_VERIFICATION_POLICY,cachedAddressVerification,verifyCensusAddress} from '../lib/desktop-address-verification';
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
 import {appointmentVisitPin} from '../lib/appointment-visit-pin';

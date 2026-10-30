@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {buildFleetMapPayload} from './fleet-map';
 import {readJobRows} from './desktop-schedule-source';
-import {readAddressMapFallback} from './address-map-fallback';
+import {readAddressEvidenceFallback} from './address-map-fallback';
 import {planningLocation} from './planning-geocodes';
 import {reconcileAppointmentPositions} from './appointment-position-tracking';
 import {readGeofenceEntries} from './linxup-geofence-alerts';
@@ -17,7 +17,7 @@ export function readVisitTrackingAgent(date: string) {
   const root=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
   let pins: Record<string,Record<string,unknown>> = {};
   try { pins=JSON.parse(fs.readFileSync(path.join(root,'cache','appointment_geocodes.json'),'utf8')).addresses || {}; } catch { /* Approximate evidence remains separate from this verified cache. */ }
-  const locations = readJobRows(date).map(job=>({appointmentId:job.appointmentId,jkNumber:job.jkNumber,location:planningLocation(job.address,pins),mapFallback:readAddressMapFallback(job.address)}));
+  const locations = readJobRows(date).map(job=>({appointmentId:job.appointmentId,jkNumber:job.jkNumber,location:planningLocation(job.address,pins),mapFallback:readAddressEvidenceFallback(job.address)}));
   const appointmentVisits = reconcileAppointmentPositions(trackAppointmentVisits(date,appointments.visits),locations,fleet?.trucks || []);
   return {agentId:VISIT_TRACKING_AGENT,date,
     visits:[...geofences.trackedVisits,...appointmentVisits],

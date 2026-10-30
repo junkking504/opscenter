@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {verifyDesktopAddress, cachedAddressVerification} from '../lib/desktop-address-verification';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
 
 async function main() {

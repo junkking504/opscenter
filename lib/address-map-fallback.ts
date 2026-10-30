@@ -11,6 +11,7 @@ import {osmMapAddressQuery} from './osm-service-address';
 import {geocodioAddressQuery} from './geocodio-service-address';
 import {approximateMapAddressQuery} from './address-map-query';
 import {gpsDistanceMeters} from './gps-presence-policy';
+import {ZIP_CENTERS} from './zip-centers';
 
 /** Map evidence retains its confidence label when used for navigation or GPS matching. */
 export type AddressMapFallback = {
@@ -23,6 +24,8 @@ export type AddressMapFallback = {
   /** Legacy stored metadata; operational eligibility is decided from coordinates. */
   visitEligible?:false;
   navigationReviewed?:true;
+  /** Last-resort ZIP-area center: travel/map estimate only, not a property pin. */
+  zipArea?:true;
 };
 type Candidate = {house:string;street:string;city:string;state:string;zip:string;latitude:number;longitude:number;source:string;sourceUrl:string;precision:string;confidence?:number;rooftop?:boolean;streetOnly?:boolean;bounds?:number[];streetZipCorroborated?:boolean};
 type CachedCandidate = Candidate & {stale:boolean};
@@ -167,7 +170,7 @@ function usableOsmStreetPoint(row:any) {
 
 /** Reuse evidence from the already approved, rate-limited lookups. No new
  * provider calls, credentials, quota, paid requests or inferred coordinates. */
-export function readAddressMapFallback(address:string,now=Date.now()):AddressMapFallback|null {
+export function readAddressEvidenceFallback(address:string,now=Date.now()):AddressMapFallback|null {
   if(propertyNameSearch(address))return null;
   const root=process.env.OPSCENTER_DATA_DIR||process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw/workspace/opsbot/data');
   const reviewed=readReviewedAddressNavigation(address,root,now);
@@ -269,4 +272,20 @@ export function readAddressMapFallback(address:string,now=Date.now()):AddressMap
   if(new Set(exactStreetCenters.map(row=>JSON.stringify([normalize(row.street),normalize(row.city),row.zip,row.latitude,row.longitude]))).size===1)
     candidates.push(...exactStreetCenters);
   return bestCandidate(address,candidates);
+}
+export function readAddressMapFallback(address:string,now=Date.now()):AddressMapFallback|null {
+  if(propertyNameSearch(address))return null;
+  return readAddressEvidenceFallback(address,now)||zipAreaFallback(address);
+}
+/** Last resort when no provider evidence matches: the source ZIP's center keeps
+ * the map and travel estimates useful. Labeled as a ZIP-area estimate, never
+ * visit-eligible, and replaced as soon as any provider or verified match exists. */
+export function zipAreaFallback(address:string):AddressMapFallback|null {
+  if(serviceStreetCandidates(mapAddress(address)).length!==1)return null;
+  const zip=address.match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1];
+  const center=zip&&Object.hasOwn(ZIP_CENTERS,zip)?ZIP_CENTERS[zip]:null;
+  if(!zip||!center)return null;
+  return {location:{latitude:center[0],longitude:center[1]},matchedAddress:`ZIP ${zip} area`,source:'ZIP area center',sourceUrl:'https://geocoding.geo.census.gov/',stale:false,
+    visitEligible:false,zipArea:true,
+    detail:`ZIP-area estimate. The street address could not be matched yet, so this is the center of ZIP ${zip}; travel times are rough. Address lookup continues automatically. Not used for arrival or departure detection.`};
 }

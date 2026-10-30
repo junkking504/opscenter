@@ -39,7 +39,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   if (JSON.stringify(values).length > (['closeout','customer'].includes(action)?64_000:10_000)) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
   if (action === 'call_ahead' && typeof values.called !== 'boolean') throw new Error('A call-ahead status is required.');
-  if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');
+  if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 500)) throw new Error('A note of 1 to 500 characters is required.');
   if (action === 'cancel' && (typeof values.reason !== 'string' || !values.reason.trim() || values.reason.length > 500)) throw new Error('A cancellation reason of 1 to 500 characters is required.');
   if (['closeout','classify'].includes(action) && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceVersion || ''))) throw new Error('A current JunkWare closeout source version is required.');
   if (values.assignCrew !== undefined && (action !== 'move' || typeof values.assignCrew !== 'boolean')) throw new Error('A valid crew assignment action is required.');

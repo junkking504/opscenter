@@ -64,6 +64,7 @@ type JobRow = {
   junkItems: string[];
   pickupItems?: string[];
   appointmentNotes: string[];
+  appointmentNotesObservedAt?: string;
   cancellationReason: string;
 };
 
@@ -737,6 +738,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     junkItems: junkItemKeywords(row),
     pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
+    appointmentNotesObservedAt: Array.isArray(row.appointment_notes) ? String(row.collection_timestamp || '') : undefined,
     cancellationReason: cancellationReasonText(
       firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
       customerName,
@@ -1052,6 +1054,7 @@ function readJobRows(date: string): JobRow[] {
         junkItems: junkItemKeywords(sourceRow),
         pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
+        appointmentNotesObservedAt: Array.isArray(sourceRow.appointment_notes) ? String(sourceRow.collection_timestamp || '') : undefined,
         cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }
@@ -1111,6 +1114,8 @@ function mergeFastScheduleRows(
     const freshPhotos = fresh.photoAuditAvailable && Number.isFinite(Date.parse(fresh.photoObservedAt || ''))
       && Date.parse(fresh.photoObservedAt || '') >= (Date.parse(existing.photoObservedAt || '') || 0);
 
+    const freshNotes = (Date.parse(fresh.appointmentNotesObservedAt || '') >= (Date.parse(existing.appointmentNotesObservedAt || '') || 0) || (!existing.appointmentNotesObservedAt && !fresh.appointmentNotesObservedAt && fresh.appointmentNotes.length > 0));
+
     return [{
       ...existing,
       photos: freshPhotos ? fresh.photos : existing.photos,
@@ -1148,7 +1153,8 @@ function mergeFastScheduleRows(
       paymentAmount: fresh.paymentAmount || existing.paymentAmount,
       tipAmount: fresh.tipAmount || existing.tipAmount,
       pickupItems: fresh.pickupItems?.length ? fresh.pickupItems : existing.pickupItems,
-      appointmentNotes: fresh.appointmentNotes.length ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotes: freshNotes ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotesObservedAt: freshNotes ? fresh.appointmentNotesObservedAt : existing.appointmentNotesObservedAt,
       cancellationReason: fresh.cancellationReason || existing.cancellationReason,
     }];
   });

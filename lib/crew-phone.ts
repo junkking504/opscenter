@@ -8,7 +8,7 @@ export type CrewPhone = {
 };
 
 export class CrewPhoneError extends Error {
-  constructor(message: string, public readonly status = 400) { super(message); }
+  constructor(message: string, public readonly status = 400, public readonly canRequestNewCode?: boolean) { super(message); }
 }
 
 // Separate from inspection connections, employee payroll and manager sessions.

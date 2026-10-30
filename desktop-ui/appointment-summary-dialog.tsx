@@ -32,6 +32,8 @@ export function AppointmentSummaryDialog({job,date,close,openDetails,returnFocus
       {mismatch&&<p className="summary-warning">GPS confirmed · JunkWare says {truckDisplayText(mismatch.junkwareTruck)}</p>}
       {needsScheduleAddressVerification(job)&&<p className="summary-warning">Address needs verification · location may be approximate or unavailable</p>}
       {cancellation&&<p className="summary-warning">{cancellation}</p>}
+      {job.truckAtJob && <p className="summary-work"><strong>{truckDisplayText(job.atJobTruck || job.truck)} at job</strong>Parked report{job.atJobGpsAt && Number.isFinite(Date.parse(job.atJobGpsAt)) ? ` ${new Date(job.atJobGpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}` : ' · time unavailable'} · Arrival time and duration unconfirmed.</p>}
+      {job.visitEvidencePending && !job.hasVisit && !job.truckAtJob && <p className="summary-work"><strong>GPS visit unconfirmed</strong>Recorded proximity does not yet establish five minutes on site. The booked appointment remains scheduled.</p>}
       <p className="summary-work"><strong>Work</strong>{work.length>180?work.slice(0,180)+'…':work||'Work not recorded'}</p>
       <p className="summary-payment"><strong>{payment.label}</strong>{payment.amount&&<span>{payment.amount}</span>}{payment.balance&&<span>{payment.balance}</span>}{payment.details.map(detail=><small key={detail}>{detail}</small>)}</p>
       {(notes.length>0||sourceWork.length>180||sourceWork!==work)&&<details><summary>Request and notes</summary>{sourceWork&&<p>{sourceWork}</p>}{notes.map((note,index)=><p key={index}>{note}</p>)}</details>}

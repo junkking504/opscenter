@@ -1,3 +1,4 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import type {VisitPin} from './appointment-visit-pin';
 import {gpsDistanceMeters,validGpsCoordinates,GPS_MAX_POINT_GAP_MS} from './gps-presence-policy';
 import {createHash} from 'node:crypto';
@@ -178,7 +179,7 @@ export type AppointmentVisitSource = {
  */
 export function trackAppointmentVisits(date: string, visits: AppointmentVisitSource[], now = Date.now()): TrackedVisit[] {
   const candidates = new Map<string, TrackedVisit>();
-  for (const visit of visits) {
+  for (const visit of qualifiedAppointmentVisits(visits, '', now)) {
     if (visit.match_confidence !== 'confirmed' || visit.pass_by_only) continue;
     const reference = String(visit.jk_number || visit.job_id || '').toUpperCase();
     const truck = String(visit.truck_number || visit.truck || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';

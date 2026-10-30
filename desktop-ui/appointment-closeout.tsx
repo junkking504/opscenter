@@ -1,4 +1,5 @@
 "use client";
+import {crewCloseoutReferral, CREW_REFERRAL_UNAVAILABLE} from '../lib/crew-closeout-referral';
 import {isEstimateCloseoutOutcome} from '../lib/estimate-closeout-outcome';
 
 import SignaturePad from './signature-pad';
@@ -115,6 +116,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
   const gpsDefaults = useRef<Partial<Record<CloseoutTimeKey,string>>>({});
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
+  const crewReferral = crewMode ? crewCloseoutReferral(live?.howHeard) : undefined;
   // Only the selected office drawer prepares a read. Never share payloads across
   // appointments, schedule versions, days, transports, or mounted sessions.
   const preparation = useMemo(() => {
@@ -421,7 +423,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
     if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
-    if (completing && live.howHeard && !live.howHeard.value) { setError(crewMode ? 'The office must complete the customer referral information in JunkWare before checkout. Checkout has not been submitted.' : 'Choose how the customer heard about us.'); return; }
+    if (completing && live.howHeard && !(crewMode ? crewReferral?.value : live.howHeard.value)) { setError(crewMode ? CREW_REFERRAL_UNAVAILABLE : 'Choose how the customer heard about us.'); return; }
     if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
       const payment = { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() };
@@ -483,7 +485,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
           jobCategoryId: crewMode ? sourceBaseline.current?.jobCategory.value || '' : category === 'Estimate' ? '' : live.jobCategory.value,
-          ...(live.howHeard ? { howHeardId: crewMode ? sourceBaseline.current?.howHeard?.value || '' : live.howHeard.value } : {}),
+          ...(live.howHeard ? { howHeardId: crewMode ? crewReferral?.value || '' : live.howHeard.value } : {}),
           actualStartHour: live.actualStartHour.value,
           actualStartMinute: live.actualStartMinute.value,
           actualEndHour: live.actualEndHour.value,
@@ -610,6 +612,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
                 <div><span>Subtotal</span><strong>{money(totals!.subtotal)}</strong></div><div><span>Discount</span><strong>−{money(Number(inputMoney(live.discount)))}</strong></div><div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div><div className="closeout-review-total"><span>Total{totals!.estimated ? ' (estimated)' : ''}</span><strong>{money(totals!.total)}</strong></div>
               </div>
               <div className="closeout-review-facts">{live.payments.map((payment,index)=><div key={index}><span>Already recorded · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
+              {crewReferral?.defaulted && <p>How heard: {crewReferral.label} (office default; no customer referral was recorded).</p>}
               <p>{addPayment ? `${billing?'Billed receivable to record':'Payment to record'}: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · ${money(Number(inputMoney(paymentAmount)))}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p>
               {billing && <p><strong>Payment remains owed.</strong> This entry records no collected money and does not charge a card.{category==='Estimate'?' This remains an estimate quote, not job revenue.':' Completed job revenue is counted once; collecting it later does not add revenue again.'}</p>}
               {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} ${billing?'remains unbilled':'remains after this entry'}`}</strong><p>{billing?'Unbilled amount':'Draft balance'} {money(draftBalance-(billing?recordedBilling:0))} · {billing?'Billed amount entered':'Payment entered'} {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}

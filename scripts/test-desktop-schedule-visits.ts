@@ -4,18 +4,18 @@ import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-sch
 import { appointmentStatus, scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 import { dedupeLinkedAppointmentVisitState } from '../lib/linked-appointment-visit-dedup';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, recordedOnsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasVisit,truckOnSite} = fullScheduleVisitState(...args); return {hasVisit,truckOnSite}; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const location = { latitude: 29.97, longitude: -90.07 };
 const routePoints = [0,1,2,3].map(i => ({...location,timestamp:new Date(Date.parse(recent)-(3-i)*60_000).toISOString()}));
 const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent, ...location, routePoints }];
 const job = { appointmentId: '1234', truck: 'Truck# 4', location };
-const visit = { appointment_id: '1234', jk_number: 'JK4000001', truck_number: 'Truck 4', match_confidence: 'confirmed', visit_count: 1, first_arrival: '2026-09-06T15:50:00Z', visit_intervals: [{ arrival: '2026-09-06T15:50:00Z', departure: null }] };
+const visit = { appointment_id: '1234', jk_number: 'JK4000001', truck_number: 'Truck 4', match_confidence: 'confirmed', visit_count: 1, first_arrival: '2026-09-06T15:50:00Z', visit_intervals: [{ arrival: '2026-09-06T15:50:00Z', departure: null, source_timestamps: ['2026-09-06T15:50:00Z','2026-09-06T15:55:00Z'] }] };
 const active = scheduleVisitState(job, [visit], recent, trucks, now);
 assert.deepEqual(active, { hasVisit: true, truckOnSite: true });
 assert.equal(scheduleStatusTone({ status: 'Confirmed', ...active }), 'on-site');
-assert.equal(appointmentStatus({ status: 'Confirmed', appointmentType: 'Job', truckAtJob: true }), 'At Job');
+assert.equal(appointmentStatus({ status: 'Confirmed', appointmentType: 'Job', truckAtJob: true }), 'At job · parked GPS');
 assert.equal(scheduleStatusTone({ status: 'Confirmed', truckAtJob: true }), 'at-job');
 assert.equal(appointmentStatus({ status: 'Completed', appointmentType: 'Job', truckAtJob: true }), 'Completed','Source completion remains distinct from the current truck-location note');
 assert.equal(scheduleStatusTone({ status: 'Completed', ...active }), 'completed');
@@ -88,7 +88,7 @@ const returned = { ...ledger, visit_intervals: [
   { arrival: visit.first_arrival, departure: '2026-09-06T15:55:00Z' },
   { arrival: '2026-09-06T15:59:00Z', departure: null },
 ] };
-assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, true, 'A fresh return position counts without new dwell');
+assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, false, 'Each return must qualify independently');
 assert.equal(fullScheduleVisitState(job, [returned], recent, [{ ...trucks[0], lastGpsUpdate: '2026-09-06T15:58:00Z' }], now).truckOnSite, false, 'An older fix cannot validate a later return arrival');
 console.log('GPS versus ledger passed: away, stale, missing/invalid, parked, return visits, and immutable history.');
 
@@ -104,9 +104,9 @@ assert.equal(scheduleStatusTone({status:'Confirmed',hasVisit:true,hasDepartedVis
 const nearStop = { ...parked, routePoints:[{...location,timestamp:'2026-09-06T15:58:31Z',speed:1,ignition:'ON'}] };
 const shortVisit = {...visit,first_arrival:'2026-09-06T15:58:31Z',visit_intervals:[{arrival:'2026-09-06T15:58:31Z',departure:null}]};
 const retained = fullScheduleVisitState(job,[shortVisit],new Date(now+25*60_000).toISOString(),[nearStop],now+25*60_000);
-assert.equal(retained.truckOnSite,true,'A 1 mph arrival followed by nearby engine shutdown remains on site between hourly reports');
+assert.equal(retained.truckOnSite,false,'A 1 mph arrival followed by nearby engine shutdown does not establish five-minute dwell from hourly reports alone');
 assert.equal(retained.hasDepartedVisit,false);
-assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...retained}),'On Site');
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...retained}),'Confirmed');
 
 const duplicatedVisit = {minutes:27.5,arrival:'2026-09-26T14:36:45Z',departure:'2026-09-26T15:04:14Z',label:'27.5 min',truck:'Truck 2'};
 const linked = dedupeLinkedAppointmentVisitState([
@@ -125,6 +125,6 @@ assert.equal(distinct[0].hasVisit,true,'Distinct estimate and job visits remain 
 // A confirmed single-point arrival and departure is evidence independent of pin label.
 const pointOnly = {...visit, first_arrival:recent, final_departure:recent, visit_intervals:[{arrival:recent,departure:recent,departure_confirmed:true}]};
 const pointState = fullScheduleVisitState(job,[pointOnly],recent,[],now);
-assert.equal(pointState.hasVisit,true);
-assert.equal(pointState.hasDepartedVisit,true);
-assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...pointState}),'Visited · Closeout Pending');
+assert.equal(pointState.hasVisit,false);
+assert.equal(pointState.hasDepartedVisit,false);
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...pointState}),'Confirmed');

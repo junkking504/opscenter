@@ -28,3 +28,20 @@
 .ops-login-shell[data-waypoint-login] :is(.ops-field,.ops-login-button):focus-visible { outline: 2px solid #b51234; outline-offset: 3px; }
 .ops-login-shell[data-waypoint-login] .ops-login-button { font-weight: 600; letter-spacing: 0; text-transform: none; box-shadow: none; }
 .ops-login-shell[data-waypoint-login] .ops-login-footnote { margin-top: 24px; white-space: normal; overflow-wrap: anywhere; }
+
+[data-waypoint-login] .waypoint-login-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 16px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-waypoint-login] .waypoint-login-back:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 8px;
+}

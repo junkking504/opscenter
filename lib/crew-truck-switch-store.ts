@@ -4,7 +4,8 @@ import {randomUUID} from 'node:crypto';
 import {CrewPhoneError,type CrewPhoneDay} from './crew-phone';
 import type {CrewDispatch} from './crew-dispatch';
 
-export type TruckSwitch = {schema:1;requestId:string;deviceId:string;date:string;from:string;to:string;day:CrewPhoneDay;sourceDispatch:CrewDispatch;targetDispatch:CrewDispatch;fingerprint:string;createdAt:string;updatedAt:string;status:'moving'|'attention'|'complete';message:string;jobs:Array<{appointmentId:string;version:string;requestId:string;state:'pending'|'verified';start?:number;end?:number}>};
+export type CompletedSwitchAssignment = {appointmentId:string;recordId:string;assignmentId:string;releasedAt:string;version:string};
+export type TruckSwitch = {schema:1;requestId:string;deviceId:string;date:string;from:string;to:string;day:CrewPhoneDay;sourceDispatch:CrewDispatch;completedCurrent?:CompletedSwitchAssignment;targetDispatch:CrewDispatch;fingerprint:string;createdAt:string;updatedAt:string;status:'moving'|'attention'|'complete';message:string;jobs:Array<{appointmentId:string;version:string;requestId:string;state:'pending'|'verified';start?:number;end?:number}>};
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const root=()=>path.join(process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'crew-phones'),'truck-switches');
 export function readTruckSwitch(id:string):TruckSwitch|null {
@@ -21,7 +22,7 @@ export function assertTruckNotSwitching(truck:string,allowedId?:string){
  if(truckSwitches().some(s=>s.status!=='complete' && s.requestId!==allowedId && (s.from===truck || s.to===truck)))throw new CrewPhoneError('This truck switch is still being verified. Open Switch truck to check its progress.',409);
 }
 export function assertAppointmentNotSwitching(id:string,actor?:string){
- if(truckSwitches().some(s=>s.status!=='complete' && actor!==`waypoint-switch:${s.requestId}` && s.jobs.some(j=>j.appointmentId===id)))throw new CrewPhoneError('This appointment is part of a truck switch. Check the switch before changing this job.',409);
+ if(truckSwitches().some(s=>s.status!=='complete' && actor!==`waypoint-switch:${s.requestId}` && (s.jobs.some(j=>j.appointmentId===id) || s.completedCurrent?.appointmentId===id)))throw new CrewPhoneError('This appointment is part of a truck switch. Check the switch before changing this job.',409);
 }
 export function writeTruckSwitch(value:TruckSwitch){
  fs.mkdirSync(root(),{recursive:true,mode:0o700});const file=path.join(root(),`${value.requestId}.json`),temp=`${file}.${randomUUID()}.tmp`;

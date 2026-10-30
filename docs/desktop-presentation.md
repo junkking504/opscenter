@@ -256,7 +256,8 @@ Primary-action audit (one foreground action per active workflow):
 
 | Screen / active workflow | Filled red action | Other actions |
 | --- | --- | --- |
-| Dashboard updates | Review WhatsApp photos | Alert and record actions neutral |
+| Dashboard updates, queue closed | Review WhatsApp photos | Alert and record actions neutral |
+| Dashboard photo queue / inline assignment | Assign and upload photo when a photo is selected | Hide photo queue is neutral while open; inspect, filters and record actions neutral |
 | Command board / calendar / follow-up / history | New | Board controls, Map and source links neutral |
 | Command appointment workflow | New remains behind the modal; booking confirmation is the active workflow | Secondary editor entry points neutral |
 | Krewe overview / pay / monthly | None: record review is the task | Roster and review controls neutral; saves are local to their editor |

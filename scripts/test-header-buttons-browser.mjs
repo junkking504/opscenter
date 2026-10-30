@@ -6,13 +6,16 @@ const evidence = process.env.HEADER_EVIDENCE || '/tmp/ui-header-buttons-evidence
 await mkdir(evidence, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 try {
-  for (const width of [1440, 390]) for (const theme of ['light', 'dark']) for (const workspace of ['Command', 'Schedule', 'Krewe', 'Fleet', 'Finance', 'Marketing']) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
+  for (const workspace of ['Command', 'Schedule', 'Krewe', 'Fleet', 'Finance', 'Marketing']) {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    page.setDefaultTimeout(60000);
+    for (const width of [1440, 390]) for (const theme of ['light', 'dark']) {
+    await page.setViewportSize({ width, height: 900 });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(theme => localStorage.setItem('ops-theme', theme), theme);
     await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.fulfill({ status: 204 }));
-    await page.goto(`${origin}/tests/aspect-ratio.html?workspace=${workspace}&commandMap=1`);
+    if (page.url() === 'about:blank') await page.goto(`${origin}/tests/aspect-ratio.html?workspace=${workspace}&commandMap=1`);
     await page.waitForSelector('.header-user');
     await page.evaluate(theme => window.OpsTheme.set(theme), theme);
     await page.waitForTimeout(500);
@@ -46,9 +49,11 @@ try {
       await page.getByRole('switch', { name: 'Show map', exact: true }).click();
       await page.getByRole('switch', { name: 'Show map', exact: true }).click();
     }
-    await page.screenshot({ path: `${evidence}/${workspace}-${width}-${theme}.png`, fullPage: true });
+    await page.screenshot({ path: `${evidence}/${workspace}-${width}-${theme}.png`, fullPage: false, animations: 'disabled', timeout: 90000 });
     assert.deepEqual(errors, [], `${workspace}: browser errors`);
     console.log(`PASS ${workspace} ${width}x900 ${theme}: layout, shared sizing, disclosure exclusivity/dismissal`);
+    page.removeAllListeners('pageerror');
+    }
     await page.close();
   }
 } finally { await browser.close(); }

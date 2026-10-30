@@ -48,6 +48,9 @@ elif name=='git':
  elif args[0]=='checkout':
   if settings.get('checkout_fail'):sys.exit(2)
  elif args[0]=='rev-parse':print('abc1234')
+ elif args[0]=='ls-remote':
+  if settings.get('ls_remote_fail'):sys.exit(2)
+  print(('def5678' if (root/'merged').exists() else 'abc1234')+'\trefs/heads/production')
  else:sys.exit(98)
 elif name=='ship.sh':
  (root/'entered').touch()
@@ -67,8 +70,9 @@ elif name=='ship.sh':
  'behind':'PR must contain the active release'}
  if mode in reasons:
   print('ship stopped: '+reasons[mode],file=sys.stderr);sys.exit(1)
- if mode=='deploy-fails':print('Deploying abc1234');sys.exit(1)
- if mode=='crash':sys.exit(9)
+ if mode=='deploy-fails':(root/'merged').touch();print('Deploying abc1234');sys.exit(1)
+ if mode=='crash':(root/'merged').touch();sys.exit(9)
+ if mode=='flaky':print('GraphQL: 504 Gateway Timeout',file=sys.stderr);sys.exit(1)
  print('Deployed abc1234')
 '''
 
@@ -201,12 +205,32 @@ class AutoShipTests(unittest.TestCase):
             with self.subTest(mode=mode):
                 f=self.fixture(queue=[42,43],modes={'42':mode},state='OPEN')
                 f.run()
-                self.assertEqual(f.ships(), ['42'])
-                self.assertTrue(f.exists('last'))
+                # Nothing was merged: the author is told, no cooldown starts,
+                # and the next PR in the queue is still tried.
+                self.assertEqual(f.ships(), ['42','43'])
                 self.assertFalse(f.exists('inflight'))
                 self.assertIn('--add-label ship-failed',f.effects())
-                self.assertIn('PR state: OPEN',f.effects())
-                self.assertNotIn('merged and deployed',f.effects())
+                self.assertIn('Nothing was merged or deployed',f.effects())
+
+    def test_refusal_alone_does_not_start_cooldown(self):
+        for mode in ('gate','stop'):
+            with self.subTest(mode=mode):
+                f=self.fixture(queue=[42],modes={'42':mode},state='OPEN')
+                f.run()
+                self.assertEqual(f.ships(), ['42'])
+                self.assertFalse(f.exists('last'))
+                self.assertFalse(f.exists('inflight'))
+                self.assertIn('--add-label ship-failed',f.effects())
+
+    def test_transient_error_before_merge_is_retried_quietly(self):
+        f=self.fixture(queue=[42],modes={'42':'flaky'},state='OPEN')
+        f.run()
+        self.assertEqual(f.ships(), ['42'])
+        self.assertFalse(f.exists('last'))
+        self.assertFalse(f.exists('inflight'))
+        self.assertEqual(f.effects(), '')
+        f.run()
+        self.assertEqual(f.ships(), ['42','42'])
 
     def test_uncertain_failed_release_blocks_later_ticks_after_cooldown(self):
         # Reproduce the missed case: a failed deployment may already be merged
@@ -258,7 +282,9 @@ class AutoShipTests(unittest.TestCase):
                 blocked=failed in ('remove_fail','add_fail','view_fail')
                 f.run(1 if blocked else 0)
                 self.assertEqual(f.exists('inflight'),blocked)
-                self.assertTrue(f.exists('last'))
+                # A refusal before merging starts no cooldown. Only the
+                # unreadable-state case falls back to the cautious path.
+                self.assertEqual(f.exists('last'),failed=='view_fail')
                 if failed=='view_fail':
                     self.assertIn('PR state: UNKNOWN', f.effects())
                 if blocked:

@@ -69,6 +69,7 @@ PY
     print -r -- "PR #$candidate started $(date -u +%FT%TZ); reconcile before removing this file" > "$INFLIGHT"
     # `status` is read-only in zsh. Capture failures without disabling errexit
     # for bookkeeping, and keep the marker if we cannot finish bookkeeping.
+    before=$(git ls-remote origin refs/heads/production 2>/dev/null | cut -f1) || before=""
     rc=0
     output=$(deploy/macmini/ship.sh "$candidate" 2>&1) || rc=$?
     printf "%s\n" "$output" | tail -40 >> "$LOG"
@@ -80,6 +81,28 @@ PY
       log "PR #$candidate not ready yet: $reason"
       rm "$INFLIGHT"
       continue
+    fi
+
+    # If production did not move and the PR is still open, ship.sh stopped before
+    # merging and no release was attempted. That is safe to retry and must not
+    # start the cooldown, whether ship.sh named a reason or GitHub just failed.
+    if (( rc != 0 )) && [[ -n "$before" ]]; then
+      after=$(git ls-remote origin refs/heads/production 2>/dev/null | cut -f1) || after=""
+      pre_state=$(gh pr view "$candidate" --json state --jq .state 2>/dev/null) || pre_state="UNKNOWN"
+      if [[ "$after" == "$before" && "$pre_state" == "OPEN" ]]; then
+        if [[ -z "$reason" ]]; then
+          log "PR #$candidate stopped before merging without a reason; will retry"
+          rm "$INFLIGHT"
+          continue
+        fi
+        log "PR #$candidate refused before merging: $reason"
+        gh_retry pr edit "$candidate" --remove-label "$LABEL" >/dev/null || { log "PR #$candidate label removal failed; reconcile $INFLIGHT"; exit 1; }
+        gh_retry pr edit "$candidate" --add-label "ship-failed" >/dev/null || { log "PR #$candidate failure label failed; reconcile $INFLIGHT"; exit 1; }
+        gh pr comment "$candidate" --body "Auto-ship stopped and removed the ready-to-ship label. $reason Nothing was merged or deployed. Fix the cause and add the label again. Log: auto-ship.log on Mission Control." >/dev/null \
+          || log "PR #$candidate failure comment failed"
+        rm "$INFLIGHT"
+        continue
+      fi
     fi
 
     # One terminal attempt per tick, including failures. Persist the cooldown

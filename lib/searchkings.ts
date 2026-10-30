@@ -396,7 +396,10 @@ export function normalizeSearchKingsTerritory(value: unknown): string {
 }
 
 function territoryForAccount(account: SearchKingsAccount): string {
-  return normalizeSearchKingsTerritory(account.name);
+  // This search account's market coverage is unconfirmed. Keep its spend in
+  // totals but outside any individual territory's efficiency calculations.
+  return account.type === 'adwords' && account.name === 'Junk King New Orleans (SK)'
+    ? 'Search Ads (All Markets)' : normalizeSearchKingsTerritory(account.name);
 }
 
 function territoryForCall(call: SearchKingsCall): string {

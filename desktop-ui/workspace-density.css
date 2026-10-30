@@ -126,12 +126,12 @@
 .ops-live .campaign-eyebrow { font-size: var(--oc-type-8); line-height: 1.2; }
 .ops-live .campaign-workspace label { gap: 4px; font-size: var(--oc-type-10); }
 .ops-live .campaign-workspace :is(input:not([type=checkbox]), select, textarea) { padding: 5px 8px; font-size: var(--oc-type-11); border-radius: 5px; }
-.ops-live .campaign-workspace :is(select, input:not([type=checkbox])) { min-height: 28px; height: 28px; }
-.ops-live .campaign-workspace button[data-slot=button] { min-height: 28px; height: 28px; padding: 3px 8px; font-size: var(--oc-type-11); }
+.ops-live .campaign-workspace :is(select, input:not([type=checkbox])) { min-height: 32px; height: 32px; }
+.ops-live .campaign-workspace button[data-slot=button] { min-height: 32px; height: 32px; padding: 3px 8px; font-size: var(--oc-type-11); }
 .ops-live .campaign-filters, .ops-live .campaign-filter-pair { gap: 6px; }
 .ops-live .campaign-search svg { top: 7px; left: 8px; width: 14px; height: 14px; }
 .ops-live .campaign-search input { padding-left: 28px !important; }
-.ops-live .campaign-queue-tabs button { min-height: 28px; padding: 4px 6px; font-size: var(--oc-type-10); }
+.ops-live .campaign-queue-tabs button { min-height: 32px; padding: 4px 6px; font-size: var(--oc-type-10); }
 .ops-live .campaign-more-filters { font-size: var(--oc-type-10); }
 .ops-live .campaign-more-filters summary { padding: 2px 0; }
 .ops-live .campaign-more-filters .campaign-filter-pair { margin-top: 4px; }

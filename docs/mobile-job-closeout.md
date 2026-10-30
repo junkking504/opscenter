@@ -1249,3 +1249,8 @@ does not reset the shared eight-failure code-guess limit. One request ID reserve
 and sends once; concurrent different IDs cannot bypass the reservation or daily
 cap. No automatic sends or retries were added. Approved recipient scope, provider,
 monthly spend and attempt ceilings are unchanged. Tests use synthetic providers.
+
+Waypoint manager sign-in includes a visible **Back to Waypoint** link to
+`/crew-jobs`, including direct entry and failed-login pages. It does not submit the
+form, sign out, change cookies, clear local drafts, or grant manager access. The
+fixed destination works in the installed app without relying on browser history.

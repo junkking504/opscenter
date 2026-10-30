@@ -69,7 +69,7 @@ async function main(){
   await page.getByLabel('Record payment or Billed',{exact:true}).check();await page.getByRole('radio',{name:'Credit Card',exact:true}).check();await expect(page.getByLabel('Payment amount',{exact:true})).toHaveValue('420.00');await page.getByLabel('Card last four',{exact:false}).fill('1234');
   if(width===390)await page.screenshot({path:'/tmp/crew-closeout-payment.png',fullPage:true});
   await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
-  if(process.env.CLOSEOUT_RESULT==='missing-referral'){await expect(page.getByText('The office must complete the customer referral information in JunkWare before checkout. Checkout has not been submitted.',{exact:true})).toBeVisible();assert.equal(posts,0);assert.equal(photoPosts,0);await context.close();console.log('PASS missing referral: visible before submission, no uploads or checkout POST');continue;}
+  if(process.env.CLOSEOUT_RESULT==='missing-referral'){await expect(page.getByText('The office must review the missing referral information in JunkWare. The Saw Trucks/Company Vehicle option is unavailable or ambiguous. Checkout has not been submitted.',{exact:true})).toBeVisible();assert.equal(posts,0);assert.equal(photoPosts,0);await context.close();console.log('PASS missing referral: visible before submission, no uploads or checkout POST');continue;}
   await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
   await page.screenshot({path:`/tmp/crew-closeout-${width}.png`,fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No overflow ${width}`);

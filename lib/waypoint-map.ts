@@ -15,6 +15,16 @@ export function hasMapLocation(row:WaypointMapAppointment):boolean {
  const p=row.location;
  return Boolean(p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180);
 }
+/** Group map points whose screen positions are within `minDistance` pixels so pins never overlap.
+ * Greedy and order-stable: a point joins the first group whose first member is close enough. */
+export function clusterByScreenDistance<T>(points:{x:number;y:number;item:T}[],minDistance:number):T[][] {
+ const groups:{x:number;y:number;items:T[]}[]=[];
+ for(const point of points){
+  const near=groups.find(group=>Math.hypot(group.x-point.x,group.y-point.y)<minDistance);
+  if(near)near.items.push(point.item);else groups.push({x:point.x,y:point.y,items:[point.item]});
+ }
+ return groups.map(group=>group.items);
+}
 function mapLabel(truck:string,status:string,position:number) {
  const number=truckNumber(truck),prefix=number===null?'U':`T${number}`;
  const state=waypointMapStatus(status);

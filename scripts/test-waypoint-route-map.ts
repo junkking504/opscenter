@@ -46,3 +46,13 @@ assert.equal(managed.filter(hasMapLocation).length,3);
 assert.equal(managed[2].location?.approximate,true,'Saved approximate coordinates are usable and labelled');
 assert.equal(managed[1].label,'T9✓');assert.equal(managed[2].label,'U×');
 console.log('Waypoint all-appointments map PASS: all supplied records, completed/cancelled/unassigned, fallback provenance, invalid locations, unchanged access scope.');
+
+import {clusterByScreenDistance} from '../lib/waypoint-map';
+{
+ const pts=[{x:0,y:0,item:'a'},{x:10,y:5,item:'b'},{x:200,y:0,item:'c'},{x:205,y:3,item:'d'},{x:400,y:400,item:'e'}];
+ assert.deepEqual(clusterByScreenDistance(pts,40),[['a','b'],['c','d'],['e']],'Pins closer than the gap share one group, in stable order');
+ assert.deepEqual(clusterByScreenDistance(pts,1),[['a'],['b'],['c'],['d'],['e']],'A tiny gap keeps every pin separate');
+ assert.deepEqual(clusterByScreenDistance([{x:5,y:5,item:'x'},{x:5,y:5,item:'y'}],40),[['x','y']],'Co-located pins always group');
+ assert.deepEqual(clusterByScreenDistance([],40),[]);
+ console.log('PASS Waypoint pin grouping: nearby pins share a count marker, distant pins stay separate, order is stable.');
+}

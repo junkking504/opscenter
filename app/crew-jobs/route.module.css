@@ -55,3 +55,9 @@
 .mapDirectory .otherJob { overflow-wrap:anywhere; }
 .marker.completedMarker { background:#35634d; }
 .marker.cancelledMarker { background:#626963; }
+
+.emptyRoute { display:grid; gap:2px; margin:12px 0; padding:12px 14px; border:1px solid #dfe3da; border-radius:10px; background:#f7f8f3; color:#58665e; font-size:14px; line-height:1.45; }
+.emptyRoute strong { color:#25312c; font-size:16px; }
+.mapKey { margin:8px 0; font-size:13px; color:#58665e; }
+.mapKey summary { min-height:32px; display:flex; align-items:center; font-weight:650; color:#25312c; cursor:pointer; }
+.mapKey ul { margin:4px 0 0; padding-left:18px; line-height:1.5; }

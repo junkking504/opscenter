@@ -36,7 +36,7 @@ try{
     await expect(page.getByRole('button',{name:'Retry access check'})).toBeVisible();await expect(page.getByRole('heading',{name:'Connect Your Phone'})).toHaveCount(0);
     await page.evaluate(()=>window.fixture.mode='ready');await page.getByRole('button',{name:'Retry access check'}).click();await expect(page.getByRole('button',{name:'Refresh setup'})).toBeVisible();
    }else if(scenario==='updates'){
-    await expect(page.getByRole('heading',{name:'Recent truck updates'})).toBeVisible();await expect(page.getByText('Appointment time or route order changed',{exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Recent Truck Updates'})).toBeVisible();await expect(page.getByText('Appointment time or route order changed',{exact:true})).toBeVisible();
     await expect(page.getByText('Opened from notification',{exact:true})).toBeVisible();
     await expect(page.getByText('Time changed: 8 AM → 10 AM',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Open JK101',exact:true}).click();await expect(page.getByRole('heading',{name:'Fictional Crew Customer',exact:true})).toBeVisible();
@@ -44,7 +44,7 @@ try{
     if(process.env.WAYPOINT_PUSH_SCREENSHOTS){await fs.promises.mkdir(process.env.WAYPOINT_PUSH_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_PUSH_SCREENSHOTS,'update-context-'+width+'.png'),fullPage:true});}
     await expect(page.getByRole('button',{name:'Crew workflow',exact:true})).toHaveAttribute('aria-pressed','true');
     await page.getByRole('button',{name:'Read office messages'}).click();await expect(page.getByText('Fictional office instruction',{exact:true})).toBeVisible();
-    await page.reload();await expect(page.getByRole('heading',{name:'Recent truck updates'})).toBeVisible();
+    await page.reload();await expect(page.getByRole('heading',{name:'Recent Truck Updates'})).toBeVisible();
    }else{
     await expect(page.getByRole('heading',{name:'Connect Your Phone'})).toBeVisible();
     await page.getByRole('button',{name:'Already have a code?'}).click();await page.getByLabel('Verification code',{exact:true}).fill('000000');

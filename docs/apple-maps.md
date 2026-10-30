@@ -21,8 +21,10 @@ website restriction is its scope boundary. No `NEXT_PUBLIC` or build-time token
 is used. Tokens may expire; record the chosen expiry in the private task packet
 and rotate before expiry. This change neither creates nor renews credentials.
 
-Disabled/missing configuration keeps OpenStreetMap. The original map renders
-while configuration/SDK loading is pending. A failed or timed-out SDK load or
+Disabled/missing configuration keeps OpenStreetMap. A neutral loading state is shown
+while configuration/SDK loading is pending; OpenStreetMap is not constructed or
+loaded underneath Apple Maps during refresh. Configuration request failures or
+timeouts also resolve to OpenStreetMap. A failed or timed-out SDK load or
 Apple configuration error returns to OpenStreetMap and labels that fallback.
 Only one SDK load is attempted per page. Authorization and runtime errors remain
 failed across component remounts, avoiding repeated counted map creation. The
@@ -71,7 +73,9 @@ runtime authorization failures, no retries after failure, and map layout. It is
 also included in the build checks.
 The fixture `desktop-ui/tests/apple-maps.html` exercises the real ScheduleMap
 against a synthetic SDK with known exact/approximate coordinates, selection,
-responsive width, theme and teardown. Existing GPS trip, heading and map-layout
+responsive width, theme and teardown. Add `?startup` for controlled configuration
+and SDK delays/failures, real Leaflet fallback teardown, and old-map tile counts
+without external provider requests. Existing GPS trip, heading and map-layout
 checks still apply. Check a live map, pin selection, truck follow, View Routes,
 manual pan/zoom, theme, attribution and fallback before reporting activation.
 
@@ -81,3 +85,31 @@ Sources: [Token setup](https://developer.apple.com/documentation/mapkitjs/creati
 ## Map navigation
 
 Vertical two-finger scrolling and mouse-wheel input zoom the embedded map around the pointer, including the control-wheel events browsers use for trackpad pinch. Native touch pinch and dragging remain enabled. Manual gestures pause truck following. The adapter removes its wheel listener when the map is destroyed.
+
+## Waypoint appointment map
+
+Waypoint's appointment map (Route overview) can show Apple Maps instead of
+OpenStreetMap. It is off by default and uses its own settings because Waypoint
+runs on `waypoint.junk-king.app`, not the office site the Command token is
+restricted to:
+
+- `OPSCENTER_WAYPOINT_APPLE_MAPS_ENABLED=1`
+- `OPSCENTER_WAYPOINT_APPLE_MAPS_TOKEN`: a MapKit JS **browser** token restricted
+  to `waypoint.junk-king.app` in Apple's portal. Store both in protected runtime
+  configuration outside Git. The office token and switch do not enable Waypoint.
+
+`GET /api/crew-jobs/maps` answers an enrolled Waypoint phone with the provider
+(and token only when enabled). Anyone else gets the usual phone-setup error and
+keeps OpenStreetMap. The manager view has no phone session, so it stays on
+OpenStreetMap. Middleware adds Apple's sources to the Content-Security-Policy on
+the Waypoint hosts only when the Waypoint switch is on. The other Waypoint
+hostnames (`CREW_JOBS_KINGPIN_ORIGIN`, `CREW_JOBS_LEGACY_ORIGIN`) share the
+policy but Apple rejects the token there, so they fall back to OpenStreetMap.
+
+Display only: same numbered pins, approximate (dashed) pins, grouped
+co-located appointments and fit-to-stops framing as the OpenStreetMap map. No
+Apple geocoding, search, directions or traffic calls. One SDK load per page; an
+authorization or load failure returns that page to OpenStreetMap. Usage is map
+views within Apple's included allowance; no paid capacity is authorized. Live
+rendering on a physical iPhone has not been checked until someone does so after
+activation.

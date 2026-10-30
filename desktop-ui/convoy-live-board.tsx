@@ -48,7 +48,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
   const counts = liveCounts(trucks, outIds);
   const totals = fleetDayTotals(trucks);
   const isToday = date === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(now);
-  const rank: Record<string, number> = { out_of_service: 0, service: 1, gps: 2, fuel: 3, inspection: 4, scheduled: 5 };
+  const rank: Record<string, number> = { out_of_service: 0, no_inspection: 0, service: 1, gps: 2, fuel: 3, inspection: 4, scheduled: 5 };
   const attention = [...attentionItems(snapshot, trucks, isToday), ...dueItems.filter(d => d.status === 'due').map(d => ({ key: `due:${d.key}`, kind: 'service' as const, truckId: d.truckId, truck: d.truck, title: `${d.serviceType} due`, detail: dueDetail(d) }))].sort((a, b) => rank[a.kind] - rank[b.kind]);
   const jobs = new Map(trucks.map(t => [t.id, appointments ? truckJobs(appointments, t.id, isToday, now) : null]));
   const stops = appointments ? [...jobs.values()].reduce((a, j) => ({ total: a.total + (j?.total || 0), done: a.done + (j?.done || 0) }), { total: 0, done: 0 }) : null;
@@ -58,6 +58,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
     ['Driving now', isToday ? counts.moving : '—', isToday ? `${counts.idle} idling · ${counts.parked} parked` : 'Live status shows for today', undefined],
     ['No GPS', isToday ? counts.offline : '—', 'Stale, offline or unavailable', undefined],
     ['Out of service', repairsKnown ? counts.out : '—', 'Active repairs', () => onFilter('stop')],
+    ['In Use, No Inspection', trucks.filter(t=>t.inspectionStatus==='In Use, No Inspection').length, 'Operating day inspection missing', () => onView?.('inspections')],
     ['Needs attention', attention.length, `${attention.filter(a => a.kind === 'out_of_service').length} critical`, undefined],
     stops ? ['Stops done', `${stops.done} / ${stops.total}`, `${money(totals.revenue)} revenue`, undefined] : ['Jobs', num(totals.jobs), `${money(totals.revenue)} revenue`, undefined],
     ['Miles driven', num(totals.miles), totals.idleMinutes == null ? 'Idle time not recorded' : `${num(totals.idleMinutes)} idle min`, undefined],
@@ -65,7 +66,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
   return <div className="clb">
     <div className="clb-tiles">{tiles.map(([title, value, detail, click]) => {
       const body = <><strong>{value}</strong><span>{title}</span><small>{detail}</small></>;
-      return click ? <button key={title} className="clb-tile" onClick={click}>{body}</button> : <div key={title} className="clb-tile">{body}</div>;
+      return click ? <button key={title} className={title === "In Use, No Inspection" ? "clb-tile convoy-critical-count" : "clb-tile"} onClick={click}>{body}</button> : <div key={title} className={title === "In Use, No Inspection" ? "clb-tile convoy-critical-count" : "clb-tile"}>{body}</div>;
     })}</div>
     {scheduleStale && appointments && <p className="clb-stale" role="status">Stop progress may be out of date: the schedule could not be refreshed.</p>}
     <div className="clb-main">
@@ -78,6 +79,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
           const statusText = isToday || live === 'out' ? groupLabel[group] : 'Historical day';
           return <button key={t.id} className={`clb-card ${group}`} onClick={() => onTruck(t.id)} aria-label={`${t.label}, ${statusText}. Open truck`}>
             <span className="clb-card-head"><Truck size={14} /><strong>{t.label.replace('Truck#', 'Truck')}</strong><span className={`clb-pill ${group}`}>{isToday || group === 'out' ? groupLabel[group] : 'History'}</span></span>
+            {t.inspectionStatus && <span className={`convoy-status ${t.inspectionStatus === 'In Use, No Inspection' ? 'stop' : ''}`}>{t.inspectionStatus}</span>}
             <small className="clb-where">{isToday ? t.operatingStatus : 'Historical record'}{isToday && typeof t.speed === 'number' && t.speed > 0 ? ` · ${Math.round(t.speed)} mph` : ''}{t.driver && t.driver !== '—' ? ` · ${t.driver}` : ''}</small>
             <Level label="Fuel" percent={t.fuel ? t.fuel.percent : null} />
             <Level label="Load" percent={t.loadNeedsVerification ? null : t.loadPercent} />
@@ -89,7 +91,7 @@ export function ConvoyLiveBoard({ snapshot, trucks, onTruck, onView, onFilter, d
       </section>
       <aside className="convoy-dash-panel clb-attention" aria-labelledby="clb-att-title">
         <header><h2 id="clb-att-title">Needs attention</h2><small>{attention.length ? `${attention.length} open` : 'All clear'}</small></header>
-        {attention.length ? <ul>{attention.slice(0, 8).map(a => <li key={a.key}><button onClick={() => { onTruck(a.truckId); if (a.kind === 'scheduled' || a.kind === 'service') onView?.('service'); else if (a.kind === 'out_of_service' || a.kind === 'inspection') onView?.('maintenance'); }}>
+        {attention.length ? <ul>{attention.slice(0, 8).map(a => <li key={a.key}><button onClick={() => { onTruck(a.truckId); if (a.kind === 'scheduled' || a.kind === 'service') onView?.('service'); else if (a.kind === 'out_of_service') onView?.('maintenance'); else if (a.kind === 'inspection' || a.kind === 'no_inspection') onView?.('inspections'); }}>
           <span className={`clb-dot ${a.kind}`}>{a.kind === 'fuel' ? <Fuel size={13} /> : <AlertTriangle size={13} />}</span>
           <span><strong>{a.truck} · {a.title}</strong><small>{a.detail}</small></span><ArrowRight size={12} /></button></li>)}</ul>
           : <p className="convoy-empty">Nothing is flagged from recorded repairs, GPS, fuel or inspections.</p>}

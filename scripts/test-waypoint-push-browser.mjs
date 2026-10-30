@@ -4,7 +4,7 @@ import {build} from 'esbuild';
 import {chromium,expect} from '@playwright/test';
 import {createECDH} from 'node:crypto';
 const key=createECDH('prime256v1');key.generateKeys();const publicKey=key.getPublicKey().toString('base64url');
-const result=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import './app/globals.css';import styles from './app/crew-jobs/phone-access.module.css';import shell from './components/waypoint-app.module.css';import Notifications from './app/crew-jobs/notifications';import Composer from './components/CrewMessageComposer';createRoot(document.getElementById('root')).render(location.pathname==='/composer'?<Composer truck="Truck 1"/>:<div className={shell.app}><div><main className={styles.page+" "+styles.connectedPage}><div className={styles.content}><button className={styles.secondary}>Refresh assignments</button><Notifications/><details className={styles.card}><summary>Truck &amp; phone</summary><h2>Today’s crew</h2><p>Synthetic crew</p><button className={styles.secondary}>Edit crew</button></details></div></main></div></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'out',format:'iife',define:{'process.env.NODE_ENV':'"test"'}});
+const result=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import './app/globals.css';import styles from './app/crew-jobs/phone-access.module.css';import shell from './components/waypoint-app.module.css';import Notifications from './app/crew-jobs/notifications';import Composer from './components/CrewMessageComposer';createRoot(document.getElementById('root')).render(location.pathname==='/composer'?<Composer truck="Truck 1"/>:<div className={shell.app}><div><main className={styles.page+" "+styles.connectedPage}><div className={styles.content}><button className={styles.secondary}>Refresh Assignments</button><Notifications/><details className={styles.card}><summary>Truck &amp; Phone</summary><h2>Today’s crew</h2><p>Synthetic crew</p><button className={styles.secondary}>Edit Crew</button></details></div></main></div></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'out',format:'iife',define:{'process.env.NODE_ENV':'"test"'}});
 const html=`<!doctype html><style>${result.outputFiles.find(file=>file.path.endsWith('.css'))?.text || ''}</style><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script>${result.outputFiles.find(file=>file.path.endsWith('.js')).text}</script>`;
 const browser=await chromium.launch({headless:true});
 try{
@@ -24,11 +24,11 @@ try{
   });
   await page.goto('https://waypoint.fixture/crew-jobs');
   await expect(page.getByText('No office messages for this truck today.')).toBeVisible();
-  const setup=await page.getByRole('region',{name:'Notification status',exact:true}).boundingBox(),inbox=await page.getByRole('region',{name:'Office messages',exact:true}).boundingBox();
+  const setup=await page.getByRole('region',{name:'Notification status',exact:true}).boundingBox(),inbox=await page.getByRole('region',{name:'Office Messages',exact:true}).boundingBox();
   assert.ok(inbox.y>=setup.y+setup.height+12,'Inbox is separated from notification setup');
-  for(const name of ['Enable notifications','Refresh messages'])assert.ok((await page.getByRole('button',{name,exact:true}).boundingBox()).height>=44,'Touch target remains at least 44px');
+  for(const name of ['Enable notifications','Refresh Messages'])assert.ok((await page.getByRole('button',{name,exact:true}).boundingBox()).height>=44,'Touch target remains at least 44px');
   if(process.env.WAYPOINT_PUSH_SCREENSHOTS){fs.mkdirSync(process.env.WAYPOINT_PUSH_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_PUSH_SCREENSHOTS,`notifications-off-empty-${width}.png`),fullPage:true});}
-  inboxMessages=[{id:'synthetic',body:'Synthetic office instruction for this truck.',created_at:new Date().toISOString()}];await page.getByRole('button',{name:'Refresh messages',exact:true}).click();
+  inboxMessages=[{id:'synthetic',body:'Synthetic office instruction for this truck.',created_at:new Date().toISOString()}];await page.getByRole('button',{name:'Refresh Messages',exact:true}).click();
   await expect(page.getByText('Synthetic office instruction for this truck.')).toBeVisible();assert.equal(await page.evaluate(()=>Number(localStorage.getItem('fixture-permission-calls'))),0,'No automatic permission prompt');
   await page.getByRole('button',{name:'Enable notifications',exact:true}).click();await expect(page.getByRole('status')).toContainText('Notifications enabled');assert.equal(subscriptions,1);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('fixture-permission-calls'))),1);
   // A new daily phone session keeps browser permission and subscription but needs a new server binding.
@@ -41,7 +41,7 @@ try{
   await expect(page.getByRole('button',{name:'Disable notifications',exact:true})).toHaveCount(0);
   failRestore=true;await page.reload();await expect(page.getByRole('alert')).toContainText('Office messages are up to date. Notifications could not reconnect');await expect(page.getByText('Synthetic office instruction for this truck.')).toBeVisible();
   if(process.env.WAYPOINT_PUSH_SCREENSHOTS)await page.screenshot({path:path.join(process.env.WAYPOINT_PUSH_SCREENSHOTS,`notifications-error-${width}.png`),fullPage:true});
-  failRestore=false;await page.getByRole('button',{name:'Refresh messages',exact:true}).click();await expect(page.getByText('Notifications are on and follow your current truck.')).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  failRestore=false;await page.getByRole('button',{name:'Refresh Messages',exact:true}).click();await expect(page.getByText('Notifications are on and follow your current truck.')).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
 
   if(process.env.WAYPOINT_PUSH_SCREENSHOTS){fs.mkdirSync(process.env.WAYPOINT_PUSH_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_PUSH_SCREENSHOTS,`notifications-${width}.png`),fullPage:true});}
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`Fits ${width}px`);await context.close();

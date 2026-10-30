@@ -4,7 +4,7 @@ import { isClosed, truckLabel, type ScheduleAppointment } from './schedule-contr
 import { nextTruckStop } from '../../lib/schedule-next-stop';
 
 export type LiveGroup = 'moving' | 'idle' | 'parked' | 'offline' | 'out';
-export type AttentionKind = 'out_of_service' | 'gps' | 'fuel' | 'inspection' | 'service' | 'scheduled';
+export type AttentionKind = 'out_of_service' | 'no_inspection' | 'gps' | 'fuel' | 'inspection' | 'service' | 'scheduled';
 export type AttentionItem = { key: string; kind: AttentionKind; truckId: string; truck: string; title: string; detail: string };
 
 export const LOW_FUEL_PERCENT = 25;
@@ -56,6 +56,10 @@ export function attentionItems(snapshot: DesktopFleetSnapshot, trucks: DesktopFl
       items.push({ key: `fuel:${t.id}`, kind: 'fuel', truckId: t.id, truck: name(t), title: `Fuel ${Math.round(t.fuel.percent)}%`, detail: t.fuel.source === 'purchase' ? 'Estimated from last fill-up' : 'From latest inspection' });
   }
   for (const t of trucks) {
+    if (t.inspectionStatus === 'In Use, No Inspection') {
+      items.push({key:`use:${t.id}`,kind:'no_inspection',truckId:t.id,truck:name(t),title:'In Use, No Inspection',detail:'No submitted inspection for the operating day'});
+      continue;
+    }
     if (/missing|incomplete|not (started|completed)|overdue/i.test(t.checklist || ''))
       items.push({ key: `insp:${t.id}`, kind: 'inspection', truckId: t.id, truck: name(t), title: 'Inspection', detail: t.checklist });
   }

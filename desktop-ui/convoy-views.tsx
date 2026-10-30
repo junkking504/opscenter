@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MetricValue } from './metric-value';
 import FleetInspectionReports from '../components/FleetInspectionReports';
 import { historyEntries } from './lib/convoy-records';
@@ -24,15 +25,20 @@ export function ConvoyHistory({ snapshot, truck, open }: { snapshot: DesktopFlee
   return <ConvoyRecords snapshot={snapshot} trucks={[truck]} truckId={truck.id} open={open} compact/>;
 }
 
+function InspectionArchive({date}: {date: string}) {
+  const initialOpen = new URLSearchParams(window.location.search).get('inspectionReports') === '1';
+  const [opened, setOpened] = useState(initialOpen);
+  return <details className="convoy-monthly-report" open={initialOpen || undefined} onToggle={event=>{if(event.currentTarget.open)setOpened(true);}}><summary>Past Inspection Reports</summary>{opened && <FleetInspectionReports embedded operatingDate={date}/>}</details>;
+}
+
 export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open,now,onView}:Props) {
-  const showReports=view==='maintenance' && new URLSearchParams(window.location.search).get('inspectionReports')==='1';
-  if(showReports)return <FleetInspectionReports embedded operatingDate={snapshot.date}/>;
   const visible = trucks.filter(truck => !truckId || truck.id === truckId);
   const scopedRepairs = snapshot.issues.filter(row => !truckId || sameTruck(row.truck, truckId));
   return <>
     {view==='scores'&&<div className="convoy-toolbar"><label>Truck<select value={truckId} onChange={event=>onTruck(event.target.value)}><option value="">All trucks</option>{trucks.map(truck=><option key={truck.id} value={truck.id}>{truck.label.replace(/Truck\s*#\s*/,'Truck ')}</option>)}{truckId&&!trucks.some(truck=>truck.id===truckId)&&<option value={truckId}>{truckId} · unavailable on this day</option>}</select></label><span>{truckId ? 'Showing this truck across Fleet. Choose All trucks to see the whole fleet.' : `${trucks.length} trucks in the fleet`}</span><a href={`/fleet-inspections?date=${encodeURIComponent(snapshot.date)}`}>Truck phone inspections</a></div>}
     {truckId&&!visible.length&&<p className="convoy-empty">This truck is not available in this day’s records. Choose another truck or All trucks.</p>}
     {view==='overview'&&<ConvoyDashboard {...{snapshot,trucks,truckId,onTruck,open,now,onView}}/>}
+    {view==='inspections'&&<><ConvoyRepairs inspections snapshot={snapshot} trucks={trucks} truckId={truckId} onTruck={onTruck} open={open}/><InspectionArchive date={snapshot.date}/></>}
     {view==='maintenance'&&<ConvoyRepairs snapshot={snapshot} trucks={trucks} truckId={truckId} onTruck={onTruck} open={open}/>}
     {view==='service'&&<ConvoyService {...{snapshot,trucks,truckId,onTruck,open,now,onView}}/>}
     {view==='scores'&&<section className="convoy-panel convoy-driving"><header><h2>Driving</h2><p>{dateLabel(snapshot.date)} · Scores and the driving records behind them.</p></header>{visible.map(truck=>{const rows=(snapshot.drivingScores||[]).filter(row=>sameTruck(row.truck,truck.id));const row=rows[0];return <details key={truck.id}><summary><strong><MetricValue value={truck.label} /></strong><span>{row?.display||'No driving score available'}</span><span>{row?.drivers.length?row.drivers.join(', '):'Driver not confirmed'}</span><span>View driving details</span></summary>{row?<DrivingScoreDetails rows={rows}/>:<p className="convoy-empty">No scoring record is available for this truck and day. GPS activity alone does not establish a driving score.</p>}</details>;})}</section>}

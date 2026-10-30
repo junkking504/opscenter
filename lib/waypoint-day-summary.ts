@@ -17,4 +17,4 @@ export const moneyValue=(value:unknown):number|null=>{
   if(value===null || value===undefined || String(value).trim()==='')return null;
   const n=Number(String(value).replace(/[$,\s]/g,''));return Number.isFinite(n)?Math.round(n*100)/100:null;
 };
-export function mapsDirections(address:string){address=appointmentAddressDisplay(address).address;return address.trim() && !/^(—|-|unknown|unavailable)$|address (unavailable|pending)|verification pending/i.test(address)?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`:null;}
+export function mapsDirections(address:string){address=appointmentAddressDisplay(address).address;return address.trim() && !/^(—|-|unknown|unavailable)$|address (unavailable|pending)|verification pending/i.test(address)?`https://maps.apple.com/directions?mode=driving&destination=${encodeURIComponent(address)}`:null;}

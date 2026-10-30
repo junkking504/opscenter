@@ -12,15 +12,15 @@ export default function KnowledgeTroubleshootingPanel({ snapshot, stale = false,
   const evidenceStale = stale || !snapshot.current || !Number.isFinite(age) || age < 0 || age >= 180000;
   const rows = snapshot.cases.filter(row => showCleared ? row.resolvedAt !== null : row.resolvedAt === null);
   return <section className="knowledge-triage" aria-label="OpsWiki troubleshooting">
-    <header><div><p>OPSWIKI</p><h3>Automatic troubleshooting</h3><span>Current evidence connected to past experience.</span></div><strong>{evidenceStale ? 'Evidence needs refresh' : 'Observation current'}</strong></header>
+    <header><div><p>OPSWIKI</p><h3>Automatic Troubleshooting</h3><span>Current evidence connected to past experience.</span></div><strong>{evidenceStale ? 'Evidence needs refresh' : 'Observation current'}</strong></header>
     <p role="status">{evidenceStale ? 'Current observer evidence is unavailable or stale. Recheck the observer before relying on these observations.' : snapshot.message}</p>
     <small>Observed {date(snapshot.observedAt)} · Matched {date(snapshot.evaluatedAt)} · Local matching, no additional AI calls</small>
     <div className="knowledge-triage-tabs"><button type="button" aria-pressed={!showCleared} onClick={() => setShowCleared(false)}>Current checks</button><button type="button" aria-pressed={showCleared} onClick={() => setShowCleared(true)}>Cleared conditions</button></div>
     {rows.map(row => <details key={row.key} className="knowledge-triage-case"><summary><strong>{row.title}</strong><span>{evidenceStale ? 'Stale evidence' : labels[row.state]} · {row.occurrences} recorded {row.occurrences === 1 ? 'occurrence' : 'occurrences'}</span></summary>
       <p><b>Observed evidence:</b> {row.evidence}</p><p><b>Assessment:</b> {evidenceStale ? 'Current evidence is unavailable or stale; this prior assessment cannot establish current state.' : row.assessment}</p>
       <small>First detected {date(row.firstSeenAt)} · Last detected {date(row.lastSeenAt)}{row.resolvedAt && ` · Cleared ${date(row.resolvedAt)}`}</small>
-      <h4>Next checks</h4><ol>{(evidenceStale ? ['Refresh the observer and source evidence before continuing.'] : row.nextChecks).map(check => <li key={check}>{check}</li>)}</ol>
-      <p><b>Recovery evidence required:</b> {row.verification}</p><h4>Relevant past experience</h4>
+      <h4>Next Checks</h4><ol>{(evidenceStale ? ['Refresh the observer and source evidence before continuing.'] : row.nextChecks).map(check => <li key={check}>{check}</li>)}</ol>
+      <p><b>Recovery evidence required:</b> {row.verification}</p><h4>Relevant Past Experience</h4>
       {!row.matches.length && <p>{snapshot.knowledgeAvailable ? 'No sufficiently relevant record was found. Investigate the source before adding a new lesson.' : 'Historical records are unavailable.'}</p>}
       {row.matches.map(match => <div className="knowledge-triage-match" key={match.id}>{onOpen ? <button type="button" onClick={() => onOpen(match.id)}>{match.title}</button> : <a href={`?data=live&workspace=Command&commandView=monitor&knowledge=${encodeURIComponent(match.id)}`}>{match.title}</a>}<p>{match.summary}</p><small>{match.outcome} · {match.reviewStatus} · Recorded {date(match.recordedAt)}</small><small>{match.reason}</small></div>)}
     </details>)}

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {parishAddressQuery} from '../lib/parish-service-address';
 import {osmServiceAddressQuery} from '../lib/osm-service-address';
 import {geocodioAddressQuery} from '../lib/geocodio-service-address';

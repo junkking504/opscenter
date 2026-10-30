@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {appointmentVisitPin} from '../lib/appointment-visit-pin';
 import {osmMapAddressQuery,verifyOsmServiceAddress} from '../lib/osm-service-address';
 import {geocodioAddressQuery,verifyGeocodioAddress} from '../lib/geocodio-service-address';

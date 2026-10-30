@@ -43,7 +43,7 @@ export default function FleetInspectionReports({embedded=false, operatingDate}:{
   return <main className={`${styles.app} ${styles.managerApp}`}>
     {!embedded && <header className={`${styles.brand} ${styles.noPrint}`}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>OPSCENTER · FLEET</b></header>}
     <div className={styles.manage}>
-      <a href={`/desktop?data=live&workspace=Fleet&fleetView=maintenance&date=${date}`} className={styles.noPrint}>← Back to inspections & repairs</a>
+      <a href={`/desktop?data=live&workspace=Fleet&fleetView=inspections&date=${date}`} className={styles.noPrint}>← Back to Inspections</a>
       <div className={styles.reviewHeader}><div><div className={styles.eyebrow}>COMPANY TRUCK PHONES</div><h2>Morning inspections</h2><p className={styles.muted}>{date} · Times shown in Central time</p></div><button className={styles.noPrint} onClick={() => void refresh()} disabled={busy}>Refresh reports</button></div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {!snapshot ? <p>{error ? "Reports could not be loaded. Try Refresh reports." : "Loading inspection reports…"}</p> : <>

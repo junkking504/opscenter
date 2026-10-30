@@ -465,15 +465,43 @@ protections. Source deployment alone does not enable slot mode.
 
 ## Zero-touch releases (auto-ship)
 
-`deploy/macmini/auto-ship.sh` ships the oldest open production PR labeled
-`ready-to-ship`. It refreshes the dedicated `worktrees/ship` checkout and runs
-`ship.sh` (CI, conflicts, `claude-stop` label, review gate), so the installed
-controller still builds, health-checks and restores the previous release on
-failure. It ships at most one release per hour, skips while the controller's
-deploy lock exists, keeps the label while CI is still running, and on any other
-failure removes the label, adds `ship-failed` and comments on the PR.
+`deploy/macmini/auto-ship.sh` considers up to 1,000 open production PRs
+labeled `ready-to-ship`, sorted oldest first. Conflicted or pending/failing-CI
+candidates retain their labels and do not block the next candidate. The first
+success or other failure ends the tick and starts the one-hour cooldown.
+Every candidate still goes through `ship.sh`: exact fetched/reviewed head,
+current production ancestry, CI, `claude-stop`, and the installed review gate.
+The standard installed controller builds, health-checks and handles rollback.
+
+The queue lookup runs inside the dedicated `worktrees/ship` checkout regardless
+of launchd's working directory. A dirty checkout blocks its refresh. A lock
+serializes the entire tick, including cooldown checks and PR bookkeeping.
+The off switch and deployment lock are checked again before each candidate.
+Known failures remove `ready-to-ship`, add `ship-failed`, and attempt a PR comment;
+a failed comment is logged, and a failed PR-state lookup is reported as UNKNOWN.
+No comment infers a successful deployment or rollback from a merged PR alone.
+
+Before calling `ship.sh`, the scheduler writes `auto-ship.inflight` in its
+configuration directory. Normal completion or a recognized pre-merge wait
+removes it. An interruption, failed label update, or failed release whose PR is not
+confirmed OPEN retains it and blocks later ticks. An unclassified failure
+(without an explicit pre-merge refusal from `ship.sh`) also retains it even
+if the PR still appears OPEN. A merged PR with a failed deployment must be
+reconciled before any later candidate can deploy that production history. INT/TERM/HUP release the owned scheduler lock; SIGKILL or a machine crash
+may leave the lock too. Lock contention is logged so a persistent stale lock
+is visible. Never automatically delete either marker on a timer.
+An operator must confirm that the scheduler/release children have stopped,
+inspect the PR head/state/labels, active release, controller log and health,
+reconcile any partial merge/deploy and label changes, then remove the stale
+markers. Preserve the cooldown stamp. Retry/release permission remains separate.
 
 It is not installed by merging. Install deliberately from
-`launchd/com.opscenter.auto-ship.plist.example`. Off switch:
+`launchd/com.opscenter.auto-ship.plist.example`. Existing installations keep
+executing their selected script until that checkout/controller is updated;
+merging alone is not evidence that the fixed scheduler is running. Off switch:
 `touch "$HOME/Library/Application Support/OpsCenter/auto-ship.off"`.
-Check offline with `python3 scripts/test-auto-ship.py`.
+
+Check offline with `python3 scripts/test-auto-ship.py` and
+`python3 scripts/test-ship-preflight.py`. Both execute real zsh with stubbed
+GitHub, Git and release operations; Bash is not a valid substitute. The CI
+release-script job installs zsh and runs these plus the review-gate suite.

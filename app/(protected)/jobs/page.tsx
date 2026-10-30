@@ -1,3 +1,4 @@
+import { appleMapsRouteHref } from "@/lib/appointment-navigation";
 import { truckDisplayText } from '../../../lib/junkware-trucks';
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
 import fs from "fs";
@@ -2673,7 +2674,7 @@ function AppointmentMoreDetails({
       <div className={detailGridClassName}>
         <div className="ops-appointment-detail-full">
           <span>Address</span>
-          <strong>{job.address && job.address !== "—" ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
+          <strong>{job.address && job.address !== "—" ? <a href={`https://maps.apple.com/search?query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
         </div>
         <div>
           <span>Phone</span>
@@ -2808,7 +2809,7 @@ function ClosedEstimateFollowupCard({ job, bookedJob }: { job: JobRow; bookedJob
       <div className="ops-closed-estimate-actions" aria-label={`Contact ${safeText(job.customerName)}`}>
         {phoneHref ? <a href={phoneHref}>Call {safeText(job.phone)}</a> : <span>Phone unavailable</span>}
         {hasEmail ? <a href={`mailto:${job.customerEmail}`}>Email customer</a> : <span>Email unavailable</span>}
-        {hasAddress ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">Open address</a> : <span>Address unavailable</span>}
+        {hasAddress ? <a href={`https://maps.apple.com/search?query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">Open address</a> : <span>Address unavailable</span>}
         {job.appointmentUrl ? <a href={job.appointmentUrl} target="_self" rel="noopener noreferrer">Open in JunkWare</a> : null}
       </div>
 
@@ -2950,22 +2951,7 @@ function routeDistanceMiles(from: RouteLocation, to: RouteLocation): number {
 }
 
 function routeDirectionsUrl(jobs: JobRow[]): string {
-  const addresses = jobs
-    .map((job) => String(job.address || "").trim())
-    .filter((address) => address && address !== "—");
-  if (!addresses.length) return "";
-  if (addresses.length === 1) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addresses[0])}`;
-  }
-
-  const params = new URLSearchParams({
-    api: "1",
-    origin: addresses[0],
-    destination: addresses[addresses.length - 1],
-    travelmode: "driving",
-  });
-  if (addresses.length > 2) params.set("waypoints", addresses.slice(1, -1).join("|"));
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
+  return appleMapsRouteHref(jobs.map((job) => String(job.address || "")));
 }
 
 function buildJobsRoutePlan(jobs: JobRow[]): JobsRoutePlan {
@@ -4020,7 +4006,7 @@ export default async function JobsPage({
                                   {job.address && job.address !== "—" ? (
                                     <a
                                       className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
-                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
+                                      href={`https://maps.apple.com/search?query=${encodeURIComponent(job.address)}`}
                                       target="_self"
                                       rel="noopener noreferrer"
                                     >
@@ -4293,7 +4279,7 @@ export default async function JobsPage({
                                 {job.address && job.address !== "—" ? (
                                   <a
                                     className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
+                                    href={`https://maps.apple.com/search?query=${encodeURIComponent(job.address)}`}
                                     target="_self"
                                     rel="noopener noreferrer"
                                   >

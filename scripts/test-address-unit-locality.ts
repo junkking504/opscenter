@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {cleanServiceQuery, legacyServiceQuery, withoutServiceUnit, normalizeServiceAddress, appointmentServiceAddress} from '../lib/service-address-format';
-import {mapCandidateMatches,readAddressMapFallback} from '../lib/address-map-fallback';
+import {serviceUnitIdentifiers, cleanServiceQuery, legacyServiceQuery, withoutServiceUnit, normalizeServiceAddress, appointmentServiceAddress} from '../lib/service-address-format';
+import {mapCandidateMatches,readAddressEvidenceFallback as readAddressMapFallback,readAddressMapFallback as readAddressOrZipFallback} from '../lib/address-map-fallback';
 import {parishAddressQuery,verifyParishAddress} from '../lib/parish-service-address';
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
 import {verifyOsmServiceAddress} from '../lib/osm-service-address';
@@ -26,6 +26,20 @@ const now=Date.now(),location={latitude:30.47,longitude:-90.54};
 const lot='123 Example Rd Lot 54 Hammond, LA 70403';
 const candidate={house:'123',street:'Example Rd Unit 54',city:'Hammond',state:'LA',zip:'70403',...location,source:'Synthetic',sourceUrl:'https://example.invalid',precision:'Provider map location'};
 try {
+  // Post-direction and numbered-route roads still precede a lot/unit label.
+  for(const [raw,clean] of [['17091 Swamp Rd E Lot 918, Prairieville, LA 70769','17091 Swamp Rd E Prairieville, LA 70769'],
+    ['123 Example Rd N Trlr 4, Hammond, LA 70403','123 Example Rd N Hammond, LA 70403'],
+    ['500 Hwy 190 Lot 7, Hammond, LA 70403','500 Hwy 190 Hammond, LA 70403'],
+    ['500 LA 22 Space 3, Hammond, LA 70403','500 LA 22 Hammond, LA 70403']])
+    assert.equal(cleanServiceQuery(raw),clean);
+  assert.deepEqual(serviceUnitIdentifiers('17091 Swamp Rd E Lot 918, Prairieville, LA 70769'),['918']);
+  assert.equal(withoutServiceUnit('123 Space Walk, Hammond, LA 70403'),'123 Space Walk, Hammond, LA 70403');
+  // With no provider evidence at all, the ZIP-area estimate keeps map/ETA usable
+  // but is flagged, labeled, and can never become visit evidence.
+  const zipFallback=readAddressOrZipFallback('17091 Swamp Rd E Lot 918, Prairieville, LA 70769',now)!;
+  assert.equal(zipFallback.zipArea,true);assert.equal(zipFallback.visitEligible,false);
+  assert.equal(appointmentVisitPin({location:null,mapFallback:zipFallback}),null);
+  assert.equal(readAddressOrZipFallback('17091 Swamp Rd E Prairieville, LA 99999',now),null,'Unknown ZIP gets no estimate');
   for(const alias of ['Lot','Trlr','Trailer','Space','Unit','Apt','Suite']) {
     const address=lot.replace('Lot',alias);
     assert.equal(cleanServiceQuery(address),'123 Example Rd Hammond, LA 70403');
@@ -64,7 +78,7 @@ try {
   assert.deepEqual(visitEvidenceLocation({location},{location,approximate:true}),location,'Recorded coordinates remain usable independent of their label');
   assert.deepEqual(visitEvidenceLocation({location}),location);
   const job={appointmentId:'synthetic',truck:'Truck 3',status:'Confirmed',location:null,mapFallback:fallback};
-  const truck={truck:'Truck 3',...location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[]};
+  const truck={truck:'Truck 3',...location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[0,1,2,3,4,5].map(i=>({...location,timestamp:new Date(now-(5-i)*60000).toISOString()}))};
   assert.equal(currentGpsPresence(job,[truck],[job],now)?.current,true);
   assert.equal(currentGpsPresence({...job,location},[truck],[{...job,location}],now)?.current,true);
 

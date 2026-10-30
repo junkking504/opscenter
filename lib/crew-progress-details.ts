@@ -13,7 +13,7 @@ export function crewAppointmentFacts(job: Job): EssentialFact[] {
     {label:'Customer',value:present(job.customerName) || 'Not provided'},
     {label:'Phone',value:phone || 'Not provided',...(phone ? {href:`tel:${phone.replace(/[^\d+]/g,'')}`} : {})},
     {label:'Email',value:email || (job.customerEmailCollected ? 'Not provided' : 'Unavailable'),...(email ? {href:`mailto:${email}`} : {})},
-    {label:'Service address',value:address || 'Not provided',...(address ? {href:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} : {})},
+    {label:'Service address',value:address || 'Not provided',...(address ? {href:`https://maps.apple.com/search?query=${encodeURIComponent(address)}`} : {})},
     {label:'Pickup items',value:(job.pickupItems?.length ? job.pickupItems : job.junkItems).join('; ') || 'Not listed'},
     ...(notes.length ? [{label:'Key notes',value:notes.join(' · ')}] : []),
   ];

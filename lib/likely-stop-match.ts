@@ -10,7 +10,7 @@ export type LikelyStop = {
   confident: boolean;
 };
 type Point = {latitude: number; longitude: number};
-type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point} | null;
+type LikelyJob = {status?: string; address?: string; truck: string; location?: Point | null; mapFallback?: {location?: Point; zipArea?: true} | null;
   appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; hasScheduledTime?: boolean};
 
 const NEAR_METERS = 400, FAR_METERS = 1500, LINK_METERS = 150, ONSITE_METERS = 300, MAX_FIX_GAP_MS = 20 * 60_000, EARLY_MS = 2 * 3600_000, LATE_MS = 3 * 3600_000;
@@ -59,7 +59,7 @@ export function likelyGpsStop(job: LikelyJob, trips: GpsTrip[] | undefined, day:
   if (!job.address || /cancel/i.test(job.status || '') || !/^Truck [1-9]\d*$/.test(job.truck) || !trips?.length) return null;
   const want = parts(job.address);
   if (!want || job.appointmentStartMinutes == null || job.appointmentEndMinutes == null) return null;
-  const pin = [job.location, job.mapFallback?.location].find((p): p is Point => !!p && validGpsCoordinates(p));
+  const pin = [job.location, job.mapFallback?.zipArea ? null : job.mapFallback?.location].find((p): p is Point => !!p && validGpsCoordinates(p));
   const ordered = [...trips].sort((a, b) => a.arrival.localeCompare(b.arrival));
   const found = ordered.flatMap((trip, index) => {
     const got = parts(trip.to.address);

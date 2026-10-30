@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { WorkspaceTabs } from '../workspace-tabs';
+import { PageRail, workspacePages } from '../page-rail';
 import { LiveFinance } from '../live-finance';
 import type { FinanceData, FinanceView } from '../lib/commercial-contract';
 import '../app/globals.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
 import '../daily-finance-freshness.css';
+import '../opscenter-brand.css';
 import '../approved-workbench.css';
+import '../theme.css';
 const data: FinanceData = {
  date:'2026-09-16', available:true, generatedAt:new Date().toISOString(),
  daily:{revenue:4200,costs:1800,profit:2400,recyclingIncome:0},
@@ -29,6 +33,12 @@ const fixture = {...data,
  dumpExpenses:{date:data.date,policyAvailable:true,geofencesAvailable:true,observedAt:data.generatedAt,actualTotal:240,assumedTotal:75,total:315,missingMinimumCount:0,records:[{id:'demo-disposal',date:data.date,truck:'Truck 1',location:'Sample disposal facility',enteredAt:data.generatedAt,departedAt:null,replaceUntil:null,amount:240,assumedAmount:75,status:'actual',window:'closed',actualExpenseId:'demo-expense',transactionAt:data.generatedAt}]},
  fuelReconciliation:{date:data.date,wexImportedAt:data.generatedAt,wexAvailable:true,matchedCount:1,differenceCount:0,reportedTotal:89,wexFuelTotal:89,rows:[{id:'demo-fuel',truck:'Truck 1',date:data.date,location:'Sample fuel station',status:'matched',reason:'Matching sample receipt and amount',reportedId:'demo-reported',wexId:'demo-wex',reportedAmount:89,wexFuelAmount:89,wexNetAmount:89,difference:0}]}
 };
+if(new URLSearchParams(location.search).has('wex'))Object.assign(fixture,{
+ dailyBreakdown:{revenue:4200,labor:1000,dumps:315,fuel:68.22,totalCosts:1868.22,net:2331.78,fuelSource:'wex-email',wexIncludedSeparately:true},
+ dailyFreshness:Object.fromEntries(['revenue','labor','dumps','fuel','totalCosts','net'].map(field=>[field,{status:'current',asOf:data.generatedAt,recordedEvent:field==='fuel',reason:field==='fuel'?'Recorded WEX purchases':undefined}])),
+ wexAlertExpenses:{date:data.date,status:'available',importedAt:data.generatedAt,provisionalTotal:68.22,operatingTotal:68.22,unassignedTotal:0,reviewCount:0,postedCount:0,rows:[{id:'wex-alert:12345',trackingNumber:'12345',date:data.date,truck:'Truck# 4',merchant:'Sample Station',address:'100 Sample Avenue',authorizationLocal:'09/16/2026 09:11:07',timeZone:null,receivedAt:data.generatedAt,sourceUrl:'outlook-local:'+'a'.repeat(64),sourceIds:['synthetic'],revisionCount:1,status:'provisional',authorizedAmount:68.22,postedAmount:null,postedId:null,difference:null,reason:'Purchase counted on this day; settlement pending.',attribution:{truck:'Truck# 4',at:data.generatedAt,status:'matched',evidence:'Unique stationary GPS stop at the station; purchase time inferred from prompt email delivery.'}}]}
+});
+if (new URLSearchParams(location.search).has('unavailable')) { fixture.month = {...fixture.month, revenue:null}; fixture.reconciliation = {...fixture.reconciliation, recordedPayments:undefined}; fixture.statements = {...fixture.statements!, available:false}; }
 window.fetch = async () => new Response(JSON.stringify(fixture), {status:200,headers:{'Content-Type':'application/json'}});
-function Fixture() { const [view,setView]=useState<FinanceView>('overview'); return <div className="ops-app ops-live"><aside className="ops-sidebar"><div className="brand-lockup"><strong>OpsCenter</strong></div><nav className="primary-nav">{['Command','Control','Crew','Convoy','Capital','Campaign'].map(name=><div className={`nav-item ${name==='Capital'?'active':''}`} key={name}>{name}</div>)}</nav></aside><main className="ops-content"><div className="workspace"><div className="workspace-heading"><div><h1>Capital</h1><p>Performance, payments and financial decisions. All in one place.</p></div><div className="workspace-tabs shared-workspace-tabs finance-view-switcher" role="tablist" aria-label="Capital views">{(['overview','payments','expenses','accounting','resale','recycling','trends'] as const).map(item=><button key={item} role="tab" aria-selected={view===item} className={view===item?'active':''} onClick={()=>setView(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</div></div><LiveFinance date={data.date} view={view} onViewChange={setView}/></div></main></div>; }
+function Fixture() { const [view,setView]=useState<FinanceView>('overview'); return <div className="ops-app ops-live"><aside className="ops-sidebar"><div className="brand-lockup"><strong>OpsCenter</strong></div><PageRail workspace="Finance" currentPage={view === 'reconciliation' ? 'payments' : view} canFinance disabled={false} preload={()=>{}} navigate={(_, page)=>setView(page as FinanceView)} /></aside><main className="ops-content"><div className="workspace"><div className="workspace-heading"><div><h1>{view === 'reconciliation' ? 'Payments' : view[0].toUpperCase()+view.slice(1)}</h1><p>Performance, payments and financial decisions. All in one place.</p></div><div className="finance-heading-actions"><WorkspaceTabs label="Finance views">{workspacePages.find(group=>group.workspace === 'Finance')!.pages.map(([item])=><button key={item} role="tab" aria-selected={view===item || item==='payments' && view==='reconciliation'} className={view===item || item==='payments' && view==='reconciliation'?'active':''} onClick={()=>setView(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</WorkspaceTabs></div></div><LiveFinance date={data.date} view={view} onViewChange={setView}/></div></main></div>; }
 createRoot(document.getElementById('root')!).render(<Fixture/>);

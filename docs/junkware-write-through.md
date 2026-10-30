@@ -432,7 +432,10 @@ ID and operating day match an existing row. A verified source read-back newer
 than that appointment’s collected closeout detail supplies charges, quote total,
 tip and existing estimate detail immediately, including historical-day corrections.
 Job revenue and collected-payment projections are unchanged.
-Zero prices and removed charges replace old values. Newer or equal appointment
+Zero prices and removed charges replace old values. Detail freshness uses
+`closeout_verified_at` or the successful appointment-detail `photo_observed_at`
+(the full collector reads photos and closeout together), never a schedule batch
+timestamp. Undated detail cannot prove a newer edit. Newer or equal appointment
 detail wins; canceled or differently classified rows are not changed. Failed,
 uncertain, dry-run, malformed and future-dated receipts are excluded. Receipts
 do not expire back to an older historical price; no collector archive is edited

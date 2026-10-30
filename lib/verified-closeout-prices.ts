@@ -35,15 +35,15 @@ export function verifiedCloseoutPrice(value:unknown,now=Date.now()):VerifiedClos
     }};
   }catch{return null;}
 }
-export function applyVerifiedCloseoutPrices<T extends Pick<JobRow,'appointmentId'|'appointmentType'|'status'|'closeout'|'closeoutObservedAt'|'paymentAmount'|'tipAmount'|'chargeDetailsPending'>>(date:string,jobs:T[],receipts:unknown[],now=Date.now()):T[] {
+export function applyVerifiedCloseoutPrices<T extends Pick<JobRow,'appointmentId'|'appointmentType'|'status'|'closeout'|'closeoutObservedAt'|'closeoutDetailObservedAt'|'paymentAmount'|'tipAmount'|'chargeDetailsPending'>>(date:string,jobs:T[],receipts:unknown[],now=Date.now()):T[] {
   const latest=new Map<string,VerifiedCloseout>();
   for(const value of receipts){const entry=verifiedCloseoutPrice(value,now);if(entry?.date===date && Date.parse(entry.verifiedAt)>(Date.parse(latest.get(entry.appointmentId)?.verifiedAt || '')||0))latest.set(entry.appointmentId,entry);}
   return jobs.map(job=>{
     const entry=latest.get(job.appointmentId);
     // Never resurrect a canceled appointment or overwrite newer classification.
     if(!entry||entry.appointmentType.toLowerCase()!==job.appointmentType.toLowerCase()||entry.status.toLowerCase()!==job.status.trim().split(/\s+/)[0].toLowerCase()
-      ||Date.parse(job.closeoutObservedAt || '')>=Date.parse(entry.verifiedAt))return job;
-    return {...job,closeout:entry.closeout,closeoutObservedAt:entry.verifiedAt,paymentAmount:entry.closeout.total,tipAmount:entry.closeout.tip,chargeDetailsPending:false};
+      ||Date.parse(job.closeoutDetailObservedAt || '')>=Date.parse(entry.verifiedAt))return job;
+    return {...job,closeout:entry.closeout,closeoutObservedAt:entry.verifiedAt,closeoutDetailObservedAt:entry.verifiedAt,paymentAmount:entry.closeout.total,tipAmount:entry.closeout.tip,chargeDetailsPending:false};
   });
 }
 const memo=sourceFileMemo<unknown[]>(2000,1);

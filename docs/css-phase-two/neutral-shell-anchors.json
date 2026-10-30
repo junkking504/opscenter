@@ -1,0 +1,826 @@
+{
+  "--oc-accent-blue-01": {
+    "from": "#171a1d",
+    "to": "#1a1a1a"
+  },
+  "--oc-accent-blue-02": {
+    "from": "#4c88bd",
+    "to": "#7f7f7f"
+  },
+  "--oc-accent-blue-03": {
+    "from": "#397aa0",
+    "to": "#6f6f6f"
+  },
+  "--oc-accent-blue-04": {
+    "from": "#60a5fa",
+    "to": "#9c9c9c"
+  },
+  "--oc-accent-blue-05": {
+    "from": "#4d86b4",
+    "to": "#7d7d7d"
+  },
+  "--oc-accent-blue-06": {
+    "from": "#397ca8",
+    "to": "#717171"
+  },
+  "--oc-accent-blue-07": {
+    "from": "#2475ad",
+    "to": "#686868"
+  },
+  "--oc-accent-blue-08": {
+    "from": "#7860bc",
+    "to": "#6c6c6c"
+  },
+  "--oc-accent-blue-09": {
+    "from": "#7b8493",
+    "to": "#838383"
+  },
+  "--oc-accent-blue-10": {
+    "from": "#54728b",
+    "to": "#6d6d6d"
+  },
+  "--oc-accent-blue-11": {
+    "from": "#34536e",
+    "to": "#4e4e4e"
+  },
+  "--oc-accent-blue-12": {
+    "from": "#77a1c7",
+    "to": "#9b9b9b"
+  },
+  "--oc-accent-neutral-01": {
+    "from": "#9ca3af",
+    "to": "#a2a2a2"
+  },
+  "--oc-accent-violet-01": {
+    "from": "#8970be",
+    "to": "#7b7b7b"
+  },
+  "--oc-border-blue-01": {
+    "from": "#174e77",
+    "to": "#454545"
+  },
+  "--oc-border-blue-02": {
+    "from": "#2563a5",
+    "to": "#5b5b5b"
+  },
+  "--oc-border-blue-03": {
+    "from": "#174fd1",
+    "to": "#4c4c4c"
+  },
+  "--oc-border-blue-04": {
+    "from": "#6899ba",
+    "to": "#919191"
+  },
+  "--oc-border-blue-05": {
+    "from": "#315f98",
+    "to": "#595959"
+  },
+  "--oc-border-blue-06": {
+    "from": "#334650",
+    "to": "#434343"
+  },
+  "--oc-border-blue-07": {
+    "from": "#70a9e0",
+    "to": "#a1a1a1"
+  },
+  "--oc-border-blue-08": {
+    "from": "#477d9f",
+    "to": "#747474"
+  },
+  "--oc-border-blue-09": {
+    "from": "#b6cddd",
+    "to": "#c9c9c9"
+  },
+  "--oc-border-blue-10": {
+    "from": "#bed0df",
+    "to": "#cdcdcd"
+  },
+  "--oc-border-blue-11": {
+    "from": "#9bb6cc",
+    "to": "#b2b2b2"
+  },
+  "--oc-border-blue-12": {
+    "from": "#aebecb",
+    "to": "#bcbcbc"
+  },
+  "--oc-border-blue-13": {
+    "from": "#bdcdd7",
+    "to": "#cacaca"
+  },
+  "--oc-border-blue-14": {
+    "from": "#c8d8e8",
+    "to": "#d6d6d6"
+  },
+  "--oc-border-blue-15": {
+    "from": "#53749a",
+    "to": "#707070"
+  },
+  "--oc-border-blue-16": {
+    "from": "#205c7e",
+    "to": "#525252"
+  },
+  "--oc-border-blue-17": {
+    "from": "#607d8c",
+    "to": "#787878"
+  },
+  "--oc-border-blue-18": {
+    "from": "#5695db",
+    "to": "#8d8d8d"
+  },
+  "--oc-border-blue-19": {
+    "from": "#9cb5c7",
+    "to": "#b1b1b1"
+  },
+  "--oc-border-blue-20": {
+    "from": "#afc3d1",
+    "to": "#c0c0c0"
+  },
+  "--oc-border-blue-21": {
+    "from": "#2463b3",
+    "to": "#5b5b5b"
+  },
+  "--oc-border-blue-22": {
+    "from": "#92a6b4",
+    "to": "#a3a3a3"
+  },
+  "--oc-border-blue-23": {
+    "from": "#1a638d",
+    "to": "#575757"
+  },
+  "--oc-border-blue-24": {
+    "from": "#3c6f91",
+    "to": "#676767"
+  },
+  "--oc-border-blue-25": {
+    "from": "#46515a",
+    "to": "#4f4f4f"
+  },
+  "--oc-border-blue-26": {
+    "from": "#123e63",
+    "to": "#373737"
+  },
+  "--oc-border-blue-27": {
+    "from": "#88ade0",
+    "to": "#a9a9a9"
+  },
+  "--oc-border-blue-28": {
+    "from": "#7495c0",
+    "to": "#919191"
+  },
+  "--oc-border-blue-29": {
+    "from": "#b6c9df",
+    "to": "#c7c7c7"
+  },
+  "--oc-border-blue-30": {
+    "from": "#60717f",
+    "to": "#6e6e6e"
+  },
+  "--oc-border-blue-31": {
+    "from": "#6f808b",
+    "to": "#7d7d7d"
+  },
+  "--oc-border-blue-32": {
+    "from": "#8dc7ed",
+    "to": "#bdbdbd"
+  },
+  "--oc-border-blue-33": {
+    "from": "#5683a6",
+    "to": "#7c7c7c"
+  },
+  "--oc-border-blue-34": {
+    "from": "#bdd3e6",
+    "to": "#d0d0d0"
+  },
+  "--oc-border-blue-35": {
+    "from": "#a6b7c5",
+    "to": "#b4b4b4"
+  },
+  "--oc-border-blue-36": {
+    "from": "#8ca2b5",
+    "to": "#9f9f9f"
+  },
+  "--oc-border-blue-37": {
+    "from": "#87a9c4",
+    "to": "#a4a4a4"
+  },
+  "--oc-border-blue-38": {
+    "from": "#4d7896",
+    "to": "#717171"
+  },
+  "--oc-border-blue-39": {
+    "from": "#2864d7",
+    "to": "#606060"
+  },
+  "--oc-border-default": {
+    "from": "#dbe4e9",
+    "to": "#d9d9d9"
+  },
+  "--oc-border-neutral-03": {
+    "from": "#d5d9df",
+    "to": "#d9d9d9"
+  },
+  "--oc-border-neutral-09": {
+    "from": "#cbd4df",
+    "to": "#d3d3d3"
+  },
+  "--oc-border-neutral-13": {
+    "from": "#e2e8f0",
+    "to": "#e7e7e7"
+  },
+  "--oc-border-neutral-15": {
+    "from": "#d5dee3",
+    "to": "#dcdcdc"
+  },
+  "--oc-border-neutral-29": {
+    "from": "#cdd9e0",
+    "to": "#d7d7d7"
+  },
+  "--oc-border-neutral-32": {
+    "from": "#b8c9cf",
+    "to": "#c6c6c6"
+  },
+  "--oc-border-neutral-33": {
+    "from": "#b5c4cc",
+    "to": "#c1c1c1"
+  },
+  "--oc-border-neutral-34": {
+    "from": "#c2cdd5",
+    "to": "#cbcbcb"
+  },
+  "--oc-border-neutral-41": {
+    "from": "#cdd1d4",
+    "to": "#d0d0d0"
+  },
+  "--oc-status-info-accent": {
+    "from": "#3677b4",
+    "to": "#525252"
+  },
+  "--oc-status-info-ink": {
+    "from": "#275e91",
+    "to": "#404040"
+  },
+  "--oc-status-info-tint": {
+    "from": "#edf5fb",
+    "to": "#eeeeee"
+  },
+  "--oc-surface-blue-01": {
+    "from": "#397bbb",
+    "to": "#727272"
+  },
+  "--oc-surface-blue-02": {
+    "from": "#25323a",
+    "to": "#303030"
+  },
+  "--oc-surface-blue-03": {
+    "from": "#245fa4",
+    "to": "#575757"
+  },
+  "--oc-surface-blue-04": {
+    "from": "#293136",
+    "to": "#303030"
+  },
+  "--oc-surface-blue-05": {
+    "from": "#264f80",
+    "to": "#4a4a4a"
+  },
+  "--oc-surface-blue-06": {
+    "from": "#111419",
+    "to": "#141414"
+  },
+  "--oc-surface-blue-07": {
+    "from": "#3476a8",
+    "to": "#6c6c6c"
+  },
+  "--oc-surface-blue-08": {
+    "from": "#4f88c6",
+    "to": "#808080"
+  },
+  "--oc-surface-blue-10": {
+    "from": "#dfedff",
+    "to": "#ebebeb"
+  },
+  "--oc-surface-blue-11": {
+    "from": "#74828a",
+    "to": "#808080"
+  },
+  "--oc-surface-blue-12": {
+    "from": "#d2e7f6",
+    "to": "#e4e4e4"
+  },
+  "--oc-surface-blue-13": {
+    "from": "#202932",
+    "to": "#282828"
+  },
+  "--oc-surface-blue-14": {
+    "from": "#24292f",
+    "to": "#282828"
+  },
+  "--oc-surface-blue-15": {
+    "from": "#111a22",
+    "to": "#191919"
+  },
+  "--oc-surface-blue-16": {
+    "from": "#080c10",
+    "to": "#0b0b0b"
+  },
+  "--oc-surface-blue-17": {
+    "from": "#9daebc",
+    "to": "#ababab"
+  },
+  "--oc-surface-blue-18": {
+    "from": "#111b20",
+    "to": "#191919"
+  },
+  "--oc-surface-blue-19": {
+    "from": "#1a1f24",
+    "to": "#1e1e1e"
+  },
+  "--oc-surface-blue-20": {
+    "from": "#30363c",
+    "to": "#353535"
+  },
+  "--oc-surface-blue-21": {
+    "from": "#1c2028",
+    "to": "#202020"
+  },
+  "--oc-surface-canvas": {
+    "from": "#f1f6f8",
+    "to": "#f5f5f5"
+  },
+  "--oc-surface-muted": {
+    "from": "#edf1f5",
+    "to": "#eeeeee"
+  },
+  "--oc-surface-neutral-18": {
+    "from": "#dce9f1",
+    "to": "#e7e7e7"
+  },
+  "--oc-surface-neutral-23": {
+    "from": "#dcecf7",
+    "to": "#e9e9e9"
+  },
+  "--oc-surface-neutral-24": {
+    "from": "#e4f1fb",
+    "to": "#efefef"
+  },
+  "--oc-surface-overlay-01": {
+    "from": "#0b1118e8",
+    "to": "#101010e8"
+  },
+  "--oc-surface-overlay-02": {
+    "from": "#0f172a05",
+    "to": "#17171705"
+  },
+  "--oc-surface-overlay-03": {
+    "from": "#10141833",
+    "to": "#13131333"
+  },
+  "--oc-surface-overlay-06": {
+    "from": "#15202b99",
+    "to": "#1e1e1e99"
+  },
+  "--oc-surface-overlay-07": {
+    "from": "#171a1d17",
+    "to": "#1a1a1a17"
+  },
+  "--oc-surface-overlay-08": {
+    "from": "#17212b18",
+    "to": "#20202018"
+  },
+  "--oc-surface-overlay-09": {
+    "from": "#17212b26",
+    "to": "#20202026"
+  },
+  "--oc-surface-overlay-10": {
+    "from": "#17212b35",
+    "to": "#20202035"
+  },
+  "--oc-surface-overlay-11": {
+    "from": "#17212b45",
+    "to": "#20202045"
+  },
+  "--oc-surface-overlay-12": {
+    "from": "#17212b66",
+    "to": "#20202066"
+  },
+  "--oc-surface-overlay-13": {
+    "from": "#17212b80",
+    "to": "#20202080"
+  },
+  "--oc-text-blue-01": {
+    "from": "#252b2e",
+    "to": "#2a2a2a"
+  },
+  "--oc-text-blue-02": {
+    "from": "#202529",
+    "to": "#242424"
+  },
+  "--oc-text-blue-03": {
+    "from": "#64748b",
+    "to": "#727272"
+  },
+  "--oc-text-blue-04": {
+    "from": "#173b55",
+    "to": "#353535"
+  },
+  "--oc-text-blue-05": {
+    "from": "#17212b",
+    "to": "#202020"
+  },
+  "--oc-text-blue-06": {
+    "from": "#477aa6",
+    "to": "#727272"
+  },
+  "--oc-text-blue-07": {
+    "from": "#365568",
+    "to": "#505050"
+  },
+  "--oc-text-blue-08": {
+    "from": "#233e54",
+    "to": "#3a3a3a"
+  },
+  "--oc-text-blue-09": {
+    "from": "#627083",
+    "to": "#6e6e6e"
+  },
+  "--oc-text-blue-10": {
+    "from": "#203746",
+    "to": "#333333"
+  },
+  "--oc-text-blue-11": {
+    "from": "#314f65",
+    "to": "#4a4a4a"
+  },
+  "--oc-text-blue-12": {
+    "from": "#334155",
+    "to": "#3f3f3f"
+  },
+  "--oc-text-blue-13": {
+    "from": "#516672",
+    "to": "#626262"
+  },
+  "--oc-text-blue-14": {
+    "from": "#51626b",
+    "to": "#5f5f5f"
+  },
+  "--oc-text-blue-15": {
+    "from": "#536174",
+    "to": "#5f5f5f"
+  },
+  "--oc-text-blue-16": {
+    "from": "#23374d",
+    "to": "#343434"
+  },
+  "--oc-text-blue-17": {
+    "from": "#20333f",
+    "to": "#303030"
+  },
+  "--oc-text-blue-18": {
+    "from": "#40515b",
+    "to": "#4e4e4e"
+  },
+  "--oc-text-blue-19": {
+    "from": "#263342",
+    "to": "#313131"
+  },
+  "--oc-text-blue-20": {
+    "from": "#607585",
+    "to": "#727272"
+  },
+  "--oc-text-blue-21": {
+    "from": "#405e73",
+    "to": "#595959"
+  },
+  "--oc-text-blue-22": {
+    "from": "#356287",
+    "to": "#5b5b5b"
+  },
+  "--oc-text-blue-23": {
+    "from": "#59616d",
+    "to": "#606060"
+  },
+  "--oc-text-blue-24": {
+    "from": "#172033",
+    "to": "#1f1f1f"
+  },
+  "--oc-text-blue-25": {
+    "from": "#364e60",
+    "to": "#4a4a4a"
+  },
+  "--oc-text-blue-26": {
+    "from": "#254b64",
+    "to": "#454545"
+  },
+  "--oc-text-blue-27": {
+    "from": "#243943",
+    "to": "#353535"
+  },
+  "--oc-text-blue-28": {
+    "from": "#617681",
+    "to": "#727272"
+  },
+  "--oc-text-blue-29": {
+    "from": "#5d707a",
+    "to": "#6d6d6d"
+  },
+  "--oc-text-blue-30": {
+    "from": "#475569",
+    "to": "#535353"
+  },
+  "--oc-text-blue-31": {
+    "from": "#526475",
+    "to": "#616161"
+  },
+  "--oc-text-blue-32": {
+    "from": "#7893a3",
+    "to": "#8e8e8e"
+  },
+  "--oc-text-blue-33": {
+    "from": "#172334",
+    "to": "#222222"
+  },
+  "--oc-text-blue-34": {
+    "from": "#294d73",
+    "to": "#484848"
+  },
+  "--oc-text-blue-35": {
+    "from": "#374151",
+    "to": "#404040"
+  },
+  "--oc-text-blue-36": {
+    "from": "#555e67",
+    "to": "#5d5d5d"
+  },
+  "--oc-text-blue-37": {
+    "from": "#273d4c",
+    "to": "#393939"
+  },
+  "--oc-text-blue-38": {
+    "from": "#245777",
+    "to": "#4e4e4e"
+  },
+  "--oc-text-blue-39": {
+    "from": "#204e71",
+    "to": "#474747"
+  },
+  "--oc-text-blue-40": {
+    "from": "#344b55",
+    "to": "#474747"
+  },
+  "--oc-text-blue-41": {
+    "from": "#165782",
+    "to": "#4c4c4c"
+  },
+  "--oc-text-blue-42": {
+    "from": "#343b42",
+    "to": "#3a3a3a"
+  },
+  "--oc-text-blue-43": {
+    "from": "#4d555b",
+    "to": "#545454"
+  },
+  "--oc-text-blue-44": {
+    "from": "#253f60",
+    "to": "#3c3c3c"
+  },
+  "--oc-text-blue-45": {
+    "from": "#255d9d",
+    "to": "#565656"
+  },
+  "--oc-text-blue-46": {
+    "from": "#234b80",
+    "to": "#464646"
+  },
+  "--oc-text-blue-47": {
+    "from": "#365b86",
+    "to": "#565656"
+  },
+  "--oc-text-blue-48": {
+    "from": "#294a5d",
+    "to": "#444444"
+  },
+  "--oc-text-blue-49": {
+    "from": "#365a70",
+    "to": "#545454"
+  },
+  "--oc-text-blue-50": {
+    "from": "#27638e",
+    "to": "#595959"
+  },
+  "--oc-text-blue-51": {
+    "from": "#a8b5bf",
+    "to": "#b3b3b3"
+  },
+  "--oc-text-blue-52": {
+    "from": "#162b3a",
+    "to": "#282828"
+  },
+  "--oc-text-blue-53": {
+    "from": "#386889",
+    "to": "#606060"
+  },
+  "--oc-text-blue-54": {
+    "from": "#66707d",
+    "to": "#6f6f6f"
+  },
+  "--oc-text-blue-55": {
+    "from": "#295f8b",
+    "to": "#575757"
+  },
+  "--oc-text-blue-56": {
+    "from": "#2d3f4a",
+    "to": "#3c3c3c"
+  },
+  "--oc-text-blue-57": {
+    "from": "#496675",
+    "to": "#616161"
+  },
+  "--oc-text-blue-58": {
+    "from": "#285f96",
+    "to": "#575757"
+  },
+  "--oc-text-blue-59": {
+    "from": "#455f71",
+    "to": "#5b5b5b"
+  },
+  "--oc-text-blue-60": {
+    "from": "#315b77",
+    "to": "#545454"
+  },
+  "--oc-text-blue-61": {
+    "from": "#526d79",
+    "to": "#686868"
+  },
+  "--oc-text-blue-62": {
+    "from": "#45687a",
+    "to": "#626262"
+  },
+  "--oc-text-blue-63": {
+    "from": "#3e6e93",
+    "to": "#666666"
+  },
+  "--oc-text-muted": {
+    "from": "#687e8e",
+    "to": "#595959"
+  },
+  "--oc-text-neutral-07": {
+    "from": "#60666c",
+    "to": "#656565"
+  },
+  "--oc-text-neutral-11": {
+    "from": "#b8c1c7",
+    "to": "#c0c0c0"
+  },
+  "--oc-text-neutral-14": {
+    "from": "#747a81",
+    "to": "#797979"
+  },
+  "--oc-text-primary": {
+    "from": "#243b4d",
+    "to": "#262626"
+  },
+  "--oc-text-teal-01": {
+    "from": "#30373a",
+    "to": "#363636"
+  },
+  "--oc-fleet-offline-accent": {
+    "from": "#8a8f98",
+    "to": "#8f8f8f"
+  },
+  "--oc-customer-border": {
+    "from": "#dbe3ed",
+    "to": "#e2e2e2"
+  },
+  "--oc-customer-surface": {
+    "from": "#f8fafc",
+    "to": "#fafafa"
+  },
+  "--oc-customer-heading": {
+    "from": "#0f172a",
+    "to": "#171717"
+  },
+  "--oc-customer-history-link": {
+    "from": "#1d4ed8",
+    "to": "#4e4e4e"
+  },
+  "--oc-customer-ink": {
+    "from": "#243c4b",
+    "to": "#383838"
+  },
+  "--oc-customer-link": {
+    "from": "#165581",
+    "to": "#4b4b4b"
+  },
+  "--oc-customer-input-border": {
+    "from": "#cbd5e1",
+    "to": "#d4d4d4"
+  },
+  "--oc-customer-caption-surface": {
+    "from": "#eef6fb",
+    "to": "#f5f5f5"
+  },
+  "--oc-huddle-win-surface": {
+    "from": "#20384d",
+    "to": "#343434"
+  },
+  "--oc-huddle-ranking-surface": {
+    "from": "#152c40",
+    "to": "#292929"
+  },
+  "--oc-huddle-row-border": {
+    "from": "#e0e5ea",
+    "to": "#e4e4e4"
+  },
+  "--oc-huddle-heading-ink": {
+    "from": "#536476",
+    "to": "#626262"
+  },
+  "--oc-huddle-card-border": {
+    "from": "#516477",
+    "to": "#616161"
+  },
+  "--oc-huddle-card-surface": {
+    "from": "#102b42",
+    "to": "#272727"
+  },
+  "--oc-huddle-muted": {
+    "from": "#b8c9d9",
+    "to": "#c7c7c7"
+  },
+  "--oc-huddle-button-border": {
+    "from": "#6c8195",
+    "to": "#7e7e7e"
+  },
+  "--oc-schedule-control-border": {
+    "from": "#b7c8d4",
+    "to": "#c5c5c5"
+  },
+  "--oc-schedule-control-ink": {
+    "from": "#243b4c",
+    "to": "#373737"
+  },
+  "--oc-theme-dark-canvas": {
+    "from": "#101923",
+    "to": "#202020"
+  },
+  "--oc-theme-dark-surface": {
+    "from": "#172330",
+    "to": "#292929"
+  },
+  "--oc-theme-dark-muted-surface": {
+    "from": "#202f3e",
+    "to": "#333333"
+  },
+  "--oc-theme-dark-neutral-surface": {
+    "from": "#1b2936",
+    "to": "#303030"
+  },
+  "--oc-theme-dark-blue-surface": {
+    "from": "#1e3142",
+    "to": "#333333"
+  },
+  "--oc-theme-dark-info-surface": {
+    "from": "#1b344b",
+    "to": "#333333"
+  },
+  "--oc-theme-dark-text": {
+    "from": "#eef4f8",
+    "to": "#f5f5f5"
+  },
+  "--oc-theme-dark-muted-text": {
+    "from": "#b9c8d3",
+    "to": "#c4c4c4"
+  },
+  "--oc-theme-dark-secondary-text": {
+    "from": "#c3dced",
+    "to": "#dedede"
+  },
+  "--oc-theme-dark-border": {
+    "from": "#405261",
+    "to": "#626262"
+  },
+  "--oc-theme-dark-blue-border": {
+    "from": "#45657e",
+    "to": "#949494"
+  },
+  "--oc-theme-dark-input-border": {
+    "from": "#657e91",
+    "to": "#949494"
+  },
+  "--oc-theme-dark-info-text": {
+    "from": "#9ed4fa",
+    "to": "#dedede"
+  },
+  "--oc-theme-dark-selected-surface": {
+    "from": "#314c62",
+    "to": "#454545"
+  },
+  "--oc-theme-dark-map-text": {
+    "from": "#171a1d",
+    "to": "#1a1a1a"
+  },
+  "--oc-theme-dark-link": {
+    "from": "#ffadbc",
+    "to": "#dedede"
+  }
+}

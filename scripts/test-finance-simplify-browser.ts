@@ -35,7 +35,8 @@ async function main() {
       for (const label of labels) {
         await page.getByRole('tab',{name:label,exact:true}).click();
         await expect(page.getByRole('tab',{name:label,exact:true})).toHaveAttribute('aria-selected','true');
-        await expect(page.locator('#sidebar-pages-Finance').getByRole('link',{name:label,exact:true,includeHidden:true})).toHaveAttribute('aria-current','page');
+        await expect(page.locator('.workspace-rail-link.active')).toHaveAttribute('aria-current','page');
+        await expect(page.locator('.workspace-page-list,.workspace-group-toggle')).toHaveCount(0);
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),`${width}/${theme}/${label} overflow`);
       }
       await page.getByRole('tab',{name:'Payments',exact:true}).click();
@@ -56,12 +57,6 @@ async function main() {
       await page.getByRole('tab',{name:'Overview',exact:true}).click();
       await expect(numbers).toBeVisible();
       await expect(page.locator('#capital-trends')).toHaveCount(0);
-      // Sidebar links remain present on phones; open the rail in the fixture to exercise them.
-      await page.evaluate(()=>{const sidebar=document.querySelector<HTMLElement>('.ops-sidebar')!; sidebar.style.setProperty('display','block','important'); sidebar.style.position='relative';});
-      for(const label of labels) {
-        await page.locator('#sidebar-pages-Finance').getByRole('link',{name:label,exact:true}).click();
-        await expect(page.getByRole('tab',{name:label,exact:true})).toHaveAttribute('aria-selected','true');
-      }
       await page.goto(url+'?unavailable',{timeout});
       await page.evaluate(theme=>{ document.documentElement.setAttribute('data-ops-theme',theme); document.documentElement.classList.toggle('dark',theme==='dark'); },theme);
       await expect(numbers.getByText('Unavailable',{exact:true})).toHaveCount(3);
@@ -70,7 +65,7 @@ async function main() {
       await page.close();
     }
     assert.deepEqual(errors,[]);
-    console.log('Finance simplify: seven tabs and sidebar links, selection, tile links, payment switch, source strip, unavailable values, desktop/phone light/dark, overflow and page errors passed.');
+    console.log('Finance simplify: seven tabs and flat workspace links, selection, tile links, payment switch, source strip, unavailable values, desktop/phone light/dark, overflow and page errors passed.');
   } finally {await browser.close();}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -5,44 +5,44 @@
   "colors": {
     "--oc-surface-neutral-02": {
       "from": "#f6f8f5",
-      "to": "#f6f9fb",
-      "kind": "role-neutral",
+      "to": "#f9f9f9",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-surface-neutral-01": {
       "from": "#edf0ed",
-      "to": "#f1f6f8",
-      "kind": "role-neutral",
+      "to": "#f5f5f5",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-neutral-04": {
       "from": "#707a74",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-border-neutral-04": {
       "from": "#dce2dc",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-border-neutral-02": {
       "from": "#d7dbd7",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-neutral-06": {
       "from": "#626b66",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-blue-02": {
       "from": "#202529",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-border-neutral-08": {
@@ -61,8 +61,8 @@
     },
     "--oc-text-neutral-03": {
       "from": "#59635e",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-status-critical-tint": {
@@ -81,8 +81,8 @@
     },
     "--oc-text-neutral-05": {
       "from": "#4f5954",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-green-08": {
@@ -101,7 +101,7 @@
     },
     "--oc-surface-canvas": {
       "from": "#f5f9fc",
-      "to": "#f1f6f8",
+      "to": "#f5f5f5",
       "kind": "fixed-anchor",
       "decision": "restore explicitly approved workbench anchor"
     },
@@ -135,14 +135,14 @@
     },
     "--oc-border-neutral-12": {
       "from": "#c9cfca",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-surface-muted": {
       "from": "#edf1f5",
-      "to": "#f6f9fb",
-      "kind": "role-neutral",
+      "to": "#eeeeee",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-green-04": {
@@ -182,15 +182,14 @@
     },
     "--oc-border-neutral-03": {
       "from": "#d5d9df",
-      "to": "#dce2e8",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.120197,
+      "to": "#e1e1e1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-neutral-08": {
       "from": "#69716e",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-surface-neutral-08": {
@@ -216,9 +215,8 @@
     },
     "--oc-border-neutral-13": {
       "from": "#e2e8f0",
-      "to": "#dce2e8",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.395039,
+      "to": "#e1e1e1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-green-02": {
@@ -265,9 +263,8 @@
     },
     "--oc-surface-blue-04": {
       "from": "#293136",
-      "to": "#25323a",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.699067,
+      "to": "#303030",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-81": {
@@ -286,15 +283,14 @@
     },
     "--oc-border-neutral-06": {
       "from": "#dddddd",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-surface-neutral-24": {
       "from": "#e4f1fb",
-      "to": "#edf5fb",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.102022,
+      "to": "#f4f4f4",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-neutral-15": {
@@ -327,9 +323,8 @@
     },
     "--oc-text-blue-08": {
       "from": "#233e54",
-      "to": "#173b55",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.448452,
+      "to": "#353535",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-20": {
@@ -390,9 +385,8 @@
     },
     "--oc-surface-blue-14": {
       "from": "#24292f",
-      "to": "#252b2e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.326117,
+      "to": "#2a2a2a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-green-06": {
@@ -404,28 +398,25 @@
     },
     "--oc-border-blue-06": {
       "from": "#334650",
-      "to": "#40515b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.927621,
+      "to": "#4e4e4e",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-13": {
       "from": "#516672",
-      "to": "#51626b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.602724,
+      "to": "#5f5f5f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-09": {
       "from": "#627083",
-      "to": "#64748b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.833281,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-muted": {
       "from": "#657c8c",
-      "to": "#687e8e",
+      "to": "#595959",
       "kind": "fixed-anchor",
       "decision": "restore explicitly approved workbench anchor"
     },
@@ -466,43 +457,38 @@
     },
     "--oc-surface-blue-06": {
       "from": "#111419",
-      "to": "#171a1d",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.161476,
+      "to": "#1a1a1a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-12": {
       "from": "#202623",
-      "to": "#252b2e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.976546,
+      "to": "#2a2a2a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-blue-13": {
       "from": "#202932",
-      "to": "#17212b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.991379,
+      "to": "#202020",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-primary": {
       "from": "#243b4d",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#262626",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-02": {
       "from": "#2563a5",
-      "to": "#245fa4",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.830409,
+      "to": "#575757",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-37": {
       "from": "#273d4c",
-      "to": "#203746",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.745847,
+      "to": "#333333",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-19": {
@@ -521,9 +507,8 @@
     },
     "--oc-text-blue-11": {
       "from": "#314f65",
-      "to": "#365568",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.218223,
+      "to": "#505050",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-87": {
@@ -542,16 +527,14 @@
     },
     "--oc-text-blue-22": {
       "from": "#356287",
-      "to": "#27638e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.152675,
+      "to": "#595959",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-25": {
       "from": "#364e60",
-      "to": "#365568",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.352718,
+      "to": "#505050",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-82": {
@@ -591,9 +574,8 @@
     },
     "--oc-text-blue-21": {
       "from": "#405e73",
-      "to": "#365568",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.033417,
+      "to": "#505050",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-green-04": {
@@ -612,16 +594,14 @@
     },
     "--oc-accent-blue-05": {
       "from": "#4d86b4",
-      "to": "#4c88bd",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.106402,
+      "to": "#7f7f7f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-54": {
       "from": "#66707d",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.508148,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-amber-05": {
@@ -675,9 +655,8 @@
     },
     "--oc-surface-neutral-18": {
       "from": "#dce9f1",
-      "to": "#dce2e8",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.266454,
+      "to": "#e1e1e1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-neutral-16": {
@@ -731,23 +710,20 @@
     },
     "--oc-text-blue-17": {
       "from": "#20333f",
-      "to": "#203746",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.736257,
+      "to": "#333333",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-39": {
       "from": "#204e71",
-      "to": "#174e77",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.8519,
+      "to": "#454545",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-16": {
       "from": "#23374d",
-      "to": "#173b55",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.483236,
+      "to": "#353535",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-green-14": {
@@ -766,9 +742,8 @@
     },
     "--oc-text-blue-19": {
       "from": "#263342",
-      "to": "#203746",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.544069,
+      "to": "#333333",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-43": {
@@ -787,23 +762,20 @@
     },
     "--oc-text-blue-58": {
       "from": "#285f96",
-      "to": "#275e91",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.550822,
+      "to": "#565656",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-48": {
       "from": "#294a5d",
-      "to": "#365568",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.773099,
+      "to": "#505050",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-55": {
       "from": "#295f8b",
-      "to": "#27638e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.168464,
+      "to": "#595959",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-68": {
@@ -822,16 +794,14 @@
     },
     "--oc-text-teal-01": {
       "from": "#30373a",
-      "to": "#25323a",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.787521,
+      "to": "#303030",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-05": {
       "from": "#315f98",
-      "to": "#275e91",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.528573,
+      "to": "#565656",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-79": {
@@ -850,16 +820,14 @@
     },
     "--oc-surface-blue-07": {
       "from": "#3476a8",
-      "to": "#477aa6",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.57768,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-blue-06": {
       "from": "#397ca8",
-      "to": "#477aa6",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.408902,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-67": {
@@ -878,9 +846,8 @@
     },
     "--oc-border-blue-08": {
       "from": "#477d9f",
-      "to": "#397aa0",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.300265,
+      "to": "#6f6f6f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-86": {
@@ -927,9 +894,8 @@
     },
     "--oc-text-blue-36": {
       "from": "#555e67",
-      "to": "#51626b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.159711,
+      "to": "#5f5f5f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-violet-02": {
@@ -969,9 +935,8 @@
     },
     "--oc-surface-blue-11": {
       "from": "#74828a",
-      "to": "#747a81",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.927953,
+      "to": "#797979",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-amber-50": {
@@ -1032,9 +997,8 @@
     },
     "--oc-surface-blue-17": {
       "from": "#9daebc",
-      "to": "#9cb5c7",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.922923,
+      "to": "#b1b1b1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-neutral-18": {
@@ -1074,9 +1038,8 @@
     },
     "--oc-border-neutral-15": {
       "from": "#d5dee3",
-      "to": "#dce2e8",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.040098,
+      "to": "#e1e1e1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-amber-07": {
@@ -1151,43 +1114,38 @@
     },
     "--oc-text-neutral-13": {
       "from": "#111111",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-surface-blue-15": {
       "from": "#111a22",
-      "to": "#17212b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.709094,
+      "to": "#202020",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-blue-18": {
       "from": "#111b20",
-      "to": "#171a1d",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.254499,
+      "to": "#1a1a1a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-41": {
       "from": "#165782",
-      "to": "#174e77",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.011834,
+      "to": "#454545",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-green-13": {
       "from": "#171d1a",
-      "to": "#171a1d",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.8842,
+      "to": "#1a1a1a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-33": {
       "from": "#172334",
-      "to": "#172033",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.376277,
+      "to": "#1f1f1f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-55": {
@@ -1241,23 +1199,20 @@
     },
     "--oc-surface-blue-19": {
       "from": "#1a1f24",
-      "to": "#171a1d",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.883554,
+      "to": "#1a1a1a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-23": {
       "from": "#1a638d",
-      "to": "#27638e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.140184,
+      "to": "#595959",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-blue-21": {
       "from": "#1c2028",
-      "to": "#17212b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.683006,
+      "to": "#202020",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-62": {
@@ -1276,9 +1231,8 @@
     },
     "--oc-text-blue-46": {
       "from": "#234b80",
-      "to": "#264f80",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.346688,
+      "to": "#4a4a4a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-54": {
@@ -1311,9 +1265,8 @@
     },
     "--oc-text-blue-27": {
       "from": "#243943",
-      "to": "#203746",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.532291,
+      "to": "#333333",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-66": {
@@ -1325,9 +1278,8 @@
     },
     "--oc-text-blue-38": {
       "from": "#245777",
-      "to": "#205c7e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.610102,
+      "to": "#525252",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-70": {
@@ -1339,16 +1291,14 @@
     },
     "--oc-text-blue-44": {
       "from": "#253f60",
-      "to": "#123e63",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.992547,
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-45": {
       "from": "#255d9d",
-      "to": "#245fa4",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.068198,
+      "to": "#575757",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-green-16": {
@@ -1381,30 +1331,26 @@
     },
     "--oc-text-blue-34": {
       "from": "#294d73",
-      "to": "#174e77",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.477127,
+      "to": "#454545",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-56": {
       "from": "#2d3f4a",
-      "to": "#343b42",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.784731,
+      "to": "#3a3a3a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-blue-20": {
       "from": "#30363c",
-      "to": "#343b42",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.315806,
+      "to": "#3a3a3a",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-60": {
       "from": "#315b77",
-      "to": "#205c7e",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.549006,
+      "to": "#525252",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-76": {
@@ -1437,23 +1383,20 @@
     },
     "--oc-text-blue-40": {
       "from": "#344b55",
-      "to": "#40515b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.65303,
+      "to": "#4e4e4e",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-blue-11": {
       "from": "#34536e",
-      "to": "#254b64",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.337425,
+      "to": "#454545",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-49": {
       "from": "#365a70",
-      "to": "#365568",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.838282,
+      "to": "#505050",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-85": {
@@ -1465,23 +1408,20 @@
     },
     "--oc-status-info-accent": {
       "from": "#3677b4",
-      "to": "#397bbb",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.254423,
+      "to": "#525252",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-35": {
       "from": "#374151",
-      "to": "#334155",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.839229,
+      "to": "#3f3f3f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-53": {
       "from": "#386889",
-      "to": "#3e6e93",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.408934,
+      "to": "#666666",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-green-77": {
@@ -1500,9 +1440,8 @@
     },
     "--oc-border-blue-24": {
       "from": "#3c6f91",
-      "to": "#3e6e93",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.190831,
+      "to": "#666666",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-green-08": {
@@ -1549,16 +1488,14 @@
     },
     "--oc-text-blue-59": {
       "from": "#455f71",
-      "to": "#536174",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.510578,
+      "to": "#5f5f5f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-25": {
       "from": "#46515a",
-      "to": "#40515b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.302826,
+      "to": "#4e4e4e",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-green-10": {
@@ -1570,9 +1507,8 @@
     },
     "--oc-text-blue-57": {
       "from": "#496675",
-      "to": "#45687a",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.438746,
+      "to": "#626262",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-surface-green-11": {
@@ -1591,30 +1527,26 @@
     },
     "--oc-text-blue-43": {
       "from": "#4d555b",
-      "to": "#40515b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.67567,
+      "to": "#4e4e4e",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-31": {
       "from": "#526475",
-      "to": "#536174",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.185301,
+      "to": "#5f5f5f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-blue-61": {
       "from": "#526d79",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.508957,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-blue-10": {
       "from": "#54728b",
-      "to": "#4d7896",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.682422,
+      "to": "#717171",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-amber-34": {
@@ -1626,9 +1558,8 @@
     },
     "--oc-text-blue-23": {
       "from": "#59616d",
-      "to": "#51626b",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.986815,
+      "to": "#5f5f5f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-violet-06": {
@@ -1647,23 +1578,20 @@
     },
     "--oc-text-blue-29": {
       "from": "#5d707a",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.435033,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-30": {
       "from": "#60717f",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.913496,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-17": {
       "from": "#607d8c",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.070728,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-violet-07": {
@@ -1675,9 +1603,8 @@
     },
     "--oc-text-neutral-15": {
       "from": "#666666",
-      "to": "#60666c",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.295312,
+      "to": "#656565",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-violet-02": {
@@ -1703,9 +1630,8 @@
     },
     "--oc-border-blue-31": {
       "from": "#6f808b",
-      "to": "#617681",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 4.481309,
+      "to": "#727272",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-neutral-21": {
@@ -1941,9 +1867,8 @@
     },
     "--oc-border-blue-22": {
       "from": "#92a6b4",
-      "to": "#8ca2b5",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.219537,
+      "to": "#9f9f9f",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-amber-15": {
@@ -1955,9 +1880,8 @@
     },
     "--oc-border-blue-11": {
       "from": "#9bb6cc",
-      "to": "#9cb5c7",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.248428,
+      "to": "#b1b1b1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-neutral-17": {
@@ -1990,9 +1914,8 @@
     },
     "--oc-border-blue-35": {
       "from": "#a6b7c5",
-      "to": "#9cb5c7",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.540125,
+      "to": "#b1b1b1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-amber-04": {
@@ -2018,23 +1941,20 @@
     },
     "--oc-border-blue-12": {
       "from": "#aebecb",
-      "to": "#b5c4cc",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.453459,
+      "to": "#c1c1c1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-20": {
       "from": "#afc3d1",
-      "to": "#b5c4cc",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.604407,
+      "to": "#c1c1c1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-29": {
       "from": "#b6c9df",
-      "to": "#b6cddd",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.735673,
+      "to": "#c9c9c9",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-accent-red-05": {
@@ -2053,16 +1973,14 @@
     },
     "--oc-text-neutral-11": {
       "from": "#b8c1c7",
-      "to": "#b5c4cc",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.412794,
+      "to": "#c1c1c1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-neutral-32": {
       "from": "#b8c9cf",
-      "to": "#b5c4cc",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.08139,
+      "to": "#c1c1c1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-green-23": {
@@ -2088,30 +2006,26 @@
     },
     "--oc-border-blue-13": {
       "from": "#bdcdd7",
-      "to": "#b5c4cc",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.407997,
+      "to": "#c1c1c1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-34": {
       "from": "#bdd3e6",
-      "to": "#b6cddd",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.819693,
+      "to": "#c9c9c9",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-blue-10": {
       "from": "#bed0df",
-      "to": "#b6cddd",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.220528,
+      "to": "#c9c9c9",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-neutral-34": {
       "from": "#c2cdd5",
-      "to": "#cbd4df",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.245087,
+      "to": "#d3d3d3",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-neutral-10": {
@@ -2130,9 +2044,8 @@
     },
     "--oc-border-blue-14": {
       "from": "#c8d8e8",
-      "to": "#cbd4df",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.603825,
+      "to": "#d3d3d3",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-status-warn-accent": {
@@ -2172,9 +2085,8 @@
     },
     "--oc-border-neutral-29": {
       "from": "#cdd9e0",
-      "to": "#cbd4df",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 2.811881,
+      "to": "#d3d3d3",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-neutral-19": {
@@ -2235,9 +2147,8 @@
     },
     "--oc-surface-neutral-23": {
       "from": "#dcecf7",
-      "to": "#d2e7f6",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.285236,
+      "to": "#e4e4e4",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-amber-36": {
@@ -2270,9 +2181,8 @@
     },
     "--oc-surface-blue-10": {
       "from": "#dfedff",
-      "to": "#d2e7f6",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.916985,
+      "to": "#e4e4e4",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-amber-40": {
@@ -2326,9 +2236,8 @@
     },
     "--oc-surface-neutral-25": {
       "from": "#e5e1e8",
-      "to": "#dce2e8",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.594697,
+      "to": "#e1e1e1",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-border-amber-27": {
@@ -2361,9 +2270,8 @@
     },
     "--oc-surface-neutral-26": {
       "from": "#f2f3f3",
-      "to": "#edf5fb",
-      "kind": "direct-delta-e-merge",
-      "deltaE": 3.884843,
+      "to": "#f4f4f4",
+      "kind": "neutral-shell",
       "decision": "candidate pending contrast and visual checks"
     },
     "--oc-text-amber-35": {
@@ -2424,37 +2332,37 @@
     },
     "--oc-text-neutral-01": {
       "from": "#78817c",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "Claude V2: operational source/search/notification/calendar labels need primary ink on fixed canvas; hierarchy remains in size and weight. Fixed muted anchor remains unchanged."
     },
     "--oc-border-neutral-01": {
       "from": "#e5e8e4",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-border-neutral-05": {
       "from": "#cfd6d1",
-      "to": "#dbe4e9",
-      "kind": "role-neutral",
+      "to": "#e2e2e2",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-neutral-02": {
       "from": "#68736d",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-text-neutral-07": {
       "from": "#60666c",
-      "to": "#243b4d",
-      "kind": "role-neutral",
+      "to": "#373737",
+      "kind": "neutral-shell",
       "decision": "canvas, subtle raised surface, default border or readable operational ink; colored status tints excluded from neutral migration"
     },
     "--oc-border-default": {
       "from": "#dce2e8",
-      "to": "#dbe4e9",
+      "to": "#d9d9d9",
       "kind": "fixed-anchor",
       "decision": "restore explicitly approved workbench anchor"
     }

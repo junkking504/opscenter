@@ -228,3 +228,31 @@ Visible static headings use Title Case. Titles referenced by existing tests stay
 unchanged until their own compatibility change. Files owned by the concurrent
 Waypoint and Fleet PRs are deferred, including `app/page.tsx` Dashboard monthly
 KPIs, Krewe tabs and `page-rail.tsx` titles.
+
+
+## Neutral shell (2026-10-30)
+
+The desktop shell uses neutral primitives in `desktop-ui/design-tokens.css`.
+Semantic aliases and all six phase-two workspace profiles agree on the light
+canvas `#f5f5f5`, border `#d9d9d9`, primary ink `#262626`, and muted ink `#595959`.
+The dark canvas is `#202020`, raised surface `#292929`, primary ink `#f5f5f5`,
+and muted ink `#c4c4c4`. Brand red and green/amber/red status colors retain their
+existing values. Each changed anchor, including its previous value, is recorded
+in [neutral-shell-anchors.json](css-phase-two/neutral-shell-anchors.json);
+the phase-two decision records retain their original `from` values for traceability.
+
+The sidebar exposes workspace links only. Page destinations remain in the
+workspace tabs, with their existing roving keyboard focus and URL state. The
+active workspace uses a gray pill; page tabs use a red underline with plain text
+counts. Phone workspace selection retains its existing behavior.
+
+Appointment surfaces and outlines use separate semantic tokens, leaving map
+territory markers as data. The remaining CSS hex values with hue 190–260
+are `#2563eb` (New Orleans map marker), `#8ac9f5` (dark chart actual),
+`#b4c2ce` (dark chart comparison), `#dbe4e9` (dark map canvas), `#275e91` (dark map links), and `#b0d2fd` (operational-event New Orleans territory data). These are explicit map/chart tokens, not shell selection colors.
+
+`node scripts/test-neutral-shell-browser.mjs` captures the six synthetic
+workspaces at 1440×900 and 390×900 in both themes and checks neutral tab chrome,
+flat sidebar semantics, overflow, and shared body-text contrast. Its output is
+fixture evidence, not authenticated live-app verification. Approved mockup
+comparison is a separate visual acceptance step.

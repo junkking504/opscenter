@@ -13,7 +13,7 @@
 .live-schedule .schedule-time-row > span:first-child { border-right: 0; }
 .live-schedule .schedule-truck-cell { position: absolute; inset: 0 auto 0 0; width: 88px; height: 100%; }
 .live-schedule .live-truck-timeline { position: absolute; inset: 0 0 0 88px; background-image: linear-gradient(to right, var(--oc-border-neutral-01) 1px, transparent 1px); background-size: calc(100% / var(--schedule-hour-count)) 100%; background-repeat: repeat-x; }
-.ops-live .live-schedule .live-truck-timeline .schedule-appointment { --territory-color: var(--oc-surface-neutral-04); position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: color-mix(in srgb, var(--territory-color) 75%, var(--oc-border-neutral-02)); border-left-color: var(--territory-color); background: color-mix(in srgb, var(--territory-color) 65%, var(--oc-surface-raised)); }
+.ops-live .live-schedule .live-truck-timeline .schedule-appointment { --territory-color: var(--oc-surface-neutral-04); position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: var(--oc-schedule-block-border); border-left-color: var(--oc-schedule-block-border); background: var(--oc-schedule-block-surface); }
 /* Area colors deliberately override parish colors on individual appointments. */
 .ops-live .live-schedule .territory-wb { --territory-color: var(--oc-accent-amber-05) !important; }
 .ops-live .live-schedule .territory-em { --territory-color: var(--oc-accent-amber-06) !important; }

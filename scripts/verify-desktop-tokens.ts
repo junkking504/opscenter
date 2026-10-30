@@ -1,18 +1,20 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import postcss from 'postcss';
-const folders=['desktop-ui','desktop-ui/app'];
+const folders=['desktop-ui','desktop-ui/app','desktop-ui/components'];
 const files=folders.flatMap(folder=>fs.readdirSync(folder).filter(name=>name.endsWith('.css')).map(name=>`${folder}/${name}`));
 const tokenFile='desktop-ui/design-tokens.css';
 // Third-party CSS and the shared brand identity live outside this desktop audit.
 const rawHexAllowlist: Record<string, Record<string,string>> = {};
 const phaseTwoFile='desktop-ui/css-phase-two.css';
 const phaseTwoRecords=fs.readdirSync('docs/css-phase-two').filter(name=>name.endsWith('-decisions.json')&&name!=='small-text-decisions.json').map(name=>JSON.parse(fs.readFileSync(`docs/css-phase-two/${name}`,'utf8')));
-const fixedAnchors:Record<string,string>={'--oc-surface-canvas':'#f1f6f8','--oc-border-default':'#dbe4e9','--oc-text-muted':'#687e8e'};
+const neutralAnchors=JSON.parse(fs.readFileSync('docs/css-phase-two/neutral-shell-anchors.json','utf8')) as Record<string,{from:string;to:string}>;
+const fixedAnchors:Record<string,string>={'--oc-surface-canvas':'#f5f5f5','--oc-border-default':'#d9d9d9','--oc-text-muted':'#595959'};
 const phaseOneHold:Record<string,string>={'--oc-surface-canvas':'#f5f9fc','--oc-border-default':'#dce2e8','--oc-text-muted':'#657c8c'};
 rawHexAllowlist[phaseTwoFile]=Object.fromEntries([...Object.values(phaseOneHold),...phaseTwoRecords.flatMap(record=>Object.values(record.colors).map((row)=> (row as {to:string}).to))].map(hex=>[hex,'Reviewed workspace decision; checked separately by verify:css-phase-two']));
 const tokens=postcss.parse(fs.readFileSync(tokenFile,'utf8'));
 const definitions=new Map<string,string>();tokens.walkDecls(d=>{definitions.set(d.prop,d.value);});
+for(const [name,value] of definitions){const alias=value.match(/^var\((--oc-[\w-]+)\)$/);if(alias&&neutralAnchors[name]&&definitions.has(alias[1]))definitions.set(name,definitions.get(alias[1])!);}
 const scale=new Set([6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,30,32,36,42]);
 assert.equal(definitions.get('--oc-page-title'),'var(--oc-type-26)','Shared page titles must use the existing 26px scale anchor');
 for(const size of scale)assert.equal(definitions.get(`--oc-type-${size}`),`${size}px`);
@@ -43,6 +45,7 @@ assert.throws(()=>validate('new.css','.new{font:700 1.03125rem/1.4 sans-serif}')
 // Verify each original against its FINAL representative, never a transitive cluster.
 const audit=JSON.parse(fs.readFileSync('scripts/fixtures/css-phase-one.json','utf8')) as {colors:{from:string;to:string;token:string}[]};
 function lab(hex:string){const [r,g,b]=hex.match(/../g)!.map(c=>parseInt(c,16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);const f=(v:number)=>v>.008856?Math.cbrt(v):7.787*v+16/116;const x=f((r*.4124+g*.3576+b*.1805)/.95047),y=f(r*.2126+g*.7152+b*.0722),z=f((r*.0193+g*.1192+b*.9505)/1.08883);return [116*y-16,500*(x-y),200*(y-z)];}
-for(const color of audit.colors){assert.equal(definitions.get(color.token),fixedAnchors[color.token] || `#${color.to}`);const a=lab(color.from),b=lab(color.to);assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<2,`${color.from} exceeds Delta E limit`);}
+for(const color of audit.colors){assert.equal(definitions.get(color.token),neutralAnchors[color.token]?.to || fixedAnchors[color.token] || `#${color.to}`);const a=lab(color.from),b=lab(color.to);assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<2,`${color.from} exceeds Delta E limit`);}
 for(const [token,value]of Object.entries(fixedAnchors))assert.equal(definitions.get(token),value,'Approved anchors are fixed, never palette-quantized');
+for(const [name,row] of Object.entries(neutralAnchors))assert.equal(definitions.get(name),row.to,`Neutral shell anchor ${name}`);
 console.log(`Desktop tokens passed: ${files.length} files, ${new Set(audit.colors.map(c=>c.to)).size} opaque anchors, ${scale.size} type sizes, ${important} font-size importance flags.`);

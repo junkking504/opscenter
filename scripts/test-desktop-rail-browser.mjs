@@ -10,7 +10,7 @@ await page.goto(`${fixture}?workspace=Command&date=2026-09-12`);
 await page.waitForSelector('.workspace-rail-link');
 assert.equal(await page.locator('.workspace-rail-link').count(),7);
 assert.equal(await page.locator('.workspace-rail-flyout').count(),0);
-assert.equal(await page.getByRole('button',{name:'Collapse Dashboard pages',exact:true}).isVisible(),true);
+assert.equal(await page.locator('.workspace-group-toggle,.workspace-page-list,.workspace-rail-icon').count(),0);
 assert.equal(await page.locator('.sidebar-page-panel').count(),0);
 const targets=[['Dashboard','Command','commandView','now'],['Command','Schedule','scheduleView','board'],['Krewe','Krewe','kreweView','today'],['Fleet','Fleet','fleetView','overview'],['Finance','Finance','financeView','overview'],['Marketing','Marketing','marketingView','overview'],['Settings','Settings',null,null]];
 for(const [label,workspace,key,area] of targets){
@@ -19,33 +19,17 @@ for(const [label,workspace,key,area] of targets){
  await page.waitForFunction(({workspace,key,area})=>{const url=new URL(location.href);return url.searchParams.get('workspace')===workspace&&(!key||url.searchParams.get(key)===area);},{workspace,key,area});
  assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
  assert.equal(await page.locator('.workspace-rail-link.active').count(),1);
- assert.equal(await link.getAttribute('aria-current'),workspace==='Settings'?'page':'true');
+ assert.equal(await link.getAttribute('aria-current'),'page');
  assert.equal(await link.getAttribute('aria-expanded'),null);
  console.log(`One click reached: ${label}`);
 }
-// Inline disclosure changes only sidebar rows, not the workspace geometry.
-const geometryOf = () => document.querySelector('.ops-content').getBoundingClientRect().toJSON();
-const settingsUrl=page.url(), fixedGeometry=await page.evaluate(geometryOf);
-const commandToggle=page.getByRole('button',{name:/^(Expand|Collapse) Command pages$/});
-if(await commandToggle.getAttribute('aria-expanded')==='false') await commandToggle.click();
-assert.equal(page.url(),settingsUrl);
-assert.deepEqual(await page.evaluate(geometryOf),fixedGeometry);
-assert.equal(await page.locator('.sidebar-page-panel,.sidebar-page-backdrop').count(),0);
-await page.locator('#sidebar-pages-Schedule').getByRole('link',{name:'Calendar',exact:true}).press('Enter');
-await page.waitForFunction(()=>new URL(location.href).searchParams.get('scheduleView')==='calendar');
+// Subpages live in the page tabs; native links retain keyboard activation.
+await page.locator('.ops-sidebar').getByRole('link',{name:'Command',exact:true}).press('Enter');
+await page.getByRole('tab',{name:'Calendar',exact:true}).click();
 assert.equal(new URL(page.url()).searchParams.get('date'),'2026-09-12');
 assert.equal(await page.getByRole('tab',{name:'Calendar',exact:true}).getAttribute('aria-selected'),'true');
-assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),true);
-assert.equal(await page.locator('#sidebar-pages-Command').isVisible(),true);
-assert.equal(await page.locator('#sidebar-pages-Schedule').getByRole('link',{name:'Calendar',exact:true}).evaluate(el=>el===document.activeElement),true);
-const calendarGeometry=await page.evaluate(geometryOf);
-await page.getByRole('button',{name:'Collapse Command pages',exact:true}).click();
-assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),false);
-assert.deepEqual(await page.evaluate(geometryOf),calendarGeometry);
-await page.getByRole('button',{name:'Expand Command pages',exact:true}).click();
-await page.reload();
-await page.getByRole('button',{name:'Collapse Command pages',exact:true}).waitFor();
-assert.equal(await page.locator('#sidebar-pages-Schedule').isVisible(),true);
+await page.getByRole('tab',{name:'Calendar',exact:true}).press('Home');
+assert.equal(await page.getByRole('tab',{name:'Board',exact:true}).getAttribute('aria-selected'),'true');
 await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).click();
 await page.getByLabel('Default opening page').selectOption('Fleet');
 await page.getByText('Saved for this browser.',{exact:true}).waitFor();
@@ -65,16 +49,13 @@ await page.goto(`${fixture}?workspace=Finance&financeView=overview`);
 await page.waitForSelector('.capital-hub');
 const financePages=['Overview','Trends','Payments','Expenses','Accounting','Resale','Recycling'];
 assert.deepEqual(await page.locator('.workspace-heading').getByRole('tab').allTextContents(),financePages);
-assert.deepEqual(await page.locator('#sidebar-pages-Finance').getByRole('link').allTextContents(),financePages);
 assert.equal(await page.locator('#capital-trends').count(),0);
 assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
-assert.equal(await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Overview',exact:true}).getAttribute('aria-current'),'page');
 await page.locator('.capital-metric-primary').click();
 await page.waitForFunction(()=>new URL(location.href).searchParams.get('financeView')==='trends');
 await page.waitForSelector('#capital-trends .finance-performance');
 assert.equal(await page.locator('.capital-hub').count(),0);
 assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).getAttribute('aria-selected'),'true');
-assert.equal(await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Trends',exact:true}).getAttribute('aria-current'),'page');
 await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).selectOption('ytd');
 assert.equal(await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).inputValue(),'ytd');
 // Direct links select the same standalone destination without relying on a tile click.
@@ -84,7 +65,7 @@ assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribu
 assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).getAttribute('aria-selected'),'true');
 assert.equal(await page.locator('.workspace-rail-link.active').innerText(),'Finance');
 assert.equal(await page.locator('.capital-hub').count(),0);
-await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Overview',exact:true}).click();
+await page.getByRole('tab',{name:'Overview',exact:true}).click();
 await page.waitForSelector('.capital-hub');
 assert.equal(await page.locator('#capital-trends').count(),0);
 assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
@@ -123,8 +104,6 @@ await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('Storage
 await page.getByLabel('Default opening page').selectOption('Marketing');
 await page.getByText('Could not save this preference.',{exact:false}).waitFor();
 await page.setViewportSize({width:1280,height:720});
-await page.getByRole('button',{name:'Expand Dashboard pages',exact:true}).click();
-await page.getByRole('button',{name:'Collapse Dashboard pages',exact:true}).click();
-assert.equal(await page.getByRole('button',{name:'Expand Dashboard pages',exact:true}).isVisible(),true);
+assert.equal(await page.locator('.workspace-group-toggle,.workspace-page-list').count(),0);
 assert.deepEqual(errors,[]);
 await browser.close();console.log('Direct navigation, dated subpages, preferences, role gates, mutation guard and responsive Settings passed.');

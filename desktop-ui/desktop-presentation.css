@@ -300,16 +300,16 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .ops-app.ops-live .page-rail.workspace-rail { display:flex; flex:1 1 0; min-height:0; flex-direction:column; justify-content:flex-start; gap:4px; padding:0 2px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; overflow-anchor:none; }
   .workspace-page-group { flex-shrink:0; }
   .workspace-group-heading { display:flex; align-items:center; gap:2px; }
-  .workspace-rail-group { min-width:0; flex:1; }
+  .workspace-rail-group { min-width:0; flex:0 0 auto; }
   .workspace-rail-link { display:flex; align-items:center; gap:9px; min-height:42px; padding:4px 8px; border-radius:7px; color:var(--oc-text-primary); text-decoration:none; font-size:var(--oc-type-14); font-weight:600; line-height:20px; }
   .workspace-rail-icon { display:grid; flex-shrink:0; place-items:center; width:24px; height:28px; }
   .workspace-rail-link svg { width:19px; height:19px; stroke-width:1.7; }
-  .workspace-rail-link.active { color:var(--ops-brand-red); background:var(--oc-status-critical-tint); }
+  .workspace-rail-link.active { color:var(--oc-text-primary); background:var(--oc-surface-muted); }
   .workspace-group-toggle { display:grid; flex:0 0 32px; place-items:center; height:38px; border:0; border-radius:6px; background:transparent; color:var(--oc-text-muted); cursor:pointer; }
   .workspace-group-toggle svg { transform:rotate(-90deg); }
   .workspace-group-toggle[aria-expanded="true"] svg { transform:none; }
   .workspace-rail-link:hover,.workspace-group-toggle:hover,.workspace-page-link:hover { background:var(--oc-surface-muted); color:var(--oc-text-primary); }
-  .workspace-rail-link:focus-visible,.workspace-group-toggle:focus-visible,.workspace-page-link:focus-visible { outline:2px solid var(--ops-brand-red); outline-offset:-2px; }
+  .workspace-rail-link:focus-visible,.workspace-group-toggle:focus-visible,.workspace-page-link:focus-visible { outline:2px solid var(--oc-text-primary); outline-offset:-2px; }
   .workspace-page-list { display:flex; flex-direction:column; gap:2px; padding:2px 0 6px 30px; }
   .workspace-page-list[hidden] { display:none; }
   .workspace-page-link { display:block; padding:6px 8px; border-radius:6px; color:var(--oc-text-muted); font-size:var(--oc-type-14); line-height:20px; text-decoration:none; overflow-wrap:anywhere; }

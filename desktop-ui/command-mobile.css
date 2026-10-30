@@ -5,22 +5,22 @@
   .ops-app.ops-live[data-css-phase-two="Schedule"] .ops-content .workspace .workspace-heading h1 { font-size: var(--oc-type-24); font-weight: 600; padding: 0; margin: 0; }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .ops-content .workspace .shared-workspace-tabs {
     display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px;
-    width: 100%; padding: 6px; border: 1px solid var(--oc-border-default);
-    border-radius: var(--radius-lg); background: var(--oc-surface-muted);
+    width: 100%; padding: 0; border: 0; border-bottom: 1px solid var(--oc-border-default);
+    border-radius: 0; background: transparent;
   }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .ops-content .workspace .shared-workspace-tabs > button {
     display: flex; align-items: center; justify-content: center; gap: 4px;
     width: 100%; min-height: 44px; height: auto; padding: 8px 4px; white-space: normal;
     font-size: var(--oc-type-12); font-weight: 600; line-height: 1.3;
-    border: 1px solid var(--oc-border-default); border-radius: var(--radius-sm);
-    color: var(--oc-text-primary); background: var(--oc-surface-raised); box-shadow: none;
+    border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+    color: var(--oc-text-primary); background: transparent; box-shadow: none;
   }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .ops-content .workspace .shared-workspace-tabs > button.active {
-    border-color: var(--ops-brand-red); color: var(--ops-brand-red);
-    background: var(--oc-status-critical-tint); box-shadow: inset 0 -2px var(--ops-brand-red);
+    border-bottom-color: var(--ops-brand-red); color: var(--oc-text-primary);
+    background: transparent; box-shadow: none;
   }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs > button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs button span { margin: 0; font-size: var(--oc-type-12); }
+  .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs > button:focus-visible { outline: 2px solid var(--oc-text-primary); outline-offset: 2px; }
+  .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs button span { margin: 0; font-size: var(--oc-type-11); }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell {
     grid-template-columns: minmax(0,1fr) 44px 44px;
     grid-template-areas: "day day day" "controls controls controls" "search wiki alerts";

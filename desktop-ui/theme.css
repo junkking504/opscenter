@@ -637,7 +637,7 @@ html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.nav-item,.nav-la
 html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar .nav-item.active { color: var(--oc-theme-dark-on-brand); background: var(--oc-theme-dark-selected-surface); }
 html[data-ops-theme="dark"] .ops-app.ops-live :is(.crew-all-updates,.crew-alert-search,.crew-follow-filter,.map-focus-chip) { background: var(--oc-theme-dark-surface); color: var(--oc-theme-dark-text); border-color: var(--oc-theme-dark-border); }
 html[data-ops-theme="dark"] .ops-app.ops-live .map-focus-chip :is(span,strong,button) { color: var(--oc-theme-dark-secondary-text); }
-html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button.active { color: var(--oc-theme-dark-link); border-color: var(--oc-theme-dark-brand-red); background: var(--oc-theme-dark-critical-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button.active { color: var(--oc-theme-dark-text); border-bottom-color: var(--ops-brand-red); background: transparent; }
 html[data-ops-theme="dark"] .ops-app.ops-live[data-css-phase-two] .command-metrics > button.kpi-card { border-right-color: var(--oc-theme-dark-border); border-bottom-color: var(--oc-theme-dark-border); border-left-color: var(--oc-theme-dark-border); }
 html[data-ops-theme="dark"] .ops-app.ops-live .live-header-shell { background:var(--oc-theme-dark-surface); }
 
@@ -677,7 +677,7 @@ html[data-ops-theme="light"] .ops-app.ops-live > :not(.ops-sidebar) {
 }
 
 html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.workspace-brand-name,.workspace-rail-link,.workspace-rail-link span,.workspace-page-link,.workspace-group-toggle) { color:var(--oc-theme-dark-secondary-text); }
-html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link.active,.workspace-page-link[aria-current="page"]) { color:var(--oc-theme-dark-link); background:var(--oc-theme-dark-critical-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar :is(.workspace-rail-link.active,.workspace-page-link[aria-current="page"]) { color:var(--oc-theme-dark-text); background:var(--oc-theme-dark-selected-surface); }
 html[data-ops-theme="dark"] .ops-app.ops-live .notification-trigger b { color:var(--oc-theme-dark-on-brand); }
 /* The existing record-link rule is important; preserve that contract here. */
 html[data-ops-theme="dark"] .ops-app.ops-live .jk-record-link,
@@ -716,3 +716,5 @@ html[data-ops-theme="dark"] .ops-app.ops-live .convoy-status.stop { color:var(--
 /* The resolved app preference wins over the legacy OS-only statement fragment. */
 html[data-ops-theme="light"] .ops-app.ops-live .statement-review { color:var(--oc-status-warn-ink); background:var(--oc-status-warn-tint); border-left-color:var(--oc-status-warn-accent); }
 html[data-ops-theme="dark"] .ops-app.ops-live .statement-review { color:var(--oc-theme-dark-warning-text); background:var(--oc-theme-dark-warning-surface); border-left-color:var(--oc-theme-dark-warning-border); }
+
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .shared-workspace-tabs > button { background: transparent; }

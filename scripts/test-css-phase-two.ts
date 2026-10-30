@@ -6,15 +6,16 @@ type Decision={workspace:string;colors:Record<string,{from:string;to:string;kind
 const decisions:Decision[]=fs.readdirSync(directory).filter(f=>f.endsWith('-decisions.json')&&f!=='small-text-decisions.json').map(f=>JSON.parse(fs.readFileSync(`${directory}/${f}`,'utf8')));
 const candidates=JSON.parse(fs.readFileSync('docs/css-phase-two-palette-candidates.json','utf8')).candidateMerges as Array<{token:string;from:string;to:string;deltaE:number}>;
 const scale=new Set([9,10,11,12,13,14,16,20,24,28]);
-const fixed:Record<string,string>={'--oc-surface-canvas':'#f1f6f8','--oc-border-default':'#dbe4e9','--oc-text-muted':'#687e8e'};
-const neutrals=new Set(['#f1f6f8','#f6f9fb','#dbe4e9','#243b4d','#687e8e']);
+const fixed:Record<string,string>={'--oc-surface-canvas':'#f5f5f5','--oc-border-default':'#d9d9d9','--oc-text-muted':'#595959'};
+const neutrals=new Set(['#f5f5f5','#f6f9fb','#d9d9d9','#243b4d','#595959']);
 const phaseOne=JSON.parse(fs.readFileSync('scripts/fixtures/css-phase-one.json','utf8')).colors as Array<{token:string;to:string}>;
 for(const decision of decisions){
  for(const [token,row]of Object.entries(decision.colors)){
   assert.equal(row.from,`#${phaseOne.find(c=>c.token===token)?.to}`,`${token}: original must remain traceable`);
   if(row.kind==='direct-delta-e-merge'){
    const approved=candidates.find(c=>c.token===token);assert(approved);assert.equal(row.to,`#${approved.to}`);assert.equal(row.deltaE,approved.deltaE);assert(approved.deltaE>=2&&approved.deltaE<5);
-  }else if(row.kind==='fixed-anchor')assert.equal(row.to,fixed[token]);
+  }else if(row.kind==='neutral-shell'){assert.match(row.to,/^#([\da-f]{2})\1\1$/);}
+  else if(row.kind==='fixed-anchor')assert.equal(row.to,fixed[token]);
   else {assert.equal(row.kind,'role-neutral');assert(neutrals.has(row.to));assert(!token.startsWith('--oc-status-'),'Status aliases are not neutralized');}
  }
  for(const row of candidates)assert(decision.colors[row.token]||decision.rejected.some(r=>r.token===row.token&&r.decision),'Every candidate must be accepted, role-mapped or explicitly rejected');
@@ -26,7 +27,7 @@ const css=postcss.parse(fs.readFileSync('desktop-ui/css-phase-two.css','utf8'));
 css.walkDecls(d=>{
  const selector=(d.parent as postcss.Rule).selector;
  if(selector==='.ops-live:not([data-css-phase-two])'){
-  assert.equal(d.value,({'--oc-surface-canvas':'#f5f9fc','--oc-border-default':'#dce2e8','--oc-text-muted':'#657c8c'} as Record<string,string>)[d.prop]);return;
+  assert.equal(d.value,({'--oc-surface-canvas':'#f5f5f5','--oc-border-default':'#d9d9d9','--oc-text-muted':'#595959'} as Record<string,string>)[d.prop]);return;
  }
  const decision=decisions.find(row=>selector.startsWith(`.ops-live[data-css-phase-two="${row.workspace}"]`));assert(decision,`Unscoped phase-two rule: ${selector}`);
  if(d.prop.startsWith('--oc-type-'))assert.equal(d.value,`var(--oc-type-${decision.typeMap[d.prop.slice(10)]})`);

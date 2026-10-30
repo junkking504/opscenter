@@ -736,3 +736,58 @@ retain their exact job/date link. Notifications without a job link open the
 matching Schedule, Krewe or Fleet workspace. Clicking reuses an existing OpsCenter
 window when it can navigate; otherwise it opens the requested destination. Pushover preserves its existing job-link and generic fallback contract.
 No new transport, approval, polling or external sending is enabled by this change.
+
+## Persistent manager device toggle
+
+Settings > Phone notifications now offers **Notifications on this phone: On / Off**.
+An authenticated configured owner turns ON on that phone and accepts browser/iOS
+permission if needed. There is no app-imposed authorization expiry, request-ID
+exchange or separate operator approval. Categories remain schedule, krewe and
+fleet; existing late-arrival and owner truck-reassignment exclusions are unchanged.
+Authentication, manager role, exact configured owner, trusted origin, CSRF checks,
+endpoint validation and device ownership still apply. Each browser subscription
+has its own consent and audit record; saving another phone never migrates an
+existing revoked device. GET, startup and deployment never enable a device.
+
+Migration `0015_push_device_consent.sql` adds nullable per-device consent fields
+and allows no expiry only with explicit consent. Existing devices and trial/audit
+history stay unchanged. ON records a fingerprint and a new-events cutoff. Repeated
+identical ON requests are idempotent. Category changes reset that device's cutoff;
+pre-enable occurrence/recording and queued backlog cannot deliver. OFF revokes the
+owned device, skips pending delivery and is checked again immediately before
+transport. A notification already handed to Apple may still arrive. Browser
+subscription expiry and provider 404/410 revoke/stop delivery. An invalid endpoint
+must be renewed by a new explicit ON gesture; it is never retried automatically.
+Session-cookie expiry does not expire device consent. Account removal, ownership
+checks and the global sender stop still prevent delivery.
+
+Device preference and alert-service availability are separate. The UI can retain
+ON while a stopped/offline sender is unavailable; it never reports that as phone
+receipt. Browser/iOS permission cannot be overridden by the app. Lost responses
+require Refresh status to reconcile the exact subscription, not another automatic
+request. No test notification is sent by ON, OFF, saving categories or status reads.
+
+### Release and sender lifecycle
+
+Publish/deploy only after explicit release authorization. The normal controller
+applies the inert migration. Restart the existing sender from that active release
+using its established supervisor lock and reversible saved configuration. For
+persistent service use the explicit private configuration
+`{"mode":"send","persistent":true}` without `setupUntil`. This is a separate
+operator-controlled service setting, not a device authorization; the current task
+has prepared code only and has not applied this setting. Keep existing environment,
+signing identity, recipients and exclusions. Legacy bounded observe/trial modes
+remain supported for their existing tests and tools. Persistent mode still uses
+short-lived liveness leases, startup timeout, parent-death detection, global OFF
+and fail-closed shutdown. A supervisor failure pauses delivery without deleting
+any device preference. Every network attempt retains a finite 30-second deadline
+and the existing shorter transport timeout even though consent has no app expiry.
+
+The old recovery request/operator command is retained only for historical bounded
+grant compatibility, not exposed by the normal API/UI. Pending old requests do
+not enable anything and expire through existing retention. No review records,
+authorization history, device revocations or sender settings are reset by release.
+
+Validation uses disposable PostgreSQL and mocked notifications, plus responsive
+Chromium/WebKit fixtures. Provider acceptance and actual physical-phone receipt
+remain separate acceptance results.

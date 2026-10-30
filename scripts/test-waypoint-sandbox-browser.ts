@@ -36,7 +36,7 @@ async function main(){
   await page.getByRole('combobox',{name:/^Person responsible for this phone/}).selectOption('Test Driver');
   await page.getByRole('combobox',{name:/^Driver/}).selectOption('Test Driver');
   await page.getByRole('combobox',{name:/^Navigator/}).selectOption('Test Navigator');
-  await time('Save truck setup and open inspection',async()=>{await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByLabel('Odometer · miles')).toBeVisible();});
+  await time('Save truck setup and open inspection',async()=>{await page.getByRole('button',{name:'Start Inspection',exact:true}).click();await expect(page.getByLabel('Odometer · miles')).toBeVisible();});
   await capture('02-inspection-start');
   await page.getByLabel('Odometer · miles').fill('12345');
   await time('Start inspection',async()=>{await page.getByRole('button',{name:'Start inspection →',exact:true}).click();await expect(page.getByRole('button',{name:/✓ Good/})).toBeVisible();});
@@ -56,8 +56,8 @@ async function main(){
   await time('Open Assignments',async()=>{await page.getByRole('button',{name:'Continue to Assignments →',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});
   await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
   await expect(page.getByRole('list',{name:'Start your day'})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Switch truck',exact:true})).not.toBeVisible();
-  await expect(page.getByRole('heading',{name:'Next bonus tier',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Switch Truck',exact:true})).not.toBeVisible();
+  await expect(page.getByRole('heading',{name:'Next Bonus Tier',exact:true})).toBeVisible();
   const firstCustomerPhone=page.getByRole('link',{name:/Call \(225\) 555-0101/}).first();
   await expect(firstCustomerPhone).toHaveAttribute('href','tel:+12255550101');
   await expect(firstCustomerPhone).toHaveAttribute('title','Tap to call. Touch and hold for call or message options.');
@@ -70,9 +70,9 @@ async function main(){
   await capture('04-assignments');
   for(let i=1;i<=3;i++){
    await expect(page.getByRole('heading',{name:new RegExp(`Test ${i} ·`)})).toBeVisible();
-   await time(`Job ${i}: open assignment`,async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+   await time(`Job ${i}: open assignment`,async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).click();await expect(page.getByRole('button',{name:'START',exact:true})).toBeVisible();});
    await expect(page.getByRole('link',{name:new RegExp(`Call \\(225\\) 555-010${i}`)})).toHaveAttribute('href',`tel:+1225555010${i}`);
-   await time(`Job ${i}: open closeout and photo history`,async()=>{await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();});
+   await time(`Job ${i}: open closeout and photo history`,async()=>{await page.getByRole('button',{name:'START',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();});
    const data=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=10;c.height=10;const x=c.getContext('2d')!;x.fillStyle='#b51935';x.fillRect(0,0,10,10);return c.toDataURL('image/jpeg').split(',')[1];});
    await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
    const selectedAt=Date.now();
@@ -109,7 +109,7 @@ async function main(){
    await page.getByLabel('Add after photos',{exact:true}).setInputFiles(Array.from({length:i===1?13:1},(_,n)=>({name:`test-after-${n}.jpg`,mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')})));
    await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(i===1?13:1);
    if(i===1){
-    await expect(page.getByText('25 of 25 selected · Before and After combined',{exact:true})).toBeVisible();
+    await expect(page.getByText('13 ready to submit',{exact:true})).toBeVisible();
     await page.getByLabel('Add after photos',{exact:true}).setInputFiles({name:'one-too-many.jpg',mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')});
     await expect(page.getByText('You can add 0 more photos.',{exact:false})).toBeVisible();
     await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(13);
@@ -124,21 +124,21 @@ async function main(){
    await page.getByRole('button',{name:'Check next assignment',exact:true}).click();
   }
   await expect(page.getByText('All three test assignments are complete.',{exact:false})).toBeVisible();
-  await expect(page.getByRole('region',{name:'Today’s performance'}).getByText(new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(halfPrice*3),{exact:true})).toBeVisible();
-  await expect(page.getByRole('region',{name:'Today’s performance'}).getByText('$60.00',{exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Today’s Performance'}).getByText(new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(halfPrice*3),{exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Today’s Performance'}).getByText('$60.00',{exact:true})).toBeVisible();
   await page.screenshot({path:'/tmp/waypoint-day-summary.png',fullPage:true});
   await capture('10-day-summary');
-  await page.getByText('Truck & phone',{exact:true}).click();
+  await page.getByText('Truck & Phone',{exact:true}).click();
   await page.getByRole('button',{name:'Reset three test assignments',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Test 1 · Sofa pickup',exact:true})).toBeVisible();
   await time('Reload Waypoint with saved setup',async()=>{await page.reload();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});
-  await page.getByText('Truck & phone',{exact:true}).click();
-  await page.getByRole('button',{name:'Edit crew',exact:true}).click();
+  await page.getByText('Truck & Phone',{exact:true}).click();
+  await page.getByRole('button',{name:'Edit Crew',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Edit today’s crew',exact:true})).toBeVisible();
   await capture('11-edit-crew');
   await page.getByRole('button',{name:'Keep current setup',exact:true}).click();
-  await page.getByText('Truck & phone',{exact:true}).click();
-  await page.getByRole('button',{name:'Switch truck',exact:true}).click();
+  await page.getByText('Truck & Phone',{exact:true}).click();
+  await page.getByRole('button',{name:'Switch Truck',exact:true}).click();
   await page.getByRole('combobox',{name:'Replacement truck',exact:true}).selectOption('Truck 5');
   await time('Review simulated truck switch',async()=>{await page.getByRole('button',{name:'Review switch',exact:true}).click();await expect(page.getByRole('button',{name:'Move our unfinished jobs to Truck 5',exact:true})).toBeVisible();});
   await capture('12-switch-review');

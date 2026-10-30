@@ -1,0 +1,47 @@
+/* Waypoint keeps the existing credential form; only its presentation differs. */
+.ops-login-shell[data-waypoint-login] {
+  display: block;
+  min-width: 0;
+  min-height: 100svh;
+  background: #f1f3f1;
+  color-scheme: light;
+}
+.ops-login-shell[data-waypoint-login] .ops-login-access-panel {
+  display: block;
+  min-height: 100svh;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+.ops-login-shell[data-waypoint-login] .ops-login-access-panel::before { display: none; }
+.ops-login-shell[data-waypoint-login] .ops-login-access-card { margin: 0 auto; padding: 24px; border-radius: 16px; }
+.ops-login-shell[data-waypoint-login] :is(.ops-login-access-panel,.ops-login-access-card,.ops-login-form,.ops-login-form label,.ops-field,.ops-login-button) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.ops-login-shell[data-waypoint-login] .ops-login-access-card h1 { margin-top: 12px; font-size: 28px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; text-transform: none; }
+.ops-login-shell[data-waypoint-login] :is(.ops-login-access-index,.ops-login-form label > span,.ops-login-footnote) { font-family: inherit; font-size: 14px; line-height: 1.5; letter-spacing: 0; text-transform: none; }
+.ops-login-shell[data-waypoint-login] :is(.ops-login-access-card > p,.ops-login-form .ops-field,.ops-login-button,.ops-login-error) { font-family: inherit; font-size: 16px; line-height: 1.5; }
+.ops-login-shell[data-waypoint-login] :is(.ops-login-access-card > p,.ops-login-form label > span,.ops-login-footnote) { color: #505762; }
+.ops-login-shell[data-waypoint-login] :is(.ops-login-access-index,.ops-login-error) { color: #b51234; }
+.ops-login-shell[data-waypoint-login] .ops-login-form { margin-top: 24px; }
+.ops-login-shell[data-waypoint-login] .ops-field { background: #fff; color: #20242b; border-color: #929a94; }
+.ops-login-shell[data-waypoint-login] .ops-field::placeholder { color: #606873; }
+.ops-login-shell[data-waypoint-login] :is(.ops-field,.ops-login-button):focus-visible { outline: 2px solid #b51234; outline-offset: 3px; }
+.ops-login-shell[data-waypoint-login] .ops-login-button { font-weight: 600; letter-spacing: 0; text-transform: none; box-shadow: none; }
+.ops-login-shell[data-waypoint-login] .ops-login-footnote { margin-top: 24px; white-space: normal; overflow-wrap: anywhere; }
+
+[data-waypoint-login] .waypoint-login-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 16px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-waypoint-login] .waypoint-login-back:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 8px;
+}

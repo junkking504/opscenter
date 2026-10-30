@@ -5,6 +5,7 @@
 verify:address-research
 verify:agent-hierarchy
 verify:appointment-block-selection
+verify:appointment-signatures
 verify:appointment-visit-alerts
 verify:alert-navigation
 verify:ask-opsbot
@@ -114,3 +115,7 @@ verify:waypoint-recovery
 verify:mobile-interactions
 verify:appearance
 verify:inspection-updates
+
+verify:appointment-loiter
+
+verify:parked-job-location

@@ -3,7 +3,7 @@ const money = (value: number | null) => value === null ? 'Not recorded' : new In
 
 export default function EstimateCharges({ row }: { row: EstimateRow }) {
   const charges = row.charges;
-  return <section className="estimate-charges" aria-label="Itemized estimate charges"><h4>Itemized charges</h4>
+  return <section className="estimate-charges" aria-label="Itemized estimate charges"><h4>Itemized Charges</h4>
     {charges?.items.length ? <table><thead><tr><th scope="col">Charge</th><th scope="col">Qty</th><th scope="col">Unit price</th><th scope="col">Amount</th></tr></thead><tbody>
       {charges.items.map((item, index) => <tr key={index}><th scope="row">{item.name}</th><td>{item.quantity || '—'}</td><td>{item.unitPrice === null ? '—' : money(item.unitPrice)}</td><td>{money(item.total)}</td></tr>)}
       {charges.discount !== null && <tr><th scope="row">Discount</th><td /><td /><td>{money(-Math.abs(charges.discount))}</td></tr>}

@@ -24,7 +24,7 @@ journal = load('journal', 'opscenter_push_journal.py')
 CHILD = '''import json,os,time
 from pathlib import Path
 p=Path(os.environ['OPSCENTER_WEB_PUSH_READY_FILE'])
-p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True}));p.chmod(0o600)
+p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True,'reenableVersion':1}));p.chmod(0o600)
 time.sleep(0.15)
 '''
 
@@ -71,7 +71,7 @@ class SupervisionTests(unittest.TestCase):
                  "fd=int(os.environ['OPSCENTER_WEB_PUSH_PARENT_FD'])\n"
                  'assert stat.S_ISFIFO(os.fstat(fd).st_mode)\n'
                  "p=Path(os.environ['OPSCENTER_WEB_PUSH_READY_FILE'])\n"
-                 "p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True}));p.chmod(0o600)\n"
+                 "p.write_text(json.dumps({'nonce':os.environ['OPSCENTER_WEB_PUSH_RUN_NONCE'],'pid':os.getpid(),'ready':True,'reenableVersion':1}));p.chmod(0o600)\n"
                  f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
                  'while os.read(fd,1):\n    pass\nsys.exit(7)\n')
         supervisor.atomic(self.root / 'sender.json', {'mode': 'observe', 'setupUntil': time.time() + 30})
@@ -127,6 +127,7 @@ class SupervisionTests(unittest.TestCase):
         try:supervisor.supervise(self.root,self.env,[sys.executable,'-c',CHILD.replace('0.15','10')],lambda:None,self.forbidden_key,.01)
         finally:thread.join()
         self.assertEqual(seen[0]['mode'],'observe')
+        self.assertEqual(seen[0]['reenableVersion'],1)
         self.assertFalse((self.root/'capture-lease.json').exists())
     def test_startup_failure_never_grants_lease(self):
         self.assertEqual(supervisor.supervise(self.root,self.env,[sys.executable,'-c','raise SystemExit(1)'],lambda:None,self.forbidden_key,.01),1)
@@ -142,6 +143,17 @@ class SupervisionTests(unittest.TestCase):
         supervisor.atomic(self.root/'sender.json',{**self.config,'mode':'send'})
         with self.assertRaisesRegex(ValueError,'mode_configuration_mismatch'):
             supervisor.supervise(self.root,self.env,[],lambda:None,self.forbidden_key,.01)
+    def test_persistent_sender_has_no_setup_deadline(self):
+        config={'mode':'send','persistent':True}
+        supervisor.atomic(self.root/'sender.json',config)
+        env={**self.env,'OPSCENTER_WEB_PUSH_ENABLED':'1'}
+        # Mock key and child: never access Keychain or a provider.
+        self.assertEqual(supervisor.supervise(self.root,env,[sys.executable,'-c',CHILD],lambda:None,lambda:'x'*43,.01),0)
+        self.assertEqual(json.loads((self.root/'sender.json').read_text()),{**config,'mode':'off'})
+        supervisor.atomic(self.root/'sender.json',{**config,'setupUntil':time.time()+20})
+        with self.assertRaisesRegex(ValueError,'persistent_send_only'):
+            supervisor.supervise(self.root,env,[],lambda:None,lambda:'x'*43,.01)
+
     def test_environment_excludes_secrets_and_does_not_execute(self):
         file=self.root/'environment'
         file.write_text('OPS_AUTH_USERNAME=fixture\nOPSCENTER_PUSHOVER_CONFIG="/private/config with spaces.json"\nPUSHOVER_TOKEN=private\nOPS_AUTH_PASSWORD_HASH=private\nOPSCENTER_WEB_PUSH_PRIVATE_KEY=private\nSLACK_TOKEN=private\nOPSCENTER_WEB_PUSH_ENABLED=0\nOPS_AUTH_ROLE_BINDINGS="$(never-execute)"\n');file.chmod(0o600)

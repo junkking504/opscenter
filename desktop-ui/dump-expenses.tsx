@@ -7,7 +7,7 @@ export function DumpExpenses({ data }: { data?: DumpExpenseSummary }) {
   if (!data) return null;
   const includesAssumptions = data.assumedTotal > 0;
   return <section className="finance-cost-shell" aria-label="Dump expenses" id="capital-disposal">
-    <div className="section-title"><div><span className="section-kicker">{data.date} · Truck disposal costs</span><h2>Disposal costs</h2>
+    <div className="section-title"><div><span className="section-kicker">{data.date} · Truck disposal costs</span><h2>Disposal Costs</h2>
       <p>Minimum fee assumed on entry. A matching actual expense replaces it whenever recorded.</p></div></div>
     <div className="capital-inline-totals"><div><span>Actual</span><strong>{money(data.actualTotal)}</strong></div><div><span>Assumed</span><strong>{money(data.assumedTotal)}</strong></div><div aria-describedby={includesAssumptions ? 'disposal-assumed-note' : undefined}><span>Combined{includesAssumptions && <sup>*</sup>}</span><strong>{money(data.total)}</strong></div></div>
     {includesAssumptions && <p id="disposal-assumed-note">* Combined includes assumed costs alongside recorded actual costs.</p>}

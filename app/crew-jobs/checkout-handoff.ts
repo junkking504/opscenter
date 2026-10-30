@@ -1,3 +1,4 @@
+import {checkedCrewReceipt} from './closeout-receipt';
 import type { CheckoutPhoto } from './photo-checkout';
 import type { Receipt } from '../../desktop-ui/schedule-receipt';
 import { crewCloseoutKey, writeCloseoutLocal } from '../../desktop-ui/lib/closeout-drafts';
@@ -83,10 +84,11 @@ export async function transferCheckout(initial: CheckoutHandoff, dependencies: D
   const endpoint = `/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(handoff.assignmentId)}`;
   const accept = (receipt: Receipt) => {
     if (receipt.requestId !== handoff.requestId) throw new NeedsAttention('Another checkout needs office review. Do not submit again.');
+    receipt=checkedCrewReceipt(receipt,handoff.requestId);
     dependencies.keepReceipt(receipt);
     update({ receipt, phase: ['pending', 'verified'].includes(receipt.status) ? 'accepted' : 'attention', message:
       receipt.status === 'verified' ? 'Closed out · verified in JunkWare.' : receipt.status === 'pending'
-        ? 'Safe to close Waypoint. Photos and checkout are saved on the server; JunkWare verification is still pending.'
+        ? 'Received · completion pending. Do not submit again.'
         : `Checkout needs attention. ${receipt.message} Do not enter another payment.` });
     return receipt;
   };

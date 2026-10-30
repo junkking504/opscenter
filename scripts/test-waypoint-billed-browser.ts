@@ -35,7 +35,7 @@ async function main(){
   await page.goto(origin);
   if(manager){await expect(page.getByRole('heading',{name:'Waypoint manager',exact:true})).toBeVisible();await page.getByRole('button',{name:'Crew workflow',exact:true}).click();}
   await expect(page.getByText('Billed · job revenue. Billed entries are not collected payments.',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'View assignment',exact:true}).first().click();await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
+  await page.getByRole('button',{name:'View assignment',exact:true}).first().click();await page.getByRole('button',{name:'START',exact:true}).click();
   await page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
   if(category==='Estimate'){
    await page.getByLabel(/Final appointment category/).selectOption('Estimate');await page.getByLabel(/Why did this remain an estimate/).selectOption('Other');await page.getByLabel('Outcome notes',{exact:true}).fill('Estimate only');await page.getByLabel(/Why was no discount offered/).fill('No work performed');

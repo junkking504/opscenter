@@ -1,5 +1,19 @@
 # Schedule and Finance presentation
 
+## Closest-truck eligibility
+
+The selected appointment card and register compare trucks whose latest valid
+GPS observation is from the current America/Chicago operating day and outside
+both existing warehouse boundaries (NOHQ and BRHQ, 300 meters). A truck still
+at either warehouse, including one that returned after earlier work, is excluded
+before road routing. Missing, future or prior-day GPS timestamps do not establish
+today's activity and are excluded without asserting that the truck stayed home.
+Today's offsite observation is sufficient; a captured warehouse-exit event is
+not required. Same-day parked positions and nonwarehouse facilities remain
+eligible. Original GPS timestamps remain attached to estimates. An empty
+eligible set produces no closest-truck suggestion. Validate with
+`npm run verify:closest-truck`.
+
 ## Command historical refresh isolation
 
 Command consumes live GPS/photo source-change hints only for the current Central
@@ -1212,3 +1226,26 @@ The legend and accessible labels explain the marker. Customer names, customer
 contact numbers and incidental brand mentions do not create one. Missing or
 unmatched descriptions mean no positive marker; they never establish a verified
 non-national classification. Amazon retains its existing label when both apply.
+
+## Recorded visit chronology
+
+The desktop board keeps GPS observations distinct from appointments and booked
+windows. Short recorded blocks retain a readable display width only until the
+next recorded arrival, with a 12px minimum hit width. Closer observations use
+separate lanes instead of becoming invisible; source duration is unchanged. Appointment blocks
+reserve lanes before off-site annotations so a visit during another job's away
+interval remains on the chronological track.
+
+When both endpoints have recorded observations, a travel connector uses the
+latest source observation ending before the destination's first observation.
+A proposed leg is omitted if another recorded appointment intervenes, if it
+points backward into recorded history, or if it connects the same appointment
+to itself. These lines are labeled “Recorded visit order”; their minutes remain
+estimated road travel, never measured elapsed or onsite time. Planned-to-recorded legs are omitted even when the planned time is earlier: a
+still-pending stop is not evidence of travel to a recorded visit. An unvisited
+planned card does not interrupt recorded visit order. Planned-only
+connectors continue to follow saved/proposed order. Missing departures and
+isolated GPS points retain their uncertainty. The phone overview is unchanged.
+
+Validation: `verify:schedule-history` and `verify:schedule-history:browser`
+(the browser fixture uses synthetic records and the compiled production CSS).

@@ -13,7 +13,7 @@ export default function ScheduleRecordedSequence({ jobs, stops, trucks, now, sel
   const rows = trucks.filter(truck=>truck!=='Unassigned').map(truck=>({truck,sequence:recordedStopSequence(jobs,groupNearbyHqStops(stops.filter(stop=>truckLabel(stop.truck)===truckLabel(truck)),jobs,truck,now),truck,now)})).filter(row=>row.sequence.length);
   return <><button type="button" className="schedule-recorded-sequence-button" popoverTarget={id}>Recorded stops</button>
     <div id={id} popover="auto" className="schedule-recorded-sequence" role="dialog" aria-label="Recorded truck stop sequence">
-      <header><h3>Recorded stops</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close recorded stops">×</button></header>
+      <header><h3>Recorded Stops</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close recorded stops">×</button></header>
       <p>Recorded arrival order · Gaps are elapsed time, not driving time. Verify overlapping records.</p>
       {!rows.length && <p>No recorded visits available.</p>}
       {rows.map(({truck,sequence}) => {

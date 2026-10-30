@@ -13,8 +13,8 @@ const duration = (minutes:number) => {
   const rounded=Math.round(minutes),hours=Math.floor(rounded/60),remainder=rounded%60;
   return hours ? `${hours}h${remainder?`${remainder}m`:''}` : `${rounded}m`;
 };
-export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,mobile=false,selected,muted,matched,dragging,busy,onPointerDown,onSelect}: {
-  job:ScheduleAppointment; truck:string; position:NonNullable<ReturnType<typeof timelinePlacement>>; segmentIndex:number; top:number;
+export default function ScheduleVisitBlock({job,truck,position,segmentIndex,displayWidth,top,mobile=false,selected,muted,matched,dragging,busy,onPointerDown,onSelect}: {
+  job:ScheduleAppointment; truck:string; position:NonNullable<ReturnType<typeof timelinePlacement>>; segmentIndex:number; displayWidth?:number; top:number;
   mobile?:boolean; selected:boolean; muted:boolean; matched:boolean; dragging:boolean; busy:boolean; onPointerDown:(event:PointerEvent<HTMLDivElement>)=>void; onSelect:()=>void;
 }) {
   const interval=position.intervals[segmentIndex],segment=position.segments[segmentIndex];
@@ -34,7 +34,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const label=`${job.jkNumber} · ${job.customerName} · ${truckDisplayText(truck)} · ${time}${approximate ? ' · Approximate pin' : ''} · ${state}${position.actual && position.intervals.length>1?` · GPS segment ${segmentIndex+1} of ${position.intervals.length} for this appointment`:''}${assignment}${partner?` · ${partner.name}`:''}${account&&!partner?` · ${account}`:''}`;
   const minimumWidth=scheduleBlockMinimumWidth(position.rangeDuration);
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
-    style={{left:`${segment.left*100}%`,width:`${Math.max(minimumWidth,segment.width)*100}%`,top,height:mobile?44:22}}
+    style={{left:`${segment.left*100}%`,width:`${(displayWidth ?? Math.max(minimumWidth,segment.width))*100}%`,top,height:mobile?44:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={likely?'likely':position.actual?'actual':sequenced?'sequence':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end} data-visit-complete={position.actual?String(interval.complete):undefined}

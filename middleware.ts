@@ -1,3 +1,5 @@
+import { appleMapsCsp } from './lib/apple-maps-csp';
+import { waypointAppleMapsEnabled } from './lib/waypoint-apple-maps-config';
 import { createAuthRejectionLogger } from './lib/auth-rejection-log';
 import { currentWorkspaceUrl } from './lib/legacy-workspace-redirect';
 import { NextRequest, NextResponse } from "next/server";
@@ -392,7 +394,12 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
  * silently - exactly the failure mode this audit is trying to remove. Set
  * OPS_CSP_ENFORCE=1 once the report shows no legitimate violations.
  */
-function contentSecurityPolicy(): string {
+function contentSecurityPolicy(hostname = ""): string {
+  // Waypoint has its own switch and token; other hosts keep the Command map switch.
+  const waypointHost = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].some(origin => new URL(origin).hostname === hostname);
+  const apple = appleMapsCsp(waypointHost
+    ? waypointAppleMapsEnabled()
+    : process.env.OPSCENTER_APPLE_MAPS_ENABLED === '1' && Boolean(process.env.OPSCENTER_APPLE_MAPS_TOKEN?.trim()));
   const tileHost = String(process.env.NEXT_PUBLIC_MAP_TILE_URL || "")
     .replace(/^(https:\/\/[^/]+).*$/, "$1")
     || "https://tile.openstreetmap.org";
@@ -404,13 +411,14 @@ function contentSecurityPolicy(): string {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `img-src 'self' data: blob: ${tileHost} https://*.tile.openstreetmap.org`,
+    `img-src 'self' data: blob: ${tileHost} https://*.tile.openstreetmap.org ${apple.image}`.trim(),
     // Next.js ships inline bootstrap scripts and styles without nonce plumbing.
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${apple.script}`.trim(),
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
-    `connect-src 'self' blob: ${extraConnect}`.trim(),
+    `connect-src 'self' blob: ${extraConnect} ${apple.connect}`.trim(),
     `media-src 'self' blob: data: ${extraMedia}`.trim(),
+    ...apple.directives,
   ].join("; ");
 }
 
@@ -427,7 +435,8 @@ function withSecurityHeaders(request: NextRequest, response: NextResponse): Next
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 
-  const policy = contentSecurityPolicy();
+  const requestHost = String(request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host).split(":")[0].toLowerCase();
+  const policy = contentSecurityPolicy(requestHost);
   const enforce = /^(1|true|yes|on)$/i.test(String(process.env.OPS_CSP_ENFORCE || ""));
   headers.set(enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only", policy);
 

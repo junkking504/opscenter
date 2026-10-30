@@ -6,7 +6,7 @@ export const workspacePages = [
   { workspace: 'Command', label: workspaceLabel('Command'), key: 'commandView', icon: Activity, pages: [['now','Updates'],['today','Operating Control'],['forecast','Forecast'],['tv','The Huddle']] },
   { workspace: 'Schedule', label: workspaceLabel('Schedule'), key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['customers','Customers'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
   { workspace: 'Krewe', label: workspaceLabel('Krewe'), key: 'kreweView', icon: Users, pages: [['today','Today'],['payperiod','Pay period'],['monthly','Monthly']] },
-  { workspace: 'Fleet', label: workspaceLabel('Fleet'), key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['maintenance','Repairs & inspections'],['service','Maintenance']] },
+  { workspace: 'Fleet', label: workspaceLabel('Fleet'), key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['inspections','Inspections'],['maintenance','Repairs'],['service','Maintenance'],['reports','Records'],['scores','Driving']] },
   { workspace: 'Finance', label: workspaceLabel('Finance'), key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['payments','Payments'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling']] },
   { workspace: 'Marketing', label: workspaceLabel('Marketing'), key: 'marketingView', icon: Megaphone, pages: [['overview','Follow up'],['reviews','Reviews'],['performance','Results']] },
   { workspace: 'Settings', label: 'Settings', key: 'settingsView', icon: Settings, pages: [['overview','Settings']] },

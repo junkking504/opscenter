@@ -1,3 +1,4 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import { currentGpsPresence, type PresenceTruck } from './schedule-gps-presence';
 import { onsiteGpsMaxAge } from './parked-onsite-presence';
@@ -11,7 +12,7 @@ type FacilityVisit = { kind?: string; truck: string; name: string; enteredAt: st
 
 /** Display evidence only. Never alter booked assignments or visit accounting. */
 export function scheduleTruckVisits(job: Job, visits: Visit[], trucks: PresenceTruck[], appointments: Job[], now = Date.now()): ScheduleTruckVisit[] {
-  const matching = visits.filter(v => job.appointmentId && String(v.appointment_id || v.appt_id || '') === job.appointmentId && v.match_confidence === 'confirmed' && !v.pass_by_only);
+  const matching = qualifiedAppointmentVisits(visits, job.status, now).filter(v => job.appointmentId && String(v.appointment_id || v.appt_id || '') === job.appointmentId && v.match_confidence === 'confirmed' && !v.pass_by_only);
   const result: ScheduleTruckVisit[] = [];
   for (const visit of matching) {
     const truck = truckLabel(String(visit.truck_number || visit.truck || ''));

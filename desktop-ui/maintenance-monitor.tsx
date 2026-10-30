@@ -66,7 +66,7 @@ export default function MaintenanceMonitor() {
   const fresh = snapshot?.fresh && age >= 0 && age < 180_000 && !error;
   const incidents = snapshot?.incidents.filter(i => history ? i.status === 'resolved' : i.status !== 'resolved') || [];
   return <section className="maintenance-panel" aria-labelledby="maintenance-title">
-    <header><div><span className="section-kicker">OpsBot · maintenance pilot</span><h2 id="maintenance-title">Background maintenance</h2><p>Detects conditions and suggests next steps. Process recovery has its own bounded controls below.</p></div><span className={`maintenance-state ${fresh ? 'current' : 'stale'}`}>{fresh ? 'Monitoring' : snapshot ? 'Monitor needs attention' : 'Loading status…'}</span></header>
+    <header><div><span className="section-kicker">OpsBot · maintenance pilot</span><h2 id="maintenance-title">Background Maintenance</h2><p>Detects conditions and suggests next steps. Process recovery has its own bounded controls below.</p></div><span className={`maintenance-state ${fresh ? 'current' : 'stale'}`}>{fresh ? 'Monitoring' : snapshot ? 'Monitor needs attention' : 'Loading status…'}</span></header>
     {error && <p role="alert">{error}</p>}
     <KnowledgeTroubleshootingPanel snapshot={snapshot?.troubleshooting} stale={!fresh} />
     <ContinuityMonitor snapshot={snapshot?.continuity} clock={clock} />

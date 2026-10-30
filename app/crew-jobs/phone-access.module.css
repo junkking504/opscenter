@@ -11,7 +11,7 @@
 .form { display: grid; gap: 18px; }
 .form label { display: grid; gap: 8px; font-weight: 600; }
 .form input, .form select { width: 100%; box-sizing: border-box; font: inherit; color: inherit; min-height: 48px; padding: 12px; border: 1px solid #bdc7bc; border-radius: 8px; background: white; }
-.primary, .secondary { min-height: 48px; border-radius: 10px; font: inherit; font-weight: 650; padding: 12px 16px; cursor: pointer; }
+.primary, .secondary { display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; min-height: 40px; border-radius: 8px; font: inherit; font-size: 15px; font-weight: 650; padding: 8px 14px; cursor: pointer; }
 .primary { color: white; background: #b51935; border: 1px solid #b51935; width: 100%; }
 .secondary { color: #25312c; background: white; border: 1px solid #bdc7bc; }
 .primary:disabled, .secondary:disabled { opacity: .55; cursor: default; }
@@ -35,8 +35,8 @@
 .photoSection { margin: 24px 0; }
 .photoSection label { display: block; }
 .photoSection input { display: block; width: 100%; margin-top: 12px; }
-.photoSection .photoPicker { position: relative; display: grid; place-items: center; gap: 4px; min-height: 88px; padding: 16px; border: 1px dashed #a9b3a1; border-radius: 12px; background: #fff; color: #465343; text-align: center; cursor: pointer; overflow: hidden; }
-.photoPicker span { color: #647069; font-size: 12px; font-weight: 500; }
+.photoSection .photoPicker { position: relative; display: grid; place-items: center; gap: 4px; min-height: 88px; padding: 16px; border: 2px solid #b51935; border-radius: 12px; background: #fff1f4; color: #8c1730; text-align: center; cursor: pointer; overflow: hidden; }
+.photoPicker span { color: #753043; font-size: 12px; font-weight: 500; }
 .photoSection .photoPicker input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .photoPicker:focus-within { outline: 3px solid #a57410; outline-offset: 2px; }
 .photo { margin-top: 16px; padding: 12px; border: 1px solid #dfe3da; border-radius: 10px; }
@@ -66,7 +66,7 @@
 .customerPhone small { display:block; color:#58665e; font-size:12px; font-weight:500; }
 .customerPhoneUnavailable { color:#58665e; font-size:14px; }
 .customerPhoneActions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; min-width:min(300px,calc(100vw - 66px)); margin-top:6px; padding:10px; box-sizing:border-box; border:1px solid #bdc7bc; border-radius:10px; background:#f7f8f3; }
-.customerPhoneActions a,.customerPhoneActions button { min-height:44px; padding:10px 12px; box-sizing:border-box; border:1px solid #b51935; border-radius:8px; background:white; color:#8c1730; font:inherit; font-weight:650; text-align:center; text-decoration:none; }
+.customerPhoneActions a,.customerPhoneActions button { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:8px 12px; box-sizing:border-box; border:1px solid #b51935; border-radius:8px; background:white; color:#8c1730; font:inherit; font-weight:650; text-align:center; text-decoration:none; }
 .customerPhoneActions button { grid-column:1 / -1; border-color:#bdc7bc; color:#25312c; }
 .closeoutCard { padding: 16px 12px; overflow: clip; }
 .backgroundProgress,.backgroundNotice { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
@@ -131,3 +131,22 @@
 .connectedPage details[open]>summary { margin-bottom:12px; }
 .performance { padding:12px 0; border-top:1px solid #dfe3da; margin:8px 0 16px; }
 .performance>.card { margin-top:8px; }
+
+/* Photo feedback stays visible while the thumbnail list scrolls. */
+.photoCard .photoHint { font-size: 14px; line-height: 1.45; margin: 8px 0 12px; }
+.photoCard .photoLimit { font-size: 12px; color: #58665e; margin: 8px 0; }
+.photoProgress { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 2; display: grid; gap: 6px; padding: 14px; border: 1px solid #879c8d; border-radius: 10px; background: #edf6ef; color: #203d2c; }
+.photoProgress strong { font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.photoProgress span { font-size: 14px; line-height: 1.4; }
+.photoProgress progress { display: block; width: 100%; height: 8px; accent-color: #256442; }
+.photoProgress[data-attention="true"] { background: #fff3da; border-color: #a17415; color: #664d03; }
+.photoSection .photoPicker:has(input:disabled) { opacity: .6; cursor: default; }
+.photoSection .photoPicker input:disabled { cursor: default; }
+.photoCard .photoSection { margin: 12px 0; }
+
+/* Pinned stop navigation on appointment details. */
+.stopBar { position: sticky; bottom: 0; z-index: 20; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; gap: 8px; margin: 16px -4px 0; padding: 8px 4px max(8px, env(safe-area-inset-bottom)); background: #f7f8f3; border-top: 1px solid #dfe3da; }
+.stopBar .secondary { font-size: 20px; padding: 0 8px; }
+.stopBar .secondary:nth-child(2) { font-size: 15px; }
+
+.replacementCode { min-height: 44px; }

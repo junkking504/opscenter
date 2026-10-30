@@ -76,7 +76,7 @@ export function requiredOpsPermission(
 
   // Unmatched inbound media uses the manager boundary, including read-only
   // queue and cached preview requests.
-  if (pathname === "/api/desktop/photos") {
+  if (["/api/desktop/photos", "/api/desktop/timecards"].includes(pathname)) {
     return { permission: "sensitive.write", requiredRole: "manager" };
   }
 

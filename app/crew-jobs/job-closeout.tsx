@@ -1,4 +1,5 @@
 'use client';
+import {checkedCrewReceipt} from './closeout-receipt';
 import {isEstimateCloseoutOutcome} from '@/lib/estimate-closeout-outcome';
 import {amazonAssignedTruck} from '../../lib/amazon-closeout';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
@@ -45,12 +46,14 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       const local=readCloseoutLocal<Receipt & {assignmentId?:string}>(`${key}:receipt`);
       return readHandoffs(deviceId).find(value=>value.requestId===requestId)?.assignmentId || (local?.requestId===requestId?local.assignmentId:undefined) || job.assignmentId;
     };
-    const keep=(receipt:Receipt)=>{if(receipt.dryRun)return receipt;writeCloseoutLocal(`${key}:receipt`,{...receipt,assignmentId:receiptAssignment(receipt.requestId)});verified.current=receipt.status==='verified' && (receipt.sourceResult?.closeout as {status?:{value:string}})?.status?.value==='8';return receipt;};
-    const accepted=(receipt:Receipt,dismiss=false)=>{
-      const saved=keep(receipt);
+    const keep=(receipt:Receipt)=>{if(receipt.dryRun)return receipt;receipt=checkedCrewReceipt(receipt,receipt.requestId);writeCloseoutLocal(`${key}:receipt`,{...receipt,assignmentId:receiptAssignment(receipt.requestId)});verified.current=receipt.status==='verified' && (receipt.sourceResult?.closeout as {status?:{value:string}})?.status?.value==='8';return receipt;};
+    const accepted=async(receipt:Receipt,dismiss=false)=>{
+      const saved=keep(checkedCrewReceipt(receipt,receipt.requestId));
       const intent=readHandoffs(deviceId).find(value=>value.requestId===saved.requestId);
       if(intent)saveHandoff({...intent,receipt:saved,phase:['pending','verified'].includes(saved.status)?'accepted':'attention',message:saved.message});
-      if(dismiss && ['pending','verified'].includes(saved.status))onAccepted?.(saved,receiptAssignment(saved.requestId));
+      // The immutable handoff and server receipt must be durable before leaving.
+      const pendingSaved=saved.status==='pending' && intent?.payload.requestId===saved.requestId;
+      if(dismiss && (verified.current || pendingSaved))onAccepted?.(saved,receiptAssignment(saved.requestId));
       else if(saved.status==='failed')onHandoffFailed?.(`Checkout was not saved. ${saved.message}`);
       return saved;
     };
@@ -61,7 +64,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       const receiptEndpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(receiptAssignment)}`;
       const response=await fetch(`${receiptEndpoint}&requestId=${encodeURIComponent(requestId)}${reconcile?'&reconcile=1':''}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
       const body=await response.json();
-      if(response.ok && body.receipt)return accepted(body.receipt,dismiss);
+      if(response.ok && body.receipt)return accepted(checkedCrewReceipt(body.receipt,requestId),dismiss);
       // A failed intake has no durable server receipt yet. Continue only the
       // exact immutable phone handoff; transferCheckout checks for a receipt
       // again before it re-sends this same request ID and payload.
@@ -129,8 +132,8 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
         const aliasReceipt=aliases.map(assignmentId=>({assignmentId,receipt:readCloseoutLocal<Receipt>(`${crewCloseoutKey(deviceId,assignmentId)}:receipt`)})).find(value=>value.receipt && value.receipt.status!=='failed');
         const local=intent?.receipt || readCloseoutLocal<Receipt>(`${key}:receipt`) || aliasReceipt?.receipt;
         if(local && aliasReceipt?.receipt?.requestId===local.requestId && !intent && !readCloseoutLocal(`${key}:receipt`))writeCloseoutLocal(`${key}:receipt`,{...local,assignmentId:aliasReceipt.assignmentId});
-        if(body.pendingReceipt)keep(body.pendingReceipt);
-        else if(local && local.status!=='failed'){
+        if(body.pendingReceipt)body.pendingReceipt=keep(body.pendingReceipt);
+        else if(local){
           try{body.pendingReceipt=await check(local.requestId,false,false);}
           catch{body.pendingReceipt={requestId:local.requestId,action:'closeout',status:'uncertain',message:'The earlier result is unavailable. Check Saved Result; do not record another payment.'};}
         }
@@ -156,9 +159,9 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   },[endpoint,key,photoKey,aliasesJson,deviceId,job.assignmentId,job.appointmentId,job.date,draftScope,onAccepted,onHandoffFailed]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck:job.sharedAmazon?amazonAssignedTruck(job.truck) || truck:job.truck || truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Before photos → Charges → After photos (optional for estimates) → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once. Waypoint returns to Assignments only after the photos and checkout are safely on the server; JunkWare then finishes in the background."}</p>
+    <h2>Job Closeout</h2><p>{dryRun?"Test mode · nothing will be sent.":"Stay here until checkout is received. Verification continues in Assignments."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
-    {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'A photo transfer needs attention. You can continue filling out the job; return to Photos to check or resume it.':photos.transferring?'Photos are uploading in the background. Continue filling out the job.':'Photos are saved on the server and verification continues in the background.'}</p>}
+    {!dryRun && !formBusy && Boolean(photos.transferring || photos.processing || photos.attention) && <p role="status">{photos.attention?'Photos need attention. Continue here, then check Photos.':photos.transferring?'Photos uploading · you can continue.':'Photos received · verifying in JunkWare.'}</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
     <AppointmentCloseout submissionStatus={submissionMessage} dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{submitStep:async (category,required)=>{if(!photoSubmit.current)throw new Error('Photo selection is unavailable.');await photoSubmit.current.submitStep(category,required);},render:(category,required)=><JobPhotos optional={!required} ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} storageKey={photoKey} storageAliases={(JSON.parse(aliasesJson) as string[]).map(id=>`${deviceId}:${id}`)} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>

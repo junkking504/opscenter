@@ -27,6 +27,15 @@ sharing, and historical context.
   `/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh`.
 - Never pipe or execute a task branch's `deploy-release.sh` directly. Never
   bypass the installed controller or its deployment lock.
+- Releases are zero-touch. When a production PR is finished (its own checks and
+  your validation pass, CI is green, it contains the active release) add the
+  `ready-to-ship` label; the Mission Control `auto-ship` job then merges it with
+  a merge commit and deploys it through the installed controller within a few
+  minutes, with a health check and automatic rollback. Do not label work that
+  is unfinished, unvalidated, or that changes deploy, auth or database
+  migrations without T'Jean's explicit approval in the task. `ship-failed`
+  means auto-ship stopped; read its PR comment and fix the cause. Details:
+  [deploy/macmini/README.md](deploy/macmini/README.md).
 - Manual rollback is a separate, explicitly authorized operation. Do not move
   `origin/production` backward or deploy a non-forward commit as a workaround.
 

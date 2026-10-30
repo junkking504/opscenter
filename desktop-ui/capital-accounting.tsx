@@ -70,7 +70,7 @@ export function CapitalAccounting({ date, onVerifications, lockDate = false, onB
   }
   const canSelect = !busy && !pendingId;
   return <section className="capital-panel capital-accounting" aria-label="JunkWare QuickBooks register">
-    <header><div><span className="capital-eyebrow">JUNKWARE ACCOUNTING</span><h3>Review payments & accounting</h3><p>Select payments and choose Verify Payment to record receipt in OpsCenter. Your accountant records verification in QuickBooks separately. Count mailbox cash and checks, or review card payment evidence, before confirming.</p></div><a className="capital-button" href="https://junkware.junk-king.com/franchise/accounting/update-quickbooks.aspx" target="_blank" rel="noreferrer">Open JunkWare</a></header>
+    <header><div><span className="capital-eyebrow">JUNKWARE ACCOUNTING</span><h3>Review Payments & Accounting</h3><p>Select payments and choose Verify Payment to record receipt in OpsCenter. Your accountant records verification in QuickBooks separately. Count mailbox cash and checks, or review card payment evidence, before confirming.</p></div><a className="capital-button" href="https://junkware.junk-king.com/franchise/accounting/update-quickbooks.aspx" target="_blank" rel="noreferrer">Open JunkWare</a></header>
     <form className="accounting-filters" onSubmit={event => { event.preventDefault(); void load(filters); }}>
       <label>From<input type="date" required value={filters.from} disabled={busy || lockDate} onChange={e => change('from', e.target.value)}/></label>
       <label>To<input type="date" required value={filters.to} disabled={busy || lockDate} onChange={e => change('to', e.target.value)}/></label>

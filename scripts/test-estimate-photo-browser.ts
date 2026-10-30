@@ -31,7 +31,7 @@ async function main(){
    }
    throw Error('Unexpected API '+u.pathname);
   });
-  await page.goto(origin);await page.getByRole('button',{name:'View assignment',exact:true}).click();await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();
+  await page.goto(origin);await page.getByRole('button',{name:'View assignment',exact:true}).click();await page.getByRole('button',{name:'START',exact:true}).click();
   await page.getByRole('button',{name:'Submit before photos & continue',exact:true}).click();
   if(outcome!=='Job')await page.getByLabel(/Final appointment category/).selectOption('Estimate');
   if(outcome==='Estimate'){
@@ -40,7 +40,7 @@ async function main(){
   }
   await page.getByRole('button',{name:'Continue to after photos',exact:true}).click();
   if(outcome==='Estimate'){
-   await expect(page.getByText('After photos are optional for this estimate outcome. Continue to Payment when ready.',{exact:true})).toBeVisible();
+   await expect(page.getByText('Optional for this estimate. Continue to Payment.',{exact:true})).toBeVisible();
    await page.getByRole('button',{name:'Continue to payment',exact:true}).click();await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
    await expect(page.getByRole('button',{name:'Submit checkout',exact:true})).toBeVisible();
    if(width===390)await page.screenshot({path:'/tmp/waypoint-estimate-before-only.png',fullPage:true});

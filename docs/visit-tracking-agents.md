@@ -82,8 +82,8 @@ proven qualifying interval retain that interval with a conflict flag. Source ali
 an earlier native arrival later supplements a V3 episode.
 
 Appointment visits require the collector's confirmed appointment/truck
-attribution. Any recorded position inside eligible verified or labeled approximate pins counts under the
-policy below; legacy unconfirmed pass-by rows are not promoted without replay.
+attribution. Recorded positions inside eligible verified or labeled approximate pins must qualify under the
+five-minute policy below; legacy unconfirmed pass-by rows are not promoted without replay.
 Separate return intervals remain separate visits.
 A source-linked estimate and job may describe one customer stop. When both
 appointment IDs receive the exact same truck/arrival/departure episode, the
@@ -139,34 +139,84 @@ Source-confirmed zero-duration visits remain closed observations.
 
 Additional validation: `node --import tsx scripts/test-appointment-position-tracking.ts`.
 
-## Visits independent of booking time
+## Appointment proximity and five-minute visits
 
-The visit runner matches every recorded GPS point on the selected Central
-operating day, regardless of the appointment window or source completion status.
-One point inside the existing 200-meter visit-pin boundary establishes a
-visit. There is no minimum dwell, minimum visit duration, maximum visit duration,
-or before/after-booking cutoff. Exact source appointment and truck identities,
-pin provenance, linked-record reconciliation and duplicate checks remain. Approximate pins
-also use the ambiguity and prospective-activation safeguards in
-[address verification completion](address-verification-completion.md#approximate-arrival-and-departure-pins-october-12-2026).
+Appointment observations are collected across the entire Central operating day,
+independent of the booking window. The matcher retains raw proximity intervals,
+including single-point and short passes, in the existing ledger. Those observations
+are not sufficient by themselves to establish an operational visit.
 
-The application-owned wrapper applies this policy to the installed collector
-in memory; incompatible collector source changes fail its checked anchors.
-The source collector file, provider polling and original bookings remain intact.
-The next existing collector run uses the policy after an approved release.
-Schedule's immediate presence projection follows the same rule. Its freshness
-limits describe whether a report is current, not whether the visit occurred.
-A single-point visit remains visible as **GPS** with duration unavailable;
-recorded arrival/departure and gaps determine available duration separately.
+The shared `appointment-visit-qualification.ts` projection requires at least
+300 seconds of supported presence in one interval. Timestamped fixes must form
+a continuous run with no gap greater than five minutes or explicit coverage gap.
+Separate passes are never summed. Open wall-clock age, a parked shutdown, missing
+fixes and stale reports cannot establish initial dwell. A saved source-confirmed
+stationary span (`continuous_until`) may bridge sparse samples. The shared local
+reader adds that evidence only between adjacent, same-truck fixes already
+attributed to the same interval and inside its recorded pin. Conflicting,
+unattributed, outside, future or other-truck points cannot bridge a gap. Schedule,
+tracking and notification preparation use this same read-only enrichment; the
+raw ledger is not rewritten. A long span with neither dense fixes nor explicit
+continuity stays **GPS visit unconfirmed**, not evidence that no visit occurred.
+The booked appointment remains visible and no GPS arrival/departure alert is
+prepared until positive evidence supports five minutes. The live route projection
+uses the same source continuity; late ledger attribution may still lag live GPS. Legacy confirmed closed
+intervals without individual fixes retain their source timing if no coverage gap
+contradicts it. Explicit operational confirmations remain independent evidence.
 
-Validate with `scripts/test-linxup-instant-arrivals.py` against the installed
-matcher and the Schedule presence/visit/block tests. Use synthetic fixtures and
-mocked writers; a live daily replay is not necessary for the approximate-pin change.
+Schedule status, visit blocks, crew progress, tracked visits and appointment
+notification preparation use this qualification. Notifications wait for supported
+dwell and keep the original arrival identity; late evidence still qualifies.
+Existing delivery receipts are unchanged. The raw ledger and telemetry remain
+available; no historical replay, deletion or source-booking edit is required.
+
+Source-completed appointments retain valid recorded actual timing even for a
+shorter interval; source completion never promotes that short interval into a new
+GPS arrival notification. Open future appointments keep their booked slot after
+an earlier departed visit. An actively qualified visit may display at its actual
+time. A parked location without qualified dwell is labeled GPS proximity.
+
+The 200-meter radius, point-level ambiguity, approximate-pin activation, truck
+identity, separate return episodes and source freshness rules remain unchanged.
+Validate with `npm run verify:appointment-loiter`, the Schedule visit/presence,
+actual-block, tracking, crew-progress and appointment/Slack alert tests. All
+fixtures are offline; do not run live collectors to test the rule.
+
+### Continuous appointment visits between GPS reports
+
+The app-owned matcher policy keeps the original arrival until positive departure
+evidence. The installed collector's five-minute gap between inside points no
+longer creates a second appointment visit. An hourly parked heartbeat, ignition
+cycle, or missing/stale GPS report cannot end a visit. Coverage gaps remain in
+the output and mark coverage incomplete; elapsed visit time does not assert
+continuous GPS sampling. Schedule's current-position freshness remains separate.
+
+Departure retains the existing conservative rule: at least two distinct fixes
+beyond twice the site radius, at least one minute apart, with no gap over five
+minutes between corroborating fixes and at least the configured departure grace
+since the last inside point. Boundary jitter and conflicting same-time positions
+interrupt corroboration. A later inside report after that confirmed departure
+starts a genuine return visit; time away remains excluded. The endpoint remains
+the last recorded inside fix, not the wall clock or an invented exact exit.
+
+This policy is applied by the existing wrapper on ordinary collection after an
+approved release. It does not modify the external collector source, raw GPS,
+appointment bookings, historical closeouts, expenses, or existing notification
+receipts. It does not replay earlier dates. Existing Chicago operating-day
+isolation, appointment pin ambiguity/identity and per-truck matching stay intact.
+Legacy already-split records remain subject to the reader's conservative segment
+handling until a separately authorized recomputation; do not blindly merge all
+displayed bars or delete old arrival alerts.
+
+Validate with `scripts/test-linxup-continuous-visits.py`,
+`scripts/test-linxup-instant-arrivals.py`, `scripts/test-approximate-arrivals.py`
+and the existing appointment tracking and Schedule tests. All matcher fixtures
+use synthetic records and disabled live writers.
 
 ## Assign unassigned appointments from GPS visits
 
 For today's unassigned appointments, one uniquely identified visiting truck is
-the operational truck immediately, including a single recorded GPS point.
+the operational truck immediately, after a qualified five-minute GPS visit.
 The existing GPS refresh and push runners launch a separate, nonblocking worker
 to save that truck in JunkWare. The worker preserves the source booking window,
 status, payments and closeout, and publishes the saved assignment only after
@@ -188,3 +238,51 @@ not replay the original automatic write. Pending changes retain their explicit
 reconciliation state; unknown, future or older source observations cannot erase
 a verified move.
 Validate with `npm run verify:gps-visit-assignment`.
+
+### Nearby appointment circles
+
+Appointment ambiguity is evaluated at each recorded GPS position. A position
+inside exactly one non-canceled appointment's 200-meter circle can establish
+that visit even when another circle overlaps elsewhere. A point shared by two
+circles establishes neither arrival and does not extend attributed onsite time
+or prove departure. Completed appointments still compete; booked time, truck
+assignment and verified/approximate labels do not resolve physical ambiguity.
+Schedule uses the same point-level test for current presence, parked location
+and open visit badges. Its arrival fallback cannot backdate through ambiguous
+approach points. Freshness, source precedence, prospective approximate-pin
+activation and conservative departure evidence remain unchanged.
+
+Validate with `npm run verify:approximate-visits` and
+`node --import tsx scripts/test-schedule-gps-presence.ts`.
+
+### Parked location and completion display
+
+The narrower **At job · parked GPS** status reports a uniquely located stopped
+truck at an eligible job pin, independently of the saved truck assignment.
+It retains the real GPS timestamp and explicitly leaves arrival and duration
+unconfirmed. It does not create a qualified visit, actual timeline interval,
+closeout, assignment, or arrival alert. A zero-speed poll heartbeat without an
+ignition field may retain this location fact through a prior explicit OFF
+report at the same position (30 meters), only while every intervening report
+is stationary and adjacent reports stay within the existing 75-minute heartbeat
+window. Movement, ignition ON, conflicting coordinates, recorded departure,
+future observations, missed heartbeats or ambiguous jobs/trucks prevent it.
+The five-minute supported-visit rule remains unchanged; unknown gaps are never
+converted to dwell merely because the wall clock advanced.
+
+Completed-job display and new completion messages prefer a uniquely qualified
+physical visit over a different assigned truck's short proximity pass. The GPS
+truck is labeled separately from the unchanged JunkWare assignment. Multiple
+qualified trucks remain unresolved. When no qualifying visit exists, legitimate
+source-completed short timing remains available. Existing messages are not replayed.
+
+Each new stationary heartbeat renews only the timestamped location fact; a
+sequence may last for hours, but any missed75-minute gap breaks it. There is
+no total wall-clock dwell assertion. Future/invalid route timestamps cannot
+supply current evidence. All non-canceled pins compete, including completed
+jobs at the same address; assignment never resolves an ambiguous location.
+`atJobTruck` does not overwrite the saved assignment: next-stop and travel
+layout displays follow the physical truck while the booked block remains in
+its source lane. If no qualified completion visit exists, a short recorded
+interval is usable only for the assigned truck; another truck's short pass
+cannot be selected by completion alone.

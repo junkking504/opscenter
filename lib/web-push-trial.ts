@@ -3,7 +3,7 @@ import { getKernelPool } from './platform/persistence/pool';
 import { pushHash } from './web-push-policy';
 import type { PushSubscriptionRecord } from './web-push-store';
 export const trialFingerprint = (subscription:PushSubscriptionRecord) => pushHash([subscription.endpoint,subscription.keys.p256dh,subscription.keys.auth]);
-export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;ongoing_started_at?:Date|null;ongoing_expires_at?:Date|null;now:Date};
+export type TrialRow={owner_id:string|null;device_id:string|null;subscription_hash:string|null;approved_at:Date|null;started_at:Date|null;deadline:Date|null;stopped_at:Date|null;attempts_used:number;ongoing_started_at?:Date|null;ongoing_expires_at?:Date|null;reenabled_at?:Date|null;now:Date};
 export async function lockPushTrial(client:PoolClient):Promise<TrialRow> {
   // Global order everywhere: trial, device, delivery. clock_timestamp is read
   // AFTER waiting for the lock, never transaction-start now().
@@ -11,9 +11,10 @@ export async function lockPushTrial(client:PoolClient):Promise<TrialRow> {
   if(!row)throw new Error('trial_missing');
   return {...row,now:(await client.query('SELECT clock_timestamp() AS now')).rows[0].now};
 }
-export function trialReason(trial:TrialRow,device:{id:string;owner_id:string;subscription_json:PushSubscriptionRecord}|undefined,requireActive=true):string|null {
+export function trialReason(trial:TrialRow,device:{id:string;owner_id:string;subscription_json:PushSubscriptionRecord;consented_at?:Date|null;consent_fingerprint?:string|null}|undefined,requireActive=true):string|null {
   if(!trial.owner_id)return 'trial_unprepared';
   if(trial.stopped_at)return 'trial_stopped';
+  if(device?.consented_at)return device.owner_id===trial.owner_id&&trialFingerprint(device.subscription_json)===device.consent_fingerprint?null:'device_unapproved';
   if(trial.ongoing_started_at){
     if(!trial.ongoing_expires_at||trial.ongoing_expires_at<=trial.now)return 'ongoing_expired';
   }else{
@@ -91,14 +92,17 @@ export async function controlPushTrial(input:TrialAction,reference:string,pool:P
 /** Rechecked immediately before transport and again after DNS. A reservation
  * is never refunded, including a crash or cancellation before network I/O. */
 export async function authorizePushAttempt(pool:Pool,token:string,endpoint:string):Promise<boolean> {
-  const result=await pool.query(`SELECT d.subscription_json,t.subscription_hash FROM (SELECT claim_token,event_id,device_id,false AS ongoing FROM opscenter_kernel.push_trial_attempts UNION ALL SELECT claim_token,event_id,device_id,true AS ongoing FROM opscenter_kernel.push_ongoing_attempts) a
+  const result=await pool.query(`SELECT d.subscription_json,COALESCE(d.consent_fingerprint,t.subscription_hash) AS subscription_hash FROM (SELECT claim_token,event_id,device_id,false AS ongoing FROM opscenter_kernel.push_trial_attempts UNION ALL SELECT claim_token,event_id,device_id,true AS ongoing FROM opscenter_kernel.push_ongoing_attempts) a
     JOIN opscenter_kernel.push_trial t ON t.singleton=true
     JOIN opscenter_kernel.push_devices d ON d.id=a.device_id
     JOIN opscenter_kernel.push_deliveries q ON q.device_id=a.device_id AND q.event_id=a.event_id
     JOIN opscenter_kernel.push_events e ON e.id=a.event_id
     WHERE a.claim_token=$1 AND q.claim_token=$1 AND q.status='sending'
-      AND t.device_id=d.id AND t.owner_id=d.owner_id AND t.started_at IS NOT NULL AND t.stopped_at IS NULL
-      AND ((a.ongoing AND t.ongoing_started_at IS NOT NULL AND t.ongoing_expires_at>clock_timestamp()) OR (NOT a.ongoing AND t.ongoing_started_at IS NULL AND t.deadline>clock_timestamp())) AND d.expires_at>clock_timestamp() AND d.revoked_at IS NULL
-      AND e.category=ANY(d.categories) AND COALESCE(e.source_recorded_at,e.occurred_at)>=COALESCE(t.ongoing_started_at,t.started_at)`,[token]);
+      AND t.owner_id=d.owner_id AND t.stopped_at IS NULL
+      AND (d.expires_at IS NULL OR d.expires_at>clock_timestamp()) AND d.revoked_at IS NULL AND e.category=ANY(d.categories)
+      AND ((d.consented_at IS NOT NULL AND a.ongoing AND e.occurred_at>=d.consented_at AND COALESCE(e.source_recorded_at,e.occurred_at)>=d.consented_at)
+        OR (d.consented_at IS NULL AND t.device_id=d.id AND t.started_at IS NOT NULL
+          AND ((a.ongoing AND t.ongoing_started_at IS NOT NULL AND t.ongoing_expires_at>clock_timestamp()) OR (NOT a.ongoing AND t.ongoing_started_at IS NULL AND t.deadline>clock_timestamp()))
+          AND (t.reenabled_at IS NULL OR e.occurred_at>=t.reenabled_at) AND COALESCE(e.source_recorded_at,e.occurred_at)>=GREATEST(COALESCE(t.ongoing_started_at,t.started_at),t.reenabled_at)))`,[token]);
   const row=result.rows[0];return !!row&&row.subscription_json.endpoint===endpoint&&trialFingerprint(row.subscription_json)===row.subscription_hash;
 }

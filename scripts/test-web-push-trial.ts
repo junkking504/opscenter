@@ -1,4 +1,7 @@
+import { enablePushDevice } from '../lib/web-push-toggle';
 import assert from 'node:assert/strict';
+import { createECDH, randomBytes } from 'node:crypto';
+import { requestPushReenable, authorizePushReenable, readPushReenable } from '../lib/web-push-reenable';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -27,7 +30,7 @@ async function main(){
  const prepare=()=>controlPushTrial({action:'prepare',owner:'owner'},ref,p);
  const start=()=>controlPushTrial({action:'start'},ref,p);
  const state=async()=>(await p.query('SELECT * FROM opscenter_kernel.push_trial')).rows[0];
- const d:PushWorkerDependencies={pool:p,enabled:()=>true,ownerAllowed:o=>o==='owner',activatedAt:new Date(Date.now()-60000).toISOString(),send:async(_endpoint,authorize)=>{assert.equal(await authorize(),true);sends++;return 201;}};
+ const d:PushWorkerDependencies={pool:p,enabled:()=>true,ownerAllowed:o=>o==='owner',activatedAt:new Date(Date.now()-60000).toISOString(),send:async(_endpoint,authorize,deadline)=>{assert.ok(Number.isFinite(deadline)&&deadline<=Date.now()+30000);assert.equal(await authorize(),true);sends++;return 201;}};
  const queue=async(id:string,count=1,prefix='event')=>{for(let n=0;n<count;n++){const event=prefix+n;await p.query("INSERT INTO opscenter_kernel.push_events(id,category,occurred_at,source_recorded_at) VALUES($1,'schedule',clock_timestamp(),clock_timestamp())",[event]);await p.query('INSERT INTO opscenter_kernel.push_deliveries(event_id,device_id) VALUES($1,$2)',[event,id]);}};
  const ready=async()=>{await prepare();const id=await candidate(1);await approve(id,1);await start();return id;};
  await reset();assert.equal((await readPushTrial('owner',p)).status,'unprepared');assert.equal((await state()).started_at,null);await assert.rejects(candidate(1),/trial_enrollment_closed/);await assert.rejects(start(),/approved_device_required/);
@@ -111,6 +114,80 @@ async function main(){
  await recordPushBatch({scope:detailScope,category:'schedule',sequence:3,complete:true,observedAt:new Date().toISOString(),observations:[]},d);
  const removal=(await p.query("SELECT notification_json FROM opscenter_kernel.push_events WHERE notification_json->>'title'='Schedule changed'")).rows[0];assert.match(removal.notification_json.body,/JK123/);assert.match(removal.notification_json.body,/Cancellation or new date\/time not verified/);
  console.log('PASS: exact verified-handset promotion requires accepted trial; five concurrent ongoing sends; trial history preserved; no replay; competing phone rejected; saves cannot renew; revocation and expiry stop ongoing delivery.');
+
+ // Recovery is a request, not a grant. Use a new synthetic browser subscription.
+ await reset();id=await ready();await queue(id,1,'accepted-recovery');await drainPushOutbox(d);await promote();
+ const original=await state();
+ await managePushDevice('owner',{action:'unsubscribe',deviceId:id,expiresAt:new Date()},p);
+ const key=createECDH('prime256v1');key.generateKeys();
+ const rotated={endpoint:'https://web.push.apple.com/Q'+'z'.repeat(64),keys:{p256dh:key.getPublicKey().toString('base64url'),auth:randomBytes(16).toString('base64url')}};
+ const requestInput={subscription:rotated,categories:['schedule'],expiresAt:new Date(Date.now()+3600000)};
+ await assert.rejects(requestPushReenable('another-owner',requestInput,p),/reenable_not_available/);
+ await assert.rejects(requestPushReenable('owner',{...requestInput,categories:['fleet']},p),/category_scope_changed/);
+ assert.equal((await readPushReenable('owner',p)).eligible,true);
+ const requests=await Promise.all([requestPushReenable('owner',requestInput,p),requestPushReenable('owner',requestInput,p)]);
+ assert.equal(requests[0].requestId,requests[1].requestId,'repeat/racing requests are idempotent');
+ assert.equal((await state()).device_id,null,'request leaves revocation in force');
+ assert.ok((await p.query('SELECT revoked_at FROM opscenter_kernel.push_devices WHERE id=$1',[id])).rows[0].revoked_at);
+ const authorize={owner:'owner',requestId:requests[0].requestId,fingerprint:trialFingerprint(rotated),handsetConfirmed:true,reference:ref};
+ await assert.rejects(authorizePushReenable({...authorize,handsetConfirmed:false},p),/explicit_phone_authorization_required/);
+ await assert.rejects(authorizePushReenable({...authorize,fingerprint:'f'.repeat(64)},p),/request_verification_failed/);
+ await assert.rejects(authorizePushReenable({...authorize,owner:'another-owner'},p),/request_verification_failed/);
+ await p.query("UPDATE opscenter_kernel.push_reenable_requests SET expires_at=clock_timestamp()-interval '1 second'");
+ await assert.rejects(authorizePushReenable(authorize,p),/request_verification_failed/);
+ const fresh=await requestPushReenable('owner',requestInput,p);authorize.requestId=fresh.requestId;
+ await queue(id,1,'old-recovery-pending');
+ const approvalRace=await Promise.allSettled([authorizePushReenable(authorize,p),authorizePushReenable(authorize,p)]);
+ assert.equal(approvalRace.filter(r=>r.status==='fulfilled').length,1,'concurrent approval consumes request once');
+ const approved=(approvalRace.find(r=>r.status==='fulfilled') as PromiseFulfilledResult<{deviceId:string;expiresAt:Date}>).value;
+ assert.notEqual(approved.deviceId,id,'rotated subscription has distinct device identity');
+ await assert.rejects(authorizePushReenable(authorize,p),/request_verification_failed/);
+ const renewed=await state();assert.equal(renewed.device_id,approved.deviceId);
+ for(const field of ['started_at','deadline','attempts_used','ongoing_started_at','ongoing_expires_at'])assert.deepEqual(renewed[field],original[field],field+' retained');
+ assert.ok(approved.expiresAt<=original.ongoing_expires_at);
+ assert.equal((await p.query("SELECT reason FROM opscenter_kernel.push_deliveries WHERE event_id='old-recovery-pending0'")).rows[0].reason,'before_reenable');
+ await queue(approved.deviceId,1,'delayed-history');await p.query("UPDATE opscenter_kernel.push_events SET source_recorded_at=$1 WHERE id='delayed-history0'",[original.ongoing_started_at]);
+ const beforeNew=sends;await drainPushOutbox(d);assert.equal(sends,beforeNew,'no pre-reenable history reaches transport');
+ await queue(approved.deviceId,1,'late-recorded-history');await p.query("UPDATE opscenter_kernel.push_events SET occurred_at=$1 WHERE id='late-recorded-history0'",[original.ongoing_started_at]);await drainPushOutbox(d);assert.equal(sends,beforeNew,'late ingestion cannot replay an old occurrence');
+ await queue(approved.deviceId,1,'new-recovery-event');await drainPushOutbox(d);assert.equal(sends,beforeNew+1);
+ await assert.rejects(requestPushReenable('owner',requestInput,p),/reenable_not_available/);
+ await managePushDevice('owner',{action:'unsubscribe',deviceId:approved.deviceId,expiresAt:new Date()},p);
+ const second=await requestPushReenable('owner',requestInput,p);
+ await p.query("UPDATE opscenter_kernel.push_trial SET stopped_at=clock_timestamp()");
+ await assert.rejects(authorizePushReenable({...authorize,requestId:second.requestId},p),/request_verification_failed/);
+ console.log('PASS: revoked recovery requests inert; scope/identity/expiry enforced; racing clicks idempotent; exact operator approval; original grant and ledger retained; no backlog; new events only; stop blocks approval.');
+
+ // Persistent per-device consent: no migration, legacy expiry ignored only
+ // after explicit ON. All subscriptions and provider responses are synthetic.
+ await reset();await prepare();
+ const ec=createECDH('prime256v1');ec.generateKeys();
+ const persistentSub={endpoint:sub(7).endpoint,keys:{p256dh:ec.getPublicKey().toString('base64url'),auth:randomBytes(16).toString('base64url')},expirationTime:null};
+ const enable=()=>enablePushDevice('owner',{subscription:persistentSub,categories:['schedule']},p);
+ await assert.rejects(enablePushDevice('intruder',{subscription:persistentSub,categories:['schedule']},p),/owner_required/);
+ const twins=await Promise.all([enable(),enable()]);id=twins[0].deviceId;assert.equal(id,twins[1].deviceId);assert.equal(twins[0].expiresAt,null);
+ const consent=(await p.query('SELECT consented_at FROM opscenter_kernel.push_devices WHERE id=$1',[id])).rows[0].consented_at;
+ await enable();assert.deepEqual((await p.query('SELECT consented_at FROM opscenter_kernel.push_devices WHERE id=$1',[id])).rows[0].consented_at,consent,'repeat ON cannot reset cutoff');
+ assert.equal((await listPushDevices('owner',p))[0].approved,true);
+ await p.query("UPDATE opscenter_kernel.push_trial SET started_at=statement_timestamp()-interval '40 days',deadline=statement_timestamp()-interval '40 days'+interval '30 minutes',ongoing_started_at=statement_timestamp()-interval '40 days',ongoing_expires_at=statement_timestamp()-interval '10 days',attempts_used=3");
+ await queue(id,1,'persistent-old');await p.query("UPDATE opscenter_kernel.push_events SET occurred_at=$1 WHERE id='persistent-old0'",[new Date(consent.getTime()-1000)]);
+ await queue(id,1,'persistent-old-recorded');await p.query("UPDATE opscenter_kernel.push_events SET source_recorded_at=$1 WHERE id='persistent-old-recorded0'",[new Date(consent.getTime()-1000)]);
+ await drainPushOutbox(d);assert.equal(sends,0);
+ await queue(id,4,'persistent-fresh');await drainPushOutbox(d);assert.equal(sends,4,'legacy budgets/expiry do not expire explicit consent');
+ await drainPushOutbox({...d});assert.equal(sends,4,'restart/repeat drain does not repeat sends');
+ await queue(id,1,'persistent-off-during-send');await drainPushOutbox({...d,send:async(_endpoint,authorize)=>{await managePushDevice('owner',{action:'unsubscribe',deviceId:id,expiresAt:new Date()},p);assert.equal(await authorize(),false);return 0;}});
+ assert.equal((await listPushDevices('owner',p)).length,0);
+ await queue(id,1,'persistent-while-off');await enable();await drainPushOutbox(d);assert.equal(sends,4,'no backlog after OFF/ON');
+ await queue(id,1,'persistent-invalid');await drainPushOutbox({...d,send:async()=>410});assert.equal((await listPushDevices('owner',p)).length,0,'invalid provider subscription revoked');
+ await assert.rejects(enable(),/subscription_invalid/);const secondSub={...persistentSub,endpoint:sub(8).endpoint};const secondDevice=await enablePushDevice('owner',{subscription:secondSub,categories:['schedule']},p);
+ await managePushDevice('owner',{action:'unsubscribe',deviceId:id,expiresAt:new Date()},p);
+ await queue(id,1,'off-first');await queue(secondDevice.deviceId,1,'on-second');await drainPushOutbox(d);assert.equal(sends,5,'per-device OFF leaves other explicitly enabled device alone');
+ const eventTime=new Date().toISOString();
+ await recordPushBatch({scope:`schedule:${day}:toggle`,category:'schedule',sequence:1,baseline:false,complete:true,observedAt:eventTime,observations:[{identity:'toggle-fanout',revision:'one'}]},d);
+ await drainPushOutbox(d);assert.equal(sends,6,'canonical fanout reaches only consented current device');
+ await enablePushDevice('owner',{subscription:secondSub,categories:['fleet']},p);await queue(secondDevice.deviceId,1,'category-off');await drainPushOutbox(d);assert.equal(sends,6);
+ await p.query("UPDATE opscenter_kernel.push_devices SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",[secondDevice.deviceId]);await queue(secondDevice.deviceId,1,'provider-expired');await drainPushOutbox(d);assert.equal(sends,6);
+ await p.query('UPDATE opscenter_kernel.push_trial SET stopped_at=clock_timestamp()');await assert.rejects(enable(),/service_stopped/);
+ console.log('PASS: persistent device consent; explicit ON; no app expiry; idempotency; no backlog; OFF before transport; provider invalidation; device isolation; canonical fanout; categories; global stop.');
 
 }
 main().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{await stop?.();await pool?.end();if(started)pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(root,{recursive:true,force:true});});

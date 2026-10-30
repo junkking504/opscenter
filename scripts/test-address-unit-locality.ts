@@ -64,7 +64,7 @@ try {
   assert.deepEqual(visitEvidenceLocation({location},{location,approximate:true}),location,'Recorded coordinates remain usable independent of their label');
   assert.deepEqual(visitEvidenceLocation({location}),location);
   const job={appointmentId:'synthetic',truck:'Truck 3',status:'Confirmed',location:null,mapFallback:fallback};
-  const truck={truck:'Truck 3',...location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[]};
+  const truck={truck:'Truck 3',...location,lastGpsUpdate:new Date(now).toISOString(),speed:0,ignition:'OFF',routePoints:[0,1,2,3,4,5].map(i=>({...location,timestamp:new Date(now-(5-i)*60000).toISOString()}))};
   assert.equal(currentGpsPresence(job,[truck],[job],now)?.current,true);
   assert.equal(currentGpsPresence({...job,location},[truck],[{...job,location}],now)?.current,true);
 

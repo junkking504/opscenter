@@ -11,6 +11,8 @@ function Fixture(){
  <select data-workspace-picker aria-label="Choose workspace" value={active} onChange={e=>setActive(e.target.value)}>{workspaces.map(item=><option key={item.workspace} value={item.workspace}>{item.label}</option>)}</select>
  <button type="button" onClick={()=>setBusy(!busy)}>Busy: {String(busy)}</button><button type="button" onClick={()=>setDrawer(!drawer)}>Toggle drawer</button>
  <div id="swipe-space">Open page space</div>
+ <button type="button" id="action-card" style={{width:"100%"}} onClick={()=>setOpens(value=>value+1)}><svg width="40" height="40" aria-hidden="true"><circle cx="20" cy="20" r="18"/></svg> Ordinary action card</button>
+ <a id="content-link" href="#fixture-link" onClick={()=>setOpens(value=>value+1)}>Open synthetic details</a><details><summary id="disclosure">More information</summary>Read-only notes</details>
  <button type="button" id="metric" data-gesture-preview="revenue" onClick={()=>setOpens(value=>value+1)}>Revenue $125</button>
  <input aria-label="Unsaved note" defaultValue="draft"/><div id="nested"><div>Nested vertical scrolling</div></div><div id="nested-owned" data-gesture-ignore><div>Explicitly owned scrolling</div></div><div id="carousel"><div>Horizontal content</div></div><div id="map" className="leaflet-container">Map</div><div id="drag" draggable>Drag appointment</div><div id="selection">Selectable description</div>
  {drawer && <aside className="record-drawer">Unsaved record</aside>}

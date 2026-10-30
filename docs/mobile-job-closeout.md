@@ -21,10 +21,11 @@ Open the generated `index.html` locally. Test with
 ## Code recovery and truck switching — October 26, 2026
 
 The new-code control sits beside code entry, before the setup steps and help.
-Code expiry and the resend cooldown are distinct ten-minute rules. Cancellation
-does not waive the server cooldown or daily/monthly limits. The client explains
-the remaining local wait without suggesting a cancelled code can still be used;
-the server remains authoritative. Pending/uncertain sends retain their request
+Self-service replacement requests have no time cooldown. Codes still expire after
+ten minutes. The client retains the request ID and checks its result before
+allowing a replacement; accepted, cancelled, expired or definitively failed sends
+can be replaced immediately. A pending/uncertain send blocks replacement until
+its code expires. The server remains authoritative; daily/monthly limits remain. Pending/uncertain sends retain their request
 ID for status recovery and never automatically send again.
 
 Truck switching keeps prior-day dispatch pointers in the confirmation fingerprint
@@ -71,8 +72,8 @@ then the crew chooses today’s truck before inspection and jobs.
 The same-origin HTTPS session endpoint accepts `request-code` with an opaque choice ID and a
 client-retained request ID. Retrying **Check send status** uses the saved send,
 including uncertain results, without contacting Meta again. Public requests have
-the existing durable per-address attempt limit plus a ten-minute per-phone
-cooldown and three sends per phone per Central day. The shared approved $1 /
+the existing durable per-address attempt limit and three sends per phone per
+Central day, including cancelled, expired, failed and uncertain attempts. The shared approved $1 /
 100-attempt monthly limits are unchanged. Tests mock Meta; a successful API
 acceptance is not proof that a WhatsApp message arrived.
 
@@ -98,8 +99,9 @@ receipt rules apply. This does not change the normal company-phone destinations.
 Each send writes and fsyncs a receipt/reservation before contacting Meta, with
 the issuing manager, fixed destination, device, code expiry and request ID.
 Raw codes and credentials are not stored in receipts. Identical requests return
-the existing receipt; they never send again. One-minute per-recipient throttling and
-a serialized monthly attempt/budget reservation apply across processes. Unknown
+the existing receipt; they never send again. Manager sends retain one-minute per-recipient throttling. Self-service sends
+permit immediate deliberate replacement within the existing daily limit.
+A serialized monthly attempt/budget reservation applies across processes. Unknown
 outcomes keep their full reservation and are not retried. An orphaned reservation
 lock blocks new sends for operator review rather than reclaiming uncertain work.
 
@@ -1048,8 +1050,8 @@ Automated linked-device messages also carry WhatsApp account-restriction risk.
 `install-operations-waypoint-bridge.py` requires the reviewed pre-change bridge
 hash and preserves a backup; it never changes credentials or links a new device.
 
-Existing phone identity checks, approval expiry, reservation limits, cooldowns,
-three daily self-requests, durable receipt creation, single-use enrollment and
+Existing phone identity checks, approval expiry, reservation limits, manager-send
+throttling, three daily self-requests, durable receipt creation, single-use enrollment and
 no-replay rules remain. Operations uses no new metered provider; existing numeric
 reservations remain conservative rate limits, not a claim of provider charges.
 Bridge errors and lost responses remain uncertain and are never automatically
@@ -1178,3 +1180,118 @@ and `npm run verify:waypoint-drafts`. Browser fixtures use fictional records and
 local API mocks; they are not physical iPhone acceptance or live-data write tests.
 
 Waypoint navigation SVGs must be individually listed in `CREW_JOBS_PUBLIC_PATHS`; files in `public/` alone do not make them available on the Waypoint hostname. Route icon URLs use `?v=2` to bypass cached 404 responses from the initial navigation release. `verify:crew-phones` checks every shipped SVG through the hostname middleware, and the navigation browser check requires all five icons to decode.
+
+## Pending closeout presentation — October 28, 2026
+Waypoint and OpsCenter use the same bounded, read-only receipt waiter after a durable closeout submission. A queued response is not completion: the form stays open until verified, failed or uncertain. Waiting reads only the original receipt and never replays a POST or invokes missing-submission recovery. Background status reads remain available after leaving/reopening the form. Missing office-owned referral information is reported before a Waypoint submission; that field remains office-controlled. Existing roles, photo rules, estimate outcome/discount requirements, payments and source verification remain unchanged.
+
+## Optional appointment signatures
+
+Waypoint appointment details offer an optional signature section for each
+currently authorized appointment, including estimates and completed jobs. Other
+trucks' view-only appointments remain view-only; test phones do not write live
+signature artifacts. Existing phone enrollment, daily crew, inspection and fresh
+assignment checks still apply. The new `/api/crew-jobs/signatures` route requires
+those checks itself, plus the normal JSON/origin checks on saves.
+
+The signer enters their name and deliberately starts the drawing area; vertical
+scroll remains available outside it and across the inactive pad. Clear and
+cancel discard the unsaved drawing. Pointer cancellation removes the unfinished
+stroke. Saved records include bounded vector strokes, a server timestamp,
+appointment identity and a private device/day/truck audit binding. The app does
+not add acknowledgment wording or infer legal consent from the drawing.
+
+Artifacts are immutable JSON files under the existing private application data
+root's `appointment-signatures/<appointmentId>/` directory (0700 directories,
+0600 files). A request UUID identifies one exact payload; repeated saves return
+the same durable receipt. Explicit re-signing adds a record without overwriting
+history. No external storage service, provider upload or new credential is used.
+The UI retains a submitted request in phone session storage before sending and
+uses a read-only receipt lookup after an interrupted response or reload. An
+explicit retry after a confirmed missing receipt reuses that request UUID.
+
+This optional record is saved in OpsCenter, not JunkWare's native signature
+field. It does not complete a job, stage charges/payments, send notices, satisfy
+or remove the existing Amazon native closeout-signature requirement, or change
+estimate photo exemptions. Existing closeout controls remain authoritative.
+
+Tests: `npm run verify:appointment-signatures` uses isolated temporary artifacts;
+`npm run verify:appointment-signatures:browser` uses synthetic drawings and mocked
+transport, never customer records or live signatures.
+
+### Program labels in service addresses
+
+Waypoint address links and OpsCenter appointment details separate the exact
+`Amazon Mattress Removal` prefix into a Program label when the remaining text
+is a single complete street address. Display and directions retain street/unit
+information; ambiguous addresses and other building/business names stay intact.
+This is presentation only: original source fields, partner identity, inventory,
+address verification and GPS matching are unchanged.
+
+## Apple Maps navigation links
+
+Outgoing address, directions and route links open Apple Maps using its HTTPS unified Maps URLs. GPS and approximate-pin actions preserve their coordinates; approximate pins remain separately labeled. Multi-stop route links preserve stop order using repeated waypoint parameters. These links require no developer membership, key or billable API calls. Embedded maps, geocoding and ETA calculation are unchanged. Unified links require iOS 18.4 / macOS 15.4 or later for native support; other platforms use Apple Maps on the web. See https://developer.apple.com/documentation/mapkit/unified-map-urls.
+
+## Accepted checkout navigation — October 29, 2026
+
+Waypoint returns to Assignments after a matching server receipt and immutable
+phone handoff are saved. A pending closeout stays marked Verifying; background
+GET reads check that same request without re-submitting. Completed requires both
+a verified receipt and JunkWare status 8. Failed or uncertain results retain
+the saved submission and recovery controls. Reloading resumes receipt checks;
+a late callback cannot close a different appointment's detail view.
+
+## Immediate self-service replacement — October 30, 2026
+
+Replacing a code invalidates all earlier unused delivered codes for that fixed
+recipient under the same cross-process lock as redemption. Already-bound phones
+remain connected and can recover their original enrollment response. Replacement
+does not reset the shared eight-failure code-guess limit. One request ID reserves
+and sends once; concurrent different IDs cannot bypass the reservation or daily
+cap. No automatic sends or retries were added. Approved recipient scope, provider,
+monthly spend and attempt ceilings are unchanged. Tests use synthetic providers.
+
+Waypoint manager sign-in includes a visible **Back to Waypoint** link to
+`/crew-jobs`, including direct entry and failed-login pages. It does not submit the
+form, sign out, change cookies, clear local drafts, or grant manager access. The
+fixed destination works in the installed app without relying on browser history.
+
+## Completed current assignment during truck switch — October 30, 2026
+
+The switch recognizes exact Confirmed/Completed/Cancelled states and the known
+`Duration: N min(s)` schedule suffix. Unknown trailing text stays blocked. A
+same-day current dispatch pointer may reference a source-completed job without a
+Waypoint closeout receipt. Preview can include that completed pointer as retirement
+evidence without changing dispatch. A confirmed switch pins its source version,
+assignment ID and release time, then verifies the job directly as completed on the
+same truck/day before saving the switch and before every continuation step.
+
+Retirement uses the existing append-only truck transfer only after unfinished
+moves are verified. The completed job stays on its original truck. The queued
+assignment retains its identity and release timestamp when promoted on the new
+truck. No closeout/payment operation or completion receipt is created. Pending
+operations, stale/duplicate/missing source rows, cancelled or reassigned current
+jobs, reopened completion and changed versions block the switch. The completed
+pointer is reserved against concurrent appointment changes until the switch ends.
+Both source-snapshot and direct-source checks run under the existing appointment
+and source locks. Original dispatch history and phone drafts/photos remain intact.
+Replacement-truck inspection remains required; a Do not operate report still
+blocks job access. These checks do not provide a safety clearance.
+
+## Blank referral default — October 30, 2026
+
+For crew checkout only, an empty saved How heard field uses the unique native
+`Saw Trucks/Company Vehicle` option, per the owner's administrative default.
+Existing nonblank answers are preserved. Review identifies the default as office
+policy, not a customer answer. Missing or ambiguous native options still block.
+
+The client resolves the option from the original form without replacing draft
+fields, refreshing the source or changing source fingerprints. This also handles
+an unchanged cached form with a blank referral. The worker independently resolves
+the same option from the fresh, fingerprint-checked source and requires the
+reviewed value to match. The ordinary closeout write saves it alongside the
+reviewed fields, and the private successful receipt records administrative-default
+provenance. Reads do not save a default. Concurrent changes remain conflicts; an
+old client that still blocks needs the updated app, not a payment retry.
+
+Source scope, payment validation, photo requirements, source read-back and durable
+request identity remain unchanged. Tests use synthetic records only.

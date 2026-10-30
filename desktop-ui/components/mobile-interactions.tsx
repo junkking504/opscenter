@@ -1,7 +1,8 @@
-import { startTransition, useEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, startTransition, useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { adjacentWorkspace, downwardIntent, GESTURE, horizontalIntent, type GesturePoint } from '../lib/mobile-gestures';
 import '../mobile-interactions.css';
+const PagePullRefresh=lazy(()=>import('./page-pull-refresh').then(module=>({default:module.PagePullRefresh})));
 
 export type MetricPreview = { id: string; label: string; value: string; detail?: string };
 type Props = {
@@ -16,7 +17,7 @@ type Props = {
   onRefresh?: () => Promise<void>;
   previews?: readonly MetricPreview[];
 };
-const excluded='a,input,textarea,select,button,[contenteditable]:not([contenteditable="false"]),[draggable="true"],[role="slider"],[role="scrollbar"],[role="separator"],[role="tablist"],[aria-roledescription="carousel"],[data-gesture-ignore],summary,img,svg,canvas,video,audio,iframe,object,embed,.leaflet-container,.recharts-wrapper,.maplibregl-map,.mapboxgl-map';
+const excluded='input,textarea,select,label,[contenteditable]:not([contenteditable="false"]),[draggable="true"],[role="slider"],[role="scrollbar"],[role="separator"],[aria-roledescription="carousel"],[data-gesture-ignore],.mobile-interactions,.mobile-sheet-dismiss,canvas,video,audio,iframe,object,embed,.leaflet-container,.recharts-wrapper,.maplibregl-map,.mapboxgl-map';
 function selectionActive() { return Boolean(window.getSelection()?.toString()); }
 function blockedSurface(target: Element, root: HTMLElement) {
   if (target.closest(excluded)) return true;
@@ -42,6 +43,8 @@ function editingOrDialog() {
 export function MobileInteractions(props: Props) {
   const latest=useRef(props); latest.current=props;
   const [status,setStatus]=useState('');
+  const [mobile,setMobile]=useState(false);
+  useEffect(()=>{const media=matchMedia('(max-width:900px)');const update=()=>setMobile(media.matches);update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [navigationHint,setNavigationHint]=useState<{label:string;direction:-1|1}|null>(null);
   const [pending,setPending]=useState(false);
   const pendingRef=useRef(false);
@@ -79,7 +82,9 @@ export function MobileInteractions(props: Props) {
     let holdReleased=false;
     let suppressedUntil=0;
     let prepared: string | null=null;
-    const clear=()=>{start=null;end=null;previewSequence=false;prepared=null;if(!pendingNavigation.current)setNavigationHint(null);if(hold)clearTimeout(hold);hold=undefined;};
+    let horizontalSequence=false;
+    let navigationReleaseUntil=0;
+    const clear=()=>{start=null;end=null;previewSequence=false;horizontalSequence=false;prepared=null;if(!pendingNavigation.current)setNavigationHint(null);if(hold)clearTimeout(hold);hold=undefined;};
     const available=()=>!latest.current.busy && !pendingNavigation.current && !pendingRef.current && !editingOrDialog() && !selectionActive() && Date.now()>cooldown.current && window.innerWidth<=900 && (window.visualViewport?.scale ?? 1)<=1.01;
     const begin=(event: TouchEvent)=>{
       clear();
@@ -90,6 +95,7 @@ export function MobileInteractions(props: Props) {
       start={x:point.clientX,y:point.clientY,at:Date.now()};end=start;
       const previewTarget=target.closest<HTMLElement>('[data-gesture-preview]');
       const item=previewTarget && latest.current.previews?.find(value=>value.id===previewTarget.dataset.gesturePreview);
+      if (blockedSurface(target,root)) {clear();return;}
       if (item && !previewTarget?.matches(':disabled')) {
         previewSequence=true;
         hold=setTimeout(()=>{
@@ -97,7 +103,7 @@ export function MobileInteractions(props: Props) {
           heldTarget=previewTarget;heldPoint=start;holdReleased=false;suppressedUntil=Date.now()+1000;
           previewTarget?.focus({preventScroll:true});setPreview([item]);clear();
         },GESTURE.holdMs);
-      } else if (blockedSurface(target,root)) clear();
+      }
     };
     const move=(event: TouchEvent)=>{
       if (!start) return;
@@ -107,7 +113,9 @@ export function MobileInteractions(props: Props) {
       if ((dx>GESTURE.drift || dy>GESTURE.drift) && hold) {clearTimeout(hold);hold=undefined;}
       // Once vertical scrolling starts, a later turn must not navigate.
       if (dy>GESTURE.drift && dy>dx) {clear();return;}
-      if (!previewSequence && dx>=GESTURE.intentDistance && dx>=dy*GESTURE.ratio) {
+      if (dx>=GESTURE.intentDistance && dx>=dy*GESTURE.ratio) {
+        // Moving horizontally relinquishes KPI hold/tap behavior to page navigation.
+        previewSequence=false;horizontalSequence=true;
         const direction=end.x<start.x?1:-1;
         const next=adjacentWorkspace(latest.current.activeWorkspace,latest.current.workspaces.map(item=>item.workspace),direction);
         if (next && next!==prepared) {
@@ -119,6 +127,10 @@ export function MobileInteractions(props: Props) {
     };
     const finish=(event: TouchEvent)=>{
       if (heldPoint && event.target instanceof Node && heldTarget?.contains(event.target)) {holdReleased=true;suppressedUntil=Date.now()+400;}
+      if (event.touches.length) {clear();return;}
+      // Never turn the release of a recognized swipe into a button/link action,
+      // including a rejected navigation or a retargeted click after a page swap.
+      if (horizontalSequence) navigationReleaseUntil=Date.now()+700;
       if (start && end && !previewSequence && available()) {
         const released=event.changedTouches[0];
         const direction=horizontalIntent(start,{x:released?.clientX ?? end.x,y:released?.clientY ?? end.y,at:Date.now()},window.innerWidth);
@@ -138,6 +150,9 @@ export function MobileInteractions(props: Props) {
       clear();
     };
     const suppress=(event: MouseEvent)=>{
+      if (Date.now()<navigationReleaseUntil && event.detail!==0) {
+        event.preventDefault();event.stopImmediatePropagation();navigationReleaseUntil=0;return;
+      }
       const original=event.target instanceof Node && heldTarget?.contains(event.target);
       // Opening a modal can retarget the originating release-click to its backdrop.
       const releaseBackdrop=holdReleased && event.target===dialog.current && heldPoint && Math.hypot(event.clientX-heldPoint.x,event.clientY-heldPoint.y)<=GESTURE.drift;
@@ -149,14 +164,14 @@ export function MobileInteractions(props: Props) {
       const item=target && latest.current.previews?.find(value=>value.id===target.dataset.gesturePreview);
       if(item){event.preventDefault();target?.focus();setPreview([item]);clear();}
     };
-    const clearRelease=()=>{suppressedUntil=0;heldPoint=null;heldTarget=null;holdReleased=false;};
+    const clearRelease=()=>{navigationReleaseUntil=0;suppressedUntil=0;heldPoint=null;heldTarget=null;holdReleased=false;};
     const cancelled=()=>{clear();clearRelease();};
-    root.addEventListener('pointerdown',clearRelease,true);
+    document.addEventListener('pointerdown',clearRelease,true);
     root.addEventListener('touchstart',begin,{passive:true});root.addEventListener('touchmove',move,{passive:true});
     root.addEventListener('touchend',finish,{passive:true});root.addEventListener('touchcancel',cancelled,{passive:true});
-    root.addEventListener('click',suppress,true);root.addEventListener('contextmenu',context);
+    document.addEventListener('click',suppress,true);root.addEventListener('contextmenu',context);
     window.addEventListener('scroll',clear,true);
-    return ()=>{clear();root.removeEventListener('touchstart',begin);root.removeEventListener('touchmove',move);root.removeEventListener('touchend',finish);root.removeEventListener('touchcancel',cancelled);root.removeEventListener('pointerdown',clearRelease,true);root.removeEventListener('click',suppress,true);root.removeEventListener('contextmenu',context);window.removeEventListener('scroll',clear,true);};
+    return ()=>{clear();root.removeEventListener('touchstart',begin);root.removeEventListener('touchmove',move);root.removeEventListener('touchend',finish);root.removeEventListener('touchcancel',cancelled);document.removeEventListener('pointerdown',clearRelease,true);document.removeEventListener('click',suppress,true);root.removeEventListener('contextmenu',context);window.removeEventListener('scroll',clear,true);};
   },[props.contentRef]);
   const refresh=async()=>{
     if(!latest.current.onRefresh || latest.current.busy || pendingRef.current || editingOrDialog())return;
@@ -165,9 +180,10 @@ export function MobileInteractions(props: Props) {
     finally{pendingRef.current=false;setPending(false);}
   };
   return <>
+    {mobile && <Suspense fallback={null}><PagePullRefresh root={props.contentRef} pending={pending} status={status} onRefresh={()=>void refresh()} available={()=>Boolean(latest.current.onRefresh)&&!latest.current.busy&&!pendingRef.current&&!pendingNavigation.current&&!editingOrDialog()&&!selectionActive()&&window.innerWidth<=900&&(window.visualViewport?.scale ?? 1)<=1.01}/></Suspense>}
     {navigationHint && createPortal(<div className={`mobile-navigation-hint ${navigationHint.direction===1?'next':'previous'}`} aria-hidden="true" data-gesture-ignore>{navigationHint.direction===-1 && <span>← </span>}{navigationHint.label}{navigationHint.direction===1 && <span> →</span>}</div>, document.body)}
     <div className="mobile-interactions" data-gesture-ignore>
-      <details><summary>Touch shortcuts</summary><p>Swipe left or right on open page space to change workspace. The workspace menu also works.{!!props.previews?.length && ' Hold a metric for a preview.'}{props.onRefresh && ' Pull the Refresh data button down to update displayed data.'}</p></details>
+      <details><summary>Touch shortcuts</summary><p>Swipe left or right across page content to change workspace. Maps, horizontal lists and editing keep their own gestures. The workspace menu also works.{!!props.previews?.length && ' Hold a metric for a preview.'}{props.onRefresh && ' Pull down at the top of the page to refresh displayed data.'}</p></details>
       {props.onRefresh && <PullAction disabled={props.busy || pending} onAction={()=>void refresh()} label={pending?'Refreshing…':'Refresh data'} />}
       {!!props.previews?.length && <button type="button" disabled={props.busy} onClick={()=>setPreview(props.previews || [])}>Preview metrics</button>}
       <span role="status" className="sr-only">{status}</span>

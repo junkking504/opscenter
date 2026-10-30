@@ -74,7 +74,7 @@ export default function PhotoAssignment({ record, onStatus }: { record: PhotoRev
   </section>;
   if (blocked) return <section className="photo-assignment"><h4>Assignment unavailable</h4><p>{blocked}</p><Button type="button" variant="outline" size="sm" onClick={() => setSubmitted(true)}>Check upload status</Button></section>;
   return <form className="photo-assignment" onSubmit={event => { event.preventDefault(); void submit(); }}>
-    <h4>Assign this photo</h4>
+    <h4>Assign This Photo</h4>
     <p className="photo-review-note">Select the appointment this photo belongs to. Truck selection filters the list; this change applies only to this photo.</p>
     <div className="photo-assignment-fields">
       <label>Appointment date<input aria-label="Appointment date" type="date" required value={date} onChange={event => { setDate(event.target.value); setTruck(''); setAppointmentId(''); setConfirmed(false); }} /></label>

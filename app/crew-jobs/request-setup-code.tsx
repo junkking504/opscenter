@@ -4,7 +4,7 @@ import {CREW_PHONE_API,type CrewPhoneSetupChoice} from '@/lib/crew-phone';
 import {chicagoDateKey} from '@/lib/chicago-date';
 import styles from './phone-access.module.css';
 const storageKey='waypoint-setup-request-v1';
-type Saved={choiceId:string;requestId:string;createdAt:number};
+type Saved={choiceId:string;requestId:string;createdAt:number;canRequestNewCode?:boolean};
 type Props={busy:boolean;onBusy:(value:boolean)=>void;hasPendingCode:boolean;onChoosePhone:()=>void;connectionError:string;onCheckConnection:()=>void;children:ReactNode};
 export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePhone,connectionError,onCheckConnection,children}:Props) {
   const [choiceId,setChoiceId]=useState(''),[choices,setChoices]=useState<CrewPhoneSetupChoice[]>([]),[saved,setSaved]=useState<Saved|null>(null),[message,setMessage]=useState(''),[error,setError]=useState('');
@@ -28,6 +28,8 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
       setSaved(current);
       const response=await fetch(CREW_PHONE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'request-code',choiceId:current.choiceId,requestId:current.requestId})});
       const result=await response.json();
+      const checked={...current,canRequestNewCode:result.canRequestNewCode===true};
+      localStorage.setItem(storageKey,JSON.stringify(checked));setSaved(checked);
       if(!response.ok)throw new Error(result.error || 'The send could not be confirmed. Check WhatsApp, then check send status.');
       setMessage(result.message);
       // A successful HTTP response can still describe an uncertain send. Keep
@@ -39,8 +41,7 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
   function choosePhone(){onChoosePhone();setCodeVisible(false);setError('');setMessage('');}
   function newRequest(){
     if(busy || sending.current)return;
-    const remaining=saved ? Math.ceil((saved.createdAt+10*60_000-Date.now())/60_000) : 0;
-    if(remaining>0){setError(`New-code requests are limited to once every 10 minutes, even if a code is cancelled. Try again in ${remaining} ${remaining===1?'minute':'minutes'}, or contact your manager.`);return;}
+    if(saved && saved.canRequestNewCode!==true){setError('Check send status first so an unconfirmed send is not repeated.');return;}
     try{localStorage.removeItem(storageKey);setSaved(null);choosePhone();}catch{setError('Allow browser storage before requesting a new code.');}
   }
   return <section className={styles.connection} aria-labelledby="connect-phone-heading">
@@ -65,8 +66,8 @@ export default function RequestSetupCode({busy,onBusy,hasPendingCode,onChoosePho
       {saved?.choiceId===choiceId && <button className={styles.connectionLink} disabled={busy} onClick={()=>void requestCode()}>Check send status</button>}
     </div>}
     {(codeVisible || saved) && <div className={styles.form}>
-      <button className={styles.secondary} disabled={busy} onClick={newRequest}>Request a new code</button>
-      <p className={styles.muted}>Codes expire after 10 minutes. New-code requests have a separate 10-minute limit, including cancelled codes.</p>
+      <button className={`${styles.secondary} ${styles.replacementCode}`} disabled={busy} onClick={newRequest}>Request a new code</button>
+      <p className={styles.muted}>You can request a replacement immediately after checking send status. Only the newest unused code works; codes expire after 10 minutes. Daily send limits apply.</p>
     </div>}
     {message && <p className={styles.connectionNotice} role="status">{message}</p>}
     {(error || connectionError) && <p className={styles.error} role="alert">{error || connectionError}</p>}

@@ -50,7 +50,7 @@ async function main(){
  let loginCookie=shared;
  const exports:{default?:(args:unknown)=>Promise<unknown>}={};
  // The VM tests login behavior; CSS is bundled separately by Next. Keep the import allowlist explicit.
- const mocks:Record<string,unknown>={'@/app/secondary-pages.css':{},'react/jsx-runtime':jsx,'next/headers':{headers:async()=>new Headers({host:'waypoint.junk-king.app'}),cookies:async()=>({get:()=>({value:loginCookie})})},'next/navigation':{redirect:(path:string)=>{throw new Error('REDIRECT '+path);}},'@/lib/auth':auth,'@/lib/waypoint-entry':{waypointEntryTarget},'@/lib/waypoint-account':{isWaypointAccount},'@/components/OpsCenterLogo':{default:()=>null}};
+ const mocks:Record<string,unknown>={'./waypoint-login.css':{},'@/app/secondary-pages.css':{},'react/jsx-runtime':jsx,'next/headers':{headers:async()=>new Headers({host:'waypoint.junk-king.app'}),cookies:async()=>({get:()=>({value:loginCookie})})},'next/navigation':{redirect:(path:string)=>{throw new Error('REDIRECT '+path);}},'@/lib/auth':auth,'@/lib/waypoint-entry':{waypointEntryTarget},'@/lib/waypoint-account':{isWaypointAccount},'@/components/OpsCenterLogo':{default:()=>null}};
  vm.runInNewContext(code,{exports,require:(key:string)=>{assert.ok(key in mocks,key);return mocks[key];}});
  assert.ok(await exports.default!({}), 'shared account can see manager sign-in instead of a redirect loop');
  loginCookie=current;await assert.rejects(()=>exports.default!({}),/REDIRECT \/crew-jobs/);

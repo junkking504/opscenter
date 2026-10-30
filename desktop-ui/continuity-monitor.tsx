@@ -5,7 +5,7 @@ export default function ContinuityMonitor({ snapshot, clock }: { snapshot?: Cont
   const fresh = snapshot?.fresh && age >= 0 && age <= 180000;
   const clear = fresh && snapshot?.status === 'ready';
   return <section className="maintenance-recovery" aria-labelledby="continuity-title">
-    <h3 id="continuity-title">Server continuity</h3>
+    <h3 id="continuity-title">Server Continuity</h3>
     <strong>{clear ? 'Checks passed' : fresh ? 'Continuity needs attention' : 'Continuity evidence unavailable or stale'}</strong>
     <p>Mission Control primary · VPS read-only standby. Independent VPS checks run every minute. These checks use no AI and perform no repairs.</p>
     <small>VPS observation {timestamp(snapshot?.checkedAt || null)} · received {timestamp(snapshot?.receivedAt || null)}</small>

@@ -22,28 +22,29 @@ try {
    }
    if(mode==='journal-error'){await route.fulfill({status:503,json:{error:'Unavailable'}});return;}
    if(mode==='journal-unknown'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',sampledAt:'2026-10-18T19:00:00Z',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[{key:'ready',status:'unknown',limitFiles:10000,limitBytes:134217728}]}}});return;}
-   if(mode==='ongoing-paused'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[]},trial:{status:'ongoing',deadline:'2026-11-20T15:23:33Z',attemptsUsed:1,maxAttempts:null}}});return;}
+   if(mode==='ongoing-paused'){await route.fulfill({json:{enabled:false,devices:[],journal:{configured:true,status:'unknown',retention:{status:'unknown',unscopableRetained:null,scannedAt:null},capacity:[]},sender:{enabled:true,ready:false}}});return;}
    if(mode==='disabled'){await route.fulfill({json:{enabled:false,devices:[],storage:'unavailable'}});return;}
-   if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='subscribe';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
+   if(req.method()==='POST'){const body=req.postDataJSON();writes.push(body);device=body.action==='enable';await route.fulfill({json:{deviceId:'fixture-device',ok:true}});return;}
    await route.fulfill({json:{enabled:true,publicKey:'B'+'A'.repeat(86),trial:{status:mode==='ongoing'?'ongoing':approved?'awaiting_start':'awaiting_device',deadline:mode==='ongoing'?'2026-11-20T15:23:33Z':null,attemptsUsed:1,maxAttempts:mode==='ongoing'?null:3},devices:device?[{id:'fixture-device',categories:['fleet','krewe'],expires_at:'2026-11-01T12:00:00Z',approved,fingerprint:'a'.repeat(64)}]:[]}});
  });
  await page.goto(process.env.PUSH_PREVIEW_URL || 'http://127.0.0.1:3137/desktop-assets/tests/web-push.html');
- const enable=page.getByRole('button',{name:'Enable Notifications / Save Categories'});await enable.waitFor();await page.waitForFunction(()=>!document.querySelector('.push-settings button').disabled);
+ const enable=page.getByRole('switch',{name:'Notifications on this phone'});await enable.waitFor();await page.waitForFunction(()=>!document.querySelector('.push-settings button').disabled);
  assert.equal((await page.evaluate(()=>window.pushCalls)).permission,0,'no permission request on mount');
  const summaries=page.locator('.crew-compact-update > summary');assert.equal(await summaries.count(),3);
  const text=await summaries.allTextContents();assert.match(text[0],/departed NOHQ.*59m/);assert.match(text[1],/2 clocked in.*Example Driver.*08:46 AM.*Example Navigator.*08:37 AM.*Original.*Updated/s);assert.match(text[2],/3 appointments in schedule snapshot/);
+ await page.locator('.crew-source-notice summary').click();
  assert.match(await page.locator('.crew-source-notice').innerText(),/LinxUp.*missing.*unknown/);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'mobile has no horizontal overflow');
  await page.screenshot({path:output+'/mobile.png',fullPage:true});
- await page.getByRole('checkbox',{name:'Schedule changes'}).uncheck();await enable.click();await page.getByRole('button',{name:'Disable device 1'}).waitFor();
+ await page.getByRole('checkbox',{name:'Schedule changes'}).uncheck();await enable.click();await page.getByRole('button',{name:'Turn off other device 1'}).waitFor();
  assert.deepEqual((await page.evaluate(()=>window.pushCalls)),{permission:1,subscribe:1,gesture:true});assert.deepEqual(writes[0].categories,['krewe','fleet']);
- assert.match(await page.locator('.push-settings').innerText(),/Awaiting device approval/);assert.match(await page.locator('.push-settings').innerText(),/clock has not started/);
+ assert.match(await page.locator('.push-settings').innerText(),/Stays on until you turn it off/);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'fingerprint fits phone');
- approved=true;await page.getByRole('button',{name:'Refresh status'}).click();await page.getByText('Device approved',{exact:false}).waitFor();assert.equal((await page.evaluate(()=>window.pushCalls)).permission,1,'approval refresh does not request permission or subscribe');
- await page.getByRole('button',{name:'Disable device 1'}).click();await page.getByText('Device disabled.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
+ approved=true;await page.getByRole('button',{name:'Refresh status'}).click();await page.getByRole('button',{name:'Turn off other device 1'}).waitFor();assert.equal((await page.evaluate(()=>window.pushCalls)).permission,1,'approval refresh does not request permission or subscribe');
+ await page.getByRole('button',{name:'Turn off other device 1'}).click();await page.getByText('Notifications are off for this device.',{exact:false}).waitFor();assert.equal(writes[1].action,'unsubscribe');
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/desktop.png',fullPage:true});
- mode='ongoing';await page.reload();await page.getByText('Ongoing notifications: enabled',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/3 send attempts|Trial:/);
- mode='ongoing-paused';await page.reload();await page.getByText('Ongoing notifications: paused',{exact:false}).waitFor().catch(async error=>{console.error(await page.locator('body').innerText());throw error;});
+ mode='ongoing';await page.reload();await page.getByText('Stays on until you turn it off.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/3 send attempts|Trial:/);
+ mode='ongoing-paused';await page.reload();await page.getByText('Alert service: paused.',{exact:false}).waitFor().catch(async error=>{console.error(await page.locator('body').innerText());throw error;});
  mode='recovered';await page.reload();await page.getByText('Capture recovered after a recorded gap.',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='withheld';await page.reload();await page.getByText('Some notification facts are withheld',{exact:false}).waitFor();assert.doesNotMatch(await page.locator('.push-settings').innerText(),/sources are blocked/);
  mode='journal';await page.reload();await page.getByRole('heading',{name:'Notification queue status'}).waitFor();

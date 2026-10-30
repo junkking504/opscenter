@@ -173,7 +173,7 @@
     "verify:crew-phone-day": "node --import tsx scripts/test-crew-phone-day.ts",
     "verify:crew-checkout": "node --import tsx scripts/test-checkout-handoff.ts && node --import tsx scripts/test-checkout-photo-submit.ts && node --import tsx scripts/test-crew-checkout-dry-run.ts",
     "verify:waypoint-day": "node --import tsx scripts/test-waypoint-day.ts",
-    "verify:crew-truck-switch": "tsx scripts/test-crew-truck-switch.ts",
+    "verify:crew-truck-switch": "tsx scripts/test-crew-truck-switch.ts && tsx scripts/test-crew-truck-switch-completed.ts",
     "verify:waypoint-agent": "node --import tsx scripts/test-waypoint-agent.ts",
     "verify:waypoint-assignment-refresh:browser": "node scripts/test-waypoint-assignment-refresh-browser.mjs",
     "verify:waypoint-contact-links:browser": "node scripts/test-waypoint-contact-links-browser.mjs",

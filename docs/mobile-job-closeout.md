@@ -1254,3 +1254,25 @@ Waypoint manager sign-in includes a visible **Back to Waypoint** link to
 `/crew-jobs`, including direct entry and failed-login pages. It does not submit the
 form, sign out, change cookies, clear local drafts, or grant manager access. The
 fixed destination works in the installed app without relying on browser history.
+
+## Completed current assignment during truck switch — October 30, 2026
+
+The switch recognizes exact Confirmed/Completed/Cancelled states and the known
+`Duration: N min(s)` schedule suffix. Unknown trailing text stays blocked. A
+same-day current dispatch pointer may reference a source-completed job without a
+Waypoint closeout receipt. Preview can include that completed pointer as retirement
+evidence without changing dispatch. A confirmed switch pins its source version,
+assignment ID and release time, then verifies the job directly as completed on the
+same truck/day before saving the switch and before every continuation step.
+
+Retirement uses the existing append-only truck transfer only after unfinished
+moves are verified. The completed job stays on its original truck. The queued
+assignment retains its identity and release timestamp when promoted on the new
+truck. No closeout/payment operation or completion receipt is created. Pending
+operations, stale/duplicate/missing source rows, cancelled or reassigned current
+jobs, reopened completion and changed versions block the switch. The completed
+pointer is reserved against concurrent appointment changes until the switch ends.
+Both source-snapshot and direct-source checks run under the existing appointment
+and source locks. Original dispatch history and phone drafts/photos remain intact.
+Replacement-truck inspection remains required; a Do not operate report still
+blocks job access. These checks do not provide a safety clearance.

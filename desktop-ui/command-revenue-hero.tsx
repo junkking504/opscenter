@@ -1,3 +1,4 @@
+import { MetricValue } from './metric-value';
 import { MetricDetail } from './metric-detail';
 import { DeltaChip } from './delta-chip';
 import type { DesktopKpi } from './lib/live-contract';
@@ -12,12 +13,12 @@ export function CommandRevenueHero({ kpi, date, onOpen, disabled }: { kpi?: Desk
   const percent = value != null && goal != null && goal > 0 ? Math.max(0, value / goal * 100) : null;
   return <section className="command-revenue-hero" aria-label="Revenue pace">
     <div><DeltaChip current={value} comparison={kpi?.comparison} /><span className="hero-label">{date === currentOperatingDay() ? 'Today’s revenue' : 'Day’s revenue'}</span>
-      <button data-gesture-preview="Revenue" className={value == null ? 'hero-value missing-value' : 'hero-value'} onClick={onOpen} disabled={disabled || !onOpen} title={value == null ? kpi?.detail || 'Revenue source unavailable' : 'Open revenue details'}>{value == null ? '—' : kpi?.value}</button>
+      <button data-gesture-preview="Revenue" className={value == null ? 'hero-value missing-value' : 'hero-value'} onClick={onOpen} disabled={disabled || !onOpen} title={value == null ? kpi?.detail || 'Revenue source unavailable' : 'Open revenue details'}><MetricValue value={value == null ? null : kpi?.value} reason={kpi?.detail} /></button>
       <MetricDetail detail={kpi?.detail || 'Revenue source unavailable'} />
     </div>
-    <div className="hero-pace"><div><span>Daily goal {goal ? money(goal) : <span className="missing-value" title="Daily goal unavailable">—</span>}</span><strong>{value != null && goal ? `${money(Math.max(0, goal - value))} to go` : <span className="missing-value" title="Revenue and daily goal are required for pace">—</span>}</strong></div>
+    <div className="hero-pace"><div><span>Daily goal {goal != null ? money(goal) : <MetricValue value={null} reason="Daily goal unavailable" />}</span><strong>{value != null && goal ? `${money(Math.max(0, goal - value))} to go` : <MetricValue value={null} reason="Revenue and daily goal are required for pace" />}</strong></div>
       {percent != null ? <progress max={100} value={Math.min(100, percent)} aria-label={`${percent.toFixed(0)}% of daily revenue goal`} /> : <div className="hero-pace-empty" title="Pace unavailable" />}
-      <p>Same weekday last year{prior ? ` · ${prior.date}` : ''}: {prior?.value != null ? <><strong>{money(prior.value)}</strong>{value != null && <span> · {money(Math.abs(value - prior.value))} {value >= prior.value ? 'ahead' : 'behind'}</span>}</> : <span className="missing-value" title="No comparable saved revenue for the same weekday 52 weeks earlier">—</span>}</p>
+      <p>Same weekday last year{prior ? ` · ${prior.date}` : ''}: {prior?.value != null ? <><strong>{money(prior.value)}</strong>{value != null && <span> · {money(Math.abs(value - prior.value))} {value >= prior.value ? 'ahead' : 'behind'}</span>}</> : <MetricValue value={null} reason="No comparable saved revenue for the same weekday 52 weeks earlier" />}</p>
       <small>Recorded revenue · {date === currentOperatingDay() ? 'Day in progress vs completed day' : 'Selected operating day'}</small>
     </div>
   </section>;

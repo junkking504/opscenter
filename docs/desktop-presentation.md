@@ -214,3 +214,17 @@ selection, persistence and separate-app boundaries. Ask OpsBot and the office
 record search keep their original input while a measured strip pins below the
 visible header. The shared offset reserves space for alert targets; expanded
 results fit the visual viewport and retain the existing keyboard behavior.
+
+## Unavailable values and title casing
+
+`MetricValue` renders absent observations as neutral gray “— Not Yet Available”,
+retaining the source explanation in the title and accessible label. Empty strings
+and non-finite numbers are absent; recorded zeroes stay values. Revenue pace
+source tables and the Dashboard revenue headline use the same renderer.
+Navigation secondary ink and missing observations use #595959 in light appearance
+and #b8b8b8 in dark appearance. These overrides are scoped to navigation and
+missing values, preserving status colors and control dimensions.
+Visible static headings use Title Case. Titles referenced by existing tests stay
+unchanged until their own compatibility change. Files owned by the concurrent
+Waypoint and Fleet PRs are deferred, including `app/page.tsx` Dashboard monthly
+KPIs, Krewe tabs and `page-rail.tsx` titles.

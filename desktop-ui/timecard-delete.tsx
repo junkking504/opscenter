@@ -22,7 +22,7 @@ export default function TimecardDelete({date,periodDate,name,onCancel,onDeleted,
  }
  const clear=()=>{sessionStorage.removeItem(key);setReceipt(null);setAttempted(false);onCancel();};
  return <section aria-label="Delete time entry">
-  <h3>Delete time entry</h3>
+  <h3>Delete Time Entry</h3>
   <p>{name} · {date}</p>
   {message&&<p role="status">{message}</p>}
   {!receipt&&attempted&&<button style={{minHeight:44}} type="button" disabled={pending||loading} onClick={()=>setRestore(value=>value+1)}>Check saved result</button>}

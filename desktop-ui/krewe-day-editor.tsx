@@ -111,7 +111,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
         </fieldset>
       </form>
       <form onSubmit={event => {event.preventDefault(); void save('bonus');}}>
-        <h3>Manual bonus</h3><p>Recorded only in OpsCenter.</p><fieldset disabled={disabled}>
+        <h3>Manual Bonus</h3><p>Recorded only in OpsCenter.</p><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><label>Bonus amount<input type="number" min="0.01" step="0.01" required autoFocus={action === 'bonus'} value={draft.amount} onChange={e=>setDraft({...draft,amount:e.target.value})}/></label><label>Bonus reason<input required value={draft.bonusNote} onChange={e=>setDraft({...draft,bonusNote:e.target.value})}/></label></div>
           <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save bonus</button>
         </fieldset>

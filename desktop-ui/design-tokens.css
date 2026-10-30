@@ -745,3 +745,7 @@
   --oc-theme-dark-map-link: #275e91;
   --oc-theme-dark-brand-red: #b51935;
 }
+
+/* Neutral, readable secondary ink for navigation and absent observations. */
+.ops-app { --oc-safe-secondary-ink: #595959; }
+html[data-ops-theme="dark"] .ops-app { --oc-safe-secondary-ink: #b8b8b8; }

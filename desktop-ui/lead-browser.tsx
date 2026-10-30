@@ -22,7 +22,7 @@ export function LeadBrowser({ leads, onEdit }: { leads: Lead[]; onEdit: (id: str
     <Button variant="outline" size="sm" disabled={result.page >= result.pageCount} onClick={() => changePage(result.page + 1)} aria-label="Next lead page">Next<ChevronRight size={15} /></Button>
   </nav>;
   return <section className="lead-browser" aria-label="SearchKings leads">
-    <header className="lead-browser-heading"><div><span className="section-kicker">SearchKings · Lead recovery</span><h2>Find your next follow-up</h2><p>Search a customer or service, narrow by territory, and work through one page at a time.</p></div></header>
+    <header className="lead-browser-heading"><div><span className="section-kicker">SearchKings · Lead recovery</span><h2>Find Your Next Follow-Up</h2><p>Search a customer or service, narrow by territory, and work through one page at a time.</p></div></header>
     <div className="lead-queues" aria-label="Lead status filters">{queues.map(([key, name]) => <button type="button" key={key} aria-pressed={filters.queue === key} onClick={() => update({ queue: key })}><span>{name}</span><strong>{leads.filter(lead => inLeadQueue(lead, key)).length}</strong></button>)}</div>
     <div className="lead-browser-filters">
       <label className="lead-search"><span>Search leads</span><div><Search size={16} aria-hidden="true" /><input type="search" value={filters.query} placeholder="Name, phone, service or notes" onChange={event => update({ query: event.target.value })} /></div></label>

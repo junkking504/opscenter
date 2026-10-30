@@ -16,7 +16,7 @@ assert.equal(currentGpsPresence(assignedJob,[singlePointParked],[assignedJob],no
 assert.deepEqual(currentGpsJobLocation(assignedJob,[singlePointParked],[assignedJob],now),{truck:'Truck 3',observedAt:truck.lastGpsUpdate,parked:true},'A timestamped parked report can confirm the assigned truck location without inventing dwell');
 assert.deepEqual(currentGpsJobLocation({...assignedJob,status:'Completed'},[singlePointParked],[{...assignedJob,status:'Completed'}],now),{truck:'Truck 3',observedAt:truck.lastGpsUpdate,parked:true},'Completing the source record does not erase the truck location');
 assert.equal(currentGpsJobLocation({...assignedJob,status:'Canceled'},[singlePointParked],[{...assignedJob,status:'Canceled'}],now),undefined,'Canceled work cannot claim a truck location');
-assert.equal(currentGpsJobLocation({...assignedJob,truck:'Unassigned'},[singlePointParked],[{...assignedJob,truck:'Unassigned'}],now),undefined,'Location-only confirmation requires the assigned truck');
+assert.equal(currentGpsJobLocation({...assignedJob,truck:'Unassigned'},[singlePointParked],[{...assignedJob,truck:'Unassigned'}],now)?.truck,'Truck 3','Physical location is independent of assignment');
 assert.equal(currentGpsJobLocation(assignedJob,[{...singlePointParked,ignition:'ON'}],[assignedJob],now),undefined,'A non-parked point can be a pass-by and does not qualify');
 assert.equal(currentGpsJobLocation(assignedJob,[singlePointParked],[assignedJob,{...assignedJob,appointmentId:'nearby'}],now),undefined,'Two assigned jobs at the same place remain ambiguous');
 assert.equal(currentGpsJobLocation({...assignedJob,onsiteTime:{departure:truck.lastGpsUpdate}},[singlePointParked],[assignedJob],now),undefined,'A recorded departure supersedes the parked location report');
@@ -108,3 +108,35 @@ for (const speed of [-1,3,NaN]) {
   assert.equal(currentGpsPresence(job,[{...shutdown,routePoints:[{...shutdownPoint,speed}]}],[job],now), undefined, 'Insufficient supported dwell remains proximity only');
 }
 assert.equal(currentGpsPresence(job,[{...shutdown,routePoints:[{...shutdownPoint,speed:1,latitude:job.location.latitude+0.0005}]}],[job],now), undefined, 'Insufficient supported dwell remains proximity only');
+
+// Shared parked-location fact: shorter-than-five-minute arrival remains a
+// timestamped location, never a qualified visit or invented arrival clock.
+const mismatchJob={...assignedJob,truck:'Truck 8'};
+assert.equal(currentGpsJobLocation(mismatchJob,[singlePointParked],[mismatchJob],now+20*60_000)?.truck,'Truck 3');
+assert.equal(currentGpsPresence(mismatchJob,[singlePointParked],[mismatchJob],now+20*60_000),undefined);
+const offPoint={...job.location,timestamp:truck.lastGpsUpdate!,speed:0,ignition:'OFF',deliverySource:'v3_position_push'};
+const polledStamp=new Date(now+60*60_000).toISOString();
+const polled={...singlePointParked,lastGpsUpdate:polledStamp,ignition:'Unavailable',routePoints:[offPoint,{...offPoint,timestamp:polledStamp,ignition:null,deliverySource:'v2_poll'}]};
+assert.deepEqual(currentGpsJobLocation(mismatchJob,[polled],[mismatchJob],now+80*60_000),{truck:'Truck 3',observedAt:polledStamp,parked:true},'Unknown-ignition heartbeat preserves the location fact with its actual timestamp');
+assert.equal(currentGpsPresence(mismatchJob,[polled],[mismatchJob],now+80*60_000),undefined,'Location fact does not manufacture five minutes of continuous dwell');
+assert.equal(currentGpsJobLocation(mismatchJob,[polled],[mismatchJob],now+136*60_000),undefined,'Missed heartbeat expires location');
+assert.equal(currentGpsJobLocation(mismatchJob,[{...polled,routePoints:polled.routePoints.slice(1)}],[mismatchJob],now+80*60_000),undefined,'Zero speed with unknown ignition alone is not parked evidence');
+for(const changed of [{speed:20},{ignition:'ON'},{latitude:30.4},{latitude:NaN}]) {
+ const conflict={...offPoint,timestamp:new Date(now+30*60_000).toISOString(),...changed};
+ assert.equal(currentGpsJobLocation(mismatchJob,[{...polled,routePoints:[offPoint,conflict,polled.routePoints[1]]}],[mismatchJob],now+80*60_000),undefined,'Intervening contradictory evidence breaks parked retention');
+}
+assert.equal(currentGpsJobLocation(mismatchJob,[{...polled,lastGpsUpdate:new Date(now+76*60_000).toISOString(),routePoints:[offPoint]}],[mismatchJob],now+80*60_000),undefined,'Unknown interval longer than heartbeat tolerance cannot retain parked state');
+assert.equal(currentGpsJobLocation(mismatchJob,[polled],[mismatchJob,{...mismatchJob,appointmentId:'other',truck:'Truck 9'}],now+80*60_000),undefined,'Assignment cannot resolve two overlapping job pins');
+assert.equal(currentGpsJobLocation(mismatchJob,[polled,{...polled,truck:'Truck 9'}],[mismatchJob],now+80*60_000),undefined,'Two parked trucks cannot silently select a physical carrier');
+const departedJob={...mismatchJob,onsiteTime:{departure:new Date(now+30*60_000).toISOString()}};
+assert.equal(currentGpsJobLocation(departedJob,[polled],[departedJob],now+80*60_000),undefined,'Departure prevents inheritance from an earlier parked report');
+assert.equal(currentGpsJobLocation(mismatchJob,[{...singlePointParked,lastGpsUpdate:new Date(now+1).toISOString()}],[mismatchJob],now),undefined);
+console.log('Parked location facts passed: assignment mismatch, bounded fallback heartbeat, no dwell promotion, conflicts, freshness, departure and ambiguity.');
+
+const chainedPoints=[offPoint,...[1,2,3].map(hour=>({...offPoint,timestamp:new Date(now+hour*60*60_000).toISOString(),ignition:null,deliverySource:'v2_poll'}))];
+const chained={...polled,lastGpsUpdate:chainedPoints.at(-1)!.timestamp,routePoints:chainedPoints};
+assert.equal(currentGpsJobLocation(mismatchJob,[chained],[mismatchJob],now+190*60_000)?.observedAt,chained.lastGpsUpdate,'Each positive stationary heartbeat renews only the location fact; total elapsed time is not dwell');
+assert.equal(currentGpsPresence(mismatchJob,[chained],[mismatchJob],now+190*60_000),undefined);
+assert.equal(currentGpsJobLocation(mismatchJob,[{...chained,routePoints:chainedPoints.filter((_,index)=>index!==2)}],[mismatchJob],now+190*60_000),undefined,'A missed hourly report breaks a long chain');
+const futureMovement={...offPoint,timestamp:new Date(now+81*60_000).toISOString(),speed:20,ignition:'ON'};
+assert.equal(currentGpsJobLocation(mismatchJob,[{...polled,routePoints:[...polled.routePoints,futureMovement]}],[mismatchJob],now+80*60_000)?.observedAt,polledStamp,'Future route telemetry is ignored until it becomes an observation; it cannot invent movement now');

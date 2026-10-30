@@ -254,3 +254,35 @@ activation and conservative departure evidence remain unchanged.
 
 Validate with `npm run verify:approximate-visits` and
 `node --import tsx scripts/test-schedule-gps-presence.ts`.
+
+### Parked location and completion display
+
+The narrower **At job · parked GPS** status reports a uniquely located stopped
+truck at an eligible job pin, independently of the saved truck assignment.
+It retains the real GPS timestamp and explicitly leaves arrival and duration
+unconfirmed. It does not create a qualified visit, actual timeline interval,
+closeout, assignment, or arrival alert. A zero-speed poll heartbeat without an
+ignition field may retain this location fact through a prior explicit OFF
+report at the same position (30 meters), only while every intervening report
+is stationary and adjacent reports stay within the existing 75-minute heartbeat
+window. Movement, ignition ON, conflicting coordinates, recorded departure,
+future observations, missed heartbeats or ambiguous jobs/trucks prevent it.
+The five-minute supported-visit rule remains unchanged; unknown gaps are never
+converted to dwell merely because the wall clock advanced.
+
+Completed-job display and new completion messages prefer a uniquely qualified
+physical visit over a different assigned truck's short proximity pass. The GPS
+truck is labeled separately from the unchanged JunkWare assignment. Multiple
+qualified trucks remain unresolved. When no qualifying visit exists, legitimate
+source-completed short timing remains available. Existing messages are not replayed.
+
+Each new stationary heartbeat renews only the timestamped location fact; a
+sequence may last for hours, but any missed75-minute gap breaks it. There is
+no total wall-clock dwell assertion. Future/invalid route timestamps cannot
+supply current evidence. All non-canceled pins compete, including completed
+jobs at the same address; assignment never resolves an ambiguous location.
+`atJobTruck` does not overwrite the saved assignment: next-stop and travel
+layout displays follow the physical truck while the booked block remains in
+its source lane. If no qualified completion visit exists, a short recorded
+interval is usable only for the assigned truck; another truck's short pass
+cannot be selected by completion alone.

@@ -1,3 +1,4 @@
+import {crewCloseoutReferral, CREW_REFERRAL_UNAVAILABLE} from './crew-closeout-referral';
 import {isEstimateCloseoutOutcome} from './estimate-closeout-outcome';
 import {isAmazonJob,amazonAssignedTruck,parseSignature,requireAmazonSignature} from './amazon-closeout';
 import { sameTruck } from './junkware-trucks';
@@ -153,9 +154,10 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         if(active.truck!==phone.truck || requireCrewDay(active).version!==day.version)throw new CrewPhoneError('Today’s truck or crew changed. Review setup before saving.',409);
         // Keep the durable receipt and provider write identical for source-owned fields.
         const jobCategory=before.closeout.jobCategory as {value?:string}|undefined;
-        const howHeard=before.closeout.howHeard as {value?:string}|undefined;
-        if(String(operation.values.jobCategoryId || '')!==String(jobCategory?.value || '') || String(operation.values.howHeardId || '')!==String(howHeard?.value || ''))throw new CrewPhoneError('Office appointment information changed. Reload the closeout.',409);
-        if(howHeard && !howHeard.value)throw new CrewPhoneError('The office must complete the customer referral information in JunkWare before checkout.',409);
+        const howHeard=before.closeout.howHeard as Parameters<typeof crewCloseoutReferral>[0];
+        const referral=crewCloseoutReferral(howHeard);
+        if(howHeard && !referral)throw new CrewPhoneError(CREW_REFERRAL_UNAVAILABLE,409);
+        if(String(operation.values.jobCategoryId || '')!==String(jobCategory?.value || '') || String(operation.values.howHeardId || '')!==String(referral?.value || ''))throw new CrewPhoneError('Office appointment information changed. Reload the closeout.',409);
         const {photoRequestIds:_photoRequestIds,expectedSourceFieldsVersion:_fieldsVersion,...writeValues}=operation.values;
         writeValues.expectedSourceVersion=closeoutSourceVersion(before.closeout);
         await setPendingCloseoutSourceVersion(receipt,String(writeValues.expectedSourceVersion));
@@ -165,7 +167,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         let truckLoadStatus;
         try {truckLoadStatus=deps.updateLoad(current.date,current.appointmentId,result.closeout,String(result.verifiedAt || ''),actor);}
         catch {truckLoadStatus={updated:false,reason:'Closeout saved; truck load reconciliation is pending.'};}
-        return {status:200,body:{...result,truckLoadStatus,jobTiming:{startSource:crewCloseoutArrival(job,phone.truck,current.date)?'gps':timing.actualStartHour?'junkware':'unknown',arrival:crewCloseoutArrival(job,phone.truck,current.date),submittedAt:receipt.createdAt,...timing},crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator,dailyCrew:day}}};
+        return {status:200,body:{...result,...(referral?.defaulted?{administrativeReferralDefault:{value:referral.value,label:referral.label,policy:'owner-directed-blank-referral'}}:{}),truckLoadStatus,jobTiming:{startSource:crewCloseoutArrival(job,phone.truck,current.date)?'gps':timing.actualStartHour?'junkware':'unknown',arrival:crewCloseoutArrival(job,phone.truck,current.date),submittedAt:receipt.createdAt,...timing},crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator,dailyCrew:day}}};
       });
     }catch(error){
       const preflight=!writeStarted || error instanceof JunkwareCloseoutError && error.stage==='preflight';

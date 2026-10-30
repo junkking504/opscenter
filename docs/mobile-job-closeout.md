@@ -1276,3 +1276,22 @@ Both source-snapshot and direct-source checks run under the existing appointment
 and source locks. Original dispatch history and phone drafts/photos remain intact.
 Replacement-truck inspection remains required; a Do not operate report still
 blocks job access. These checks do not provide a safety clearance.
+
+## Blank referral default — October 30, 2026
+
+For crew checkout only, an empty saved How heard field uses the unique native
+`Saw Trucks/Company Vehicle` option, per the owner's administrative default.
+Existing nonblank answers are preserved. Review identifies the default as office
+policy, not a customer answer. Missing or ambiguous native options still block.
+
+The client resolves the option from the original form without replacing draft
+fields, refreshing the source or changing source fingerprints. This also handles
+an unchanged cached form with a blank referral. The worker independently resolves
+the same option from the fresh, fingerprint-checked source and requires the
+reviewed value to match. The ordinary closeout write saves it alongside the
+reviewed fields, and the private successful receipt records administrative-default
+provenance. Reads do not save a default. Concurrent changes remain conflicts; an
+old client that still blocks needs the updated app, not a payment retry.
+
+Source scope, payment validation, photo requirements, source read-back and durable
+request identity remain unchanged. Tests use synthetic records only.

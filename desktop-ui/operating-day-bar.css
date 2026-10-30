@@ -15,48 +15,32 @@
 .ops-live .ops-content .schedule-map-panel,
 .ops-live .ops-content .schedule-selected-job-pane { scroll-margin-top: calc(var(--viewing-day-height, 0px) + 12px); }
 
-/* Keep the shared live header consistent across every workspace. The viewing
- * context and command check occupy the first row; search, knowledge, alerts,
- * and day controls share the second row. */
-.live-header-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "day day day checked" "search wiki alerts controls";
-  align-items: center;
-  border-bottom: 1px solid var(--border);
-  background: var(--oc-surface-neutral-02);
-}
-.live-header-shell .viewing-day-bar,
-.live-header-shell .topbar { display: contents; }
-.live-header-shell .viewing-day-context { grid-area: day; min-width: 0; padding: 8px 24px; }
-.live-header-shell .viewing-day-context strong { white-space: nowrap; }
-.live-header-shell .viewing-day-controls { grid-area: controls; padding: 8px 24px 8px 0; }
-.live-header-shell .topbar-actions { display: contents; }
-.live-header-shell .brain-launch { grid-area: wiki; margin: 8px 0; }
-.live-header-shell .notification-center { grid-area: alerts; margin: 8px 0; }
-.live-header-shell .live-chip { grid-area: checked; margin: 8px 24px 8px 0; }
-.live-header-shell .live-search-below-day { grid-area: search; min-width: 0; min-height: 56px; padding: 10px 0 10px 24px; border-bottom: 0; background: transparent; }
+/* Search, date, alerts, one status disclosure, and account settings. */
+.live-header-shell { display: grid; grid-template-columns: minmax(180px,1fr) auto auto auto auto; grid-template-areas: "search controls alerts live user"; align-items: center; gap: 8px; padding: 8px 24px; border-bottom: 1px solid var(--border); background: var(--oc-surface-neutral-02); }
+.live-header-shell .viewing-day-bar, .live-header-shell .topbar, .live-header-shell .topbar-actions { display: contents; }
+.live-header-shell .viewing-day-context { display: none; }
+.live-header-shell .viewing-day-controls { grid-area: controls; padding: 0; }
+.live-header-shell .viewing-day-controls :is(button,input) { min-height: var(--oc-control-height); }
+.live-header-shell .notification-center { grid-area: alerts; margin: 0; }
+.live-header-shell .live-search-below-day { grid-area: search; min-width: 0; min-height: 0; padding: 0; border: 0; background: transparent; }
 .live-header-shell .live-search-below-day .global-search-shell { width: 100%; }
-
-@media (max-width: 900px) {
-  .live-header-shell { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "day day checked" "search wiki alerts" "search controls controls"; }
-  .live-header-shell .viewing-day-controls { padding: 0 16px 8px 24px; justify-content: flex-end; }
-  .live-header-shell .live-chip { margin-right: 16px; }
-  .live-header-shell .live-search-below-day { padding-left: 16px; }
+@media (max-width: 1200px) {
+  .live-header-shell { grid-template-columns: minmax(0,1fr) auto auto auto; grid-template-areas: "controls controls controls controls" "search alerts live user"; }
+  .live-header-shell .viewing-day-controls { justify-content: flex-start; }
 }
-
-@media (max-width: 600px) {
-  .live-header-shell { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "day checked" "search alerts" "wiki controls"; }
-  .live-header-shell .viewing-day-context { padding: 8px 12px; }
-  .live-header-shell .viewing-day-context strong { font-size: var(--oc-type-14); }
-  .live-header-shell .live-chip { margin-right: 12px; }
-  .live-header-shell .live-search-below-day { padding: 8px 0 8px 12px; }
-  .live-header-shell .brain-launch { margin: 0 0 8px 12px; }
-  .live-header-shell .notification-center { margin: 0 12px 8px 0; }
-  .live-header-shell .viewing-day-controls { padding: 0 12px 8px 0; }
+@media (max-width: 760px) {
+  .live-header-shell { grid-template-columns: 44px minmax(0,1fr) 44px; grid-template-areas: "controls controls controls" "search search search" "alerts live user"; padding: 8px 12px; gap: 6px; }
+  .live-header-shell .header-live { justify-self: end; }
+  .live-header-shell .notification-trigger { min-width: var(--oc-control-height); }
+  .live-header-shell .viewing-day-controls button { min-width: var(--oc-control-height); }
+  .live-header-shell .viewing-day-controls { justify-content: space-between; }
+  .live-header-shell .viewing-day-controls form { flex: 1; }
+  .live-header-shell .viewing-day-controls input { flex: 1; width: 100%; font-size: var(--oc-type-16); }
+  .live-header-shell .header-user > button > span { display: none; }
+  .live-header-shell .header-user > button { min-width: var(--oc-control-height); }
+  .live-header-shell .header-live .header-popover { right: -50px; }
 }
-@media (max-width: 700px) {
-  .viewing-day-bar { padding: 8px; gap: 6px; }
-  .viewing-day-context strong { font-size: var(--oc-type-14); }
-  .viewing-day-controls button, .viewing-day-controls input { min-height: 40px; }
-}
+.live-header-shell .live-search-below-day { display: flex; align-items: center; gap: 8px; }
+.live-header-shell .live-search-below-day .global-search-shell { flex: 1; min-width: 0; }
+.live-header-shell .live-search-below-day .brain-launch { margin: 0; min-width: var(--oc-control-height); min-height: var(--oc-control-height); padding: 4px; }
+.live-header-shell .live-search-below-day .brain-launch span { display: none; }

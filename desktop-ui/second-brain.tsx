@@ -1,3 +1,4 @@
+import { useHeaderPanel } from './header-panel';
 import KnowledgeTroubleshootingPanel from './knowledge-troubleshooting';
 import type { MaintenanceSnapshot } from './lib/maintenance-contract';
 import { useEffect, useRef, useState } from 'react';
@@ -82,6 +83,7 @@ export default function OpsWiki({ workspace, disabled, navigate }: { workspace: 
     if (!force && (draft || reviewing)) { setDiscard(true); return; }
     setDraft(null); setReviewing(false); setDiscard(false); setOpen(false); link(null);
   }
+  useHeaderPanel('wiki', open, () => close());
   function edit(value?: KnowledgeEntry) {
     content.current?.scrollTo(0, 0);
     setDraft(value ? { title: value.title, summary: value.summary, body: value.body, kind: value.kind, workspace: value.workspace,

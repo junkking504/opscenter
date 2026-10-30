@@ -1,0 +1,9 @@
+.header-disclosure { position: relative; min-width: 0; }
+.header-live { grid-area: live; }
+.header-user { grid-area: user; }
+.header-user > button > span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.header-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 130; width: min(320px, calc(100vw - 24px)); padding: 16px; border: 1px solid var(--oc-border-default); border-radius: var(--radius-lg); background: var(--oc-surface-raised); color: var(--oc-text-primary); box-shadow: 0 8px 24px var(--oc-shadow-alpha-03); font-size: var(--oc-type-12); }
+.header-popover dl { margin-block: 12px; }
+.header-popover dt { color: var(--oc-text-muted); }
+.header-popover dd { margin: 2px 0 10px; overflow-wrap: anywhere; }
+.header-popover .brain-launch { margin: 12px 0 0; }

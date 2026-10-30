@@ -385,14 +385,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Command"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Command"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Command"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }
@@ -785,14 +777,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Schedule"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Schedule"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }
@@ -1189,14 +1173,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Fleet"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Fleet"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }
@@ -1587,14 +1563,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Finance"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Finance"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }
@@ -1992,14 +1960,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Krewe"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Krewe"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }
@@ -2406,14 +2366,6 @@
 /* Give narrow headers a full row for search and date controls; neither can
  * squeeze OpsWiki or an adjacent control under another hit target. */
 @media (max-width: 600px) {
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell { grid-template-areas: "day day" "checked checked" "search search" "wiki alerts" "controls controls"; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .live-search-below-day { padding: 4px 8px; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .brain-launch { justify-self: start; margin: 4px 8px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .notification-center { justify-self: end; margin: 4px 8px; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .viewing-day-controls { padding: 4px 8px 8px; justify-content: space-between; }
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .viewing-day-controls :is(button,input),
-  .ops-live[data-css-phase-two="Marketing"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
 }
 
 .ops-live[data-css-phase-two="Marketing"] .source-health-list :is(header span,button,em) { font-size: var(--oc-type-11); line-height: 1.4; }

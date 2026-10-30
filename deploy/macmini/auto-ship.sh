@@ -19,7 +19,7 @@ main() {
   mkdir -p "$CONFIG_DIR"
   log() { printf "%s\n" "$(date -u +%FT%TZ) $*" >> "$LOG"; }
   [[ "$MIN_INTERVAL" == <-> ]] || { log "invalid cooldown seconds"; exit 1; }
-  mkdir "$LOCK" 2>/dev/null || exit 0
+  mkdir "$LOCK" 2>/dev/null || { log "scheduler lock exists or cannot be acquired; if persistent, reconcile $LOCK"; exit 0; }
   trap 'rmdir "$LOCK"' EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
@@ -42,9 +42,9 @@ PY
   fi
 
   # launchd need not start in a repository. All gh commands use this checkout.
-  cd "$SHIP_WORKTREE"
+  cd "$SHIP_WORKTREE" || { log "cannot enter $SHIP_WORKTREE"; exit 1; }
   prs=$(gh pr list --base production --state open --label "$LABEL" --limit 1000 --json number,createdAt \
-    --jq 'sort_by(.createdAt, .number) | .[].number')
+    --jq 'sort_by(.createdAt, .number) | .[].number') || { log "queue lookup failed"; exit 1; }
   [[ -n "$prs" ]] || exit 0
   # Do not carry local edits into a release script refresh.
   checkout_state=$(git status --porcelain)
@@ -84,6 +84,14 @@ PY
       gh pr edit "$candidate" --add-label "ship-failed" >/dev/null || { log "PR #$candidate failure label failed; reconcile $INFLIGHT"; exit 1; }
       gh pr comment "$candidate" --body "Auto-ship stopped and removed the ready-to-ship label. ${reason:-Deployment did not finish.} PR state: $merged. Confirm the active release and controller log before retrying; a merged PR alone does not prove deployment or rollback. Log: auto-ship.log on Mission Control." >/dev/null \
         || log "PR #$candidate failure comment failed"
+      # A failed release is safe to clear only when ship.sh explicitly refused
+      # it before merging AND GitHub confirms the PR is still open. A merged,
+      # unknown or unclassified failure can leave production ahead of the live
+      # release. Keep the queue blocked until an operator reconciles that gap.
+      if [[ "$merged" != "OPEN" || -z "$reason" ]]; then
+        log "PR #$candidate outcome requires reconciliation; retaining $INFLIGHT"
+        return 1
+      fi
     fi
     rm "$INFLIGHT"
     return 0

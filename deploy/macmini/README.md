@@ -483,9 +483,13 @@ No comment infers a successful deployment or rollback from a merged PR alone.
 
 Before calling `ship.sh`, the scheduler writes `auto-ship.inflight` in its
 configuration directory. Normal completion or a recognized pre-merge wait
-removes it. An interruption or failed label update retains it and blocks later
-ticks. INT/TERM/HUP release the owned scheduler lock; SIGKILL or a machine crash
-may leave the lock too. Never automatically delete either marker on a timer.
+removes it. An interruption, failed label update, or failed release whose PR is not
+confirmed OPEN retains it and blocks later ticks. An unclassified failure
+(without an explicit pre-merge refusal from `ship.sh`) also retains it even
+if the PR still appears OPEN. A merged PR with a failed deployment must be
+reconciled before any later candidate can deploy that production history. INT/TERM/HUP release the owned scheduler lock; SIGKILL or a machine crash
+may leave the lock too. Lock contention is logged so a persistent stale lock
+is visible. Never automatically delete either marker on a timer.
 An operator must confirm that the scheduler/release children have stopped,
 inspect the PR head/state/labels, active release, controller log and health,
 reconcile any partial merge/deploy and label changes, then remove the stale

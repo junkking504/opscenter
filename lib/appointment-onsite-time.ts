@@ -1,10 +1,11 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 type VisitRecord = { onsite_minutes?: number; appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null; departure_confirmed?: boolean}> };
 
 export type AppointmentOnsiteTime = { minutes: number | null; arrival: string | null; departure: string | null; label: string; truck?: string; intervals?: Array<{ arrival: string; departure: string }> };
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
-export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: string; truck?: string }, visits: VisitRecord[], now = Date.now(), allowTruckMismatch = false): AppointmentOnsiteTime {
+export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: string; truck?: string; status?: string }, visits: VisitRecord[], now = Date.now(), allowTruckMismatch = false): AppointmentOnsiteTime {
   const unavailable = { minutes: null, arrival: null, departure: null, label: 'Unavailable · no confirmed visit' };
-  const byReference = visits.filter(row => job.appointmentId
+  const byReference = qualifiedAppointmentVisits(visits, job.status, now).filter(row => job.appointmentId
     ? String(row.appointment_id || row.appt_id || '') === job.appointmentId
     : job.jkNumber && String(row.jk_number || row.job_id || '').toUpperCase() === job.jkNumber.toUpperCase());
   if (!job.appointmentId && new Set(byReference.map(row=>String(row.appointment_id || row.appt_id || ''))).size !== 1) return unavailable;

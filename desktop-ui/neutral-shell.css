@@ -1,0 +1,205 @@
+/* Neutral shell: desaturates the blue-gray palette to neutral grays (T'Jean: no blue hue, less dark).
+   Generated from design-tokens.css by hue/saturation; vivid status and info blues are left alone. */
+:root {
+  --oc-accent-blue-01: hsl(210 1% 10%);
+  --oc-accent-blue-05: hsl(207 4% 50%);
+  --oc-accent-blue-08: hsl(256 4% 56%);
+  --oc-accent-blue-09: hsl(217 1% 53%);
+  --oc-accent-blue-10: hsl(207 2% 44%);
+  --oc-accent-blue-11: hsl(208 4% 32%);
+  --oc-accent-blue-12: hsl(208 4% 62%);
+  --oc-accent-neutral-01: hsl(218 1% 65%);
+  --oc-accent-violet-01: hsl(259 4% 59%);
+  --oc-accent-violet-02: hsl(261 3% 45%);
+  --oc-border-blue-04: hsl(204 4% 57%);
+  --oc-border-blue-06: hsl(201 2% 26%);
+  --oc-border-blue-08: hsl(203 4% 45%);
+  --oc-border-blue-09: hsl(205 4% 79%);
+  --oc-border-blue-10: hsl(207 3% 81%);
+  --oc-border-blue-11: hsl(207 3% 70%);
+  --oc-border-blue-12: hsl(207 2% 74%);
+  --oc-border-blue-13: hsl(203 2% 79%);
+  --oc-border-blue-14: hsl(210 4% 85%);
+  --oc-border-blue-15: hsl(212 3% 46%);
+  --oc-border-blue-17: hsl(200 2% 46%);
+  --oc-border-blue-19: hsl(205 3% 70%);
+  --oc-border-blue-20: hsl(205 3% 75%);
+  --oc-border-blue-22: hsl(205 2% 64%);
+  --oc-border-blue-24: hsl(204 4% 40%);
+  --oc-border-blue-25: hsl(207 1% 31%);
+  --oc-border-blue-28: hsl(214 4% 60%);
+  --oc-border-blue-29: hsl(212 4% 79%);
+  --oc-border-blue-30: hsl(207 1% 44%);
+  --oc-border-blue-31: hsl(204 1% 49%);
+  --oc-border-blue-33: hsl(206 3% 49%);
+  --oc-border-blue-35: hsl(207 2% 71%);
+  --oc-border-blue-36: hsl(208 2% 63%);
+  --oc-border-blue-37: hsl(207 3% 65%);
+  --oc-border-blue-38: hsl(205 3% 45%);
+  --oc-border-default: hsl(201 2% 89%);
+  --oc-border-neutral-03: hsl(216 1% 85%);
+  --oc-border-neutral-09: hsl(213 2% 84%);
+  --oc-border-neutral-13: hsl(214 3% 91%);
+  --oc-border-neutral-15: hsl(201 2% 86%);
+  --oc-border-neutral-29: hsl(202 2% 84%);
+  --oc-border-neutral-32: hsl(196 2% 77%);
+  --oc-border-neutral-33: hsl(201 2% 75%);
+  --oc-border-neutral-34: hsl(205 2% 80%);
+  --oc-border-neutral-35: hsl(270 1% 77%);
+  --oc-border-neutral-37: hsl(264 3% 91%);
+  --oc-border-neutral-38: hsl(265 3% 87%);
+  --oc-border-neutral-41: hsl(206 1% 82%);
+  --oc-border-neutral-44: hsl(173 1% 30%);
+  --oc-border-violet-01: hsl(267 3% 54%);
+  --oc-border-violet-02: hsl(266 2% 49%);
+  --oc-border-violet-03: hsl(271 4% 85%);
+  --oc-border-violet-05: hsl(271 3% 53%);
+  --oc-border-violet-07: hsl(265 4% 41%);
+  --oc-border-violet-09: hsl(266 3% 38%);
+  --oc-border-violet-10: hsl(270 3% 55%);
+  --oc-border-violet-12: hsl(271 3% 80%);
+  --oc-border-violet-13: hsl(268 3% 51%);
+  --oc-surface-blue-02: hsl(203 2% 19%);
+  --oc-surface-blue-04: hsl(203 1% 19%);
+  --oc-surface-blue-06: hsl(218 2% 8%);
+  --oc-surface-blue-11: hsl(202 1% 50%);
+  --oc-surface-blue-13: hsl(210 2% 16%);
+  --oc-surface-blue-14: hsl(213 1% 16%);
+  --oc-surface-blue-15: hsl(208 3% 10%);
+  --oc-surface-blue-16: hsl(210 3% 5%);
+  --oc-surface-blue-17: hsl(207 2% 68%);
+  --oc-surface-blue-18: hsl(200 3% 10%);
+  --oc-surface-blue-19: hsl(210 2% 12%);
+  --oc-surface-blue-20: hsl(210 1% 21%);
+  --oc-surface-blue-21: hsl(220 2% 13%);
+  --oc-surface-canvas: hsl(197 3% 96%);
+  --oc-surface-muted: hsl(210 3% 95%);
+  --oc-surface-neutral-18: hsl(203 4% 90%);
+  --oc-surface-neutral-25: hsl(274 1% 90%);
+  --oc-surface-violet-02: hsl(268 4% 41%);
+  --oc-surface-violet-03: hsl(265 3% 21%);
+  --oc-surface-violet-04: hsl(269 3% 47%);
+  --oc-surface-violet-05: hsl(268 3% 50%);
+  --oc-text-blue-01: hsl(200 1% 16%);
+  --oc-text-blue-02: hsl(207 1% 14%);
+  --oc-text-blue-03: hsl(215 2% 47%);
+  --oc-text-blue-05: hsl(210 3% 13%);
+  --oc-text-blue-06: hsl(208 4% 46%);
+  --oc-text-blue-07: hsl(203 3% 31%);
+  --oc-text-blue-08: hsl(207 4% 23%);
+  --oc-text-blue-09: hsl(215 1% 45%);
+  --oc-text-blue-10: hsl(204 4% 20%);
+  --oc-text-blue-11: hsl(205 3% 29%);
+  --oc-text-blue-12: hsl(215 2% 27%);
+  --oc-text-blue-13: hsl(202 2% 38%);
+  --oc-text-blue-14: hsl(201 1% 37%);
+  --oc-text-blue-15: hsl(215 2% 39%);
+  --oc-text-blue-16: hsl(211 4% 22%);
+  --oc-text-blue-17: hsl(203 3% 19%);
+  --oc-text-blue-18: hsl(202 2% 30%);
+  --oc-text-blue-19: hsl(212 3% 20%);
+  --oc-text-blue-20: hsl(206 2% 45%);
+  --oc-text-blue-21: hsl(205 3% 35%);
+  --oc-text-blue-22: hsl(207 4% 37%);
+  --oc-text-blue-23: hsl(216 1% 39%);
+  --oc-text-blue-24: hsl(221 4% 15%);
+  --oc-text-blue-25: hsl(206 3% 29%);
+  --oc-text-blue-27: hsl(199 3% 20%);
+  --oc-text-blue-28: hsl(201 1% 44%);
+  --oc-text-blue-29: hsl(201 1% 42%);
+  --oc-text-blue-30: hsl(215 2% 35%);
+  --oc-text-blue-31: hsl(209 2% 39%);
+  --oc-text-blue-32: hsl(202 2% 55%);
+  --oc-text-blue-33: hsl(215 4% 15%);
+  --oc-text-blue-35: hsl(217 2% 27%);
+  --oc-text-blue-36: hsl(210 1% 37%);
+  --oc-text-blue-37: hsl(204 3% 23%);
+  --oc-text-blue-40: hsl(198 2% 27%);
+  --oc-text-blue-42: hsl(210 1% 23%);
+  --oc-text-blue-43: hsl(206 1% 33%);
+  --oc-text-blue-44: hsl(214 4% 26%);
+  --oc-text-blue-47: hsl(212 4% 37%);
+  --oc-text-blue-48: hsl(202 4% 26%);
+  --oc-text-blue-49: hsl(203 3% 33%);
+  --oc-text-blue-51: hsl(206 2% 70%);
+  --oc-text-blue-52: hsl(205 5% 16%);
+  --oc-text-blue-53: hsl(204 4% 38%);
+  --oc-text-blue-54: hsl(214 1% 45%);
+  --oc-text-blue-56: hsl(203 2% 23%);
+  --oc-text-blue-57: hsl(200 2% 37%);
+  --oc-text-blue-59: hsl(205 2% 36%);
+  --oc-text-blue-60: hsl(204 4% 33%);
+  --oc-text-blue-61: hsl(198 2% 40%);
+  --oc-text-blue-62: hsl(200 3% 37%);
+  --oc-text-blue-63: hsl(206 4% 41%);
+  --oc-text-muted: hsl(205 2% 48%);
+  --oc-text-neutral-07: hsl(210 1% 40%);
+  --oc-text-neutral-11: hsl(204 1% 75%);
+  --oc-text-neutral-14: hsl(212 1% 48%);
+  --oc-text-neutral-16: hsl(173 0% 58%);
+  --oc-text-neutral-18: hsl(171 1% 74%);
+  --oc-text-neutral-19: hsl(269 3% 81%);
+  --oc-text-primary: hsl(206 4% 22%);
+  --oc-text-teal-01: hsl(198 1% 21%);
+  --oc-text-violet-01: hsl(271 3% 37%);
+  --oc-text-violet-02: hsl(267 4% 37%);
+  --oc-text-violet-03: hsl(273 3% 43%);
+  --oc-text-violet-04: hsl(270 3% 41%);
+  --oc-text-violet-05: hsl(269 3% 42%);
+  --oc-text-violet-06: hsl(267 4% 38%);
+  --oc-text-violet-07: hsl(269 1% 46%);
+  --oc-text-violet-08: hsl(273 1% 19%);
+  --oc-text-violet-09: hsl(269 3% 24%);
+  --oc-text-violet-10: hsl(269 4% 31%);
+  --oc-text-violet-11: hsl(272 1% 44%);
+  --oc-text-violet-13: hsl(272 3% 46%);
+  --oc-text-violet-15: hsl(270 3% 77%);
+  --oc-text-violet-16: hsl(269 3% 37%);
+  --oc-fleet-offline-accent: hsl(219 1% 57%);
+  --oc-customer-border: hsl(213 3% 89%);
+  --oc-customer-surface: hsl(210 4% 98%);
+  --oc-customer-ink: hsl(203 4% 22%);
+  --oc-customer-input-border: hsl(213 3% 84%);
+  --oc-huddle-win-surface: hsl(208 4% 21%);
+  --oc-huddle-row-border: hsl(210 2% 90%);
+  --oc-huddle-heading-ink: hsl(211 2% 39%);
+  --oc-huddle-card-border: hsl(210 2% 39%);
+  --oc-huddle-muted: hsl(209 3% 79%);
+  --oc-huddle-button-border: hsl(209 2% 50%);
+  --oc-schedule-control-border: hsl(205 3% 77%);
+  --oc-schedule-control-ink: hsl(206 4% 22%);
+  --oc-theme-dark-canvas: hsl(212 4% 15%);
+  --oc-theme-dark-surface: hsl(211 4% 19%);
+  --oc-theme-dark-muted-surface: hsl(210 3% 23%);
+  --oc-theme-dark-neutral-surface: hsl(209 3% 21%);
+  --oc-theme-dark-violet-surface: hsl(264 2% 25%);
+  --oc-theme-dark-blue-surface: hsl(208 4% 24%);
+  --oc-theme-dark-teal-surface: hsl(184 4% 21%);
+  --oc-theme-dark-text: hsl(204 4% 95%);
+  --oc-theme-dark-muted-text: hsl(205 2% 78%);
+  --oc-theme-dark-border: hsl(207 2% 37%);
+  --oc-theme-dark-violet-border: hsl(268 2% 41%);
+  --oc-theme-dark-blue-border: hsl(206 3% 40%);
+  --oc-theme-dark-input-border: hsl(206 2% 48%);
+  --oc-theme-dark-selected-surface: hsl(207 3% 34%);
+}
+
+/* Flat sidebar: dot bullets, gray active pill, no icons, chevrons or sub-page lists. */
+.ops-app.ops-live .workspace-rail-icon,
+.ops-app.ops-live .workspace-group-toggle,
+.ops-app.ops-live .workspace-page-list { display: none; }
+.ops-app.ops-live .workspace-rail-link { min-height: 34px; gap: 10px; font-weight: 500; }
+.ops-app.ops-live .workspace-rail-link::before { content: ""; flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--oc-text-muted); }
+html[data-ops-theme] .ops-app.ops-live .ops-sidebar .workspace-rail-link.active,
+.ops-app.ops-live .workspace-rail-link.active { color: var(--oc-text-primary); background: var(--oc-surface-muted); font-weight: 600; }
+.ops-app.ops-live .workspace-rail-link.active::before { background: var(--oc-text-primary); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar .workspace-rail-link.active { color: var(--oc-theme-dark-text); background: var(--oc-theme-dark-selected-surface); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-sidebar .workspace-rail-link.active::before { background: var(--oc-theme-dark-text); }
+
+/* Underline page tabs: plain text, red underline on the active tab only. */
+html .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs { gap: 14px; padding: 0; border: 0; border-bottom: 1px solid var(--oc-border-default); border-radius: 0; background: transparent; box-shadow: none; }
+html .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs > button { min-height: 40px; height: auto; padding: 8px 2px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; color: var(--oc-text-muted); font-weight: 500; }
+html .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs > button.active { border-bottom-color: var(--ops-brand-red); color: var(--oc-text-primary); background: transparent; font-weight: 600; }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs { border-bottom-color: var(--oc-theme-dark-border); background: transparent; }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs > button { background: transparent; color: var(--oc-theme-dark-muted-text); }
+html[data-ops-theme="dark"] .ops-app.ops-live .ops-content .workspace .workspace-tabs.shared-workspace-tabs > button.active { background: transparent; color: var(--oc-theme-dark-text); border-bottom-color: var(--oc-theme-dark-brand-red); }

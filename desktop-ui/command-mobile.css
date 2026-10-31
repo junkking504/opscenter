@@ -21,23 +21,6 @@
   }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs > button:focus-visible { outline: 2px solid var(--ops-brand-red); outline-offset: 2px; }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .shared-workspace-tabs button span { margin: 0; font-size: var(--oc-type-12); }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell {
-    grid-template-columns: minmax(0,1fr) 44px 44px;
-    grid-template-areas: "day day day" "controls controls controls" "search wiki alerts";
-    gap: 4px; padding: 4px 8px;
-  }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-context { padding: 0; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .viewing-day-context > div { display: flex; flex-wrap: wrap; gap: 4px 8px; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-controls { display: flex; padding: 0; gap: 4px; justify-content: flex-start; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .viewing-day-controls form { flex: 1; min-width: 0; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-controls input { flex: 1; width: 100%; min-width: 0; font-size: var(--oc-type-16); }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .viewing-day-controls :is(button,input) { min-height: 44px; height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .live-search-below-day { padding: 0; min-width: 0; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .global-search input { font-size: var(--oc-type-16); }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .brain-launch { width: 44px; min-height: 44px; padding: 0; margin: 0; font-size: 0; gap: 0; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .notification-center { margin: 0; }
-  .ops-app.ops-live[data-css-phase-two="Schedule"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .schedule-dispatch .schedule-control-bar { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; padding: 4px 0 8px; }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .schedule-dispatch .day-switcher { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%; }
   .ops-app.ops-live[data-css-phase-two="Schedule"] .schedule-dispatch .day-switcher button { height: auto; min-height: 44px; }

@@ -33,7 +33,8 @@
     "dev": "next dev",
     "build": "npm run verify:service-addresses && npm run verify:spending && npm run verify:apple-maps && node scripts/test-no-google-map-billing.mjs && npm run verify:service-territory && npm run verify:duplicate-bookings && npm run verify:global-search && npm run verify:requested-schedule && npm run verify:continuity && npm run build:desktop && node --max-old-space-size=6144 node_modules/next/dist/bin/next build --webpack",
     "verify:requested-schedule": "node --import tsx scripts/test-requested-schedule-day.ts && python3 scripts/test-requested-schedule-lifecycle.py",
-    "verify:duplicate-bookings": "node --import tsx scripts/test-duplicate-bookings.ts && node --import tsx scripts/test-prebooking-duplicates.ts",
+    "verify:closeout-prices": "node --import tsx scripts/test-verified-closeout-prices.ts",
+    "verify:duplicate-bookings": "node --import tsx scripts/test-prebooking-readiness.ts && node --import tsx scripts/test-duplicate-bookings.ts && node --import tsx scripts/test-prebooking-duplicates.ts",
     "verify:service-territory": "node --import tsx scripts/test-service-territory.ts",
     "start": "next start",
     "lint": "eslint .",
@@ -242,6 +243,8 @@
     "verify:appointment-signatures": "node --import tsx scripts/test-appointment-signatures.ts",
     "verify:appointment-signatures:browser": "node scripts/test-appointment-signatures-browser.mjs",
     "verify:apple-maps": "node --import tsx scripts/test-apple-maps-config.ts && node --import tsx scripts/test-apple-maps-failures.ts && node --import tsx scripts/test-apple-maps-gestures.ts && node --import tsx scripts/test-apple-maps-csp.ts && node --import tsx scripts/test-schedule-map-layout.ts && node --import tsx scripts/test-waypoint-apple-maps-config.ts && node --import tsx scripts/test-waypoint-apple-map-session.ts",
+    "verify:header-buttons:browser": "node scripts/test-header-buttons-browser.mjs",
+    "verify:command-filters": "node --import tsx scripts/test-command-filters.ts",
     "verify:appointment-loiter": "node --import tsx scripts/test-appointment-loiter.ts",
     "verify:appointment-loiter:browser": "node --import tsx scripts/test-appointment-loiter-browser.mjs",
     "verify:parked-job-location": "node --import tsx scripts/test-schedule-gps-presence.ts && node --import tsx scripts/test-appointment-onsite-time.ts"

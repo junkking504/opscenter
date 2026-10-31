@@ -27,15 +27,15 @@
 .ops-live .workspace-tabs{border:0;background:transparent;box-shadow:none;padding:0;border-radius:0;gap:10px;flex-wrap:wrap}
 .ops-live .workspace-tabs button{height:42px;min-height:42px;padding:0 10px;border-radius:0;border:0;border-bottom:2px solid transparent;background:transparent;font-size:var(--oc-type-11);color:var(--oc-text-blue-20);box-shadow:none}
 .ops-live .workspace-tabs button.active{border-bottom-color:var(--ops-brand-red);color:var(--oc-text-blue-10);background:transparent;box-shadow:none}
-.ops-live .live-header-shell{background:var(--oc-surface-raised)}
-.ops-live .live-header-shell .viewing-day-context{padding:6px 24px}
-.ops-live .live-header-shell .viewing-day-context>div{display:flex;align-items:center;gap:10px}
-.ops-live .live-header-shell .viewing-day-context strong{font-size:var(--oc-type-13);margin:0}
-.ops-live .live-header-shell .viewing-day-context span{font-size:var(--oc-type-9)}
-.ops-live .live-header-shell .live-chip{margin-block:4px;padding-block:4px;font-size:var(--oc-type-9)}
-.ops-live .live-header-shell .live-search-below-day{min-height:42px;padding-top:4px;padding-bottom:8px}
-.ops-live .live-header-shell .viewing-day-controls{padding-top:4px;padding-bottom:8px}
-.ops-live .live-header-shell .brain-launch,.ops-live .live-header-shell .notification-center{margin-block:4px}
+
+
+
+
+
+
+
+
+
 .ops-live .global-search-shell,.ops-live .global-search,.ops-live .viewing-day-controls :is(button,input){min-height:34px;height:34px}
 .ops-live :is(.panel,.campaign-panel,.capital-panel,.hours-employee-card,.schedule-map-panel,.schedule-board-shell){border-color:var(--border);border-radius:8px;box-shadow:none}
 .ops-live .metric-strip.command-metrics{width:100%;max-width:none;grid-template-columns:repeat(6,minmax(0,1fr));overflow:visible;padding:0;gap:8px}
@@ -71,9 +71,9 @@
 .ops-live .crew-weekly-overview tr:last-child :is(th,td){border-bottom:0}
 @media(min-width:1000px){.ops-app.ops-live{grid-template-columns:204px minmax(0,1fr)}}
 @media(max-width:1000px){.ops-live .workspace-heading{gap:12px;flex-wrap:wrap}.ops-live .workspace{padding-inline:14px}.ops-live .command-metrics>button.kpi-card{padding:6px;min-height:88px}.ops-live .command-metrics>button strong{font-size:var(--oc-type-18)}}
-@media(max-width:760px){.ops-live .workspace{padding:8px}.ops-live .workspace-heading{display:block}.ops-live .workspace-heading h1{padding-bottom:4px;font-size:var(--oc-type-24)}.ops-live .workspace-tabs{gap:2px}.ops-live .workspace-tabs button{min-height:44px;height:44px;padding-inline:8px}.ops-live .metric-strip.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .command-metrics>button:last-child:nth-child(odd){grid-column:1/-1}.ops-live .capital-stat-grid,.ops-live .campaign-kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .campaign-kpi-strip>button{min-height:48px}.ops-live .crew-weekly-overview{max-width:100%}.ops-live .crew-weekly-overview :is(th,td){padding:6px 8px}.ops-live .crew-weekly-overview button{min-height:44px}.ops-live .capital-payment-tabs button{min-height:44px}.ops-live .live-header-shell .viewing-day-context{padding:6px 8px}.ops-live .live-header-shell .viewing-day-context>div{display:block}.ops-live .live-header-shell .viewing-day-context strong{font-size:var(--oc-type-12)}}
+@media(max-width:760px){.ops-live .workspace{padding:8px}.ops-live .workspace-heading{display:block}.ops-live .workspace-heading h1{padding-bottom:4px;font-size:var(--oc-type-24)}.ops-live .workspace-tabs{gap:2px}.ops-live .workspace-tabs button{min-height:44px;height:44px;padding-inline:8px}.ops-live .metric-strip.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .command-metrics>button:last-child:nth-child(odd){grid-column:1/-1}.ops-live .capital-stat-grid,.ops-live .campaign-kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-live .campaign-kpi-strip>button{min-height:48px}.ops-live .crew-weekly-overview{max-width:100%}.ops-live .crew-weekly-overview :is(th,td){padding:6px 8px}.ops-live .crew-weekly-overview button{min-height:44px}.ops-live .capital-payment-tabs button{min-height:44px}}
 
-.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button:not(.schedule-summary-clear){height:44px;min-height:44px;padding:6px 10px;gap:2px}.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button>strong{font-size:var(--oc-type-20)}.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip>button>span{font-size:var(--oc-type-9)}
+
 /* Fit the actual Convoy status rows, not only its summary cards. */
 .ops-live .workspace.convoy-mode .workspace-heading{display:flex;align-items:center;flex-direction:row;gap:24px;padding:0;margin-bottom:8px}
 .ops-live .workspace.convoy-mode .workspace-heading>div:first-child{padding-right:0}

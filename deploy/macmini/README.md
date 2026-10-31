@@ -467,17 +467,21 @@ protections. Source deployment alone does not enable slot mode.
 
 `deploy/macmini/auto-ship.sh` considers up to 1,000 open production PRs
 labeled `ready-to-ship`, sorted oldest first. Conflicted or pending/failing-CI
-candidates retain their labels and do not block the next candidate. The first
-success or other failure ends the tick and starts the one-hour cooldown.
+candidates retain their labels and do not block the next candidate. So does a
+PR that production outran (`PR must contain the active release`), and a PR
+whose `ship.sh` refusal happened before any merge. The first release or
+recorded failure ends the tick. There is no pause between releases, so the next
+tick (two minutes later) takes the next labeled PR.
 Every candidate still goes through `ship.sh`: exact fetched/reviewed head,
 current production ancestry, CI, `claude-stop`, and the installed review gate.
 The standard installed controller builds, health-checks and handles rollback.
 
 The queue lookup runs inside the dedicated `worktrees/ship` checkout regardless
 of launchd's working directory. A dirty checkout blocks its refresh. A lock
-serializes the entire tick, including cooldown checks and PR bookkeeping.
+serializes the entire tick, including PR bookkeeping.
 The off switch and deployment lock are checked again before each candidate.
-Known failures remove `ready-to-ship`, add `ship-failed`, and attempt a PR comment;
+Known failures remove `ready-to-ship`, add `ship-failed`, and attempt a PR comment
+(label updates are retried three times on GitHub errors);
 a failed comment is logged, and a failed PR-state lookup is reported as UNKNOWN.
 No comment infers a successful deployment or rollback from a merged PR alone.
 
@@ -493,7 +497,7 @@ is visible. Never automatically delete either marker on a timer.
 An operator must confirm that the scheduler/release children have stopped,
 inspect the PR head/state/labels, active release, controller log and health,
 reconcile any partial merge/deploy and label changes, then remove the stale
-markers. Preserve the cooldown stamp. Retry/release permission remains separate.
+markers. Retry/release permission remains separate.
 
 It is not installed by merging. Install deliberately from
 `launchd/com.opscenter.auto-ship.plist.example`. Existing installations keep

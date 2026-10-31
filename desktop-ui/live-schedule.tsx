@@ -1,3 +1,4 @@
+import { commandDone as done, commandAttention as attention } from './lib/command-filters';
 import {appointmentAddressDisplay} from '../lib/appointment-address-display';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
 import { SheetDismissHandle } from './components/mobile-interactions';
@@ -105,6 +106,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [linkNotice, setLinkNotice] = useState('');
   const [dragNotice, setDragNotice] = useTransientNotice();
@@ -306,7 +308,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const interval = window.setInterval(() => { setNow(new Date()); void load(); }, 15_000);
     return () => { unsubscribe(); abort.abort(); window.clearInterval(interval); };
   }, [baseDate, refreshKey, mapOnly]);
-  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setSummaryId(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); }, [date, setDrawerId]);
+  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setSummaryId(null); setScope('ALL'); setPriority(null); setFilter('all'); setPaymentFilter('all'); setSearchQuery(''); setLinkNotice(''); }, [date, setDrawerId]);
   useEffect(() => {
     if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current || historyLoadPending.current) return;
     // A queued date can initially contain no appointments. Keep the navigation
@@ -317,7 +319,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (params.get('focus') === 'truck') {
       const requested=alertTruck(params.get('truck'));
       const matches=requested ? snapshot.fleet.trucks.filter(truck=>alertTruck(truck.truck)===requested) : [];
-      setMapAlert(true); setShowMap(true); setTruckMapView('location'); setScope('ALL'); setFilter('all');
+      setMapAlert(true); setShowMap(true); setTruckMapView('location'); setScope('ALL'); setFilter('all'); setPaymentFilter('all');
       setSelectedId(null); setSelectedGpsTrip(null); setMapResetKey(n=>n+1);
       if (matches.length === 1) { setSelectedTruck(truckLabel(matches[0].truck)); setLinkNotice(''); }
       else { setSelectedTruck(null); setLinkNotice(`${requested || 'The linked truck'} has no unique GPS record for ${date}. Current position is unavailable.`); }
@@ -360,12 +362,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const match = (job: ScheduleAppointment) => {
     const region = appointmentRegion(job);
     const scopeMatch = scope === 'ALL' || scope === region.code || scope === `${region.code}:${region.areaCode}`;
-    return scopeMatch && scheduleMatchesQuery(job, searchQuery) && (filter === 'all' || filter === 'completed' && appointmentStatus(job) === 'Completed' || filter === 'estimates' && appointmentStatus(job) === 'Estimate Closed' || filter === 'open' && !isClosed(job) || filter === 'unassigned' && scheduleDisplayTruck(job) === 'Unassigned' || filter === 'verify' && needsScheduleMapLocation(job));
+    return scopeMatch && (paymentFilter === 'all' || schedulePayment(job).tone === paymentFilter) && scheduleMatchesQuery(job, searchQuery) && (filter === 'all' || filter === 'done' && done(job) || filter === 'attention' && attention(job) || filter === 'completed' && appointmentStatus(job) === 'Completed' || filter === 'estimates' && appointmentStatus(job) === 'Estimate Closed' || filter === 'open' && !isClosed(job) || filter === 'unassigned' && scheduleDisplayTruck(job) === 'Unassigned' || filter === 'verify' && needsScheduleMapLocation(job));
   };
   const visible = jobs.filter(match);
-  const filtered = filter !== 'all' || scope !== 'ALL' || Boolean(searchQuery);
+  const filtered = paymentFilter !== 'all' || filter !== 'all' || scope !== 'ALL' || Boolean(searchQuery);
   const clearLinkIntent=()=>{const url=new URL(window.location.href);if(['record','truck'].includes(url.searchParams.get('focus') || '')){for(const key of ['q','appointment','truck','focus'])url.searchParams.delete(key);window.history.replaceState(window.history.state,'',url);}};
-  const reset = () => { clearLinkIntent();setMapAlert(false);setSearchQuery(''); setLinkNotice(''); setFilter('all'); setScope('ALL'); setPriority(null); setSelectedId(null); setSelectedTruck(null); setMapResetKey(value => value + 1); };
+  const reset = () => { clearLinkIntent();setMapAlert(false);setSearchQuery(''); setLinkNotice(''); setFilter('all'); setPaymentFilter('all'); setScope('ALL'); setPriority(null); setSelectedId(null); setSelectedTruck(null); setMapResetKey(value => value + 1); };
   const focusTerritory = (value: string) => { clearLinkIntent();setMapAlert(false);setScope(value); setSelectedId(null); setSelectedTruck(null); setMapResetKey(key => key + 1); };
   const previewAppointment=(id:string)=>{if(operationBusyRef.current)return;if(!summaryOrigin.current?.isConnected)summaryOrigin.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSummaryId(id);};
   const openAppointment=(id:string)=>{if(window.innerWidth<=900)previewAppointment(id);else setDrawerId(id);};
@@ -379,18 +381,18 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     // The timeline retains muted out-of-filter appointments. Selecting one
     // must also reveal its locator instead of focusing an absent marker.
     const job = jobs.find(job => job.recordId === id);
-    if (job && !match(job)) { setScope('ALL'); setFilter('all'); setSearchQuery(''); }
+    if (job && !match(job)) { setScope('ALL'); setFilter('all'); setPaymentFilter('all'); setSearchQuery(''); }
   };
   const selectTruck = (truck: string, view: 'location' | 'overview' = 'overview') => {
     if (operationBusyRef.current) return;
     clearLinkIntent();setMapAlert(false);
     if (!mapOnly) scrollPositionBeforeTruckSelection.current = { x: window.scrollX, y: window.scrollY };
-    setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true);
+    setSelectedGpsTrip(null); setTruckMapView(view); setScope('ALL'); setFilter('all'); setPaymentFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true);
   };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;
-      setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(null); setMapResetKey(key => key + 1);
+      setScope('ALL'); setFilter('all'); setPaymentFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(null); setMapResetKey(key => key + 1);
     };
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
@@ -569,17 +571,21 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   };
   const safeSourceHref = (job: ScheduleAppointment) => { try { const url = new URL(job.appointmentUrl); return /^https?:$/.test(url.protocol) ? url.href : null; } catch { return null; } };
 
-  const addAppointmentAction = <Button className="schedule-add-appointment" variant="brand" size="action" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button>;
+  const addAppointmentAction = <Button className="schedule-add-appointment" variant="brand" size="action" aria-label="New Appointment" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />New</Button>;
   if (!snapshot) return <section className="empty-state" role="status"><strong>{error || 'Loading Schedule from JunkWare…'}</strong><span>No sample appointments are used.</span></section>;
   return <TruckCameraController className="live-schedule-camera"><section onClickCapture={event=>{const target=event.target instanceof Element?event.target:null;if(target&&!target.closest('dialog,.record-drawer'))summaryOrigin.current=target.closest<HTMLElement>('button,a[href],[tabindex]');if(target&&!target.closest('.schedule-board-tools,.schedule-board-controls-trigger,dialog,[role=dialog],.record-drawer'))setBoardControlsOpen(false);}} className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ` schedule-dispatch${view === 'board' ? ' schedule-focus-board' : ''}`}`} data-controls-open={boardControlsOpen} onKeyDown={event=>{if(event.key==='Escape'&&boardControlsOpen&&!event.defaultPrevented&&!(event.target as HTMLElement).closest('dialog,[role=dialog],.record-drawer')){event.preventDefault();setBoardControlsOpen(false);boardControlsToggle.current?.focus();}}}>
     {!mapOnly && <div id={boardControlsId} className="schedule-board-tools" role="region" aria-label="Board controls">
     {!mapOnly && <div className="schedule-control-bar">
       <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
-      <div className="schedule-control-actions"><div className="schedule-search-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { clearLinkIntent();setSearchQuery(event.target.value); setLinkNotice(''); }} />{addAppointmentAction}<ScheduleCrewRoster key={date} date={date} busy={operationBusy} /></div><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button>{split.controls}<Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;setCostRevision(n=>n+1);refresh();}}>Refresh day</Button></div>
+      <div className="schedule-control-actions"><div className="schedule-search-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { clearLinkIntent();setSearchQuery(event.target.value); setLinkNotice(''); }} /><ScheduleCrewRoster key={date} date={date} busy={operationBusy} />{view !== 'board' && addAppointmentAction}</div>{split.controls}<Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;setCostRevision(n=>n+1);refresh();}}>Refresh day</Button></div>
     </div>}
-    {view === 'board' && !mapOnly && <div className="schedule-summary-strip">{[
-      ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => scheduleDisplayTruck(job) === 'Unassigned').length], ['verify', 'Area only', jobs.filter(needsScheduleMapLocation).length],
-    ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
+    </div>}
+    {view === 'board' && !mapOnly && <div className="schedule-summary-strip" aria-label="Appointment filters">{[
+      ['all', 'All', jobs.length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['done', 'Done', jobs.filter(done).length], ['attention', 'Attention', jobs.filter(attention).length],
+    ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}
+      <label className="schedule-filter-menu"><span>Territory</span><select aria-label="Territory" value={scope} onChange={event => { clearLinkIntent(); setScope(event.target.value); }}><option value="ALL">All territories</option>{groups.map(group => <option key={group.code} value={group.code}>{group.label}</option>)}{scope.includes(':') && <option value={scope}>{scope}</option>}</select></label>
+      <label className="schedule-filter-menu"><span>Payment</span><select aria-label="Payment" value={paymentFilter} onChange={event => setPaymentFilter(event.target.value)}><option value="all">All payments</option><option value="paid">Paid</option><option value="due">Balance due</option><option value="revenue">Billed</option><option value="saved">Saved charges</option><option value="quote">Quoted estimate</option><option value="unknown">Unknown / open estimate</option></select></label>
+      <Button variant="ghost" className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</Button>{addAppointmentAction}
     </div>}
     {!mapOnly && linkNotice && <p className="live-schedule-status schedule-link-notice" role="status">{linkNotice}</p>}
     {view === 'board' && <>
@@ -612,7 +618,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(needsScheduleAddressVerification).length} appointments need verified coordinates</span><span>Dashed amber pins are approximate locations.</span></div>}
         </aside>
       </section>}
-      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><Button className="schedule-board-controls-trigger" type="button" variant="outline" size="sm" ref={boardControlsToggle} aria-controls={boardControlsId} aria-expanded={boardControlsOpen} onClick={()=>setBoardControlsOpen(open=>!open)}>{boardControlsOpen ? 'Hide controls' : `Board controls${filtered ? ' · Filters active' : ''}`}</Button><ScheduleStopOrder key={date} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));setLinkNotice('Route order saved for Waypoint. Connected phones pick it up on their next assignment refresh.');refresh();}} />{routeRequest.error && <button type="button" onClick={routeRequest.retry}>Retry route estimates</button>}<ScheduleRecordedSequence jobs={jobs} stops={snapshot.operationalStops || []} trucks={truckNames} now={now.getTime()} select={selectAppointment} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
+      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><Button variant="ghost" type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</Button><Button className="schedule-board-controls-trigger" type="button" variant="outline" size="sm" ref={boardControlsToggle} aria-controls={boardControlsId} aria-expanded={boardControlsOpen} onClick={()=>setBoardControlsOpen(open=>!open)}>{boardControlsOpen ? 'Hide controls' : `Board controls${filtered ? ' · Filters active' : ''}`}</Button><ScheduleStopOrder key={date} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));setLinkNotice('Route order saved for Waypoint. Connected phones pick it up on their next assignment refresh.');refresh();}} />{routeRequest.error && <button type="button" onClick={routeRequest.retry}>Retry route estimates</button>}<ScheduleRecordedSequence jobs={jobs} stops={snapshot.operationalStops || []} trucks={truckNames} now={now.getTime()} select={selectAppointment} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
         <>{mobileTimeline ? <MobileScheduleOverview snapshot={snapshot} jobs={jobs} trucks={truckNames} range={range} legs={displayLegs} now={now.getTime()} selected={selectedId} select={id=>previewAppointment(id)} selectTruck={selectTruck} busy={operationBusy} onMove={commitScheduleMove} onBlocked={setDragNotice} /> : <><p className="schedule-mobile-scroll-hint">Swipe timeline to see the full day</p><div className="schedule-board-scroll" tabIndex={0} role="region" aria-label="Truck schedule timeline; scroll horizontally to see the full day"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {

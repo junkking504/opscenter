@@ -541,7 +541,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
               Record current load
             </Button>
             <Button
-              className="convoy-primary"
+              variant="brand"
               onClick={() => open({ kind: "maintenance", truck, initialStatus: "completed" })}
             >
               Record Service

@@ -87,3 +87,6 @@ long completion lists stay within the wall display instead of wrapping forever.
 Review cards show the public review author name beneath the quote, separately
 from attributed crew credit. Missing author names display “Reviewer name
 unavailable”; names are never inferred from job/customer matches.
+Review quotes retain the full saved source text and paragraph breaks without
+line clamping. Longer reviews expand the card and, when necessary, the page so
+the ending and attribution remain readable.

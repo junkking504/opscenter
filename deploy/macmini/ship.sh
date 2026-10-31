@@ -9,9 +9,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 SCRIPT_DIR="${0:A:h}"
 REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
-REVIEW_GATE="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/check-review-gate.py"
 ACTIVE_RELEASE="/Users/missioncontrol/opscenter-v2/opscenter"
-RECEIPTS="/Users/missioncontrol/opscenter-v2/vault/Tasks"
 PR="${1:-}"
 DRY_RUN=false
 [[ "${2:-}" == "--dry-run" ]] && DRY_RUN=true
@@ -20,7 +18,7 @@ fail() { echo "ship stopped: $*" >&2; exit 1; }
 [[ "$PR" =~ ^[0-9]+$ ]] || fail "usage: ship.sh <PR number> [--dry-run]"
 [[ $# -le 2 && ( $# -lt 2 || "$2" == "--dry-run" ) ]] || fail "usage: ship.sh <PR number> [--dry-run]"
 command -v gh >/dev/null || fail "gh CLI not found"
-[[ -f "$REVIEW_GATE" && -d "$ACTIVE_RELEASE" ]] || fail "run on Mission Control with the installed review gate"
+[[ -d "$ACTIVE_RELEASE" ]] || fail "run on Mission Control with the active release"
 cd "$REPOSITORY_ROOT"
 
 json=$(gh pr view "$PR" --json state,baseRefName,mergeable,isDraft,labels,statusCheckRollup,headRefOid)
@@ -42,11 +40,9 @@ git fetch origin "refs/pull/$PR/head"
 [[ "$(git rev-parse FETCH_HEAD)" == "$head_sha" ]] || fail "PR head changed; retry against the new head"
 active_sha=$(git -C "$ACTIVE_RELEASE" rev-parse HEAD)
 git merge-base --is-ancestor "$active_sha" "$head_sha" || fail "PR must contain the active release"
-git merge-base --is-ancestor origin/production "$head_sha" || fail "merge current production into the PR and review it first"
-python3 "$REVIEW_GATE" "$REPOSITORY_ROOT" "$active_sha" "$head_sha" "$RECEIPTS" \
-  || fail "review approval is missing; production was not changed"
+git merge-base --is-ancestor origin/production "$head_sha" || fail "merge current production into the PR and rerun validation first"
 
-echo "PR #$PR ready: exact head reviewed, current production included, CI green."
+echo "PR #$PR ready: current production included, CI green; review receipts are optional."
 if $DRY_RUN; then echo "dry run: would merge (merge commit) and deploy origin/production."; exit 0; fi
 
 gh pr merge "$PR" --merge --match-head-commit "$head_sha"

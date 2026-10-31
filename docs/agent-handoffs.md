@@ -2,7 +2,9 @@
 
 OpsCenter work moves between agents through files, not chat history. A planner
 writes a brief, a builder implements it in a task worktree, and a different
-model reviews what comes back. No change is graded by the agent that wrote it.
+model reviews what comes back. Independent review is optional under T'Jean's October 31, 2026 release policy.
+When requested, independent review is performed by a different model family.
+A builder may self-check, but must not call that independent review.
 
 ## Roles
 
@@ -141,49 +143,28 @@ alternative once task branches reach `production` through pull requests.
 Hosted review that bills an API key is metered usage and needs spending
 approval first; see [spending controls](spending-controls.md).
 
-## Review gate
+## Optional review audit
 
-A task branch is not merged into `origin/production` until
-`vault/Tasks/<task>/review.md`:
+A receipt or waiver is no longer required to merge or deploy. T'Jean removed
+mandatory release review on October 31, 2026. `ship.sh` and the installed
+production controller no longer invoke the receipt checker. CI, validation,
+release authorization, production lineage, locking, spending checks, migrations,
+health checks and rollback remain required. Explicit `claude-stop` labels still
+stop shipping; resolve their findings before removing them.
 
-1. names a reviewer that is a different model from the builder,
-2. reviews the exact commit being merged (a later push needs a new review, or
-   an addendum: another `Reviewer: … · Builder: … · Reviewed: <branch> @ <sha>`
-   line for the new head), and
-3. has the verdict `approve` with no open `[blocking]` findings.
+`deploy/macmini/check-review-gate.py` remains available as an explicit audit
+and as the parser for opted-in handoff-relay tasks. It reports missing review
+coverage honestly and can return failure when an audit is requested. It is not
+a pass-through stub and its result is not a mandatory release prerequisite.
 
-Agreement between agents is not evidence. The review checks the diff and the
-recorded check results; the `verify:*` scripts and the post-deploy release,
-health, and browser checks still decide whether the change works.
+An independent receipt names a reviewer from a different model family, the
+exact reviewed head, and an `approve` verdict without open blocking findings.
+The audit recognizes documented owner waivers and clean automatic merges.
+Validation: `npm run verify:review-gate`.
 
-The user may waive the gate for a specific change. Record the waiver in
-`review.md` as `Verdict: waived by <user>, <date>, <reason>`.
-
-The installed production controller enforces the gate, so every launcher
-copy, old or new, goes through it. After its forward-ancestry check and under
-the deployment lock, `deploy-release.sh` runs
-`deploy/macmini/check-review-gate.py` against `vault/Tasks/*/review.md` on
-Mission Control. Every commit between the active release and `origin/production`
-must be contained in a commit that an approved or waived receipt names.
-
-- Review lines count only in the receipt's opening block, before the first
-  `##` section, and only in the full `Reviewer: … · Builder: … · Reviewed:
-  <branch> @ <sha>` form. Every review line in a receipt must name the same
-  reviewer and builder, and the reviewer must be a different model family.
-  Names map to a family by keyword (Anthropic: Claude, Opus, Sonnet, Haiku,
-  Fable; OpenAI: Codex, GPT, ChatGPT; Google: Gemini), so "GPT-6 Codex" cannot
-  review "Codex". A name with no known family, or more than one, is rejected. One
-  self-reviewed or malformed line rejects the whole receipt.
-- A waiver must read `waived by <user>, <YYYY-MM-DD>, <reason>`.
-- A two-parent merge needs no review of its own only when its tree is exactly
-  what `git merge-tree` produces automatically. A conflict resolution or any
-  other change made in a merge needs a receipt naming the merge commit.
-
-A refused deployment lists the unreviewed commits and the skipped receipts. The
-gate takes effect when the controller is reinstalled from a `production` commit
-that contains it; until then the installed controller is unchanged. Reviewer
-names are written by the agents, so the gate prevents mistakes and skipped
-reviews, not deliberate forgery. Validation: `npm run verify:review-gate`.
+The relay still completes reviews for tasks that explicitly opt in. Pending
+optional reviews do not impose a global release gate. Do not start an optional
+review merely to satisfy a removed requirement.
 
 ## Nightly digest
 
@@ -277,7 +258,7 @@ its included allowance, Codex continues building and testing other opted-in task
 Claude reviews wait until the reported reset time, or one bounded hourly probe
 when the response does not provide a parseable reset. Daily run counts are informational and never block builds or reviews. No busy
 retries and no paid provider substitution.
-A Codex-only self-check never satisfies the cross-family production review gate.
+A Codex-only self-check is never described as independent cross-family review.
 
 To record the user's account-setting confirmation, write a dated note to
 `vault/Tasks/.claude-subscription-only`. This records confirmation; it cannot
@@ -285,14 +266,14 @@ change or independently enforce the Claude account's extra-usage setting.
 Removing that file prevents new Claude calls. Removing `.relay-on` prevents all
 new steps; use `stop` to end an already running step.
 
-A task is complete only after its approved commit is released, service health is
+A task is complete only after its authorized commit is released, service health is
 checked, and an authenticated browser check verifies the affected behavior.
 The relay ends at review readiness; it does not grant deployment authority.
 
 Builder boundaries (task branch only, no merge/deploy/messages) are agent
 instructions inside the Codex workspace sandbox. The relay is not a Git server
-permission boundary. Production still requires the separately installed review,
-lineage and deployment controls. Claude snapshot confinement is enforced by the
+permission boundary. Production still requires the separately installed lineage, spending and
+deployment controls. Claude snapshot confinement is enforced by the
 installed CLI's restricted file tools, with customizations and MCP disabled.
 
 ### Example: a documentation task from claim to close

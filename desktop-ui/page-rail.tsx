@@ -1,11 +1,12 @@
+import { krewePages, managerKrewePage } from './lib/krewe-presentation';
 import { workspaceLabel } from './lib/workspace-labels';
-import { Activity, ChevronDown, CalendarDays, CircleDollarSign, Megaphone, Settings, Truck, Users } from 'lucide-react';
+import { Activity, Lock, ChevronDown, CalendarDays, CircleDollarSign, Megaphone, Settings, Truck, Users } from 'lucide-react';
 import { useState, type MouseEvent } from 'react';
 
 export const workspacePages = [
   { workspace: 'Command', label: workspaceLabel('Command'), key: 'commandView', icon: Activity, pages: [['now','Updates'],['today','Operating Control'],['forecast','Forecast'],['tv','The Huddle']] },
   { workspace: 'Schedule', label: workspaceLabel('Schedule'), key: 'scheduleView', icon: CalendarDays, pages: [['board','Board'],['calendar','Calendar'],['customers','Customers'],['estimates','Estimates'],['followup','Follow-Up'],['history','History']] },
-  { workspace: 'Krewe', label: workspaceLabel('Krewe'), key: 'kreweView', icon: Users, pages: [['today','Today'],['payperiod','Pay period'],['monthly','Monthly']] },
+  { workspace: 'Krewe', label: workspaceLabel('Krewe'), key: 'kreweView', icon: Users, pages: krewePages },
   { workspace: 'Fleet', label: workspaceLabel('Fleet'), key: 'fleetView', icon: Truck, pages: [['overview','Overview'],['inspections','Inspections'],['maintenance','Repairs'],['service','Maintenance'],['reports','Records'],['scores','Driving']] },
   { workspace: 'Finance', label: workspaceLabel('Finance'), key: 'financeView', icon: CircleDollarSign, pages: [['overview','Overview'],['trends','Trends'],['payments','Payments'],['expenses','Expenses'],['accounting','Accounting'],['resale','Resale'],['recycling','Recycling']] },
   { workspace: 'Marketing', label: workspaceLabel('Marketing'), key: 'marketingView', icon: Megaphone, pages: [['overview','Leads'],['reviews','Reviews'],['performance','Results']] },
@@ -54,7 +55,7 @@ function WorkspacePageGroup(props: RailProps & { group: typeof workspacePages[nu
         if (disabled) { event.preventDefault(); return; }
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault(); navigate(group.workspace, page);
-      }}>{label}</a>)}
+      }}>{label}{group.workspace === 'Krewe' && !props.canFinance && managerKrewePage(page) && <small className="krewe-rail-lock"><Lock size={12} aria-hidden="true"/> Managers</small>}</a>)}
     </div>
   </div>;
 }

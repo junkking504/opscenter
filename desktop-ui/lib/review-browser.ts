@@ -10,7 +10,8 @@ export type ReviewFilters = {
 export const defaultReviewFilters: ReviewFilters = { query: '', location: '', rating: '', queue: 'all', order: 'newest' };
 export const isLowReview = (review: Review) => review.stars > 0 && review.stars <= 3;
 // Stored evidence is authoritative for an auto-match; suggestions can change later.
-export function reviewMatchStrength(review: Review): 'Strong' | 'Weak' | null {
+export function reviewMatchStrength(review: Review): 'Strong' | 'Weak' | 'Possible' | null {
+  if (review.attribution?.status === 'ambiguous' && review.attribution.matchMethod === 'manual_appointment') return 'Possible';
   if (review.attribution?.status !== 'matched') return null;
   if (review.attribution.matchMethod !== 'inferred_high') return 'Strong';
   const reasons = review.attribution.reasons ?? review.candidates?.find(candidate => candidate.appointmentId === review.attribution?.appointmentId)?.reasons ?? [];
@@ -27,14 +28,14 @@ export function browseReviews(reviews: Review[], filters: ReviewFilters, request
   const matching = reviews.filter(review => {
     if (filters.location && review.location !== filters.location) return false;
     if (filters.rating && review.stars !== Number(filters.rating)) return false;
-    if (filters.queue === 'check' && reviewMatchStrength(review) !== 'Weak') return false;
+    if (filters.queue === 'check' && !['Weak', 'Possible'].includes(reviewMatchStrength(review) || '')) return false;
     if (filters.queue === 'low' && !isLowReview(review)) return false;
     if (filters.queue === 'response' && review.needsResponse !== true) return false;
     if (filters.queue === 'unassigned' && review.attribution?.status === 'matched') return false;
     return !query || [review.customer, review.excerpt, review.location, review.attribution?.jkNumber,
       review.attribution?.appointmentId, ...recordedReviewCrew(review)].join(' ').toLocaleLowerCase().includes(query);
   }).sort((a, b) => {
-    const weakFirst = Number(reviewMatchStrength(b) === 'Weak') - Number(reviewMatchStrength(a) === 'Weak');
+    const weakFirst = Number(['Weak', 'Possible'].includes(reviewMatchStrength(b) || '')) - Number(['Weak', 'Possible'].includes(reviewMatchStrength(a) || ''));
     if (weakFirst) return weakFirst;
     const delta = (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0);
     return (filters.order === 'oldest' ? -delta : delta) || a.id.localeCompare(b.id);

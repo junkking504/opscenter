@@ -13,7 +13,7 @@ const cache = fs.mkdtempSync(path.join(os.tmpdir(), 'all-page-swipes-'));
 const groups = [
   ['Command', 'commandView', ['now', 'today', 'monitor', 'forecast']],
   ['Schedule', 'scheduleView', ['board', 'calendar', 'customers', 'estimates', 'followup', 'history']],
-  ['Krewe', 'kreweView', ['today', 'callin', 'payperiod', 'monthly']],
+  ['Krewe', 'kreweView', ['today', 'callin', 'leaderboard', 'payperiod', 'monthly']],
   ['Fleet', 'fleetView', ['overview', 'maintenance', 'service', 'scores', 'reports']],
   ['Finance', 'financeView', ['overview', 'payments', 'expenses', 'accounting', 'resale', 'recycling', 'reconciliation', 'trends']],
   ['Marketing', 'marketingView', ['overview', 'leads', 'reviews', 'performance']],

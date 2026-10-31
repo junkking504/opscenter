@@ -28,3 +28,9 @@ assert.equal(reviewMatchStrength(review('unknown', { attribution: { status: 'mat
 assert.equal(reviewMatchStrength(review('unmatched')), null);
 assert.deepEqual(browseReviews([...rows, weak, strong], { ...defaultReviewFilters, queue: 'check' }).rows.map(row => row.id), ['weak']);
 assert.equal(browseReviews([...rows, weak], defaultReviewFilters).rows[0].id, 'weak', 'Weak auto-matches appear first regardless of date');
+
+const possible = review('possible', {attribution:{status:'ambiguous',matchMethod:'manual_appointment',appointmentId:'123',crew:['Candidate crew'],evidenceNote:'Identity unresolved'}});
+assert.equal(reviewMatchStrength(possible),'Possible');
+assert.equal(browseReviews([possible],{...defaultReviewFilters,queue:'check'}).total,1);
+assert.equal(browseReviews([possible],{...defaultReviewFilters,queue:'unassigned'}).total,1);
+assert.deepEqual(recordedReviewCrew(possible),[]);

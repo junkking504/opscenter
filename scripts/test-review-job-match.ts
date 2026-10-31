@@ -39,6 +39,36 @@ try {
     review = readDesktopMarketing('2026-10-21',actor.role).reviews[0];
     assert.equal(review.attribution?.status,'matched');
   }
+  const possible = {date:'2026-10-21',action:'review.assign' as const,recordId:review.id,expectedVersion:review.version,requestId:randomUUID(),values:{appointmentId:'123456',confidence:'possible',evidenceNote:'Same first name and territory; different surname. Source appointment checked.'}};
+  const receipt = updateDesktopMarketing(possible,actor);
+  assert.equal(receipt.status,'verified');
+  assert.equal(receipt.input?.confidence,'possible');
+  assert.equal(receipt.input?.evidenceNote,possible.values.evidenceNote);
+  review = readDesktopMarketing('2026-10-21',actor.role).reviews[0];
+  assert.equal(review.attribution?.status,'ambiguous');
+  assert.equal(review.attribution?.appointmentId,'123456');
+  assert.equal(review.attribution?.evidenceNote,possible.values.evidenceNote);
+  const {buildPodiumGoogleReviewsView} = await import('../lib/podium-reviews');
+  assert.equal(buildPodiumGoogleReviewsView().employeeTallies30Days.length,0);
+  const {readTvSpotlights}=await import('../lib/tv-spotlights');
+  const card=readTvSpotlights('2026-10-21',actor.role).cards.find(row=>row.id==='review-test-review');
+  assert.equal(card?.credit,'Possible match · Eugene Test');
+  assert.equal(card?.attributionContext,possible.values.evidenceNote);
+  assert.equal(updateDesktopMarketing(possible,actor).status,'verified','same receipt retries without upgrading possible evidence');
+  assert.throws(()=>updateDesktopMarketing({...possible,requestId:randomUUID(),values:{...possible.values,evidenceNote:'changed'}},actor),/record changed/i);
+  for (const values of [{appointmentId:'123456',confidence:'possible'}, {appointmentId:'123456',confidence:'invalid'}, {appointmentId:'123456',confidence:['confirmed']}, {appointmentId:'123456',evidenceNote:'x'.repeat(2001)}]) {
+    assert.throws(()=>updateDesktopMarketing({...possible,requestId:randomUUID(),expectedVersion:review.version,values},actor),/confidence/);
+  }
+  assert.equal(readPodiumReviewAssignments()[0].attribution.status,'ambiguous','invalid writes preserve the prior decision');
+  const confirmed = {...possible,requestId:randomUUID(),expectedVersion:review.version,values:{...possible.values,confidence:'confirmed',evidenceNote:'Identity verified against source records.'}};
+  assert.equal(updateDesktopMarketing(confirmed,actor).status,'verified');
+  review=readDesktopMarketing('2026-10-21',actor.role).reviews[0];
+  assert.equal(review.attribution?.status,'matched');
+  assert.equal(review.attribution?.evidenceNote,confirmed.values.evidenceNote);
+  assert.equal(buildPodiumGoogleReviewsView().employeeTallies30Days.length,1,'confirmed assignment receives credit in the same snapshot');
+  const creditedCard=readTvSpotlights('2026-10-21',actor.role).cards.find(row=>row.id==='review-test-review');
+  assert.equal(creditedCard?.credit,'Eugene Test');
+  assert.equal(creditedCard?.attributionContext,confirmed.values.evidenceNote);
   assert.throws(()=>updateDesktopMarketing({date:'2026-10-21',action:'review.assign',recordId:review.id,expectedVersion:review.version,requestId:randomUUID(),values:{appointmentId:'JK9999999'}},actor),/No completed appointment/);
   console.log('PASS inferred suggestions remain unassigned; JK and numeric saves persist, refresh, and retry safely.');
 } finally { fs.rmSync(root,{recursive:true,force:true}); }

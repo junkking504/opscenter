@@ -196,3 +196,21 @@ location's retained latest-100 window. Dates outside that common retained window
 remain unavailable rather than being guessed as zero.
 The synthetic Campaign fixture documented in [SearchKings integration](searchkings-integration.md)
 exercises attribution and uncertain receipt recovery without live writes.
+
+### Manual attribution context
+
+The manual review dialog records an optional attribution context note (up to
+2,000 characters) and either a confirmed or possible match. A possible match
+requires an explanation and is stored as `ambiguous` with `manual_appointment`,
+the selected completed appointment and recorded crew. It remains in the
+unassigned/Check These queues and is excluded from confirmed credit totals.
+Manual possible decisions survive collector refreshes without being auto-saved
+over. Confirmation is an explicit later manager action.
+
+The versioned `review.assign` operation accepts `confidence` (`confirmed` or
+`possible`) and `evidenceNote`, includes them in its receipt, and verifies their
+readback. Existing callers without these fields retain confirmed assignment
+behavior. Campaign displays the context for both kinds of manual decision;
+The Huddle labels tentative crew as **Possible match** and exposes the note
+under **Attribution context**. Notes are internal operational evidence and must
+not include credentials or unnecessary contact/payment details.

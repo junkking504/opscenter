@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole, opsAuthDisplayName } from '@/lib/auth';
 import { opsRoleLabel } from '@/lib/ops-roles';
 import { chicagoDateKey } from '@/lib/report-dates';
-import { readDesktopCommand } from '@/lib/desktop-command';
+import { readDesktopCommand, readDesktopCommandSummary } from '@/lib/desktop-command';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -15,9 +15,10 @@ export async function GET(request: Request) {
     return Response.json({ error: 'A valid operating date is required.' }, { status: 400, headers });
   }
   try {
-    return Response.json(await readDesktopCommand(date, {
+    const read = new URL(request.url).searchParams.get('part') === 'summary' ? readDesktopCommandSummary : readDesktopCommand;
+    return Response.json(await read(date, {
       displayName: opsAuthDisplayName(session.email), role: opsRoleLabel(opsAuthRole(session.email)),
-    }), { headers });
+    }, new URL(request.url).searchParams.get('refresh') === '1'), { headers });
   } catch {
     return Response.json({ error: 'Command sources are unavailable. No operational changes were made.' }, { status: 503, headers });
   }

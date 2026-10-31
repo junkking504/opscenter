@@ -247,7 +247,8 @@
     "verify:command-filters": "node --import tsx scripts/test-command-filters.ts",
     "verify:appointment-loiter": "node --import tsx scripts/test-appointment-loiter.ts",
     "verify:appointment-loiter:browser": "node --import tsx scripts/test-appointment-loiter-browser.mjs",
-    "verify:parked-job-location": "node --import tsx scripts/test-schedule-gps-presence.ts && node --import tsx scripts/test-appointment-onsite-time.ts"
+    "verify:parked-job-location": "node --import tsx scripts/test-schedule-gps-presence.ts && node --import tsx scripts/test-appointment-onsite-time.ts",
+    "verify:command-loading": "node --import tsx scripts/test-command-loading.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.4",

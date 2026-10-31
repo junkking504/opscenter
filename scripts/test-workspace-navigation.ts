@@ -69,7 +69,7 @@ async function main() {
     await fetchWorkspace('/api/desktop/fleet?date=A', signal);
     time += 5 * 60_000 + 1;
     assert.equal(cachedWorkspace('/api/desktop/fleet?date=A'), undefined, 'Cache lifetime is bounded');
-    for (let i=0;i<20;i++) await fetchWorkspace(`/api/desktop/fleet?date=${i}`, signal);
+    for (let i=0;i<60;i++) await fetchWorkspace(`/api/desktop/fleet?date=${i}`, signal);
     assert.equal(cachedWorkspace('/api/desktop/fleet?date=0'), undefined, 'LRU eviction bounds retained records');
     const controller = new AbortController(); controller.abort();
     await assert.rejects(fetchWorkspace('/api/desktop/fleet?date=aborted', controller.signal));

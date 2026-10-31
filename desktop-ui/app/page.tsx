@@ -1067,7 +1067,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   useEffect(()=>{
     if (!live || alertIntentApplied.current) return;
     const params=new URLSearchParams(window.location.search), id=params.get('alert');
-    if (!id || live.snapshot.loading) return;
+    if (!id || live.snapshot.loading || live.snapshot.updatesLoading) return;
     alertIntentApplied.current=true;
     const alert=live.snapshot.alerts.find(item=>item.id===id);
     if(alert) { const href=desktopAlertHref(alert,live.snapshot,window.location.origin);setAlertDetails({alert,href:new URL(href,window.location.origin).searchParams.get('focus')==='alert' ? undefined : href}); }
@@ -1146,7 +1146,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     { const url = new URL(window.location.href); url.searchParams.delete('customer'); window.history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }
   };
   const warmDate = live?.snapshot.date;
-  const warmLoading = live?.snapshot.loading;
+  const warmLoading = live?.snapshot.loading || live?.snapshot.updatesLoading;
   useEffect(() => {
     if (!warmDate || warmLoading || mutationBusy) return;
     const abort = new AbortController();
@@ -4358,7 +4358,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            {live ? <HeaderControls generatedAt={live.snapshot.generatedAt} loading={live.snapshot.loading} attention={sourceAttentionCount > 0 || Boolean(live.error)} name={live.snapshot.actor.displayName} role={live.snapshot.actor.role} refresh={mutationBusy ? undefined : refreshDisplayed}><ThemeControl compact /></HeaderControls> : <div className="live-chip"><span />Live · 10:24 AM</div>}
+            {live ? <HeaderControls generatedAt={live.snapshot.generatedAt} loading={live.snapshot.loading || live.snapshot.updatesLoading} attention={sourceAttentionCount > 0 || Boolean(live.error)} name={live.snapshot.actor.displayName} role={live.snapshot.actor.role} refresh={mutationBusy ? undefined : refreshDisplayed}><ThemeControl compact /></HeaderControls> : <div className="live-chip"><span />Live · 10:24 AM</div>}
             {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
@@ -4499,7 +4499,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Dashboard records…'}</div>}
           {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <SectionLayout as="div" group="app-page-command-overview" data-layout-id="command-overview" className="command-overview">
             <div data-layout-id="command-feed" data-layout-label="Updates" className="command-feed">
-              <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />
+              {live.snapshot.updatesLoading ? <div className="workspace-loading" role="status">Loading operational updates…</div> : <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />}
               <EstimateCommandSummary summary={live.snapshot.estimates} />
             </div>
             <aside data-layout-id="command-overview-panel-1" className="command-map-column" aria-label="Appointment and truck map">

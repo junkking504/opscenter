@@ -48,6 +48,9 @@ elif name=='git':
  elif args[0]=='checkout':
   if settings.get('checkout_fail'):sys.exit(2)
  elif args[0]=='rev-parse':print('abc1234')
+ elif args[0]=='ls-remote':
+  if settings.get('ls_remote_fail'):sys.exit(2)
+  print(('def5678' if (root/'merged').exists() else 'abc1234')+'\trefs/heads/production')
  else:sys.exit(98)
 elif name=='ship.sh':
  (root/'entered').touch()
@@ -63,11 +66,13 @@ elif name=='ship.sh':
  'conflict':f'PR #{args[0]} has conflicts or is not mergeable yet',
  'gate':'review approval is missing; production was not changed',
  'stop':"Claude's review says stop (label claude-stop). Fix it or remove the label.",
- 'stale':'merge current production into the PR and review it first'}
+ 'stale':'merge current production into the PR and review it first',
+ 'behind':'PR must contain the active release'}
  if mode in reasons:
   print('ship stopped: '+reasons[mode],file=sys.stderr);sys.exit(1)
- if mode=='deploy-fails':print('Deploying abc1234');sys.exit(1)
- if mode=='crash':sys.exit(9)
+ if mode=='deploy-fails':(root/'merged').touch();print('Deploying abc1234');sys.exit(1)
+ if mode=='crash':(root/'merged').touch();sys.exit(9)
+ if mode=='flaky':print('GraphQL: 504 Gateway Timeout',file=sys.stderr);sys.exit(1)
  print('Deployed abc1234')
 '''
 
@@ -94,7 +99,7 @@ class Fixture:
                         AUTO_SHIP_CONFIG_DIR=str(self.config),
                         AUTO_SHIP_WORKTREE=str(self.work),
                         AUTO_SHIP_DEPLOY_LOCK=str(self.root/'deploy-lock'),
-                        AUTO_SHIP_MIN_INTERVAL_SECONDS='3600')
+                        AUTO_SHIP_RETRY_SLEEP_SECONDS='0')
         self.processes = []
 
     def save(self):
@@ -149,16 +154,18 @@ class AutoShipTests(unittest.TestCase):
         self.addCleanup(fixture.close)
         return fixture
 
-    def test_success_and_cooldown(self):
+    def test_success_then_next_pr_on_the_next_tick(self):
         f=self.fixture(queue=[42,43])
         f.run()
         self.assertEqual(f.ships(), ['42'])
-        self.assertTrue(f.exists('last'))
         self.assertFalse(f.exists('inflight'))
         self.assertIn('pr edit 42 --remove-label ready-to-ship', f.effects())
         self.assertIn('merged and deployed', f.effects())
+        # No pause between releases: the next tick takes the next PR.
+        f.settings.update(queue=[43])
+        f.save()
         f.run()
-        self.assertEqual(f.ships(), ['42'])
+        self.assertEqual(f.ships(), ['42','43'])
 
     def test_waiting_candidates_do_not_block_oldest_eligible(self):
         f=self.fixture(queue=[92,99,102,103], modes={'92':'conflict','99':'pending'})
@@ -168,29 +175,60 @@ class AutoShipTests(unittest.TestCase):
         self.assertNotIn('pr edit 99', f.effects())
         self.assertIn('pr edit 102', f.effects())
 
+    def test_production_moving_is_a_wait_not_a_failure(self):
+        for mode in ('behind','stale'):
+            with self.subTest(mode=mode):
+                f=self.fixture(queue=[110,111],modes={'110':mode})
+                f.run()
+                self.assertEqual(f.ships(), ['110','111'])
+                self.assertNotIn('pr edit 110', f.effects())
+                self.assertIn('pr edit 111', f.effects())
+
+        f=self.fixture(queue=[110],modes={'110':'behind'})
+        f.run()
+        self.assertFalse(f.exists('inflight'))
+        self.assertEqual(f.effects(), '')
+
     def test_all_waiting_and_empty_queue(self):
         for queue in ([],[92,102]):
             with self.subTest(queue=queue):
                 f=self.fixture(queue=queue, modes={'92':'conflict','102':'pending'})
                 f.run()
                 self.assertEqual(f.ships(), [str(p) for p in queue])
-                self.assertFalse(f.exists('last'))
                 self.assertFalse(f.exists('inflight'))
                 self.assertEqual(f.effects(), '')
 
     def test_terminal_failures_stop_tick(self):
-        for mode in ('gate','stop','stale'):
+        for mode in ('gate','stop'):
             with self.subTest(mode=mode):
                 f=self.fixture(queue=[42,43],modes={'42':mode},state='OPEN')
                 f.run()
-                self.assertEqual(f.ships(), ['42'])
-                self.assertTrue(f.exists('last'))
+                # Nothing was merged: the author is told, no cooldown starts,
+                # and the next PR in the queue is still tried.
+                self.assertEqual(f.ships(), ['42','43'])
                 self.assertFalse(f.exists('inflight'))
                 self.assertIn('--add-label ship-failed',f.effects())
-                self.assertIn('PR state: OPEN',f.effects())
-                self.assertNotIn('merged and deployed',f.effects())
+                self.assertIn('Nothing was merged or deployed',f.effects())
 
-    def test_uncertain_failed_release_blocks_later_ticks_after_cooldown(self):
+    def test_refusal_alone_blocks_nothing(self):
+        for mode in ('gate','stop'):
+            with self.subTest(mode=mode):
+                f=self.fixture(queue=[42],modes={'42':mode},state='OPEN')
+                f.run()
+                self.assertEqual(f.ships(), ['42'])
+                self.assertFalse(f.exists('inflight'))
+                self.assertIn('--add-label ship-failed',f.effects())
+
+    def test_transient_error_before_merge_is_retried_quietly(self):
+        f=self.fixture(queue=[42],modes={'42':'flaky'},state='OPEN')
+        f.run()
+        self.assertEqual(f.ships(), ['42'])
+        self.assertFalse(f.exists('inflight'))
+        self.assertEqual(f.effects(), '')
+        f.run()
+        self.assertEqual(f.ships(), ['42','42'])
+
+    def test_uncertain_failed_release_blocks_later_ticks(self):
         # Reproduce the missed case: a failed deployment may already be merged
         # into production. A later PR must not redeploy it as a side effect.
         for mode in ('deploy-fails','crash'):
@@ -200,12 +238,10 @@ class AutoShipTests(unittest.TestCase):
                     f.run(1)
                     self.assertEqual(f.ships(),['42'])
                     self.assertTrue(f.exists('inflight'))
-                    self.assertTrue(f.exists('last'))
                     self.assertIn('--remove-label ready-to-ship',f.effects())
                     self.assertIn('--add-label ship-failed',f.effects())
                     calls_before=f.calls()
                     # Eliminate the cooldown as a possible reason for stopping.
-                    f.env['AUTO_SHIP_MIN_INTERVAL_SECONDS']='0'
                     f.settings.update(queue=[43],modes={})
                     f.save()
                     f.run(1)
@@ -217,7 +253,6 @@ class AutoShipTests(unittest.TestCase):
         f.run(1)
         self.assertIn('PR state: UNKNOWN',f.effects())
         self.assertTrue(f.exists('inflight'))
-        f.env['AUTO_SHIP_MIN_INTERVAL_SECONDS']='0'
         calls_before=f.calls()
         f.run(1)
         self.assertEqual(f.calls(),calls_before)
@@ -226,6 +261,8 @@ class AutoShipTests(unittest.TestCase):
         source=SOURCE.with_name('ship.sh').read_text()
         self.assertIn('has conflicts or is not mergeable yet',source)
         self.assertIn('checks pending or failing)',source)
+        self.assertIn('PR must contain the active release',source)
+        self.assertIn('merge current production into the PR and review it first',source)
         # Both wait refusals must remain before the merge operation.
         merge=source.index('gh pr merge')
         self.assertLess(source.index('has conflicts or is not mergeable yet'),merge)
@@ -238,7 +275,8 @@ class AutoShipTests(unittest.TestCase):
                 blocked=failed in ('remove_fail','add_fail','view_fail')
                 f.run(1 if blocked else 0)
                 self.assertEqual(f.exists('inflight'),blocked)
-                self.assertTrue(f.exists('last'))
+                # A refusal before merging starts no cooldown. Only the
+                # unreadable-state case falls back to the cautious path.
                 if failed=='view_fail':
                     self.assertIn('PR state: UNKNOWN', f.effects())
                 if blocked:
@@ -252,7 +290,6 @@ class AutoShipTests(unittest.TestCase):
                 f.run(1 if failed in ('dirty','list_fail') else 2)
                 self.assertEqual(f.ships(), [])
                 self.assertFalse(f.exists('inflight'))
-                self.assertFalse(f.exists('last'))
 
     def test_pause_deploy_lock_and_unknown_outcome(self):
         for name in ('off','inflight','deploy-lock'):
@@ -264,22 +301,7 @@ class AutoShipTests(unittest.TestCase):
                 self.assertEqual(f.calls(),[])
                 self.assertTrue(path.exists())
 
-    def test_cooldown_uses_seconds_and_rejects_bad_config(self):
-        f=self.fixture()
-        stamp=f.config/'auto-ship.last'
-        stamp.touch()
-        now=time.time()
-        os.utime(stamp,(now-30,now-30))
-        f.env['AUTO_SHIP_MIN_INTERVAL_SECONDS']='59'
-        f.run()
-        self.assertEqual(f.ships(),[])
-        os.utime(stamp,(now-60,now-60))
-        f.run()
-        self.assertEqual(f.ships(),['42'])
-        f.env['AUTO_SHIP_MIN_INTERVAL_SECONDS']='invalid'
-        f.run(1)
-
-    def test_simultaneous_runs_and_post_lock_cooldown(self):
+    def test_simultaneous_runs_are_serialized(self):
         f=self.fixture(hold=True)
         first=f.start()
         f.wait_entered()
@@ -290,7 +312,6 @@ class AutoShipTests(unittest.TestCase):
         self.assertEqual(f.ships(),['42'])
         (f.root/'proceed').touch()
         f.finish(first)
-        f.run()
         self.assertEqual(f.ships(),['42'])
 
     def test_signal_releases_lock_but_requires_reconciliation(self):
@@ -300,7 +321,6 @@ class AutoShipTests(unittest.TestCase):
         os.killpg(process.pid,signal.SIGTERM)
         f.finish(process,143)
         self.assertTrue(f.exists('inflight'))
-        self.assertFalse(f.exists('last'))
         f.run(1)
         self.assertEqual(f.ships(),['42'])
 
@@ -311,7 +331,6 @@ class AutoShipTests(unittest.TestCase):
                 f.run()
                 self.assertEqual(f.ships(),['92'])
                 self.assertFalse(f.exists('inflight'))
-                self.assertFalse(f.exists('last'))
 
     def test_killed_scheduler_never_replays_uncertain_release(self):
         f=self.fixture(hold=True)

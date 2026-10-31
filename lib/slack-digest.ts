@@ -846,8 +846,8 @@ export async function fetchSlackDailyDigest(
   return finish({ date, messages: unique, status: "ready", complete, refreshedAt, filteredSystemMessages });
 }
 
-export function readSlackDailyDigest(date: string): Promise<SlackDailyDigest> {
+export function readSlackDailyDigest(date: string, force = false): Promise<SlackDailyDigest> {
   return cachedDigest(date,()=>fetchSlackDailyDigest(date,{
     token:slackToken(),channelIds:slackDigestChannelIds(),diagnostics:productionDiagnostics,
-  }));
+  }), date < new Intl.DateTimeFormat('en-CA',{timeZone:CHICAGO_TIME_ZONE}).format(new Date()) ? 300_000 : CACHE_TTL_MS, force);
 }

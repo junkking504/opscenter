@@ -15,6 +15,21 @@ export function hasMapLocation(row:WaypointMapAppointment):boolean {
  const p=row.location;
  return Boolean(p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180);
 }
+/** Group map points whose screen positions are within `minDistance` pixels so pins never overlap.
+ * Single-linkage: any chain of close points forms one group, so no two group markers can end up
+ * closer than `minDistance` to a member of another group. Groups and members keep input order. */
+export function clusterByScreenDistance<T>(points:{x:number;y:number;item:T}[],minDistance:number):T[][] {
+ const parent=points.map((_,index)=>index);
+ const find=(index:number):number=>{while(parent[index]!==index){parent[index]=parent[parent[index]];index=parent[index];}return index;};
+ for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++){
+  if(Math.hypot(points[i].x-points[j].x,points[i].y-points[j].y)<minDistance){
+   const a=find(i),b=find(j);if(a!==b)parent[Math.max(a,b)]=Math.min(a,b);
+  }
+ }
+ const groups=new Map<number,T[]>();
+ points.forEach((point,index)=>{const root=find(index);groups.set(root,[...(groups.get(root)||[]),point.item]);});
+ return [...groups.values()];
+}
 function mapLabel(truck:string,status:string,position:number) {
  const number=truckNumber(truck),prefix=number===null?'U':`T${number}`;
  const state=waypointMapStatus(status);

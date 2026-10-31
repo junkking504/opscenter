@@ -27,7 +27,7 @@ import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, money, type AnyRecord } from '@/lib/opsData';
-import { buildCommandMapData, summarizeCommandSchedule, summarizeCommandScheduleFromMetrics } from '@/lib/command-map-data';
+import { summarizeCommandSchedule, summarizeCommandScheduleFromMetrics } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
@@ -92,7 +92,9 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
   return agedCards;
 }
 
-export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
+/** Saved daily figures only: no Slack, workflow database, map, or estimate scan.
+ * Re-read local evidence on every refresh so historical corrections stay visible. */
+export function readDesktopCommandSummary(date: string, actor: DesktopCommandSnapshot['actor']): DesktopCommandSnapshot {
   const metrics = readMetrics(date);
   // Local reads only. Keep Command usable if the Crew source cannot be read.
   let krewe: DesktopKreweSnapshot | null = null;
@@ -102,9 +104,35 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const wexAlerts = readWexAlertExpenses(date,wexFuel.transactions);
   const publishedFuel = metrics?.fuel_expense ?? metrics?.truck_record_financial_summary?.fuel_expense;
   const operatingFuel = readOperatingFuel(date,publishedFuel == null ? null : Number(publishedFuel),wexFuel,wexAlerts);
-  const map = metrics ? buildCommandMapData(date) : null;
+  const kpis = desktopCommandKpis(metrics, metrics ? summarizeCommandScheduleFromMetrics(metrics) : null, 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe, operatingFuel);
+  const priorDate = shiftOperatingDay(date, -7);
+  const priorMetrics = readMetrics(priorDate);
+  let priorKrewe: DesktopKreweSnapshot | null = null;
+  try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
+  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe, readOperatingFuel(priorDate,priorMetrics?.fuel_expense ?? priorMetrics?.truck_record_financial_summary?.fuel_expense ?? null));
+  for (const kpi of kpis) {
+    const old = priorKpis.find(row => row.label === kpi.label);
+    const value = old?.value.replace(/[$,]/g, '');
+    const prior = value && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : null;
+    kpi.comparison = { prior: dumpExpenses.assumedTotal > 0 && ['Dump + Fuel','Net'].includes(kpi.label) ? null : prior, label: `same weekday last week · ${priorDate} (completed day; recorded costs)` };
+  }
+  // Same weekday, 52 weeks earlier. Only reuse saved metrics; never collect history.
+  const priorYearDate = shiftOperatingDay(date, -364);
+  const priorYearMetrics = readMetrics(priorYearDate);
+  const priorYearFinance = buildDailyFinanceSummary(priorYearMetrics);
+  const priorYearEvidence = dailyFinanceEvidence(priorYearMetrics, priorYearFinance, priorYearDate);
+  const revenueKpi = kpis.find(kpi => kpi.label === 'Revenue');
+  if (revenueKpi) revenueKpi.priorYear = { date: priorYearDate, value: financeReading(priorYearFinance.revenue, priorYearEvidence.revenue, priorYearDate).value };
+  return { date, actor, generatedAt: new Date().toISOString(), kpis, alerts: [],
+    updatesLoading: true, sources: { metrics: Boolean(metrics), alerts: false, workflow: false } };
+}
+
+export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor'], refreshHistory = false): Promise<DesktopCommandSnapshot> {
+  const summary = readDesktopCommandSummary(date, actor);
+  const wexFuel = readWexFuelFinance(date);
+  const wexAlerts = readWexAlertExpenses(date,wexFuel.transactions);
   const [digest, workflow] = await Promise.all([
-    readSlackDailyDigest(date),
+    readSlackDailyDigest(date, refreshHistory),
     listCommandAlertWorkItems(date).then(items => ({ available: true, items })).catch(() => ({ available: false, items: [] as WorkItem[] })),
   ]);
   const visitSnapshot = readScheduleVisits(date);
@@ -167,33 +195,14 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
     if (latest) latest.needsAction = true;
   }
-  const kpis = desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date, Date.now(), dumpExpenses.assumedTotal, krewe, operatingFuel);
-  const priorDate = shiftOperatingDay(date, -7);
-  const priorMetrics = readMetrics(priorDate);
-  let priorKrewe: DesktopKreweSnapshot | null = null;
-  try { priorKrewe = readDesktopKrewe(priorDate, 'today', 'operator', false); } catch { /* Comparison omitted. */ }
-  const priorKpis = desktopCommandKpis(priorMetrics, priorMetrics ? summarizeCommandScheduleFromMetrics(priorMetrics) : null, 0, readWexFuelFinance(priorDate), priorDate, Date.now(), 0, priorKrewe, readOperatingFuel(priorDate,priorMetrics?.fuel_expense ?? priorMetrics?.truck_record_financial_summary?.fuel_expense ?? null));
-  for (const kpi of kpis) {
-    const old = priorKpis.find(row => row.label === kpi.label);
-    const value = old?.value.replace(/[$,]/g, '');
-    const prior = value && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : null;
-    kpi.comparison = { prior: dumpExpenses.assumedTotal > 0 && ['Dump + Fuel','Net'].includes(kpi.label) ? null : prior, label: `same weekday last week · ${priorDate} (completed day; recorded costs)` };
-  }
-  // Same weekday, 52 weeks earlier. Only reuse saved metrics; never collect history.
-  const priorYearDate = shiftOperatingDay(date, -364);
-  const priorYearMetrics = readMetrics(priorYearDate);
-  const priorYearFinance = buildDailyFinanceSummary(priorYearMetrics);
-  const priorYearEvidence = dailyFinanceEvidence(priorYearMetrics, priorYearFinance, priorYearDate);
-  const revenueKpi = kpis.find(kpi => kpi.label === 'Revenue');
-  if (revenueKpi) revenueKpi.priorYear = { date: priorYearDate, value: financeReading(priorYearFinance.revenue, priorYearEvidence.revenue, priorYearDate).value };
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis,
+    kpis: summary.kpis,
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',detail:digest.detail,reasonCounts:digest.reasonCounts,workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === true ? 'Current' : digest.complete === false ? 'Incomplete' : 'Unknown'):'Unavailable',tone:digest.status==='ready' && digest.complete === true ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
-    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available || alerts.length > 0, workflow: workflow.available },
+    sources: { metrics: summary.sources.metrics, alerts: digest.status === 'ready' || geofences.available || alerts.length > 0, workflow: workflow.available },
     alerts,
     crewProgress,
     estimates: readEstimateSummary(),

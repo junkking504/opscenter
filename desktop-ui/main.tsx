@@ -53,3 +53,4 @@ import './opscenter-brand.css';
 import './approved-workbench.css';
 
 import './theme.css';
+import './neutral-shell.css';

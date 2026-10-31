@@ -660,6 +660,12 @@ def step(p: Paths, task: str, action: str, token: str) -> int:
                                    str((p.worktrees / task).resolve()), "origin/production"], capture_output=True, text=True)
             if made.returncode != 0:
                 raise RuntimeError(f"git worktree add failed: {made.stderr.strip()[:200]}")
+        if action != "build":
+            # Reviewers read committed objects in the shared repository, so make
+            # sure the builder's pushed head is present before launching them.
+            branch = parse_task(p.tasks / task)["branch"]
+            if branch:
+                git(p, p.repo, "fetch", "origin", branch)
         cmd, cwd, env = command(p, task, action)
         result_path = p.evidence / f"{task}-claude-result.json"
         if action == "review-claude":

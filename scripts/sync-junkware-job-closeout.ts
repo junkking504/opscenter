@@ -6,7 +6,7 @@ import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
 import { clickWithWebFormsCompletion, selectWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
-import { closeoutSourceVersion, stableCloseoutChargeRows, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
+import { closeoutSourceVersion, stableCloseoutPaymentRows, requestedPaymentRemovals, verifyCloseoutPayments, stableCloseoutChargeRows, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { classificationCompletionTimeWarning, parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -49,6 +49,7 @@ type CloseoutInput = {
   actualStartMinute: string;
   actualEndHour: string;
   actualEndMinute: string;
+  paymentIdsToRemove?: string[];
   addPayment?: { methodId: string; amount: string; reference?: string } | null;
 };
 
@@ -116,7 +117,10 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     const navigators = Array.from(document.querySelectorAll('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]'));
     const payments = Array.from(document.querySelectorAll('[id*="PaymentsLV"][id$="ItemRow"]')).map((row) => {
       const cells = Array.from(row.querySelectorAll("td")).map((cell) => clean(cell.innerText || cell.textContent));
-      return { description: cells[0] || "Payment", amount: cells[1] || "" };
+      const sourceId = row.querySelector('input[id$="UniqueIdHF"]')?.value || '';
+      const remove = row.querySelector('a[id$="RemoveLB"]');
+      const removable = Boolean(sourceId && remove && !remove.classList.contains('aspNetDisabled') && remove.getAttribute('aria-disabled') !== 'true' && remove.getAttribute('href'));
+      return { description: cells[0] || "Payment", amount: cells[1] || "", removable };
     });
     const driver = selectData("ctl00_Content_DriverDD");
     const firstNavigator = navigators[0];
@@ -185,7 +189,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     };
   })()`) as { status: { value: string; label: string }; [key: string]: unknown };
   const {photoUrls, ...fields} = source;
-  return {...fields,signatureEvidence:await readSignature(page),otherCharges:stableCloseoutChargeRows(source.otherCharges),photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
+  return {...fields,payments:stableCloseoutPaymentRows(source.payments),signatureEvidence:await readSignature(page),otherCharges:stableCloseoutChargeRows(source.otherCharges),photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
 }
 
 async function captureSource(page: Page) { return captureCloseoutSource(page, capture); }
@@ -308,6 +312,7 @@ function parsePayload(): CloseoutInput {
     bedloadPrice: cleanMoney(row.bedloadPrice),
     otherChargesToAdd,
     otherChargeIdsToRemove,
+    ...(row.paymentIdsToRemove !== undefined ? { paymentIdsToRemove: row.paymentIdsToRemove as string[] } : {}),
     discount: cleanMoney(row.discount),
     tip: cleanMoney(row.tip),
     expectedSourceVersion: row.expectedSourceVersion ? String(row.expectedSourceVersion) : undefined,
@@ -330,6 +335,9 @@ function parsePayload(): CloseoutInput {
 
 export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>, application: CloseoutApplication = 'waypoint'): Promise<void> {
   const otherChargeIdsToRemove = input.otherChargeIdsToRemove || [];
+  const paymentRemovals = requestedPaymentRemovals(before, input.paymentIdsToRemove);
+  if (paymentRemovals.length && (application !== 'opscenter' || input.targetStatus === '1' || before.status && (before.status as Option).value !== '8' || !/^[a-f0-9]{64}$/.test(input.expectedSourceVersion || ''))) throw new Error('Recorded payments can only be corrected in OpsCenter on a completed appointment with a current source version.');
+  if (paymentRemovals.length && closeoutSourceVersion(before) !== input.expectedSourceVersion) throw new Error('The payment record changed. Reload and review before saving.');
   // Category, status, charge and payment changes need JunkWare's native full or
   // partial postback. Other fields are filled locally before the final Save.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
@@ -433,6 +441,25 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
     await clickWithWebFormsCompletion(page, '#ctl00_Content_OCAddBtn', 'the additional charge');
     const [savedCharge] = verifyAddedCloseoutCharges(await capture(page), beforeCharge, [charge], true);
     if (isPercentage) charge.sourceCalculatedPrice = String(savedCharge.price ?? "");
+  }
+
+  // Remove from bottom to top so identical rows retain their occurrence identity.
+  const paymentOrder = (before.payments as Record<string, unknown>[] || []).filter(row => paymentRemovals.includes(row)).reverse();
+  const removedPaymentIds: string[] = [];
+  for (const requested of paymentOrder) {
+    const current = await capture(page);
+    verifyCloseoutPayments(current, { paymentIdsToRemove: removedPaymentIds }, before);
+    const index = (current.payments as Record<string, unknown>[]).findIndex(row => row.id === requested.id);
+    const row = (current.payments as Record<string, unknown>[])[index];
+    if (!row?.removable) throw new Error('The requested payment removal is unavailable. Reload before saving.');
+    const hidden = page.locator('[id*="PaymentsLV"][id$="ItemRow"]').nth(index).locator('input[id$="UniqueIdHF"]');
+    if (await hidden.count() !== 1) throw new Error('The source payment could not be uniquely identified.');
+    const hiddenId = await hidden.getAttribute('id');
+    const prefix = String(hiddenId || '').replace(/UniqueIdHF$/, '');
+    if (!prefix) throw new Error('The source payment control is unavailable.');
+    await clickWithWebFormsCompletion(page, `#${prefix}RemoveLB`, 'the recorded payment removal');
+    removedPaymentIds.push(String(requested.id));
+    verifyCloseoutPayments(await capture(page), { paymentIdsToRemove: removedPaymentIds }, before);
   }
 
   if (input.addPayment?.methodId && input.addPayment.amount) {
@@ -639,7 +666,9 @@ async function main(): Promise<void> {
     if (input) {
       const completing = input.targetStatus !== '1';
       if (!['1', '8'].includes(String(before?.status.value)) || (before?.status.value === '8' && !completing)) throw new Error('This saved appointment cannot change to that status here. Reload from JunkWare.');
-      if (!completing && (input.addPayment || input.otherChargesToAdd.length)) throw new Error('Select Completed before adding a payment or additional charge.');
+      const paymentRemovals = requestedPaymentRemovals(before!, input.paymentIdsToRemove);
+      if (paymentRemovals.length && (application !== 'opscenter' || before!.status.value !== '8' || !input.expectedSourceVersion)) throw new Error('Recorded payment corrections require a completed appointment in OpsCenter and a current source version.');
+      if (!completing && (paymentRemovals.length || input.addPayment || input.otherChargesToAdd.length)) throw new Error('Select Completed before adding a payment or additional charge.');
       if (completing && !input.truck && !before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
       if ((completing && !input.driverId) || input.navigatorIds.includes(input.driverId)) throw new Error('Choose a driver and assign each person only once.');
       const unknownArrival=input.arrivalUnavailable===true && !input.actualStartHour && !input.actualStartMinute;

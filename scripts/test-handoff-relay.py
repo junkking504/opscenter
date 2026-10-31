@@ -297,6 +297,13 @@ with tempfile.TemporaryDirectory() as tmp:
     (short_folder / "handoff.md").write_text("# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-sha @ deadbeef  ·  Base: x\n")
     action, detail = relay.decide(paths, "short-sha", relay.parse_task(short_folder), {})
     assert action == "needs-user" and "cannot resolve" in detail, "an unresolvable short id stops instead of being compared as a prefix"
+    # With the worktree gone, a short id must not fall through to prefix matching against a full receipt.
+    gone = root / "vault/Tasks/short-gone"
+    brief("short-gone", auto="Auto: review")
+    (gone / "handoff.md").write_text("# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-gone @ abcdef0  ·  Base: x\n")
+    (gone / "review.md").write_text(f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ abcdef0{'1' * 33}\n\n## Verdict\napprove\n")
+    action, detail = relay.decide(paths, "short-gone", relay.parse_task(gone), {})
+    assert action == "needs-user" and "worktree is missing" in detail, "a short id with no worktree is never matched by prefix"
     assert relay.acquire(paths, "winner", "build", "token-a") is True
     before = (lock / "step.json").read_text()
     assert relay.acquire(paths, "loser", "build", "token-b") is False

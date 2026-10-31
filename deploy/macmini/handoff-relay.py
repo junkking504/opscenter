@@ -168,13 +168,13 @@ def resolve_head(p: "Paths", task: str, head: str) -> tuple[str, str]:
     """Expand a short handoff commit id to the task worktree's full commit; receipts must name all 40 characters.
 
     Returns (head, problem). A short id that the worktree cannot resolve to exactly one commit is a problem,
-    not something to compare as a prefix. With no worktree yet there is nothing to resolve against.
+    not something to compare as a prefix, and neither is a short id when there is no worktree to resolve it in.
     """
     if len(head) == 40 or not head:
         return head, ""
     worktree = p.worktrees / task
     if not worktree.exists():
-        return head, ""
+        return head, f"cannot resolve handoff commit {head[:12]}: the task worktree is missing, so the short id could mean any commit"
     full = git(p, worktree, "rev-parse", "--verify", head + "^{commit}")
     if len(full) == 40 and same_sha(full, head):
         return full, ""

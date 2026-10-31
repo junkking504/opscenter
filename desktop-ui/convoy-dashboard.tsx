@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SectionLayout } from './section-layout';
 import { MetricValue } from './metric-value';
 import { MonthlyMileage } from './monthly-mileage';
@@ -5,8 +6,7 @@ import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
 import { historyEntries, historyCosts, truckMileageReview } from './lib/convoy-records';
 import type { FleetMaintenanceRow } from './lib/people-fleet-contract';
-import { useState } from "react";
-import { ArrowRight, Truck, Search, Wrench, ChevronLeft } from "lucide-react";
+import { ArrowRight, Truck, Wrench, ChevronLeft } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { sameTruck, recordedValue, truckLoadLabel } from "./lib/convoy-presentation";
 import { fleetServiceTypes, servicePlan } from "../lib/fleet-service-plan";
@@ -73,7 +73,7 @@ export function plansFor(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: num
     ),
   );
 }
-function truckServiceSummary(snapshot: DesktopFleetSnapshot, truck: DesktopFleetTruck, now: number) {
+export function truckServiceSummary(snapshot: DesktopFleetSnapshot, truck: DesktopFleetTruck, now: number) {
   const plans = plansFor(snapshot, truck, now).filter(p => p.interval?.enabled || p.nextDate || p.nextMiles !== null);
   const rank: Record<string, number> = {due:0,soon:1,unknown:2,baseline:3,unset:4,current:5};
   const plan = [...plans].sort((a,b) => rank[a.status]-rank[b.status] || (serviceGauge(b) ?? -1)-(serviceGauge(a) ?? -1))[0];
@@ -97,10 +97,6 @@ function TruckDashboardCard({snapshot, truck, now, onTruck, onView, open}: Dashb
     </div>
     <footer><button onClick={()=>{onTruck(truck.id);onView?.('service');}}>Service plan{plans.length ? ` · ${plans.length}` : ''}</button><button onClick={()=>{onTruck(truck.id);onView?.('inspections');}}>Daily inspection</button><button onClick={()=>open({kind:'load',truck})}>Update load</button></footer>
   </article>;
-}
-function baselineNeeded(s: DesktopFleetSnapshot, t: DesktopFleetTruck, now: number) {
-  const configured = plansFor(s,t,now).filter(p=>p.interval?.enabled);
-  return !configured.length || configured.some(p=>p.status === "baseline");
 }
 function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: string }) {
   return <span className={`convoy-badge ${tone}`}>{children}</span>;
@@ -345,122 +341,19 @@ function Coverage({ snapshot, trucks, now }: Pick<DashboardProps, "snapshot" | "
   );
 }
 export function ConvoyDashboard(props: DashboardProps) {
-  const { snapshot, trucks, truckId, onTruck, onView, now } = props;
-  const [filter, setFilter] = useState("all"),
-    [query, setQuery] = useState("");
-  const repairs = snapshot.issues.filter((i) => i.status !== "resolved");
-  const stop = trucks.filter((t) =>
-    repairs.some((i) => sameTruck(i.truck, t.id) && i.severity === "out_of_service"),
-  );
-  const review = trucks.filter((t) => truckMileageReview(t,snapshot.maintenance,now).quality !== "current");
-  const baseline = trucks.filter((t) => baselineNeeded(snapshot, t, now));
-  const scheduled = snapshot.maintenance.filter(
-    (r) => r.status === "scheduled" && r.serviceDate < snapshot.date,
-  );
-  const repairsKnown = !snapshot.warnings.some((w) => w.startsWith("Repair source"));
+  const { snapshot, trucks, truckId, onTruck, now } = props;
   const dueItems = trucks.flatMap((t) =>
     plansFor(snapshot, t, now)
       .filter((p) => p.status === "due" || p.status === "soon")
       .map((p) => ({ key: `${t.id}:${p.serviceType}`, truckId: t.id, truck: label(t), serviceType: p.serviceType, status: p.status as "due" | "soon", milesRemaining: p.milesRemaining, daysRemaining: p.daysRemaining })),
   );
   const selected = trucks.find((t) => t.id === truckId);
-  if (selected) return <ConvoyTruckDetail {...props} truck={selected} />;
-  const visible = trucks.filter(
-    (t) =>
-      (filter === "all" ||
-        (filter === "mileage" && review.includes(t)) ||
-        (filter === "stop" && stop.includes(t)) ||
-        (filter === "repairs" && repairs.some((i) => sameTruck(i.truck, t.id))) ||
-        (filter === "baseline" && baseline.includes(t))) &&
-      `${t.label} ${t.vehicle} ${t.vin || ""}`.toLowerCase().includes(query.toLowerCase()),
-  );
-  return (
-    <SectionLayout as="div" group="convoy-dashboard-1" className="convoy-dashboard convoy-compact-overview">
-      <div data-layout-id="fleet-live-board" data-layout-label="Fleet overview"><ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} /></div>
-      <SectionLayout as="div" group="convoy-dashboard-2" data-layout-id="convoy-dashboard-grid" className="convoy-dashboard-grid">
-        <section data-layout-id="convoy-dash-panel" className="convoy-dash-panel">
-          <header>
-            <h2>
-              {filter === "all"
-                ? "All trucks (detail)"
-                : {
-                    mileage: "Mileage review",
-                    stop: "Out of service",
-                    repairs: "Trucks with repairs",
-                    baseline: "Maintenance setup",
-                  }[filter]}
-            </h2>
-            <small>Open a truck for details and actions</small>
-          </header>
-          <div className="convoy-table-tools">
-            <div>
-              <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
-                All trucks <b>{trucks.length}</b>
-              </button>
-              <button aria-pressed={filter === "mileage"} onClick={() => setFilter("mileage")}>
-                Mileage review <b>{review.length}</b>
-              </button>
-            </div>
-            <label className="convoy-search">
-              <Search size={15} />
-              <input
-                aria-label="Search trucks"
-                placeholder="Search trucks or VIN…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="convoy-table-wrap">
-            <table className="convoy-data-table convoy-status-table" aria-label="Truck status overview">
-              <thead><tr><th>Truck / VIN</th><th>Status</th><th>Latest mileage</th><th>Monthly mileage</th><th>Fuel</th><th>Load</th><th>Next service</th></tr></thead>
-              <tbody>{visible.map(t => {
-                const review = truckMileageReview(t,snapshot.maintenance,now), q = review.quality;
-                const {plan,status,detail} = truckServiceSummary(snapshot,t,now);
-                const issues = repairs.filter(i=>sameTruck(i.truck,t.id));
-                const fuel = t.fuel && Number.isFinite(t.fuel.percent) ? t.fuel : null;
-                const loadKnown = !t.loadNeedsVerification && t.loadPercent !== null && Number.isFinite(t.loadPercent);
-                return <tr key={t.id}>
-                  <td data-label="Truck / VIN"><button className="convoy-truck-link" onClick={()=>onTruck(t.id)}><Truck size={15}/>{label(t)}<ArrowRight size={12}/></button>
-                    <small className="convoy-row-vin" title="VIN · LinxUp vehicle record">{t.vinNeedsVerification ? 'VIN needs verification' : t.vin || 'VIN not recorded'}</small></td>
-                  <td data-label="Status"><Badge tone={t.readiness === 'In Use, No Inspection' ? 'stop' : t.readiness === 'Ready' ? 'neutral' : 'warning'}>{t.readiness}</Badge>
-                    <small title={t.gpsAt ? `GPS observation ${stamp(t.gpsAt)}` : 'No GPS observation'}>{t.operatingStatus}</small>
-                    <button className="convoy-row-link" onClick={()=>{onTruck(t.id);onView?.('inspections');}}>Inspection: {t.checklist}{issues.length ? ` · ${issues.length} ${issues.length === 1 ? 'repair' : 'repairs'}` : ''}</button></td>
-                  <td data-label="Mileage"><strong><MetricValue value={q === 'conflict' ? 'Needs verification' : miles(t.mileage?.value)} /></strong></td>
-                  <td data-label="Monthly mileage"><MonthlyMileage mileage={t.monthlyMileage} date={snapshot.date} compact/></td>
-                  <td data-label="Fuel" title={fuel?.detail}><strong><MetricValue value={fuel ? `${fuel.percent}%` : 'Not recorded'} /></strong>
-                    {fuel && <><small>{fuel.source === 'purchase' ? 'Assumed full · fill-up' : 'Inspection'}</small><small className="convoy-row-observed" title={`Fuel observed ${stamp(fuel.at)}`}>{stamp(fuel.at)}</small></>}</td>
-                  <td data-label="Load"><button className="convoy-row-value" onClick={()=>props.open({kind:'load',truck:t})}>{t.loadNeedsVerification ? 'Confirm load' : loadKnown ? `${t.loadPercent}%` : 'Not recorded'}</button>
-                    {loadKnown && <><small>Recorded estimate</small><small className="convoy-row-observed" title={`Load observed ${stamp(t.loadUpdatedAt)}`}>{stamp(t.loadUpdatedAt)}</small></>}</td>
-                  <td data-label="Next service"><button className={`convoy-row-service ${plan?.status === 'due' ? 'due' : ''}`} title={detail} onClick={()=>{onTruck(t.id);onView?.('service');}}>{status}<ArrowRight size={12}/></button>
-                    {plan && <small>{plan.serviceType}</small>}
-                    {plan?.milesRemaining != null ? <small>{Math.abs(Math.round(plan.milesRemaining)).toLocaleString()} mi {plan.milesRemaining <= 0 ? 'past target' : 'remaining'}</small> : plan?.daysRemaining != null ? <small>{Math.abs(plan.daysRemaining)} days {plan.daysRemaining <= 0 ? 'past target' : 'remaining'}</small> : null}</td>
-                </tr>;
-              })}</tbody>
-            </table>
-            {!visible.length && (
-              <p className="convoy-empty">
-                No trucks match this filter.{" "}
-                <button
-                  className="convoy-text-button"
-                  onClick={() => {
-                    setFilter("all");
-                    setQuery("");
-                  }}
-                >
-                  Clear filters
-                </button>
-              </p>
-            )}
-          </div>
-        </section>
-        <SectionLayout as="aside" group="convoy-dashboard-3" className="convoy-side-stack">
-          <Coverage snapshot={snapshot} trucks={trucks} now={now} />
-        </SectionLayout>
-      </SectionLayout>
-    </SectionLayout>
-  );
+  return <SectionLayout as="div" group="convoy-dashboard-1" className="convoy-dashboard convoy-compact-overview">
+    <div data-layout-id="fleet-live-board" data-layout-label="Fleet Overview"><ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} date={snapshot.date} now={now} dueItems={dueItems} truckId={truckId} selection={selected ? <ConvoyTruckDetail {...props} truck={selected} /> : null} /></div>
+    <Coverage snapshot={snapshot} trucks={trucks} now={now} />
+  </SectionLayout>;
 }
+
 export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetTruck }) {
   const { snapshot, truck, open, onTruck, now } = props;
   const records = recordsFor(snapshot, truck).filter((r) => r.status === "completed");

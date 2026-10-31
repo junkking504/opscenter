@@ -286,3 +286,23 @@ pass the existing truck freshness rules. Unavailable inspection storage or missi
 stale or wrong-day GPS yields Unknown instead. Historical days use only that day's
 GPS points. Offsite overnight parking can look like departure; GPS gaps can delay
 detection. No new provider calls or submission/write paths are introduced.
+
+## Fleet Overview Board (October 31, 2026)
+
+Overview uses four status tiles and one truck board. Red facts take precedence:
+Out of Service, then Need You (operating-day inspection missing or service due),
+then Working Now (today's driving/idling), then Ready (recorded readiness).
+Unknown inspection/readiness evidence stays explicit in each row and is not
+counted as Ready. Tile counts refer to distinct trucks; Needs You lists each
+red fact, ordered by missing operating-day inspection, out-of-service condition,
+then service due now. GPS and fuel warnings remain visible in the board rather
+than appearing in the red-only list.
+
+The board aligns truck/vehicle, status, location/stop, driver, stop progress,
+load, fuel, inspection, next service and GPS age in columns, with horizontal
+scrolling inside its container on smaller screens. Selecting a truck retains
+the board and shows its existing detail and actions below. VIN, latest mileage,
+monthly travel, reading provenance and service history remain in that panel.
+Day production totals remain in a compact line. Map and Service Due Soon start
+collapsed; expanding the map mounts the existing map component. No data sources,
+service calculations, routes, writes or request intervals change.

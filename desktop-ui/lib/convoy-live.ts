@@ -45,7 +45,7 @@ export function attentionItems(snapshot: DesktopFleetSnapshot, trucks: DesktopFl
   const active = snapshot.issues.filter(i => i.status !== 'resolved');
   for (const t of trucks) {
     const stop = active.filter(i => sameTruck(i.truck, t.id) && i.severity === 'out_of_service');
-    if (stop.length) items.push({ key: `stop:${t.id}`, kind: 'out_of_service', truckId: t.id, truck: name(t), title: 'Out of service', detail: stop[0].title || 'Active out-of-service repair' });
+    if (stop.length) items.push({ key: `stop:${t.id}`, kind: 'out_of_service', truckId: t.id, truck: name(t), title: 'Out of Service', detail: stop[0].title || 'Active out-of-service repair' });
   }
   for (const t of isToday ? trucks : []) {
     if (['GPS Stale', 'Offline', 'GPS unavailable'].includes(t.operatingStatus))
@@ -107,4 +107,26 @@ export function stopLine(jobs: TruckJobs, current: { gps: boolean; scheduleFresh
     case 'untimed': return `Next, time not set${at}${suffix}`;
     default: return `Next${at}${suffix}`;
   }
+}
+
+/** Overview exceptions are actionable red facts; amber and unknown evidence stay in the board. */
+export function overviewSummary(snapshot: DesktopFleetSnapshot, trucks: DesktopFleetTruck[], due: DueItem[], isToday: boolean) {
+  const rank: Partial<Record<AttentionKind, number>> = { no_inspection: 0, out_of_service: 1, service: 2 };
+  const attention = attentionItems(snapshot, trucks, isToday).filter(a => a.kind in rank);
+  for (const t of trucks) {
+    if (t.readiness === 'Out of service' && !attention.some(a => a.truckId === t.id && a.kind === 'out_of_service'))
+      attention.push({key:`stop:${t.id}`, kind:'out_of_service', truckId:t.id, truck:t.label.replace('Truck#','Truck'), title:'Out of Service', detail:'Recorded out-of-service condition'});
+  }
+  attention.push(...due.filter(d => d.status === 'due').map(d => ({key:`due:${d.key}`, kind:'service' as const, truckId:d.truckId, truck:d.truck, title:`${d.serviceType} Due Now`, detail:dueDetail(d)})));
+  attention.sort((a,b) => rank[a.kind]! - rank[b.kind]! || a.truck.localeCompare(b.truck, undefined, {numeric:true}) || a.key.localeCompare(b.key));
+  const outIds = new Set(attention.filter(a => a.kind === 'out_of_service').map(a => a.truckId));
+  const needIds = new Set(attention.filter(a => a.kind !== 'out_of_service').map(a => a.truckId));
+  const counts = {ready:0, working:0, need:0, out:0};
+  for (const t of trucks) {
+    if (outIds.has(t.id)) counts.out++;
+    else if (needIds.has(t.id)) counts.need++;
+    else if (isToday && ['moving','idle'].includes(liveGroup(t,false))) counts.working++;
+    else if (t.readiness === 'Ready') counts.ready++;
+  }
+  return {attention, counts, outIds};
 }

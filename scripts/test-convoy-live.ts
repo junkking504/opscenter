@@ -54,3 +54,26 @@ assert.equal(line('next', true, false), 'Next · 1:30 PM Smith · schedule not r
 assert.match(stopLine({ total: 0, done: 0, stop: null, isToday: true }, { gps: true, scheduleFresh: false })!, /not confirmed/);
 assert.equal(line('on_site', true, true), 'On site · 1:30 PM Smith');
 console.log('Convoy live board: stale-schedule presence passed.');
+
+import { overviewSummary } from '../desktop-ui/lib/convoy-live';
+const fleet = [
+  t('1', {readiness:'Ready',operatingStatus:'Parked'}),
+  t('2', {readiness:'Ready',operatingStatus:'Driving'}),
+  t('3', {readiness:'In Use, No Inspection',inspectionStatus:'In Use, No Inspection'}),
+  t('4', {readiness:'Out of service',inspectionStatus:'In Use, No Inspection'}),
+  t('5', {readiness:'Ready',operatingStatus:'GPS Stale',fuel:{percent:10}}),
+  t('6', {readiness:'Attention',operatingStatus:'Parked',checklist:'Missing'}),
+  t('7', {readiness:'Ready',operatingStatus:'Parked'}),
+];
+const due: any[] = [
+  {key:'7:oil',truckId:'7',truck:'Truck 7',serviceType:'Oil change',status:'due',milesRemaining:-10,daysRemaining:null},
+  {key:'3:oil',truckId:'3',truck:'Truck 3',serviceType:'Oil change',status:'due',milesRemaining:0,daysRemaining:null},
+  {key:'1:oil',truckId:'1',truck:'Truck 1',serviceType:'Oil change',status:'soon',milesRemaining:100,daysRemaining:null},
+];
+const summary = overviewSummary(snap,fleet,due,true);
+assert.deepEqual(summary.counts,{ready:2,working:1,need:2,out:1},'counts are unique truck buckets, red facts win over activity, unknown is not Ready');
+assert.deepEqual(summary.attention.map(a=>`${a.kind}:${a.truckId}`),['no_inspection:3','no_inspection:4','out_of_service:4','service:3','service:7']);
+assert.equal(overviewSummary(snap,fleet,due,false).counts.working,0,'historical days never claim current activity');
+assert.equal(summary.attention.some(a=>['gps','fuel','inspection','scheduled'].includes(a.kind)),false,'amber items stay out of Needs You');
+assert.equal(overviewSummary({...snap,issues:[{truck:'1',severity:'out_of_service',status:'open'}]},[fleet[0]],[],true).counts.out,1,'active repair overrides readiness');
+console.log('Overview: red-only stable ordering, distinct tile counts, stale GPS, historical activity, and repair precedence passed.');

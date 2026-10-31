@@ -53,8 +53,10 @@ function validAssignment(value: unknown): value is PodiumReviewManualAssignment 
     && typeof assignment.reviewUid === "string"
     && assignment.reviewUid.trim()
     && ((assignment.attribution?.status === "unmatched" && assignment.attribution.matchMethod === "manual_unassigned")
-      || (assignment.attribution?.status === "matched"
+      || (["matched", "ambiguous"].includes(assignment.attribution?.status || "")
         && ["manual_appointment", "inferred_high", "exact_phone", "exact_email"].includes(assignment.attribution.matchMethod || "")
+        && (assignment.attribution.status !== "ambiguous" || (assignment.attribution.matchMethod === "manual_appointment" && Boolean(assignment.attribution.evidenceNote?.trim())))
+        && (assignment.attribution.evidenceNote === undefined || (typeof assignment.attribution.evidenceNote === "string" && assignment.attribution.evidenceNote.length <= 2000))
         && Array.isArray(assignment.attribution.crew) && assignment.attribution.crew.length > 0)),
   );
 }
@@ -88,6 +90,8 @@ export function assignPodiumReviewToAppointment(input: {
   reviewUid: string;
   appointmentReference: string;
   assignedBy: string;
+  confidence?: "confirmed" | "possible";
+  evidenceNote?: string;
 }): PodiumReviewManualAssignment | null {
   const reviewUid = String(input.reviewUid || "").trim();
   const attribution = findPodiumReviewAppointment(
@@ -95,6 +99,11 @@ export function assignPodiumReviewToAppointment(input: {
     input.appointmentReference,
   );
   if (!reviewUid || !attribution) return null;
+  if (input.confidence !== undefined && !["confirmed", "possible"].includes(input.confidence)) throw new Error("Invalid review confidence.");
+  if (input.evidenceNote !== undefined && (typeof input.evidenceNote !== "string" || input.evidenceNote.length > 2000)) throw new Error("Invalid attribution evidence.");
+  if (input.confidence === "possible" && !input.evidenceNote?.trim()) throw new Error("Explain the possible match.");
+  attribution.status = input.confidence === "possible" ? "ambiguous" : "matched";
+  if (input.evidenceNote?.trim()) attribution.evidenceNote = input.evidenceNote.trim();
   const assignment: PodiumReviewManualAssignment = {
     reviewUid,
     attribution,

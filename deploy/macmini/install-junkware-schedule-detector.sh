@@ -43,13 +43,32 @@ if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   fi
 fi
 if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-  LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
-  for child_pid in $LOCK_CHILD_PIDS; do
-    child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
-    if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]] && kill -0 "$child_pid" 2>/dev/null; then
-      echo "JunkWare detector has an unexpected child process; refusing to terminate it." >&2
+  # A detector sweep can briefly run a helper other than the stream collector
+  # (for example while it publishes changes). Wait for it to finish rather than
+  # failing a whole release; still refuse, and never kill it, if it persists.
+  CHILD_WAIT_SECONDS="${DETECTOR_CHILD_WAIT_SECONDS:-240}"
+  CHILD_WAIT_STARTED="$(date +%s)"
+  OBSERVED_HELPERS=""
+  while :; do
+    LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
+    for child_pid in $LOCK_CHILD_PIDS; do
+      child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
+      if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]]; then
+        case " $OBSERVED_HELPERS " in *" $child_pid "*) ;; *) OBSERVED_HELPERS="$OBSERVED_HELPERS $child_pid" ;; esac
+      fi
+    done
+    # Remember every helper seen, so one that is reparented when the detector
+    # exits (and so no longer listed under it) is still waited for.
+    UNEXPECTED_CHILD=""
+    for child_pid in $OBSERVED_HELPERS; do
+      if kill -0 "$child_pid" 2>/dev/null; then UNEXPECTED_CHILD="$child_pid"; fi
+    done
+    [ -n "$UNEXPECTED_CHILD" ] || break
+    if [ $(( $(date +%s) - CHILD_WAIT_STARTED )) -ge "$CHILD_WAIT_SECONDS" ]; then
+      echo "JunkWare detector has an unexpected child process after waiting ${CHILD_WAIT_SECONDS}s; refusing to terminate it." >&2
       exit 1
     fi
+    sleep 2
   done
   # A validated detector may finish its current sweep after the checks above.
   # Treat an already-exited process as a successful stop, not an install error.
@@ -102,10 +121,10 @@ launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
 
 HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json"
-# A verified cold initialization measured 211.5 seconds on 2026-09-09.
-# Keep requiring a heartbeat newer than this restart, with a bounded five-minute
+# Cold initialization can exceed five minutes while publishing all four markets.
+# Keep requiring a heartbeat newer than this restart, with a bounded ten-minute
 # startup allowance; this does not change the normal polling/freshness threshold.
-for attempt in {1..60}; do
+for attempt in {1..120}; do
   if [ -s "$HEALTH_FILE" ]; then
     completed_at="$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("completed_at", ""))' "$HEALTH_FILE" 2>/dev/null || true)"
     if [ -n "$completed_at" ] && /usr/bin/python3 -c '
@@ -117,7 +136,7 @@ raise SystemExit(0 if stamp.timestamp() >= int(sys.argv[2]) else 1)
       break
     fi
   fi
-  [ "$attempt" -lt 60 ] || {
+  [ "$attempt" -lt 120 ] || {
     echo "JunkWare schedule detector did not produce a fresh verified heartbeat." >&2
     exit 1
   }

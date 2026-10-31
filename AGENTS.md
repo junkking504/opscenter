@@ -91,13 +91,13 @@ map. Prefer links to one canonical document over duplicated instructions.
 - Planner, builder, and reviewer hand work off through files in
   `vault/Tasks/<task>/`: `brief.md`, `handoff.md`, and `review.md`. Use the
   templates in [docs/agent-handoffs.md](docs/agent-handoffs.md).
-- The reviewer is a different model from the builder. Claude reviews Codex
-  branches; Codex reviews Claude branches.
-- Do not merge a task branch into `origin/production` until its `review.md`
-  approves the exact commit being merged, unless the user waived review for
-  that change and the waiver is recorded there.
-  The installed deployment controller refuses a deployment with unreviewed
-  commits; never work around it.
+- Independent review is optional, per T'Jean's October 31, 2026 decision.
+  A review receipt or waiver is not required to merge or deploy. When requested,
+  independent review uses a different model family and records the exact head;
+  never describe a builder's self-check as independent review.
+- Release authorization, CI, validation, forward production lineage, deployment
+  locking, spending controls, migrations, health checks and rollback remain in
+  force. An explicit `claude-stop` label still blocks shipping until resolved.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -131,6 +131,6 @@ allowlist as part of a routine deployment. Tests must mock paid providers.
   relay step and verify its processes have ended before editing its worktree.
 - Claude uses the subscription only, with extra usage off. On a usage limit,
   continue Codex builds/tests and defer Claude review until reset. Never switch
-  to an API key or claim same-family review satisfies the cross-family gate.
+  to an API key or describe same-family review as independent.
 - Preserve OpsCenter's shared typography, palette, spacing, cards, tables and
   controls. Compare changed screens with adjacent pages on desktop and phone.

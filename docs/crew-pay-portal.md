@@ -38,6 +38,36 @@ OPS_PAY_PERIOD_ANCHOR=YYYY-MM-DD
 
 The anchor must be the Monday that starts Week 1 of a pay period. Overtime is calculated independently in each Monday-through-Sunday workweek after 40 hours, at 1.5× the recorded hourly rate.
 
+## Desktop Krewe navigation
+
+Desktop Krewe uses Today, Call-In Plan, Leaderboard, Pay Period and Monthly.
+Stored view keys remain unchanged; `leaderboard` is a desktop navigation key
+that reads the existing Today, Pay Period or Monthly snapshot. It adds no API
+view or Waypoint surface. Leaderboard, Pay Period and Monthly show a Managers
+lock page for operators; payroll server permissions remain authoritative.
+Today omits employee pay figures for operators, including record drawers.
+
+The This Week meter reads the existing corrected `hours` snapshot week total,
+with amber at 36 hours and Overtime above 40. Missing or incomplete weeks show
+a dash. The hours endpoint requires payroll permission, so operators see the
+meter with unavailable hours pending a separately authorized non-payroll data
+contract. No daily-hours sum or call-in planning estimate substitutes for it.
+
+Leaderboard periods are the selected day, Monday through the selected day,
+and calendar month through the selected day. At least eight recorded hours
+are required. Revenue per Hour reuses the existing credited-revenue / worked-
+hours calculation; Jobs Completed retains source shared credit. Driving Score
+uses the mean of confirmed scores in the period and excludes members with
+missing or unconfirmed scores. Missing source dates suppress rankings. Review
+credit per person is absent from the loaded snapshot, so it is omitted.
+
+The Pay Period checklist reflects the existing review marks, flags, exports and
+mail-app preparation for this session. Changing supporting records invalidates
+its export/email status. Email Managers records preparation only; sending still
+happens in the mail app. Payroll edits retain their existing receipts and are
+labeled Edits Payroll. Check Saved Result checks the previous save before a
+retry. Call-In Plan statuses and notifications are unchanged.
+
 ## Management time-card corrections
 
 In desktop **Krewe → Pay Period**, open either weekly breakdown. Every day

@@ -1,5 +1,5 @@
 .payroll-review { margin: 16px 0 22px; border: 1px solid var(--oc-border-neutral-11); border-radius: 12px; background: var(--oc-surface-raised); overflow: hidden; }
-.payroll-review > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px; background: var(--oc-surface-neutral-02); }
+.payroll-review > div > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px; background: var(--oc-surface-neutral-02); }
 .payroll-review h3 { margin: 0; font-size: var(--oc-type-18); color: var(--oc-text-green-56); }
 .payroll-review header p { margin: 5px 0 0; font-size: var(--oc-type-13); color: var(--oc-text-green-14); }
 .payroll-review-actions, .payroll-review-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

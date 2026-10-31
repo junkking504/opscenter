@@ -61,7 +61,7 @@ try{
   await expect(page.getByLabel('View truck')).toHaveValue('Truck# 2');
   await page.evaluate(()=>{window.fixture.empty=true;window.fixture.summary=false;});await page.getByRole('button',{name:'Refresh Assignments',exact:true}).click();await expect(page.getByText('No completed appointments for this truck today.')).toBeVisible();
   await nav.getByRole('button',{name:'Performance',exact:true}).click();await expect(page.getByText('Today’s totals are unavailable. Refresh to check again.')).toBeVisible();
-  await nav.getByRole('button',{name:'Route',exact:true}).click();await expect(page.getByText('No remaining appointments for this truck.')).toBeVisible();
+  await nav.getByRole('button',{name:'Route',exact:true}).click();await expect(page.getByText('No Remaining Appointments')).toBeVisible();
   await page.getByText('Truck & Phone',{exact:true}).click();await page.evaluate(()=>window.scrollTo({top:document.documentElement.scrollHeight}));const last=await page.getByRole('button',{name:'Check connection',exact:true}).boundingBox(),bar=await nav.boundingBox();assert.ok(last.y+last.height<=bar.y,'Bottom navigation does not cover final controls');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
   await context.close();

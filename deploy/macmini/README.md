@@ -44,7 +44,7 @@ Before activation in either deployment mode, the controller runs the reviewed
 release's kernel migration runner against the existing protected
 `production.env`. It requires an enabled Mission Control kernel and the
 `opscenter_production` database, passes only the migration environment, and
-never evaluates configuration as shell code. Build, spending, review, and
+never evaluates configuration as shell code. Build, spending, and
 lineage checks precede database changes; production head and ancestry are
 checked again afterward. Migration failure prevents candidate startup, live-link
 changes, and service restarts. Migration output is suppressed to keep protected
@@ -120,12 +120,12 @@ For production deployments:
 
 On Mission Control, `./deploy/macmini/ship.sh <PR number> [--dry-run]` is an
 optional wrapper for an explicitly authorized release. Before merging it checks
-the exact PR head against the installed review gate and requires that it contain
-both the active release and current production. A real merge pins that head;
-deployment then uses `deploy-from-macbook.sh` over localhost SSH and its fixed
-installed controller. There is no controller-path override. Dry run performs
-the read-only Git fetches and checks but neither merges nor deploys. The
-installed controller repeats review and lineage checks before activation.
+CI, explicit stop labels, and that the exact PR head contains both the active
+release and current production. A real merge pins that head; deployment uses
+`deploy-from-macbook.sh` over localhost SSH and its fixed installed controller.
+There is no controller-path override. Dry run performs read-only Git fetches
+and checks but neither merges nor deploys. Review receipts are optional.
+The installed controller repeats lineage and operational checks before activation.
 
 Run the launcher from the reviewed source checkout or task worktree. Its Git
 check supports both ordinary checkouts and linked worktrees.
@@ -155,11 +155,11 @@ restarts the prior release. Each release also installs the Chromium revision
 pinned by Playwright so JunkWare closeout and truck-assignment actions remain
 available after dependency updates.
 
-The installed controller enforces the cross-model review gate: every commit
-since the active release must be covered by an approved or waived
-`vault/Tasks/<task>/review.md` on Mission Control, except clean automatic
-merges. See
-[agent handoffs and review](../../docs/agent-handoffs.md#review-gate).
+Independent review is optional under the owner's October 31, 2026 policy.
+Neither the shipping wrapper nor the installed controller requires a review
+receipt. The optional audit and opted-in review relay remain available; see
+[agent handoffs and review](../../docs/agent-handoffs.md#optional-review-audit).
+Install the updated controller explicitly for this policy to apply on the host.
 
 The normal deployment command has no non-forward override. A manual rollback
 requires a separately reviewed and explicitly authorized recovery procedure;
@@ -187,7 +187,10 @@ refresh when either source advances the normalized snapshot.
 ### Dedicated JunkWare schedule detector
 
 Current appointments and Slack schedule events use a persistent, verified
-JunkWare schedule detector. JunkWare serializes concurrent browser logins, so
+JunkWare schedule detector. The installer allows up to ten minutes for a cold
+initialization to finish all four markets and produce a verified heartbeat newer
+than the restart. A missing, stale or invalid heartbeat still fails deployment;
+normal operation keeps its existing freshness thresholds. JunkWare serializes concurrent browser logins, so
 one browser checks the four markets in sequence and publishes each market as
 soon as it is verified. Each sweep begins five seconds after the previous sweep
 completes. The production in-session sweep measured 17.2 seconds total and about
@@ -457,6 +460,13 @@ the expected command after `launchctl bootout`. An already-exited detector is a
 successful stop; an unrelated or unidentified live process still blocks the
 release. `scripts/test-detector-restart-race.ts` covers both cases.
 
+If the detector is running a helper other than the stream collector (for example
+while it publishes changes), the installer waits up to `DETECTOR_CHILD_WAIT_SECONDS`
+(default 240) for it to finish instead of failing the release. A helper that is
+still running after that wait still blocks the release and is never terminated.
+`scripts/test-detector-child-wait.ts` covers the wait, the collector exemption and
+the persistent case.
+
 ## Release slots
 
 See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,
@@ -472,8 +482,9 @@ PR that production outran (`PR must contain the active release`), and a PR
 whose `ship.sh` refusal happened before any merge. The first release or
 recorded failure ends the tick. There is no pause between releases, so the next
 tick (two minutes later) takes the next labeled PR.
-Every candidate still goes through `ship.sh`: exact fetched/reviewed head,
-current production ancestry, CI, `claude-stop`, and the installed review gate.
+Every candidate still goes through `ship.sh`: exact fetched head, current
+production ancestry, CI, and explicit `claude-stop` labels. Review receipts
+are optional.
 The standard installed controller builds, health-checks and handles rollback.
 
 The queue lookup runs inside the dedicated `worktrees/ship` checkout regardless

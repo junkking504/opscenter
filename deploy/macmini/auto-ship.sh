@@ -66,8 +66,18 @@ main() {
     # These are pre-merge refusals from ship.sh. No release was attempted, and
     # each clears by itself: CI finishes, a conflict is resolved, or production
     # moves and the branch is updated. Keep the label and the cooldown untouched.
-    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" || "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR and review it first" ]]; then
+    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" || "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR and review it first" || "$reason" == *"merge current production into the PR and rerun validation first" ]]; then
       log "PR #$candidate not ready yet: $reason"
+      # Production moved under a labeled PR: merge it in ourselves (a plain
+      # merge commit on the PR branch); the next tick ships it once CI is green.
+      # A real conflict fails here and keeps waiting for its owner.
+      if [[ "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR"* ]]; then
+        if gh pr update-branch "$candidate" >/dev/null 2>&1; then
+          log "PR #$candidate: merged current production into the branch; CI will rerun"
+        else
+          log "PR #$candidate: could not merge production automatically (conflict?); waiting for its owner"
+        fi
+      fi
       rm "$INFLIGHT"
       continue
     fi

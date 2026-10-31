@@ -45,7 +45,7 @@ export function attentionItems(snapshot: DesktopFleetSnapshot, trucks: DesktopFl
   const active = snapshot.issues.filter(i => i.status !== 'resolved');
   for (const t of trucks) {
     const stop = active.filter(i => sameTruck(i.truck, t.id) && i.severity === 'out_of_service');
-    if (stop.length) items.push({ key: `stop:${t.id}`, kind: 'out_of_service', truckId: t.id, truck: name(t), title: 'Out of service', detail: stop[0].title || 'Active out-of-service repair' });
+    if (stop.length) items.push({ key: `stop:${t.id}`, kind: 'out_of_service', truckId: t.id, truck: name(t), title: 'Out of Service', detail: stop[0].title || 'Active out-of-service repair' });
   }
   for (const t of isToday ? trucks : []) {
     if (['GPS Stale', 'Offline', 'GPS unavailable'].includes(t.operatingStatus))

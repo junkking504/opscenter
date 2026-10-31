@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fixtureSnapshot } from './fixtures/crew-progress';
 import { tvTruckStandings, tvPersonalRecords } from '../desktop-ui/lib/tv-spotlights';
-import { curatedTvCards } from '../lib/tv-spotlights';
+import { curatedTvCards, readTvSpotlights } from '../lib/tv-spotlights';
 import type { DesktopKreweSnapshot } from '../desktop-ui/lib/people-fleet-contract';
 
 const snapshot = fixtureSnapshot();
@@ -38,3 +41,22 @@ assert.ok(paired.before&&paired.after);
 assert.equal(curatedTvCards([{...celebration,appointmentId:'4075431',before,after:before}],'2026-10-19')[0].before,undefined,'Same image cannot represent a before/after pair');
 assert.equal(curatedTvCards([{...celebration,before:'https://evil.example/a.jpg',after:before}],'2026-10-19')[0].before,undefined);
 console.log('The Huddle: completed-job authority, missing values, deduplication, personal-record coverage and dated curated-media validation passed.');
+
+const reviewFixture = fs.mkdtempSync(path.join(os.tmpdir(), 'huddle-full-review-'));
+const previousData = process.env.OPSBOT_DATA_DIR;
+try {
+  process.env.OPSBOT_DATA_DIR = reviewFixture;
+  const reviewBody = 'The team carefully removed everything we requested. '.repeat(25) + '\n\nThank you for the complete cleanup!';
+  fs.mkdirSync(path.join(reviewFixture, 'podium-google-reviews'));
+  fs.writeFileSync(path.join(reviewFixture, 'podium-google-reviews/current.json'), JSON.stringify({
+    version: 1, source: 'podium_api', fetchedAt: '2026-10-31T13:00:00Z',
+    locations: [{uid: 'fixture-location', name: 'Synthetic location', reviewCount: 1, averageRating: 5,
+      reviews: [{uid: 'full-text-fixture', rating: 5, body: reviewBody, authorName: 'Example Customer', createdAt: '2026-10-30T13:00:00Z'}]}],
+  }));
+  assert.equal(readTvSpotlights('2026-10-31', 'operator').cards.find(card => card.id === 'review-full-text-fixture')?.body, reviewBody,
+    'The review feed retains text beyond 500 characters and paragraph breaks');
+} finally {
+  if (previousData === undefined) delete process.env.OPSBOT_DATA_DIR;
+  else process.env.OPSBOT_DATA_DIR = previousData;
+  fs.rmSync(reviewFixture, {recursive: true, force: true});
+}

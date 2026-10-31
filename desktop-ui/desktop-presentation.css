@@ -216,7 +216,10 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 }
 
 .tv-review-author { font-size:var(--oc-type-20); line-height:1.2; color:var(--oc-huddle-muted); margin:0 0 14px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-@media(min-width:1401px) { .tv-spotlight .tv-card-review p { -webkit-line-clamp:2; margin-bottom:8px; } }
+/* Reviews keep their complete source text, including paragraph breaks. Let long
+   quotes grow the card instead of clipping text or overlapping the attribution. */
+.tv-spotlight .tv-card-review { min-height:auto; flex-shrink:0; }
+.tv-spotlight .tv-card-review p { display:block; -webkit-line-clamp:unset; overflow:visible; white-space:pre-wrap; flex-shrink:0; margin-bottom:8px; }
 /* Command phone overview: reclaim header and hero space before reducing cards.
    Keep the original source text and all drilldown controls in normal flow. */
 @media (max-width: 760px) {

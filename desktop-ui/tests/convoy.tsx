@@ -8,7 +8,7 @@ import '../app/globals.css';
 import '../live-responsive.css';
 import '../workspace-density.css';
 
-const date='2026-10-08';
+const date=new URLSearchParams(location.search).has('overviewDay') ? new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(Date.now()) : '2026-10-08';
 const check={version:'fixture',inspector:'Example inspector',definitions:[{itemId:'tires',label:'Tires',guidance:'Check all tires'}],answers:[{itemId:'tires',status:'pass',notes:''}]};
 const snapshot:DesktopFleetSnapshot={date,report:'overview',canWrite:true,sourceAvailable:true,sourceUpdatedAt:new Date().toISOString(),reportCoverageDays:15,warnings:['Truck# 4: load reconciliation needs attention. Check the pickup order.'],
   intervals:[],mileageRetrievedAt:new Date().toISOString(),mileageSourceDate:'2026-10-06',trucks:[1,2,3,4,5,6,7,8,9].map(id=>({id:`Truck# ${id}`,label:`Truck# ${id}`,vehicle:'2022 Isuzu NRR',vin:id===5?null:`JALC4W164M700000${id}`,vinNeedsVerification:id===8,fuel:id===5?null:{percent:id===2?100:id===4?25:75,at:date+'T15:00:00Z',source:id===2?'purchase':'inspection',detail:id===2?'Assumed full after fuel purchase':'Reported at inspection'},inspectionLevels:{fuel:id===2?25:75,load:25,at:date+'T12:00:00Z'},loadUpdatedAt:date+'T16:00:00Z',mileage:{value:id===5?null:id*30000+1000,source:id===4?'true':'virtual',reportedAt:new Date(Date.now()-([1,7].includes(id)?40*86400000:60000)).toISOString(),retrievedAt:new Date().toISOString(),estimated:id===3?143000:null,conflicting:[3,8,9].includes(id),duplicate:false},inspectionStatus:id===7?'In Use, No Inspection':id===1?'Unknown':'Submitted',inspectionPoints:[{label:'Walk-Around',status:'Pass'},{label:'Wheels & Tires',status:id===4?'Fail':'Pass'},{label:'Dashboard Check',status:'Pass'},{label:'Truck & Dump Body',status:'Pass'},{label:'Cleanliness',status:'Pass'}],readiness:id===7?'In Use, No Inspection':id===4?'Out of service':[1,2,7].includes(id)?'Attention':'Ready',operatingStatus:'Parked',driver:'Example driver',navigator:'Not assigned',assignment:'None',location:'Unavailable',gpsAt:null,gpsFreshness:'GPS unavailable',odometer:'Unavailable',serviceStatus:'Unavailable',nextService:'No source target',checklist:[1,7].includes(id)?'Missing':id===4?'Problem reported':'Complete',inspectionFindings:id===4?[{label:'Wheels & tires',notes:'Rear passenger tire has a cut in the sidewall. Inspect before the next route.'},{label:'Dashboard check',notes:'Check engine light remains on.'}]:[],loadPercent:id===2?50:0,loadLabel:id===2?'1/2 full':'Empty · provisional',loadNeedsVerification:id===4,loadNote:'Example inspection and load evidence',loadVersion:'fixture',checklistVersion:'fixture',checklists:{daily:check,weekly:check,monthly:check},checklistDefinitions:check.definitions,answers:check.answers,jobs:2,revenue:400,miles:null,idleMinutes:null,driverScore:null})),
@@ -20,9 +20,20 @@ for (const [index,serviceDate] of ['2026-03-10','2025-08-19','2025-07-30','2025-
  snapshot.maintenance.push({...invoice,recordId:`invoice-example-${101+index}`,serviceDate,serviceType:index===1?'Tires':'Oil change',description:`Invoice #${101+index} — completed service and repairs\nEngine: Replaced belt tensioner and belt.\nOil change: Changed oil and filter; checked fluid levels.`,cost:index===0?723.68:index===1?null:index===2?0:510,photos:[{photoId:'fixture-photo',fileName:'Example invoice.svg',mimeType:'image/svg+xml'}]});
 }
 snapshot.intervals=[{truck:'Truck# 4',serviceType:'Oil change',miles:5000,months:null,enabled:true,updatedAt:date,version:'fixture'}];
+if(new URLSearchParams(location.search).has('overviewDay')) {
+  snapshot.intervals!.push({truck:'Truck# 4',serviceType:'Brakes',miles:null,months:1,enabled:true,updatedAt:date,version:'fixture'});
+  snapshot.trucks[1].operatingStatus='Driving';
+  snapshot.trucks[1].speed=25;
+  snapshot.trucks[1].gpsAt=new Date().toISOString();
+  snapshot.trucks[1].gpsFreshness='Current';
+  snapshot.trucks[4].operatingStatus='GPS Stale';
+  snapshot.trucks[4].gpsAt=new Date(Date.now()-3_600_000).toISOString();
+  snapshot.trucks[4].gpsFreshness='GPS Stale';
+}
 const receipts=new Map<string,unknown>();
 window.fetch=async(input,init)=>{
  const url=new URL(String(input),location.origin);
+ if(url.pathname==='/api/desktop/schedule')return Response.json({appointments:[{recordId:'fixture-stop',truck:'Truck# 2',status:'Scheduled',appointmentType:'Pickup',appointmentStartMinutes:810,appointmentEndMinutes:870,customerName:'Example stop'}]});
  if(url.pathname==='/api/fleet-inspections')return Response.json({date,trucks:snapshot.trucks.map(t=>t.id),reports:[],devices:[],canManage:false});
  if(url.pathname!=='/api/desktop/fleet')return Response.json({});
  if(init?.method==='POST'){

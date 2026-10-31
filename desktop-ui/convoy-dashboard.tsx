@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { MetricValue } from './metric-value';
 import { MonthlyMileage } from './monthly-mileage';
 import { ConvoyGauge, TruckLevelGauges, gaugeTime } from './convoy-gauges';
@@ -374,10 +375,10 @@ export function ConvoyDashboard(props: DashboardProps) {
       `${t.label} ${t.vehicle} ${t.vin || ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
-    <div className="convoy-dashboard convoy-compact-overview">
-      <ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} />
-      <div className="convoy-dashboard-grid">
-        <section className="convoy-dash-panel">
+    <SectionLayout as="div" group="convoy-dashboard-1" className="convoy-dashboard convoy-compact-overview">
+      <div data-layout-id="fleet-live-board" data-layout-label="Fleet overview"><ConvoyLiveBoard snapshot={snapshot} trucks={trucks} onTruck={onTruck} onView={onView} onFilter={setFilter} date={snapshot.date} now={now} dueItems={dueItems} /></div>
+      <SectionLayout as="div" group="convoy-dashboard-2" data-layout-id="convoy-dashboard-grid" className="convoy-dashboard-grid">
+        <section data-layout-id="convoy-dash-panel" className="convoy-dash-panel">
           <header>
             <h2>
               {filter === "all"
@@ -453,11 +454,11 @@ export function ConvoyDashboard(props: DashboardProps) {
             )}
           </div>
         </section>
-        <aside className="convoy-side-stack">
+        <SectionLayout as="aside" group="convoy-dashboard-3" className="convoy-side-stack">
           <Coverage snapshot={snapshot} trucks={trucks} now={now} />
-        </aside>
-      </div>
-    </div>
+        </SectionLayout>
+      </SectionLayout>
+    </SectionLayout>
   );
 }
 export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetTruck }) {
@@ -466,8 +467,8 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
   const visits=historyEntries({maintenance:records,issues:[]});
   const costs=historyCosts(visits);
   return (
-    <div className="convoy-dashboard">
-      <div className="convoy-detail-title">
+    <SectionLayout as="div" group="convoy-dashboard-4" className="convoy-dashboard">
+      <div data-layout-id="convoy-detail-title" className="convoy-detail-title">
         <Button variant="ghost" onClick={() => onTruck("")}>
           <ChevronLeft size={16} />
           All trucks
@@ -484,7 +485,7 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
         </Button>
       </div>
       <TruckDashboardCard {...props} truck={truck}/>
-      <div className="convoy-metrics">
+      <div data-layout-id="convoy-metrics" className="convoy-metrics">
         <div className="convoy-metric">
           <Mileage truck={truck} now={now} records={snapshot.maintenance}/>
           <span>Latest reported mileage</span>
@@ -507,15 +508,15 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
           detail={costs.missing ? `${costs.missing} visits missing a total` : "Completed work · all dates"}
         />
       </div>
-      <div className="convoy-dashboard-grid">
-        <div className="convoy-side-stack">
+      <SectionLayout as="div" group="convoy-dashboard-5" data-layout-id="convoy-dashboard-grid-2" className="convoy-dashboard-grid">
+        <SectionLayout as="div" group="convoy-dashboard-6" data-layout-id="convoy-side-stack" className="convoy-side-stack">
           <ServiceIntervals snapshot={snapshot} truck={truck} open={open} now={now} />
-          <section className="convoy-dash-panel">
+          <section data-layout-id="convoy-dash-panel-2" className="convoy-dash-panel">
             <ConvoyHistory snapshot={snapshot} truck={truck} open={open} />
           </section>
-        </div>
-        <aside className="convoy-side-stack">
-          <section className="convoy-dash-panel convoy-attention">
+        </SectionLayout>
+        <SectionLayout as="aside" group="convoy-dashboard-7" className="convoy-side-stack">
+          <section data-layout-id="convoy-dash-panel-3" className="convoy-dash-panel convoy-attention">
             <h2>Truck operations</h2>
             <p>Viewing day: {fleetDate(snapshot.date)}</p>
             <dl>
@@ -548,8 +549,8 @@ export function ConvoyTruckDetail(props: DashboardProps & { truck: DesktopFleetT
             </Button>
           </section>
           <Coverage snapshot={snapshot} trucks={[truck]} now={now} />
-        </aside>
-      </div>
-    </div>
+        </SectionLayout>
+      </SectionLayout>
+    </SectionLayout>
   );
 }

@@ -200,3 +200,16 @@ assert.equal(explicitCallValue("Quote requested outside the 25-mile service area
 assert.equal(explicitCallValue("Agent quoted $128 or $158 depending on volume."), null);
 
 console.log("SearchKings attribution and lost-lead checks passed.");
+
+// Shared search spend must stay in the account total without inflating NOLA.
+const sharedSearch = buildSearchKingsViewFromData({ ...snapshot, accounts: [
+  ...snapshot.accounts,
+  { id: 'shared', name: 'Junk King New Orleans (SK)', type: 'adwords', metrics: metrics(700, 12) },
+]}, appointments, overrides);
+assert.equal(sharedSearch.spend, view.spend + 700);
+assert.equal(sharedSearch.territoryRows.find(row => row.territory === 'New Orleans')?.spend,
+  view.territoryRows.find(row => row.territory === 'New Orleans')?.spend);
+assert.equal(sharedSearch.territoryRows.find(row => row.territory === 'New Orleans')?.costPerConversion,
+  view.territoryRows.find(row => row.territory === 'New Orleans')?.costPerConversion);
+assert.equal(sharedSearch.accountRows.find(row => row.id === 'shared')?.territory, 'Search Ads (All Markets)');
+assert.equal(sharedSearch.territoryRows.reduce((sum, row) => sum + row.spend, 0), sharedSearch.spend);

@@ -15,3 +15,8 @@ assert.equal(campaignShortcutCount({...data,available:false},'followup'),null,'U
 assert.equal(campaignShortcutCount({...data,reviewAvailable:false},'response'),null);
 assert.equal(campaignShortcutCount({...data,reviews:[]},'match'),0,'Confirmed empty remains zero');
 console.log('Campaign shortcuts preserve queue definitions, source availability and response evidence.');
+
+for (const [queue, expected] of [['recover', 2], ['flagged', 0], ['booked', 1], ['all', 3]] as const) {
+  assert.equal(browseLeads(data.leads, { ...campaignShortcutFilters.followup.leads!, queue }).total, expected);
+}
+assert.equal(campaignShortcutFilters.followup.label, 'Leads');

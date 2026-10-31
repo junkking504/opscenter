@@ -95,6 +95,48 @@ async function main(){
   await expect(page.getByRole('button',{name:'Reschedule Appointment',exact:true})).toBeVisible();
   await page.close();
  }
+ for (const width of [390,1280]) {
+  const page=await browser.newPage({viewport:{width,height:844}});
+  const paymentId='11111111-1111-5111-8111-111111111111';
+  const correctionFixture={...fixture,status:field('8','Completed'),loadPrice:'268',tip:'2',total:'$270.00',balance:'2.00',payments:[{id:paymentId,description:'Cash',amount:'$268.00',removable:true}]};
+  let written:Record<string,unknown>|null=null;
+  await page.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:correctionFixture,sourceVersion:'a'.repeat(64),canWrite:true}}));
+  await page.route('**/api/desktop/schedule/operations',route=>{written=route.request().postDataJSON();return route.fulfill({json:{receipt:{requestId:'failed',action:'closeout',status:'failed',message:'Fixture source rejected this change.'}}});});
+  await page.goto(url);await page.locator('summary').click();
+  await page.getByRole('button',{name:'Remove payment 1: Cash $268.00',exact:true}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:`/tmp/payment-correction-controls-${width}.png`});
+  await page.getByRole('button',{name:'Remove payment 1: Cash $268.00',exact:true}).click();
+  await expect(page.getByText('Will be removed on save',{exact:true})).toBeVisible();assert.equal(written,null);
+  await page.getByRole('button',{name:'Undo removal of payment 1: Cash $268.00',exact:true}).click();
+  await expect(page.getByText('Will be removed on save',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Remove payment 1: Cash $268.00',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Add a payment',exact:true}).check();
+  await page.getByRole('radio',{name:'Check',exact:true}).check();
+  await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('270');
+  await page.getByRole('textbox',{name:'Check number',exact:true}).fill('77');
+  const footer=page.locator('.closeout-footer-slot');
+  await footer.getByRole('button',{name:'Review Closeout',exact:true}).click();
+  const review=page.getByLabel('Closeout review');
+  await expect(review).toContainText('Remove recorded payment · Cash');
+  await expect(review).toContainText('Payment to record: Check · $270.00');
+  await expect(review).toContainText('Remaining balance after these changes: $0.00');
+  await expect(page.getByRole('checkbox',{name:'I checked this payment difference'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Undo removal of payment 1: Cash $268.00',exact:true}).click();
+  await expect(footer.getByRole('button',{name:'Review Closeout',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Remove payment 1: Cash $268.00',exact:true}).click();
+  await footer.getByRole('button',{name:'Review Closeout',exact:true}).click();
+  await page.screenshot({path:`/tmp/payment-correction-review-${width}.png`});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await footer.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).click();
+  await expect(footer.getByRole('button',{name:'Review Closeout',exact:true})).toBeVisible();
+  const values=(written as unknown as {values:Record<string,unknown>}).values;
+  assert.deepEqual(values.paymentIdsToRemove,[paymentId]);assert.deepEqual(values.addPayment,{methodId:'4',amount:'270',reference:'77'});
+  await expect(page.getByText('Will be removed on save',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();
+  await expect(page.getByText('Will be removed on save',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('checkbox',{name:'Add a payment',exact:true})).not.toBeChecked();
+  await page.close();
+ }
  const blockedPage=await browser.newPage({viewport:{width:390,height:844}});
  let reconciled=false;
  const moveReceipt={requestId:'fixture-move',action:'move',status:'uncertain',message:'Earlier assignment change remains unresolved.'};

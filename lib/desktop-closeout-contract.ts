@@ -18,11 +18,53 @@ export function stableCloseoutChargeRows(value:unknown):Row[] {
     return {...row,id:stableUuid(`junkware-closeout-charge-v1\0${signature}\0${occurrence}`),...(sourceId?{sourceId}:{})};
   });
 }
+/** Payment row UUIDs belong to one form render, just like charge UUIDs. */
+export function stableCloseoutPaymentRows(value: unknown): Row[] {
+  if (!Array.isArray(value)) return [];
+  const occurrences = new Map<string, number>();
+  return value.map(raw => {
+    const row = raw as Row;
+    const signature = JSON.stringify([normalized(row.description), amount(row.amount)]);
+    const occurrence = occurrences.get(signature) || 0;
+    occurrences.set(signature, occurrence + 1);
+    return { ...row, id: stableUuid(`junkware-closeout-payment-v1\0${signature}\0${occurrence}`) };
+  });
+}
+
+export function requestedPaymentRemovals(before: Row, requested: unknown): Row[] {
+  if (requested === undefined) return [];
+  if (!Array.isArray(requested) || requested.length > 20 || requested.some(id => typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) || new Set(requested).size !== requested.length) throw new Error('Each payment removal must identify one saved source row.');
+  return requested.map(id => {
+    const matches = rows(before, 'payments').filter(row => row.id === id);
+    if (matches.length !== 1 || matches[0].removable !== true) throw new Error('This payment cannot be removed from JunkWare here. Reload and review the source record.');
+    return matches[0];
+  });
+}
+
+/** Preserve every unselected payment, including duplicate-looking rows. */
+export function verifyCloseoutPayments(closeout: Row, input: Row, before: Row): void {
+  const removed = requestedPaymentRemovals(before, input.paymentIdsToRemove);
+  const retained = rows(before, 'payments').filter(row => !removed.includes(row));
+  const key = (row: Row) => JSON.stringify([normalized(row.description), amount(row.amount), String(row.methodId || '')]);
+  const added = addedRows(retained, rows(closeout, 'payments'), key);
+  const request = input.addPayment as Row | undefined;
+  if (!request) {
+    if (added.length) throw new Error('JunkWare did not remove exactly the requested payments, or an unexpected payment appeared.');
+    return;
+  }
+  if (added.length !== 1 || !sameAmount(added[0].amount, request.amount)) throw new Error('The added payment amount did not match the source read-back.');
+  if (!request.methodId || paymentMethod(added[0], before) !== String(request.methodId)) throw new Error('JunkWare did not retain the requested payment method.');
+  const method = (before.paymentMethods as Row[]).find(option => String(option.value) === String(request.methodId));
+  const tail = normalized(added[0].description).slice(normalized(method?.label).length).replace(/^[\s,#*]+/, '');
+  if (tail !== normalized(request.reference)) throw new Error('JunkWare did not retain the payment reference.');
+}
+
 export function closeoutSourceVersion(closeout: Record<string, unknown>): string {
   const charges=Array.isArray(closeout.otherCharges)
     ? (closeout.otherCharges as Row[]).map(row=>{const {sourceId:_sourceId,...stable}=row;return stable;})
     : closeout.otherCharges;
-  return createHash('sha256').update(JSON.stringify({...closeout,otherCharges:charges})).digest('hex');
+  const payments = Array.isArray(closeout.payments) ? (closeout.payments as Row[]).map(row => { const { sourceId: _sourceId, id: _id, removable: _removable, ...stable } = row; return stable; }) : closeout.payments;
+  return createHash('sha256').update(JSON.stringify({...closeout,otherCharges:charges,payments})).digest('hex');
 }
 function amount(value: unknown): number {
   const text = String(value ?? '').replace(/[$,\s]/g, '');
@@ -106,21 +148,8 @@ export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): v
   }
   if (input.howHeardId !== undefined && String((closeout.howHeard as Row | undefined)?.value ?? '') !== String(input.howHeardId)) throw new Error('JunkWare did not retain how the customer heard about us.');
   if (input.appointmentType && normalized((closeout.appointmentType as Row | undefined)?.label) !== normalized(input.appointmentType)) throw new Error('JunkWare did not retain the appointment category.');
-  if (input.addPayment) {
-    if (!before) throw new Error('The payment needs a source baseline before verification.');
-    const key = (row: Row) => JSON.stringify([normalized(row.description), amount(row.amount), String(row.methodId || '')]);
-    const added = addedRows(rows(before, 'payments'), rows(closeout, 'payments'), key), request = input.addPayment as Row;
-    if (added.length !== 1 || !sameAmount(added[0].amount, request.amount)) throw new Error('The added payment amount did not match the source read-back.');
-    if (!request.methodId || paymentMethod(added[0], before) !== String(request.methodId)) throw new Error('JunkWare did not retain the requested payment method.');
-    if (request.reference) {
-      const method = (before.paymentMethods as Row[]).find(option => String(option.value) === String(request.methodId));
-      const tail = normalized(added[0].description).slice(normalized(method?.label).length).replace(/^[\s,#*]+/, '');
-      if (tail !== normalized(request.reference)) throw new Error('JunkWare did not retain the payment reference.');
-    }
-  } else if (before) {
-    const key = (row: Row) => JSON.stringify([normalized(row.description), amount(row.amount)]);
-    if (addedRows(rows(before, 'payments'), rows(closeout, 'payments'), key).length) throw new Error('An unexpected payment appeared during closeout.');
-  }
+  if (before) verifyCloseoutPayments(closeout, input, before);
+  else if (input.addPayment || (Array.isArray(input.paymentIdsToRemove) && input.paymentIdsToRemove.length)) throw new Error('Payment changes need a source baseline before verification.');
   const charges = Array.isArray(input.otherChargesToAdd) ? input.otherChargesToAdd as Row[] : [];
   const chargeRemovalIds = Array.isArray(input.otherChargeIdsToRemove) ? input.otherChargeIdsToRemove.map(String) : [];
   if (before) verifyAddedCloseoutCharges(closeout, before, charges, false, chargeRemovalIds);

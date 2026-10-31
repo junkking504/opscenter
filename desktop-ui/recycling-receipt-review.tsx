@@ -43,7 +43,7 @@ export function RecyclingReceiptReview({ records, drafts, busy, onBusyChange, on
       {!delivery&&paid&&<><label>Payment received date<input type="date" required value={paymentDate} onChange={event=>setPaymentDate(event.target.value)}/></label><label>Payment method / receipt reference<input required maxLength={500} value={reference} onChange={event=>setReference(event.target.value)}/></label></>}
       {matches.length > 0 && <section aria-label="Ticket matching preview"><h4>{delivery ? 'Delivery check' : 'Cash-out matching preview'}</h4>{matches.map(match=><p key={match.date+match.ticket}>#{match.ticket} · {match.date} · {match.issue || (delivery ? (match.record ? 'Links delivery to existing statement; original payment retained' : 'New delivery · awaiting cash-out') : match.record ? (match.weightIssue || 'Matches delivery ticket and net weight') : 'Statement only — no matching delivery ticket')}</p>)}</section>}
       <label className="recycling-checkbox"><input type="checkbox" required checked={checked} onChange={event=>setChecked(event.target.checked)}/>I checked all pages, ticket dates, weights{delivery ? '' : ', amounts and matching results'} against the photos.</label>
-      <Button type="submit" disabled={busy||!checked||(!delivery&&!reconciles)||!rows.length||conflict}>{busy?'Verifying…':delivery?'Record Delivery Tickets':'Record & Match Cash-out'}</Button>
+      <Button variant="brand" type="submit" disabled={busy||!checked||(!delivery&&!reconciles)||!rows.length||conflict}>{busy?'Verifying…':delivery?'Record Delivery Tickets':'Record & Match Cash-out'}</Button>
     </form>}
   </section>;
 }

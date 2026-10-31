@@ -228,3 +228,47 @@ Visible static headings use Title Case. Titles referenced by existing tests stay
 unchanged until their own compatibility change. Files owned by the concurrent
 Waypoint and Fleet PRs are deferred, including `app/page.tsx` Dashboard monthly
 KPIs, Krewe tabs and `page-rail.tsx` titles.
+
+## Header and button hierarchy — October 30, 2026
+
+The live header groups search (with OpsWiki), the viewing date, alerts, a single
+status disclosure and the user menu. The status disclosure retains the dashboard
+snapshot timestamp and host, and refreshes only the already registered displayed
+readers. It does not start a collector refresh or a new polling path. Source
+attention and older snapshots keep their distinct labels. Appearance lives in
+the user menu. Search, alerts, status and user disclosures coordinate opening,
+outside dismissal and Escape; Escape returns focus to the disclosure trigger.
+
+Command's All, Open, Done and Attention chips also carry the day totals and stay
+visible when Board Controls closes. Done includes completed jobs and closed
+estimates, excluding cancellations. Attention includes only open appointments
+with unassigned trucks or unresolved map locations. Territory and Payment menus
+combine with the selected chip. New has the accessible name New Appointment.
+Map remains a switch beside the board; timeline and truck behavior are unchanged.
+
+Shared Button controls use the control-height token: 32px desktop and 44px at
+phone widths, growing when a label wraps. Default buttons are neutral; explicit
+brand actions carry the filled red emphasis. Count chips and selected navigation
+retain their established selection treatment. Informational screens do not gain
+an artificial primary action.
+
+Primary-action audit (one foreground action per active workflow):
+
+| Screen / active workflow | Filled red action | Other actions |
+| --- | --- | --- |
+| Dashboard updates, queue closed | Review WhatsApp photos | Alert and record actions neutral |
+| Dashboard photo queue / inline assignment | Assign and upload photo when a photo is selected | Hide photo queue is neutral while open; inspect, filters and record actions neutral |
+| Command board / calendar / follow-up / history | New | Board controls, Map and source links neutral |
+| Command appointment workflow | New remains behind the modal; booking confirmation is the active workflow | Secondary editor entry points neutral |
+| Krewe overview / pay / monthly | None: record review is the task | Roster and review controls neutral; saves are local to their editor |
+| Fleet overview | None: select a truck | Overview navigation neutral |
+| Fleet selected truck | Record Service | Repair/load/report controls neutral |
+| Fleet service / interval editor | Save maintenance record / Save interval (mutually exclusive) | Secondary actions neutral; background is covered by drawer |
+| Finance overview / trends / payments | None: source review | Filters and source links neutral |
+| Finance resale | Add item | Empty-state Add first item neutral |
+| Finance accounting confirmation | Confirm the selected accounting action | Other actions neutral |
+| Marketing lead detail | Call customer | Review & save outcome, source and queue controls neutral |
+| Marketing review matching | Review job match | Suggestions and undo neutral |
+
+The six-workspace browser matrix uses synthetic fixtures, not the live app.
+Physical phone and authenticated production acceptance are separate checks.

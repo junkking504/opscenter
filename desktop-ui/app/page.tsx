@@ -12,6 +12,8 @@ import { WorkspaceTabs } from '../workspace-tabs';
 import { DeltaChip } from '../delta-chip';
 import { MobileInteractions } from '../components/mobile-interactions';
 import { useWorkspaceMotion } from '../use-workspace-motion';
+import HeaderControls from '../header-controls';
+import { useHeaderPanel } from '../header-panel';
 import ThemeControl from '../../components/ThemeControl';
 import { useDisplayedRefresh } from '../displayed-refresh';
 import { metricNumber } from '../command-revenue-hero';
@@ -1054,6 +1056,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setSearchOpenValue(value);
   };
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const notificationRoot = useRef<HTMLDivElement>(null);
+  useHeaderPanel('alerts', notificationOpen, () => setNotificationOpen(false), notificationRoot);
   const [alertDetails, setAlertDetails] = useState<{alert:DesktopAlert;href?:string}|null>(null);
   const alertIntentApplied = useRef(false);
   const notificationAbort=useRef<AbortController|null>(null);
@@ -4340,9 +4344,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </div>
           }
           <div className="topbar-actions">
-            {live && <ThemeControl compact />}
-            {live && <OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
-            <div className="notification-center">
+
+            <div className="notification-center" ref={notificationRoot}>
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
@@ -4352,7 +4355,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            <div className="live-chip"><span />{live ? live.snapshot.loading ? 'Dashboard loading…' : 'Dashboard checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
+            {live ? <HeaderControls generatedAt={live.snapshot.generatedAt} loading={live.snapshot.loading} attention={sourceAttentionCount > 0 || Boolean(live.error)} name={live.snapshot.actor.displayName} role={live.snapshot.actor.role} refresh={mutationBusy ? undefined : refreshDisplayed}><ThemeControl compact /></HeaderControls> : <div className="live-chip"><span />Live · 10:24 AM</div>}
             {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
@@ -4381,7 +4384,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           }
           </div>
         </header>
-        {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /></div>}
+        {live && <div className="live-search-below-day"><LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /><OpsWiki workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} /></div>}
         </div>
 
         <div ref={workspaceMotionRef} className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : activeNav === 'Fleet' && live ? 'workspace convoy-mode' : 'workspace'}>
@@ -4839,7 +4842,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 </div>
                 <div className="schedule-control-actions">
                   {scheduleView === 'board' && <Button variant="outline" size="sm" onClick={() => setShowScheduleMap((visible) => !visible)}>{showScheduleMap ? 'Hide Map' : 'Show Map'}</Button>}
-                  <Button size="sm" onClick={openNewAppointment}>New Appointment</Button>
+                  <Button size="sm" variant="brand" aria-label="New Appointment" onClick={openNewAppointment}>New</Button>
                 </div>
               </div>
 

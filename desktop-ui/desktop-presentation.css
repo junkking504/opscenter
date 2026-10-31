@@ -43,8 +43,6 @@
 .ops-app.ops-live .crew-today-fact strong { color: var(--oc-text-primary); }
 .ops-app.ops-live :is(.crew-today-avatar,.sidebar-opsbot-icon) { background: var(--oc-surface-muted); color: var(--oc-text-primary); }
 .ops-app.ops-live :is(.crew-today-actions button,.convoy-text-button,.convoy-row-link,.convoy-truck-link) { color: var(--ops-brand-red); }
-.ops-app.ops-live .convoy-workspace button[data-slot=button]:not([data-variant=outline]):not([data-variant=ghost]) { background: var(--ops-brand-red); color: var(--oc-surface-raised); }
-.ops-app.ops-live .schedule-board-actions > .schedule-stop-order-trigger { background: var(--ops-brand-red); border-color: var(--ops-brand-red); }
 .ops-app.ops-live .workspace .missing-value, .ops-app .command-revenue-hero .missing-value { display: inline; color: var(--oc-text-muted); font-size: var(--oc-type-14); font-weight: 400; line-height: 1.4; letter-spacing: normal; text-transform: none; }
 main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
 .ops-app.ops-live .ops-sidebar { width: 208px; min-height: 0; padding: 12px 8px 10px; background: var(--oc-surface-raised); color: var(--oc-text-primary); border-right: var(--desktop-card-border); }
@@ -226,29 +224,6 @@ main.ops-app.ops-live { grid-template-columns: 208px minmax(0, 1fr); }
   .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation select { appearance: none; min-height: 44px; height: 44px; padding: 0 26px 0 10px; }
   .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation label { position: relative; }
   .ops-app.ops-live[data-css-phase-two="Command"] .live-mobile-navigation label::after { content: "⌄"; position: absolute; right: 8px; pointer-events: none; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell {
-    grid-template-columns: minmax(0, 1fr) 44px 44px;
-    grid-template-areas: "day day day" "controls controls controls" "search wiki alerts";
-    column-gap: 4px; padding: 0 8px 4px;
-  }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context { padding: 4px 0; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context > div { display: flex; flex-wrap: wrap; gap: 2px 8px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-context strong { font-size: var(--oc-type-12); }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls { padding: 0; gap: 4px; justify-content: space-between; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls form { flex: 1; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls input { width: 100%; flex: 1; font-size: var(--oc-type-16); }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .viewing-day-controls :is(button,input) { min-height: 44px; height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .live-search-below-day { padding: 4px 0 0; min-height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .global-search { min-height: 44px; height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .global-search input { font-size: var(--oc-type-16); }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .brain-launch { width: 44px; min-height: 44px; padding: 0; margin: 0; font-size: 0; gap: 0; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .brain-launch svg { width: 18px; height: 18px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center { margin: 0; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .live-header-shell .notification-center > button { min-width: 44px; min-height: 44px; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .workspace { padding: 4px 8px max(8px, env(safe-area-inset-bottom)); }
-  /* Workspace is already named in the always-visible mobile selector. */
-  .ops-app.ops-live[data-css-phase-two="Command"] .workspace-heading > div:first-child { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .ops-app.ops-live[data-css-phase-two="Command"] .workspace-heading { margin-bottom: 6px; gap: 0; }
   .ops-app.ops-live[data-css-phase-two="Command"] .shared-workspace-tabs > button { min-height: 40px; padding: 6px 10px; }
   .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero { padding: 7px 8px; gap: 2px; margin-bottom: 6px; }
   .ops-app.ops-live[data-css-phase-two="Command"] .command-revenue-hero .hero-label { font-size: var(--oc-type-12); padding-right: 70px; }

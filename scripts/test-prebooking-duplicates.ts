@@ -23,8 +23,8 @@ async function main(){
  assert.equal(prebookingCheck(input,{...snapshot,appointments:[{...job,status:'Completed'}]}).matches.length,1,'Prevent repeat service');
  for(const change of [{truck:'Truck 9'},{appointmentStartMinutes:590},{appointmentType:'Job'},{customerName:'Changed Name'},{address:'100 Example Road New Orleans LA 70119'},{territory:'Baton Rouge'}])assert.notEqual(prebookingCheck(input,{...snapshot,appointments:[{...job,...change}]}).fingerprint,check.fingerprint);
  assert.equal(prebookingCheck(input,{...snapshot,observedAt:new Date(Date.now()+1000).toISOString()}).fingerprint,check.fingerprint,'Collection timestamp is not a booking edit');
- assert.throws(()=>prebookingCheck(input,{...snapshot,observedAt:null}),/fresh/);
- assert.throws(()=>prebookingCheck(input,{...snapshot,observedAt:new Date(Date.now()-301000).toISOString()}),/fresh/);
+ assert.throws(()=>prebookingCheck(input,{...snapshot,observedAt:null}),/checked again/);
+ assert.throws(()=>prebookingCheck(input,{...snapshot,observedAt:new Date(Date.now()-301000).toISOString()}),/checked again/);
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'prebooking-test-'));process.env.OPSCENTER_DESKTOP_CREATIONS_DIR=dir;
  let calls=0;
  const create=async()=>{calls++;return {replayed:false,result:{appointmentId:'999',jkNumber:'JK1000999',appointmentUrl:'https://example.invalid/999',franchise:input.franchise,date,startTime:input.startTime,durationHours:input.durationHours,truck:input.truck,appointmentType:input.appointmentType,customerMode:'new' as const,verifiedAt:new Date().toISOString()}};};

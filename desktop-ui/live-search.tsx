@@ -1,3 +1,4 @@
+import { useHeaderPanel } from './header-panel';
 import {exactSearchDestination,isSearchQuestion} from './lib/search-destination';
 import { readSearchJson, SearchRequestError, searchFailureMessage } from './lib/search-response';
 import { historyQuery, mergeHistoryResults } from '../lib/junkware-history-contract';
@@ -45,6 +46,7 @@ export default function LiveSearch({ date, navigate, disabled, finance, openRequ
   const input = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   usePinnedSearch(shell);
+  useHeaderPanel('search', open, () => setOpen(false), shell);
   const commands = ['Command', 'Schedule', 'Krewe', 'Fleet', ...(finance ? ['Finance'] : []), 'Marketing'].filter(name => `${name} ${workspaceLabel(name)}`.toLowerCase().includes(query.toLowerCase()));
   useEffect(() => { const listener = (event: KeyboardEvent) => { if (disabled) return; if (event.key === 'Escape') {setOpen(false);input.current?.blur();} if (event.key === '/' && !/input|textarea|select/i.test((event.target as HTMLElement)?.tagName)) { event.preventDefault(); setOpen(true); input.current?.focus(); } }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [disabled]);
   useEffect(()=>{

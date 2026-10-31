@@ -65,7 +65,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate,ac
       <p>From {date} · {job.appointmentTime}<br/>To {destination} · {scheduleMoveWindow(job,Number(start)).label}</p>
       <p>{restore?'Confirming restores this canceled appointment in JunkWare.':'Confirming changes this appointment in JunkWare.'}</p>
       {reviewChanged && <p role="alert">This appointment changed during review. Choose Keep Appointment, then review the current details again.</p>}
-      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>{setReview(false);dateRef.current?.focus();}}>{restore?'Keep Canceled':'Keep Appointment'}</Button><Button disabled={blocked || !valid || reviewChanged} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':restore?'Confirm Restoration':'Confirm Reschedule'}</Button></div>
+      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>{setReview(false);dateRef.current?.focus();}}>{restore?'Keep Canceled':'Keep Appointment'}</Button><Button variant="brand" disabled={blocked || !valid || reviewChanged} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':restore?'Confirm Restoration':'Confirm Reschedule'}</Button></div>
     </div>}
     {receipt && <ChangeReceipt receipt={receipt} onCheck={()=>{if(inFlight.current)return;inFlight.current=true;setBusy(true);void checkScheduleChange(receipt.requestId).then(value=>{setReceipt(value);if(value.status==='verified')saved(destination);}).catch(error=>setError(error.message)).finally(()=>{setBusy(false);inFlight.current=false;});}}/>}
     {receipt?.status==='failed' && <Button variant="outline" onClick={()=>{setReceipt(null);setReview(false);}}>Review and Correct</Button>}

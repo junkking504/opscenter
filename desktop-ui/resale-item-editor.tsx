@@ -92,6 +92,6 @@ export function ResaleItemEditor({ initial, existing, date, onBusyChange, onSave
       {progress && <p role="status" aria-live="polite">{progress}</p>}
       {error && <p role="alert" className="resale-photo-error">{error}</p>}
     </div>
-    <footer className="record-drawer-actions">{existing && <Button type="button" variant="destructive" disabled={busy || locked} onClick={() => setConfirmDeletion(true)}>Delete item</Button>}<Button type="submit" disabled={busy}>{busy ? progress : itemSaved ? 'Retry remaining photos' : locked ? 'Check saved item & retry' : photos.length ? 'Save item & upload photos' : 'Save Inventory Record'}</Button></footer>
+    <footer className="record-drawer-actions">{existing && <Button type="button" variant="destructive" disabled={busy || locked} onClick={() => setConfirmDeletion(true)}>Delete item</Button>}<Button variant="brand" type="submit" disabled={busy}>{busy ? progress : itemSaved ? 'Retry remaining photos' : locked ? 'Check saved item & retry' : photos.length ? 'Save item & upload photos' : 'Save Inventory Record'}</Button></footer>
   </form>;
 }

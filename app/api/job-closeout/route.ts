@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   try {
     const { appointmentId: _ignored, serviceDate: _serviceDate, ...payload } = body;
     const manager=waypointManagerActor(request);
-    if(manager && (payload.targetStatus!=='1' || payload.addPayment!=null || payload.application!==undefined || payload.requirePhotos!==undefined))return NextResponse.json({error:'Use the photo-protected crew workflow for completion and collected payments.'},{status:403});
+    if(manager && (payload.targetStatus!=='1' || payload.addPayment!=null || payload.paymentIdsToRemove!==undefined || payload.application!==undefined || payload.requirePhotos!==undefined))return NextResponse.json({error:'Use the photo-protected crew workflow for completion and collected payments.'},{status:403});
     const result = await withJunkwareAppointmentSyncLock(id, async () => {
       if(manager){
         const baseline=await junkwareJobCloseout(id);

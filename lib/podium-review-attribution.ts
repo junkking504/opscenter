@@ -15,6 +15,7 @@ export type PodiumReviewInviteIdentity = {
 export type PodiumReviewAppointmentAttribution = {
   status: "matched" | "ambiguous" | "unmatched";
   matchMethod?: "exact_phone" | "exact_email" | "manual_appointment" | "inferred_high" | "manual_unassigned";
+  evidenceNote?: string;
   score?: number;
   reasons?: string[];
   rulesVersion?: string;

@@ -150,7 +150,23 @@ or four trailing card digits when applicable. It does not charge a card.
 JunkWare-processed cards add their own payment rows; manual card entry is only
 for a payment already collected elsewhere. Billed remains an unpaid receivable.
 Final read-back requires exactly one new row with the requested method, amount
-and reference while preserving prior rows. Missing balances show Unavailable,
+and reference while preserving prior rows, except explicitly reviewed removals.
+
+Office closeout offers **Remove / Undo** for an existing payment on a completed
+appointment only when JunkWare exposes its native removal control. To correct
+an amount or method, select Remove and add the correct entry in the same draft.
+Review lists removed and retained payments, the new entry and resulting balance;
+no source mutation happens until confirmation. Removal changes the source record,
+not a card charge, refund or bank transaction. Waypoint cannot request removals.
+
+The writer requires a fresh source version, identifies payment rows by normalized
+description/amount plus occurrence, and resolves the current form control only
+at submission. It removes selected rows from bottom to top, verifies each removal
+before adding a replacement, and verifies the exact retained/new payment multiset
+after reopening JunkWare. A no-op removal cannot add a duplicate replacement.
+Uncertain or partial results retain the existing receipt and replay protection.
+Payment control metadata is excluded from source-version hashes so older pending
+receipts and stable source comparisons remain compatible. Missing balances show Unavailable,
 and changing payment or added-charge fields invalidates the prior review.
 Actual start/finish times must be entered explicitly rather than accepting
 JunkWare defaults. How heard is editable when the required source value is

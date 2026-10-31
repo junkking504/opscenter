@@ -164,3 +164,11 @@
 .ops-live .closeout-payment-difference { margin: 8px 0; padding: 10px; border: 1px solid var(--oc-border-amber-21); border-radius: 5px; background: var(--oc-status-warn-tint); }
 .ops-live .closeout-payment-difference label { display: flex; gap: 8px; padding: 4px 0; border: 0; }
 .ops-live .closeout-payment-difference label > span { color: var(--oc-text-blue-02); font-size: var(--oc-type-12); text-transform: none; letter-spacing: 0; }
+
+/* Recorded-payment correction uses the existing closeout rows and buttons. */
+.ops-live .ops-closeout-payments > .ops-payment-correctable { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ops-live .ops-closeout-payments > .ops-payment-correctable > span { flex: 1; min-width: 100px; }
+.ops-live .ops-payment-correctable small { display: block; font: inherit; text-transform: none; letter-spacing: normal; margin-top: 4px; }
+.ops-live .ops-closeout-payments .ops-payment-removing { border-style: dashed; }
+.ops-live .ops-payment-correctable > button { min-height: 44px; }
+.ops-live .closeout-review-payment > strong { flex-shrink: 0; white-space: nowrap; }

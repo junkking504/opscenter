@@ -15,6 +15,24 @@ export function hasMapLocation(row:WaypointMapAppointment):boolean {
  const p=row.location;
  return Boolean(p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180);
 }
+/** Group map points whose screen positions are within `minDistance` pixels so pins never overlap.
+ * Single-linkage first (any chain of close points is one group), then groups whose rendered
+ * marker, drawn at the group's average position, would sit closer than `minDistance` to another
+ * group's marker are merged, repeating until every pair of markers is separated. Groups and
+ * members keep input order. */
+export function clusterByScreenDistance<T>(points:{x:number;y:number;item:T}[],minDistance:number):T[][] {
+ let groups:number[][]=points.map((_,index)=>[index]);
+ const center=(group:number[])=>({x:group.reduce((sum,i)=>sum+points[i].x,0)/group.length,y:group.reduce((sum,i)=>sum+points[i].y,0)/group.length});
+ const mergeFirstCollision=(close:(a:number[],b:number[])=>boolean)=>{
+  for(let i=0;i<groups.length;i++)for(let j=i+1;j<groups.length;j++){
+   if(close(groups[i],groups[j])){groups=[...groups.slice(0,i),[...groups[i],...groups[j]].sort((a,b)=>a-b),...groups.slice(i+1,j),...groups.slice(j+1)];return true;}
+  }
+  return false;
+ };
+ while(mergeFirstCollision((a,b)=>a.some(i=>b.some(j=>Math.hypot(points[i].x-points[j].x,points[i].y-points[j].y)<minDistance))));
+ while(mergeFirstCollision((a,b)=>{const p=center(a),q=center(b);return Math.hypot(p.x-q.x,p.y-q.y)<minDistance;}));
+ return groups.map(group=>group.map(index=>points[index].item));
+}
 function mapLabel(truck:string,status:string,position:number) {
  const number=truckNumber(truck),prefix=number===null?'U':`T${number}`;
  const state=waypointMapStatus(status);

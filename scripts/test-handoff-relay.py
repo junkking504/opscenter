@@ -274,6 +274,36 @@ with tempfile.TemporaryDirectory() as tmp:
     # The lock: a second contender never touches the first one's lock.
     relay = load_relay_module()
     paths = relay.Paths(root)
+
+    # A builder that writes a short commit id still gets a valid review: the relay expands it from the worktree.
+    short_tree = paths.worktrees / "short-sha"
+    short_tree.mkdir(parents=True)
+    sh("git", "init", "-q", cwd=short_tree)
+    sh("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x", cwd=short_tree)
+    full_sha = subprocess.run(["git", "-C", str(short_tree), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert relay.full_head(paths, "short-sha", full_sha[:8]) == full_sha
+    assert relay.full_head(paths, "short-sha", full_sha) == full_sha
+    assert relay.full_head(paths, "short-sha", "deadbeef") == "deadbeef", "an id the worktree does not know stays as written"
+    assert relay.full_head(paths, "no-such-task", full_sha[:8]) == full_sha[:8]
+    # decide() compares full ids: an abbreviated handoff reaches the review step, a recorded review is recognised
+    # under the same full id the runner records, and an id that cannot be resolved stops the task.
+    brief("short-sha", auto="Auto: codex-build")
+    short_folder = root / "vault/Tasks/short-sha"
+    (short_folder / "handoff.md").write_text(f"# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-sha @ {full_sha[:8]}  ·  Base: x\n")
+    short_info = relay.parse_task(short_folder)
+    assert relay.decide(paths, "short-sha", short_info, {})[0] == "review-claude"
+    action, detail = relay.decide(paths, "short-sha", short_info, {"done": [f"review@{full_sha}"]})
+    assert action == "needs-user" and "does not name it" in detail, "the recorded full-id review is recognised for a short handoff"
+    (short_folder / "handoff.md").write_text("# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-sha @ deadbeef  ·  Base: x\n")
+    action, detail = relay.decide(paths, "short-sha", relay.parse_task(short_folder), {})
+    assert action == "needs-user" and "cannot resolve" in detail, "an unresolvable short id stops instead of being compared as a prefix"
+    # With the worktree gone, a short id must not fall through to prefix matching against a full receipt.
+    gone = root / "vault/Tasks/short-gone"
+    brief("short-gone", auto="Auto: review")
+    (gone / "handoff.md").write_text("# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-gone @ abcdef0  ·  Base: x\n")
+    (gone / "review.md").write_text(f"Reviewer: Claude  ·  Builder: Codex  ·  Reviewed: b @ abcdef0{'1' * 33}\n\n## Verdict\napprove\n")
+    action, detail = relay.decide(paths, "short-gone", relay.parse_task(gone), {})
+    assert action == "needs-user" and "worktree is missing" in detail, "a short id with no worktree is never matched by prefix"
     assert relay.acquire(paths, "winner", "build", "token-a") is True
     before = (lock / "step.json").read_text()
     assert relay.acquire(paths, "loser", "build", "token-b") is False

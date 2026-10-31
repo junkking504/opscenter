@@ -73,7 +73,7 @@ One paragraph in the user's words: what should be different when this ships.
 ```markdown
 # Handoff: <task>
 
-Builder: <agent>  ·  Branch: <branch> @ <sha>  ·  Base: origin/production @ <sha>
+Builder: <agent>  ·  Branch: <branch> @ <full 40-character sha>  ·  Base: origin/production @ <sha>
 
 ## What changed
 Short list of behavior changes, then the files touched.

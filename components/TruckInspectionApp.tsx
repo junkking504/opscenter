@@ -30,12 +30,13 @@ async function photoData(file: File): Promise<string> {
     return data;
   } finally { URL.revokeObjectURL(url); }
 }
-export default function TruckInspectionApp({ onBusyChange, apiPath = "/api/truck-inspection", onContinue }: { onBusyChange?: (busy: boolean) => void; apiPath?: string; onContinue?: () => void }) {
+export default function TruckInspectionApp({ onBusyChange, apiPath = "/api/truck-inspection", onContinue }: { onBusyChange?: (busy: boolean) => void; apiPath?: string; onContinue?: () => void | Promise<void> }) {
   const [context, setContext] = useState<Context | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [receipt, setReceipt] = useState<TruckInspectionReport | null>(null);
   const connection = useRef<{ token: string } | null>(null);
   const [error, setError] = useState("");
+  const [continuing, setContinuing] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const [saved, setSaved] = useState("");
@@ -158,7 +159,7 @@ export default function TruckInspectionApp({ onBusyChange, apiPath = "/api/truck
           {showReport && <section className={styles.card} aria-label="Submitted report">{reportBody(receipt)}</section>}
           {errors}
         </section>
-        <div className={styles.actionBar}><button aria-expanded={showReport} onClick={() => setShowReport(!showReport)}>{showReport ? "Hide submitted report" : "View submitted report"}</button><p className={styles.muted}>{onContinue ? receipt.status === "stop" ? "Assignments are locked. Contact your manager before operating this truck." : "Inspection complete. Your assignments are ready." : "You can close this app."}</p>{onContinue ? receipt.status !== "stop" && <button className={styles.primary} onClick={onContinue}>Continue to Assignments →</button> : <button className={styles.backButton} onClick={() => { setReceipt(null); setShowReport(false); setDraft(emptyDraft()); }}>Start another inspection</button>}</div>
+        <div className={styles.actionBar}><button aria-expanded={showReport} onClick={() => setShowReport(!showReport)}>{showReport ? "Hide submitted report" : "View submitted report"}</button><p className={styles.muted}>{onContinue ? receipt.status === "stop" ? "Assignments are locked. Contact your manager before operating this truck." : "Inspection complete. Your assignments are ready." : "You can close this app."}</p>{onContinue ? receipt.status !== "stop" && <button className={styles.primary} disabled={continuing} aria-busy={continuing} onClick={() => { if (continuing) return; setContinuing(true); void Promise.resolve(onContinue()).finally(() => setContinuing(false)); }}>{continuing ? "Opening Assignments…" : "Continue to Assignments →"}</button> : <button className={styles.backButton} onClick={() => { setReceipt(null); setShowReport(false); setDraft(emptyDraft()); }}>Start another inspection</button>}</div>
       </> : draft.sent ? <>
         <section className={styles.phoneContent}>
           <div className={styles.eyebrow}>AWAITING OPSCENTER</div><h1 ref={heading} tabIndex={-1}>{busy ? "Sending your report…" : "Receipt not confirmed."}</h1>

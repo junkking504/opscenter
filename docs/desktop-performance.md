@@ -127,3 +127,38 @@ each load. Now:
 `scripts/test-campaign-read-performance.ts` (part of
 `npm run verify:podium-reviews`) checks that these reads stay bounded and that
 a collector rewrite shows on the next load.
+
+## Switching operating days
+
+The shared date bar now changes browser history and the selected day inside the
+running app. Its date-keyed workspace subtree resets appointment selections and
+view-local drafts; the authenticated in-memory read cache survives. Back/forward
+restores the selected day. Date changes remain blocked while a mutation is pending.
+The cache is bounded to 48 responses and five minutes, cleared on writes and
+401/403 responses, and never persisted to browser storage. Aborted readers cannot
+publish into a different date; shared reads may still finish for their own key.
+
+Dashboard first requests `/api/desktop/command?date=…&part=summary`. This reads
+saved financial and schedule evidence without Slack, workflow database access,
+map construction, or the estimate scan. It publishes the revenue/KPI cards before
+requesting the complete operational feed. Map and truck-assessment components
+retain independent reads. A slow or unavailable update feed leaves those figures
+visible; initial alert counts stay unknown until history arrives. A cached same-day
+feed keeps its original verification timestamp while financial evidence refreshes.
+Summary and full reads use the same KPI calculation and source-freshness rules.
+
+Slack history remains shared per date with no overlapping reads. Historical days
+reuse a settled digest for up to five minutes; current/future dates retain the
+30-second lifetime. The displayed Slack source timestamp remains the actual fetch
+time. Refresh displayed data passes `refresh=1` to bypass a settled digest (but
+shares one already in flight); provider cooldowns still apply. Local corrections
+are read on each existing Dashboard refresh. No new collectors or provider polling
+are introduced.
+
+`verify:command-loading`, `verify:command-arrivals`, `verify:command-schedule-summary`,
+and `scripts/test-workspace-navigation.ts` cover date isolation, original freshness,
+write/auth invalidation, late reads, bounded cache lifetime and remote deduplication.
+`desktop-ui/tests/instant-day-loading.html` is a synthetic browser fixture with
+120ms summary reads and 3–7 second history reads; `fail=1` makes history fail while
+figures remain available. It records click-to-figures timing in the visible footer.
+Use its dedicated Vite config on localhost port 3178. It never writes business data.

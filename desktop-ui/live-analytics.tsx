@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { OperatingTrends } from './operating-trends';
 import { useRegisterDisplayedRefresh } from './displayed-refresh';
@@ -36,11 +37,11 @@ export function LiveAnalytics({ date, scope, focusMetric, refreshWorkspace }: Li
   // Only rereads the existing local analytics snapshot; no collection or model run.
   useRegisterDisplayedRefresh(refreshWorkspace, read, false, key);
   const current = result?.key === key ? result : null;
-  return <section className="finance-performance analytics-page" aria-label={`${scope} history charts`}>
+  return <SectionLayout as="section" group="live-analytics-1" className="finance-performance analytics-page" aria-label={`${scope} history charts`}>
     <button type="button" className="analytics-refresh" disabled={loading} onClick={() => void read().catch(() => {})}>{loading ? 'Loading charts…' : 'Refresh charts'}</button>
     {!current ? <p role="status">Loading historical charts…</p> : <>
       {current.error && <p role="status">{current.error}{current.data ? ' Showing the previous chart data.' : ''}</p>}
-      {(!current.error || current.data) && <OperatingTrends key={key} data={current.data} scope={scope} focusMetric={focusMetric} />}
+      {(!current.error || current.data) && <div className="section-layout-component" data-layout-id="operating-trends" data-layout-label="Operating Trends"><OperatingTrends key={key} data={current.data} scope={scope} focusMetric={focusMetric} /></div>}
     </>}
-  </section>;
+  </SectionLayout>;
 }

@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import EstimateBooking from './estimate-booking';
 import EstimateCharges from './estimate-charges';
 import { useEffect, useRef, useState } from 'react';
@@ -51,7 +52,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
   const searched = scoped.filter(row => (owner === 'all' || owner === 'unassigned' ? owner === 'all' || !row.followup.owner : row.followup.owner === owner) && [row.customer,row.jk,row.phone,row.address,row.territory,row.followup.reason,...row.notes].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
   const rows = searched.filter(row => matches(row,filter)).sort((a,b) => compareEstimates(a,b,sort));
   const picked = snapshot?.rows.find(row => row.id === selected);
-  return <section className="estimate-workspace" aria-label="Estimates across dates">
+  return <SectionLayout as="section" group="estimates-1" className="estimate-workspace" aria-label="Estimates across dates">
     <header className="estimate-heading"><div><span className="estimate-kicker">Customer follow-up · across dates</span><h2>Estimates</h2></div><button disabled={busy || loading} onClick={() => void load().catch(() => {})}>{loading ? 'Loading…' : 'Reload records'}</button></header>
     {error && <p className="estimate-error" role="alert">{error} {snapshot && 'The previous snapshot remains visible.'}</p>}
     {notice && <p className="estimate-save-message" role="status">{notice}</p>}
@@ -60,7 +61,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
       <nav className="estimate-filters" aria-label="Estimate status">{filters.map(([value,label]) => <button key={value} aria-pressed={filter === value} onClick={() => selectFilter(value)}>{label}<b>{searched.filter(row => matches(row,value)).length}</b></button>)}{['overdue','due','unassigned'].includes(filter) && <button aria-pressed="true" onClick={() => selectFilter('needs')}>{filter === 'due' ? 'Due today' : filter === 'overdue' ? 'Overdue' : 'Unassigned'} · Clear ×</button>}</nav>
       <p className="estimate-coverage">{snapshot.coverage.files} saved source days · Read {stamp(snapshot.generatedAt)}. Booking checks span dates; missing links need review because history can be incomplete or stale.{snapshot.coverage.unreadable > 0 && ` ${snapshot.coverage.unreadable} source files could not be read.`} Quote amounts are not revenue.</p>
       {picked && <EstimateDetail key={`${picked.id}:${picked.version}`} row={picked} canWrite={snapshot.canWrite && !error} actor={snapshot.actor} busyChange={changeBusy} close={() => setSelected(null)} reload={load} saved={() => setNotice(`Follow-up for ${picked.jk || picked.id} saved and verified.`)} />}
-      <div className="estimate-list" aria-label={`${rows.length} estimates`}><div className="estimate-list-heading"><span>Customer & quote</span><span>Follow-up</span><span>Owner & next action</span><span>Review</span></div>{rows.slice(0,limit).map(row => <article className={`estimate-row${row.overdue ? ' overdue' : ''}`} key={row.id}>
+      <div data-layout-id="estimate-list" className="estimate-list" aria-label={`${rows.length} estimates`}><div className="estimate-list-heading"><span>Customer & quote</span><span>Follow-up</span><span>Owner & next action</span><span>Review</span></div>{rows.slice(0,limit).map(row => <article className={`estimate-row${row.overdue ? ' overdue' : ''}`} key={row.id}>
         <div><strong>{row.customer || 'Customer unavailable'}</strong><span>{row.jk || `Appointment ${row.id}`} · {row.territory}</span><b className="estimate-price">{money(row.quote)}</b><small>{row.date} · {row.ageDays} {row.ageDays === 1 ? 'day' : 'days'} since appointment</small></div>
         <div><strong className={`estimate-status status-${row.status}`}>{estimateLabels[row.status]}</strong><span>{row.followup.reason || (row.possibleBookings.length ? 'Possible matching job — relationship needs review' : row.canceledBookings.length ? 'Linked job canceled — review next step' : row.status === 'converted' ? 'Source-linked job found' : 'Review quote, customer notes and booking status')}</span><small>Last contact: {stamp(row.followup.lastContactAt)}</small></div>
         <div><strong>{row.followup.owner || 'Unassigned'}</strong><span>{row.followup.nextFollowup || 'Next action not set'}{row.overdue ? ' · Overdue' : row.dueToday ? ' · Due today' : ''}</span><small>{row.bookings.map(job => `${job.jk || job.id} · ${job.date}`).join(' · ')}</small></div>
@@ -69,7 +70,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
       {!rows.length && <p className="estimate-empty">No estimates match these filters.</p>}
       {rows.length > limit && <button onClick={() => setLimit(value => value + 50)}>Show 50 more · {rows.length-limit} remaining</button>}
     </>}
-  </section>;
+  </SectionLayout>;
 }
 
 function EstimateDetail({ row, canWrite, actor, close, reload, busyChange, saved }: { row: EstimateRow; canWrite: boolean; actor: string; close: () => void; reload: () => Promise<EstimateSnapshot>; busyChange: (busy: boolean) => void; saved: () => void }) {

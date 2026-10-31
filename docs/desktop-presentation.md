@@ -272,3 +272,31 @@ Primary-action audit (one foreground action per active workflow):
 
 The six-workspace browser matrix uses synthetic fixtures, not the live app.
 Physical phone and authenticated production acceptance are separate checks.
+
+## Personal section arrangement
+
+Desktop workspaces expose **Arrange sections** at widths above 900px. Grips
+reorder the main panels within each layout group; arrow buttons and the grip's
+Arrow Up/Down, Home and End keys provide the same operation without dragging.
+**Done arranging** removes the handles; **Reset this page** restores its default
+order. Headings, navigation, evidence warnings and record rows stay in their
+original roles. Pages with one panel have no second panel to swap with.
+
+`SectionLayout` reorders keyed React siblings, preserving component state and
+matching DOM/keyboard reading order to the displayed order. It does not reparent
+React-owned DOM or change operational records. Explicit stable section IDs live
+beside their page markup; new sections append after saved ones and unavailable
+sections are ignored. The shared provider disables arrangement during an active
+record action or review. Normal Truck Schedule fitting remains unchanged;
+arrangement mode temporarily makes room for handles.
+
+Orders use versioned browser storage, separately for each workspace/subpage,
+independent of the operating date. They are shared by users of that browser,
+not synced across devices. Failed saves are shown as visit-only changes. Phone
+widths retain the original order and controls. The Huddle has its own saved scoreboard/spotlight arrangement; its automatic
+content rotation remains unchanged.
+
+Validation: run the sidebar Vite fixture server, then
+`DESKTOP_TEST_ORIGIN=http://127.0.0.1:3167 node scripts/test-section-layout-browser.mjs`.
+This covers actual dragging, keyboard/focus and draft retention, reload, page
+isolation, reset, conditional panels, storage failure and desktop page routing.

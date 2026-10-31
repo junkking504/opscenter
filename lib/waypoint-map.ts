@@ -16,12 +16,12 @@ export function hasMapLocation(row:WaypointMapAppointment):boolean {
  return Boolean(p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180);
 }
 /** Group map points whose screen positions are within `minDistance` pixels so pins never overlap.
- * Greedy and order-stable: a point joins the first group whose first member is close enough. */
+ * Greedy and order-stable: a point joins the first group that has any member close enough. */
 export function clusterByScreenDistance<T>(points:{x:number;y:number;item:T}[],minDistance:number):T[][] {
- const groups:{x:number;y:number;items:T[]}[]=[];
+ const groups:{points:{x:number;y:number}[];items:T[]}[]=[];
  for(const point of points){
-  const near=groups.find(group=>Math.hypot(group.x-point.x,group.y-point.y)<minDistance);
-  if(near)near.items.push(point.item);else groups.push({x:point.x,y:point.y,items:[point.item]});
+  const near=groups.find(group=>group.points.some(member=>Math.hypot(member.x-point.x,member.y-point.y)<minDistance));
+  if(near){near.points.push(point);near.items.push(point.item);}else groups.push({points:[point],items:[point.item]});
  }
  return groups.map(group=>group.items);
 }

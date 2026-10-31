@@ -10,7 +10,7 @@ import {parishAddressQuery,verifyParishAddress} from '../lib/parish-service-addr
 import {verifyGeocodioAddress} from '../lib/geocodio-service-address';
 import {verifyOsmServiceAddress} from '../lib/osm-service-address';
 import {ADDRESS_VERIFICATION_POLICY,cachedAddressVerification} from '../lib/desktop-address-verification';
-import {appointmentVisitPin,visitEvidenceLocation} from '../lib/appointment-visit-pin';
+import {appointmentVisitPin,ambiguousVisitPin,visitEvidenceLocation} from '../lib/appointment-visit-pin';
 import {currentGpsPresence} from '../lib/schedule-gps-presence';
 
 // Synthetic equivalents of the October 15 lot/unit and duplicated-city failures.
@@ -39,6 +39,13 @@ try {
   const zipFallback=readAddressOrZipFallback('17091 Swamp Rd E Lot 918, Prairieville, LA 70769',now)!;
   assert.equal(zipFallback.zipArea,true);assert.equal(zipFallback.visitEligible,false);
   assert.equal(appointmentVisitPin({location:null,mapFallback:zipFallback}),null);
+  // It cannot make a neighboring verified appointment ambiguous, and never exports a visit pin.
+  const neighbor={appointmentId:'n',location:{latitude:zipFallback.location.latitude+0.0005,longitude:zipFallback.location.longitude}};
+  assert.equal(ambiguousVisitPin({appointmentId:'z',location:null,mapFallback:zipFallback},[neighbor]),false);
+  assert.equal(ambiguousVisitPin(neighbor,[{appointmentId:'z',location:null,mapFallback:zipFallback}]),false);
+  assert.equal(visitEvidenceLocation({location:null,mapFallback:zipFallback}),undefined);
+  const zipBridge=JSON.parse(execFileSync(process.execPath,['--import','tsx','scripts/read-appointment-visit-pins.ts'],{input:JSON.stringify(['17091 Swamp Rd E Lot 918, Prairieville, LA 70769']),encoding:'utf8',env:process.env}));
+  assert.equal(zipBridge['17091 Swamp Rd E Lot 918, Prairieville, LA 70769'],null,'Python bridge never exports a ZIP-area pin');
   assert.equal(readAddressOrZipFallback('17091 Swamp Rd E Prairieville, LA 99999',now),null,'Unknown ZIP gets no estimate');
   for(const alias of ['Lot','Trlr','Trailer','Space','Unit','Apt','Suite']) {
     const address=lot.replace('Lot',alias);

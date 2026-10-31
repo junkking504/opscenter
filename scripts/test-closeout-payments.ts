@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { chromium } from '@playwright/test';
 import { capture, applyCloseout } from './sync-junkware-job-closeout';
@@ -11,6 +12,7 @@ import { saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 const methods = [{value:'1',label:'Billed'}, {value:'2',label:'Cash'}, {value:'3',label:'Credit Card'}, {value:'4',label:'Check'}];
 const input = { appointmentType:'Job', driverId:'d', navigatorIds:[] as string[], loadQuantity:'1',loadSize:'',loadPrice:'1200.00',bedloadQuantity:'',bedloadSize:'',bedloadPrice:'',otherChargesToAdd:[],discount:'',tip:'',jobCategoryId:'',actualStartHour:'12',actualStartMinute:'00',actualEndHour:'13',actualEndMinute:'00' };
 type Payment = {description:string;amount:string};
+let removals = 0, ignoreRemoval = false;
 let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0, truckPosts = 0;
 let lockedSchedule = false;
 let outcomeSaves = 0;
@@ -39,10 +41,10 @@ function html(fields:URLSearchParams) {
   ${['ActualStartHourDD','ActualEndHourDD'].map(k=>select(k,[{value:'',label:''},{value:'12',label:'12 PM'},{value:'13',label:'01 PM'}])).join('')}
   ${['ActualStartMinuteDD','ActualEndMinuteDD'].map(k=>select(k,[{value:'',label:''},{value:'00',label:'00'}])).join('')}
   <span id="ctl00_Content_TotalLbl">$1,200.00</span>
-  ${status==='8' && value('AppointmentTypeDD')==='2'?`${select('PaymentMethodDD',[{value:'',label:''},...methods])}${['3','4'].includes(value('PaymentMethodDD'))?control('PaymentDescrTB'):''}${control('PaymentAmountTB')}${submit('AddPaymentBtn')}<input id="ctl00_Content_BalanceOwedHF" value="${1200-pending.reduce((s,p)=>s+Number(p.amount),0)}"><table>${pending.map((p,i)=>`<tr id="ctl00_Content_PaymentsLV_ctrl${i}_ItemRow"><td>${esc(p.description)}</td><td>${p.amount}</td></tr>`).join('')}</table>`:''}
+  ${status==='8' && value('AppointmentTypeDD')==='2'?`${select('PaymentMethodDD',[{value:'',label:''},...methods])}${['3','4'].includes(value('PaymentMethodDD'))?control('PaymentDescrTB'):''}${control('PaymentAmountTB')}${submit('AddPaymentBtn')}<input id="ctl00_Content_BalanceOwedHF" value="${1200-pending.reduce((s,p)=>s+Number(p.amount),0)}"><table>${pending.map((p,i)=>`<tr id="ctl00_Content_PaymentsLV_ctrl${i}_ItemRow"><td>${esc(p.description)}</td><td>${p.amount}</td><td><input type="hidden" id="ctl00_Content_PaymentsLV_ctrl${i}_UniqueIdHF" value="${randomUUID()}"><a id="ctl00_Content_PaymentsLV_ctrl${i}_RemoveLB" href='javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions("ctl00$Content$PaymentsLV$ctrl${i}$RemoveLB", "", true, "", "", false, true))' >Remove</a></td></tr>`).join('')}</table>`:''}
   <input id="ctl00_Content_LoadSizeHF" name="ctl00$Content$LoadSizeHF" value="${value('LoadSizeHF')}">
   ${fields.get('showOutcome')==='true'?`<div id="estimate-outcome" hidden>${select('UEReasonDD',[{value:'Date/Time',label:'Date/Time'}])}${control('UENoteTB')}${control('UENoDiscountTB')}${submit('UENoteOkBtn')}</div><script>setTimeout(()=>document.getElementById('estimate-outcome').hidden=false,350);</script>`:''}
-  ${submit('SaveAppointmentBtn')}</form><script>document.getElementById('ctl00_Content_LoadSizeDD').addEventListener('change',()=>{ document.getElementById('ctl00_Content_LoadSizeHF').value=document.getElementById('ctl00_Content_LoadSizeTruckQtyTB').value;document.getElementById('ctl00_Content_BillingAmountTB').value='999'; });</script></body></html>`;
+  ${submit('SaveAppointmentBtn')}</form><script>function WebForm_PostBackOptions(target){this.eventTarget=target;}function WebForm_DoPostBackWithOptions(options){document.forms[0].elements.namedItem('__EVENTTARGET').value=options.eventTarget;document.forms[0].submit();}document.getElementById('ctl00_Content_LoadSizeDD').addEventListener('change',()=>{ document.getElementById('ctl00_Content_LoadSizeHF').value=document.getElementById('ctl00_Content_LoadSizeTruckQtyTB').value;document.getElementById('ctl00_Content_BillingAmountTB').value='999'; });</script></body></html>`;
 }
 async function main() {
   const server = createServer(async(req,res)=>{
@@ -57,6 +59,7 @@ async function main() {
       // Native control is additive. Sending the desired total must fail this fixture.
       if(!rejectNavigatorAdd) fields.set('ctl00$Content$NavigatorRows',String(Number(fields.get('ctl00$Content$NavigatorRows') || '1')+count));
     }
+    if(req.method==='POST' && /^ctl00\$Content\$PaymentsLV\$ctrl[0-9]+\$RemoveLB$/.test(fields.get('__EVENTTARGET') || '')) { removals++; if(!ignoreRemoval)pending.splice(Number(fields.get('__EVENTTARGET')!.match(/ctrl([0-9]+)/)![1]),1); }
     if(req.method==='POST' && fields.has('ctl00$Content$AddPaymentBtn')) {
       adds++;
       const id=fields.get('ctl00$Content$PaymentMethodDD')!, reference=fields.get('ctl00$Content$PaymentDescrTB') || '';
@@ -112,7 +115,7 @@ async function main() {
       await page.goto(url);
       const before=await captureCloseoutSource(page,capture);
       assert.equal(before.status.value,'1');assert.equal((await capture(page)).status.value,'1');
-      assert.equal((before.paymentMethods as unknown[]).length,5);assert.equal(before.balance,'1100');assert.deepEqual(before.payments,payments);
+      assert.equal((before.paymentMethods as unknown[]).length,5);assert.equal(before.balance,'1100');assert.deepEqual((before.payments as Payment[]).map(({description,amount})=>({description,amount})),payments);
       assert.equal(adds,0);assert.equal(saves,0,'Reading options must not save');
       const again=await captureCloseoutSource(page,capture);assert.equal(closeoutSourceVersion(before),closeoutSourceVersion(again));
       const addPayment={methodId:method.value,amount:'1100.00',reference:method.value==='4'?'009924':method.value==='3'?'6004':''};
@@ -125,6 +128,32 @@ async function main() {
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
     }
+    // Correction exercises native removal, exact retained rows, and replacement.
+    for (const replacement of [false, true]) {
+      persisted=new URLSearchParams({'ctl00$Content$StatusDD':'8','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$TruckDD':'t'});
+      payments=[{description:'Cash',amount:'100.00'},{description:'Cash',amount:'100.00'},{description:'Check, #77',amount:'1000.00'}];
+      saves=0;adds=0;removals=0;
+      await page.goto(url);
+      const before=await captureCloseoutSource(page,capture);
+      const ids=(before.payments as {id:string}[]).slice(0,2).map(row=>row.id);
+      const request={...input,paymentIdsToRemove:ids,expectedSourceVersion:closeoutSourceVersion(before),...(replacement?{addPayment:{methodId:'3',amount:'200.00',reference:'1234'}}:{})};
+      for (const bad of [undefined, '', 'f'.repeat(64)]) await assert.rejects(applyCloseout(page,{...request,expectedSourceVersion:bad},before,'opscenter'),/current source version|record changed/);
+      await assert.rejects(applyCloseout(page,request,before,'waypoint'),/only be corrected in OpsCenter/);
+      await assert.rejects(applyCloseout(page,{...request,targetStatus:'1'},before,'opscenter'),/only be corrected in OpsCenter/);
+      assert.equal(removals,0);assert.equal(saves,0);
+      const result=await saveAndVerifyCloseout(before,()=>applyCloseout(page,request,before,'opscenter'),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,before));
+      assert.equal(removals,2);assert.equal(saves,1);assert.equal(adds,replacement?1:0);
+      assert.deepEqual(payments,replacement?[{description:'Check, #77',amount:'1000.00'},{description:'Credit Card, ***1234',amount:'200.00'}]:[{description:'Check, #77',amount:'1000.00'}]);
+      assert.throws(()=>verifyCloseoutFields({...result,payments:[]},request,before),/existing source payment/);
+    }
+    persisted=new URLSearchParams({'ctl00$Content$StatusDD':'8','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$TruckDD':'t'});
+    payments=[{description:'Cash',amount:'1200.00'}];saves=0;adds=0;removals=0;ignoreRemoval=true;
+    await page.goto(url);
+    const ignoredBefore=await captureCloseoutSource(page,capture);
+    const ignoredRequest={...input,paymentIdsToRemove:[(ignoredBefore.payments as {id:string}[])[0].id],expectedSourceVersion:closeoutSourceVersion(ignoredBefore),addPayment:{methodId:'2',amount:'1200.00'}};
+    await assert.rejects(applyCloseout(page,ignoredRequest,ignoredBefore,'opscenter'),/did not remove exactly/);
+    assert.equal(adds,0,'A no-op removal must not add a replacement or reach Save');assert.equal(saves,0);ignoreRemoval=false;
+
     // Real writer + native form/read-back fixture: office policy is independent
     // of photo presence; Waypoint/default rejects before touching any controls.
     for (const photos of [false,true]) for (const category of ['Job','Estimate']) {

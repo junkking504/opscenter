@@ -35,6 +35,11 @@ assert.equal(likelyGpsStop({...job, location: {latitude: 30.9, longitude: -91.5}
 assert.ok(likelyGpsStop({...job, location: {latitude: 30.4603, longitude: -90.9582}}, trips, day, fixes)?.reason.includes('400 m'));
 assert.equal(likelyGpsStop(job, [...trips, trip('c', '16:20', '16:30', '8430 Cresson Dr, Denham Springs, LA 70726')], day, fixes), null, 'two different candidate stops are ambiguous');
 
+// A ZIP-area estimate is a travel estimate only: it never counts as a pin for a likely stop.
+const zipArea = {location: {latitude: 30.4603, longitude: -90.9582}, zipArea: true as const};
+assert.equal(likelyGpsStop({...job, mapFallback: zipArea, location: null, address: '8330 Cresson Dr, Denham Springs, LA 70726'}, trips, day, fixes)!.reason.includes('m of'), false, 'ZIP-area center is not used as the booked pin');
+assert.equal(likelyGpsStop({...job, mapFallback: {location: {latitude: 30.9, longitude: -91.5}, zipArea: true as const}}, trips, day, fixes)!.stopAddress.length > 0, true, 'a far ZIP-area center does not veto a street match');
+
 // Continuity: a following trip that starts elsewhere cannot supply the departure.
 const gap = [trips[0], trip('b', '17:03', '17:25', 'Yard, Baton Rouge, LA', yard, {latitude: 31, longitude: -91})];
 const disconnected = likelyGpsStop(job, gap, day, fixes)!;
@@ -47,6 +52,11 @@ const bare = {...job, address: '8330 Example Dr'};
 const bareTrips = [trip('a', '15:30', '16:05', '8830 Example Dr'), trip('b', '17:03', '17:25', 'Yard', yard, stopPoint)];
 assert.equal(likelyGpsStop(bare, bareTrips, day, fixes), null, 'missing locality without a pin is not matched');
 assert.ok(likelyGpsStop({...bare, location: {latitude: 30.4603, longitude: -90.9582}}, bareTrips, day, fixes), 'a nearby pin corroborates a bare address');
+// A ZIP-area center sitting exactly on the stop is not locality evidence: it can never stand in for a missing city/ZIP or a nearby pin.
+const zipOnStop = {location: stopPoint, zipArea: true as const};
+assert.equal(likelyGpsStop({...bare, mapFallback: zipOnStop}, bareTrips, day, fixes), null, 'bare address plus ZIP-area center is still unmatched');
+assert.equal(likelyGpsStop({...job, address: '8330 Cresson Dr, Denham Springs, LA 70785', mapFallback: zipOnStop}, trips, day, fixes), null, 'mismatched ZIP plus ZIP-area center is unmatched');
+assert.equal(likelyGpsStop({...job, address: '8330 Cresson Dr, Walker, LA 70726', mapFallback: zipOnStop}, trips, day, fixes), null, 'mismatched city plus ZIP-area center is unmatched');
 // Coverage: a silent stretch, or a fix elsewhere, during the dwell is not presence.
 const sparse = [fix('16:05'), fix('17:03')];
 assert.equal(likelyGpsStop(job, trips, day, sparse)!.confident, false, '58 min with no fixes is unsupported');

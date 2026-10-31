@@ -66,7 +66,7 @@ main() {
     # These are pre-merge refusals from ship.sh. No release was attempted, and
     # each clears by itself: CI finishes, a conflict is resolved, or production
     # moves and the branch is updated. Keep the label and the cooldown untouched.
-    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" || "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR and review it first" ]]; then
+    if (( rc != 0 )) && [[ "$reason" == *"checks pending or failing)" || "$reason" == *"has conflicts or is not mergeable yet" || "$reason" == *"PR must contain the active release" || "$reason" == *"merge current production into the PR and review it first" || "$reason" == *"merge current production into the PR and rerun validation first" ]]; then
       log "PR #$candidate not ready yet: $reason"
       rm "$INFLIGHT"
       continue

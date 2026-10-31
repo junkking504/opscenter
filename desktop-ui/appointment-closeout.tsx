@@ -55,7 +55,7 @@ export type LiveCloseout = {
   actualEndHour: { value: string; label: string; options: Option[] };
   actualEndMinute: { value: string; label: string; options: Option[] };
   paymentMethods: Option[];
-  payments: Array<{ description: string; amount: string }>;
+  payments: Array<{ id?: string; description: string; amount: string; removable?: boolean }>;
   balance: string;
   total: string;
 };
@@ -161,6 +161,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [pendingPaymentRemovals, setPendingPaymentRemovals] = useState<string[]>([]);
   const [addPayment, setAddPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -174,9 +175,10 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
   const otherChargePriceIsAutomatic = otherChargeType.split("|")[2] === "1";
   const retainedOtherCharges = live ? live.otherCharges.filter(charge => !charge.id || !pendingOtherChargeRemovals.includes(charge.id)) : [];
   const totals = live ? closeoutChargesSummary({...live,otherCharges:retainedOtherCharges}, pendingOtherCharges) : null;
-  const recordedPayments = live ? live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const retainedPayments = live ? live.payments.filter(payment => !payment.id || !pendingPaymentRemovals.includes(payment.id)) : [];
+  const recordedPayments = live ? retainedPayments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
   const billing = addPayment && /^billed$/i.test(live?.paymentMethods.find(option=>option.value===paymentMethod)?.label.trim() || '');
-  const recordedBilling = live ? live.payments.filter(payment=>/^billed\b/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const recordedBilling = live ? retainedPayments.filter(payment=>/^billed\b/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
   const draftBalance = totals ? totals.total-recordedPayments : 0;
   const amountToMarkPaid = Number.isFinite(draftBalance) ? Math.max(0,draftBalance-(billing?recordedBilling:0)) : 0;
   const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-(draftBalance-(billing?recordedBilling:0)) : 0;
@@ -195,9 +197,9 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{signature,sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
+      writeCloseoutLocal(`${draftKey}:draft`,{signature,sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,pendingPaymentRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
-  },[draftKey,live,loading,receipt,sourceVersion,signature,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow]);
+  },[draftKey,live,loading,receipt,sourceVersion,signature,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentAmountAuto,paymentReference,pendingOtherCharges,pendingOtherChargeRemovals,pendingPaymentRemovals,otherChargeType,otherChargeQuantity,otherChargePrice,mobileStep,photoWorkflow]);
 
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
@@ -241,6 +243,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
       setTruck(payload.closeout.truck || (crewMode && isAmazonJob(payload.closeout)?job.truck:'') || '');
       setSignature(null);
       setCancellationReason('');
+      setPendingPaymentRemovals([]);
       setAddPayment(false);
       setPaymentMethod("");
       setPaymentAmount("");
@@ -281,6 +284,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
             setEstimateReason(String(draft.estimateReason || ''));setEstimateExplanation(String(draft.estimateExplanation || ''));setNoDiscountReason(String(draft.noDiscountReason || ''));
             setAddPayment(draft.addPayment===true);setPaymentMethod(String(draft.paymentMethod || ''));setPaymentAmount(String(draft.paymentAmount || ''));setPaymentAmountAuto(draft.paymentAmountAuto===true);setPaymentReference(String(draft.paymentReference || ''));
             if(Array.isArray(draft.pendingOtherCharges) && draft.pendingOtherCharges.every(row=>row && ['clientId','typeValue','quantity','price','label','total'].every(key=>typeof row[key]==='string')))setPendingOtherCharges(draft.pendingOtherCharges);
+            if(!crewMode && Array.isArray(draft.pendingPaymentRemovals) && draft.pendingPaymentRemovals.every(id=>typeof id==='string' && source.payments.some(payment=>payment.id===id && payment.removable)))setPendingPaymentRemovals(draft.pendingPaymentRemovals);
             if(Array.isArray(draft.pendingOtherChargeRemovals) && draft.pendingOtherChargeRemovals.every(id=>typeof id==='string') && draft.pendingOtherChargeRemovals.every(id=>source.otherCharges.some(charge=>charge.id===id)))setPendingOtherChargeRemovals(draft.pendingOtherChargeRemovals);
             setOtherChargeType(String(draft.otherChargeType || ''));setOtherChargeQuantity(String(draft.otherChargeQuantity || '1'));setOtherChargePrice(String(draft.otherChargePrice || ''));
             if(Number.isInteger(draft.mobileStep) && Number(draft.mobileStep)>=0 && Number(draft.mobileStep)<=(photoSteps?3:2) && Boolean(draft.photoWorkflow)===Boolean(photoSteps))setMobileStep(Number(draft.mobileStep));
@@ -430,7 +434,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
       const paymentError = crewMode ? validateWaypointPayment(payment, live.paymentMethods, category) : validateCloseoutPayment(payment, live.paymentMethods);
       if (paymentError) { setError(paymentError); return; }
     }
-    if (!completing && (addPayment || pendingOtherCharges.length)) { setError('Select Completed to save the payment or additional charges in this draft.'); return; }
+    if (!completing && (pendingPaymentRemovals.length || addPayment || pendingOtherCharges.length)) { setError('Select Completed to save the payment or additional charges in this draft.'); return; }
     const completingEstimate = completing && category === 'Estimate' && live.status.value !== '8';
     const noDiscountRequired = completingEstimate && !(Number(inputMoney(live.discount)) > 0);
     if (completingEstimate && (!estimateReason || !estimateExplanation.trim())) {
@@ -482,6 +486,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
             price: inputMoney(charge.price),
           })),
           otherChargeIdsToRemove: pendingOtherChargeRemovals,
+          ...(!crewMode && pendingPaymentRemovals.length ? { paymentIdsToRemove: pendingPaymentRemovals } : {}),
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
           jobCategoryId: crewMode ? sourceBaseline.current?.jobCategory.value || '' : category === 'Estimate' ? '' : live.jobCategory.value,
@@ -506,6 +511,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
       setTargetStatus(payload.closeout.status.value);
       setTruck(payload.closeout.truck || (crewMode && isAmazonJob(payload.closeout)?job.truck:'') || '');
       setSignature(null);
+      setPendingPaymentRemovals([]);
       setAddPayment(false);
       setPaymentMethod("");
       setPaymentAmount("");
@@ -540,6 +546,7 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
           const source = result.sourceResult.closeout as LiveCloseout;
           setLive(source); setTargetStatus(source.status.value); setTruck(source.truck || '');
         }
+        setPendingPaymentRemovals([]);
         setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentAmountAuto(false); setPaymentReference(''); setPendingOtherCharges([]); setPendingOtherChargeRemovals([]);
         saved(result.status === 'verified');
       }
@@ -611,9 +618,10 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
                 {[...retainedOtherCharges,...pendingOtherCharges].map((charge,index)=><div key={'clientId' in charge ? String(charge.clientId) : charge.id || index}><span>{charge.label} · {charge.quantity || '1'}{index>=retainedOtherCharges.length ? ' (to add)' : ''}</span><strong>{'typeValue' in charge && String(charge.typeValue).split('|')[2]==='1' ? 'Calculated by JunkWare' : money(charge.total ? Number(inputMoney(charge.total)) : Number(charge.quantity || '1')*Number(inputMoney(charge.price)))}</strong></div>)}
                 <div><span>Subtotal</span><strong>{money(totals!.subtotal)}</strong></div><div><span>Discount</span><strong>−{money(Number(inputMoney(live.discount)))}</strong></div><div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div><div className="closeout-review-total"><span>Total{totals!.estimated ? ' (estimated)' : ''}</span><strong>{money(totals!.total)}</strong></div>
               </div>
-              <div className="closeout-review-facts">{live.payments.map((payment,index)=><div key={index}><span>Already recorded · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
+              <div className="closeout-review-facts">{live.payments.map((payment,index)=><div className="closeout-review-payment" key={index}><span>{payment.id && pendingPaymentRemovals.includes(payment.id) ? 'Remove recorded payment' : 'Keep recorded payment'} · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
               {crewReferral?.defaulted && <p>How heard: {crewReferral.label} (office default; no customer referral was recorded).</p>}
               <p>{addPayment ? `${billing?'Billed receivable to record':'Payment to record'}: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · ${money(Number(inputMoney(paymentAmount)))}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p>
+              {pendingPaymentRemovals.length > 0 && <p>Recorded payments selected above will be removed when you confirm. Remaining balance after these changes: <strong>{money(draftBalance - (addPayment && !billing ? Number(inputMoney(paymentAmount)) : 0))}</strong>. This does not refund or charge a card.</p>}
               {billing && <p><strong>Payment remains owed.</strong> This entry records no collected money and does not charge a card.{category==='Estimate'?' This remains an estimate quote, not job revenue.':' Completed job revenue is counted once; collecting it later does not add revenue again.'}</p>}
               {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} ${billing?'remains unbilled':'remains after this entry'}`}</strong><p>{billing?'Unbilled amount':'Draft balance'} {money(draftBalance-(billing?recordedBilling:0))} · {billing?'Billed amount entered':'Payment entered'} {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
               {category==='Estimate' && targetStatus==='8' && <p>Estimate outcome: {estimateReason} · {estimateExplanation}{noDiscountReason ? ` · No discount: ${noDiscountReason}` : ''}</p>}
@@ -770,7 +778,17 @@ export default function AppointmentCloseout({ prepareOnMount=false, job, date: s
                 {recordedPayments>0 && <div><span>Already collected</span><strong>−{money(recordedPayments)}</strong></div>}
                 <div className="amount-due"><span>{billing?'Amount to bill':recordedPayments>0?'Remaining to mark paid':'Amount to mark paid'}</span><strong>{money(amountToMarkPaid)}{totals.estimated?' estimated':''}</strong></div>
               </div>}
-              {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
+              {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => {
+                const removing = Boolean(payment.id && pendingPaymentRemovals.includes(payment.id));
+                return <div key={payment.id || `payment-${index}`} className={!crewMode && payment.removable ? `ops-payment-correctable${removing ? ' ops-payment-removing' : ''}` : ''}>
+                  <span>{payment.description}{removing && <small>Will be removed on save</small>}</span><strong>{payment.amount}</strong>
+                  {!crewMode && live.status.value === '8' && payment.id && payment.removable && <button type="button" className="ops-button subtle" aria-label={`${removing ? 'Undo removal of' : 'Remove'} payment ${index + 1}: ${payment.description} ${payment.amount}`} onClick={() => {
+                    setPendingPaymentRemovals(current => removing ? current.filter(id => id !== payment.id) : [...current, payment.id!]);
+                    setReviewing(false); setDifferenceReviewed(false); setError('');
+                  }}>{removing ? 'Undo' : 'Remove'}</button>}
+                </div>;
+              })}</div> : <p>No payment has been entered in Junkware.</p>}
+              {!crewMode && live.payments.some(payment => payment.removable) && <p>To correct a payment, remove the incorrect entry and add the correct method and amount below. Review and confirm to save. Removing a record does not refund a payment.</p>}
               <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => { const checked=event.target.checked;setAddPayment(checked);if(!checked)setPaymentAmountAuto(false);else if(crewMode && !paymentAmount.trim()){setPaymentAmountAuto(true);setPaymentAmount(amountToMarkPaid.toFixed(2));} }} /> <span>{crewMode?"Record payment or Billed":"Add a payment"}</span></label>
               {!live.paymentMethods.some(option => option.value) && <p role="alert">Payment methods could not be loaded. Reload from JunkWare to try again.</p>}
               {addPayment ? <div className="ops-closeout-payment-entry">

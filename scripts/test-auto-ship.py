@@ -66,7 +66,7 @@ elif name=='ship.sh':
  'conflict':f'PR #{args[0]} has conflicts or is not mergeable yet',
  'gate':'review approval is missing; production was not changed',
  'stop':"Claude's review says stop (label claude-stop). Fix it or remove the label.",
- 'stale':'merge current production into the PR and review it first',
+ 'stale':'merge current production into the PR and rerun validation first',
  'behind':'PR must contain the active release'}
  if mode in reasons:
   print('ship stopped: '+reasons[mode],file=sys.stderr);sys.exit(1)
@@ -262,7 +262,7 @@ class AutoShipTests(unittest.TestCase):
         self.assertIn('has conflicts or is not mergeable yet',source)
         self.assertIn('checks pending or failing)',source)
         self.assertIn('PR must contain the active release',source)
-        self.assertIn('merge current production into the PR and review it first',source)
+        self.assertIn('merge current production into the PR and rerun validation first',source)
         # Both wait refusals must remain before the merge operation.
         merge=source.index('gh pr merge')
         self.assertLess(source.index('has conflicts or is not mergeable yet'),merge)

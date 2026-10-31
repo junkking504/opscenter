@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { appointmentOnsiteTime, completedOnsiteClockRange } from '../lib/appointment-onsite-time';
-import { timelineWindow, timelinePlacement, timelineRange, scheduleDisplayTruck, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { displayedOnsiteTime, timelineWindow, timelinePlacement, timelineRange, scheduleDisplayTruck, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
 import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
 const job = {recordId:'2026-09-12:appointment:1',appointmentId:'1',jkNumber:'JK1',truck:'Truck 4',appointmentType:'Job',status:'Completed',hasScheduledTime:true,appointmentTime:'9–10 AM',appointmentStartMinutes:540,appointmentEndMinutes:600} as ScheduleAppointment;
@@ -42,3 +42,11 @@ assert.equal(completedOnsiteClockRange({...completed.onsiteTime,minutes:null}),n
 
 assert.equal(timelineWindow({...completed,status:'Confirmed'})?.actual,true,'Recorded visits control placement before closeout');
 assert.equal(timelineWindow({...completed,appointmentType:'Estimate'})?.actual,true,'Estimate visits use actual times too');
+
+const assignedPass={minutes:1,arrival:'2026-09-12T14:28:00Z',departure:'2026-09-12T14:29:00Z',label:'1 min',truck:'Truck 4'};
+const physicalVisit={...completed.onsiteTime,truck:'Truck 2'};
+assert.equal(displayedOnsiteTime({onsiteTime:assignedPass,recordedOnsiteTime:physicalVisit}),physicalVisit,'Display follows resolved physical visit instead of obsolete assigned short pass');
+const uncertain={minutes:null,arrival:null,departure:null,label:'Unavailable · GPS visits from multiple trucks'};
+assert.equal(displayedOnsiteTime({onsiteTime:assignedPass,recordedOnsiteTime:uncertain}),uncertain,'Explicit unresolved display evidence must not fall back to assigned pass');
+assert.equal(displayedOnsiteTime({onsiteTime:assignedPass}),assignedPass,'Older snapshots without resolved display evidence retain their timing');
+assert.equal(assignedPass.minutes,1,'Display does not mutate closeout suggestions');

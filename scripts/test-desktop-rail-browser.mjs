@@ -92,7 +92,7 @@ console.log('Finance seven-page navigation, distinct Overview/Trends, trend cont
 
 await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).click();
 await page.getByRole('heading',{name:'My Preferences',exact:true}).waitFor();
-await page.getByText('Notification settings unavailable.',{exact:false}).waitFor();
+await page.getByText('Notification status unavailable.',{exact:false}).waitFor();
 assert.equal(await page.locator('.notification-panel .push-settings').count(),0);
 // A pending notification status operation blocks workspace navigation.
 await page.evaluate(()=>{const original=window.fetch;window.fetch=async(...args)=>{if(String(args[0]).includes('/api/push/devices'))await new Promise(resolve=>window.finishSettingsRead=resolve);return original(...args);};});

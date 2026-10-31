@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { MetricValue } from './metric-value';
 import { DeltaChip } from './delta-chip';
 import { crewRph, employeeRph } from './lib/crew-rph';
@@ -29,14 +30,14 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
   );
   const totals = snapshot.totals;
   const rph = crewRph(snapshot);
-  return <div className="crew-today">
-    <div className="krewe-kpi-strip" aria-label="Selected day’s full crew summary">
+  return <SectionLayout as="div" group="crew-today-1" className="crew-today">
+    <div data-layout-id="krewe-kpi-strip" className="krewe-kpi-strip" aria-label="Selected day’s full crew summary">
       <article><span>Krewe count</span><DeltaChip current={members.filter(member => member.working).length} comparison={snapshot.comparison && {prior:snapshot.comparison.count,label:snapshot.comparison.label}} /><strong><MetricValue value={members.filter(member => member.working).length} /></strong><small>Clocked in today</small></article>
       <article><span>Krewe revenue</span><DeltaChip current={totals.revenue} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.revenue,label:snapshot.comparison.label}} /><strong><MetricValue value={money(totals.revenue)} /></strong><small>Credited to clocked-in crew</small></article>
       <article><span>Average RPH</span><DeltaChip current={rph.value} comparison={snapshot.comparison && {prior:snapshot.comparison.rph,label:snapshot.comparison.label}} /><strong><MetricValue value={rph.value === null ? 'Unavailable' : money(rph.value)} /></strong><small>{rph.included} with valid worked hours{rph.excluded ? ` · ${rph.excluded} excluded` : ''}</small></article>
       <article><span>Employee total earnings</span><DeltaChip current={totals.totalPay} comparison={snapshot.comparison && {prior:snapshot.comparison.totals.totalPay,label:snapshot.comparison.label}} lowerIsBetter /><strong><MetricValue value={money(totals.totalPay)} /></strong><small>{snapshot.payrollVisible ? 'Available payroll rows only' : 'Manager access required'}</small></article>
     </div>
-    <section className="crew-today-roster" aria-label="Today’s krewe roster">
+    <section data-layout-id="crew-today-roster" className="crew-today-roster" aria-label="Today’s krewe roster">
       <header className="crew-today-heading"><div><h2>Today’s krewe</h2><p>{visible.length} of {members.length} shown · Includes completed shifts</p></div>
         <nav className="crew-section-nav" aria-label="Today sections">
           <button type="button" aria-pressed={view === 'pay'} onClick={() => setView('pay')}>{snapshot.payrollVisible ? 'Pay & hours' : 'Hours & assignments'}</button>
@@ -72,5 +73,5 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
         {!visible.length && <div className="crew-today-empty" role="status">{members.length ? 'No crew match these filters.' : 'No crew have a recorded clock-in for this day.'}{members.length > 0 && <button type="button" onClick={() => { setSearch(''); setFilter('all'); }}>Show all crew</button>}</div>}
       </div>
     </section>
-  </div>;
+  </SectionLayout>;
 }

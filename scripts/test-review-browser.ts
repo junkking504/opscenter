@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { browseReviews, defaultReviewFilters, recordedReviewCrew } from '../desktop-ui/lib/review-browser';
+import { browseReviews, defaultReviewFilters, recordedReviewCrew, reviewMatchStrength } from '../desktop-ui/lib/review-browser';
 import type { Review } from '../desktop-ui/lib/commercial-contract';
 
 const review = (id: string, values: Partial<Review> = {}): Review => ({ id, version: 'v1', customer: 'Sample customer', location: 'Market A', excerpt: 'Sample feedback', stars: 5, createdAt: '2026-09-01T12:00:00Z', sourceUrl: '', attribution: null, candidates: [], ...values });
@@ -19,3 +19,12 @@ assert.equal(browseReviews(rows, { ...defaultReviewFilters, query: 'absent revie
 assert.equal(browseReviews(rows, { ...defaultReviewFilters, order: 'oldest' }).rows[0].id, 'old');
 assert.equal(rows[0].id, 'old', 'Browsing must not reorder the source.');
 console.log('Review navigation checks passed.');
+
+const weak = review('weak', { createdAt: '2026-01-01', attribution: { status: 'matched', matchMethod: 'inferred_high', reasons: ['Reviewer name overlaps customer email handle'] } });
+const strong = review('strong', { attribution: { status: 'matched', matchMethod: 'inferred_high', reasons: ['Exact customer name'] } });
+assert.equal(reviewMatchStrength(weak), 'Weak');
+assert.equal(reviewMatchStrength(strong), 'Strong');
+assert.equal(reviewMatchStrength(review('unknown', { attribution: { status: 'matched', matchMethod: 'inferred_high' } })), null);
+assert.equal(reviewMatchStrength(review('unmatched')), null);
+assert.deepEqual(browseReviews([...rows, weak, strong], { ...defaultReviewFilters, queue: 'check' }).rows.map(row => row.id), ['weak']);
+assert.equal(browseReviews([...rows, weak], defaultReviewFilters).rows[0].id, 'weak', 'Weak auto-matches appear first regardless of date');

@@ -10,7 +10,7 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
     await page.getByRole('tab', { name: 'Reviews', exact: true }).click();
     const detail = page.getByRole('region', { name: 'Review detail' });
     await detail.getByText('Auto-matched', { exact: true }).waitFor();
-    assert.match(await detail.innerText(), /High confidence · 90 points/);
+    assert.match(await detail.innerText(), /Weak · 90 points/);
     assert.match(await detail.innerText(), /Reviewer name overlaps customer email handle/);
     await detail.getByRole('button', { name: 'Undo auto-match' }).click();
     await detail.getByText('No completed appointment has been confirmed for this review.').waitFor();

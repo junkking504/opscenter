@@ -4,11 +4,13 @@ import { LiveMarketing } from '../live-marketing';
 import type { CommercialOperation, CommercialReceipt, MarketingData, MarketingView } from '../lib/commercial-contract';
 import '../app/globals.css';
 import '../workspace-density.css';
+import '../theme.css';
 
 // Synthetic, in-memory API boundary: this fixture cannot call a real provider or save a real record.
 const data: MarketingData = {
   date: '2026-09-16', range: 'Sep 1–16, 2026', fetchedAt: new Date().toISOString(), available: true, error: null,
   canAssignReviews: true, reviewAvailable: true, reviewFetchedAt: new Date().toISOString(), reviewError: null,
+  accounts: [{ id: 'lsa', name: 'Market North', type: 'Local Services', spend: 2300 }, { id: 'search', name: 'Search Ads (All Markets)', type: 'Google Ads', spend: 2300 }],
   totals: { calls: 284, qualified: 126, bookings: 48, completed: 36, revenue: 14820, cost: 4600 }, jobChange: 'Matched appointments: last 7 days 18 · prior 7 days 14',
   sources: ['Market North', 'Market South', 'Market West'].map((source, index) => ({ source, calls: 90, qualified: 42, bookings: 16, completed: 12, revenue: 4940, cost: index === 2 ? 0 : 2300 })),
   leads: Array.from({ length: 13 }, (_, index) => ({ id: `lead-${index}`, version: 'a'.repeat(64), customer: ['Morgan Taylor', 'Jordan Lee', 'Avery Martin', 'Casey Brown'][index % 4] + (index > 3 ? ` ${index}` : ''), territory: index % 2 ? 'Market North' : 'Market South', phone: '2255550100', duration: index === 0 ? '3:36' : '1:42', recordingUrl: index === 0 ? 'https://calls.searchkings.com/recordings/synthetic.wav' : '', intent: index === 0 ? 'Asked about a garage cleanout and pricing. Wants to know when a team could come out.' : 'Fictional call about furniture removal.', reason: '', note: '', contacted: index % 3 === 0, quotedValue: index === 0 ? null : 350, status: index === 12 ? 'booked' : index % 2 ? 'lost' : 'needs_follow_up', source: 'Google Ads via SearchKings', sourceUrl: '', calledAt: new Date(Date.UTC(2026, 8, 16, 15) - index * 86400000).toISOString(), updatedAt: '2026-09-16T15:00:00Z', appointmentId: index === 12 ? '1001' : null, jk: index === 12 ? 'JK1001' : null, completed: false, revenue: null })),
@@ -38,10 +40,10 @@ window.fetch = async (input, init) => {
 function Fixture() {
   const [view, setView] = useState<MarketingView>('overview');
   const [locked, setLocked] = useState(false);
-  return <main className="ops-live" style={{ maxWidth: 1280, margin: 'auto', padding: '24px clamp(12px, 3vw, 36px)' }}>
+  return <main className="ops-app ops-live" style={{ display: 'block', maxWidth: 1280, margin: 'auto', padding: '24px clamp(12px, 3vw, 36px)' }}>
     <div style={{ fontSize: 11, marginBottom: 18 }}><strong>SYNTHETIC TEST · No live requests or writes</strong> · <span id="fixture-posts">Mock saves: 0</span><label style={{ marginLeft: 16 }}><input type="checkbox" onChange={event => { uncertain = event.target.checked; }}/>Simulate uncertain save</label><button disabled={locked} onClick={() => { data.available = !data.available; }}>Toggle SearchKings availability (then Refresh)</button></div>
     <h1 style={{ fontSize: 32, fontWeight: 650 }}>Campaign</h1><p style={{ color: '#64706c', margin: '8px 0 20px' }}>Turn interest into booked work. Give great service its credit.</p>
-    <nav className="workspace-tabs" role="tablist" style={{ marginBottom: 18 }}>{([['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const).map(([key, label]) => <button role="tab" aria-selected={view === key} className={view === key ? 'active' : ''} disabled={locked} key={key} onClick={() => setView(key)}>{label}</button>)}</nav>
+    <nav className="workspace-tabs" role="tablist" style={{ marginBottom: 18 }}>{([['overview', 'Leads'], ['reviews', 'Reviews'], ['performance', 'Results']] as const).map(([key, label]) => <button role="tab" aria-selected={view === key} className={view === key ? 'active' : ''} disabled={locked} key={key} onClick={() => setView(key)}>{label}</button>)}</nav>
     <LiveMarketing date={data.date} view={view} onViewChange={setView} onBusyChange={setLocked}/>
   </main>;
 }

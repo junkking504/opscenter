@@ -91,7 +91,7 @@ class ProductionMigrations(unittest.TestCase):
         boundary = SOURCE.index('migrate_production_release "$release"')
         self.assertLess(SOURCE.index('npm run build'), boundary)
         self.assertLess(SOURCE.index('verify-spending-boundary.mjs'), boundary)
-        self.assertLess(SOURCE.index('check-review-gate.py" "$REPOSITORY"'), boundary)
+        self.assertLess(SOURCE.index('require_forward_deploy "$active_commit"'), boundary)
         self.assertLess(boundary, SOURCE.index('release-transaction.mjs" deploy'))
         self.assertLess(boundary, SOURCE.index('activate_release "$release"'))
         self.assertLess(boundary, SOURCE.index('restart_release_bound_services "$release"'))

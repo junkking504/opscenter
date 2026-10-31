@@ -102,10 +102,10 @@ launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
 
 HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json"
-# A verified cold initialization measured 211.5 seconds on 2026-09-09.
-# Keep requiring a heartbeat newer than this restart, with a bounded five-minute
+# Cold initialization can exceed five minutes while publishing all four markets.
+# Keep requiring a heartbeat newer than this restart, with a bounded ten-minute
 # startup allowance; this does not change the normal polling/freshness threshold.
-for attempt in {1..60}; do
+for attempt in {1..120}; do
   if [ -s "$HEALTH_FILE" ]; then
     completed_at="$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("completed_at", ""))' "$HEALTH_FILE" 2>/dev/null || true)"
     if [ -n "$completed_at" ] && /usr/bin/python3 -c '
@@ -117,7 +117,7 @@ raise SystemExit(0 if stamp.timestamp() >= int(sys.argv[2]) else 1)
       break
     fi
   fi
-  [ "$attempt" -lt 60 ] || {
+  [ "$attempt" -lt 120 ] || {
     echo "JunkWare schedule detector did not produce a fresh verified heartbeat." >&2
     exit 1
   }

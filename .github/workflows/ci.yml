@@ -27,6 +27,7 @@ jobs:
           zsh -n deploy/macmini/ship.sh
           python3 scripts/test-auto-ship.py
           python3 scripts/test-ship-preflight.py
+          python3 scripts/test-detector-startup-wait.py
           python3 scripts/test-review-gate.py
 
   checks:

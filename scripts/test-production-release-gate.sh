@@ -14,7 +14,10 @@ grep -F 'require_production_head "$commit"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$active_commit" "$commit" "initial ancestry check"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"' "$deployer" >/dev/null
 grep -F 'acquire_deploy_lock' "$deployer" >/dev/null
-grep -F 'python3 "$SCRIPT_DIR/check-review-gate.py" "$REPOSITORY" "$active_commit" "$commit" "$DEPLOY_ROOT/vault/Tasks"' "$deployer" >/dev/null
+if grep -F 'check-review-gate.py' "$deployer" >/dev/null; then
+  echo "Review receipts must not be mandatory for deployment" >&2
+  exit 1
+fi
 grep -F '[[ -n "$watcher_label" ]] || continue' "$REPOSITORY_ROOT/deploy/macmini/release-services.sh" >/dev/null
 grep -F 'REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
 grep -F 'RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"' "$wrapper" >/dev/null

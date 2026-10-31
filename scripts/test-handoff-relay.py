@@ -285,6 +285,18 @@ with tempfile.TemporaryDirectory() as tmp:
     assert relay.full_head(paths, "short-sha", full_sha) == full_sha
     assert relay.full_head(paths, "short-sha", "deadbeef") == "deadbeef", "an id the worktree does not know stays as written"
     assert relay.full_head(paths, "no-such-task", full_sha[:8]) == full_sha[:8]
+    # decide() compares full ids: an abbreviated handoff reaches the review step, a recorded review is recognised
+    # under the same full id the runner records, and an id that cannot be resolved stops the task.
+    brief("short-sha", auto="Auto: codex-build")
+    short_folder = root / "vault/Tasks/short-sha"
+    (short_folder / "handoff.md").write_text(f"# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-sha @ {full_sha[:8]}  ·  Base: x\n")
+    short_info = relay.parse_task(short_folder)
+    assert relay.decide(paths, "short-sha", short_info, {})[0] == "review-claude"
+    action, detail = relay.decide(paths, "short-sha", short_info, {"done": [f"review@{full_sha}"]})
+    assert action == "needs-user" and "does not name it" in detail, "the recorded full-id review is recognised for a short handoff"
+    (short_folder / "handoff.md").write_text("# Handoff\n\nBuilder: Codex  ·  Branch: codex/short-sha @ deadbeef  ·  Base: x\n")
+    action, detail = relay.decide(paths, "short-sha", relay.parse_task(short_folder), {})
+    assert action == "needs-user" and "cannot resolve" in detail, "an unresolvable short id stops instead of being compared as a prefix"
     assert relay.acquire(paths, "winner", "build", "token-a") is True
     before = (lock / "step.json").read_text()
     assert relay.acquire(paths, "loser", "build", "token-b") is False

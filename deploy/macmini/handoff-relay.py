@@ -164,13 +164,25 @@ def same_sha(a: str, b: str) -> bool:
     return bool(a and b) and (a.startswith(b) or b.startswith(a))
 
 
-def full_head(p: "Paths", task: str, head: str) -> str:
-    """Expand a short handoff commit id to the task worktree's full commit; receipts must name all 40 characters."""
+def resolve_head(p: "Paths", task: str, head: str) -> tuple[str, str]:
+    """Expand a short handoff commit id to the task worktree's full commit; receipts must name all 40 characters.
+
+    Returns (head, problem). A short id that the worktree cannot resolve to exactly one commit is a problem,
+    not something to compare as a prefix. With no worktree yet there is nothing to resolve against.
+    """
     if len(head) == 40 or not head:
-        return head
+        return head, ""
     worktree = p.worktrees / task
-    full = git(p, worktree, "rev-parse", "--verify", head + "^{commit}") if worktree.exists() else ""
-    return full if len(full) == 40 and same_sha(full, head) else head
+    if not worktree.exists():
+        return head, ""
+    full = git(p, worktree, "rev-parse", "--verify", head + "^{commit}")
+    if len(full) == 40 and same_sha(full, head):
+        return full, ""
+    return head, f"cannot resolve handoff commit {head[:12]} to exactly one commit (unknown or ambiguous)"
+
+
+def full_head(p: "Paths", task: str, head: str) -> str:
+    return resolve_head(p, task, head)[0]
 
 
 def load(path: Path, default):
@@ -221,6 +233,9 @@ def decide(p: Paths, task: str, info: dict, state: dict) -> tuple[str, str]:
     fam, head = family(info["builder"]), info["head"]
     if not fam or not head:
         return "needs-user", "handoff.md has no recognisable Builder line or Branch @ sha"
+    head, problem = resolve_head(p, task, head)
+    if problem:
+        return "needs-user", problem
     worktree = p.worktrees / task
     actual = git(p, worktree, "rev-parse", "HEAD") if worktree.exists() else ""
     if actual and git(p, worktree, "status", "--porcelain"):

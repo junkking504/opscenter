@@ -29,14 +29,14 @@ try {
       backgroundColor: 'rgb(181, 25, 53)',
       borderRadius: '7px',
       fontWeight: '600',
-      height: 36,
+      height: width <= 760 ? 44 : 32,
     });
     const reviewBox = await review.boundingBox();
     assert.ok(reviewBox.x >= 0 && reviewBox.x + reviewBox.width <= width + 1, `WhatsApp review action fits at ${width}px`);
 
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long&source=1`);
     await openScheduleControls(page);
-    const add = page.getByRole('button', { name: 'Add Appointment', exact: true });
+    const add = page.getByRole('button', { name: 'New Appointment', exact: true });
     await add.waitFor();
     assert.deepEqual(await visualStyle(add), reviewStyle, `Add Appointment matches the shared action style at ${width}px`);
     const addBox = await add.boundingBox();
@@ -50,12 +50,14 @@ try {
     const open = drawer.getByRole('button', { name: 'Open in JunkWare', exact: true });
     await open.waitFor();
     await open.evaluate(async (element) => { await Promise.all(element.getAnimations().map((animation) => animation.finished)); });
-    assert.deepEqual(await visualStyle(open), reviewStyle, `Open in JunkWare matches the shared action style at ${width}px`);
+    const openStyle = await visualStyle(open);
+    assert.notEqual(openStyle.backgroundColor, reviewStyle.backgroundColor, "JunkWare source link is secondary to the primary workflow");
+    assert.deepEqual({ ...openStyle, backgroundColor: reviewStyle.backgroundColor }, reviewStyle, `Open in JunkWare matches the shared action style at ${width}px`);
     const openBox = await open.boundingBox();
     const drawerBox = await drawer.boundingBox();
     assert.ok(openBox.x >= drawerBox.x && openBox.x + openBox.width <= drawerBox.x + drawerBox.width + 1, `Open in JunkWare fits its drawer at ${width}px: ${JSON.stringify({ openBox, drawerBox })}`);
   }
-  console.log('Button consistency PASS: WhatsApp review, Add Appointment, and Open in JunkWare share brand color, 36px action height, 7px radius, and 600 weight at 320–1440px.');
+  console.log('Button consistency PASS: WhatsApp review, Add Appointment, and Open in JunkWare use 32px desktop / 44px phone action height, 7px radius, and 600 weight at 320–1440px.');
 } finally {
   await browser.close();
 }

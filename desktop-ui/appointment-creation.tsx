@@ -1,3 +1,4 @@
+import {reviewBooking} from './lib/prebooking-review';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import CustomerLookup from './customer-lookup';
 import type { CustomerSelection } from '../lib/junkware-customer-contract';
@@ -47,9 +48,8 @@ export default function AppointmentCreation({ date, close, saved, background, on
     const id=crypto.randomUUID();setRequestId(id);setReceipt(null);setError('');setDuplicateCheck(null);setCreateSeparate(false);
     pending.current=true;setBusy(true);
     try {
-      const response=await fetch('/api/desktop/schedule/creation/check',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(creationPayload(form,id)),signal:AbortSignal.timeout(20000)});
-      const body=await response.json();if(!response.ok||!body.check)throw new Error(body.error||'Duplicate check unavailable. Try reviewing again.');
-      setDuplicateCheck(body.check);setMode('review');
+      const check=await reviewBooking(creationPayload(form,id));
+      setDuplicateCheck(check);setMode('review');
     }catch(failure){setError(failure instanceof Error?failure.message:'Duplicate check unavailable. No appointment was created.');}
     finally{pending.current=false;setBusy(false);}
   };

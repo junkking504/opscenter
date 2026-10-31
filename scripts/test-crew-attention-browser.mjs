@@ -18,7 +18,7 @@ try {
   await alert.click();
   const dialog = page.getByRole('dialog', { name: 'Sample Crew', exact: true });
   await dialog.waitFor();
-  await expectPressed(dialog.getByRole('button', { name: 'Pay details', exact: true }));
+  await expectPressed(dialog.getByRole('button', { name: 'Pay Details', exact: true }));
   assert.match(await dialog.locator('.krewe-record-issue').innerText(), /Needs attention[\s\S]*correction on 2026-09-04/);
   assert.match(await page.getByRole('status').filter({ hasText: 'Writes:' }).innerText(), /Writes: 0/, 'Opening an issue is read-only');
 

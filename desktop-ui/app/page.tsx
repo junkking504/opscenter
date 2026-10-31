@@ -1,5 +1,9 @@
 'use client';
 
+import { krewePages, krewePurpose, managerKrewePage, type KrewePage } from '../lib/krewe-presentation';
+import { KreweManagerLock } from '../krewe-presentation';
+import { Lock } from 'lucide-react';
+
 import { SectionLayout, SectionLayoutProvider } from '../section-layout';
 
 
@@ -59,6 +63,7 @@ import { commandKpiDestination } from '../lib/command-kpi-navigation';
 import { ActionHints } from '../action-hints';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 const { Component: Customers } = preloadableWorkspace(() => import('../customers'));
+const { Component: KreweLeaderboard } = preloadableWorkspace(() => import('../krewe-leaderboard'));
 const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
 const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
@@ -227,7 +232,7 @@ type KreweMember = {
   driverStatus: string; assignmentConfidence: string; weeklyHours: number; period: KrewePeriod; month: KrewePeriod; issue?: string;
 };
 type KreweFilter = 'all' | 'working' | 'unassigned' | 'attention' | 'off';
-type KreweView = 'today' | 'callin' | 'payperiod' | 'monthly';
+type KreweView = KrewePage;
 type CallInStatus = 'Recommended' | 'Called' | 'Confirmed' | 'Unavailable';
 type CallInCandidate = {
   memberId: string; rank: number; suggestedRole: string; reason: string; projectedHours: number;
@@ -1157,8 +1162,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       for (const name of ['Schedule', 'Fleet', 'Marketing', 'Krewe', ...(canFinance ? ['Finance'] : [])]) {
         if (abort.signal.aborted || document.visibilityState === 'hidden') return;
         if (name === activeNav) continue;
+        if (name === 'Krewe' && !canFinance && managerKrewePage(params.get('kreweView') || 'today')) continue;
         const endpoint = name.toLowerCase();
-        const view = name === 'Fleet' ? `&view=${encodeURIComponent(params.get('fleetView') || 'overview')}` : name === 'Krewe' ? `&view=${encodeURIComponent(params.get('kreweView') || 'today')}` : '';
+        const warmKreweView = params.get('kreweView') === 'leaderboard' ? 'payperiod' : params.get('kreweView') || 'today';
+        const view = name === 'Fleet' ? `&view=${encodeURIComponent(params.get('fleetView') || 'overview')}` : name === 'Krewe' ? `&view=${encodeURIComponent(warmKreweView)}` : '';
         const url = name === 'Fleet' ? fleetSnapshotUrl(date, params.get('fleetView') || 'overview') : `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
         const key = name === 'Schedule' ? `${url}&load=1` : url;
         if (cachedWorkspace(key)) continue;
@@ -1190,7 +1197,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const junkWareCreationBusy = junkWareCreationState === 'creating' || junkWareCreationState === 'verifying' || junkWareCreationState === 'searching' || junkWareCreationState === 'created';
   const [kreweMembers, setKreweMembers] = useState<KreweMember[]>(live ? [] : kreweRoster);
   const [kreweFilter, setKreweFilter] = useState<KreweFilter>('all');
-  const [kreweView, setKreweViewValue] = useState<KreweView>(() => live ? navigationValue(window.location.search, 'kreweView', ['today', 'callin', 'payperiod', 'monthly'], 'today') : 'today');
+  const [kreweView, setKreweViewValue] = useState<KreweView>(() => live ? navigationValue(window.location.search, 'kreweView', ['today', 'callin', 'leaderboard', 'payperiod', 'monthly'], 'today') : 'today');
   const setKreweView = (value: KreweView) => { if (!mutationBusyRef.current) setKreweViewValue(value); };
   const [callInCandidates, setCallInCandidates] = useState<CallInCandidate[]>(live ? [] : initialCallInCandidates);
   const [kreweMonth, setKreweMonth] = useState<'august' | 'july'>('august');
@@ -1261,7 +1268,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     : activeNav === 'Schedule'
       ? `Command · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : scheduleView === 'customers' ? 'Customers' : 'History'}`
       : activeNav === 'Krewe'
-        ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
+        ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : kreweView === 'leaderboard' ? 'Leaderboard' : 'Monthly'}`
         : activeNav === 'Fleet'
           ? `Fleet · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
@@ -4347,6 +4354,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </div>
           }
           <div className="topbar-actions">
+          {live && <span className="krewe-signed-in">Signed in as {live.snapshot.actor.displayName} ({live.snapshot.actor.role})</span>}
 
             <div className="notification-center" ref={notificationRoot}>
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
@@ -4396,15 +4404,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{activeNav === 'Finance' ? (financeView === 'reconciliation' ? 'Payments' : financeView[0].toUpperCase() + financeView.slice(1)) : workspaceLabel(activeNav)}</h1>
+              <h1>{activeNav === 'Krewe' ? krewePages.find(([key]) => key === kreweView)?.[1] : activeNav === 'Finance' ? (financeView === 'reconciliation' ? 'Payments' : financeView[0].toUpperCase() + financeView.slice(1)) : workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Settings' ? 'Your preferences, notifications, and connected services.' : activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
-                : activeNav === 'Krewe' ? kreweView === 'today'
-                  ? 'Attendance, production, earnings, driving, assignments, and manager actions.'
-                  : kreweView === 'callin' ? 'Plan tomorrow’s coverage and record each availability decision.'
-                    : kreweView === 'payperiod' ? 'Reconcile hours, production, earnings, and exceptions across the current pay period.'
-                      : 'Review monthly labor, production, payroll, and individual performance.'
+                : activeNav === 'Krewe' ? 'Hours, coverage, and production for the Krewe.'
                 : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Driving activity, scores, and the records behind them.' : fleetView === 'overview'
                   ? 'Your trucks, maintenance priorities, and next steps in one place.'
                   : fleetView === 'maintenance' ? 'Choose a truck. Review findings. Follow repairs through to resolution.'
@@ -4445,10 +4449,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
                 <WorkspaceTabs label="Krewe views">
-                  {([
-                    ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
-                  ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
+                  {krewePages.map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (!live && key === 'today') changeScheduleDay('today'); if (!live && key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{live && !canFinance && managerKrewePage(key) && <span><Lock size={12} aria-hidden="true"/> Managers</span>}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
                 </WorkspaceTabs>
+                <p className="krewe-purpose">{krewePurpose[kreweView]}</p>
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
@@ -4827,7 +4830,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Command' && view === 'forecast' && (canFinance ? <div className="section-layout-component" data-layout-id="live-analytics" data-layout-label="Analytics"><LiveAnalytics refreshWorkspace="Command" date={live.snapshot.date} scope="forecast" /></div> : <p>Manager access is required for financial forecasts.</p>)}
           {live && activeNav === 'Command' && (view === 'today' || view === 'monitor') && <div className="section-layout-component" data-layout-id="live-control" data-layout-label="Control"><LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} /></div>}
           <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {workspaceLabel(activeNav)}…</div>}>
-          {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
+          {live && activeNav === 'Krewe' && (managerKrewePage(kreweView) && !canFinance ? <KreweManagerLock/> : kreweView === 'leaderboard' ? <KreweLeaderboard date={live.snapshot.date}/> : <LiveKrewe canViewPayroll={canFinance} date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />)}
           {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} hideCharts={showingDrilldown} />}
@@ -5342,7 +5345,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </section>}
 
               {kreweView === 'payperiod' && <section className="krewe-period-shell">
-                <div className="section-title"><div><span className="section-kicker">Aug 18–31 · Current pay period</span><h2>Pay-Period Reconciliation</h2><p>Hours, production, and earnings stay together so exceptions can be corrected without leaving Krewe.</p></div><Badge variant="outline">Source through Aug 31</Badge></div>
+                <div className="section-title"><div><span className="section-kicker">Aug 18–31 · Current pay period</span><h2>Pay Period</h2><p>Hours, production, and earnings stay together so exceptions can be corrected without leaving Krewe.</p></div><Badge variant="outline">Source through Aug 31</Badge></div>
                 <div className="krewe-period-summary"><div><span>Regular hours</span><strong>{metricValue(periodTotals.regularHours, ' hrs')}</strong></div><div><span>Overtime hours</span><strong>{metricValue(periodTotals.overtimeHours, ' hrs')}</strong></div><div><span>Credited revenue</span><strong>{moneyValue(periodTotals.revenue)}</strong></div><div><span>Hourly labor</span><strong>{moneyValue(periodTotals.labor)}</strong></div><div><span>Tips</span><strong>{moneyValue(periodTotals.tips)}</strong></div><div><span>Bonuses</span><strong>{moneyValue(periodTotals.bonuses)}</strong></div><div><span>Supplemental</span><strong>{moneyValue(periodTotals.supplemental)}</strong></div><div><span>Total pay</span><strong>{moneyValue(periodTotals.totalPay)}</strong></div></div>
                 <div className="krewe-period-table">
                   <div className="krewe-period-head"><span>Krewe member</span><span>Hours</span><span>Production</span><span>Hourly labor</span><span>Tips</span><span>Bonuses</span><span>Supplemental</span><span>Total pay</span><span /></div>
@@ -5352,12 +5355,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </section>}
 
               {kreweView === 'monthly' && <section className="krewe-monthly-shell">
-                <div className="section-title"><div><span className="section-kicker">Monthly operating view</span><h2>{kreweMonth === 'august' ? 'August 2026' : 'July 2026'} Krewe Summary</h2><p>Labor, production, payroll, and driving signals in one reconciled view.</p></div><label className="krewe-month-select"><span>Month</span><select value={kreweMonth} onChange={(event) => setKreweMonth(event.target.value as 'august' | 'july')}><option value="august">August 2026</option><option value="july">July 2026</option></select></label></div>
+                <div className="section-title"><div><span className="section-kicker">Monthly operating view</span><h2>Monthly</h2><p>Labor, production, payroll, and driving signals in one reconciled view.</p></div><label className="krewe-month-select"><span>Month</span><select value={kreweMonth} onChange={(event) => setKreweMonth(event.target.value as 'august' | 'july')}><option value="august">August 2026</option><option value="july">July 2026</option></select></label></div>
                 <div className="krewe-monthly-kpis">
                   <article><span>Krewe revenue</span><strong>{moneyValue(monthlyTotals.revenue)}</strong></article><article><span>Regular hours</span><strong>{metricValue(monthlyTotals.regularHours, ' hrs')}</strong></article><article><span>Overtime hours</span><strong>{metricValue(monthlyTotals.overtimeHours, ' hrs')}</strong></article><article><span>Hourly labor cost</span><strong>{moneyValue(monthlyTotals.labor)}</strong></article><article><span>Tips</span><strong>{moneyValue(monthlyTotals.tips)}</strong></article><article><span>Automated bonuses</span><strong>{moneyValue(monthlyTotals.automatedBonuses)}</strong></article><article><span>Manual bonuses</span><strong>{moneyValue(monthlyTotals.manualBonuses)}</strong></article><article><span>Total bonuses</span><strong>{moneyValue(monthlyTotals.bonuses)}</strong></article><article><span>Total payroll</span><strong>{moneyValue(monthlyTotals.totalPay)}</strong></article><article><span>Payroll % of revenue</span><strong>{monthlyTotals.revenue ? `${((monthlyTotals.totalPay / monthlyTotals.revenue) * 100).toFixed(1)}%` : '—'}</strong></article><article><span>Revenue / labor hr</span><strong>{moneyValue(monthlyTotals.regularHours + monthlyTotals.overtimeHours ? monthlyTotals.revenue / (monthlyTotals.regularHours + monthlyTotals.overtimeHours) : null)}</strong></article><article><span>Jobs completed</span><strong>{monthlyTotals.jobs}</strong></article><article><span>Average job size</span><strong>{moneyValue(monthlyTotals.jobs ? monthlyTotals.revenue / monthlyTotals.jobs : null)}</strong></article><article><span>Average driving score</span><strong>{(kreweMembers.reduce((sum, member) => sum + (member.driverScore || 0), 0) / kreweMembers.filter((member) => member.driverScore != null).length).toFixed(1)}</strong></article><article><span>Workdays</span><strong>{Math.round(23 * monthFactor)}</strong></article><article><span>Employee shifts</span><strong>{Math.round(208 * monthFactor)}</strong></article>
                 </div>
                 <div className="krewe-monthly-breakdown">
-                  <div className="section-title"><div><span className="section-kicker">Full roster · Ranked by credited revenue</span><h2>Monthly Krewe Breakdown</h2></div></div>
+                  <div className="section-title"><div><span className="section-kicker">Full roster · Ranked by credited revenue</span><h2>Krewe Breakdown</h2></div></div>
                   <div className="krewe-month-head"><span>Krewe member</span><span>Hours</span><span>Jobs</span><span>Revenue</span><span>Revenue / hr</span><span>Labor</span><span>Tips</span><span>Bonuses</span><span>Total pay</span><span /></div>
                   {[...visibleKrewe].sort((a, b) => b.month.revenue - a.month.revenue).map((member) => { const hours = (member.month.regularHours + member.month.overtimeHours) * monthFactor; return <article key={member.id}><div className="krewe-identity"><i>{member.initials}</i><span><strong>{member.name}</strong><small>{member.role} · {member.id}</small></span></div><strong>{metricValue(hours, ' hrs')}</strong><strong>{Math.round(member.month.jobs * monthFactor)}</strong><strong>{moneyValue(member.month.revenue * monthFactor)}</strong><span>{moneyValue(hours ? member.month.revenue * monthFactor / hours : null)}</span><span>{moneyValue(member.month.labor * monthFactor)}</span><span>{moneyValue(member.month.tips * monthFactor)}</span><span>{moneyValue(member.month.bonuses * monthFactor)}</span><strong className="pay">{moneyValue(member.month.totalPay * monthFactor)}</strong><Button variant="outline" size="sm" onClick={() => openKreweMember(member)}>Open</Button></article>; })}
                 </div>
@@ -6447,7 +6450,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <div className="krewe-bonus-control">
                         <div><span>Manual bonus</span><strong>Add an attributable adjustment</strong></div>
                         <div><label><span>Amount</span><Input type="number" min="0" step="1" value={bonusEntry.amount} onChange={(event) => setBonusEntry((entry) => ({ ...entry, amount: event.target.value }))} placeholder="$0" /></label><label><span>Reason</span><Input value={bonusEntry.reason} onChange={(event) => setBonusEntry((entry) => ({ ...entry, reason: event.target.value }))} placeholder="Required manager reason" /></label></div>
-                        <Button variant="outline" size="sm" onClick={addKreweBonus}>Add bonus</Button>
+                        <Button className="krewe-payroll-edit" variant="outline" size="sm" onClick={addKreweBonus}>Add Bonus · Edits Payroll</Button>
                       </div>
                       {actionFeedback && <p className="drawer-action-feedback" role="status">{actionFeedback}</p>}
                     </section>
@@ -6484,7 +6487,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : activeFleetTruck
                     ? <Button onClick={saveFleetLoad}>Save truck status <Check /></Button>
                 : activeKrewe
-                  ? <Button onClick={saveKreweCorrection}>Save correction <Check /></Button>
+                  ? <Button className="krewe-payroll-edit" variant="outline" onClick={saveKreweCorrection}>Save Correction · Edits Payroll <Check /></Button>
                   : activeFollowup
                   ? <Button onClick={() => markFollowupHandled(activeFollowup.jk)}>Mark handled <Check /></Button>
                 : <Button onClick={closeRecordDrawer}>{drawer.action} <ArrowRight /></Button>}

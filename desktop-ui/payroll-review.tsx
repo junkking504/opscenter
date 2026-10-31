@@ -1,3 +1,4 @@
+import './krewe-presentation.css';
 import { useEffect, useState } from 'react';
 import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
@@ -7,12 +8,14 @@ import './payroll-review.css';
 
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const hoursText = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { maximumFractionDigits: 2 });
-export default function PayrollReview({ hours, payroll, unavailable, pending, search = '', onOpen }: {
-  hours: KreweHoursSnapshot; payroll: DesktopKreweSnapshot; unavailable?: string; pending?: boolean; search?: string; onOpen: (id: string) => void;
+export default function PayrollReview({ hours, payroll, unavailable, pending, search = '', showDetails = true, onOpen }: {
+  hours: KreweHoursSnapshot; payroll: DesktopKreweSnapshot; unavailable?: string; pending?: boolean; search?: string; showDetails?: boolean; onOpen: (id: string) => void;
 }) {
   const [marks, setMarks] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState('all');
   const [notice, setNotice] = useState('');
+  const [exported, setExported] = useState('');
+  const [emailPrepared, setEmailPrepared] = useState('');
   const rows = buildPayrollReview(hours, payroll);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
   const missing = [...new Set([...hours.missingDates, ...payroll.missingDates])].sort();
@@ -31,12 +34,14 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
     setNotice(`Source records changed for ${changed.map(row => row.name).join(', ')}. Review marks cleared for those employees.`);
   }, [changed]);
   const visible = rows.filter(row => row.name.toLowerCase().includes(search.toLowerCase()) && (filter === 'all' || filter === 'flags' && row.issues.length || filter === 'reviewed' && reviewed.includes(row)));
+  const signature = JSON.stringify([hours.start, hours.end, rows.map(row => row.signature), reviewed.map(row => row.id), warnings]);
   const canReview = !warnings.length && !pending;
   function emailReport() {
     if (!canReview || !reviewed.length) return;
     try {
       const message = preparePayrollReportEmail({ rows: reviewed, start: hours.start, end: hours.end, retrievedAt: hours.generatedAt, totalEmployeeCount: rows.length, warnings });
       window.location.assign(payrollReportMailto(message));
+      setEmailPrepared(signature);
       setNotice('Finish sending in your mail app. The message includes the reviewed employee totals; CSV export is available separately. No email has been sent by OpsCenter.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'The email could not be prepared.'); }
   }
@@ -47,9 +52,17 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = `krewe-payroll-${hours.start}-${hours.end}-${isReviewed ? 'reviewed' : 'draft'}.csv`;
     document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExported(isReviewed ? signature : 'draft:' + signature);
     setNotice(`Exported ${selected.length} ${isReviewed ? 'reviewed' : 'draft'} employee rows. ${isReviewed && selected.length < rows.length ? `${rows.length - selected.length} unreviewed employees were excluded.` : ''}`);
   }
   return <section className="payroll-review" aria-label="Payroll review">
+    <ol className="payroll-checklist" aria-label="Pay Period Checklist">
+      <li><strong>1. Review Hours</strong><span>{reviewed.length} / {rows.length} Reviewed</span></li>
+      <li><strong>2. Resolve Flags</strong><span>{flagged.length ? `${flagged.length} Need Attention` : warnings.length ? 'Source Review Needed' : rows.length ? 'No Flags' : 'Awaiting Records'}</span></li>
+      <li><strong>3. Export</strong><span>{exported === signature ? 'Reviewed Export Downloaded' : exported === 'draft:' + signature ? 'Draft Export Downloaded' : 'Not Exported'}</span></li>
+      <li><strong>4. Email Managers</strong><span>{emailPrepared === signature ? 'Prepared · Send in Mail App' : 'Not Prepared'}</span></li>
+    </ol>
+    <div hidden={!showDetails}>
     <header><div><h3>Payroll Review</h3></div><div className="payroll-review-actions"><button disabled={!rows.length || pending} onClick={() => download(false)}>Export draft ({rows.length})</button><button disabled={!reviewed.length || !canReview} onClick={() => download(true)}>Export reviewed ({reviewed.length})</button><button className="payroll-export-reviewed" disabled={!reviewed.length || !canReview} onClick={emailReport}>Email reviewed report ({reviewed.length})</button></div></header>
     <details className="payroll-email-recipients"><summary>Email to operations managers</summary><p>{PAYROLL_REPORT_RECIPIENTS.join(', ')}</p><p>The full report is scheduled for 8:00 a.m. Central on the Monday after each two-week pay period ends, including review flags. The Email reviewed report button opens an additional message in your mail app for you to send.</p></details>
     <div className="payroll-review-toolbar"><label>Show<select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All employees ({rows.length})</option><option value="flags">Needs attention ({flagged.length})</option><option value="reviewed">Reviewed ({reviewed.length})</option></select></label><span>{reviewed.length} of {rows.length} reviewed · {flagged.length} need attention</span></div>
@@ -63,5 +76,6 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
     {!visible.length && <p className="payroll-review-note">No employees in this view.</p>}
     <footer className="payroll-review-note">Review marks apply to this session and clear when the supporting records change. Export reviewed includes only checked employees; draft includes all listed employees and flags. Amounts are before deductions. A review does not submit payroll or change pay records.</footer>
     {notice && <p role="status" className="payroll-review-note">{notice}</p>}
+    </div>
   </section>;
 }

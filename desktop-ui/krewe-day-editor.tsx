@@ -1,3 +1,4 @@
+import { SavedResultHelp } from './krewe-presentation';
 import ClockEntry from './clock-entry';
 import {parseClockEntry,validClockEntry} from './lib/clock-entry';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
@@ -96,7 +97,8 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   return <dialog className="krewe-day-editor" ref={dialog} aria-labelledby="krewe-day-title" onCancel={event => {event.preventDefault(); if (!busy.current) onClose();}}>
     <header><div><span>Work date · {date}</span><h2 id="krewe-day-title">{name}</h2></div><button type="button" disabled={pending} onClick={onClose} aria-label="Close day editor">×</button></header>
     {message && <div className="krewe-day-feedback" data-attention={attention || undefined}><p role={attention ? "alert" : "status"}>{feedback}</p>{feedback !== message && <details><summary>Details</summary><p>{message}</p></details>}</div>}
-    {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check saved result</button>}
+    {request && <SavedResultHelp/>}
+    {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check Saved Result</button>}
     {!record && <>{!message && <p>Loading day…</p>}<button type="button" disabled={pending} onClick={() => void reload()}>Reload day</button></>}
     {record && deleting && <Suspense fallback={<p>Loading deletion controls…</p>}><TimecardDelete date={date} periodDate={periodDate} name={record.member.name} onCancel={()=>{setDeleting(false);requestAnimationFrame(()=>deleteOpener.current?.focus());}} onBusy={value=>{busy.current=value;setPending(value);}} onDeleted={async text=>{onClose();await onSaved(text);}}/></Suspense>}
     {record && !deleting && <>
@@ -104,16 +106,16 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
       {record.member.hourlyRate === null && <p>Hourly rate missing for this date.</p>}
       {!record.canWrite && <p>Read-only · manager access required.</p>}
       <form onSubmit={event => {event.preventDefault(); void save('correction');}}>
-        <h3>Edit hours</h3><fieldset disabled={disabled}>
+        <h3>Edit Hours <span className="krewe-payroll-label">Edits Payroll</span></h3><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><ClockEntry label="Clock-in" required autoFocus={action === 'correction'} value={draft.clockIn} onChange={value=>setDraft({...draft,clockIn:value})}/><ClockEntry label="Clock-out" value={draft.clockOut} onChange={value=>setDraft({...draft,clockOut:value})}/><label>Hourly rate<input type="number" min="0.01" step="0.01" required value={draft.hourlyRate} onChange={e=>setDraft({...draft,hourlyRate:e.target.value})}/></label></div>
           <label>Correction reason<input required value={draft.note} onChange={e=>setDraft({...draft,note:e.target.value})}/></label>
-          <button type="submit" disabled={!draft.note.trim() || !validClockEntry(draft.clockIn) || !validClockEntry(draft.clockOut,true) || !(Number(draft.hourlyRate)>0)}>Save hours</button>
+          <button type="submit" disabled={!draft.note.trim() || !validClockEntry(draft.clockIn) || !validClockEntry(draft.clockOut,true) || !(Number(draft.hourlyRate)>0)}>Save Hours · Edits Payroll</button>
         </fieldset>
       </form>
       <form onSubmit={event => {event.preventDefault(); void save('bonus');}}>
-        <h3>Manual Bonus</h3><p>Recorded only in OpsCenter.</p><fieldset disabled={disabled}>
+        <h3>Manual Bonus <span className="krewe-payroll-label">Edits Payroll</span></h3><p>Recorded only in OpsCenter.</p><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><label>Bonus amount<input type="number" min="0.01" step="0.01" required autoFocus={action === 'bonus'} value={draft.amount} onChange={e=>setDraft({...draft,amount:e.target.value})}/></label><label>Bonus reason<input required value={draft.bonusNote} onChange={e=>setDraft({...draft,bonusNote:e.target.value})}/></label></div>
-          <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save bonus</button>
+          <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save Bonus · Edits Payroll</button>
         </fieldset>
       </form>
       <button type="button" ref={deleteOpener} style={{minHeight:44}} disabled={disabled} onClick={()=>setDeleting(true)}>Delete time entry…</button>

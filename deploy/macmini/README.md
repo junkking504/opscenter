@@ -457,6 +457,13 @@ the expected command after `launchctl bootout`. An already-exited detector is a
 successful stop; an unrelated or unidentified live process still blocks the
 release. `scripts/test-detector-restart-race.ts` covers both cases.
 
+If the detector is running a helper other than the stream collector (for example
+while it publishes changes), the installer waits up to `DETECTOR_CHILD_WAIT_SECONDS`
+(default 240) for it to finish instead of failing the release. A helper that is
+still running after that wait still blocks the release and is never terminated.
+`scripts/test-detector-child-wait.ts` covers the wait, the collector exemption and
+the persistent case.
+
 ## Release slots
 
 See the [release-slot runbook](../../docs/zero-downtime-deploys.md) for the separately reviewed installation,

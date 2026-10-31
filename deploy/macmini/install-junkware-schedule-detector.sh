@@ -43,13 +43,27 @@ if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   fi
 fi
 if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-  LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
-  for child_pid in $LOCK_CHILD_PIDS; do
-    child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
-    if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]] && kill -0 "$child_pid" 2>/dev/null; then
-      echo "JunkWare detector has an unexpected child process; refusing to terminate it." >&2
+  # A detector sweep can briefly run a helper other than the stream collector
+  # (for example while it publishes changes). Wait for it to finish rather than
+  # failing a whole release; still refuse, and never kill it, if it persists.
+  CHILD_WAIT_SECONDS="${DETECTOR_CHILD_WAIT_SECONDS:-240}"
+  CHILD_WAIT_STARTED="$(date +%s)"
+  while :; do
+    LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
+    UNEXPECTED_CHILD=""
+    for child_pid in $LOCK_CHILD_PIDS; do
+      child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
+      if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]] && kill -0 "$child_pid" 2>/dev/null; then
+        UNEXPECTED_CHILD="$child_pid"
+      fi
+    done
+    [ -n "$UNEXPECTED_CHILD" ] || break
+    kill -0 "$LOCK_PID" 2>/dev/null || break
+    if [ $(( $(date +%s) - CHILD_WAIT_STARTED )) -ge "$CHILD_WAIT_SECONDS" ]; then
+      echo "JunkWare detector has an unexpected child process after waiting ${CHILD_WAIT_SECONDS}s; refusing to terminate it." >&2
       exit 1
     fi
+    sleep 2
   done
   # A validated detector may finish its current sweep after the checks above.
   # Treat an already-exited process as a successful stop, not an install error.

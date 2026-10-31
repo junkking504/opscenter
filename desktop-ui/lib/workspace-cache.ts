@@ -1,7 +1,11 @@
 // Memory only: never persist operational records across a login or page reload.
+export class WorkspaceReadError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
 type Entry = { value: unknown; receivedAt: number };
 const entries = new Map<string, Entry>();
-const maxEntries = 16;
+const maxEntries = 48;
 const maxAgeMs = 5 * 60_000;
 let generation = 0;
 const requests = new Map<string, Promise<unknown>>();
@@ -47,7 +51,7 @@ async function retrieveWorkspace<T>(url: string, key: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin', signal });
   if (response.status === 401 || response.status === 403) clearWorkspaceCache();
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || 'Workspace could not refresh.');
+  if (!response.ok) throw new WorkspaceReadError(body.error || 'Workspace could not refresh.', response.status);
   signal.throwIfAborted();
   if (started === generation && latestReads.get(key) === token) {
     entries.delete(key);

@@ -87,7 +87,7 @@ export function executeCommercialOperation(operation: CommercialOperation, actor
       if (receipt?.recordId === operation.recordId && (receipt.action === operation.action || (receipt.action.startsWith('review.') && operation.action.startsWith('review.'))) && receipt.status !== 'verified') throw new CommercialActionError('This record has an unverified change. Inspect its saved receipt before another change.');
     }
     if (loadVersion() !== operation.expectedVersion) throw new CommercialActionError('The record changed. Refresh and review the current version.');
-    const fields = operation.action === 'lead.flag' ? ['flagged'] : operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId'] : operation.action === 'review.undo' ? [] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : operation.action === 'recycling.receipt.record' ? ['kind', 'rows', 'total', 'reviewed', 'yard', 'paid', 'paymentDate', 'paymentReference', 'recordVersions'] : ['runDate', 'paymentDate', 'material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
+    const fields = operation.action === 'lead.flag' ? ['flagged'] : operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId', 'confidence', 'evidenceNote'] : operation.action === 'review.undo' ? [] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : operation.action === 'recycling.receipt.record' ? ['kind', 'rows', 'total', 'reviewed', 'yard', 'paid', 'paymentDate', 'paymentReference', 'recordVersions'] : ['runDate', 'paymentDate', 'material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
     const input = Object.fromEntries(fields.map(key => [key, operation.values[key]]));
     let receipt: CommercialReceipt = { expectedVersion: operation.expectedVersion, input, permission: COMMERCIAL_ACTIONS[operation.action], authority: 'opscenter_authoritative', requestId: operation.requestId, recordId: operation.recordId, action: operation.action, actor: actor.email, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Verifying saved OpsCenter state.' };
     writeReceipt(receipt);
@@ -128,10 +128,13 @@ export function updateDesktopMarketing(operation: CommercialOperation, actor: { 
   }
   if (operation.action !== 'review.assign') throw new CommercialActionError('Unsupported Marketing action.');
   const reference = String(operation.values.appointmentId || '').trim();
+  const confidence = operation.values.confidence ?? 'confirmed';
+  const evidenceNote = operation.values.evidenceNote ?? '';
+  if (typeof confidence !== 'string' || !['confirmed', 'possible'].includes(confidence) || typeof evidenceNote !== 'string' || evidenceNote.length > 2000 || (confidence === 'possible' && !evidenceNote.trim())) throw new CommercialActionError('Choose a valid match confidence and explain possible matches (up to 2,000 characters).');
   const appointment = findPodiumReviewAppointment(podiumReviewAssignmentDataDirectory(), reference);
   if (!appointment?.appointmentId) throw new CommercialActionError('No completed appointment with recorded crew was found for that appointment ID or JK number.');
   return executeCommercialOperation(operation, actor, () => readDesktopMarketing(operation.date, actor.role).reviews.find(review => review.id === operation.recordId)?.version, () => {
-    const assignment = assignPodiumReviewToAppointment({ reviewUid: operation.recordId, appointmentReference: appointment.appointmentId!, assignedBy: actor.email });
-    return Boolean(assignment && readPodiumReviewAssignments().some(saved => saved.reviewUid === operation.recordId && saved.attribution.appointmentId === assignment.attribution.appointmentId && saved.assignedBy === actor.email));
+    const assignment = assignPodiumReviewToAppointment({ reviewUid: operation.recordId, appointmentReference: appointment.appointmentId!, assignedBy: actor.email, confidence: confidence as "confirmed" | "possible", evidenceNote });
+    return Boolean(assignment && readPodiumReviewAssignments().some(saved => saved.reviewUid === operation.recordId && saved.attribution.appointmentId === assignment.attribution.appointmentId && saved.assignedBy === actor.email && saved.attribution.status === (confidence === "possible" ? "ambiguous" : "matched") && (saved.attribution.evidenceNote || "") === evidenceNote.trim()));
   });
 }

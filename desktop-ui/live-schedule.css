@@ -155,3 +155,12 @@ body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: 
 .live-schedule .live-map-truck-card header { gap: 10px; }
 .live-schedule .live-map-truck-card header button { min-width: 28px; min-height: 28px; cursor: pointer; }
 .live-schedule .schedule-board-layout.map-open .has-truck-card .schedule-map-controls { max-height: 140px; }
+
+/* Counts remain visible when supporting Board Controls are collapsed. */
+.ops-live .schedule-workspace.live-schedule.schedule-dispatch .schedule-summary-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; overflow: visible; }
+.ops-live .schedule-workspace.live-schedule.schedule-dispatch .schedule-summary-strip > .schedule-summary-button { flex: 0 0 auto; display: inline-flex; flex-direction: row; align-items: center; gap: 6px; width: auto; height: auto; min-height: var(--oc-control-height); padding: 4px 10px; border: 1px solid var(--oc-border-default); border-radius: var(--radius-md); background: var(--oc-surface-raised); }
+.ops-live .schedule-workspace.live-schedule.schedule-dispatch .schedule-summary-button :is(span,strong) { display: inline; font-size: var(--oc-type-12); text-transform: none; letter-spacing: normal; color: var(--oc-text-primary); }
+.ops-live .schedule-workspace.live-schedule.schedule-dispatch .schedule-summary-button.active { border-color: var(--ops-brand-red); box-shadow: none; }
+.ops-live .schedule-filter-menu { display: flex; align-items: center; gap: 6px; font-size: var(--oc-type-12); }
+.ops-live .schedule-filter-menu select { min-height: var(--oc-control-height); max-width: 150px; border: 1px solid var(--oc-border-default); border-radius: var(--radius-md); padding: 4px 6px; background: var(--oc-surface-raised); color: var(--oc-text-primary); }
+.ops-live .schedule-summary-strip > .schedule-add-appointment { min-width: 72px; margin-left: auto; white-space: nowrap; }

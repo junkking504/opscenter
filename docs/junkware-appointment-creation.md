@@ -73,8 +73,14 @@ search and selection in the booking drawer.
 The desktop **Review Appointment** action checks the selected date before
 showing the final booking review. `/api/desktop/schedule/creation/check` is an
 authenticated, same-origin, read-only POST so customer details stay out of URLs.
-It uses a JunkWare Schedule snapshot no more than five minutes old; missing or
-stale snapshots block review and direct the operator to refresh that date.
+It uses a JunkWare Schedule snapshot no more than five minutes old. If the
+selected date is missing or stale, the review endpoint requests the existing
+bounded day reader and returns 202 while it runs. Both desktop booking forms
+retain their draft, show progress and retry only this read-only review for up to
+210 seconds. Once a collection starts, subsequent polls cannot launch another;
+completion without fresh usable data ends that review attempt. They never call the general Schedule endpoint or submit creation
+automatically. Reader failure or timeout keeps the draft and asks the operator
+to retry review. Fresh duplicate evidence remains required at final creation.
 
 Matching requires customer name or phone, the same service address, and
 overlapping windows. Matches cross franchise, truck, and Job/Estimate category

@@ -1,3 +1,4 @@
+import {applyVerifiedCloseoutPrices,readVerifiedCloseoutPriceReceipts} from './verified-closeout-prices';
 import {applyCustomerEdits} from './customer-edit';
 // Extracted without semantic changes from the deployed Schedule source.
 // Keep JunkWare normalization, identity, and source precedence shared with the UI.
@@ -57,6 +58,7 @@ type JobRow = {
   completedAt: string;
   closeout: JobCloseout | null;
   closeoutObservedAt?: string;
+  closeoutDetailObservedAt?: string;
   chargeDetailsPending?: boolean;
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
@@ -64,6 +66,7 @@ type JobRow = {
   junkItems: string[];
   pickupItems?: string[];
   appointmentNotes: string[];
+  appointmentNotesObservedAt?: string;
   cancellationReason: string;
 };
 
@@ -731,12 +734,16 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     closeout: parseJobCloseout(row),
     chargeDetailsPending: String(row.closeout_refresh_pending) === 'true',
     closeoutObservedAt: String(row.closeout_verified_at || row.collection_timestamp || ''),
+    closeoutDetailObservedAt: String(row.closeout_verified_at || (!row.detail_collection_error && row.photo_observed_at) || ''),
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     photoObservedAt: junkwarePhotoAuditAvailable(row) ? String(row.photo_observed_at || row.collection_timestamp || '') : undefined,
     junkItems: junkItemKeywords(row),
     pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
+    // The collector captures notes and photos in the same detail-page read.
+    // collection_timestamp is the end of the whole batch, not this detail read.
+    appointmentNotesObservedAt: Array.isArray(row.appointment_notes) && !row.detail_collection_error ? String(row.appointment_notes_observed_at || row.photo_observed_at || '') : undefined,
     cancellationReason: cancellationReasonText(
       firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
       customerName,
@@ -1046,12 +1053,14 @@ function readJobRows(date: string): JobRow[] {
         completedAt: sourceValue(["completed_at", "closed_at", "closeout_at", "checkout_at"]) || firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
         closeout: parseJobCloseout(sourceRow),
         closeoutObservedAt: String(sourceRow.closeout_verified_at || sourceRow.collection_timestamp || ''),
+        closeoutDetailObservedAt: String(sourceRow.closeout_verified_at || (!sourceRow.detail_collection_error && sourceRow.photo_observed_at) || ''),
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         photoObservedAt: junkwarePhotoAuditAvailable(sourceRow) ? String(sourceRow.photo_observed_at || sourceRow.collection_timestamp || '') : undefined,
         junkItems: junkItemKeywords(sourceRow),
         pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
+        appointmentNotesObservedAt: Array.isArray(sourceRow.appointment_notes) && !sourceRow.detail_collection_error ? String(sourceRow.appointment_notes_observed_at || sourceRow.photo_observed_at || '') : undefined,
         cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }
@@ -1064,7 +1073,8 @@ function readJobRows(date: string): JobRow[] {
 
   const photoJobs = applyVerifiedPhotoReceipts(currentJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
   const classifiedJobs = applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0));
-  return applyVerifiedJobCancellations(applyCustomerEdits(classifiedJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)), readVerifiedJobCancellations(date)).sort((a, b) => {
+  const finalJobs = applyVerifiedJobCancellations(applyCustomerEdits(classifiedJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)), readVerifiedJobCancellations(date));
+  return applyVerifiedCloseoutPrices(date,finalJobs,readVerifiedCloseoutPriceReceipts()).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
@@ -1111,6 +1121,8 @@ function mergeFastScheduleRows(
     const freshPhotos = fresh.photoAuditAvailable && Number.isFinite(Date.parse(fresh.photoObservedAt || ''))
       && Date.parse(fresh.photoObservedAt || '') >= (Date.parse(existing.photoObservedAt || '') || 0);
 
+    const freshNotes = (Date.parse(fresh.appointmentNotesObservedAt || '') >= (Date.parse(existing.appointmentNotesObservedAt || '') || 0) || (!existing.appointmentNotesObservedAt && !fresh.appointmentNotesObservedAt && fresh.appointmentNotes.length > 0));
+
     return [{
       ...existing,
       photos: freshPhotos ? fresh.photos : existing.photos,
@@ -1119,6 +1131,7 @@ function mergeFastScheduleRows(
       chargeDetailsPending: fresh.chargeDetailsPending,
       closeout: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeout : existing.closeout,
       closeoutObservedAt: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeoutObservedAt : existing.closeoutObservedAt,
+      closeoutDetailObservedAt: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeoutDetailObservedAt : existing.closeoutDetailObservedAt,
       appointmentId: fresh.appointmentId || existing.appointmentId,
       jkNumber: present(fresh.jkNumber) ? fresh.jkNumber : existing.jkNumber,
       appointmentUrl: fresh.appointmentUrl || existing.appointmentUrl,
@@ -1148,7 +1161,8 @@ function mergeFastScheduleRows(
       paymentAmount: fresh.paymentAmount || existing.paymentAmount,
       tipAmount: fresh.tipAmount || existing.tipAmount,
       pickupItems: fresh.pickupItems?.length ? fresh.pickupItems : existing.pickupItems,
-      appointmentNotes: fresh.appointmentNotes.length ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotes: freshNotes ? fresh.appointmentNotes : existing.appointmentNotes,
+      appointmentNotesObservedAt: freshNotes ? fresh.appointmentNotesObservedAt : existing.appointmentNotesObservedAt,
       cancellationReason: fresh.cancellationReason || existing.cancellationReason,
     }];
   });

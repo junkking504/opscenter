@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
+  appointmentSourceFiles,
   buildPodiumReviewNameSuggestionMap,
   findPodiumReviewAppointment,
   inferredHighAttribution,
@@ -11,6 +12,7 @@ import {
   type PodiumReviewNameSuggestion,
   type PodiumReviewNameSuggestionInput,
 } from "@/lib/podium-review-attribution";
+import { sourceFileMemo } from "@/lib/source-file-memo";
 
 export type PodiumReviewManualAssignment = {
   reviewUid: string;
@@ -114,10 +116,17 @@ export function podiumReviewAssignmentOptions(earliestDate = ""): PodiumReviewAs
   return listPodiumReviewAssignmentOptions(podiumReviewAssignmentDataDirectory(), earliestDate);
 }
 
+// Campaign asks for suggestions on every load with the same reviews. The result
+// depends only on the review input and the appointment files, so reuse it
+// until either changes. Callers must treat the returned value as read-only.
+const nameSuggestionMemo = sourceFileMemo<Record<string, PodiumReviewNameSuggestion[]>>(10 * 60_000, 4);
+
 export function podiumReviewNameSuggestions(
   reviews: PodiumReviewNameSuggestionInput[],
 ): Record<string, PodiumReviewNameSuggestion[]> {
-  return buildPodiumReviewNameSuggestionMap(podiumReviewAssignmentDataDirectory(), reviews);
+  const dataDir = podiumReviewAssignmentDataDirectory();
+  const key = createHash("sha256").update(dataDir).update("\0").update(JSON.stringify(reviews)).digest("hex");
+  return nameSuggestionMemo(key, appointmentSourceFiles(dataDir), () => buildPodiumReviewNameSuggestionMap(dataDir, reviews));
 }
 
 // Shared by the collector, desktop and legacy assignment endpoint. Atomic rename

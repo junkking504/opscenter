@@ -408,3 +408,36 @@ checked independently of the one allowed confirmation note. Outcome changes
 are rejected when an existing source outcome is recognized. Regression coverage
 includes closed jobs, closed estimates, discounted estimates, both save phases,
 lost final responses, stale notes, changed financial values and deleted notes.
+
+### Appointment note visibility
+
+Control shows the full appointment notes above closeout, retaining source date
+and author and keeping routine schedule moves in expandable history. A verified
+note save keeps the drawer and any closeout draft mounted. The schedule reads
+verified note receipts for the exact native appointment ID while collected note
+detail is older; it never replays writes or mutates the archive. These temporary
+entries label their verification time explicitly and expire after 24 hours. A
+newer appointment-detail notes observation takes precedence (including deletion);
+fast schedule timestamps alone cannot retire the receipt. The current collector
+captures notes and photos in the same detail read, so its per-appointment
+`photo_observed_at` supplies that observation time; batch `collection_timestamp`
+and failed detail reads cannot retire a receipt. Collected matching
+note text replaces the temporary entry without duplication. Note entry uses the
+source's 500-character limit.
+
+### Saved closeout price visibility
+
+Schedule reads successful estimate closeout receipts when their exact native appointment
+ID and operating day match an existing row. A verified source read-back newer
+than that appointment’s collected closeout detail supplies charges, quote total,
+tip and existing estimate detail immediately, including historical-day corrections.
+Job revenue and collected-payment projections are unchanged.
+Zero prices and removed charges replace old values. Detail freshness uses
+`closeout_verified_at` or the successful appointment-detail `photo_observed_at`
+(the full collector reads photos and closeout together), never a schedule batch
+timestamp. Undated detail cannot prove a newer edit. Newer or equal appointment
+detail wins; canceled or differently classified rows are not changed. Failed,
+uncertain, dry-run, malformed and future-dated receipts are excluded. Receipts
+do not expire back to an older historical price; no collector archive is edited
+and no save/payment is replayed. Estimates retain quote-only presentation.
+Validation: `npm run verify:closeout-prices`.

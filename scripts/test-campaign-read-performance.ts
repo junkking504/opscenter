@@ -85,6 +85,9 @@ async function main() {
   assert.deepEqual(podiumReviewNameSuggestions(input).r0.map(candidate => candidate.appointmentId).sort(), ["A-2026-10-10", "A-2026-10-11"]);
   write("processed/daily_metrics_2026-10-12.json", metrics("2026-10-12", 300));
   assert.deepEqual(podiumReviewNameSuggestions(input).r0.map(candidate => candidate.appointmentId).sort(), ["A-2026-10-10", "A-2026-10-11", "A-2026-10-12"]);
+  // A reused suggestion result is the same as computing it from scratch.
+  const { buildPodiumReviewNameSuggestionMap } = await import("../lib/podium-review-attribution");
+  assert.deepEqual(podiumReviewNameSuggestions(input), buildPodiumReviewNameSuggestionMap(data, input));
 
   write("history/podium-google-reviews/podium-google-reviews_2026-10-15.json", reviews("2026-10-15T09:00:00.000Z", 1));
   assert.equal(buildPodiumGoogleReviewsView().locations[0].reviewCountChange, 2);

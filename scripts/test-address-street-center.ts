@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {readAddressMapFallback} from '../lib/address-map-fallback';
+import {readAddressEvidenceFallback as readAddressMapFallback} from '../lib/address-map-fallback';
 import {geocodioAddressQuery,verifyGeocodioAddress} from '../lib/geocodio-service-address';
 import {normalizeServiceAddress} from '../lib/service-address-format';
 import {appointmentVisitPin} from '../lib/appointment-visit-pin';

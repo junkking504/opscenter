@@ -4,7 +4,7 @@ import {reconcileAppointmentPositions} from '../lib/appointment-position-trackin
 import {appointmentVisitAlerts} from '../lib/appointment-visit-alerts';
 import {scheduleVisitState} from '../lib/desktop-schedule-visits';
 
-const date='2026-09-15',now=Date.parse('2026-09-15T16:10:00Z');
+const date='2026-09-15',now=Date.parse('2026-09-15T16:15:00Z');
 const location={latitude:30,longitude:-90};
 const job={appointmentId:'100',jkNumber:'JK100',truck:'Truck 9',location,customerName:'Example',address:'Verified example',territory:'New Orleans'};
 const source={appointment_id:'100',jk_number:'JK100',truck_number:'4',match_confidence:'confirmed',visit_count:1,first_arrival:'2026-09-15T16:00:00Z',visit_intervals:[{arrival:'2026-09-15T16:00:00Z',source_timestamps:['2026-09-15T16:05:00Z']}]};
@@ -47,14 +47,14 @@ assert.equal(schedule.onsiteTime.departure,null);
 assert.equal(schedule.onsiteTime.minutes,null);
 assert.match(schedule.onsiteTime.label,/exact time unavailable/);
 console.log('PASS appointment position tracking: confirmed identity, corroborated coordinates, bounds, noisy samples, unchanged source, Command/Schedule consistency');
-const nextSource={...source,visit_intervals:[{arrival:'2026-09-15T16:06:00Z',departure:'2026-09-15T16:08:00Z'}]};
+const nextSource={...source,visit_intervals:[{arrival:'2026-09-15T16:06:00Z',departure:'2026-09-15T16:11:00Z'}]};
 const segments=trackAppointmentVisits(date,[source,nextSource],now);
 const reconciled=reconcileAppointmentPositions(segments,[job],[truck],now);
 assert.equal(reconciled[0].departedAt,null,'positions in the next recorded segment cannot close the earlier segment');
 assert.equal(reconciled[0].supersededAt,'2026-09-15T16:06:00.000Z');
-assert.equal(reconciled[1].departedAt,'2026-09-15T16:08:00.000Z');
+assert.equal(reconciled[1].departedAt,'2026-09-15T16:11:00.000Z');
 const segmentAlert=appointmentVisitAlerts([], [source,nextSource], [job],date,now,reconciled).find(alert=>alert.id===reconciled[0].id)!;
 assert.equal(segmentAlert.label,'Visit segment');
 assert.match(segmentAlert.facts.find(f=>f.label==='Departed')!.value,/Earlier GPS segment; departure time unavailable/);
 const instant=trackAppointmentVisits(date,[{...source,visit_intervals:[{arrival:'2026-09-15T16:00:00Z',departure:'2026-09-15T16:00:00Z',departure_confirmed:true}]}],now)[0];
-assert.equal(instant.departureSource,'confirmed_appointment','zero-duration source-confirmed visit must not become a false open arrival');
+assert.equal(instant,undefined,'Zero-duration proximity cannot become a visit');

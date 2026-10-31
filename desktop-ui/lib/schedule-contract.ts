@@ -71,6 +71,7 @@ export type ScheduleAppointment = {
   appointmentType: string;
   status: string;
   hasVisit?: boolean;
+  visitEvidencePending?: boolean;
   hasDepartedVisit?: boolean;
   lastSeenOnsiteTruck?: string;
   lastSeenOnsiteAt?: string;
@@ -173,7 +174,7 @@ export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentTyp
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   if (job.truckOnSite) return 'On Site';
-  if (job.truckAtJob) return 'At Job';
+  if (job.truckAtJob) return 'At job · parked GPS';
   if (job.lastSeenOnsiteTruck) return 'Last reported on site';
   if (job.hasDepartedVisit) return 'Visited · Closeout Pending';
   if (job.hasVisit) return 'Departure unconfirmed';
@@ -196,7 +197,7 @@ export function scheduleDisplayLocator(job: ScheduleAppointment) {
   if (point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
       && Math.abs(point.latitude)<=90 && Math.abs(point.longitude)<=180 && (point.latitude!==0 || point.longitude!==0))
     return {location:point, kind:job.location ? 'verified' as const : 'approximate' as const,
-      label:job.location ? 'Verified location' : 'Approximate location', detail:job.mapFallback?.detail || ''};
+      label:job.location ? 'Verified location' : job.mapFallback?.zipArea ? 'ZIP-area estimate' : 'Approximate location', detail:job.mapFallback?.detail || ''};
   const region=appointmentRegion({...job,address:job.address || '',territory:job.territory || ''}), center=territoryMapCenters[region.code];
   const nextStep=propertyNameSearch(job.address || '') ? 'Search the property name to review possible matches; the source identifier and entrance remain unverified.' : 'Address lookup continues automatically.';
   return {location:{latitude:center?.[0] ?? 30.14,longitude:center?.[1] ?? -90.5},kind:'area' as const,
@@ -278,6 +279,13 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
     return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
       intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], gaps: [], label: 'Planned · booked window' };
   }
+  const day = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(now);
+  const local = new Intl.DateTimeFormat('en-GB',{timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now).split(':').map(Number);
+  const futureBooking = /^\d{4}-\d{2}-\d{2}:/.test(job.recordId) && (job.recordId.slice(0,10)>day || job.recordId.slice(0,10)===day && job.appointmentStartMinutes!==null && job.appointmentStartMinutes>local[0]*60+local[1]);
+  if (!/complete|closed/i.test(job.status) && futureBooking && !job.truckOnSite && truckLabel(truck)===truckLabel(job.truck || '') && job.hasScheduledTime && job.appointmentStartMinutes!==null && job.appointmentEndMinutes!==null) {
+    return {actual:false,start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,
+      intervals:[{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}],gaps:[],label:'Planned · booked window'};
+  }
   if (job.truckVisits?.length) {
     const day = job.recordId.slice(0,10);
     const local = (value: string) => {
@@ -308,7 +316,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
     return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,gaps,
       label:`${minutes===0?'GPS visit · duration unavailable':`${minutes<1?'<1':Math.round(minutes)} min on site`}${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
   }
-  if (job.likelyStop && truckLabel(job.likelyStop.truck) === truckLabel(truck)) {
+  if (job.likelyStop && truckLabel(job.likelyStop.truck) === truckLabel(truck) && (/complete|closed/i.test(job.status) || job.likelyStop.departure && Date.parse(job.likelyStop.departure)-Date.parse(job.likelyStop.arrival)>=5*60_000)) {
     // Suggested, unconfirmed GPS stop: sized by the recorded stop, flagged for review.
     const day = job.recordId.slice(0,10), stamp = (value: string) => {
       const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(Date.parse(value)).map(p=>[p.type,p.value]));

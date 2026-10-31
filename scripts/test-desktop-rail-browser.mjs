@@ -60,30 +60,39 @@ await page.waitForFunction(()=>new URL(location.href).searchParams.get('schedule
 await page.getByRole('tab',{name:'Calendar',exact:true}).click();
 await page.locator('.ops-sidebar').getByRole('link',{name:'Command',exact:true}).press('Enter');
 await page.waitForFunction(()=>new URL(location.href).searchParams.get('scheduleView')==='board');
-// Capital combines its summary and trends while old trend links remain usable.
+// Finance has seven destinations; Overview and Trends have distinct content.
 await page.goto(`${fixture}?workspace=Finance&financeView=overview`);
-await page.waitForSelector('#capital-trends .finance-performance');
-assert.equal(await page.locator('.capital-hub').count(),1);
-assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).count(),0);
-assert.equal(await page.locator('.page-rail').getByRole('link',{name:'Trends',exact:true}).count(),0);
-assert.equal(await page.locator('.page-rail').getByRole('link',{name:'Reconciliation',exact:true}).count(),0);
-await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).selectOption('ytd');
-assert.equal(await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).inputValue(),'ytd');
+await page.waitForSelector('.capital-hub');
+const financePages=['Overview','Trends','Payments','Expenses','Accounting','Resale','Recycling'];
+assert.deepEqual(await page.locator('.workspace-heading').getByRole('tab').allTextContents(),financePages);
+assert.deepEqual(await page.locator('#sidebar-pages-Finance').getByRole('link').allTextContents(),financePages);
+assert.equal(await page.locator('#capital-trends').count(),0);
+assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
+assert.equal(await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Overview',exact:true}).getAttribute('aria-current'),'page');
 await page.locator('.capital-metric-primary').click();
 await page.waitForFunction(()=>new URL(location.href).searchParams.get('financeView')==='trends');
-await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
-assert.equal(await page.locator('.capital-hub').count(),1);
+await page.waitForSelector('#capital-trends .finance-performance');
+assert.equal(await page.locator('.capital-hub').count(),0);
+assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).getAttribute('aria-selected'),'true');
+assert.equal(await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Trends',exact:true}).getAttribute('aria-current'),'page');
+await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).selectOption('ytd');
+assert.equal(await page.locator('#capital-trends').getByRole('combobox',{name:/^Period/}).inputValue(),'ytd');
+// Direct links select the same standalone destination without relying on a tile click.
 await page.goto(`${fixture}?workspace=Finance&financeView=trends`);
 await page.waitForSelector('#capital-trends .finance-performance');
-assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
+assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'false');
+assert.equal(await page.getByRole('tab',{name:'Trends',exact:true}).getAttribute('aria-selected'),'true');
 assert.equal(await page.locator('.workspace-rail-link.active').innerText(),'Finance');
-assert.equal(await page.locator('.capital-hub').count(),1);
-await page.waitForFunction(()=>Math.abs(document.getElementById('capital-trends').getBoundingClientRect().top)<3);
-console.log('Capital Overview contains trends; controls and legacy links work.');
+assert.equal(await page.locator('.capital-hub').count(),0);
+await page.locator('#sidebar-pages-Finance').getByRole('link',{name:'Overview',exact:true}).click();
+await page.waitForSelector('.capital-hub');
+assert.equal(await page.locator('#capital-trends').count(),0);
+assert.equal(await page.getByRole('tab',{name:'Overview',exact:true}).getAttribute('aria-selected'),'true');
+console.log('Finance seven-page navigation, distinct Overview/Trends, trend controls and direct links passed.');
 
 await page.locator('.ops-sidebar').getByRole('link',{name:'Settings',exact:true}).click();
 await page.getByRole('heading',{name:'My Preferences',exact:true}).waitFor();
-await page.getByText('Notification settings unavailable.',{exact:false}).waitFor();
+await page.getByText('Notification status unavailable.',{exact:false}).waitFor();
 assert.equal(await page.locator('.notification-panel .push-settings').count(),0);
 // A pending notification status operation blocks workspace navigation.
 await page.evaluate(()=>{const original=window.fetch;window.fetch=async(...args)=>{if(String(args[0]).includes('/api/push/devices'))await new Promise(resolve=>window.finishSettingsRead=resolve);return original(...args);};});

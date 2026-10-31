@@ -1,10 +1,11 @@
+import {qualifiedAppointmentVisits} from './appointment-visit-qualification';
 type VisitRecord = { onsite_minutes?: number; appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null; departure_confirmed?: boolean}> };
 
 export type AppointmentOnsiteTime = { minutes: number | null; arrival: string | null; departure: string | null; label: string; truck?: string; intervals?: Array<{ arrival: string; departure: string }> };
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
-export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: string; truck?: string }, visits: VisitRecord[], now = Date.now(), allowTruckMismatch = false): AppointmentOnsiteTime {
+export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: string; truck?: string; status?: string }, visits: VisitRecord[], now = Date.now(), allowTruckMismatch = false): AppointmentOnsiteTime {
   const unavailable = { minutes: null, arrival: null, departure: null, label: 'Unavailable · no confirmed visit' };
-  const byReference = visits.filter(row => job.appointmentId
+  const byReference = qualifiedAppointmentVisits(visits, job.status, now).filter(row => job.appointmentId
     ? String(row.appointment_id || row.appt_id || '') === job.appointmentId
     : job.jkNumber && String(row.jk_number || row.job_id || '').toUpperCase() === job.jkNumber.toUpperCase());
   if (!job.appointmentId && new Set(byReference.map(row=>String(row.appointment_id || row.appt_id || ''))).size !== 1) return unavailable;
@@ -58,4 +59,18 @@ export function completedOnsiteClockRange(time: AppointmentOnsiteTime | undefine
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
   const format = new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'});
   return `Started ${format.format(start)} · Finished ${format.format(end)}`;
+}
+
+/** Display/completion evidence must not prefer an assigned short pass over a
+ * qualified visit by another truck. Operational assignment stays unchanged. */
+export function recordedAppointmentOnsiteTime(job: Parameters<typeof appointmentOnsiteTime>[0], visits: VisitRecord[], now=Date.now()): AppointmentOnsiteTime {
+  if (/complete|closed/i.test(job.status || '')) {
+    const qualified = qualifiedAppointmentVisits(visits,'',now).filter(row=>row.match_confidence==='confirmed' && !row.pass_by_only
+      && (job.appointmentId ? String(row.appointment_id || row.appt_id || '')===job.appointmentId
+        : job.jkNumber && String(row.jk_number || row.job_id || '').toUpperCase()===job.jkNumber.toUpperCase()));
+    if (qualified.length) return appointmentOnsiteTime({...job,truck:''},qualified,now,true);
+    // Source completion alone cannot assign a different truck's short pass.
+    return appointmentOnsiteTime(job,truckKey(job.truck)?visits:[],now);
+  }
+  return appointmentOnsiteTime(job,visits,now,true);
 }

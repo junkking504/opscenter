@@ -1,3 +1,4 @@
+import { SectionLayout } from './section-layout';
 import { ConvoyGauge } from './convoy-gauges';
 import { serviceGauge } from './lib/convoy-gauges';
 import { useState } from "react";
@@ -124,7 +125,7 @@ export function ConvoyService({
           </div>
         )}
       </aside>
-      <div className="convoy-journal">
+      <SectionLayout as="div" group="convoy-service-convoy-journal" className="convoy-journal">
         <header className="convoy-journal-header">
           <div>
             <h2>{selected ? `${label(selected.label)} maintenance` : "Fleet maintenance"}</h2>
@@ -225,7 +226,7 @@ export function ConvoyService({
             </Button>
           )}
         </div>
-        <div className="convoy-library-results">
+        <div data-layout-id="convoy-journal-panel-2" className="convoy-library-results">
           <span role="status">
             {tab === "plan"
               ? `${plans.length} service ${plans.length === 1 ? "target" : "targets"} · ${optional ? "All categories" : "Tracked maintenance"}`
@@ -235,7 +236,7 @@ export function ConvoyService({
             <button onClick={reset}>Clear filters</button>
           )}
         </div>
-        {tab === "plan" ? (
+        <div data-layout-id="service-records" data-layout-label="Service records">{tab === "plan" ? (
           <>
             {plans.map(({ truck, plan: p }, index) => (
               <div key={`${truck.id}:${p.serviceType}`}>
@@ -503,8 +504,8 @@ export function ConvoyService({
               original invoices are in Records & invoices.
             </footer>
           </>
-        )}
-      </div>
+        )}</div>
+      </SectionLayout>
     </section>
   );
 }

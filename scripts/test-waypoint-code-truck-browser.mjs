@@ -25,8 +25,8 @@ try{
    if(url.pathname==='/api/crew-jobs/session'){
     if(r.method()==='GET')return route.fulfill({json:{choices:[{id:'fixture',label:'Fictional phone'}]}});
     const b=r.postDataJSON();assert.equal(b.action,'request-code');sends.push(b);
-    if(mode==='cancelled')return route.fulfill({status:409,json:{error:'This setup code was cancelled. Request a new code or contact your manager.'}});
-    return route.fulfill({json:{message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status.'}});
+    if(mode==='cancelled')return route.fulfill({status:409,json:{error:'This setup code was cancelled. Request a new code or contact your manager.',canRequestNewCode:true}});
+    return route.fulfill({json:{message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status.',canRequestNewCode:false}});
    }
    if(url.pathname==='/api/crew-jobs/switch-truck'){
     const b=r.method()==='POST'?r.postDataJSON():null;switchCalls.push({query:url.search,body:b});
@@ -43,13 +43,11 @@ try{
   const inputBox=await page.getByLabel('Verification code').boundingBox(),buttonBox=await newCode.boundingBox(),steps=await page.getByRole('list',{name:'Start your day'}).boundingBox();
   assert.ok(buttonBox.y>inputBox.y && buttonBox.y<steps.y,'New-code action directly follows code entry, before setup steps');assert.ok(buttonBox.height>=44);
   await page.getByRole('button',{name:'Check send status',exact:true}).click();await expect(page.getByRole('alert')).toContainText('cancelled');
-  await newCode.click();await expect(page.getByRole('alert')).toContainText('Try again in 8 minutes');assert.equal(sends.length,1,'Local cooldown never sends');
-  await page.reload();await page.getByRole('button',{name:'Check send status',exact:true}).click();assert.equal(sends[1].requestId,'saved-fixture','Reload rechecks original send');
+  await newCode.click();await expect(page.getByRole('button',{name:'Send setup code',exact:true})).toBeVisible();assert.equal(sends.length,1,'Immediate replacement preparation never sends automatically');
+  mode='uncertain';await page.getByRole('button',{name:'Send setup code',exact:true}).evaluate(button=>{const form=button.closest('form');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));});assert.notEqual(sends[1].requestId,'saved-fixture');await expect(page.getByRole('status')).toContainText('not yet confirmed');
+  await newCode.click();await expect(page.getByRole('alert')).toContainText('Check send status first');assert.equal(sends.length,2);
+  await page.reload();await page.getByRole('button',{name:'Check send status',exact:true}).click();assert.equal(sends[2].requestId,sends[1].requestId,'Reload retains uncertain request identity');
   if(process.env.WAYPOINT_CODE_TRUCK_SCREENSHOTS){fs.mkdirSync(process.env.WAYPOINT_CODE_TRUCK_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.WAYPOINT_CODE_TRUCK_SCREENSHOTS,`code-${width}.png`),fullPage:true});}
-  await page.evaluate(()=>{const v=JSON.parse(localStorage.getItem('waypoint-setup-request-v1'));v.createdAt=Date.now()-11*60000;localStorage.setItem('waypoint-setup-request-v1',JSON.stringify(v));});
-  await page.reload();await newCode.click();await expect(page.getByRole('button',{name:'Send setup code',exact:true})).toBeVisible();assert.equal(sends.length,2,'Preparing a fresh request never sends automatically');
-  mode='uncertain';await page.getByRole('button',{name:'Send setup code',exact:true}).click();assert.notEqual(sends[2].requestId,'saved-fixture');await expect(page.getByRole('status')).toContainText('not yet confirmed');
-  await page.getByRole('button',{name:'Check send status',exact:true}).click();assert.equal(sends[3].requestId,sends[2].requestId,'Uncertain send retains same id');
   await page.evaluate(()=>localStorage.removeItem('waypoint-setup-request-v1'));await page.reload();await page.getByRole('button',{name:'Already have a code?'}).click();await expect(newCode).toBeVisible();await newCode.click();await expect(page.getByRole('combobox',{name:'Phone',exact:true})).toBeVisible();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));cases++;
 
@@ -64,5 +62,5 @@ try{
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));cases++;
   await context.close();
  }
- console.log('PASS '+cases+' API-mocked browser scenarios at 320/390/1280px: prominent recovery, cancellation/cooldown, reload/uncertain idempotency, manual entry, preview error and lost-confirmation recovery. No live requests.');
+ console.log('PASS '+cases+' API-mocked browser scenarios at 320/390/1280px: prominent recovery, immediate cancelled replacement, reload/uncertain idempotency, manual entry, preview error and lost-confirmation recovery. No live requests.');
 }finally{await browser.close();}

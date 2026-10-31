@@ -1,3 +1,4 @@
+import {truckSwitchStatus} from './crew-truck-switch-status';
 import {verifyCustomerCorrection,type CustomerSource,type CustomerFields} from './crew-customer-contract';
 
 import {parseCustomerChange,customerMatches,customerNotesMatch} from './customer-edit-contract';
@@ -38,7 +39,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   if (JSON.stringify(values).length > (['closeout','customer'].includes(action)?64_000:10_000)) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
   if (action === 'call_ahead' && typeof values.called !== 'boolean') throw new Error('A call-ahead status is required.');
-  if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');
+  if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 500)) throw new Error('A note of 1 to 500 characters is required.');
   if (action === 'cancel' && (typeof values.reason !== 'string' || !values.reason.trim() || values.reason.length > 500)) throw new Error('A cancellation reason of 1 to 500 characters is required.');
   if (['closeout','classify'].includes(action) && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceVersion || ''))) throw new Error('A current JunkWare closeout source version is required.');
   if (values.assignCrew !== undefined && (action !== 'move' || typeof values.assignCrew !== 'boolean')) throw new Error('A valid crew assignment action is required.');
@@ -344,7 +345,7 @@ export async function reconcileTruckSwitchMove(id:string,actor:string,readSource
   const receipt=await readScheduleReceipt(id);
   if(!receipt || receipt.actor!==actor || receipt.action!=='move' || receipt.recordId!==`${handoff.date}:appointment:${intent.appointmentId}`)return null;
   const source=await readSource(intent.appointmentId);
-  if(source.truck!==handoff.to || source.date!==handoff.date || !/^confirmed$/i.test(source.status || '') || source.appointmentStartMinutes!==intent.start || source.appointmentEndMinutes!==intent.end)return null;
+  if(source.truck!==handoff.to || source.date!==handoff.date || truckSwitchStatus(source.status)!=='confirmed' || source.appointmentStartMinutes!==intent.start || source.appointmentEndMinutes!==intent.end)return null;
   const current=readJobRouteAssignmentOverrides(handoff.date).get(`appt:${intent.appointmentId}`);
   if(current && current.truck!==handoff.to && current.truck!==handoff.from)return null;
   const assignment=saveJobRouteAssignment({date:handoff.date,jobKey:`appt:${intent.appointmentId}`,appointmentId:intent.appointmentId,truck:handoff.to,appointmentStartMinutes:intent.start,appointmentEndMinutes:intent.end,junkwareSyncStatus:'verified',junkwareVerifiedAt:source.verifiedAt,...(current?{expectedUpdatedAt:current.updatedAt}:{})});

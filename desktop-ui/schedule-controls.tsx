@@ -30,7 +30,7 @@ export default function ScheduleControls({
   date: string;
   trucks: string[];
   onMove: (move: MoveProposal) => void;
-  saved: () => void;
+  saved: (action?: string) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [truck, setTruck] = useState(scheduleDisplayTruck(job));
@@ -67,7 +67,7 @@ export default function ScheduleControls({
       if (result.status === "verified") {
         if (action === "note") setNote("");
         setConfirmCancel(false);
-        saved();
+        saved(action);
       }
     } catch (failure) {
       setReceipt({
@@ -91,12 +91,12 @@ export default function ScheduleControls({
       <div hidden={mode === "cancel"}>
       <div className="drawer-control-heading">
         <strong>Add Appointment Note</strong>
-        <small>Notes are saved to this appointment in JunkWare.</small>
+        <small>Notes are saved to this appointment in JunkWare. Up to 500 characters.</small>
       </div>
       <div className="drawer-note-row">
         <label className="drawer-cancel-field">
           <span>Add Appointment Note</span>
-          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} disabled={blocked} />
+          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={500} disabled={blocked} />
         </label>
         <Button label="Save Note in JunkWare" className="drawer-cancel-action" variant="secondary" isDisabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }} />
       </div>
@@ -229,7 +229,7 @@ export default function ScheduleControls({
             void checkScheduleChange(receipt.requestId)
               .then((value) => {
                 setReceipt(value);
-                if (value.status === "verified") saved();
+                if (value.status === "verified") { if (value.action === "note") setNote(""); saved(value.action); }
               })
               .catch((failure) => setError(failure.message));
           }}

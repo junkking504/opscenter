@@ -21,6 +21,9 @@ try {
   fs.unlinkSync(path.join(control,'active.json'));
   fs.writeFileSync(path.join(control,'2026-09-09.json'),JSON.stringify({state:'failed',finishedAt:Date.now()}));
   assert.equal(requestScheduleDay('2026-09-09',null,false).state,'failed');
+  fs.writeFileSync(path.join(control,'2026-09-09.json'),JSON.stringify({state:'ready',finishedAt:Date.now()}));
+  assert.equal(requestScheduleDay('2026-09-09',null,false,true,false).state,'failed','A completed review collection with stale/missing data must not relaunch');
+  assert.equal(fs.existsSync(path.join(control,'active.json')),false,'Polling cannot start another collection');
   const history=path.join(directory,'history','junkware');fs.mkdirSync(history,{recursive:true});
   const file=path.join(history,'junkware_schedule_requested_2026-09-09.json');
   const payload={date:'2026-09-09',scraped_at:new Date(now).toISOString(),appointments:[],cancelled:[],markets_scraped:['Junk King New Orleans','Junk King Northshore','Junk King Baton Rouge','Junk King Jefferson Parish']};

@@ -382,10 +382,9 @@ export function scheduleTimelineBlockMovable(job: ScheduleAppointment, actual: b
   return (!actual || /complete|closed/i.test(job.status)) && !scheduleMoveRestriction(job) && !busy;
 }
 export function displayedOnsiteTime(job: Pick<ScheduleAppointment,'onsiteTime'|'recordedOnsiteTime'>) {
-  const assigned = job.onsiteTime;
-  if (assigned?.minutes !== null && assigned?.minutes !== undefined && assigned.arrival && assigned.departure) return assigned;
-  const recorded = job.recordedOnsiteTime;
-  return recorded?.minutes !== null && recorded?.minutes !== undefined && recorded.arrival && recorded.departure ? recorded : assigned || recorded;
+  // The server resolves physical-visit precedence and ambiguity for display.
+  // Assignment-scoped timing remains separate for operational closeout inputs.
+  return job.recordedOnsiteTime ?? job.onsiteTime;
 }
 export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>, truck?: string, now = Date.now()) {
   const window = timelineWindow(job, truck, now);

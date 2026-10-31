@@ -121,3 +121,16 @@ attributed receipts. An uncertain result blocks replay until receipt recovery;
 unreadable flag state fails closed instead of silently resetting flags.
 The runtime `data` link preserves flags across releases. No provider calls or
 background requests are added. Validate with `npm run verify:campaign-flags`.
+
+## Marketing labels and shared search spend
+
+Marketing uses Leads, Reviews and Results. Results and Finance Trends label
+SearchKings paid media cost as Google Ads Spend, with source “via SearchKings”.
+Account rows distinguish Local Services and Google Ads. The `adwords` account
+named `Junk King New Orleans (SK)` is displayed as Search Ads (All Markets).
+Its coverage is unconfirmed: retain its cost in total spend, but exclude it
+from individual territory spend and return calculations. This is a reporting
+classification; collectors, stored account data and matching stay unchanged.
+Review “Check These” derives weak auto-matches from existing email-handle
+match evidence. Strong/Weak describes the evidence for an existing match,
+without changing attribution or giving a suggestion crew credit.

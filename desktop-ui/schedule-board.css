@@ -107,7 +107,6 @@
 .ops-live .live-schedule.schedule-dispatch .live-map-territories button { min-height: 22px; padding: 2px 5px; font-size: var(--oc-type-9); }
 @media (max-width: 900px) {
   .ops-live:has(.schedule-dispatch) .topbar { min-height: 40px; height: 40px; padding: 4px 8px; }
-  .ops-live:has(.schedule-dispatch) .topbar-actions { display: none; }
   .ops-live:has(.schedule-dispatch) .workspace { padding: 8px; }
   .ops-live:has(.schedule-dispatch) .workspace-heading { gap: 3px; margin-bottom: 6px; }
   .ops-live:has(.schedule-dispatch) .workspace-heading h1 { font-size: var(--oc-type-20); margin: 0; }

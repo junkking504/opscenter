@@ -10,7 +10,7 @@ export function scheduleDayNeedsCollection(date:string, observedAt:string|null, 
   if (date < chicagoDateKey(new Date(now))) return false;
   return !observedAt || !Number.isFinite(Date.parse(observedAt)) || now-Date.parse(observedAt)>300_000;
 }
-export function requestScheduleDay(date:string, observedAt:string|null, hasRows:boolean, force=false):ScheduleSourceRequest {
+export function requestScheduleDay(date:string, observedAt:string|null, hasRows:boolean, force=false, allowStart=true):ScheduleSourceRequest {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(`${date}T12:00:00Z`).toISOString().slice(0,10)!==date) throw new Error('A valid operating date is required.');
   const ready:ScheduleSourceRequest={state:'ready',message:''};
   const dataDir=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '','.openclaw','workspace','opsbot','data');
@@ -20,6 +20,9 @@ export function requestScheduleDay(date:string, observedAt:string|null, hasRows:
   const read=(file:string)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}};
   const previous=read(statePath),active=read(lockPath);
   if(active?.date===date && now-active.startedAt<210_000) return {state:'loading',message:`Loading ${date} from JunkWare…`};
+  // A booking review that already started/shared a collection only observes it.
+  // Completion without usable fresh evidence is terminal for that attempt.
+  if(!allowStart)return {state:'failed',message:'The date check finished without usable fresh schedule data.'};
   if(!force && !scheduleDayNeedsCollection(date,observedAt,hasRows,now))return ready;
   if(active && now-active.startedAt<210_000) return {state:'queued',message:`Waiting to load ${date} from JunkWare…`};
   if(previous?.state==='failed' && now-previous.finishedAt<60_000)return {state:'failed',message:'JunkWare could not verify this date. Available records are retained; retry shortly.'};

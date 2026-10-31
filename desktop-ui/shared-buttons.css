@@ -1,0 +1,17 @@
+/* One size authority; content can grow for wrapped labels and enlarged text. */
+[data-slot="button"],
+.ops-live button[data-slot="button"][data-variant][data-size],
+.ops-app.ops-live .ops-content button[data-slot="button"] {
+  min-height: var(--oc-control-height);
+  height: auto;
+  padding-block: 4px;
+  line-height: 1.25;
+  white-space: normal;
+}
+[data-slot="button"][data-size^="icon"],
+.ops-live button[data-slot="button"][data-variant][data-size^="icon"],
+.ops-app.ops-live .ops-content button[data-slot="button"][data-size^="icon"] {
+  width: var(--oc-control-height);
+  min-width: var(--oc-control-height);
+  padding: 4px;
+}

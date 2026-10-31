@@ -121,3 +121,10 @@
 .campaign-match-suggestions { list-style: none; padding: 0; margin: 12px 0; max-height: 240px; overflow-y: auto; }
 .campaign-match-suggestions li { border-bottom: 1px solid var(--oc-border-neutral-04); padding: 10px 0; }
 .campaign-match-suggestions p { margin: 0 0 8px; }
+
+.campaign-workspace .campaign-purpose { color: var(--campaign-muted); margin: 0 0 12px; font-size: var(--oc-type-13); line-height: 1.5; }
+
+.campaign-account-list { display: grid; gap: 12px; margin-top: 16px; }
+.campaign-account-list article { display: flex; justify-content: space-between; gap: 16px; border-top: 1px solid var(--campaign-line); padding-top: 12px; }
+.campaign-account-list article div { min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.campaign-account-list small { color: var(--campaign-muted); }

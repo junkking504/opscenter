@@ -34,7 +34,7 @@ export function browseReviews(reviews: Review[], filters: ReviewFilters, request
     return !query || [review.customer, review.excerpt, review.location, review.attribution?.jkNumber,
       review.attribution?.appointmentId, ...recordedReviewCrew(review)].join(' ').toLocaleLowerCase().includes(query);
   }).sort((a, b) => {
-    const weakFirst = filters.queue === 'check' ? Number(reviewMatchStrength(b) === 'Weak') - Number(reviewMatchStrength(a) === 'Weak') : 0;
+    const weakFirst = Number(reviewMatchStrength(b) === 'Weak') - Number(reviewMatchStrength(a) === 'Weak');
     if (weakFirst) return weakFirst;
     const delta = (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0);
     return (filters.order === 'oldest' ? -delta : delta) || a.id.localeCompare(b.id);

@@ -56,5 +56,12 @@ import {clusterByScreenDistance} from '../lib/waypoint-map';
  assert.deepEqual(clusterByScreenDistance([],40),[]);
  assert.deepEqual(clusterByScreenDistance([{x:0,y:0,item:'p'},{x:39,y:0,item:'q'},{x:41,y:0,item:'r'}],40),[['p','q','r']],'A point close to any member joins the group, not only the first member');
  assert.deepEqual(clusterByScreenDistance([{x:0,y:0,item:'a'},{x:60,y:0,item:'b'},{x:30,y:0,item:'c'}],40),[['a','b','c']],'A point that bridges two groups merges them, so no two markers are left overlapping');
+
+ {
+  const ring=Array.from({length:8},(_,k)=>({x:45*Math.cos(k*Math.PI/4),y:45*Math.sin(k*Math.PI/4),item:'r'+k}));
+  const out=clusterByScreenDistance([...ring,{x:0,y:0,item:'center'}],40);
+  const centers=out.map(group=>{const members=group.map(item=>item==='center'?{x:0,y:0}:ring[Number(item.slice(1))]);return {x:members.reduce((s,m)=>s+m.x,0)/members.length,y:members.reduce((s,m)=>s+m.y,0)/members.length};});
+  for(let i=0;i<centers.length;i++)for(let j=i+1;j<centers.length;j++)assert.ok(Math.hypot(centers[i].x-centers[j].x,centers[i].y-centers[j].y)>=40,'No two rendered group markers may sit closer than the gap');
+ }
  console.log('PASS Waypoint pin grouping: nearby pins share a count marker, distant pins stay separate, order is stable.');
 }

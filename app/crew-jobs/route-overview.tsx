@@ -25,9 +25,10 @@ export default function RouteOverview({jobs,truck,date,allTrucks,onSelect,pendin
   <div className={styles.heading}><div><p className={styles.eyebrow}>{dateLabel}</p><h1>{view==='completed'?'Completed Appointments':'Today’s Route'}</h1><p>{truckDisplayText(selected)}</p></div></div>
   {allTrucks && <label className={styles.truckSelect}>View truck<select value={truckDisplayText(selected)} onChange={e=>setChosen(e.target.value)}>{[...new Set([truckDisplayText(truck),...trucks])].map(value=><option key={value}>{value}</option>)}</select></label>}
   {view==='completed'?<>{completed.length?<div>{completed.map(job=><article key={job.appointmentId}><button className={styles.otherJob} onClick={()=>onSelect(job.appointmentId)}><span>{job.customerName}<small>{job.appointmentTime} · Completed</small></span><RouteIcon name="chevron"/></button><AppointmentContacts address={job.address} phone={job.phone}/></article>)}</div>:<p>No completed appointments for this truck today.</p>}</>:<>
+  {stops.length===0&&<p className={styles.emptyRoute} role="status"><strong>No Remaining Appointments</strong>Nothing left on this truck’s route today.</p>}
   <AppointmentMap appointments={mapAppointments} onSelect={onSelect}/>
-  <div className={styles.sectionHeading}><h2>Route Order</h2></div>
-  {stops.length===0?<p>No remaining appointments for this truck.</p>:<ol className={styles.stops}>{stops.map((stop,index)=><li key={stop.job.appointmentId}>
+  {stops.length>0&&<div className={styles.sectionHeading}><h2>Route Order</h2></div>}
+  {stops.length>0&&<ol className={styles.stops}>{stops.map((stop,index)=><li key={stop.job.appointmentId}>
    <button className={`${styles.stop} ${index===0?styles.next:''}`} onClick={()=>onSelect(stop.job.appointmentId)} aria-label={`Stop ${stop.number}: ${stop.job.customerName}, view appointment`}>
     <span className={styles.number}>{stop.number}</span><span className={styles.stopBody}><strong>{stop.job.customerName}</strong><span className={styles.fact}><RouteIcon name="clock"/>{stop.job.appointmentTime}</span>{stop.job.mapLocation?.approximate&&<small>Approximate map location</small>}{stop.job.readOnly&&<small>View only · Assigned to another truck</small>}{stop.job.assignmentId===pendingId&&<small>Checkout verification pending</small>}</span><RouteIcon name="chevron"/>
    </button>

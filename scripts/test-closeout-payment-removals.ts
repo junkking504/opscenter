@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { closeoutSourceVersion, requestedPaymentRemovals, stableCloseoutPaymentRows, verifyCloseoutPayments } from '../lib/desktop-closeout-contract';
+const raw=[{description:'Cash',amount:'100.00',removable:true},{description:'Cash',amount:'100.00',removable:true},{description:'Credit Card, ***1234',amount:'200.00',removable:false}];
+const payments=stableCloseoutPaymentRows(raw);
+const before={payments,paymentMethods:[{value:'2',label:'Cash'},{value:'3',label:'Credit Card'},{value:'4',label:'Check'}]};
+const id=String(payments[0].id),second=String(payments[1].id);
+assert.notEqual(id,second);
+assert.deepEqual(stableCloseoutPaymentRows(raw),payments);
+assert.equal(closeoutSourceVersion({payments:raw.map(({description,amount})=>({description,amount}))}),closeoutSourceVersion({payments}),'New control metadata must preserve legacy receipt baseline hashes');
+for(const requested of [null,'bad',[id,id],['not-a-source-id'],Array(21).fill(id),[String(payments[2].id)]]) assert.throws(()=>requestedPaymentRemovals(before,requested),/payment|source row/);
+verifyCloseoutPayments({payments:[payments[1],payments[2]]},{paymentIdsToRemove:[id]},before);
+assert.throws(()=>verifyCloseoutPayments(before,{paymentIdsToRemove:[id]},before),/did not remove exactly/);
+assert.throws(()=>verifyCloseoutPayments({payments:[payments[2]]},{paymentIdsToRemove:[id]},before),/existing source payment/);
+assert.throws(()=>verifyCloseoutPayments({payments:[payments[0],payments[1]]},{paymentIdsToRemove:[id]},before),/existing source payment/);
+verifyCloseoutPayments({payments:[payments[2],{description:'Check, #77',amount:'200.00'}]},{paymentIdsToRemove:[id,second],addPayment:{methodId:'4',amount:'200.00',reference:'77'}},before);
+for(const replacement of [{description:'Cash',amount:'200.00'},{description:'Check, #88',amount:'200.00'},{description:'Check, #77',amount:'201.00'}]) assert.throws(()=>verifyCloseoutPayments({payments:[payments[2],replacement]},{paymentIdsToRemove:[id,second],addPayment:{methodId:'4',amount:'200.00',reference:'77'}},before),/method|reference|amount/);
+assert.throws(()=>verifyCloseoutPayments({payments:[payments[2],{description:'Cash',amount:'200.00'},{description:'Cash',amount:'200.00'}]},{paymentIdsToRemove:[id,second],addPayment:{methodId:'2',amount:'200.00'}},before),/amount/);
+console.log('Payment removal contract passed: legacy hashes, duplicate identities, exact removal, retained rows, replacement method/amount/reference, unavailable controls and invalid requests.');

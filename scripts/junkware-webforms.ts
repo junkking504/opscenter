@@ -120,7 +120,7 @@ async function completeWebFormsAction(
     name: (node as HTMLInputElement).name,
     id: node.id,
     submitsValue: (node instanceof HTMLInputElement && ['submit', 'image'].includes(node.type)) || (node instanceof HTMLButtonElement && node.type === 'submit'),
-    eventTarget: `${node.getAttribute('href') || ''} ${node.getAttribute('onclick') || ''}`.match(/__doPostBack\(['"]([^'"]+)['"]/)?.[1],
+    eventTarget: `${node.getAttribute('href') || ''} ${node.getAttribute('onclick') || ''}`.match(/(?:__doPostBack|WebForm_PostBackOptions)\(['"]([^'"]+)['"]/)?.[1],
   }));
   let blockingMessage = "";
   let resolveDialog: ((message: string) => void) | null = null;

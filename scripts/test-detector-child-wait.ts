@@ -9,7 +9,7 @@ assert.ok(start>=0&&end>start);
 const guard=source.slice(start,end);
 // busyPolls: how many pgrep calls report a non-collector child (pid 999) before it exits.
 // parentAlive: whether the detector (pid 123) is still running. Signals are recorded in "signals".
-function run(busyPolls:number,command:string,waitSeconds=240,parentAlive=true) {
+function run(busyPolls:number,command:string,waitSeconds=240,parentAlive=true,aliveUntil=busyPolls) {
   return spawnSync('bash',['-c',`set -eu
 LOCK_PID=123
 DETECTOR_CHILD_WAIT_SECONDS=${waitSeconds}
@@ -19,7 +19,7 @@ ps() { printf '%s' '${command}'; }
 kill() {
   if [ "$1" = "-0" ]; then
     if [ "$2" = "123" ]; then return ${parentAlive?0:1}; fi
-    n=$(cat "$counter"); [ "$n" -le ${busyPolls} ]; return
+    n=$(cat "$counter"); [ "$n" -le ${aliveUntil} ]; return
   fi
   echo "$*" >> "$counter.signals"; return 0
 }
@@ -46,4 +46,10 @@ assert.equal(orphaned.status,1,'A helper that outlives the detector still blocks
 assert.doesNotMatch(orphaned.stdout,/-TERM 999/,'A helper that outlives the detector is never signalled');
 const orphanDone=run(3,'python3 publish-changes.py',240,false);
 assert.equal(orphanDone.status,0,'A helper that finishes after the detector exits lets the release continue');
+// Reparenting: after the detector exits, pgrep -P stops listing the helper but it is still running.
+const reparented=run(2,'python3 publish-changes.py',20,false,1000);
+assert.equal(reparented.status,1,'A helper that disappears from pgrep but is still alive must block the release');
+assert.doesNotMatch(reparented.stdout,/-TERM 999/,'A reparented helper is never signalled');
+const reparentedDone=run(2,'python3 publish-changes.py',240,false,6);
+assert.equal(reparentedDone.status,0,'A reparented helper that finishes lets the release continue');
 console.log('Detector child wait passed: short helpers wait, collector ignored, persistent or orphaned helpers refused and never signalled.');

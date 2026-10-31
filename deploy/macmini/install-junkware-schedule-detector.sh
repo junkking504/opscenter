@@ -48,18 +48,22 @@ if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   # failing a whole release; still refuse, and never kill it, if it persists.
   CHILD_WAIT_SECONDS="${DETECTOR_CHILD_WAIT_SECONDS:-240}"
   CHILD_WAIT_STARTED="$(date +%s)"
+  OBSERVED_HELPERS=""
   while :; do
     LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
-    UNEXPECTED_CHILD=""
     for child_pid in $LOCK_CHILD_PIDS; do
       child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
-      if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]] && kill -0 "$child_pid" 2>/dev/null; then
-        UNEXPECTED_CHILD="$child_pid"
+      if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]]; then
+        case " $OBSERVED_HELPERS " in *" $child_pid "*) ;; *) OBSERVED_HELPERS="$OBSERVED_HELPERS $child_pid" ;; esac
       fi
     done
+    # Remember every helper seen, so one that is reparented when the detector
+    # exits (and so no longer listed under it) is still waited for.
+    UNEXPECTED_CHILD=""
+    for child_pid in $OBSERVED_HELPERS; do
+      if kill -0 "$child_pid" 2>/dev/null; then UNEXPECTED_CHILD="$child_pid"; fi
+    done
     [ -n "$UNEXPECTED_CHILD" ] || break
-    # Keep waiting even if the detector itself exits: a helper that is still
-    # running must finish or block the release, and is never signalled below.
     if [ $(( $(date +%s) - CHILD_WAIT_STARTED )) -ge "$CHILD_WAIT_SECONDS" ]; then
       echo "JunkWare detector has an unexpected child process after waiting ${CHILD_WAIT_SECONDS}s; refusing to terminate it." >&2
       exit 1

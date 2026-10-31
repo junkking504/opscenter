@@ -187,7 +187,10 @@ refresh when either source advances the normalized snapshot.
 ### Dedicated JunkWare schedule detector
 
 Current appointments and Slack schedule events use a persistent, verified
-JunkWare schedule detector. JunkWare serializes concurrent browser logins, so
+JunkWare schedule detector. The installer allows up to ten minutes for a cold
+initialization to finish all four markets and produce a verified heartbeat newer
+than the restart. A missing, stale or invalid heartbeat still fails deployment;
+normal operation keeps its existing freshness thresholds. JunkWare serializes concurrent browser logins, so
 one browser checks the four markets in sequence and publishes each market as
 soon as it is verified. Each sweep begins five seconds after the previous sweep
 completes. The production in-session sweep measured 17.2 seconds total and about

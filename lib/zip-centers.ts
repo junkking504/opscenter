@@ -1,5 +1,7 @@
-// Approximate ZIP-area centers (Louisiana and Mississippi), from public Census ZCTA
-// reference points. Display/ETA fallback only; never evidence of a property.
+// Approximate ZIP-area centers (Louisiana and Mississippi): 1,258 ZIPs extracted
+// 2026-10-29 from the BSD-licensed npm package `zipcodes` 8.0.0 lat/long table
+// (US Census-derived). Display/ETA fallback only; never evidence of a property.
+// Refresh by re-extracting LA/MS rows from a newer package or Census ZCTA gazetteer.
 export const ZIP_CENTERS: Record<string,[number,number]> = {
   '38601': [34.4719, -89.4475],
   '38602': [34.6863, -90.1068],

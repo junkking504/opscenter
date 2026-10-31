@@ -58,7 +58,8 @@ if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
       fi
     done
     [ -n "$UNEXPECTED_CHILD" ] || break
-    kill -0 "$LOCK_PID" 2>/dev/null || break
+    # Keep waiting even if the detector itself exits: a helper that is still
+    # running must finish or block the release, and is never signalled below.
     if [ $(( $(date +%s) - CHILD_WAIT_STARTED )) -ge "$CHILD_WAIT_SECONDS" ]; then
       echo "JunkWare detector has an unexpected child process after waiting ${CHILD_WAIT_SECONDS}s; refusing to terminate it." >&2
       exit 1

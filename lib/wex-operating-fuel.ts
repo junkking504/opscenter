@@ -10,7 +10,7 @@ const cents=(n:number)=>Math.round(n*100);
 const normal=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
 const truck=(s:string|null)=>s?.match(/\d+/)?.[0] || null;
 const usable=(row:WexAlertExpenseRow)=>row.status==='provisional'||row.status==='posted';
-function possibleReportOverlap(row:WexAlertExpenseRow,report:TruckExpense){
+function sameStationOverlap(row:WexAlertExpenseRow,report:TruckExpense){
   if(row.date!==report.date || report.kind!=='fuel')return false;
   const a=normal(row.merchant), b=normal(report.sourceLocation || report.location);
   if(a.length<4 || b.length<4 || !(a.startsWith(b)||b.startsWith(a)))return false;
@@ -18,8 +18,21 @@ function possibleReportOverlap(row:WexAlertExpenseRow,report:TruckExpense){
   // report as a possible overlap, without guessing which truck made it.
   return !row.attribution?.at || Math.abs(Date.parse(row.attribution.at)-Date.parse(report.transactionAt))<=30*60000;
 }
+function possibleReportOverlap(row:WexAlertExpenseRow,report:TruckExpense){
+  if(sameStationOverlap(row,report))return true;
+  if(row.date!==report.date || report.kind!=='fuel')return false;
+  // Merchant labels can differ between a card processor and a crew entry.
+  // Equal cents plus nearby evidence is a review candidate, never identity.
+  const amount=row.postedAmount??row.authorizedAmount;
+  if(amount===null || !Number.isFinite(amount) || cents(amount)!==cents(report.amount))return false;
+  if(truck(row.truck)&&truck(report.truck)&&truck(row.truck)!==truck(report.truck))return false;
+  // Receipt time is only a conservative fallback for overlap detection. It
+  // must not assign a truck, infer the authorization timezone, or create a match.
+  const at=Date.parse(row.attribution?.at || row.receivedAt), reportedAt=Date.parse(report.transactionAt);
+  return Number.isFinite(at)&&Number.isFinite(reportedAt)&&Math.abs(at-reportedAt)<=30*60000;
+}
 export function alertMatchesReport(row:WexAlertExpenseRow,report:TruckExpense){
-  return !!row.truck && truck(row.truck)===truck(report.truck) && !!row.attribution?.at && possibleReportOverlap(row,report);
+  return !!row.truck && truck(row.truck)===truck(report.truck) && !!row.attribution?.at && sameStationOverlap(row,report);
 }
 
 /** Reconcile identities before adding costs. When published fuel cannot be

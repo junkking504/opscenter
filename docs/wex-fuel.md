@@ -26,6 +26,16 @@ an incomplete total until detail is available. Matching posted purchases replace
 email amounts; possible settlements with missing quantities hold the email row
 for review rather than double counting it. No external accounting write occurs.
 
+Different processor/crew station labels do not prove separate purchases. Equal
+cents on the same purchase day with evidence timestamps within 30 minutes are
+possible overlap when truck identity does not prove they differ. Without GPS,
+email receipt time is used only to flag this possibility, never as the purchase
+time or timezone. This candidate uses the existing supported floor and marks
+fuel, daily costs and net as unresolved; it does not link or delete either source
+record. A definitive match still requires the original station/truck/time
+evidence. Equal amounts alone, separate known trucks, or distant timestamps do
+not trigger this alias candidate. Rounded/prepaid amounts are not auto-matched.
+
 Email purchase attribution reads dated LinxUp stops on every projection so a
 later GPS backfill can resolve a previously unassigned purchase. A unique
 stationary stop of at least one minute must overlap the inferred purchase instant.

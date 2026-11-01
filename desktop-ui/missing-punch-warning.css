@@ -1,0 +1,13 @@
+.missing-punch-warning { display: flex; align-items: flex-start; gap: 9px; margin: 0; padding: 12px; color: var(--oc-status-critical-ink); background: var(--oc-status-critical-tint); border-bottom: 1px solid var(--oc-status-critical-accent); font-size: var(--oc-type-13); line-height: 1.45; }
+.missing-punch-warning > svg { flex-shrink: 0; margin-top: 2px; }
+.missing-punch-warning > span { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.missing-punch-warning strong { font-weight: 750; }
+.missing-punch-warning > span > span { font-size: var(--oc-type-12); }
+.hours-day-card.has-missing-punch { border: 2px solid var(--oc-status-critical-accent); }
+.hours-day-card.has-missing-punch .crew-day-header small { color: var(--oc-status-critical-ink); }
+.hours-day-card .missing-punch-value { color: var(--oc-status-critical-ink); }
+.crew-today-row.has-missing-punch { box-shadow: inset 4px 0 var(--oc-status-critical-accent); }
+.crew-today-row.has-missing-punch .crew-today-issue { color: var(--oc-status-critical-ink); background: var(--oc-status-critical-tint); border-left-color: var(--oc-status-critical-accent); }
+.crew-today-row.has-missing-punch .crew-today-issue-action { color: inherit; }
+.crew-today-punch-label { display: inline-flex; align-items: center; gap: 6px; }
+.crew-today-punch-label svg { flex-shrink: 0; }

@@ -11,6 +11,8 @@ import { DrivingScoreBadge } from './driving-scores';
 import { clockDurationLabel } from './lib/krewe-clock-duration';
 import type { DesktopCrewMember, DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import './crew-today.css';
+import './missing-punch-warning.css';
+import { TriangleAlert } from 'lucide-react';
 
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const metric = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -67,7 +69,7 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
         {(search || filter !== 'all') && <button type="button" onClick={() => { setSearch(''); setFilter('all'); }}>Clear filters</button>}
       </div>
       <div className={`crew-today-list crew-today-${view}`}>
-        {visible.map(member => <article key={member.id} className={`crew-today-row${member.issue ? ' needs-attention' : ''}`} aria-label={member.name}>
+        {visible.map(member => <article key={member.id} className={`crew-today-row${member.issue ? ' needs-attention' : ''}${/^Missing clock/i.test(member.issue) ? ' has-missing-punch' : ''}`} aria-label={member.name}>
           <div className="crew-today-person"><span className="crew-today-avatar">{member.initials}</span><div><h3>{member.name}</h3><p>{member.role} · {truckDisplayText(member.truck || 'Unassigned')}</p></div></div>
           <div className="crew-today-fact crew-today-rph"><span>RPH</span><strong><MetricValue value={snapshot.missingDates.length || employeeRph(member) === null ? 'Unavailable' : money(employeeRph(member))} /></strong><small>Revenue per labor hour</small></div>
           {view === 'pay' ? <>
@@ -80,7 +82,7 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
           </>}
           <WeeklyHoursMeter hours={snapshot.payrollVisible ? weeklyHours(weekSource, member.id, date) : null}/>
           {member.issue && <button type="button" className="crew-today-issue" aria-label={`Review issue for ${member.name}`} onClick={() => onOpen(member, issuePanel(member.issue, snapshot.canWrite))}>
-            <span className="crew-today-issue-copy"><strong>Needs attention</strong><span>{member.issue}</span></span>
+            <span className="crew-today-issue-copy">{/^Missing clock/i.test(member.issue) ? <strong className="crew-today-punch-label"><TriangleAlert aria-hidden="true" size={18}/>{member.issue}</strong> : <><strong>Needs attention</strong><span>{member.issue}</span></>}</span>
             <span className="crew-today-issue-action">Review issue <span aria-hidden="true">→</span></span>
           </button>}
         </article>)}

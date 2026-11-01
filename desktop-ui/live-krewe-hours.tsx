@@ -2,14 +2,16 @@ import { rphForDays } from './lib/crew-rph';
 import { truckDisplayText } from '../lib/junkware-trucks';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {useWorkspaceRefresh} from './workspace-freshness';
-import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
+import type { HoursDay, KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { payForDays, creditedRevenueForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
 import './live-krewe-hours.css';
 import './crew-navigation.css';
-import { recordedPayrollClock } from './lib/payroll-review';
+import { missingPunch } from './lib/missing-punch';
+import { MissingPunchWarning } from './missing-punch-warning';
 import PayrollReview from './payroll-review';
 import KreweDayEditor from './krewe-day-editor';
+import KreweWeekOverview from './krewe-week-overview';
 
 const rphValue = (n: number | null) => n === null ? 'Unavailable' : money(n);
 const dayLabel = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
@@ -96,23 +98,27 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
             const selectedWeek = weekIndex ?? Math.max(0, employee.weeks.findIndex(candidate => selectedDate >= candidate.start && selectedDate <= candidate.end));
             if (index !== selectedWeek) return null;
             const weekPay = payForDays(days, week.start, week.end);
-            return <section className="crew-selected-week" key={week.start} aria-label={`Week ${index + 1}`}>
-
-              <div className="hours-week-content"><h4>Week {index + 1} Totals</h4><div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, week.start, week.end))}</Fact><Fact label="RPH" note="Revenue per labor hour">{rphValue(rphForDays(days, week.start, week.end, missingDates))}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
-                <h4>Daily Totals</h4><div className="hours-daily-records" aria-label={`Week ${index + 1} daily breakdowns`}>{week.days.map(day => {
+            const renderDayDetails = (day: HoursDay, closeWeek: () => void) => {
                   const pay = payForDays(days, day.date, day.date);
                   const evidence = days.find(record => record.date === day.date);
-                  return <section className="hours-day-card" key={day.date} aria-label={`${day.date} daily totals`}>
-                    <header className="crew-day-header"><div><strong>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</strong><small>{day.status}{day.corrected ? ' · Corrected' : ''}</small></div><span>{hours(day.hours)}</span>{payroll && <strong>{money(pay.totalPay)}</strong>}{payroll?.canWrite && <button type="button" className="krewe-payroll-edit" aria-label={`Edit hours for ${employee.name} on ${day.date}`} onClick={() => setEditing({date:day.date,name:employee.name,action:'correction'})}>Edit Hours · Edits Payroll</button>}</header>
-                    <details className="crew-day-details"><summary>Pay breakdown & source details{evidence?.issue ? ' · Needs attention' : ''}</summary><div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{recordedPayrollClock(day.clockIn) || recordedPayrollClock(evidence?.clockIn) || day.clockIn || '—'}</Fact><Fact label="Clock Out">{recordedPayrollClock(day.clockOut) || recordedPayrollClock(evidence?.clockOut) || day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{truckDisplayText(day.truck)}</Fact>
+                  const punch = missingPunch(day, evidence);
+                  return <div className="crew-week-day-content">
+                    <MissingPunchWarning label={punch.label}/>
+                    <header className="crew-day-header"><div><strong>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</strong><small>{punch.label ? (day.corrected ? 'Correction recorded · Punch still missing' : 'Needs time review') : `${day.status}${day.corrected ? ' · Corrected' : ''}`}</small></div><span>{day.hours === null && punch.label ? 'Hours unavailable' : hours(day.hours)}</span>{payroll && <strong>{pay.totalPay === null && punch.label ? 'Pay unavailable' : money(pay.totalPay)}</strong>}{payroll?.canWrite && <button type="button" className="krewe-payroll-edit" aria-label={`Edit hours for ${employee.name} on ${day.date}`} onClick={() => { closeWeek(); setEditing({date:day.date,name:employee.name,action:'correction'}); }}>Edit Hours · Edits Payroll</button>}</header>
+                    <div className="crew-day-details"><div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{punch.missingIn ? <span className="missing-punch-value">Missing clock-in</span> : punch.clockIn || day.clockIn || 'Not recorded'}</Fact><Fact label="Clock Out">{punch.missingOut ? <span className="missing-punch-value">Missing clock-out</span> : punch.clockOut || (day.status === 'On Shift' ? 'On shift' : day.clockOut || 'Not recorded')}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{truckDisplayText(day.truck)}</Fact>
                       </div><div className="hours-day-grid hours-day-production-grid"><Fact label="RPH">{rphValue(rphForDays(days, day.date, day.date, missingDates))}</Fact><Fact label="Jobs">{day.jobs ?? '—'}</Fact><Fact label="Job Revenue Worked">{money(day.jobRevenueWorked)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, day.date, day.date))}</Fact>{payroll && <PayFacts pay={pay} />}
                     </div>{payroll && day.status !== 'Upcoming' && day.status !== 'No Record' && <PayWarning pay={pay} />}
                   {evidence && <div className="hours-day-evidence">{evidence.issue && <p className="hours-record-warning">{evidence.issue}</p>}<p>{evidence.payNote || 'Recorded daily payroll'}{evidence.sourceAt ? ` · Source observed ${evidence.sourceAt}` : ' · Source time unavailable'}</p>{evidence.hourlyRate != null && <p>Shift rate: {money(evidence.hourlyRate)}</p>}{evidence.correctionNote && <p>Correction: {evidence.correctionNote} · {evidence.correctionBy || 'Actor unavailable'} · JunkWare {evidence.syncStatus || 'not verified'}</p>}{evidence.manualBonuses?.map(bonus => <p key={bonus.entryId}>Manual bonus: {money(bonus.amount)} · {bonus.note}</p>)}</div>}
-                  {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'bonus'})}>Add Bonus · Edits Payroll</button></div>}
-                    </details>
-                  </section>;
-                })}</div>
-              </div>
+                  {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => { closeWeek(); setEditing({date:day.date,name:employee.name,action:'bonus'}); }}>Add Bonus · Edits Payroll</button></div>}
+                    </div>
+                  </div>;
+            };
+            return <section className="crew-selected-week" key="selected-week" aria-label={`Week ${index + 1}`}>
+              <KreweWeekOverview name={employee.name} week={week} weekNumber={index + 1} days={days} payrollVisible={Boolean(payroll)} renderDetails={renderDayDetails}
+                onPrevious={index > 0 ? () => setWeekIndex(index - 1) : undefined} onNext={index < employee.weeks.length - 1 ? () => setWeekIndex(index + 1) : undefined}/>
+              <details className="crew-week-totals"><summary>Week {index + 1} totals · {hours(week.total)}{payroll ? ` · ${money(weekPay.totalPay)}` : ''}</summary>
+                <div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact><Fact label="Credited Revenue">{money(creditedRevenueForDays(days, week.start, week.end))}</Fact><Fact label="RPH" note="Revenue per labor hour">{rphValue(rphForDays(days, week.start, week.end, missingDates))}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
+              </details>
             </section>;
           })}
         </article>;

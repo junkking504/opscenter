@@ -8,7 +8,11 @@ try {
   const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(180000);page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`${origin}/desktop-assets/tests/krewe-edits.html?mode=${mode}`,{waitUntil:'domcontentloaded',timeout:180000});
   await page.getByRole('button',{name:/^Week 1 /}).click();
-  await page.getByRole('region',{name:'2026-08-26 daily totals',exact:true}).getByRole('button',{name:/^Edit hours/}).click();
+  await page.getByRole('button',{name:'Show all 7 days full screen for Sample Crew',exact:true}).click();
+  const week=page.getByRole('dialog',{name:'Sample Crew full week',exact:true});
+  await week.locator('.crew-week-day-summary').filter({hasText:'Aug 26'}).click();
+  await week.getByRole('button',{name:'Edit hours for Sample Crew on 2026-08-26',exact:true}).click();
+  await week.waitFor({state:'detached'});
   const dialog=page.getByRole('dialog');await dialog.getByLabel('Clock-in',{exact:true}).fill('08:00');await dialog.getByLabel('Clock-out',{exact:true}).fill('12:00');await dialog.getByLabel('Hourly rate',{exact:true}).fill('22');await dialog.getByLabel('Correction reason').fill('Synthetic source synchronization');
   await dialog.getByRole('button',{name:'Save Hours · Edits Payroll',exact:true}).click();
   if(mode==='normal')await dialog.waitFor({state:'hidden'});

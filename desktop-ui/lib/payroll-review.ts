@@ -15,6 +15,13 @@ export function recordedPayrollClock(value: string | undefined): string {
   return /^(?:(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM)|(?:[01]?\d|2[0-3]):[0-5]\d)$/i.test(text) ? text : '';
 }
 
+export function payrollDayActivity(day: HoursDay, payDay?: DesktopCrewMember['days'][number]): boolean {
+  const clockIn = recordedPayrollClock(day.clockIn) || recordedPayrollClock(payDay?.clockIn);
+  const clockOut = recordedPayrollClock(day.clockOut) || recordedPayrollClock(payDay?.clockOut);
+  return (day.hours ?? 0) > 0 || (day.jobs ?? 0) > 0 || !!clockIn || !!clockOut || day.corrected ||
+    !!payDay && [payDay.hours, payDay.labor, payDay.tips, payDay.bonuses, payDay.supplemental, payDay.totalPay].some(value => known(value) && value !== 0);
+}
+
 /** Same displayed daily earnings as Krewe. Never infer wages or turn missing pay into zero. */
 export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKreweSnapshot): PayrollReviewRow[] {
   if (hours.date !== payroll.date || hours.start !== payroll.start || payroll.view !== 'payperiod') return [];
@@ -35,8 +42,7 @@ export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKr
       if (day.status === 'Hours Unavailable') add(day.date, day.status);
       // An absent employee row does not establish a missed shift. Flag it when
       // job, clock, pay or correction evidence says this employee worked.
-      const activity = (day.hours ?? 0) > 0 || (day.jobs ?? 0) > 0 || !!clockIn || !!clockOut || day.corrected ||
-        !!payDay && [payDay.hours, payDay.labor, payDay.tips, payDay.bonuses, payDay.supplemental, payDay.totalPay].some(value => known(value) && value !== 0);
+      const activity = payrollDayActivity(day, payDay);
       if (activity && !day.isSalary && (!clockIn || !clockOut)) add(day.date, 'Clock-in or clock-out missing');
       if (activity && !payDay) add(day.date, 'Pay record missing');
       if (payDay) {

@@ -65,6 +65,24 @@ try{
  const mixed=reconcileOperatingFuel(118.22,wex,unassigned,[aliasReport,{...aliasReport,id:'distinct',amount:50,transactionAt:`${date}T20:00:00Z`}]);
  assert.equal(mixed.amount,118.22,'mixed-day unresolved result remains the documented aggregate floor');
  assert.equal(mixed.overlapUnresolved,true);
+ // Pairwise review: a paired alias is counted once; unrelated spend stays counted.
+ const pairOf=(r:ReturnType<typeof reconcileOperatingFuel>)=>JSON.stringify(r.reviewPairs);
+ assert.equal(pairOf(alias),JSON.stringify([{wexId:unassigned.rows[0].id,reportId:'report'}]),'review pair is exposed, not merged');
+ const distinct={...aliasReport,id:'distinct',amount:50,transactionAt:`${date}T20:00:00Z`};
+ const understated=reconcileOperatingFuel(0,wex,unassigned,[aliasReport,distinct]);
+ assert.equal(understated.amount,118.22,'incomplete aggregate must not hide an unrelated manual purchase behind a whole-day max');
+ assert.equal(understated.overlapUnresolved,true);
+ const twinFills=reconcileOperatingFuel(0,wex,unassigned,[aliasReport,{...aliasReport,id:'twin'}]);
+ assert.equal(twinFills.amount,136.44,'two identical manual fills with one WEX row: one pairs, the other stays counted');
+ assert.equal(twinFills.reviewPairs?.length,1);
+ const twoRows={...unassigned,rows:[unassigned.rows[0],{...unassigned.rows[0],id:'second',trackingNumber:'2',sourceIds:['second']}]};
+ const twoRowFuel=reconcileOperatingFuel(0,wex,twoRows,[aliasReport]);
+ assert.equal(twoRowFuel.amount,136.44,'two identical WEX rows with one manual entry: one pairs, the other stays counted');
+ assert.equal(twoRowFuel.reviewPairs?.length,1);
+ const completeDetail=reconcileOperatingFuel(118.22,wex,unassigned,[aliasReport,distinct]);
+ assert.equal(completeDetail.amount,118.22,'complete itemized detail explains the aggregate exactly once');
+ assert.equal(completeDetail.overlapUnresolved,true,'pair stays visible for review');
+ const novaFirst=reconcileOperatingFuel(68.22,wex,unassigned,[]);assert.deepEqual(novaFirst.reviewPairs,[],'no candidates, no pairs');
  const aliasSummary=buildDailyFinanceSummary({...metrics,fuel_expense:68.22,total_expenses:200},wex,0,alias);
  const aliasDisplay=presentDailyFinance(aliasSummary,dailyFinanceEvidence(metrics,aliasSummary,date,wex),date,Date.parse(`${date}T19:01:00Z`));
  for(const field of ['fuel','totalCosts','net'] as const)assert.match(aliasDisplay[field].detail,/overlap unresolved/,'alias uncertainty must reach every affected KPI');

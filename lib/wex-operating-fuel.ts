@@ -49,19 +49,52 @@ export function reconcileOperatingFuel(published:number|null,wex:WexFuelFinanceD
   const linked=new Set(rows.flatMap(row=>row.postedId?[row.postedId]:[]));
   const posted=wex.available?wex.transactions.filter(p=>p.transactionDate===alerts.date&&!linked.has(p.transactionId)):[];
   const unknownPosted=posted.some(p=>p.totalFuelCost===null&&p.totalNonFuelCost!==0);
-  const emailAmount=rows.reduce((sum,row)=>sum+cents(row.postedAmount??row.authorizedAmount??0),0)/100;
+  const rowCents=(row:WexAlertExpenseRow)=>cents(row.postedAmount??row.authorizedAmount??0);
+  const emailAmount=rows.reduce((sum,row)=>sum+rowCents(row),0)/100;
   const purchaseAmount=emailAmount+posted.reduce((sum,p)=>sum+cents(p.totalFuelCost??(p.totalNonFuelCost===0?p.netCost:0)),0)/100;
   const reported=entries.reduce((sum,row)=>sum+cents(row.amount),0)/100;
   // Complete individual detail is needed to add an unrelated purchase to a
   // nonzero published aggregate. An unmatched posted purchase may also overlap.
-  const detailComplete=published!==null && Math.abs(reported-published)<.005 && entries.every(r=>r.fuelAllocation?.unique!==false&&!r.reconciliationNote) && new Set(entries.map(r=>r.id)).size===entries.length;
-  const overlapUnresolved=alerts.status==='invalid' || alerts.rows.some(row=>row.status==='review') || unknownPosted || rows.some((_,i)=>potential[i].length>0&&!(options[i].length===1&&matched.has(options[i][0].id))) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
+  const entriesClean=entries.every(r=>r.fuelAllocation?.unique!==false&&!r.reconciliationNote) && new Set(entries.map(r=>r.id)).size===entries.length;
+  const detailComplete=published!==null && Math.abs(reported-published)<.005 && entriesClean;
+  // Pair each unconfirmed WEX row with at most one manual entry (and each entry
+  // with at most one row). A review pair is counted once, at the larger of its
+  // two amounts; every WEX row or manual entry outside a pair stays counted.
+  // Pairing only shapes the provisional total: it never links, edits or hides
+  // either source record and never becomes a confirmed match.
+  const confirmedRow=rows.map((_,i)=>options[i].length===1&&matched.has(options[i][0].id));
+  const reviewPairs=pairCandidates(rows.map((_,i)=>confirmedRow[i]?[]:potential[i].filter(r=>!matched.has(r.id)).map(r=>r.id)));
+  const pairCredit=reviewPairs.reduce((sum,[i,id])=>sum+Math.min(rowCents(rows[i]),cents(entries.find(r=>r.id===id)!.amount)),0)/100;
+  const matchedAmount=entries.filter(r=>matched.has(r.id)).reduce((sum,r)=>sum+cents(r.amount),0)/100;
+  const overlapUnresolved=alerts.status==='invalid' || alerts.rows.some(row=>row.status==='review') || unknownPosted || rows.some((_,i)=>potential[i].length>0&&!confirmedRow[i]) || (published!==null&&published>0&&(!detailComplete||posted.length>0));
   let amount=published;
   if(rows.length || posted.length){
-    const matchedAmount=entries.filter(r=>matched.has(r.id)).reduce((sum,r)=>sum+cents(r.amount),0)/100;
-    amount=detailComplete && !overlapUnresolved ? (published??0)-matchedAmount+purchaseAmount : Math.max(published??0,purchaseAmount);
+    const blocked=alerts.status==='invalid' || alerts.rows.some(row=>row.status==='review') || unknownPosted || (published!==null&&published>0&&posted.length>0);
+    if(detailComplete && !blocked) amount=(published??0)-matchedAmount-pairCredit+purchaseAmount;
+    else {
+      // Floor: published spend, all WEX purchases, and (with clean itemized
+      // detail) manual entries plus WEX email rows less pairwise overlap.
+      // Unlinked posted rows are not paired, so they never stack on entries.
+      const itemized=published!==null&&entriesClean ? reported+emailAmount-matchedAmount-pairCredit : 0;
+      amount=Math.max(published??0,purchaseAmount,itemized);
+    }
   }
-  return {amount:amount===null?null:cents(amount)/100,adjustment:amount===null?0:cents(amount-(published??0))/100,purchases:rows.length+posted.length,emailAmount,overlapUnresolved,publishedIncluded:amount!==null&&amount>purchaseAmount+.005,sourceAt:alerts.rows.filter(r=>usable(r)||r.status==='review').map(r=>r.receivedAt).sort().at(-1)||null,matchedReportIds:[...matched]};
+  return {amount:amount===null?null:cents(amount)/100,adjustment:amount===null?0:cents(amount-(published??0))/100,purchases:rows.length+posted.length,emailAmount,overlapUnresolved,publishedIncluded:amount!==null&&amount>purchaseAmount+.005,sourceAt:alerts.rows.filter(r=>usable(r)||r.status==='review').map(r=>r.receivedAt).sort().at(-1)||null,matchedReportIds:[...matched],
+    reviewPairs:reviewPairs.map(([i,reportId])=>({wexId:rows[i].id,reportId}))};
+}
+/** Maximum one-to-one pairing (augmenting paths); candidates are tiny per day. */
+function pairCandidates(candidates:string[][]):Array<[number,string]>{
+  const owner=new Map<string,number>();
+  const assign=(i:number,seen:Set<string>):boolean=>{
+    for(const id of candidates[i]){
+      if(seen.has(id))continue;seen.add(id);
+      const holder=owner.get(id);
+      if(holder===undefined||assign(holder,seen)){owner.set(id,i);return true;}
+    }
+    return false;
+  };
+  candidates.forEach((_,i)=>assign(i,new Set()));
+  return [...owner].map(([id,i])=>[i,id] as [number,string]).sort((a,b)=>a[0]-b[0]);
 }
 export function readOperatingFuel(date:string,published:number|null,wex=readWexFuelFinance(date),alerts=readWexAlertExpenses(date,wex.transactions)){
   return reconcileOperatingFuel(published,wex,alerts,readOperationalTruckExpenses(date));

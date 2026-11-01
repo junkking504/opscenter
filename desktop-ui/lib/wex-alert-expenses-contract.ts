@@ -3,4 +3,4 @@ export type WexAlertExpenseRow={id:string;trackingNumber:string;date:string;truc
 export type WexMailFeedStatus={watcher:'running'|'not_running'|'unknown';application:{status:string;checkedAt?:string;latestReceivedAt?:string|null}|null;source:{status:string;checkedAt?:string;latestReceivedAt?:string|null;rejected?:number;trigger?:string}|null};
 export type WexAlertDailyExpenses={date:string;status:'available'|'missing'|'invalid';importedAt:string|null;rows:WexAlertExpenseRow[];provisionalTotal:number|null;reviewCount:number;postedCount:number;operatingTotal?:number|null;unassignedTotal?:number;feed?:WexMailFeedStatus};
 
-export type OperatingFuel = { amount:number|null; adjustment:number; purchases:number; emailAmount:number; overlapUnresolved:boolean; publishedIncluded?:boolean; sourceAt:string|null; matchedReportIds:string[] };
+export type OperatingFuel = { amount:number|null; adjustment:number; purchases:number; emailAmount:number; overlapUnresolved:boolean; publishedIncluded?:boolean; sourceAt:string|null; matchedReportIds:string[]; reviewPairs?:{wexId:string;reportId:string}[] };
